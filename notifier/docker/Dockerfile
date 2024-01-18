@@ -1,9 +1,10 @@
-FROM alpine:3.18
+FROM alpine:3.19
 
+RUN apk -U upgrade --no-cache
 RUN apk add --no-cache python3 py3-pip uuidgen
 
 COPY notifier/docker/requirements.txt .
-RUN pip install -r requirements.txt && \
+RUN pip install -r requirements.txt --break-system-package && \
     rm requirements.txt
 ENV PYTHONPATH /opt/isardvdi
 COPY component/_common/src /opt/isardvdi/isardvdi_common
