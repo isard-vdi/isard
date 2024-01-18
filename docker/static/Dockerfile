@@ -18,7 +18,7 @@ RUN rm -rf src
 RUN rm -rf node_modules
 RUN rm -rf build
 
-FROM nginxinc/nginx-unprivileged:stable-alpine-slim as production
+FROM nginxinc/nginx-unprivileged:1.25-alpine-slim as production
 
 USER root
 RUN apk -U upgrade --no-cache
