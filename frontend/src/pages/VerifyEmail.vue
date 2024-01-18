@@ -23,6 +23,7 @@
               <b-form-input
                 id="emailAddress"
                 v-model="emailAddress"
+                autocomplete="off"
                 :autofocus="true"
                 :placeholder="$t('views.verify-email.placeholder')"
                 :state="v$.emailAddress.$error ? false : null"
