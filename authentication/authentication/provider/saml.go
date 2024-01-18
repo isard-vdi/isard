@@ -11,13 +11,13 @@ import (
 	"net/url"
 	"regexp"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
+	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 
 	"github.com/crewjam/saml/samlsp"
 )
-
-const SAMLString = "saml"
 
 type SAML struct {
 	cfg        cfg.Authentication
@@ -108,7 +108,7 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args map[string]str
 		redirect = r
 	}
 
-	ss, err := signCallbackToken(s.cfg.Secret, SAMLString, categoryID, redirect)
+	ss, err := token.SignCallbackToken(s.cfg.Secret, types.SAML, categoryID, redirect)
 	if err != nil {
 		return nil, nil, "", err
 	}
@@ -122,7 +122,7 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args map[string]str
 	return nil, nil, u.String(), nil
 }
 
-func (s *SAML) Callback(ctx context.Context, claims *CallbackClaims, args map[string]string) (*model.Group, *model.User, string, error) {
+func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (*model.Group, *model.User, string, error) {
 	r := ctx.Value(HTTPRequest).(*http.Request)
 
 	sess, err := s.Middleware.Session.GetSession(r)
@@ -155,5 +155,5 @@ func (SAML) AutoRegister() bool {
 }
 
 func (SAML) String() string {
-	return SAMLString
+	return types.SAML
 }

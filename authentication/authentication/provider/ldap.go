@@ -9,11 +9,11 @@ import (
 	"regexp"
 
 	"github.com/go-ldap/ldap/v3"
+	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
+	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 )
-
-const LDAPString = "ldap"
 
 type LDAP struct {
 	cfg cfg.AuthenticationLDAP
@@ -226,7 +226,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 
 	u := &model.User{
 		UID:      matchRegex(l.ReUID, entry.GetAttributeValue(l.cfg.FieldUID)),
-		Provider: LDAPString,
+		Provider: types.LDAP,
 		Category: categoryID,
 		Username: matchRegex(l.ReUsername, entry.GetAttributeValue(l.cfg.FieldUsername)),
 		Name:     matchRegex(l.ReName, entry.GetAttributeValue(l.cfg.FieldName)),
@@ -288,7 +288,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 	return g, u, "", nil
 }
 
-func (l *LDAP) Callback(context.Context, *CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
+func (l *LDAP) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
 	return nil, nil, "", errInvalidIDP
 }
 
@@ -297,5 +297,5 @@ func (l *LDAP) AutoRegister() bool {
 }
 
 func (l *LDAP) String() string {
-	return LDAPString
+	return types.LDAP
 }

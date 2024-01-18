@@ -30,7 +30,9 @@ func (g *Group) LoadExternal(ctx context.Context, sess r.QueryExecutor) error {
 		r.Eq(r.Row.Field("external_gid"), g.ExternalGID),
 	), r.FilterOpts{}).Run(sess)
 	if err != nil {
-		return err
+		return &db.Err{
+			Err: err,
+		}
 	}
 	defer res.Close()
 
@@ -39,7 +41,10 @@ func (g *Group) LoadExternal(ctx context.Context, sess r.QueryExecutor) error {
 			return db.ErrNotFound
 		}
 
-		return fmt.Errorf("read db response: %w", err)
+		return &db.Err{
+			Msg: "read db response",
+			Err: err,
+		}
 	}
 
 	return nil
@@ -53,7 +58,9 @@ func (g *Group) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) 
 			r.Eq(r.Row.Field("external_gid"), g.ExternalGID),
 		), r.FilterOpts{}).Run(sess)
 		if err != nil {
-			return false, err
+			return false, &db.Err{
+				Err: err,
+			}
 		}
 		defer res.Close()
 
@@ -66,7 +73,10 @@ func (g *Group) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) 
 				return false, nil
 			}
 
-			return false, fmt.Errorf("read db response: %w", err)
+			return false, &db.Err{
+				Msg: "read db response",
+				Err: err,
+			}
 		}
 
 		return true, nil
@@ -74,7 +84,9 @@ func (g *Group) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) 
 	} else {
 		res, err := r.Table("groups").Get(g.ID).Run(sess)
 		if err != nil {
-			return false, err
+			return false, &db.Err{
+				Err: err,
+			}
 		}
 		defer res.Close()
 
@@ -87,7 +99,10 @@ func (g *Group) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) 
 				return false, nil
 			}
 
-			return false, fmt.Errorf("read db response: %w", err)
+			return false, &db.Err{
+				Msg: "read db response",
+				Err: err,
+			}
 		}
 
 		return true, nil

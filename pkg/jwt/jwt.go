@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 )
+
+const adminUsr = "local-default-admin-admin"
 
 func SignAPIJWT(secret string) (string, error) {
 	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.MapClaims{
@@ -14,7 +16,7 @@ func SignAPIJWT(secret string) (string, error) {
 		"data": map[string]interface{}{
 			"role_id":     "admin", // we need the role to be admin in order
 			"category_id": "default",
-			"user_id":     "local-default-admin-admin",
+			"user_id":     adminUsr,
 		},
 	})
 

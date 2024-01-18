@@ -14,6 +14,7 @@ type Cfg struct {
 	Log            cfg.Log
 	DB             cfg.DB
 	HTTP           cfg.HTTP
+	Notifier       Notifier
 	Authentication Authentication
 }
 
@@ -91,6 +92,10 @@ type AuthenticationGoogle struct {
 	ClientSecret string `mapstructure:"client_secret"`
 }
 
+type Notifier struct {
+	Address string `mapstructure:"address"`
+}
+
 func New() Cfg {
 	config := &Cfg{}
 
@@ -113,7 +118,7 @@ func setDefaults() {
 	viper.BindEnv("authentication.secret", "API_ISARDVDI_SECRET")
 
 	viper.SetDefault("authentication", map[string]interface{}{
-		"host":           getEnv("AUTHENTICATION_AUTHENTICATION_HOST", os.Getenv("DOMAIN")),
+		"host":           getEnv("AUTHENTICATION_AUTHENTICATION_HOST", getEnv("DOMAIN", "localhost")),
 		"secret":         "",
 		"token_duration": "4h",
 		"local": map[string]interface{}{
@@ -176,5 +181,9 @@ func setDefaults() {
 			"client_id":     "",
 			"client_secret": "",
 		},
+	})
+
+	viper.SetDefault("notifier", map[string]interface{}{
+		"address": "http://isard-notifier:5000",
 	})
 }

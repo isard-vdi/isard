@@ -3,7 +3,6 @@ package model
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"gitlab.com/isard/isardvdi/pkg/db"
 
@@ -15,7 +14,6 @@ type User struct {
 	ID       string `rethinkdb:"id"`
 	UID      string `rethinkdb:"uid"`
 	Username string `rethinkdb:"username"`
-	Password string `rethinkdb:"password"`
 	Provider string `rethinkdb:"provider"`
 	Active   bool   `rethinkdb:"active"`
 
@@ -23,9 +21,16 @@ type User struct {
 	Role     Role   `rethinkdb:"role"`
 	Group    string `rethinkdb:"group"`
 
-	Name  string `rethinkdb:"name"`
-	Email string `rethinkdb:"email"`
-	Photo string `rethinkdb:"photo"`
+	Password           string `rethinkdb:"password"`
+	PasswordResetToken string `rethinkdb:"password_reset_token"`
+
+	Name                   string   `rethinkdb:"name"`
+	Email                  string   `rethinkdb:"email"`
+	EmailVerified          *float64 `rethinkdb:"email_verified"`
+	EmailVerificationToken string   `rethinkdb:"email_verification_token"`
+	Photo                  string   `rethinkdb:"photo"`
+
+	DisclaimerAcknowledged bool `rethinkdb:"disclaimer_acknowledged"`
 
 	Accessed float64 `rethinkdb:"accessed"`
 }
@@ -33,7 +38,9 @@ type User struct {
 func (u *User) Load(ctx context.Context, sess r.QueryExecutor) error {
 	res, err := r.Table("users").Get(u.ID).Run(sess)
 	if err != nil {
-		return err
+		return &db.Err{
+			Err: err,
+		}
 	}
 	defer res.Close()
 
@@ -42,7 +49,10 @@ func (u *User) Load(ctx context.Context, sess r.QueryExecutor) error {
 			return db.ErrNotFound
 		}
 
-		return fmt.Errorf("read db response: %w", err)
+		return &db.Err{
+			Msg: "read db response",
+			Err: err,
+		}
 	}
 
 	return nil
@@ -55,7 +65,9 @@ func (u *User) LoadWithoutID(ctx context.Context, sess r.QueryExecutor) error {
 		r.Eq(r.Row.Field("category"), u.Category),
 	), r.FilterOpts{}).Run(sess)
 	if err != nil {
-		return err
+		return &db.Err{
+			Err: err,
+		}
 	}
 	defer res.Close()
 
@@ -64,15 +76,61 @@ func (u *User) LoadWithoutID(ctx context.Context, sess r.QueryExecutor) error {
 			return db.ErrNotFound
 		}
 
-		return fmt.Errorf("read db response: %w", err)
+		return &db.Err{
+			Msg: "read db response",
+			Err: err,
+		}
 	}
 
 	return nil
 }
 
 func (u *User) Update(ctx context.Context, sess r.QueryExecutor) error {
-	_, err := r.Table("users").Get(u.ID).Update(u).Run(sess)
-	return err
+	if _, err := r.Table("users").Get(u.ID).Update(u).Run(sess); err != nil {
+		return &db.Err{
+			Err: err,
+		}
+	}
+
+	return nil
+}
+
+func (u *User) UpdateDisclaimerAcknowledged(ctx context.Context, sess r.QueryExecutor) error {
+	if _, err := r.Table("users").Get(u.ID).Update(map[string]interface{}{
+		"disclaimer_acknowledged": u.DisclaimerAcknowledged,
+	}).Run(sess); err != nil {
+		return &db.Err{
+			Err: err,
+		}
+	}
+
+	return nil
+}
+
+func (u *User) UpdateEmail(ctx context.Context, sess r.QueryExecutor) error {
+	if _, err := r.Table("users").Get(u.ID).Update(map[string]interface{}{
+		"email":                    u.Email,
+		"email_verified":           u.EmailVerified,
+		"email_verification_token": u.EmailVerificationToken,
+	}).Run(sess); err != nil {
+		return &db.Err{
+			Err: err,
+		}
+	}
+
+	return nil
+}
+
+func (u *User) UpdatePasswordResetToken(ctx context.Context, sess r.QueryExecutor) error {
+	if _, err := r.Table("users").Get(u.ID).Update(map[string]interface{}{
+		"password_reset_token": u.PasswordResetToken,
+	}).Run(sess); err != nil {
+		return &db.Err{
+			Err: err,
+		}
+	}
+
+	return nil
 }
 
 func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
@@ -82,7 +140,9 @@ func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 		r.Eq(r.Row.Field("category"), u.Category),
 	), r.FilterOpts{}).Run(sess)
 	if err != nil {
-		return false, err
+		return false, &db.Err{
+			Err: err,
+		}
 	}
 	defer res.Close()
 
@@ -95,7 +155,63 @@ func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 			return false, nil
 		}
 
-		return false, fmt.Errorf("read db response: %w", err)
+		return false, &db.Err{
+			Msg: "read db response",
+			Err: err,
+		}
+	}
+
+	return true, nil
+}
+
+func (u *User) ExistsWithVerifiedEmail(ctx context.Context, sess r.QueryExecutor) (bool, error) {
+	res, err := r.Table("users").Filter(r.And(
+		r.Eq(r.Row.Field("category"), u.Category),
+		r.Eq(r.Row.Field("email"), u.Email),
+		r.Ne(r.Row.Field("email_verified"), nil),
+	), r.FilterOpts{}).Run(sess)
+	if err != nil {
+		return false, &db.Err{
+			Err: err,
+		}
+	}
+	defer res.Close()
+
+	if err := res.One(u); err != nil {
+		if !errors.Is(err, r.ErrEmptyResult) {
+			return false, &db.Err{
+				Msg: "read db response",
+				Err: err,
+			}
+		}
+
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (u *User) ExistsWithPasswordResetToken(ctx context.Context, sess r.QueryExecutor) (bool, error) {
+	res, err := r.Table("users").Filter(r.And(
+		r.Eq(r.Row.Field("id"), u.ID),
+		r.Eq(r.Row.Field("password_reset_token"), u.PasswordResetToken),
+	), r.FilterOpts{}).Run(sess)
+	if err != nil {
+		return false, &db.Err{
+			Err: err,
+		}
+	}
+	defer res.Close()
+
+	if err := res.One(u); err != nil {
+		if !errors.Is(err, r.ErrEmptyResult) {
+			return false, &db.Err{
+				Msg: "read db response",
+				Err: err,
+			}
+		}
+
+		return false, nil
 	}
 
 	return true, nil
@@ -120,6 +236,14 @@ func (u *User) LoadWithoutOverride(u2 *User) {
 
 	if u.Email == "" {
 		u.Email = u2.Email
+	}
+
+	if u.EmailVerified == nil {
+		u.EmailVerified = u2.EmailVerified
+	}
+
+	if u.EmailVerificationToken == "" {
+		u.EmailVerificationToken = u2.EmailVerificationToken
 	}
 
 	if u.Photo == "" {

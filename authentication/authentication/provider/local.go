@@ -6,14 +6,14 @@ import (
 	"errors"
 	"fmt"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
+	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/pkg/db"
 
 	"golang.org/x/crypto/bcrypt"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
-
-const LocalString = "local"
 
 type Local struct {
 	db r.QueryExecutor
@@ -67,7 +67,7 @@ func (l *Local) Login(ctx context.Context, categoryID string, args map[string]st
 	u := &model.User{
 		UID:      usr,
 		Username: usr,
-		Provider: LocalString,
+		Provider: types.Local,
 		Category: categoryID,
 	}
 	if err := u.LoadWithoutID(ctx, l.db); err != nil {
@@ -85,7 +85,7 @@ func (l *Local) Login(ctx context.Context, categoryID string, args map[string]st
 	return nil, u, "", nil
 }
 
-func (l *Local) Callback(context.Context, *CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
+func (l *Local) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
 	return nil, nil, "", errInvalidIDP
 }
 
@@ -94,5 +94,5 @@ func (Local) AutoRegister() bool {
 }
 
 func (l *Local) String() string {
-	return LocalString
+	return types.Local
 }

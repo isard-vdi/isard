@@ -110,6 +110,9 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 
 # ------ Authentication ------------------------------------------------------
 
+# The address of the notifier service
+#AUTHENTICATION_NOTIFIER_ADDRESS=http://isard-notifier:5000
+
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 #AUTHENTICATION_AUTHENTICATION_TOKEN_DURATION=4h
 

@@ -3,8 +3,10 @@ package provider
 import (
 	"context"
 
-	"github.com/stretchr/testify/mock"
+	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
+
+	"github.com/stretchr/testify/mock"
 )
 
 var _ Provider = &ProviderMock{}
@@ -18,7 +20,7 @@ func (m *ProviderMock) Login(ctx context.Context, categoryID string, args map[st
 	return mArgs.Get(0).(*model.Group), mArgs.Get(1).(*model.User), mArgs.String(2), mArgs.Error(3)
 }
 
-func (m *ProviderMock) Callback(ctx context.Context, claims *CallbackClaims, args map[string]string) (g *model.Group, u *model.User, redirect string, err error) {
+func (m *ProviderMock) Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (g *model.Group, u *model.User, redirect string, err error) {
 	mArgs := m.Called(ctx, claims, args)
 	return mArgs.Get(0).(*model.Group), mArgs.Get(1).(*model.User), mArgs.String(2), mArgs.Error(3)
 }

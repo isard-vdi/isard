@@ -26,8 +26,8 @@ func (m *AuthenticationMock) Login(ctx context.Context, provider string, categor
 	return mArgs.String(0), mArgs.String(1), mArgs.Error(2)
 }
 
-func (m *AuthenticationMock) Callback(ctx context.Context, args map[string]string) (string, string, error) {
-	mArgs := m.Called(ctx, args)
+func (m *AuthenticationMock) Callback(ctx context.Context, tkn string, args map[string]string) (string, string, error) {
+	mArgs := m.Called(ctx, tkn, args)
 	return mArgs.String(0), mArgs.String(1), mArgs.Error(2)
 }
 
@@ -43,6 +43,31 @@ func (m *AuthenticationMock) Providers() []string {
 func (m *AuthenticationMock) Provider(prv string) provider.Provider {
 	m.Called(prv)
 	return m.AuthProvider
+}
+
+func (m *AuthenticationMock) AcknowledgeDisclaimer(ctx context.Context, tkn string) error {
+	mArgs := m.Called(ctx, tkn)
+	return mArgs.Error(0)
+}
+
+func (m *AuthenticationMock) RequestEmailVerification(ctx context.Context, tkn, email string) error {
+	mArgs := m.Called(ctx, tkn, email)
+	return mArgs.Error(0)
+}
+
+func (m *AuthenticationMock) VerifyEmail(ctx context.Context, tkn string) error {
+	mArgs := m.Called(ctx, tkn)
+	return mArgs.Error(0)
+}
+
+func (m *AuthenticationMock) ForgotPassword(ctx context.Context, categoryID, email string) error {
+	mArgs := m.Called(ctx, categoryID, email)
+	return mArgs.Error(0)
+}
+
+func (m *AuthenticationMock) ResetPassword(ctx context.Context, tkn, pwd string) error {
+	mArgs := m.Called(ctx, tkn, pwd)
+	return mArgs.Error(0)
 }
 
 func (m *AuthenticationMock) SAML() *samlsp.Middleware {

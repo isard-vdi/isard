@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/pkg/db"
@@ -14,6 +15,7 @@ import (
 
 func TestUserLoad(t *testing.T) {
 	assert := assert.New(t)
+	now := float64(time.Now().Unix())
 
 	cases := map[string]struct {
 		PrepareTest  func(*r.Mock)
@@ -25,17 +27,18 @@ func TestUserLoad(t *testing.T) {
 			PrepareTest: func(m *r.Mock) {
 				m.On(r.Table("users").Get("local-default-admin-admin")).Return([]interface{}{
 					map[string]interface{}{
-						"id":       "local-default-admin-admin",
-						"uid":      "admin",
-						"username": "admin",
-						"password": "f0ckt3Rf$",
-						"provider": "local",
-						"category": "default",
-						"role":     "default",
-						"group":    "default",
-						"name":     "Administrator",
-						"email":    "admin@isardvdi.com",
-						"photo":    "https://isardvdi.com/path/to/photo.jpg",
+						"id":             "local-default-admin-admin",
+						"uid":            "admin",
+						"username":       "admin",
+						"password":       "f0ckt3Rf$",
+						"provider":       "local",
+						"category":       "default",
+						"role":           "default",
+						"group":          "default",
+						"name":           "Administrator",
+						"email":          "admin@isardvdi.com",
+						"email_verified": now,
+						"photo":          "https://isardvdi.com/path/to/photo.jpg",
 					},
 				}, nil)
 			},
@@ -43,17 +46,19 @@ func TestUserLoad(t *testing.T) {
 				ID: "local-default-admin-admin",
 			},
 			ExpectedUser: &model.User{
-				ID:       "local-default-admin-admin",
-				UID:      "admin",
-				Username: "admin",
-				Password: "f0ckt3Rf$",
-				Provider: "local",
-				Category: "default",
-				Role:     "default",
-				Group:    "default",
-				Name:     "Administrator",
-				Email:    "admin@isardvdi.com",
-				Photo:    "https://isardvdi.com/path/to/foto.jpg",
+				ID:            "local-default-admin-admin",
+				UID:           "admin",
+				Username:      "admin",
+				Password:      "f0ckt3Rf$",
+				Provider:      "local",
+				Category:      "default",
+				Role:          "default",
+				Group:         "default",
+				Name:          "Administrator",
+				Email:         "admin@isardvdi.com",
+				EmailVerified: &now,
+
+				Photo: "https://isardvdi.com/path/to/foto.jpg",
 			},
 		},
 		"should return an error if there's an error querying the DB": {
@@ -93,6 +98,60 @@ func TestUserLoad(t *testing.T) {
 			} else {
 				assert.EqualError(err, tc.ExpectedErr)
 			}
+
+			mock.AssertExpectations(t)
+		})
+	}
+}
+
+func TestExistsWithVerifiedEmail(t *testing.T) {
+	assert := assert.New(t)
+	now := float64(time.Now().Unix())
+
+	cases := map[string]struct {
+		PrepareTest    func(*r.Mock)
+		User           *model.User
+		ExpectedExists bool
+		ExpectedErr    string
+	}{
+		"should work as expected": {
+			PrepareTest: func(m *r.Mock) {
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("category"), "default"),
+					r.Eq(r.Row.Field("email"), "nefix@example.org"),
+					r.Ne(r.Row.Field("email_verified"), nil),
+				))).Return([]interface{}{
+					map[string]interface{}{
+						"category":       "default",
+						"email":          "nefix@example.org",
+						"email_verified": now,
+					},
+				}, nil)
+			},
+			User: &model.User{
+				Category:      "default",
+				Email:         "nefix@example.org",
+				EmailVerified: &now,
+			},
+			ExpectedExists: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			mock := r.NewMock()
+
+			tc.PrepareTest(mock)
+
+			exists, err := tc.User.ExistsWithVerifiedEmail(context.Background(), mock)
+
+			if tc.ExpectedErr == "" {
+				assert.NoError(err)
+			} else {
+				assert.EqualError(err, tc.ExpectedErr)
+			}
+
+			assert.Equal(tc.ExpectedExists, exists)
 
 			mock.AssertExpectations(t)
 		})
