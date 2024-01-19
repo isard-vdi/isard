@@ -24,12 +24,10 @@ func (c *Client) AuthForm(ctx context.Context, category, usr, pwd string) (strin
 	}
 
 	body := url.Values{}
-	body.Add("provider", "form")
-	body.Add("category_id", category)
 	body.Add("username", usr)
 	body.Add("password", pwd)
 
-	req, err := c.newRequest(http.MethodPost, u, body)
+	req, err := c.newFormData(http.MethodPost, u, body)
 	if err != nil {
 		return "", err
 	}

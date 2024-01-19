@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -147,6 +148,50 @@ func (c *Client) newRequest(method, path string, body url.Values) (*http.Request
 
 	if body != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", c.UserAgent)
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	return req, nil
+}
+
+func (c *Client) newFormData(method, path string, body url.Values) (*http.Request, error) {
+	if err := c.BeforeRequestHook(c); err != nil {
+		return nil, fmt.Errorf("before request hook: %w", err)
+	}
+
+	rel, err := url.Parse(path)
+	if err != nil {
+		return nil, fmt.Errorf("parse URL path: %w", err)
+	}
+
+	u := c.BaseURL.ResolveReference(rel)
+
+	buf := &bytes.Buffer{}
+	form := multipart.NewWriter(buf)
+
+	if body != nil {
+		for k, v := range body {
+			if err := form.WriteField(k, v[0]); err != nil {
+				return nil, fmt.Errorf("write the form field '%s': %w", k, err)
+			}
+		}
+
+		if err := form.Close(); err != nil {
+			return nil, fmt.Errorf("close the form: %w", err)
+		}
+	}
+
+	req, err := http.NewRequest(method, u.String(), buf)
+	if err != nil {
+		return nil, fmt.Errorf("create HTTP request: %w", err)
+	}
+
+	if body != nil {
+		req.Header.Set("Content-Type", form.FormDataContentType())
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", c.UserAgent)
