@@ -49,6 +49,7 @@ from ..libv2.api_usage import (
     get_usage_credits,
     get_usage_credits_by_id,
     get_usage_distinct_items,
+    get_usage_grouping,
     get_usage_groupings,
     get_usage_groupings_dropdown,
     get_usage_limits,
@@ -381,6 +382,17 @@ def api_v3_admin_usage_groupings(payload):
 def api_v3_admin_usage_groupings_dropdown(payload):
     return (
         json.dumps(get_usage_groupings_dropdown()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@cached(cache=TTLCache(maxsize=10, ttl=5))
+@app.route("/api/v3/admin/usage/grouping/<grouping_id>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_usage_grouping(payload, grouping_id):
+    return (
+        json.dumps(get_usage_grouping(grouping_id)),
         200,
         {"Content-Type": "application/json"},
     )

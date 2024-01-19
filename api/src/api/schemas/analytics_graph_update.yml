@@ -1,0 +1,13 @@
+grouping:
+  type: string
+priority:
+  type: integer
+x_axis_days:
+  type: integer
+  min: 1
+title:
+  type: string
+  maxlength: 40
+subtitle:
+  type: string
+  maxlength: 40

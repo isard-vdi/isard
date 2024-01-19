@@ -123,6 +123,7 @@ class Populate(object):
             "user_storage",
             "recycle_bin",
             "authentication",
+            "analytics",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -1796,5 +1797,16 @@ class Populate(object):
                     },
                 ]
             ).run(self.conn)
+        except Exception as e:
+            log.error(e)
+
+    """
+    ANALYTICS
+    """
+
+    def analytics(self):
+        try:
+            log.info("Table analytics not found, creating...")
+            r.table_create("analytics", primary_key="id").run(self.conn)
         except Exception as e:
             log.error(e)

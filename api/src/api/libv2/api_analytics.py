@@ -270,3 +270,40 @@ def suggested_removals(categories=None, months_without_use=6):
         ) / 1073741824
 
     return suggestions
+
+
+def get_usage_graphs_conf():
+    with app.app_context():
+        return list(
+            r.table("analytics")
+            .merge(
+                lambda conf: {
+                    "grouping_name": r.branch(
+                        r.table("usage_grouping").get(conf["grouping"]).ne(None),
+                        r.table("usage_grouping").get(conf["grouping"])["name"],
+                        conf["grouping"],
+                    )
+                }
+            )
+            .run(db.conn)
+        )
+
+
+def get_usage_graph_conf(graph_conf_id):
+    with app.app_context():
+        return r.table("analytics").get(graph_conf_id).run(db.conn)
+
+
+def add_usage_graph_conf(data):
+    with app.app_context():
+        r.table("analytics").insert(data).run(db.conn)
+
+
+def update_usage_graph_conf(graph_conf_id, data):
+    with app.app_context():
+        r.table("analytics").get(graph_conf_id).update(data).run(db.conn)
+
+
+def delete_usage_graph_conf(graph_conf_id):
+    with app.app_context():
+        r.table("analytics").get(graph_conf_id).delete().run(db.conn)
