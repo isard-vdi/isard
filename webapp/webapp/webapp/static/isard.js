@@ -165,6 +165,8 @@ $MENU_TOGGLE.on('click', function() {
         setContentHeight();
     }).parent().addClass('active');
 
+    $SIDEBAR_MENU.find('.current-page ul').show();
+
     // recompute content when resizing
     $(window).smartresize(function(){
         setContentHeight();

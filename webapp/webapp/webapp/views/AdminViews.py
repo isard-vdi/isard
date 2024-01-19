@@ -462,6 +462,17 @@ def admin_analytics():
     )
 
 
+@app.route("/isard-admin/admin/analytics_config", methods=["GET"])
+@login_required
+@isAdmin
+def admin_analytics_config():
+    return render_template(
+        "admin/pages/analytics_config.html",
+        nav="Analytics config",
+        title="Analytics config",
+    )
+
+
 """
 LOGS
 """

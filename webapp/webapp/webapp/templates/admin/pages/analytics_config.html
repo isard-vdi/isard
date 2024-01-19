@@ -1,0 +1,64 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+<link rel="stylesheet" type="text/css" href="/isard-admin/vendors/daterangepicker/daterangepicker.css" />
+{% endblock %}
+{% block content %}
+<div class="row">
+   <div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel">
+         <div class="page-title">
+            <div class="title_left" style="width:100%">
+               <h3><i class="fa fa-gears"></i> Analytics config <small></small></h3>
+            </div>
+            <div class="clearfix"></div>
+         </div>
+      </div>
+   </div>
+</div>
+
+<div class="row">
+   <div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel">
+         <div class="x_title">
+            <h3><i class="fa fa-bar-chart"></i> Analytics usage graph<small> Graphs displayed in the analytics main
+                  page</small></h3>
+            <ul class="nav navbar-right panel_toolbox">
+               <li>
+                  <a id="btn-graph_add"><span style="color: #5499c7;">
+                        <i class="fa fa-plus"></i>
+                        Add graph</span>
+                  </a>
+               </li>
+            </ul>
+            <div class="clearfix"></div>
+         </div>
+         <div class="x_content">
+            <div class="row">
+               <div class="col-md-12 col-sm-12 col-xs-12">
+                  <table id="table-chart" class="table">
+                     <thead>
+                        <tr>
+                           <th>Title</th>
+                           <th>Subtitle</th>
+                           <th>Grouping</th>
+                           <th>Priority</th>
+                           <th>Days</th>
+                           <th style="width:100px">Action</th>
+                        </tr>
+                     </thead>
+                     <tbody></tbody>
+                  </table>
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
+</div>
+
+{% include '/admin/pages/analytics_modals.html' %}
+{% endblock %}
+
+{% block pagescript %}
+<script src="/isard-admin/static/admin/js/analytics_config.js"></script>
+{% endblock %}

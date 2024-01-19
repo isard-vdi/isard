@@ -1,0 +1,76 @@
+<div class="modal fade" id="modalAnalyticsUsageGraph" tabindex="-1" role="dialog"
+    aria-labelledby="modalAnalyticsUsageGraph" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-plus fa-1x"></i> <i class="fa fa-bar-chart"></i>
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalAnalyticsUsageGraphForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="id" />
+                    <div class="row">
+                        <div class="x_panel">
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                                <label class="control-label" for="title">Title<span class="required">*</span>
+                                </label>
+                                <input id="title" class="roundbox" maxlength="50" required type="text" name="title"
+                                    style="width:100%" placeholder="Graph title">
+                            </div>
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                                <label class="control-label" for="subtitle">Subtitle
+                                </label>
+                                <input id="subtitle" class="roundbox" maxlength="50" name="subtitle" type="text"
+                                    style="width:100%;margin-bottom:10px;" placeholder="Graph subtitle">
+                            </div>
+                            <div class="col-md-12 col-sm-12 col-xs-12">
+                                <label class="control-label" for="grouping">Grouping<span
+                                        class="required">*</span></label>
+                                <select name="grouping" style="width:100%;margin-bottom:10px;"
+                                    class="form-control roundbox" id="groupings"></select>
+                            </div>
+
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                                <label class="control-label" for="priority">Priority<span class="required">*</span>
+                                </label>
+                                <input id="priority" data-parsley-type="number" class="form-control roundbox"
+                                    name="priority" type="number" value="0" style="width:100%" required="required">
+                            </div>
+                            <div class="col-md-6 col-sm-6 col-xs-12">
+                                <label class="control-label" for="days">Days<span class="required">*</span>
+                                </label>
+                                <input id="days" data-parsley-type="number" class="form-control roundbox"
+                                    name="x_axis_days" type="number" value="90" style="width:100%" required="required"
+                                    min="1">
+                            </div>
+                        </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    </li>
+                    </li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-success"></button>
+                    </li>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
