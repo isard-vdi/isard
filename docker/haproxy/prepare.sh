@@ -22,7 +22,12 @@ else
   sed -i 's/\/custom-portal-chain.pem/\/chain.pem/g' /usr/local/etc/haproxy/haproxy.cfg
 fi
 
-LETSENCRYPT_DOMAIN="$DOMAIN" LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" letsencrypt.sh
+if [ -n "$VIDEO_DOMAIN" ]
+then
+  LETSENCRYPT_DOMAIN="$VIDEO_DOMAIN" LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" letsencrypt.sh
+else
+  LETSENCRYPT_DOMAIN="$DOMAIN" LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" letsencrypt.sh
+fi
 
 mkdir -p /usr/local/etc/haproxy/lists/external
 touch /usr/local/etc/haproxy/lists/black.lst
