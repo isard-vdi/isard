@@ -4,13 +4,12 @@ $(document).ready(function () {
 
 function getGraphsConfig() {
     $.ajax({
-        url: "/api/v3/admin/usage/reset_date", // TODO: User the real endpoint to retrieve graph conf
+        url: "/api/v3/analytics/graph",
         type: 'GET',
         dataType: 'json',
         contentType: 'application/json'
     })
         .then(function (conf) {
-            conf = [] // TODO: remove this when calling the real endpoint
             conf.sort((a, b) => a.priority - b.priority);
             $.each(conf, function (pos, it) {
                 $('#usageGraphs').append(`

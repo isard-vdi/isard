@@ -482,6 +482,13 @@ cache_usage_grouping = TTLCache(maxsize=10, ttl=60)
 
 @cached(cache_usage_grouping)
 def get_usage_groupings():
+    groupings = get_system_usage_groupings()
+    with app.app_context():
+        groupings = groupings + list(r.table("usage_grouping").run(db.conn))
+    return groupings
+
+
+def get_system_usage_groupings():
     params = get_params()
     groupings = []
     for item_type in params.keys():
@@ -514,8 +521,6 @@ def get_usage_groupings():
                 "parameters": custom_parameters,
             },
         ]
-    with app.app_context():
-        groupings = groupings + list(r.table("usage_grouping").run(db.conn))
     return groupings
 
 
@@ -564,6 +569,11 @@ def get_usage_groupings_dropdown():
 def get_usage_grouping(grouping_id):
     with app.app_context():
         grouping = r.table("usage_grouping").get(grouping_id).run(db.conn)
+    if not grouping:
+        groupings = get_system_usage_groupings()
+        grouping = [
+            grouping for grouping in groupings if grouping.get("id") == grouping_id
+        ][0]
     return grouping
 
 
