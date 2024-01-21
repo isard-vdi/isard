@@ -326,7 +326,8 @@
                 "warning": "WARNUNG: Diese Hardware wurde aufgrund von Benutzerberechtigungen geändert:",
                 "interfaces": "Netzwerke",
                 "disk-size": "Festplattengröße (GB)",
-                "boot": "Hochfahren"
+                "boot": "Hochfahren",
+                "disk-bus": "Festplatten-Interface"
             },
             "image": {
                 "title": "Bild"
