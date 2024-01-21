@@ -325,7 +325,8 @@
                 "vcpus": "vCPUS",
                 "warning": "WARNUNG: Diese Hardware wurde aufgrund von Benutzerberechtigungen geändert:",
                 "interfaces": "Netzwerke",
-                "disk-size": "Festplattengröße (GB)"
+                "disk-size": "Festplattengröße (GB)",
+                "boot": "Hochfahren"
             },
             "image": {
                 "title": "Bild"
