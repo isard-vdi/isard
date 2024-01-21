@@ -203,7 +203,8 @@
             "logout": "Ausloggen",
             "profile": "Profil",
             "media": "Medien",
-            "templates": "Vorlagen"
+            "templates": "Vorlagen",
+            "storage": "Speicher"
         },
         "not-found": {
             "title": "Die angeforderte Adresse wurde nicht gefunden",
@@ -243,7 +244,9 @@
             "no-info-default": "Keine Beschreibung vorhanden",
             "actions": {
                 "delete": "Löschen",
-                "template": "Zur Vorlage machen"
+                "template": "Zur Vorlage machen",
+                "edit": "bearbeiten",
+                "direct-link": "direkter Link"
             },
             "filter-label": "Filtern",
             "notification-bar": {
@@ -283,6 +286,9 @@
                     },
                     "make-visible": {
                         "title": "Sichtbar machen"
+                    },
+                    "allowed": {
+                        "title": "Nutzer bearbeiten"
                     }
                 }
             },
@@ -444,7 +450,8 @@
         },
         "duplicate-template": {
             "title": "Vorlage duplizieren"
-        }
+        },
+        "show-pages": "Zeigen"
     },
     "errors": {
         "desktop_new_user_quota_exceeded": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
