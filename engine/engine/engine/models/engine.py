@@ -268,8 +268,8 @@ class Engine(object):
 
                 # Check viewers in hypers started
                 for w in last_workers_started:
-                    result = self.manager.t_workers[w].h.get_hyp_video_status()
                     try:
+                        result = self.manager.t_workers[w].h.get_hyp_video_status()
                         update_table_field(
                             "hypervisors",
                             w,
@@ -281,6 +281,7 @@ class Engine(object):
                         logs.main.error(
                             f"Error updating viewer status for hypervisor {w}"
                         )
+                        continue
                     for k, v in result.items():
                         if v is False:
                             telegram_send_thread(
