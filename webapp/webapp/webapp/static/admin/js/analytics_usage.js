@@ -22,45 +22,50 @@ function getGraphsConfig() {
                 const startDate = new Date(currentDate);
                 startDate.setDate(currentDate.getDate() - it['x_axis_days']);
                 const endDate = currentDate;
-                getUsageCredits(it, startDate, endDate)
+                getUsageGrouping(it, startDate, endDate)
             })
         })
-}
-
-function getUsageCredits(conf, startDate, endDate) {
-    $.ajax({
-        type: "GET",
-        url: `/api/v3/admin/usage/credits/category/desktop/${$('meta[id=user_data]').attr('data-categoryId')}/${conf.grouping}/${moment(startDate).utc().format('YYYY-MM-DD')}/${moment(endDate).utc().format('YYYY-MM-DD')}`,
-        dataType: 'json',
-        contentType: "application/json",
-        success: function (limits) {
-            getUsageGraphs(conf, limits, startDate, endDate)
-        }
-    })
-}
-
-function getUsageGraphs(conf, limits, startDate, endDate) {
+    }
+    
+function getUsageGrouping(conf, startDate, endDate) {
     $.ajax({
         url: '/api/v3/admin/usage/grouping/' + conf.grouping,
         type: 'GET',
         dataType: 'json',
         contentType: 'application/json'
     }).then(function (grouping) {
-        $.ajax({
-            url: '/api/v3/admin/usage',
-            type: 'PUT',
-            dataType: 'json',
-            contentType: 'application/json',
-            data: JSON.stringify({
-                items_ids: [$('meta[id=user_data]').attr('data-categoryId')],
-                item_type: grouping.item_type,
-                start_date: moment(startDate).utc().format('YYYY-MM-DD'),
-                end_date: moment(endDate).utc().format('YYYY-MM-DD'),
-                grouping: grouping.parameters,
-            }),
-        }).then(function (graph) {
-            addChart(graph, $('meta[id=user_data]').attr('data-categoryId'), conf.grouping, conf.title, conf.subtitle, limits, 'abs')
-        });
+        getUsageCredits(conf, grouping, startDate, endDate)
+    })
+}
+
+function getUsageCredits(conf, grouping, startDate, endDate) {
+    $.ajax({
+        type: "GET",
+        url: `/api/v3/admin/usage/credits/category/${grouping.item_type}/${$('meta[id=user_data]').attr('data-categoryId')}/${conf.grouping}/${moment(startDate).utc().format('YYYY-MM-DD')}/${moment(endDate).utc().format('YYYY-MM-DD')}`,
+        dataType: 'json',
+        contentType: "application/json",
+        success: function (limits) {
+            getUsageGraphs(conf, grouping, limits, startDate, endDate)
+        }
+    })
+}
+
+
+function getUsageGraphs(conf, grouping, limits, startDate, endDate) {
+    $.ajax({
+        url: '/api/v3/admin/usage',
+        type: 'PUT',
+        dataType: 'json',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            items_ids: [$('meta[id=user_data]').attr('data-categoryId')],
+            item_type: grouping.item_type,
+            start_date: moment(startDate).utc().format('YYYY-MM-DD'),
+            end_date: moment(endDate).utc().format('YYYY-MM-DD'),
+            grouping: grouping.parameters,
+        }),
+    }).then(function (graph) {
+        addChart(graph, $('meta[id=user_data]').attr('data-categoryId'), conf.grouping, conf.title, conf.subtitle, limits, 'abs')
     });
 }
 
