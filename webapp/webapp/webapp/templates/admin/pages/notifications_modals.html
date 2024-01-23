@@ -1,0 +1,138 @@
+<style>
+    .form-inline #body {
+        resize: vertical;
+        width: 100%;
+        overflow-y: scroll;
+        height: 175px;
+    }
+
+    #body-panel .preview {
+        text-align: center;
+        padding-top: 20px;
+        width: 100%;
+    }
+</style>
+
+<div class="modal fade" id="modalNotificationTemplate" tabindex="-1" role="dialog"
+    aria-labelledby="modalNotificationTemplate" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel"></h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalNotificationTemplateForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="id" />
+                    <div class="x_panel">
+                        <div class="x_title">
+                            <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Name and description
+                            </h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        <div class="row">
+                            <div class="item form-group">
+                                <div class="col-md-6 col-sm-6 col-xs-12" style="margin-bottom:10px;">
+                                    <label class="control-label" for="name">Name <span class="required">*</span>
+                                    </label>
+                                    <input id="name" class="form-control roundbox" maxlength="50"
+                                        pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$"
+                                        data-parsley-length="[1, 50]" name="name" placeholder=" New template name"
+                                        data-parsley-trigger="change" required type="text" style="width:100%">
+                                </div>
+
+                                <div class="col-md-5 col-sm-5 col-xs-9">
+                                    <label class="control-label" for="language">Language
+                                        <span class="required">*</span></label>
+                                    <select id="language" name="language" class="form-control roundbox" required>
+                                    </select>
+                                </div>
+                                <div class="col-md-1 col-sm-1 col-xs-3" style="padding:0px;margin-left:-10px;"
+                                    title="If the user has no language defined, the message will be set in this language">
+                                    <label class="control-label" for="default-lang" style="margin-top:10px">Default
+                                    </label>
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="default-lang" name="default-lang" class="flat"
+                                            style="position: absolute; opacity: 0;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 col-sm-12 col-xs-12">
+                                <label class="control-label" for="desc">Description</label>
+                                <input id="description" class="form-control roundbox" name="description"
+                                    data-parsley-length="[0, 255]" maxlength="255" data-parsley-trigger="change"
+                                    placeholder=" Description" type="text" style="width:100%">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="x_panel">
+                        <div class="x_title">
+                            <h4><i class="fa fa-file-text-o" aria-hidden="true"></i> Message
+                            </h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        <div class="col-md-12 col-sm-12 col-xs-12" style="margin-bottom:15px;">
+                            <label class="control-label" for="title">Title
+                            </label>
+                            <input id="title" class="form-control roundbox" maxlength="100"
+                                data-parsley-length="[1, 100]" name="title"
+                                placeholder=" Subject or title of the message" data-parsley-trigger="change" type="text"
+                                style="width:100%">
+                        </div>
+                        <div class="col-md-7 col-xs-12" id="body-panel" style="margin-bottom:15px;">
+                            <label class="control-label" for="body">
+                                Body
+                            </label> <br>
+                            <textarea class="roundbox border form-control p-1" name="body" id="body">
+                            </textarea>
+                            <div id="body-preview" class="preview" style="display:none;"></div>
+
+                            <div id="footer-wrapper" style="margin-bottom:15px;">
+                                <label class="control-label" for="footer">Footer
+                                </label>
+                                <input id="footer" class="form-control roundbox" maxlength="100"
+                                    data-parsley-length="[1, 100]" name="footer" placeholder="Footer of the message"
+                                    data-parsley-trigger="change" type="text" style="width:100%">
+                                <div id="footer-preview" class="preview" style="display:none;"></div>
+                            </div>
+                            <div class="x_content" style="margin-top:10px;">
+                                <button id="btn-preview" type="button" class="btn btn-md btn-info"
+                                    data-action="preview"><i class="fa fa-search"></i> Preview</button>
+                                <button id="btn-apply" type="button" class="btn btn-md btn-success"
+                                    title="Save message in this language" data-action="apply"><i
+                                        class="fa fa-check"></i>
+                                    Apply</button>
+                            </div>
+                        </div>
+                        <div class="col-md-5 col-sm-5 col-xs-12" id="parameters-panel">
+                            <label class="control-label" for="notification-template-parameters">Parameters
+                            </label><small> (Click to copy)</small>
+                            <ul class="list-group" id="notification-template-parameters"
+                                name="notification-template-parameters" style="overflow-y:scroll;">
+                            </ul>
+                        </div>
+                    </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success"></button></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>

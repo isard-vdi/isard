@@ -124,6 +124,8 @@ class Populate(object):
             "recycle_bin",
             "authentication",
             "analytics",
+            "notification_tmpls",
+            "system_events",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -1808,5 +1810,154 @@ class Populate(object):
         try:
             log.info("Table analytics not found, creating...")
             r.table_create("analytics", primary_key="id").run(self.conn)
+        except Exception as e:
+            log.error(e)
+
+    """
+    NOTIFICATION TEMPLATES
+    """
+
+    def notification_tmpls(self):
+        try:
+            log.info("Table notification_tmpls not found, creating...")
+            r.table_create("notification_tmpls", primary_key="id").run(self.conn)
+            # self.index_create("notification_tmpls", ["kind"])
+
+            r.table("notification_tmpls").insert(
+                [
+                    {
+                        "name": "Email verification",
+                        "description": "Email verification that will be sent when user logs in for the first time and/or admin forces email verification at new logins",
+                        "kind": "email",
+                        "vars": {
+                            "email": "your@domain.com",
+                            "user_id": "jdoe",
+                            "user_name": "John Doe",
+                            "url": "https://your.domain.com/email_verify/1234567890",
+                        },
+                        "default": "system",
+                        "system": {
+                            "title": "Verify IsardVDI email",
+                            "body": """<p>Please verify your email address by clicking on the following button:</p>\n<a href="{url}" class="btn btn-primary">Verify email</a>\n<p>This button can only be used once and it's valid for 1 hour.</p>""",
+                            "footer": "Please do not answer since this email has been automatically generated.",
+                        },
+                        "lang": {
+                            "en": {
+                                "title": "Verify IsardVDI email",
+                                "body": """<p>Please verify your email address by clicking on the following button:</p>\n<a href="{url}" class="btn btn-primary">Verify email</a>\n<p>This button can only be used once and it's valid for 1 hour.</p>""",
+                                "footer": "Please do not answer since this email has been automatically generated.",
+                            },
+                            "es": {
+                                "title": "Verificación del correo electrónico de IsardVDI",
+                                "body": """<p>Verifique su dirección de correo electrónico haciendo clic en el siguiente botón:</p>\n<a href="{url}" class="btn btn-primary">Verificar correo</a>\n<p>Este botón solo se puede usar una vez y es válido durante 1 hora.</p>""",
+                                "footer": "Por favor, no responda a este correo electrónico, ya que es un envío automático.",
+                            },
+                            "ca": {
+                                "title": "Verificació del correu electrònic d'IsardVDI",
+                                "body": """<p>Verifiqueu la vostra adreça de correu electrònic fent clic al botó següent:</p>\n<a href="{url}" class="btn btn-primary">Verificar correu</a>\n<p>Aquest botó només es pot fer servir una vegada i és vàlid durant 1 hora.</p>""",
+                                "footer": "No respongueu a aquest correu electrònic, ja que és un enviament automàtic.",
+                            },
+                        },
+                    },
+                    {
+                        "name": "Password recovery",
+                        "description": "Password recovery message that will be sent when user requests password recovery",
+                        "kind": "password",
+                        "vars": {
+                            "user_name": "John Doe",
+                            "user_id": "jdoe",
+                            "url": "https://your.domain.com/password_recovery/1234567890",
+                        },
+                        "default": "system",
+                        "system": {
+                            "title": "Reset IsardVDI password",
+                            "body": """<p>We've received your password reset request to access IsardVDI. Click on the following button to set a new password:</p>\n<a href="{url}" class="btn btn-primary">Set password</a>\n<p>This button can only be used once and it's valid for 24 hours.</p><p>If you did not initiate this request, you may safely ignore this message.</p>""",
+                            "footer": "Please do not answer since this email has been automatically generated.",
+                        },
+                        "lang": {
+                            "en": {
+                                "title": "Reset IsardVDI password",
+                                "body": """<p>We've received your password reset request to access IsardVDI. Click on the following button to set a new password:</p>\n<a href="{url}" class="btn btn-primary">Set password</a>\n<p>This button can only be used once and it's valid for 24 hours.</p><p>If you did not initiate this request, you may safely ignore this message.</p>""",
+                                "footer": "Please do not answer since this email has been automatically generated.",
+                            },
+                            "es": {
+                                "title": "Restablecer contraseña de IsardVDI",
+                                "body": """<p>Hemos recibido su solicitud de restablecimiento de contraseña para acceder a IsardVDI. Haga clic en el siguiente botón para establecer una nueva contraseña:</p>\n<a href="{url}" class="btn btn-primary">Configurar contraseña</a>\n<p>Este botón solo se puede usar una vez y es válido durante 24 horas.</p><p>Si no inició esta solicitud, puede ignorar este mensaje.</p>""",
+                                "footer": "Por favor, no responda a este correo electrónico, ya que es un envío automático.",
+                            },
+                            "ca": {
+                                "title": "Restaurar la contrasenya d'IsardVDI",
+                                "body": """<p>Hem rebut la vostra solicitud de restauració de contrasenya per l'accès a IsardVDI. Feu clic al botó següent per establir una nova contrasenya:</p>\n<a href="{url}" class="btn btn-primary">Configurar contrasenya</a>\n<p>Aquest botó només es pot fer servir una vegada i és vàlid durant 24 hores.</p>\n<p>Si no ha iniciat aquesta sol·licitud, podeu ignorar aquest missatge.</p>""",
+                                "footer": "No respongueu a aquest correu electrònic, ja que és un enviament automàtic.",
+                            },
+                        },
+                    },
+                    {
+                        "name": "Desktop timeout notify",
+                        "description": "Notification that will be sent when a desktop is about to stop due to time out",
+                        "kind": "desktop",
+                        "vars": {
+                            "email": "your@domain.com",
+                            "user_id": "jdoe",
+                            "user_name": "John Doe",
+                            "desktop_name": "Desktop",
+                            "desktop_id": "230af4-5a3242-6464e56a",
+                            "accessed": "2021-01-01 00:00:00",
+                            "timeout": "2021-01-01 00:59:00",
+                        },
+                        "default": "system",
+                        "system": {
+                            "title": "",
+                            "body": "",
+                        },
+                        "lang": {},
+                    },
+                ]
+            ).run(self.conn)
+        except Exception as e:
+            log.error(e)
+
+    """
+    SYSTEM EVENTS
+    """
+
+    def system_events(self):
+        try:
+            log.info("Table system_events not found, creating...")
+            r.table_create("system_events", primary_key="id").run(self.conn)
+            templates = list(
+                r.table("notification_tmpls").pluck("id", "kind").run(self.conn)
+            )
+            r.table("system_events").insert(
+                [
+                    {
+                        "event": "email-verify",
+                        "tmpl_id": [
+                            template["id"]
+                            for template in templates
+                            if template["kind"] == "email"
+                        ][0],
+                        "channels": ["mail"],
+                    },
+                    {
+                        "event": "desktop-timeout",
+                        "tmpl_id": [
+                            template["id"]
+                            for template in templates
+                            if template["kind"] == "desktop"
+                        ][0],
+                        "channels": ["qmp", "frontend"],
+                    },
+                    {
+                        "event": "password-recovery",
+                        "tmpl_id": [
+                            template["id"]
+                            for template in templates
+                            if template["kind"] == "password"
+                        ][0],
+                        "channels": ["mail"],
+                    },
+                ]
+            ).run(self.conn)
         except Exception as e:
             log.error(e)

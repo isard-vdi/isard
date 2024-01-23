@@ -1750,6 +1750,11 @@ class ApiUsers:
         else:
             return user["email_verified"]
 
+    def get_lang(self, user_id):
+        with app.app_context():
+            lang = r.table("users").get(user_id)["lang"].run(db.conn)
+        return lang
+
 
 def validate_email_jwt(user_id, email, minutes=60):
     return {

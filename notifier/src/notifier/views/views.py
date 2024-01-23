@@ -114,7 +114,7 @@ def email_verify(payload, json: notifier.NotifyEmailVerifyMailRequest):
     email_html = render_template(
         "email/base.html",
         email_content=sanitizer.sanitize(email_content["body"]),
-        email_footer=email_content["footer"],
+        email_footer=sanitizer.sanitize(email_content["footer"]),
     )
     task_id = Task(
         queue="notifier.default",

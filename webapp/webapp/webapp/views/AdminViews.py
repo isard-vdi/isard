@@ -424,14 +424,14 @@ def admin_schedulers():
     )
 
 
-@app.route("/isard-admin/admin/notification_tmpls", methods=["GET"])
+@app.route("/isard-admin/admin/notifications", methods=["GET"])
 @login_required
 @isAdmin
-def admin_notification_tmpls():
+def admin_notifications():
     return render_template(
-        "admin/pages/notification_tmpls.html",
-        nav="Notification templates",
-        title="Notification Templates",
+        "admin/pages/notifications.html",
+        nav="Notification",
+        title="Notification",
         monitor_host=monitor_host,
     )
 

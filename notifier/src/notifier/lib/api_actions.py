@@ -42,7 +42,7 @@ def get_user(user_id):
 
 def get_notification_message(data):
     try:
-        message = api_client.put("/admin/notification/template", data)
+        message = api_client.put("/admin/notifications/template", data)
         return message
     except:
         raise Error(

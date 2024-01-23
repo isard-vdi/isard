@@ -36,7 +36,6 @@ if not os.path.exists(app.STOCK_CARDS):
 app.USERS_CARDS = os.path.join(APP_ROOT, "static/assets/img/desktops/user")
 if not os.path.exists(app.USERS_CARDS):
     os.makedirs(app.USERS_CARDS, exist_ok=True)
-app.EMAIL_TEMPLATES_ROUTE = os.path.join(APP_ROOT, "static/assets/templates/email")
 
 # Copy only new stock images
 stock_folder = os.path.join(APP_ROOT, "static/stock_assets")
