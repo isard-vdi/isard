@@ -13,9 +13,14 @@
                     "url": {
                         "title": "Url",
                         "type": "string"
+                    },
+                    "user_id": {
+                        "title": "User Id",
+                        "type": "string"
                     }
                 },
                 "required": [
+                    "user_id",
                     "email",
                     "url"
                 ],
@@ -426,10 +431,10 @@
                 "tags": []
             }
         },
-        "/mail": {
+        "/notifier/mail": {
             "post": {
                 "description": "Email specifications in JSON: {     \"user_id\": \"User ID to be used to retrieve its email address\",     \"subject\": \"subject of the email that will be sent\",     \"text\": \"text of the email that will be sent\", } :param payload: Data from JWT :type payload: dict :return: Task ID :rtype: Set with Flask response values and data in JSON",
-                "operationId": "post__mail",
+                "operationId": "post__notifier_mail",
                 "parameters": [],
                 "requestBody": {
                     "content": {
@@ -468,7 +473,7 @@
         },
         "/notifier/mail/email-verify": {
             "post": {
-                "description": "Email specifications in JSON: {     \"email\": \"email address where the mail will be sent\",     \"url\": \"url that will be sent to the user for email verification\", } :param payload: Data from JWT :type payload: dict :return: Task ID :rtype: Set with Flask response values and data in JSON",
+                "description": "Email specifications in JSON: {     \"user_id\": \"User ID to be used to retrieve the email message\",     \"email\": \"email address where the mail will be sent\",     \"url\": \"url that will be sent to the user for email verification\", } :param payload: Data from JWT :type payload: dict :return: Task ID :rtype: Set with Flask response values and data in JSON",
                 "operationId": "post__notifier_mail_email-verify",
                 "parameters": [],
                 "requestBody": {

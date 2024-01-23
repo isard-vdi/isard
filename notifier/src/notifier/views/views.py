@@ -93,6 +93,7 @@ def email_verify(payload, json: notifier.NotifyEmailVerifyMailRequest):
 
     Email specifications in JSON:
     {
+        "user_id": "User ID to be used to retrieve the email message",
         "email": "email address where the mail will be sent",
         "url": "url that will be sent to the user for email verification",
     }
@@ -109,7 +110,7 @@ def email_verify(payload, json: notifier.NotifyEmailVerifyMailRequest):
     )
     # TODO: get user_id and maybe change to a generic endpoint?
     email_content = get_notification_message(
-        {"user_id": None, "event": "email-verify", "data": {"url": json.url}}
+        {"user_id": json.user_id, "event": "email-verify", "data": {"url": json.url}}
     )
     email_html = render_template(
         "email/base.html",

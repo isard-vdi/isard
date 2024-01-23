@@ -71,8 +71,9 @@ func (a *Authentication) RequestEmailVerification(ctx context.Context, ss, email
 	verifyURL.RawQuery = params.Encode()
 
 	rsp, err := a.Notifier.PostNotifierMailEmailVerify(ctx, notifier.NewOptNotifyEmailVerifyMailRequest0bf6af6(notifier.NotifyEmailVerifyMailRequest0bf6af6{
-		Email: u.Email,
-		URL:   verifyURL.String(),
+		UserID: u.ID,
+		Email:  u.Email,
+		URL:    verifyURL.String(),
 	}))
 	if err != nil {
 		return fmt.Errorf("error calling the notifier service: %w", err)
