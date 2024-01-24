@@ -30,7 +30,8 @@
             <!-- Modal Body -->
             <div class="modal-body">
                 <form id="modalNotificationTemplateForm" class="form-inline form-label-left">
-                    <input hidden id="id" name="id" />
+                    <input hidden id="id" name="id"/>
+                    <input hidden id="default"/>
                     <div class="x_panel">
                         <div class="x_title">
                             <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Name and description
@@ -88,11 +89,12 @@
                                 placeholder=" Subject or title of the message" data-parsley-trigger="change" type="text"
                                 style="width:100%">
                         </div>
-                        <div class="col-md-7 col-xs-12" id="body-panel" style="margin-bottom:15px;">
+                        <div class="col-md-8 col-xs-12" id="body-panel" style="margin-bottom:15px;">
                             <label class="control-label" for="body">
                                 Body
                             </label> <br>
-                            <textarea class="roundbox border form-control p-1" name="body" id="body">
+                            <textarea class="roundbox border form-control p-1" name="body" id="body"
+                                style="margin-bottom:15px;" placeholder="<p>Type your message content here...</p>">
                             </textarea>
                             <div id="body-preview" class="preview" style="display:none;"></div>
 
@@ -104,16 +106,17 @@
                                     data-parsley-trigger="change" type="text" style="width:100%">
                                 <div id="footer-preview" class="preview" style="display:none;"></div>
                             </div>
-                            <div class="x_content" style="margin-top:10px;">
+                            <div class="x_content">
                                 <button id="btn-preview" type="button" class="btn btn-md btn-info"
-                                    data-action="preview"><i class="fa fa-search"></i> Preview</button>
+                                    title="See preview of the HTML" data-action="preview">
+                                    <i class="fa fa-search"></i> Preview</button>
                                 <button id="btn-apply" type="button" class="btn btn-md btn-success"
-                                    title="Save message in this language" data-action="apply"><i
-                                        class="fa fa-check"></i>
-                                    Apply</button>
+                                    title="Save message in this language" data-action="apply">
+                                    <i class="fa fa-check"></i> Apply
+                                </button>
                             </div>
                         </div>
-                        <div class="col-md-5 col-sm-5 col-xs-12" id="parameters-panel">
+                        <div class="col-md-4 col-xs-12" id="parameters-panel">
                             <label class="control-label" for="notification-template-parameters">Parameters
                             </label><small> (Click to copy)</small>
                             <ul class="list-group" id="notification-template-parameters"

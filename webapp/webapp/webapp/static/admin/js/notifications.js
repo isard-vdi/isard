@@ -21,6 +21,22 @@
 
 $(document).ready(function () {
     renderTableNotificationTemplates();
+    $template_detail = $(".notification-tmpl-detail");
+
+    $('#notification-tmpls-table tbody').on('click', 'td.details-control', function () {
+        var tr = $(this).closest("tr");
+        var row = $('#notification-tmpls-table').DataTable().row(tr);
+        var rowData = row.data();
+
+        if (row.child.isShown()) {
+            row.child.hide();
+            tr.removeClass("shown");
+        } else {
+            row.child(rowData).show();
+            row.child(addDetailPannel(row.data())).show();
+            tr.addClass("shown");
+        }
+    });
 
     $("#modalNotificationTemplateForm #language").on("change", function () {
         changeBodyLanguage("#modalNotificationTemplateForm", $(this).val());
@@ -48,7 +64,8 @@ $(document).ready(function () {
                 contentType: 'application/json',
                 success: function (data) {
                     availableLanguages = Object.keys(data.lang)
-                    language = Object.keys(data.lang)[0];
+                    language = data.default != "system" ?
+                        data.default : Object.keys(data.lang)[0];
                     if (data.default == language) {
                         $(modal + " #default-lang").iCheck('check').iCheck('update');
                     } else {
@@ -56,6 +73,7 @@ $(document).ready(function () {
                     }
                     populateLanguage(modal, availableLanguages)
                     $(modal + ' #id').val(id);
+                    $(modal + ' #default').val(data.default);
                     $(modal + ' #name').val(data.name);
                     $(modal + ' #language').val(language);
                     $(modal + ' #description').val(data.description);
@@ -79,6 +97,8 @@ $(document).ready(function () {
         if (checkCleanHTML(data.body) && checkCleanHTML(data.footer)) {
             if (data["default-lang"] == "on") {
                 data["default"] = data["language"]
+            } else if (form.find("#default").val() == data["language"]) {
+                data["default"] = "system";
             }
             form.parsley().validate();
             if (form.parsley().isValid()) {
@@ -118,7 +138,18 @@ $(document).ready(function () {
             }
         }
     });
+
 });
+
+function addDetailPannel(tmpl) {
+    $newPanel = $template_detail.clone();
+    $newPanel.find('#notification-tmpl\\.id').remove();
+    $newPanel.find("#system_tmpl-title").html(tmpl.system.title);
+    $newPanel.find("#system_tmpl-body").html(tmpl.system.body);
+    $newPanel.find("#system_tmpl-footer").html("<hr>" + tmpl.system.footer);
+
+    return $newPanel
+}
 
 
 function showParameters(modal, parameterList) {
@@ -126,8 +157,8 @@ function showParameters(modal, parameterList) {
         $(modal + " #notification-template-parameters").append(`
             <a class="list-group-item list-group-item-action" style="cursor:pointer"
             title="Click to copy to clipboard" data-placeholder="${value}" id="${key}">{${key}}</a>
-        `)
-        $(modal + ` #notification-template-parameters #${key}`).on("click", function () {
+        `);
+        $(`${modal} #notification-template-parameters #${key}`).on("click", function () {
             navigator.clipboard.writeText(`{${key}}`);
             $(modal + " #body").focus();
             new PNotify({
@@ -226,7 +257,9 @@ function renderTableNotificationTemplates() {
                 "className": 'details-control',
                 "orderable": false,
                 "data": null,
-                "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+                "defaultContent": `<button class="btn btn-xs btn-info"
+                    type="button"  data-placement="top"><i class="fa fa-plus"
+                    title="See system default template"></i></button>`
             },
             { "data": "name" },
             { "data": "description" },
@@ -255,7 +288,7 @@ function togglePreviewMode(modal, preview) {
             })
 
             $(modal + " #body").hide();
-            $(modal + " #body-panel").removeClass("col-md-7");
+            $(modal + " #body-panel").removeClass("col-md-8");
             $(modal + " #body-preview").addClass("preview");
             $(modal + " #body-preview").empty().html(previewText).show();
 
@@ -268,7 +301,7 @@ function togglePreviewMode(modal, preview) {
     } else {
         button.html(`<i class="fa fa-search"></i> Preview`).data("action", "preview");
         $(modal + " #body").show();
-        $(modal + " #body-panel").addClass("col-md-7");
+        $(modal + " #body-panel").addClass("col-md-8");
         $(modal + " #body-preview").hide();
         $(modal + " #body-preview").removeClass("preview");
 
@@ -317,7 +350,6 @@ function applyMessage() {
             })
         }
     }
-
 }
 
 function checkCleanHTML(html) {
