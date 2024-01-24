@@ -7,6 +7,8 @@
 
 <script>
 import RFB from '@novnc/novnc/core/rfb'
+import { getCookie } from 'tiny-cookie'
+import { sessionCookieName } from '@/shared/constants'
 
 export default {
   props: {
@@ -43,7 +45,7 @@ export default {
           '/' +
           this.desktop.viewer.values.vmPort +
           '/' +
-          localStorage.token,
+          getCookie(sessionCookieName),
         {
           credentials: { password: this.desktop.viewer.values.token }
         }

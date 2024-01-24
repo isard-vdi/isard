@@ -159,6 +159,7 @@ import i18n from '@/i18n'
 import { desktopStates, status } from '@/shared/constants'
 import DesktopButton from '@/components/desktops/Button.vue'
 import ResetModal from '@/components/directViewer/ResetModal.vue'
+import * as cookies from 'tiny-cookie'
 
 export default {
   components: {
@@ -207,7 +208,7 @@ export default {
           $store.dispatch('openDirectViewerDesktop', directViewer.value.viewers[0])
         }
         $store.dispatch('openSocket', { jwt: directViewer.value.jwt, room: directViewer.value.desktopId })
-        localStorage.viewerToken = directViewer.value.jwt
+        cookies.setCookie('viewerToken', directViewer.value.jwt)
       })
     }
 

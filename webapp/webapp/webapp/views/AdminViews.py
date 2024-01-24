@@ -80,14 +80,7 @@ def login(category="default"):
     user = get_authenticated_user()
     if user:
         login_user(user)
-        flash("Authenticated via backend.", "success")
-        return render_template(
-            "admin/pages/desktops.html",
-            title="Desktops",
-            nav="Desktops",
-            icon="desktops",
-            monitor_host=monitor_host,
-        )
+        return jsonify(success=True)
     return redirect("/login")
 
 
@@ -113,7 +106,8 @@ def logout():
             <html>
                 <body>
                     <script>
-                        localStorage.removeItem('token');
+                        document.cookie = 'isardvdi_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+                        document.cookie = 'authorization=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
                         window.location = '{login_path}';
                     </script>
                 </body>

@@ -37,6 +37,7 @@
               </b-form-invalid-feedback>
             </b-form-group>
             <b-alert
+              v-if="alertType"
               :show="dismissCountDown"
               :variant="alertVariant[alertType]"
               @dismissed="dismissCountDown=0"
@@ -47,7 +48,7 @@
             <b-link
               v-if="['verified', 'error'].includes(alertType)"
               href="#foo"
-              @click="logout()"
+              @click="logout(true)"
             >
               {{ $t('views.maintenance.go-login') }}
             </b-link>
@@ -60,7 +61,7 @@
           <b-button
             size="md"
             class="btn-red rounded-pill mt-2"
-            @click="logout()"
+            @click="logout(true)"
           >
             {{ $t(`views.maintenance.go-login`) }}
           </b-button>
@@ -79,22 +80,18 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from '@vue/composition-api'
+import { ref, computed } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import { required, email } from '@vuelidate/validators'
-import { StringUtils } from '../utils/stringUtils'
 import { ErrorUtils } from '@/utils/errorUtils'
 
 export default {
   setup (_, context) {
     const $store = context.root.$store
-
+    const route = context.root.$route
     const user = computed(() => $store.getters.getUser)
-
-    const emailAddress = ref(user.value.current_email)
-
+    const emailAddress = ref(user.value ? user.value.current_email : null)
     const sendEmailButtonDisabled = ref(false)
-
     const alertType = ref('')
 
     const alertVariant = {
@@ -103,23 +100,18 @@ export default {
       error: 'danger'
     }
 
-    onMounted(() => {
-      if (context.root.$route.query.token) {
-        $store.dispatch('verifyEmail', context.root.$route.query.token).then(() => {
-          localStorage.token = ''
-          alertType.value = 'verified'
-          showAlert()
-        }).catch(() => {
-          alertType.value = 'error'
-          showAlert()
-        })
-      } else if (StringUtils.isNullOrUndefinedOrEmpty(localStorage.token)) {
-        $store.dispatch('navigate', 'Login')
-      } else {
-        $store.dispatch('setSession', localStorage.token)
-        emailAddress.value = user.value.current_email
-      }
-    })
+    if (route.query.token) {
+      $store.dispatch('updateSession', false)
+      $store.dispatch('verifyEmail', route.query.token).then(() => {
+        alertType.value = 'verified'
+        showAlert()
+      }).catch(() => {
+        alertType.value = 'error'
+        showAlert()
+      })
+    } else {
+      emailAddress.value = user.value.current_email
+    }
 
     const v$ = useVuelidate({
       emailAddress: {
@@ -128,8 +120,8 @@ export default {
       }
     }, { emailAddress })
 
-    const logout = () => {
-      $store.dispatch('logout')
+    const logout = (redirect) => {
+      $store.dispatch('logout', redirect)
     }
 
     const submitForm = () => {
@@ -142,7 +134,7 @@ export default {
         return
       }
       $store.dispatch('sendVerifyEmail', { email: emailAddress.value }).then(() => {
-        localStorage.removeItem('token')
+        $store.dispatch('updateSession', false)
         alertType.value = 'sent'
         showAlert()
       }).catch((e) => {
@@ -157,7 +149,7 @@ export default {
     const countDownChanged = (countDown) => {
       dismissCountDown.value = countDown
       if (countDown === 0) {
-        $store.dispatch('logout')
+        logout(true)
       }
     }
     const showAlert = () => {

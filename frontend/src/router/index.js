@@ -16,7 +16,6 @@ import Planning from '@/pages/Planning'
 import Profile from '@/pages/Profile.vue'
 import TemplateNew from '@/pages/TemplateNew.vue'
 import Templates from '@/pages/Templates.vue'
-import store from '@/store/index.js'
 import DirectViewer from '@/views/DirectViewer.vue'
 import Error from '@/views/Error.vue'
 import Login from '@/views/Login.vue'
@@ -33,9 +32,12 @@ import VerifyEmail from '@/pages/VerifyEmail.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { appTitle } from '../shared/constants'
-import { auth } from './auth'
 import i18n from '@/i18n'
 import moment from 'moment'
+import { jwtDecode } from 'jwt-decode'
+import store from '@/store'
+import { getCookie } from 'tiny-cookie'
+import { isEmpty } from 'lodash'
 
 Vue.use(VueRouter)
 
@@ -335,7 +337,8 @@ const router = new VueRouter({
       component: ResetPassword,
       name: 'ResetPassword',
       meta: {
-        title: i18n.t('router.titles.password')
+        title: i18n.t('router.titles.password'),
+        requiresAuth: true
       }
     },
     {
@@ -351,7 +354,8 @@ const router = new VueRouter({
       component: VerifyEmail,
       name: 'VerifyEmail',
       meta: {
-        title: i18n.t('router.titles.verify-email')
+        title: i18n.t('router.titles.verify-email'),
+        requiresAuth: true
       }
     },
     {
@@ -406,12 +410,61 @@ const router = new VueRouter({
   mode: 'history'
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   moment.locale(localStorage.language)
   document.title = to.meta.title ? `${appTitle} - ${to.meta.title}` : appTitle
-
+  const session = store.getters.getSession
   if (to.matched.some(record => record.meta.requiresAuth)) {
-    auth(to, from, next, to.meta.allowedRoles)
+    // No session yet
+    if (!session) {
+      const authorizationCookie = getCookie('authorization')
+      if (authorizationCookie) {
+        if (jwtDecode(authorizationCookie).type === 'register') {
+          router.push({ name: 'Register' })
+        } else {
+          store.dispatch('loginSuccess', authorizationCookie)
+        }
+      // Routes to verify email and reset password require a token (sent by email)
+      } else if (['VerifyEmail', 'ResetPassword'].includes(to.name)) {
+        if (to.query.token) {
+          next()
+        } else {
+          router.push({ name: 'Login' })
+        }
+      // If trying to access any route redirect to login
+      } else {
+        router.push({ name: 'Login' })
+      }
+    // Local login
+    } else {
+      const sessionData = jwtDecode(session)
+      store.dispatch('saveNavigation', { url: to })
+      store.dispatch('fetchUser')
+      // Logged in without requirements
+      if (!to.query.token && !sessionData.type) {
+        if (to.meta.allowedRoles && to.meta.allowedRoles.includes(store.getters.getUser.role_id)) {
+          store.dispatch('openSocket', {})
+          if (isEmpty(store.getters.getConfig)) {
+            store.dispatch('fetchConfig')
+          }
+          if (!store.getters.getMaxTime) {
+            store.dispatch('fetchMaxTime')
+          }
+          next()
+        } else {
+          store.dispatch('saveNavigation', { url: from })
+          next({ name: from.name })
+        }
+      // Requires email verification, will be redirected
+      } else if (to.name !== 'VerifyEmail' && ['email-verification-required', 'email-verification'].includes(sessionData.type)) {
+        router.push({ name: 'VerifyEmail' })
+      // Requires password reset, will be redirected
+      } else if (to.name !== 'ResetPassword' && ['password-reset-required', 'password-reset'].includes(sessionData.type)) {
+        router.push({ name: 'ResetPassword' })
+      } else {
+        next()
+      }
+    }
   } else {
     store.dispatch('saveNavigation', { url: to })
     next()

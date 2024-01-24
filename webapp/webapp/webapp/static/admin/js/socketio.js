@@ -22,7 +22,7 @@ socket = io.connect(`//${location.host}/administrators`, {
     'path': '/api/v3/socket.io/',
     'transports': ['websocket'],
 	auth: {
-		jwt: localStorage.getItem("token")
+		jwt: getCookie('isardvdi_session')
 	}
 })
 
@@ -33,8 +33,8 @@ socket.on('connect', function () {
 socket.on('connect_error', function (data) {
     console.log(data)
     if(data == "Error: Connection rejected by server"){
-        localStorage.removeItem("token")
-        window.location.href = "/login"
+        deleteCookie('isardvdi_session')
+        window.location = '/isard-admin/logout'
     }
     connection_lost()
 })

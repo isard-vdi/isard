@@ -1196,8 +1196,27 @@ function actionsUserDetail(){
                 type: "GET",
                 url: "/api/v3/admin/jwt/"+id,
             }).done(function (data) {
-                localStorage.setItem('token', data.jwt)
-                window.location = "/Desktops"
+                deleteCookie('authorization')
+                saveCookie('isardvdi_session', data.jwt)
+                $.ajax({
+                    type: "GET",
+                    url: "/isard-admin/logout/remote",
+                    headers: {
+                        'Authorization': 'Bearer ' + data.jwt
+                    },
+                    success: function () {
+                        $.ajax({
+                            type: "GET",
+                            url: "/isard-admin/login",
+                            headers: {
+                                'Authorization': 'Bearer ' + data.jwt
+                            },
+                            success: function () {
+                                window.location = "/Desktops"
+                            }
+                        })
+                    }
+                })
             }).fail(function(data) {
                 new PNotify({
                     title: "ERROR impersonating",

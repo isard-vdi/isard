@@ -431,13 +431,12 @@ export default {
       context.root.$router.push({ name: 'recycleBins' })
     }
 
-    const urlTokens = computed(() => $store.getters.getUrlTokens)
+    const currentRoute = computed(() => $store.getters.getCurrentRoute)
 
-    const creationMode = computed(() => urlTokens.value.includes('new'))
+    const creationMode = computed(() => currentRoute.value.includes('new'))
 
     const checkLocation = (location) => {
-      const tokens = urlTokens.value
-      return tokens === location
+      return currentRoute.value === location
     }
 
     const startedDesktops = computed(() => {

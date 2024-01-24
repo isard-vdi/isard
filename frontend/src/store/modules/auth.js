@@ -1,101 +1,220 @@
-import router from '@/router'
-import axios from 'axios'
-import { apiAdminSegment } from '@/shared/constants'
-import store from '@/store/index.js'
-import * as cookies from 'tiny-cookie'
 import { jwtDecode } from 'jwt-decode'
+import axios from 'axios'
+import router from '@/router'
+import { sessionCookieName, apiV3Segment, apiAdminSegment, authenticationSegment } from '@/shared/constants'
+import { getCookie, setCookie, removeCookie } from 'tiny-cookie'
+
+const webapp = axios.create({
+  baseURL: apiAdminSegment
+})
+
+webapp.interceptors.request.use(function (config) {
+  config.headers.Authorization = 'Bearer ' + getCookie(sessionCookieName)
+  return config
+})
 
 export default {
   state: {
-    user: {},
-    token: '',
-    registerToken: '',
-    expirationDate: '',
-    urlTokens: [],
-    verified: null
+    session: getCookie(sessionCookieName) || false,
+    user: null,
+    currentRoute: '',
+    pageErrorMessage: ''
   },
   getters: {
+    getSession: state => {
+      return state.session
+    },
     getUser: state => {
       return state.user
     },
-    getToken: state => {
-      return state.token
+    getCurrentRoute: state => {
+      return state.currentRoute
     },
-    getRegisterToken: state => {
-      return state.registerToken
+    getPageErrorMessage: state => {
+      return state.pageErrorMessage
+    }
+  },
+  mutations: {
+    setSession (state, session) {
+      if (session) {
+        setCookie(sessionCookieName, session)
+      } else {
+        removeCookie(sessionCookieName)
+        removeCookie('authorization')
+      }
+      state.session = session
     },
-    getExpirationDate: state => {
-      return state.expirationDate
+    setUser (state, user) {
+      state.user = user
     },
-    getUrlTokens: state => {
-      return state.urlTokens
+    setPageErrorMessage (state, errorMessage) {
+      state.pageErrorMessage = errorMessage
     },
-    getVerified: state => {
-      return state.Verified
+    setCurrentRoute (state, routeName) {
+      state.currentRoute = routeName
     }
   },
   actions: {
-    setSession (context, token) {
-      const jwt = jwtDecode(token)
-      context.commit('setToken', token)
-      context.commit('setExpirationDate', jwt.exp * 1000)
-      if (jwt.type) {
-        context.commit('setUser', jwt)
-      } else {
-        context.commit('setUser', jwtDecode(token).data)
-      }
-    },
-    deleteSessionAndGoToLogin (context) {
-      localStorage.token = ''
-      context.commit('resetStore')
-      router.push({ name: 'Login' })
+    async login (context, data) {
+      const authentication = axios.create({
+        baseURL: authenticationSegment
+      })
+
+      authentication.interceptors.request.use(function (config) {
+        if (getCookie('authorization')) {
+          config.headers.Authorization = 'Bearer ' + getCookie('authorization')
+        }
+        return config
+      })
+      await authentication.post(`/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}&username=${data.get('username')}`, data, { timeout: 25000 }).then(response => {
+        if (jwtDecode(response.data).type === 'register') {
+          router.push({ name: 'Register' })
+        } else {
+          context.dispatch('loginSuccess', response.data)
+        }
+      })
     },
     loginSuccess (context, token) {
-      context.dispatch('setSession', token)
-      localStorage.token = token
-      context.dispatch('openSocket', {})
-      context.dispatch('fetchConfig')
-      context.dispatch('saveNewLanguage')
-      store.dispatch('removeAuthorizationCookie')
+      context.commit('setSession', token)
+      const session = jwtDecode(context.getters.getSession)
+      if (!session.type) {
+        context.dispatch('fetchUser')
+        if (['admin', 'manager'].includes(context.getters.getUser.role_id)) {
+          context.dispatch('loginWebapp')
+        }
+        context.dispatch('saveNewLanguage')
+      }
       router.push({ name: 'desktops' })
     },
-    loginAdmin (context) {
-      axios.get(`${apiAdminSegment}/login`, {}, { timeout: 25000 }).catch(e => {
+    loginWebapp (context) {
+      webapp.get('/login', {}, { timeout: 25000 }).catch(e => {
         if (e.response.status === 503) {
           router.push({ name: 'Maintenance' })
         } else {
           console.log(e)
         }
-      }).then(() => {
-        window.location = `${apiAdminSegment}/admin/landing`
       })
     },
+    logout (context, redirect = true) {
+      if (getCookie(sessionCookieName)) {
+        const session = jwtDecode(context.getters.getSession)
+        context.commit('setSession', false)
+        if (!session.type) {
+          if (['admin', 'manager'].includes(context.getters.getUser.role_id)) {
+            webapp.get('/logout/remote')
+          }
+        }
+      }
+      if (redirect) {
+        router.push({ name: 'Login' })
+      }
+      context.commit('resetStore')
+      context.dispatch('closeSocket')
+    },
     saveNavigation (context, payload) {
-      const tokens = payload.url.name
-      context.commit('setUrlTokens', tokens)
+      const currentRoute = payload.url.name
+      context.commit('setCurrentRoute', currentRoute)
     },
-    removeAuthorizationCookie (context) {
-      cookies.removeCookie('authorization')
-    }
-  },
-  mutations: {
-    setUser (state, user) {
-      state.user = user
+    handleLoginError ({ commit }, e) {
+      if (e.response.status === 403 && e.response.data === 'disabled user') {
+        commit('setPageErrorMessage', 'errors.user_disabled')
+      } else if ([401, 429, 500].includes(e.response.status)) {
+        commit('setPageErrorMessage', `views.login.errors.${e.response.status}`)
+      } else {
+        commit('setPageErrorMessage', 'views.login.errors.generic')
+      }
     },
-    setToken (state, token) {
-      state.token = token
+    async register (context, code) {
+      const register = axios.create({
+        baseURL: apiV3Segment
+      })
+      register.interceptors.request.use(function (config) {
+        config.headers.Authorization = 'Bearer ' + getCookie('authorization')
+        return config
+      })
+      // TODO: Change to application/json
+      const data = new FormData()
+      data.append('code', code)
+      return register.post('/user/register', data).then(() => {
+        setCookie(sessionCookieName, getCookie('authorization'))
+        const registeredUser = jwtDecode(getCookie(sessionCookieName))
+        let provider = registeredUser.provider
+        if (provider === 'local' || provider === 'ldap') {
+          provider = 'form'
+        }
+        // TODO: Change to application/json
+        const loginData = new FormData()
+        loginData.append('provider', provider)
+        loginData.append('category_id', registeredUser.category_id)
+        loginData.append('username', registeredUser.username)
+        context.dispatch('login', loginData)
+      })
     },
-    setRegisterToken (state, registerToken) {
-      state.registerToken = registerToken
+    handleRegisterError ({ commit }, error) {
+      if ([401, 404, 409].includes(error.response.status)) {
+        commit('setPageErrorMessage', `views.register.errors.${error.response.status}`)
+      } else if (error.response.status === 429) {
+        commit('setPageErrorMessage', 'views.login.errors.429')
+      } else {
+        commit('setPageErrorMessage', 'views.error.codes.500')
+      }
     },
-    setExpirationDate (state, expirationDate) {
-      state.expirationDate = expirationDate
+    fetchUser (context) {
+      // TODO: Instead of retrieving from JWT get from API
+      const tokenPayload = jwtDecode(getCookie(sessionCookieName))
+      if (tokenPayload.data) {
+        context.commit('setUser', tokenPayload.data)
+      // Email verification page
+      } else {
+        context.commit('setUser', { current_email: tokenPayload.current_email })
+      }
     },
-    setUrlTokens (state, tokens) {
-      state.urlTokens = tokens
+    async updateSession (context, session) {
+      context.commit('setSession', session)
     },
-    setVerified (state, verified) {
-      state.verified = verified
+    // Email verification
+    sendVerifyEmail (context, data) {
+      const verifyEmailAxios = axios.create()
+      verifyEmailAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
+        return config
+      })
+      return verifyEmailAxios.post(`${authenticationSegment}/request-email-verification`, data)
+    },
+    verifyEmail (context, token) {
+      const verifyEmailAxios = axios.create()
+      verifyEmailAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${token}`
+        return config
+      })
+      return verifyEmailAxios.post(`${authenticationSegment}/verify-email`, {})
+    },
+    // Password reset
+    sendResetPasswordEmail (context, data) {
+      const forgotPasswordAxios = axios.create()
+      return forgotPasswordAxios.post(`${authenticationSegment}/forgot-password`, data)
+    },
+    fetchExpiredPasswordPolicy (context, token) {
+      const expiredPasswordAxios = axios.create()
+      expiredPasswordAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${token}`
+        return config
+      })
+      return expiredPasswordAxios.get(`${apiV3Segment}/user/expired/password-policy`)
+        .then(response => {
+          context.commit('setPasswordPolicy', response.data)
+        })
+    },
+    resetPassword (context, data) {
+      const resetPasswordAxios = axios.create()
+      const token = data.token
+      delete data.token
+      resetPasswordAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${token}`
+        return config
+      })
+
+      return resetPasswordAxios.post(`${authenticationSegment}/reset-password`, data)
     }
   }
 }

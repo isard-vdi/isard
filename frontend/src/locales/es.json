@@ -544,6 +544,7 @@
             "errors": {
                 "404": "Código no encontrado",
                 "401": "Sesión expirada",
+                "409": "L'usuari ja existeix",
                 "500": "Error en el servidor"
             }
         },

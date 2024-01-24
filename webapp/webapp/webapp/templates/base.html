@@ -113,10 +113,10 @@
 	  <script src="/isard-admin/static/js/quota.js"></script>
     <!-- Set user jwt header in ajax requests -->
     <script type="text/javascript">
-      user_token = localStorage.getItem("token")
+      const sessionCookie = getCookie('isardvdi_session')
       $.ajaxSetup({
         headers: {
-          "Authorization": "Bearer " + user_token
+          "Authorization": "Bearer " + sessionCookie
         },
         url: "/api/v3",
         beforeSend: function (jqXHR, settings) {
@@ -142,14 +142,11 @@
         console.log(message)
       };
 
-      // If the user token is deleted from the localStorage perform a logout
-      window.addEventListener('storage', (e) => {
-        if (localStorage.token === undefined) {
-          window.location = '/isard-admin/logout';
-        } else if (e.key === 'token' && (e.newValue === null || e.newValue == ''))  {
-          window.location = '/isard-admin/logout';
+      listenCookieChange(({oldValue, newValue})=> {
+        if (!newValue) {
+          window.location = '/isard-admin/logout'
         }
-      })
+      }, 1000);
     </script>
     <!-- flashed messages with pnotify -->
     {% with messages = get_flashed_messages(with_categories=true) %}

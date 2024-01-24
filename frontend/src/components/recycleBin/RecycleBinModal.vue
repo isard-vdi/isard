@@ -101,7 +101,7 @@ export default {
   setup (_, context) {
     const $store = context.root.$store
     const modal = computed(() => $store.getters.getRecycleBinModal)
-    const urlTokens = computed(() => $store.getters.getUrlTokens)
+    const currentRoute = computed(() => $store.getters.getCurrentRoute)
 
     const restoreRecycleBin = () => {
       $store.dispatch('restoreRecycleBin', { id: modal.value.item.id }).then(() => {
@@ -132,7 +132,7 @@ export default {
     }
 
     const checkLocation = (location) => {
-      const tokens = urlTokens.value
+      const tokens = currentRoute.value
       return tokens === location
     }
 

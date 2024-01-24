@@ -123,7 +123,7 @@
             </b-nav-item>
             <b-nav-item
               v-if="['admin', 'manager'].includes(getUser.role_id)"
-              @click="loginAdmin()"
+              href="/isard-admin/admin/landing"
             >
               <font-awesome-icon
                 :icon="['fas', 'user-cog']"
@@ -190,7 +190,7 @@
               </b-dropdown-item>
               <b-dropdown-item
                 href="#"
-                @click="logout()"
+                @click="logout(true)"
               >
                 <b-icon
                   icon="box-arrow-in-right"
@@ -225,7 +225,6 @@ export default {
     ...mapActions([
       'logout',
       'fetchVpn',
-      'loginAdmin',
       'navigate'
     ]),
     menuGoToBookingSummary () {
