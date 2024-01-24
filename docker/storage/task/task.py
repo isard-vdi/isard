@@ -324,7 +324,7 @@ def delete(path):
     remove(path)
 
 
-def virt_win_reg(storage_path, registry_patch, tmp_path="/isard/tmp/"):
+def virt_win_reg(storage_path, registry_patch):
     """
     Copy reg file to tmp
     Apply registry patch to qcow2 storage_id disk using virt-win-reg
@@ -334,8 +334,6 @@ def virt_win_reg(storage_path, registry_patch, tmp_path="/isard/tmp/"):
     :type storage_id: str
     :param registry_patch: Registry patch
     :type registry_patch: str
-    :param tmp_path: Temporary file path
-    :type tmp_path: str
     :return: Exit code of regedit command
     :rtype: int
     """
@@ -345,13 +343,8 @@ def virt_win_reg(storage_path, registry_patch, tmp_path="/isard/tmp/"):
         return e
 
     try:
-        if tmp_path[-1] != "/":
-            tmp_path = f"{tmp_path}/"
-        tmp_file = f"{tmp_path}tmp.reg"
-        if not isdir(tmp_path):
-            run(["mkdir", tmp_path])
-        if not isfile(tmp_file):
-            run(["touch", tmp_file], capture_output=True)
+        tmp_file = f"/tmp/tmp.reg"
+        run(["touch", tmp_file])
         with open(tmp_file, "w") as tmpreg:
             tmpreg.write(registry_patch)
     except Exception as e:
@@ -366,8 +359,8 @@ def virt_win_reg(storage_path, registry_patch, tmp_path="/isard/tmp/"):
                 tmp_file,
             ],
             check=True,
-            capture_output=True,
-        )
+        ).returncode
         remove(tmp_file)
     except Exception as e:
+        remove(tmp_file)
         return e
