@@ -2,8 +2,11 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/limits"
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
@@ -15,6 +18,7 @@ import (
 type Form struct {
 	cfg       cfg.Authentication
 	providers map[string]Provider
+	limits    *limits.Limits
 }
 
 func InitForm(cfg cfg.Authentication, db r.QueryExecutor) *Form {
@@ -30,19 +34,81 @@ func InitForm(cfg cfg.Authentication, db r.QueryExecutor) *Form {
 		providers[ldap.String()] = ldap
 	}
 
-	return &Form{
+	f := &Form{
 		cfg:       cfg,
 		providers: providers,
 	}
+
+	if cfg.Limits.Enabled {
+		f.limits = limits.NewLimits(cfg.Limits.MaxAttempts, cfg.Limits.RetryAfter, cfg.Limits.IncrementFactor)
+	}
+
+	return f
+}
+
+type formArgs struct {
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+}
+
+func parseFormArgs(args map[string]string) (string, string, error) {
+	username := args["username"]
+	password := args["password"]
+
+	creds := &formArgs{}
+	if body, ok := args[RequestBodyArgsKey]; ok && body != "" {
+		if err := json.Unmarshal([]byte(body), creds); err != nil {
+			return "", "", fmt.Errorf("unmarshal form authentication request body: %w", err)
+		}
+	}
+
+	if username == "" {
+		if creds.Username == "" {
+			return "", "", errors.New("username not provided")
+		}
+
+		username = creds.Username
+	}
+
+	if password == "" {
+		if creds.Password == "" {
+			return "", "", errors.New("password not provided")
+		}
+
+		password = creds.Password
+	}
+
+	return username, password, nil
 }
 
 func (f *Form) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
+	usr, pwd, err := parseFormArgs(args)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	if f.limits != nil {
+		// Check if the user is rate limited
+		if err := f.limits.IsRateLimited(usr, categoryID, f.String()); err != nil {
+			return nil, nil, "", err
+		}
+
+	}
+
+	args[FormUsernameArgsKey] = usr
+	args[FormPasswordArgsKey] = pwd
+
 	invCreds := false
 
 	if f.cfg.Local.Enabled {
 		g, u, redirect, err := f.providers[types.Local].Login(ctx, categoryID, args)
 		if err == nil {
-			return g, u, redirect, err
+			if f.limits != nil {
+				// Clean the user rate limits record because the user has logged in correctly
+				f.limits.CleanRateLimit(usr, categoryID, f.String())
+			}
+
+			return g, u, redirect, nil
 		}
 
 		if !errors.Is(err, ErrInvalidCredentials) {
@@ -54,6 +120,15 @@ func (f *Form) Login(ctx context.Context, categoryID string, args map[string]str
 
 	if f.cfg.LDAP.Enabled {
 		g, u, redirect, err := f.providers[types.LDAP].Login(ctx, categoryID, args)
+		// Clean the user rate limits record because the user has logged in correctly
+		if err == nil {
+			if f.limits != nil {
+				f.limits.CleanRateLimit(usr, categoryID, f.String())
+			}
+
+			return g, u, redirect, nil
+		}
+
 		if !errors.Is(err, ErrInvalidCredentials) {
 			return g, u, redirect, err
 		}
@@ -62,6 +137,13 @@ func (f *Form) Login(ctx context.Context, categoryID string, args map[string]str
 	}
 
 	if invCreds {
+		if f.limits != nil {
+			// Record the failed attempt and return an error if the user has been rate limited
+			if err := f.limits.RecordFailedAttempt(usr, categoryID, f.String()); err != nil {
+				return nil, nil, "", err
+			}
+		}
+
 		return nil, nil, "", ErrInvalidCredentials
 	}
 

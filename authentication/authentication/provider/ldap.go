@@ -2,8 +2,6 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"regexp"
@@ -84,41 +82,6 @@ func InitLDAP(cfg cfg.AuthenticationLDAP) *LDAP {
 	return l
 }
 
-type ldapArgs struct {
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-}
-
-func parseLDAPArgs(args map[string]string) (string, string, error) {
-	username := args["username"]
-	password := args["password"]
-
-	creds := &ldapArgs{}
-	if body, ok := args[RequestBodyArgsKey]; ok && body != "" {
-		if err := json.Unmarshal([]byte(body), creds); err != nil {
-			return "", "", fmt.Errorf("unmarshal LDAP authentication request body: %w", err)
-		}
-	}
-
-	if username == "" {
-		if creds.Username == "" {
-			return "", "", errors.New("username not provided")
-		}
-
-		username = creds.Username
-	}
-
-	if password == "" {
-		if creds.Password == "" {
-			return "", "", errors.New("password not provided")
-		}
-
-		password = creds.Password
-	}
-
-	return username, password, nil
-}
-
 func (l *LDAP) newConn() (*ldap.Conn, error) {
 	conn, err := ldap.DialURL(fmt.Sprintf("%s://%s:%d", l.cfg.Protocol, l.cfg.Host, l.cfg.Port))
 	if err != nil {
@@ -172,10 +135,8 @@ func (l *LDAP) listAllGroups(usr string) ([]string, error) {
 }
 
 func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
-	usr, pwd, err := parseLDAPArgs(args)
-	if err != nil {
-		return nil, nil, "", err
-	}
+	usr := args[FormUsernameArgsKey]
+	pwd := args[FormPasswordArgsKey]
 
 	conn, err := l.newConn()
 	if err != nil {

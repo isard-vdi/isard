@@ -193,6 +193,24 @@
                                 }
                             }
                         }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "headers": {
+                            "Retry-After": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": true
+                            }
+                        },
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
                     }
                 },
                 "tags": [],

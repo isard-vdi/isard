@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication"
+	"gitlab.com/isard/isardvdi/authentication/authentication/limits"
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
@@ -236,6 +237,18 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		if errors.Is(err, provider.ErrUserDisabled) {
 			return &oasAuthentication.LoginForbidden{
 				Data: bytes.NewReader([]byte(err.Error())),
+			}, nil
+		}
+
+		var rateLimitErr *limits.RateLimitError
+		if errors.As(err, &rateLimitErr) {
+			retryAfter := rateLimitErr.RetryAfter.UTC().Format(http.TimeFormat)
+
+			return &oasAuthentication.LoginTooManyRequestsHeaders{
+				RetryAfter: retryAfter,
+				Response: oasAuthentication.LoginTooManyRequests{
+					Data: bytes.NewBufferString("Retry after: " + retryAfter),
+				},
 			}, nil
 		}
 
