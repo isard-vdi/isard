@@ -71,6 +71,8 @@ force_get_hyp_info:
   type: boolean
 min_free_mem_gb:
   type: integer
+min_free_gpu_mem_gb:
+  type: integer
 storage_pools:
   type: list
   default_setter: storagepools

@@ -70,6 +70,7 @@ def SetupHypervisor():
         if os.environ.get("GPU_NVIDIA_RESCAN") == "true"
         else False,
         "min_free_mem_gb": os.environ.get("HYPER_FREEMEM", "0"),
+        "min_free_gpu_mem_gb": os.environ.get("GPU_ONLY_MEM", "0"),
         "storage_pools": os.environ.get(
             "CAPABILITIES_STORAGE_POOLS", DEFAULT_STORAGE_POOL_ID
         ),

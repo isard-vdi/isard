@@ -484,6 +484,8 @@ class HypervisorsThread(threading.Thread):
                                 },
                                 {"vpn": {"wireguard": {"connected": True}}},
                                 "min_free_mem_gb",
+                                "min_free_gpu_mem_gb",
+                                "gpu_only",
                                 "orchestrator_managed",
                                 "destroy_time",
                             ]

@@ -717,10 +717,17 @@ def get_hypers_online(
         .filter({"status": "Online", "capabilities": {"hypervisor": True}})
         .filter(r.row["hypervisors_pools"].contains(id_pool))
         .pluck(
-            "id", "only_forced", "gpu_only", "stats", "mountpoints", "min_free_mem_gb"
+            "id",
+            "only_forced",
+            "gpu_only",
+            "stats",
+            "mountpoints",
+            "min_free_mem_gb",
+            "min_free_gpu_mem_gb",
         )
         .run(r_conn)
     )
+    close_rethink_connection(r_conn)
     return filter_available_hypers(
         hypers_online,
         forced_hyp=forced_hyp,
@@ -745,7 +752,13 @@ def filter_available_hypers(
     # NOTE: we are not excluding gpu when we are looking for disk operations,
     #       we are only excluding gpu when we are looking for hypervisors
     if exclude_gpu:
-        hypers_online = [h for h in hypers_online if not h.get("gpu_only", None)]
+        # Hypers with mem ram reserved for gpu guests should be dynamic
+        hypers_online = [
+            h
+            for h in hypers_online
+            if int(h.get("min_free_gpu_mem_gb", 0)) == 0
+            and not h.get("gpu_only", False)
+        ] + [h for h in hypers_online if int(h.get("min_free_gpu_mem_gb", 0)) != 0]
 
     # check if forced_hyp is online
     if forced_hyp:
@@ -753,6 +766,9 @@ def filter_available_hypers(
         if len(forced_hyp_found):
             return forced_hyp_found
         return []
+
+    # exclude hypers with min_free_gpu_mem_gb > 0 if there is more than one online
+    hypers_online = filter_outofGPUmem_hypers(hypers_online)
 
     # exclude now hypers only_forced
     hypers_online = [h for h in hypers_online if not h.get("only_forced")]
@@ -763,6 +779,49 @@ def filter_available_hypers(
             return favourite_hyp_found
 
     return hypers_online
+
+
+def filter_outofGPUmem_hypers(hypers_online):
+    # At least one hyper will be kept for everything if there is only one
+    # Here we've got also the only forceds
+    if len(hypers_online) == 1:
+        hyper = hypers_online[0]
+        if int(hyper.get("min_free_gpu_mem_gb", 0)) != 0 and hyper.get(
+            "gpu_only", False
+        ):
+            r_conn = new_rethink_connection()
+            rtable = r.table("hypervisors")
+            rtable.get(hyper["id"]).update({"gpu_only": False}).run(r_conn)
+            close_rethink_connection(r_conn)
+        return hypers_online
+
+    # Now we are sure that there are at least two hypers
+    hypers_with_ram = []
+    for hyper in hypers_online:
+        # Not reserved memory for gpu guests
+        if int(hyper.get("min_free_gpu_mem_gb", 0)) == 0:
+            hypers_with_ram.append(hyper)
+            continue
+        if (
+            int(hyper.get("stats", {}).get("mem_stats", {}).get("available", 0))
+            > int(hyper.get("min_free_gpu_mem_gb", 0)) * 1048576
+            + int(hyper.get("min_free_mem_gb", 0)) * 1048576
+        ):
+            # Hypervisor has enough memory for gpu guests and normal guests. only_gpu = False
+            hypers_with_ram.append(hyper)
+            if hyper.get("gpu_only", False):
+                r_conn = new_rethink_connection()
+                rtable = r.table("hypervisors")
+                rtable.get(hyper["id"]).update({"gpu_only": False}).run(r_conn)
+                close_rethink_connection(r_conn)
+        else:
+            # Hypervisor has not enough memory for gpu guests. only_gpu = True
+            if not hyper.get("gpu_only", False):
+                r_conn = new_rethink_connection()
+                rtable = r.table("hypervisors")
+                rtable.get(hyper["id"]).update({"gpu_only": True}).run(r_conn)
+                close_rethink_connection(r_conn)
+    return hypers_with_ram
 
 
 def filter_outofmem_hypers(hypers_online):

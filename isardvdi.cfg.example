@@ -309,6 +309,12 @@ HAPROXY_LOGGING=.
 ## Only start desktops with GPU reservables (avoid )
 #GPU_ONLY=false
 
+## GPU guests reserved hypervisor memory (GB). Only applies when more than
+## one hypervisor is online (and not forced) in the system.
+## NOTE: Setting this parameter will disable GPU_ONLY as it's desired
+##       behaviour is somewhat dynamic, based on memory available.
+#GPU_ONLY_MEM=0
+
 # ------ ENGINE BALANCERS ---------------------------------------------------
 ## Available balancers: round_robin, available_ram, available_ram_percent,
 ##                      less_cpu, less_cpu_till_low_ram,
