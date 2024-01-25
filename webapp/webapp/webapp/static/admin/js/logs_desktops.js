@@ -178,8 +178,8 @@ $.fn.dataTable.Api.register( 'clearPipeline()', function () {
 logs_desktops_raw_table = null;
 logs_desktops_desktop_table = null;
 
+$('#echart-daily-items').echartDailyItems("logs_desktops", "starting_time");
 $(document).ready(function () {
-    $('#echart-daily-items').echartDailyItems("logs_desktops", "starting_time");
     var debounceZoom = debounce(function (params) {
         if ($("#btn-raw-view-tab").hasClass("active")){
             logs_desktops_raw_table.clearPipeline().draw();
