@@ -51,6 +51,21 @@
                 ]
             }
         },
+        "/healthcheck": {
+            "get": {
+                "operationId": "Healthcheck",
+                "summary": "Check if the service is healthy",
+                "description": "",
+                "responses": {
+                    "200": {
+                        "description": "The service is healthy"
+                    },
+                    "503": {
+                        "description": "The service is unhealthy"
+                    }
+                }
+            }
+        },
         "/providers": {
             "get": {
                 "operationId": "Providers",

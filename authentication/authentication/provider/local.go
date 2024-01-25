@@ -58,3 +58,19 @@ func (Local) AutoRegister() bool {
 func (l *Local) String() string {
 	return types.Local
 }
+
+func (l *Local) Healthcheck() error {
+	rsp, err := r.Table("users").Status().Run(l.db)
+	if err != nil {
+		return fmt.Errorf("unable to connect to the DB: %w", err)
+	}
+
+	defer rsp.Close()
+
+	var res []interface{}
+	if rsp.All(&res); err != nil {
+		return fmt.Errorf("unable to connect to the DB: read DB response: %w", err)
+	}
+
+	return nil
+}

@@ -33,3 +33,8 @@ func (m *ProviderMock) AutoRegister() bool {
 func (m *ProviderMock) String() string {
 	return "mock"
 }
+
+func (m *ProviderMock) Healthcheck() error {
+	mArgs := m.Called()
+	return mArgs.Error(0)
+}

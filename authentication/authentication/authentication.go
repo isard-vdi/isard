@@ -30,6 +30,8 @@ type Interface interface {
 	Login(ctx context.Context, provider string, categoryID string, args map[string]string) (tkn, redirect string, err error)
 	Callback(ctx context.Context, ss string, args map[string]string) (tkn, redirect string, err error)
 	Check(ctx context.Context, tkn string) error
+	// Refresh()
+	// Register()
 
 	AcknowledgeDisclaimer(ctx context.Context, tkn string) error
 	RequestEmailVerification(ctx context.Context, tkn string, email string) error
@@ -38,8 +40,8 @@ type Interface interface {
 	ResetPassword(ctx context.Context, tkn string, pwd string) error
 
 	SAML() *samlsp.Middleware
-	// Refresh()
-	// Register()
+
+	Healthcheck() error
 }
 
 var _ Interface = &Authentication{}
@@ -409,4 +411,16 @@ func (a *Authentication) Check(ctx context.Context, ss string) error {
 
 func (a *Authentication) SAML() *samlsp.Middleware {
 	return a.saml
+}
+
+func (a *Authentication) Healthcheck() error {
+	for _, p := range a.providers {
+		if err := p.Healthcheck(); err != nil {
+			a.Log.Warn().Err(err).Str("provider", p.String()).Msg("service unhealthy")
+
+			return err
+		}
+	}
+
+	return nil
 }

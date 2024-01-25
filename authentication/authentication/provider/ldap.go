@@ -270,3 +270,14 @@ func (l *LDAP) AutoRegister() bool {
 func (l *LDAP) String() string {
 	return types.LDAP
 }
+
+func (l *LDAP) Healthcheck() error {
+	conn, err := l.newConn()
+	if err != nil {
+		return fmt.Errorf("unable to connect to the LDAP server: %w", err)
+	}
+
+	defer conn.Close()
+
+	return nil
+}

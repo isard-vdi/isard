@@ -19,15 +19,20 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/db"
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"
 
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/rs/zerolog"
 	"gitlab.com/isard/isardvdi-sdk-go"
 )
 
 var _ oasAuthentication.Handler = &AuthenticationServer{}
 
+const healthcheckCacheKey = "healthcheck"
+
 type AuthenticationServer struct {
 	Addr           string
 	Authentication authentication.Interface
+
+	healthcheckCache *ttlcache.Cache[string, error]
 
 	Log *zerolog.Logger
 	WG  *sync.WaitGroup
@@ -37,9 +42,18 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	a := &AuthenticationServer{
 		Addr:           addr,
 		Authentication: auth,
-		Log:            log,
-		WG:             wg,
+		healthcheckCache: ttlcache.New[string, error](
+			// Set the cache duration to 30 seconds
+			ttlcache.WithTTL[string, error](30*time.Second),
+			// Disable the time extension when getting the values
+			ttlcache.WithDisableTouchOnHit[string, error](),
+		),
+		Log: log,
+		WG:  wg,
 	}
+
+	// Start the cache eviction process
+	go a.healthcheckCache.Start()
 
 	sec := &SecurityHandler{}
 
@@ -75,7 +89,24 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	defer cancel()
 
 	s.Shutdown(timeout)
+	a.healthcheckCache.Stop()
+
 	a.WG.Done()
+}
+
+func (a *AuthenticationServer) Healthcheck(ctx context.Context) (oasAuthentication.HealthcheckRes, error) {
+	status := a.healthcheckCache.Get(healthcheckCacheKey)
+	if status == nil || status.IsExpired() {
+		err := a.Authentication.Healthcheck()
+
+		status = a.healthcheckCache.Set(healthcheckCacheKey, err, ttlcache.DefaultTTL)
+	}
+
+	if status.Value() != nil {
+		return &oasAuthentication.HealthcheckServiceUnavailable{}, nil
+	}
+
+	return &oasAuthentication.HealthcheckOK{}, nil
 }
 
 func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request) {

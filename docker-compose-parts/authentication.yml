@@ -1,4 +1,4 @@
-version: '3.5'
+version: "3.5"
 services:
   isard-authentication:
     container_name: isard-authentication
@@ -11,6 +11,10 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.11
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1313/healthcheck"]
+      start_period: 30s
+      interval: 5s
     volumes:
       - "/opt/isard/authentication/keys:/keys"
       - "/opt/isard/authentication/metadata:/metadata"

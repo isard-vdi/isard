@@ -176,3 +176,13 @@ func (f *Form) Providers() []string {
 
 	return providers
 }
+
+func (f *Form) Healthcheck() error {
+	for _, p := range f.providers {
+		if err := p.Healthcheck(); err != nil {
+			return fmt.Errorf("error in provider '%s': %w ", p.String(), err)
+		}
+	}
+
+	return nil
+}

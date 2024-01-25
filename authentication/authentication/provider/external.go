@@ -84,3 +84,7 @@ func (External) AutoRegister() bool {
 func (External) String() string {
 	return types.External
 }
+
+func (External) Healthcheck() error {
+	return nil
+}

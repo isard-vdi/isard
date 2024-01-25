@@ -74,3 +74,9 @@ func (m *AuthenticationMock) SAML() *samlsp.Middleware {
 	mArgs := m.Called()
 	return mArgs.Get(0).(*samlsp.Middleware)
 }
+
+func (m *AuthenticationMock) Healthcheck() error {
+	mArgs := m.Called()
+
+	return mArgs.Error(0)
+}

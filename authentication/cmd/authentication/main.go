@@ -29,6 +29,8 @@ func main() {
 
 	authentication := authentication.Init(cfg, log, db)
 
+	_ = authentication.Healthcheck()
+
 	go http.Serve(ctx, &wg, log, cfg.HTTP.Addr(), authentication)
 	wg.Add(1)
 

@@ -28,6 +28,7 @@ type Provider interface {
 	Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (g *model.Group, u *model.User, redirect string, err error)
 	AutoRegister() bool
 	String() string
+	Healthcheck() error
 }
 
 var ErrUnknownIDP = errors.New("unknown identity provider")
@@ -53,6 +54,10 @@ func (Unknown) Callback(context.Context, *token.CallbackClaims, map[string]strin
 
 func (Unknown) AutoRegister() bool {
 	return false
+}
+
+func (Unknown) Healthcheck() error {
+	return nil
 }
 
 func matchRegex(re *regexp.Regexp, s string) string {

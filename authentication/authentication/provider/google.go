@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
@@ -84,4 +85,13 @@ func (Google) AutoRegister() bool {
 
 func (g *Google) String() string {
 	return types.Google
+}
+
+func (g *Google) Healthcheck() error {
+	_, err := http.PostForm("https://oauth2.googleapis.com/token", nil)
+	if err != nil {
+		return fmt.Errorf("check google oauth2 endpoint: %w", err)
+	}
+
+	return nil
 }

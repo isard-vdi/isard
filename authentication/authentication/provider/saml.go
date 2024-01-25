@@ -16,6 +16,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 
+	"github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
 )
 
@@ -156,4 +157,26 @@ func (SAML) AutoRegister() bool {
 
 func (SAML) String() string {
 	return types.SAML
+}
+
+func (s *SAML) Healthcheck() error {
+	var binding, bindingLocation string
+	if s.Middleware.Binding != "" {
+		binding = s.Middleware.Binding
+		bindingLocation = s.Middleware.ServiceProvider.GetSSOBindingLocation(binding)
+	} else {
+		binding = saml.HTTPRedirectBinding
+		bindingLocation = s.Middleware.ServiceProvider.GetSSOBindingLocation(binding)
+		if bindingLocation == "" {
+			binding = saml.HTTPPostBinding
+			bindingLocation = s.Middleware.ServiceProvider.GetSSOBindingLocation(binding)
+		}
+	}
+
+	_, err := http.Get(bindingLocation)
+	if err != nil {
+		return fmt.Errorf("unable to get the SAML binding location: %w", err)
+	}
+
+	return nil
 }
