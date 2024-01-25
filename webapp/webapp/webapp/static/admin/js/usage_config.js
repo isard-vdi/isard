@@ -98,8 +98,8 @@ $(document).ready(function () {
   $('#btn-credit_add').on('click', function () {
     var modal='#modalAddCredit';
 
-    showModal(modal);
     $(modal+'Form .valuesOptions').empty();
+    showModal(modal);
     populateLimits(modal);
     creditFilters[2]['kind'] = 'select-multiple';
     initialize_filters(null, creditFilters, modal+' .valuesOptions');
