@@ -1892,26 +1892,6 @@ class Populate(object):
                             },
                         },
                     },
-                    {
-                        "name": "Desktop timeout notify",
-                        "description": "Notification that will be sent when a desktop is about to stop due to time out",
-                        "kind": "desktop",
-                        "vars": {
-                            "email": "your@domain.com",
-                            "user_id": "jdoe",
-                            "user_name": "John Doe",
-                            "desktop_name": "Desktop",
-                            "desktop_id": "230af4-5a3242-6464e56a",
-                            "accessed": "2021-01-01 00:00:00",
-                            "timeout": "2021-01-01 00:59:00",
-                        },
-                        "default": "system",
-                        "system": {
-                            "title": "",
-                            "body": "",
-                        },
-                        "lang": {},
-                    },
                 ]
             ).run(self.conn)
         except Exception as e:
@@ -1940,16 +1920,7 @@ class Populate(object):
                         "channels": ["mail"],
                     },
                     {
-                        "event": "desktop-timeout",
-                        "tmpl_id": [
-                            template["id"]
-                            for template in templates
-                            if template["kind"] == "desktop"
-                        ][0],
-                        "channels": ["qmp", "frontend"],
-                    },
-                    {
-                        "event": "password-recovery",
+                        "event": "password-reset",
                         "tmpl_id": [
                             template["id"]
                             for template in templates

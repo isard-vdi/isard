@@ -1752,7 +1752,7 @@ class ApiUsers:
 
     def get_lang(self, user_id):
         with app.app_context():
-            lang = r.table("users").get(user_id)["lang"].run(db.conn)
+            lang = r.table("users").get(user_id).run(db.conn).get("lang")
         return lang
 
 

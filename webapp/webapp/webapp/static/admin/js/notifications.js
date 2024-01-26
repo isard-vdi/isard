@@ -71,7 +71,7 @@ $(document).ready(function () {
                     } else {
                         $(modal + " #default-lang").iCheck('uncheck').iCheck('update');
                     }
-                    populateLanguage(modal, availableLanguages)
+                    populateLanguage(modal, availableLanguages, data.default)
                     $(modal + ' #id').val(id);
                     $(modal + ' #default').val(data.default);
                     $(modal + ' #name').val(data.name);
@@ -220,7 +220,7 @@ function renderModal(modal, action) {
 }
 
 
-function populateLanguage(modal, availableLanguageList) {
+function populateLanguage(modal, availableLanguageList, defaultLang) {
     const languageList = {
         ca: 'Català',
         de: 'Deutsch',
@@ -233,7 +233,8 @@ function populateLanguage(modal, availableLanguageList) {
     }
     $(modal + ' #language').append("<option disabled selected>--Choose a Language--</option>");
     $.each(languageList, function (langCode, langName) {
-        const optionName = availableLanguageList && availableLanguageList.includes(langCode) ? `${langName} (*)` : langName;
+        var optionName = availableLanguageList && availableLanguageList.includes(langCode) ? `${langName} (*)` : langName;
+        optionName = defaultLang==langCode ? `${optionName} - default` : optionName;
         $(modal + ' #language').append(`<option value=${langCode}>${optionName}</option>`);
     });
 }
