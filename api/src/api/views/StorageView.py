@@ -280,7 +280,7 @@ def storage_delete(payload, storage_id):
 
 
 @app.route("/api/v3/storage/virt-win-reg/<storage_id>", methods=["PUT"])
-@has_token
+@is_admin_or_manager
 def storage_virt_win_reg(payload, storage_id):
     """
     Endpoint to apply a registry patch to a storage qcow2
