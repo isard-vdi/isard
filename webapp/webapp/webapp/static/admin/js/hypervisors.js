@@ -221,7 +221,15 @@ $(document).ready(function() {
       {
         //Only GPU
         "targets": 6,
-        "render": renderBoolean
+        "render": function(data, type, full, meta) {
+          if ( ! ("min_free_gpu_mem_gb" in full) ) { return renderBoolean(data) }
+          if ( full.min_free_gpu_mem_gb == 0) { return renderBoolean(data) }
+          if ( data ) {
+            return '<p title="Set to reserve '+full.min_free_gpu_mem_gb+' GB of ram for GPU desktops. Now allowing only GPU desktops.">Auto '+renderBoolean(data)+'</p>'
+          } else {
+            return '<p title="Set to reserve '+full.min_free_gpu_mem_gb+' GB of ram for GPU desktops. Now allowing all.">Auto '+renderBoolean(data)+'</p>'
+          }
+        }
       },
       {
         // RAM
