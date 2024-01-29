@@ -279,6 +279,79 @@ def storage_delete(payload, storage_id):
     return jsonify(storage.task)
 
 
+@app.route("/api/v3/storage/virt-win-reg/<storage_id>", methods=["PUT"])
+@is_admin_or_manager
+def storage_virt_win_reg(payload, storage_id):
+    """
+    Endpoint to apply a registry patch to a storage qcow2
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    # Get registry patch from request body
+    if not request.is_json:
+        raise Error(
+            description="No JSON in body request with registry patch",
+        )
+    request_json = request.get_json()
+    registry_patch = request_json.get("registry_patch")
+    if not registry_patch:
+        raise Error(
+            description="registry_patch must be specified in JSON of body request",
+        )
+
+    storage = set_storage_maintenance(payload, storage_id)
+    try:
+        storage.create_task(
+            user_id=payload.get("user_id"),
+            queue=f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=storage.directory_path).id}.low",
+            task="virt_win_reg",
+            job_kwargs={
+                "kwargs": {
+                    "storage_path": storage.path,
+                    "registry_patch": registry_patch,
+                },
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "finished": {
+                                    "ready": {
+                                        "storage": [storage.id],
+                                    },
+                                },
+                                "canceled": {
+                                    "ready": {
+                                        "storage": [storage.id],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                }
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error applying registry patch storage",
+        )
+    return jsonify(storage.task)
+
+
 @app.route(
     "/api/v3/storage/<path:storage_id>/update_qemu_img_info",
     methods=["PUT"],

@@ -17,9 +17,10 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import base64
 from json import loads
 from os import environ, remove, rename
-from os.path import isfile
+from os.path import isdir, isfile
 from re import search
 from subprocess import PIPE, Popen, check_output, run
 from time import sleep
@@ -321,3 +322,45 @@ def delete(path):
     :type path: str
     """
     remove(path)
+
+
+def virt_win_reg(storage_path, registry_patch):
+    """
+    Copy reg file to tmp
+    Apply registry patch to qcow2 storage_id disk using virt-win-reg
+    Remove reg file from tmp
+
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :param registry_patch: Registry patch
+    :type registry_patch: str
+    :return: Exit code of regedit command
+    :rtype: int
+    """
+    try:
+        registry_patch = base64.b64decode(registry_patch).decode()
+    except Exception as e:
+        return e
+
+    try:
+        tmp_file = f"/tmp/tmp.reg"
+        run(["touch", tmp_file])
+        with open(tmp_file, "w") as tmpreg:
+            tmpreg.write(registry_patch)
+    except Exception as e:
+        return e
+
+    try:
+        run(
+            [
+                "virt-win-reg",
+                "--merge",
+                storage_path,
+                tmp_file,
+            ],
+            check=True,
+        ).returncode
+        remove(tmp_file)
+    except Exception as e:
+        remove(tmp_file)
+        return e
