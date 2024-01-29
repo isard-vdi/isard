@@ -54,12 +54,14 @@ def get_policies():
             .get_all("local", index="type")
             .merge(
                 lambda policy: {
-                    "category_name": r.branch(
-                        policy["category"].default(None).ne(None),
-                        r.table("categories")
-                        .get(policy["category"])
-                        .default({"name": "all"})["name"],
-                        "all",
+                    "category_name": (
+                        r.branch(
+                            policy["category"] == "all",
+                            "all",
+                            r.table("categories")
+                            .get(policy["category"])
+                            .default({"name": "[DELETED]"})["name"],
+                        )
                     )
                 }
             )
