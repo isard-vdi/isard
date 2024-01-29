@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 118
+release_version = 119
+# release 119: Add new password parameters to users
 # release 118: Authentication uuid ids and email verification upgrade
 # release 117: Remove computed usage totals
 # release 116: Add new password parameters to users
@@ -3684,11 +3685,27 @@ class Upgrade(object):
                 )
             except Exception as e:
                 None
+
         if version == 118:
             try:
                 r.table("users").update(
                     {"email_verified": None, "email_verification_token": None}
                 ).run(self.conn)
+            except Exception as e:
+                None
+
+        if version == 119:
+            try:
+                r.table(table).get_all("local", index="provider").filter(
+                    ~r.row.has_fields("password_history")
+                ).update({"password_history": []}).run(self.conn)
+            except Exception as e:
+                None
+
+            try:
+                r.table(table).get_all("local", index="provider").filter(
+                    ~r.row.has_fields("password_last_updated")
+                ).update({"password_last_updated": 0}).run(self.conn)
             except Exception as e:
                 None
 
