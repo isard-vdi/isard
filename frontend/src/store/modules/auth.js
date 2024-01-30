@@ -3,6 +3,7 @@ import axios from 'axios'
 import { apiAdminSegment } from '@/shared/constants'
 import store from '@/store/index.js'
 import * as cookies from 'tiny-cookie'
+import { jwtDecode } from 'jwt-decode'
 
 export default {
   state: {
@@ -35,13 +36,13 @@ export default {
   },
   actions: {
     setSession (context, token) {
-      const jwt = JSON.parse(atob(token.split('.')[1]))
+      const jwt = jwtDecode(token)
       context.commit('setToken', token)
       context.commit('setExpirationDate', jwt.exp * 1000)
       if (jwt.type) {
         context.commit('setUser', jwt)
       } else {
-        context.commit('setUser', JSON.parse(decodeURIComponent(escape(atob(token.split('.')[1])))).data)
+        context.commit('setUser', jwtDecode(token).data)
       }
     },
     deleteSessionAndGoToLogin (context) {

@@ -1,11 +1,12 @@
 import store from '@/store/index.js'
 import { StringUtils } from '../utils/stringUtils'
 import * as cookies from 'tiny-cookie'
+import { jwtDecode } from 'jwt-decode'
 
 export function auth (to, from, next, allowedRoles) {
   if (StringUtils.isNullOrUndefinedOrEmpty(localStorage.token)) {
     if (cookies.getCookie('authorization')) {
-      const jwt = JSON.parse(atob(cookies.getCookie('authorization').split('.')[1]))
+      const jwt = jwtDecode(cookies.getCookie('authorization'))
       if (jwt.type === 'register') {
         store.dispatch('saveNavigation', { url: to })
         next({ name: 'Register' })
@@ -19,7 +20,7 @@ export function auth (to, from, next, allowedRoles) {
       store.dispatch('logout')
     }
   } else {
-    const jwt = JSON.parse(atob(localStorage.token.split('.')[1]))
+    const jwt = jwtDecode(localStorage.token)
     if (new Date() > new Date(jwt.exp * 1000)) {
       store.dispatch('logout')
     } else {
@@ -39,7 +40,7 @@ export function auth (to, from, next, allowedRoles) {
 }
 
 export function checkRoutePermission (next, allowedRoles) {
-  if (!allowedRoles.includes(JSON.parse(atob(localStorage.token.split('.')[1])).data.role_id)) {
+  if (!allowedRoles.includes(jwtDecode(localStorage.token).data.role_id)) {
     next({ name: 'desktops' })
   }
 }

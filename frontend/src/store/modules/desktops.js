@@ -7,6 +7,7 @@ import { DesktopUtils } from '../../utils/desktopsUtils'
 import { DirectViewerUtils } from '../../utils/directViewerUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
 import { DateUtils } from '../../utils/dateUtils'
+import { jwtDecode } from 'jwt-decode'
 
 const getDefaultState = () => {
   return {
@@ -341,7 +342,7 @@ export default {
         )
         el.setAttribute('download', `${payload.name}.${payload.ext}`)
       } else if (payload.kind === 'browser') {
-        const exp = new Date(JSON.parse(atob(decodeURIComponent(payload.cookie))).web_viewer.exp * 1000)
+        const exp = new Date(jwtDecode(payload.cookie).web_viewer.exp * 1000)
         cookies.setCookie('token', localStorage.viewerToken)
         cookies.setCookie('browser_viewer', payload.cookie, { expires: exp })
 
