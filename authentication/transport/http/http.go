@@ -58,7 +58,11 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	sec := &SecurityHandler{}
 
 	// TODO: Security handler
-	oas, err := oasAuthentication.NewServer(a, sec)
+	oas, err := oasAuthentication.NewServer(
+		a,
+		sec,
+		oasAuthentication.WithMiddleware(Logging(log)),
+	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("create the OpenAPI authentication server")
 	}
@@ -70,7 +74,7 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	m.HandleFunc("/saml/metadata", a.Authentication.SAML().ServeMetadata)
 	m.HandleFunc("/saml/acs", a.Authentication.SAML().ServeACS)
 
-	m.Handle("/", oas)
+	m.Handle("/authentication/", http.StripPrefix("/authentication", oas))
 
 	s := http.Server{
 		Addr:    a.Addr,
