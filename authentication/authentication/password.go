@@ -50,8 +50,9 @@ func (a *Authentication) ForgotPassword(ctx context.Context, categoryID, email s
 	resetURL.RawQuery = params.Encode()
 
 	rsp, err := a.Notifier.PostNotifierMailPasswordReset(ctx, notifier.NewOptNotifyPasswordResetMailRequest0bf6af6(notifier.NotifyPasswordResetMailRequest0bf6af6{
-		Email: u.Email,
-		URL:   resetURL.String(),
+		Category: u.Category,
+		Email:    u.Email,
+		URL:      resetURL.String(),
 	}))
 	if err != nil {
 		return fmt.Errorf("error calling the notifier service: %w", err)

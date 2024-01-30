@@ -28,7 +28,11 @@ from spectree import Response
 
 from notifier import api, app
 
-from ..lib.api_actions import get_notification_message, get_user
+from ..lib.api_actions import (
+    get_notification_message,
+    get_user,
+    get_user_by_email_and_category,
+)
 from ..schemas import notifier
 from .decorators import is_admin
 
@@ -142,6 +146,7 @@ def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
 
     Email specifications in JSON:
     {
+        "category": "category of the user",
         "email": "email address where the mail will be sent",
         "url": "url that will be sent to the user for password reset",
     }
@@ -156,14 +161,19 @@ def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
                 {link}\n""".format(
         link=json.url
     )
-    # TODO: get user_id and maybe change to a generic endpoint?
+    user_id = get_user_by_email_and_category(json.email, json.category)
+
     email_content = get_notification_message(
-        {"user_id": None, "event": "password-reset", "data": {"url": json.url}}
+        {
+            "user_id": user_id,
+            "event": "password-reset",
+            "data": {"url": json.url},
+        }
     )
     email_html = render_template(
         "email/base.html",
         email_content=sanitizer.sanitize(email_content["body"]),
-        email_footer=email_content["footer"],
+        email_footer=sanitizer.sanitize(email_content["footer"]),
     )
     task_id = Task(
         queue="notifier.default",

@@ -191,6 +191,10 @@
             },
             "NotifyPasswordResetMailRequest.0bf6af6": {
                 "properties": {
+                    "category": {
+                        "title": "Category",
+                        "type": "string"
+                    },
                     "email": {
                         "title": "Email",
                         "type": "string"
@@ -204,6 +208,7 @@
                     }
                 },
                 "required": [
+                    "category",
                     "email",
                     "url"
                 ],
@@ -513,7 +518,7 @@
         },
         "/notifier/mail/password-reset": {
             "post": {
-                "description": "Email specifications in JSON: {     \"email\": \"email address where the mail will be sent\",     \"url\": \"url that will be sent to the user for password reset\", } :param payload: Data from JWT :type payload: dict :return: Task ID :rtype: Set with Flask response values and data in JSON",
+                "description": "Email specifications in JSON: {     \"category\": \"category of the user\",     \"email\": \"email address where the mail will be sent\",     \"url\": \"url that will be sent to the user for password reset\", } :param payload: Data from JWT :type payload: dict :return: Task ID :rtype: Set with Flask response values and data in JSON",
                 "operationId": "post__notifier_mail_password-reset",
                 "parameters": [],
                 "requestBody": {

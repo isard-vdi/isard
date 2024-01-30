@@ -1755,6 +1755,20 @@ class ApiUsers:
             lang = r.table("users").get(user_id).run(db.conn).get("lang")
         return lang
 
+    def get_user_by_email_and_category(self, email, category):
+        with app.app_context():
+            users = list(
+                r.table("users")
+                .get_all(category, index="category")
+                .filter({"email": email})
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
+        if len(users) == 1:
+            return users[0]
+        else:
+            raise Error("internal_server", "Error retrieving user data")
+
 
 def validate_email_jwt(user_id, email, minutes=60):
     return {

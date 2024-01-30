@@ -40,6 +40,20 @@ def get_user(user_id):
         )
 
 
+def get_user_by_email_and_category(email, category):
+    try:
+        user_id = api_client.get(
+            "/admin/user/email-category/" + email + "/" + category,
+        )["id"]
+        return user_id
+    except:
+        raise Error(
+            "internal_server",
+            "Exception when retrieving user data from user",
+            traceback.format_exc(),
+        )
+
+
 def get_notification_message(data):
     try:
         message = api_client.put("/admin/notifications/template", data)

@@ -42,6 +42,7 @@ class NotifyEmailVerifyMailResponse(BaseModel):
 
 
 class NotifyPasswordResetMailRequest(BaseModel):
+    category: str
     email: str
     url: str
     payload: object
