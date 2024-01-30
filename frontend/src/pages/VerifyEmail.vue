@@ -16,7 +16,7 @@
             cols="12"
           >
             <b-form-group
-              v-if="alertType !== 'verified'"
+              v-if="!['verified', 'error'].includes(alertType)"
               :description="$t('views.verify-email.description')"
             >
               <label for="emailAddress">{{ $t(`views.verify-email.label`) }}</label>
@@ -38,14 +38,14 @@
             </b-form-group>
             <b-alert
               :show="dismissCountDown"
-              :variant="alertType === 'verified' ? 'success' : 'warning'"
+              :variant="alertVariant[alertType]"
               @dismissed="dismissCountDown=0"
               @dismiss-count-down="countDownChanged"
             >
               {{ $t(`views.verify-email.email-${alertType}`, { seconds: dismissCountDown }) }}
             </b-alert>
             <b-link
-              v-if="alertType === 'verified'"
+              v-if="['verified', 'error'].includes(alertType)"
               href="#foo"
               @click="logout()"
             >
@@ -54,7 +54,7 @@
           </b-col>
         </b-row>
         <b-row
-          v-if="alertType !== 'verified'"
+          v-if="!['verified', 'error'].includes(alertType)"
           align-h="end"
         >
           <b-button
@@ -97,11 +97,20 @@ export default {
 
     const alertType = ref('')
 
+    const alertVariant = {
+      verified: 'success',
+      sent: 'warning',
+      error: 'danger'
+    }
+
     onMounted(() => {
       if (context.root.$route.query.token) {
         $store.dispatch('verifyEmail', context.root.$route.query.token).then(() => {
           localStorage.token = ''
           alertType.value = 'verified'
+          showAlert()
+        }).catch(() => {
+          alertType.value = 'error'
           showAlert()
         })
       } else if (StringUtils.isNullOrUndefinedOrEmpty(localStorage.token)) {
@@ -155,7 +164,7 @@ export default {
       dismissCountDown.value = dismissSecs.value
     }
 
-    return { emailAddress, v$, submitForm, user, logout, dismissCountDown, dismissSecs, countDownChanged, showAlert, alertType, sendEmailButtonDisabled }
+    return { emailAddress, v$, submitForm, user, logout, dismissCountDown, dismissSecs, countDownChanged, showAlert, alertType, sendEmailButtonDisabled, alertVariant }
   }
 }
 </script>

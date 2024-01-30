@@ -1087,7 +1087,8 @@
             "description": "La dirección de correo electrónico será verificada por IsardVDI",
             "send-verify-email": "Enviar correo de verificación",
             "email-sent": "Se ha enviado un correo electrónico a la dirección proporcionada para su verificación. Por favor, revisa tu bandeja de entrada y sigue las instrucciones. Redirigiendo al inicio de sesión en {seconds} segundos.",
-            "email-verified": "El correo electrónico se ha verificado correctamente. Redirigiendo al inicio de sesión en {seconds} segundos."
+            "email-verified": "El correo electrónico se ha verificado correctamente. Redirigiendo al inicio de sesión en {seconds} segundos.",
+            "email-error": "El código de validación proporcionado ha caducado. Redirigiendo al inicio de sesión en {seconds} segundos."
         }
     },
     "messages": {
