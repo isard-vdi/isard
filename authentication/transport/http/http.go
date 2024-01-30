@@ -69,11 +69,15 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 
 	m := http.NewServeMux()
 
-	// SAML authentication
-	m.HandleFunc("/saml/login", a.loginSAML)
-	m.HandleFunc("/saml/metadata", a.Authentication.SAML().ServeMetadata)
-	m.HandleFunc("/saml/acs", a.Authentication.SAML().ServeACS)
+	// Observability endpoints
+	m.HandleFunc("/healthcheck", a.healthcheck)
 
+	// SAML authentication
+	m.Handle("/authentication/saml/login", http.StripPrefix("/authentication", http.HandlerFunc(a.loginSAML)))
+	m.Handle("/authentication/saml/metadata", http.StripPrefix("/authentication", http.HandlerFunc(a.Authentication.SAML().ServeMetadata)))
+	m.Handle("/authentication/saml/acs", http.StripPrefix("/authentication", http.HandlerFunc(a.Authentication.SAML().ServeACS)))
+
+	// The OpenAPI specification server
 	m.Handle("/authentication/", http.StripPrefix("/authentication", oas))
 
 	s := http.Server{
@@ -98,7 +102,12 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	a.WG.Done()
 }
 
-func (a *AuthenticationServer) Healthcheck(ctx context.Context) (oasAuthentication.HealthcheckRes, error) {
+func (a *AuthenticationServer) healthcheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	status := a.healthcheckCache.Get(healthcheckCacheKey)
 	if status == nil || status.IsExpired() {
 		err := a.Authentication.Healthcheck()
@@ -107,10 +116,11 @@ func (a *AuthenticationServer) Healthcheck(ctx context.Context) (oasAuthenticati
 	}
 
 	if status.Value() != nil {
-		return &oasAuthentication.HealthcheckServiceUnavailable{}, nil
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
 	}
 
-	return &oasAuthentication.HealthcheckOK{}, nil
+	w.WriteHeader(http.StatusOK)
 }
 
 func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request) {
