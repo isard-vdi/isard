@@ -1,52 +1,97 @@
+#
+#   Copyright © 2024 Naomi Hidalgo Piñar
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+
 import json
-import os
 
 from flask import request
+from isardvdi_common.api_exceptions import Error
 
 from api import app
 
+from ..libv2.api_admin_notifications import (
+    get_notification_event_template,
+    get_notification_template,
+    get_notification_templates,
+    update_notification_template,
+)
+from ..libv2.validators import _validate_item
 from .decorators import is_admin
 
 
-@app.route("/api/v3/admin/notification/template", methods=["PUT"])
+@app.route("/api/v3/admin/notifications/templates", methods=["GET"])
+@is_admin
+def api_v3_admin_notification_templates(payload):
+    return (
+        json.dumps(get_notification_templates()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notifications/template/<template_id>", methods=["GET"])
+@is_admin
+def api_v3_admin_notification_template(payload, template_id):
+    return (
+        json.dumps(get_notification_template(template_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notifications/template/<template_id>", methods=["PUT"])
+@is_admin
+def api_v3_admin_update_notification_template(payload, template_id):
+    try:
+        data = request.get_json()
+    except:
+        raise Error("bad_request")
+
+    for tag in ["<script>", "<iframe>", "javascript:"]:
+        if tag in data["body"] or tag in data["footer"]:
+            raise Error("bad_request", "Invalid expression in body or footer")
+
+    data["lang"] = {
+        data["language"]: {
+            "title": data["title"],
+            "body": data["body"],
+            "footer": data["footer"],
+        }
+    }
+    data = _validate_item("notification_template_update", data)
+    return (
+        json.dumps(update_notification_template(template_id, data)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notifications/template", methods=["PUT"])
 @is_admin
 def api_v3_admin_get_notification_template(payload):
-    default_texts = {
-        # event: default
-        "email-verify": {
-            "title": "Verify IsardVDI email",
-            "body": """<p>Please verify your email address by clicking on the following button:</p>
-                            <a href="{url}" class="btn btn-primary">Verify email</a>
-                            <p>This button can only be used once and it's valid for 1 hour.</p>
-                        """,
-            "footer": "Please do not answer since this email has been automatically generated.",
-            "channels": ["mail"],
-        },
-        "password-reset": {
-            "title": "Reset IsardVDI password",
-            "body": """<p>We've received your password reset request to access IsardVDI. Click on the following button to set a new password:</p>
-                            <a href="{url}" class="btn btn-primary">Set password</a>
-                            <p>This button can only be used once and it's valid for 24 hours.</p>
-                            <p>If you did not initiate this request, you may safely ignore this message.</p>
-                        """,
-            "footer": "Please do not answer since this email has been automatically generated.",
-            "channels": ["mail"],
-        },
-    }
     data = request.get_json()
-    try:
-        with open(
-            os.path.join(app.EMAIL_TEMPLATES_ROUTE, "templates.json"), "r"
-        ) as file:
-            file_content = file.read()
-        message = json.loads(file_content)[data["event"]]
-        message["body"] = message["body"].format(**data["data"])
-    except (KeyError, FileNotFoundError):
-        message = default_texts[data["event"]]
-        message["body"] = default_texts[data["event"]]["body"].format(**data["data"])
-
+    texts = get_notification_event_template(
+        data["event"], data["user_id"], data["data"]
+    )
     return (
-        json.dumps(message),
+        json.dumps(texts),
         200,
         {"Content-Type": "application/json"},
     )

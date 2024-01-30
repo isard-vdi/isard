@@ -1148,3 +1148,13 @@ def admin_use_password_update(payload):
         user_id,
     )
     return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/user/email-category/<email>/<category>", methods=["GET"])
+@is_admin
+def admin_user_by_email_and_category(payload, email, category):
+    return (
+        json.dumps({"id": users.get_user_by_email_and_category(email, category)}),
+        200,
+        {"Content-Type": "application/json"},
+    )

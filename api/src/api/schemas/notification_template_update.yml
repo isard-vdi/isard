@@ -1,0 +1,19 @@
+id:
+  empty: false
+  coerce: sanitize
+default:
+  type: string
+description:
+  maxlength: 255
+  required: false
+  type: string
+  coerce: sanitize
+name:
+  maxlength: 100
+  required: false
+  type: string
+  empty: false
+  coerce: sanitize
+lang:
+  type: dict
+  required: true

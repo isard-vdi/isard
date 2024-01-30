@@ -1,0 +1,57 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="page-title">
+                <div class="title_left">
+                    <h3><i class="fa fa-bell"></i> Notifications <small></small></h3>
+                </div>
+            </div>
+            <div class="clearfix"></div>
+        </div>
+    </div>
+</div>
+
+<div class="clearfix"></div>
+
+<div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+        <div class="x_title">
+            <h3><i class="fa fa-edit"></i> Notification templates<small> Preconfigured template text for event
+                    notifications</small></h3>
+            <ul class="nav navbar-right panel_toolbox"></ul>
+            <div class="clearfix"></div>
+        </div>
+        <div class="x_content">
+            <p class="text-muted font-13 m-b-30"></p>
+            <div id="tableDiv"></div>
+            <table id="notification-tmpls-table" class="table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Default language</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+{% include '/admin/pages/notifications_modals.html' %}
+{% include '/admin/pages/notifications_detail.html' %}
+{% endblock %}
+{% block pagescript %}
+<script src="/isard-admin/static/js/restful.js"></script>
+<script src="/isard-admin/static/admin/js/notifications.js"></script>
+<script src="/isard-admin/static/js/snippets/form_items.js"></script>
+{% endblock %}
