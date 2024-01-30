@@ -27,6 +27,8 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.api_admin_notifications import (
+    add_notification_template,
+    delete_notification_template,
     get_notification_event_template,
     get_notification_template,
     get_notification_templates,
@@ -34,6 +36,34 @@ from ..libv2.api_admin_notifications import (
 )
 from ..libv2.validators import _validate_item
 from .decorators import is_admin
+
+
+@app.route("/api/v3/admin/notifications/template/", methods=["POST"])
+@is_admin
+def api_v3_admin_add_notification_template(payload):
+    try:
+        data = request.get_json()
+    except:
+        raise Error("bad_request")
+
+    for tag in ["<script>", "<iframe>", "javascript:"]:
+        if tag in data["body"] or tag in data["footer"]:
+            raise Error("bad_request", "Invalid expression in body or footer")
+
+    data["lang"] = {
+        data["language"]: {
+            "title": data["title"],
+            "body": data["body"],
+            "footer": data["footer"],
+        }
+    }
+
+    data = _validate_item("notification_templates", data)
+    return (
+        json.dumps(add_notification_template(data)),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/admin/notifications/templates", methods=["GET"])
@@ -92,6 +122,16 @@ def api_v3_admin_get_notification_template(payload):
     )
     return (
         json.dumps(texts),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notifications/template/<template_id>", methods=["DELETE"])
+@is_admin
+def api_v3_admin_delete_notification_templates(payload, template_id):
+    return (
+        json.dumps(delete_notification_template(template_id)),
         200,
         {"Content-Type": "application/json"},
     )

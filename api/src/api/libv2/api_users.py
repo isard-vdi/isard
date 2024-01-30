@@ -1750,6 +1750,34 @@ class ApiUsers:
         else:
             return user["email_verified"]
 
+    def check_acknowledged_disclaimer(self, user_id):
+        if not os.environ.get("NOTIFY_EMAIL"):
+            return False
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("role", "category", "lang", "disclaimer_acknowledged")
+                .run(db.conn)
+            )
+        if user["disclaimer_acknowledged"]:
+            return False
+        
+        return True
+        # policy = self.get_user_policy("disclaimer", "all", user["role"], user_id)
+        # with app.app_context():
+        
+        #     disclaimer = (
+        #         r.table("notification_tmpls")
+        #         .get(policy.get("template"))
+        #         .run(db.conn)
+        #     )
+        # if disclaimer["lang"].get(user.get("lang")):
+        #         return disclaimer["lang"][user["lang"]]
+        # elif disclaimer["lang"].get(disclaimer["default"]):
+        #         return disclaimer["lang"][disclaimer["default"]]
+        # raise Error("not_found", "Unable to find disclaimer template")
+
     def get_lang(self, user_id):
         with app.app_context():
             lang = r.table("users").get(user_id).run(db.conn).get("lang")

@@ -31,6 +31,7 @@ from ..libv2.api_authentication import (
     delete_policy,
     edit_policy,
     force_policy_at_login,
+    get_disclaimer_template,
     get_policies,
     get_policy,
     get_providers,

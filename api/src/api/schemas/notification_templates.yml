@@ -1,0 +1,22 @@
+id:
+  type: string
+  coerce: sanitize
+  default_setter: genuuid
+default:
+  type: string
+  required: true
+  default: "en"
+description:
+  maxlength: 255
+  required: false
+  type: string
+  coerce: sanitize
+name:
+  maxlength: 100
+  required: true
+  type: string
+  empty: false
+  coerce: sanitize
+lang:
+  type: dict
+  required: true

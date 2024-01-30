@@ -32,6 +32,11 @@ users = ApiUsers()
 db.init_app(app)
 
 
+def add_notification_template(template_data):
+    with app.app_context():
+        r.table("notification_tmpls").insert(template_data).run(db.conn)
+
+
 def get_notification_templates():
     with app.app_context():
         return list(r.table("notification_tmpls").run(db.conn))
@@ -53,7 +58,6 @@ def update_notification_template(template_id, data):
     if (
         len(data["lang"][language]["body"]) > 0
         and len(data["lang"][language]["title"]) > 0
-        and len(data["lang"][language]["footer"]) > 0
     ):
         with app.app_context():
             r.table("notification_tmpls").get(template_id).update(data).run(db.conn)
@@ -61,7 +65,6 @@ def update_notification_template(template_id, data):
     elif (
         len(data["lang"][language]["body"]) == 0
         and len(data["lang"][language]["title"]) == 0
-        and len(data["lang"][language]["footer"]) == 0
     ):
         with app.app_context():
             r.table("notification_tmpls").get(template_id).replace(
@@ -73,7 +76,12 @@ def update_notification_template(template_id, data):
 
 def delete_notification_template(template_id):
     with app.app_context():
-        r.table("notification_tmpls").get(template_id).delete().run(db.conn)
+        kind = r.table("notification_tmpls").get(template_id)["kind"].run(db.conn)
+        if kind in ["desktop", "password", "email"]:
+            raise Error("bad request", "Unable to delete default templates")
+
+    # TODO: check it's not being used
+    r.table("notification_tmpls").get(template_id).delete().run(db.conn)
 
 
 def get_notification_event_template(event, user_id, args):

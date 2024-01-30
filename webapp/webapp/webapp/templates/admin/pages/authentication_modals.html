@@ -1,3 +1,10 @@
+<style>
+    #preview-panel {
+        background-color: aliceblue;
+        margin-top: 15px;
+    }
+</style>
+
 <div class="modal fade" id="modalPolicyAdd" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
     aria-hidden="true">
     <div class="modal-dialog">
@@ -32,8 +39,7 @@
                                 </div>
                                 <div class="col-md-6 col-xs-2" id="role-select">
                                     <label class="control-label" for="role">Role<span class="required">*</span></label>
-                                    <select class="form-control" style="width:100%" name="role"
-                                        id="role"></select>
+                                    <select class="form-control" style="width:100%" name="role" id="role"></select>
                                 </div>
                             </div>
                             <div class="x_content">
@@ -95,12 +101,13 @@
                                         </select>
                                     </div>
                                     <div class="col-md-3 col-xs-12">
-                                            <label class="control-label" for="expiration"
-                                                title="Number of days until the password expires">Expiration days<span
-                                                    class="required">*</span></label>
-                                            <input id="expiration" data-parsley-type="number" class="form-control roundbox"
-                                                name="expiration" type="number" value="0" style="width:100%" required="required">
-                                        </div>
+                                        <label class="control-label" for="expiration"
+                                            title="Number of days until the password expires">Expiration days<span
+                                                class="required">*</span></label>
+                                        <input id="expiration" data-parsley-type="number" class="form-control roundbox"
+                                            name="expiration" type="number" value="0" style="width:100%"
+                                            required="required">
+                                    </div>
                                     <div class="col-md-3 col-xs-12">
                                         <label class="control-label" for="old_passwords"
                                             title="Number of old passwords to be remembered">Old
@@ -112,7 +119,7 @@
                                 </div>
                             </div>
 
-                            <div class="x_content">
+                            <div class="x_content" style="margin-bottom:15px;">
                                 <div class="x_title">
                                     <h4> Email
                                     </h4>
@@ -132,7 +139,7 @@
                                     </label>
                                 </div>
                             </div>
-                            <!-- <div class="x_content">
+                            <div class="x_content" style="display:none;" id="disclaimer-content">
                                 <div class="x_title">
                                     <h4> Disclaimer
                                     </h4>
@@ -140,18 +147,33 @@
                                 </div>
                                 <div id="disclaimer_fields" class="policy_fields">
                                     <label class="control-label" for="disclaimer-enabled" style="margin-top:10px"
-                                           title="Disclaimer must be read and accepted in order to log in">
+                                        title="Disclaimer must be read and accepted in order to log in">
                                         <div class="icheckbox_flat-green" style="position: relative;">
-                                            <input type="checkbox" id="disclaimer-cb" name="disclaimer-cb"
-                                                class="flat" style="position: absolute; opacity: 0;">
+                                            <input type="checkbox" name="disclaimer-cb" class="disclaimer-cb flat"
+                                                style="position: absolute; opacity: 0;">
                                             <ins class="iCheck-helper"
                                                 style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                                             </ins>
                                         </div>
-                                        Disclaimer agreement required
+                                        Disclaimer acknowdlege required
                                     </label>
+                                    <div class="x_content" style="display:none;" id="template-content">
+                                        <label class="control-label" for="disclaimer-template" style="margin-top:10px;">
+                                            Text template</label>
+                                        <select class="form-control disclaimer-template" name="disclaimer-template"
+                                            required>
+                                        </select>
+                                        <p class="text-danger" style="display:none;">No templates? <a
+                                                href="/isard-admin/admin/notifications">Go to notification templates</a>
+                                        </p>
+                                        <div class="x_panel" style="display:none;" id="preview-panel">
+                                            <h3>Preview</h3>
+                                            <div id="template-preview"></div>
+                                        </div>
+                                    </div>
+
                                 </div>
-                            </div> -->
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -264,12 +286,13 @@
                                         </select>
                                     </div>
                                     <div class="col-md-3 col-xs-12">
-                                            <label class="control-label" for="expiration"
-                                                title="Number of days until the password expires">Expiration days<span
-                                                    class="required">*</span></label>
-                                            <input id="expiration" data-parsley-type="number" class="form-control roundbox"
-                                                name="expiration" type="number" value="0" style="width:100%" required="required">
-                                        </div>
+                                        <label class="control-label" for="expiration"
+                                            title="Number of days until the password expires">Expiration days<span
+                                                class="required">*</span></label>
+                                        <input id="expiration" data-parsley-type="number" class="form-control roundbox"
+                                            name="expiration" type="number" value="0" style="width:100%"
+                                            required="required">
+                                    </div>
                                     <div class="col-md-3 col-xs-12">
                                         <label class="control-label" for="old_passwords"
                                             title="Number of old passwords to be remembered">Old
@@ -281,7 +304,7 @@
                                 </div>
                             </div>
 
-                            <div class="x_content">
+                            <div class="x_content" style="margin-bottom:15px;">
                                 <div class="x_title">
                                     <h4> Email
                                     </h4>
@@ -301,7 +324,7 @@
                                     </label>
                                 </div>
                             </div>
-                            <!-- <div class="x_content">
+                            <div class="x_content" style="display:none;" id="disclaimer-content">
                                 <div class="x_title">
                                     <h4> Disclaimer
                                     </h4>
@@ -309,18 +332,33 @@
                                 </div>
                                 <div id="disclaimer_fields" class="policy_fields">
                                     <label class="control-label" for="disclaimer-enabled" style="margin-top:10px"
-                                           title="Disclaimer must be read and accepted in order to log in">
+                                        title="Disclaimer must be read and accepted in order to log in">
                                         <div class="icheckbox_flat-green" style="position: relative;">
-                                            <input type="checkbox" id="disclaimer-cb" name="disclaimer-cb"
-                                                class="flat" style="position: absolute; opacity: 0;">
+                                            <input type="checkbox" name="disclaimer-cb" class="disclaimer-cb flat"
+                                                style="position: absolute; opacity: 0;">
                                             <ins class="iCheck-helper"
                                                 style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                                             </ins>
                                         </div>
                                         Disclaimer agreement required
                                     </label>
+                                    <div class="x_content" style="display:none;" id="template-content">
+                                        <label class="control-label" for="disclaimer-template" style="margin-top:10px;">
+                                            Text template</label>
+                                        <select class="form-control disclaimer-template" name="disclaimer-template"
+                                            required>
+                                        </select>
+                                        <p class="text-danger" style="display:none;">No templates? <a
+                                                href="/isard-admin/admin/notifications">Go to notification templates</a>
+                                        </p>
+                                        <div class="x_panel" style="display:none;" id="preview-panel">
+                                            <h3>Preview</h3>
+                                            <div id="template-preview"></div>
+                                        </div>
+                                    </div>
+
                                 </div>
-                            </div> -->
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -358,7 +396,8 @@
             <!-- Modal Body -->
             <div class="modal-body">
                 <div class="x_panel">
-                    <h5 style="margin-bottom:25px;">Force validation on login for users in category "<b><span id="span-category"> </span></b>" and
+                    <h5 style="margin-bottom:25px;">Force validation on login for users in category "<b><span
+                                id="span-category"> </span></b>" and
                         role "<b><span id="span-role"> </span></b>" on the chosen policies:</h5>
                     <div class="container">
                         <div class="row" style="display:flex;justify-content:center;">
@@ -366,8 +405,9 @@
                                 <i class="fa fa-asterisk fa-1x"></i> Force Update Password</button>
                             <button id="force-email" data-policy="email" type="button" class="btn btn-primary">
                                 <i class="fa fa-envelope fa-1x>"></i> Force Verify Email</button>
-                            <!-- <button id="force-disclaimer" data-policy="disclaimer" type="button" class="btn btn-primary">
-                                <i class="fa fa-file-text fa-1x"></i> Force Accept Disclaimer</button> -->
+                            <button id="force-disclaimer" data-policy="disclaimer" type="button"
+                                class="btn btn-primary">
+                                <i class="fa fa-file-text fa-1x"></i> Force Accept Disclaimer</button>
                         </div>
                     </div>
                 </div>

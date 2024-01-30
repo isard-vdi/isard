@@ -37,6 +37,10 @@ users = ApiUsers()
 
 
 def add_policy(data):
+    if data["category"] != "all" and data["disclaimer"]:
+        raise Error(
+            "bad_request", "Disclaimer option only available for all categories"
+        )
     if not check_duplicate_policy(data["category"], data["role"]):
         raise Error(
             "conflict",
@@ -132,3 +136,22 @@ def force_policy_at_login(policy_id, policy_field):
         query.filter({"role": policy["role"]})
     with app.app_context():
         query.update({policy_field: None}).run(db.conn)
+
+
+def get_disclaimer_template(user_id):
+    user = r.table("users").get(user_id).pluck("role", "lang").run(db.conn)
+    template_id = users.get_user_policy("disclaimer", "all", user["role"], user_id)
+    if template_id:
+        with app.app_context():
+            disclaimer = (
+                r.table("notification_tmpls")
+                .get(template_id.get("template"))
+                .run(db.conn)
+            )
+        if disclaimer["lang"].get(user.get("lang")):
+            return disclaimer["lang"][user["lang"]]
+        elif disclaimer["lang"].get(disclaimer["default"]):
+            return disclaimer["lang"][disclaimer["default"]]
+
+        raise Error("not_found", "Unable to find disclaimer template")
+    return None

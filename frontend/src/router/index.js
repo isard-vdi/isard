@@ -23,12 +23,14 @@ import Maintenance from '@/views/Maintenance.vue'
 import NotFound from '@/views/NotFound.vue'
 import Rdp from '@/views/Rdp.vue'
 import Register from '@/views/Register.vue'
+import Disclaimer from '@/views/Disclaimer.vue'
 import Storage from '@/pages/Storage.vue'
 import RecycleBins from '@/pages/RecycleBins.vue'
 import RecycleBin from '@/pages/RecycleBin.vue'
 import ResetPassword from '@/pages/ResetPassword.vue'
 import ForgotPassword from '@/pages/ForgotPassword.vue'
 import VerifyEmail from '@/pages/VerifyEmail.vue'
+import Disclaimer from '@/pages/Disclaimer.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { appTitle } from '../shared/constants'
@@ -359,6 +361,14 @@ const router = new VueRouter({
       }
     },
     {
+      path: '/disclaimer',
+      component: Disclaimer,
+      name: 'Disclaimer',
+      meta: {
+        title: i18n.t('router.titles.disclaimer')
+      }
+    },
+    {
       path: '/login/:customUrlName?',
       name: 'Login',
       component: Login,
@@ -372,6 +382,14 @@ const router = new VueRouter({
       component: Register,
       meta: {
         title: i18n.t('router.titles.register')
+      }
+    },
+    {
+      path: '/disclaimer',
+      name: 'Disclaimer',
+      component: Disclaimer,
+      meta: {
+        title: i18n.t('router.titles.disclaimer')
       }
     },
     {

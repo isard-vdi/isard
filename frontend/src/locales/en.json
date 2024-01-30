@@ -1076,6 +1076,10 @@
             "email-sent": "An email has been sent to the given email for verification. Please check your inbox and follow the instructions. Redirecting to login in {seconds} seconds",
             "email-verified": "The email address has been correctly verified. Redirecting to login in {seconds} seconds",
             "email-error": "The given verification code has expired. Redirecting to login in {seconds} seconds"
+        },
+        "disclaimer": {
+            "title": "Disclaimer",
+            "accept": "Accept"
         }
     },
     "messages": {
@@ -1307,7 +1311,8 @@
             "recycleBin": "Recycle bin",
             "password": "Reset password",
             "email": "Verify Email",
-            "forgot-password": "Forgot password"
+            "forgot-password": "Forgot password",
+            "disclaimer": "Disclaimer"
         }
     },
     "message-modal": {
