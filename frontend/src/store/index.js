@@ -26,6 +26,7 @@ import template from './modules/template'
 import templates from './modules/templates'
 import vpn from './modules/vpn'
 import { MessageUtils } from '../utils/messageUtils'
+import { jwtDecode } from 'jwt-decode'
 
 Vue.use(Vuex)
 
@@ -154,7 +155,7 @@ export default new Vuex.Store({
     login (context, data) {
       return new Promise((resolve, reject) => {
         axios.create().post(`${authenticationSegment}/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}&username=${data.get('username')}`, data, { timeout: 25000 }).then(response => {
-          const jwt = JSON.parse(atob(response.data.split('.')[1]))
+          const jwt = jwtDecode(response.data)
           if (jwt.type === 'register') {
             router.push({ name: 'Register' })
           } else if (jwt.type === 'email-verification-required') {
@@ -185,12 +186,12 @@ export default new Vuex.Store({
         return config
       })
 
-      let provider = JSON.parse(atob(getCookie('authorization').split('.')[1])).provider
+      let provider = jwtDecode(getCookie('authorization')).provider
       if (provider === 'local' || provider === 'ldap') {
         provider = 'form'
       }
-      const categoryId = JSON.parse(atob(getCookie('authorization').split('.')[1])).category_id
-      const username = JSON.parse(atob(getCookie('authorization').split('.')[1])).username
+      const categoryId = jwtDecode(getCookie('authorization')).category_id
+      const username = jwtDecode(getCookie('authorization')).username
       await registerAxios.post(`${apiV3Segment}/user/register`, data).then(response => {
         return new Promise((resolve, reject) => {
           registerAxios.post(`${authenticationSegment}/login?provider=${provider}&category_id=${categoryId}&username=${username}`, data, { timeout: 25000 }).then(response => {

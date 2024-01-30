@@ -30,6 +30,7 @@ import states from '@/lib/states'
 import clipboard from '@/lib/clipboard'
 import Modal from '@/components/Modal'
 import * as cookies from 'tiny-cookie'
+import { jwtDecode } from 'jwt-decode'
 
 Guacamole.Mouse = GuacMouse.mouse
 
@@ -87,7 +88,7 @@ export default {
         this.connectionState = states.COOKIE_ERROR
         return
       }
-      const params = JSON.parse(atob(cookie)).web_viewer
+      const params = jwtDecode(cookie).web_viewer
       if (new Date() > new Date(params.exp * 1000)) {
         this.connectionState = states.COOKIE_EXPIRED
         return
