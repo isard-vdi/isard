@@ -579,13 +579,13 @@ def get_domains_with_status(status):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     try:
-        results = rtable.get_all(status, index="status").pluck("id").run(r_conn)
+        results = rtable.get_all(status, index="status").pluck("id")["id"].run(r_conn)
         close_rethink_connection(r_conn)
     except:
         # if results is None:
         close_rethink_connection(r_conn)
         return []
-    return [d["id"] for d in results]
+    return results
 
 
 def get_domains_with_transitional_status(

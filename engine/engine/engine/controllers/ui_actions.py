@@ -46,6 +46,7 @@ from engine.services.db import (
     update_table_field,
     update_vgpu_uuid_domain_action,
 )
+from engine.services.db.storage_pool import get_category_storage_pool_id
 from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import (
     add_cmds_if_custom,
@@ -659,9 +660,7 @@ class UiActions(object):
 
         create_dict = dict_domain["create_dict"]
 
-        pool_id = create_dict.get("template_dict", {}).get(
-            "storage_pool", DEFAULT_STORAGE_POOL_ID
-        )
+        pool_id = get_category_storage_pool_id(dict_domain.get("category"))
 
         try:
             dict_new_template = create_dict["template_dict"]
@@ -862,7 +861,7 @@ class UiActions(object):
     def creating_disk_from_scratch(self, id_new):
         dict_domain = get_domain(id_new)
 
-        pool_id = dict_domain.get("storage_pool", DEFAULT_STORAGE_POOL_ID)
+        pool_id = get_category_storage_pool_id(dict_domain.get("category"))
 
         dict_to_create = dict_domain["create_dict"]
 
@@ -1012,7 +1011,7 @@ class UiActions(object):
         if "create_dict" in dict_domain.keys():
             dict_to_create = dict_domain["create_dict"]
 
-        pool_id = dict_domain.get("storage_pool", DEFAULT_STORAGE_POOL_ID)
+        pool_id = get_category_storage_pool_id(dict_domain.get("category"))
 
         # INFO TO DEVELOPER DEBERÍA SER UN FOR PARA CADA DISCO
         # y si el disco no tiene backing_chain, crear un disco vacío

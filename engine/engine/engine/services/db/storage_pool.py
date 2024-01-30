@@ -17,11 +17,44 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from cachetools import TTLCache, cached
 from rethinkdb import r
 
 from .db import rethink
 
 
 @rethink
-def get_storage_pool(connection, storage_pool_id):
-    return r.table("storage_pool").get(storage_pool_id).run(connection)
+@cached(
+    cache=TTLCache(maxsize=1, ttl=60),
+    key=lambda connection: "storage_pools",
+)
+def get_storage_pools(connection):
+    return list(r.table("storage_pool").run(connection))
+
+
+def get_storage_pool_ids():
+    return [sp["id"] for sp in get_storage_pools()]
+
+
+def get_storage_pool(storage_pool_id):
+    pool = [sp for sp in get_storage_pools() if sp["id"] == storage_pool_id]
+    if len(pool) == 0:
+        return None
+    return pool[0]
+
+
+def get_category_storage_pool(category_id):
+    sps = get_storage_pools()
+    default = {}
+    for sp in sps:
+        # default = uuid4 with zeroes
+        if sp["id"] == "00000000-0000-0000-0000-000000000000":
+            default = sp
+        # TODO: Check if disabled storage?
+        if sp.get("category_id", None) == category_id:
+            return sp
+    return default
+
+
+def get_category_storage_pool_id(category_id):
+    return get_category_storage_pool(category_id)["id"]

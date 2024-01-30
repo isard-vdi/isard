@@ -41,6 +41,7 @@ from engine.services.db.domains import (
     update_domain_status,
 )
 from engine.services.db.hypervisors import update_all_hyps_status
+from engine.services.db.storage_pool import get_storage_pool_ids
 from engine.services.lib.functions import (
     QueuesThreads,
     clean_intermediate_status,
@@ -346,15 +347,14 @@ class Engine(object):
                     # Hypervisors balancer pools
                     self.manager.pools["default"] = PoolHypervisors("default")
                     # Diskoperations balancer pools
-                    self.manager.diskoperations_pools[
-                        DEFAULT_STORAGE_POOL_ID
-                    ] = PoolDiskoperations(DEFAULT_STORAGE_POOL_ID)
+                    for pool_id in get_storage_pool_ids():
+                        self.manager.diskoperations_pools[pool_id] = PoolDiskoperations(
+                            pool_id
+                        )
 
                     # launch downloads changes thread
-                    logs.main.debug("Launching Download Changes Thread")
                     self.manager.t_downloads_changes = launch_thread_download_changes(
                         self.manager,
-                        DEFAULT_STORAGE_POOL_ID,
                         self.manager.q.workers,
                         self.manager.t_disk_operations,
                     )
