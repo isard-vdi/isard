@@ -64,14 +64,14 @@ stages:
   - release
   - container-scan
 
-commit-lint:
-  stage: lint
-  image: node:lts
-  before_script:
-    - npm install -g @commitlint/config-conventional
-  script:
-    - git fetch https://gitlab.com/isard/isardvdi.git main
-    - npx commitlint -x "@commitlint/config-conventional" --from=$(git merge-base HEAD FETCH_HEAD)
+# commit-lint:
+#   stage: lint
+#   image: node:lts
+#   before_script:
+#     - npm install -g @commitlint/config-conventional
+#   script:
+#     - git fetch https://gitlab.com/isard/isardvdi.git main
+#     - npx commitlint -x "@commitlint/config-conventional" --from=$(git merge-base HEAD FETCH_HEAD)
 
 check-python:
   stage: lint

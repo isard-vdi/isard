@@ -4,6 +4,9 @@ services:
     build:
       context: ${BUILD_ROOT_PATH}/guac
       dockerfile: build/package/Dockerfile
+      args:
+        - GOLANG_BUILD_IMAGE
+        - GOLANG_RUN_IMAGE
 
   isard-rdpgw:
     container_name: isard-rdpgw

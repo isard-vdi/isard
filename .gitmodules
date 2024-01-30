@@ -6,7 +6,3 @@
 	path = docker/static/noVNC/src
 	url = https://github.com/novnc/novnc
 	branch = master
-[submodule "guac"]
-	path = guac
-	url = https://gitlab.com/isard/guac.git
-	branch = isardvdi
