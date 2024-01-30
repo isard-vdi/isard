@@ -73,6 +73,23 @@ commit-lint:
     - git fetch https://gitlab.com/isard/isardvdi.git main
     - npx commitlint -x "@commitlint/config-conventional" --from=$(git merge-base HEAD FETCH_HEAD)
 
+version:
+  stage: lint
+  image: node:lts
+  rules:
+    # semantic-release checks repository write access and we cannot use
+    # GITLAB_TOKEN in unprotected branches due to security reasons.
+    # https://github.com/semantic-release/semantic-release/issues/2207
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - npm install -g semantic-release @semantic-release/exec conventional-changelog-conventionalcommits@6
+    - cp releaserc.version.yml .releaserc.yml
+  script:
+    - semantic-release --dry-run --branches $CI_COMMIT_REF_NAME
+  artifacts:
+    paths:
+      - .VERSION
+
 check-python:
   stage: lint
   image: python:3.10-bullseye
@@ -127,23 +144,6 @@ gen-protobuf:
   artifacts:
     paths:
       - pkg/gen
-
-version:
-  stage: generate
-  image: node:lts
-  rules:
-    # semantic-release checks repository write access and we cannot use
-    # GITLAB_TOKEN in unprotected branches due to security reasons.
-    # https://github.com/semantic-release/semantic-release/issues/2207
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-  before_script:
-    - npm install -g semantic-release @semantic-release/exec conventional-changelog-conventionalcommits@6
-    - cp releaserc.version.yml .releaserc.yml
-  script:
-    - semantic-release --dry-run --branches $CI_COMMIT_REF_NAME
-  artifacts:
-    paths:
-      - .VERSION
 
 changelog-preview:
   # This is a workarround to show changelog preview without semantic-release
