@@ -884,7 +884,8 @@
             "description": "L'adreça de correu electrònic serà verificada per IsardVDI",
             "send-verify-email": "Enviar correu de verificació",
             "email-sent": "S'ha enviat un correu electrònic a l'adreça proporcionada per a la verificació. Si us plau, comprova la teva safata d'entrada i segueix les instruccions. Redirigint a l'inici de sessió en {seconds} segons.",
-            "email-verified": "El correu electrònic ha estat verificat correctament. Redirigint a l'inici de sessió en {seconds} segons."
+            "email-verified": "El correu electrònic ha estat verificat correctament. Redirigint a l'inici de sessió en {seconds} segons.",
+            "email-error": "El codi de validació proporcionat ha caducat. Redirigint a l'inici de sessió en {seconds} segons."
         }
     },
     "validations": {
