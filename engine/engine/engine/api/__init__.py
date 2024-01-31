@@ -9,6 +9,7 @@ from engine.services.db import (
     get_vgpu_model_profile_change,
 )
 from engine.services.db.hypervisors import get_hyp_system_info
+from engine.services.db.storage_pool import get_storage_pools
 from engine.services.lib.functions import execute_commands
 from engine.services.lib.status import (
     engine_threads,
@@ -65,6 +66,37 @@ def engine_status(payload):
             return "No hypervisor for disk operations available.", 428
         if not virt:
             return "No hypervisor for virtualization available.", 428
+
+        # Check if any disk operations pool is not available
+        if not len(app.m.diskoperations_pools.keys()):
+            return "No disk operations hypervisors registered.", 428
+        failed_storage_pools = ""
+        enabled_storage_pools = get_storage_pools()
+        app.logger.debug(
+            "----------------------------------STORAGE POOLS----------------------------------"
+        )
+        app.logger.debug("enabled_storage_pools: {}".format(enabled_storage_pools))
+        app.logger.debug(
+            "app.m.diskoperations_pools.keys(): {}".format(
+                app.m.diskoperations_pools.keys()
+            )
+        )
+        for esp in enabled_storage_pools:
+            if not esp["id"] in app.m.diskoperations_pools.keys():
+                failed_storage_pools += esp["id"] + ", "
+            else:
+                if not app.m.diskoperations_pools[
+                    esp["id"]
+                ].balancer.get_next_diskoperations():
+                    failed_storage_pools += esp["id"] + ", "
+        if len(failed_storage_pools):
+            return (
+                "No disk operations hypervisors available for storage pools: {}".format(
+                    failed_storage_pools
+                ),
+                428,
+            )
+
         return "Ok", 200
     except Exception as e:
         logs.main.error("engine_status: {}".format(e))
