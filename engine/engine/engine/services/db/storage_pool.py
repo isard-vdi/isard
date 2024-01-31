@@ -29,7 +29,8 @@ from .db import rethink
     key=lambda connection: "storage_pools",
 )
 def get_storage_pools(connection):
-    return list(r.table("storage_pool").run(connection))
+    pools = r.table("storage_pool").run(connection)
+    return [pool for pool in pools if pool.get("enabled", True)]
 
 
 def get_storage_pool_ids():
