@@ -348,6 +348,7 @@ class ApiHypervisors:
                 only_forced=only_forced,
                 min_free_mem_gb=min_free_mem_gb,
                 min_free_gpu_mem_gb=min_free_gpu_mem_gb,
+                storage_pools=storage_pools,
                 buffering_hyper=buffering_hyper,
                 gpu_only=gpu_only,
             )
