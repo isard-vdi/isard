@@ -173,11 +173,11 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 	// Get the provider and log in
 	p := a.Provider(prv)
-	g, u, redirect, err := p.Login(ctx, categoryID, args)
-	if err != nil {
-		a.Log.Info().Str("prv", p.String()).Err(err).Msg("login failed")
+	g, u, redirect, lErr := p.Login(ctx, categoryID, args)
+	if lErr != nil {
+		a.Log.Info().Str("prv", p.String()).Err(lErr).Msg("login failed")
 
-		return "", "", fmt.Errorf("login: %w", err)
+		return "", "", fmt.Errorf("login: %w", lErr)
 	}
 
 	// If the provider forces us to redirect, do it
@@ -237,9 +237,11 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args map[strin
 	p := a.Provider(claims.Provider)
 
 	// TODO: Add autoregister for more providers?
-	_, u, redirect, err := p.Callback(ctx, claims, args)
-	if err != nil {
-		return "", "", fmt.Errorf("callback: %w", err)
+	_, u, redirect, cErr := p.Callback(ctx, claims, args)
+	if cErr != nil {
+		a.Log.Info().Str("prv", p.String()).Err(cErr).Msg("callback failed")
+
+		return "", "", fmt.Errorf("callback: %w", cErr)
 	}
 
 	exists, err := u.Exists(ctx, a.DB)

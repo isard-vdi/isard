@@ -15,14 +15,14 @@ type ProviderMock struct {
 	mock.Mock
 }
 
-func (m *ProviderMock) Login(ctx context.Context, categoryID string, args map[string]string) (g *model.Group, u *model.User, redirect string, err error) {
+func (m *ProviderMock) Login(ctx context.Context, categoryID string, args map[string]string) (g *model.Group, u *model.User, redirect string, err *ProviderError) {
 	mArgs := m.Called(ctx, categoryID, args)
-	return mArgs.Get(0).(*model.Group), mArgs.Get(1).(*model.User), mArgs.String(2), mArgs.Error(3)
+	return mArgs.Get(0).(*model.Group), mArgs.Get(1).(*model.User), mArgs.String(2), mArgs.Get(3).(*ProviderError)
 }
 
-func (m *ProviderMock) Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (g *model.Group, u *model.User, redirect string, err error) {
+func (m *ProviderMock) Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (g *model.Group, u *model.User, redirect string, err *ProviderError) {
 	mArgs := m.Called(ctx, claims, args)
-	return mArgs.Get(0).(*model.Group), mArgs.Get(1).(*model.User), mArgs.String(2), mArgs.Error(3)
+	return mArgs.Get(0).(*model.Group), mArgs.Get(1).(*model.User), mArgs.String(2), mArgs.Get(3).(*ProviderError)
 }
 
 func (m *ProviderMock) AutoRegister() bool {

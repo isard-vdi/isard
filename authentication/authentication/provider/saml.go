@@ -103,7 +103,7 @@ func InitSAML(cfg cfg.Authentication) *SAML {
 	return s
 }
 
-func (s *SAML) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
+func (s *SAML) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
 	redirect := ""
 	if r, ok := args["redirect"]; ok {
 		redirect = r
@@ -111,7 +111,10 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args map[string]str
 
 	ss, err := token.SignCallbackToken(s.cfg.Secret, types.SAML, categoryID, redirect)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: fmt.Errorf("sign the callback token: %w", err),
+		}
 	}
 
 	u, _ := url.Parse("/authentication/callback")
@@ -123,12 +126,15 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args map[string]str
 	return nil, nil, u.String(), nil
 }
 
-func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (*model.Group, *model.User, string, error) {
+func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
 	r := ctx.Value(HTTPRequest).(*http.Request)
 
 	sess, err := s.Middleware.Session.GetSession(r)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("get SAML session: %w", err)
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: fmt.Errorf("get SAML session: %w", err),
+		}
 	}
 
 	attrs := sess.(samlsp.SessionWithAttributes).GetAttributes()

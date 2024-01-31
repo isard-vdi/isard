@@ -19,6 +19,7 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/db"
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"
 
+	"github.com/crewjam/saml/samlsp"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/rs/zerolog"
 	"gitlab.com/isard/isardvdi-sdk-go"
@@ -164,8 +165,9 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 			Token:      tkn,
 		})
 		if err != nil {
+			a.Log.Error().Err(err).Msg("SAML login error")
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+			w.Write([]byte("internal server error"))
 			return
 		}
 
@@ -240,6 +242,8 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		args["password"] = req.Value.Password.Value
 	}
 
+	log := a.Log.With().Str("provider", string(params.Provider)).Logger()
+
 	p := a.Authentication.Provider(string(params.Provider))
 	if p.String() == types.SAML {
 		c := &http.Cookie{
@@ -253,6 +257,12 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		}
 
 		if _, err := a.Authentication.SAML().Session.GetSession(r); err != nil {
+			if !errors.Is(err, samlsp.ErrNoSession) {
+				log.Error().Err(err).Msg("unknown error")
+
+				return nil, provider.ErrInternal
+			}
+
 			// Prepeare the redirection
 			q := url.Values{}
 			q.Add("provider", string(params.Provider))
@@ -275,13 +285,13 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	if err != nil {
 		if errors.Is(err, provider.ErrInvalidCredentials) {
 			return &oasAuthentication.LoginUnauthorized{
-				Data: bytes.NewReader([]byte(err.Error())),
+				Data: bytes.NewReader([]byte(provider.ErrInvalidCredentials.Error())),
 			}, nil
 		}
 
 		if errors.Is(err, provider.ErrUserDisabled) {
 			return &oasAuthentication.LoginForbidden{
-				Data: bytes.NewReader([]byte(err.Error())),
+				Data: bytes.NewReader([]byte(provider.ErrUserDisabled.Error())),
 			}, nil
 		}
 
@@ -297,7 +307,15 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 			}, nil
 		}
 
-		return nil, err
+		// If it's a provider error, return the user-facing error
+		var prvErr *provider.ProviderError
+		if errors.As(err, &prvErr) {
+			log.Error().Err(err).Msg("provider error")
+			return nil, prvErr.User
+		}
+
+		log.Error().Err(err).Msg("unknown error")
+		return nil, provider.ErrInternal
 	}
 
 	c := &http.Cookie{
@@ -355,7 +373,15 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 			}, nil
 		}
 
-		return nil, err
+		// If it's a provider error, return the user-facing error
+		var prvErr *provider.ProviderError
+		if errors.As(err, &prvErr) {
+			a.Log.Error().Err(err).Msg("provider error")
+			return nil, prvErr.User
+		}
+
+		a.Log.Error().Err(err).Msg("unknown error")
+		return nil, provider.ErrInternal
 	}
 
 	c := &http.Cookie{

@@ -18,7 +18,7 @@ type oauth2Provider struct {
 func (o *oauth2Provider) login(categoryID, redirect string) (string, error) {
 	ss, err := token.SignCallbackToken(o.secret, o.provider, categoryID, redirect)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("sign the callback token: %w", err)
 	}
 
 	return o.cfg.AuthCodeURL(ss), nil
