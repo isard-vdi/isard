@@ -5,7 +5,7 @@ id:
   default_setter: genuuid
   coerce: sanitize
 name:
-  maxlength: 50
+  maxlength: 128
   required: true
   empty: false
   type: string
@@ -97,4 +97,4 @@ ephimeral:
       type: string
       coerce: sanitize
     minutes:
-      type: integer  
+      type: integer

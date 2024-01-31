@@ -4,7 +4,7 @@ id:
   empty: false
   coerce: sanitize
 name:
-  maxlength: 50
+  maxlength: 128
   empty: false
   type: string
   coerce: sanitize
