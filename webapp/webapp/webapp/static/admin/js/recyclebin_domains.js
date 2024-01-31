@@ -5,226 +5,241 @@
 * License: AGPLv3
 */
 
+var desktopsTableCols = [
+  {
+    data: 'id',
+    title: 'Id'
+  },
+  {
+    data: 'name',
+    title: 'Name'
+  },
+  {
+    data: 'username',
+    title: 'User'
+  },
+  {
+    data: 'category',
+    title: 'Category'
+  },
+  {
+    data: 'group',
+    title: 'Group'
+  },
+  {
+    data: 'accessed',
+    title: 'Last access',
+    render: function (accessed) {
+      return moment.unix(accessed).fromNow()
+    }
+  }
+]
+
+var templatesTableCols = [
+  {
+    data: 'id',
+    title: 'Id'
+  },
+  {
+    data: 'name',
+    title: 'Name'
+  },
+  {
+    data: 'user',
+    title: 'User'
+  },
+  {
+    data: 'category',
+    title: 'Category'
+  },
+  {
+    data: 'group',
+    title: 'Group'
+  },
+  {
+    data: 'accessed',
+    title: 'Last access',
+    render: function (accessed) {
+      return moment.unix(accessed).fromNow()
+    }
+  }
+]
+
+var deploymentsTableCols = [
+  {
+    data: 'id',
+    title: 'Id'
+  },
+  {
+    data: 'name',
+    title: 'Name'
+  },
+  {
+    data: 'create_dict',
+    title: 'Desktop name',
+    render: function (create_dict) {
+      return create_dict.name
+    }
+  },
+  {
+    data: 'user',
+    title: 'User'
+  },
+  {
+    data: 'category',
+    title: 'Category'
+  },
+  {
+    data: 'group',
+    title: 'Group'
+  }
+]
+
+var storageTableCols = [
+  {
+    data: 'id',
+    title: 'Id'
+  },
+  {
+    data: 'directory_path',
+    title: 'Path'
+  },
+  {
+    data: 'status',
+    title: 'Status'
+  },
+  {
+    data: 'type',
+    title: 'Format'
+  },
+  {
+    data: 'qemu-img-info',
+    title: 'Size',
+    render: function (qemu_img_info) {
+      if (qemu_img_info) {
+        return Math.round(qemu_img_info["virtual-size"] / 1024 / 1024 / 1024) + " GB"
+      } else {
+        return '-'
+      }
+    }
+  },
+  {
+    data: 'qemu-img-info',
+    title: 'Used',
+    render: function (qemu_img_info) {
+      if (qemu_img_info) {
+        return Math.round(qemu_img_info["actual-size"] / 1024 / 1024 / 1024) + " GB"
+      } else {
+        return '-'
+      }
+    }
+  },
+  {
+    data: 'parent',
+    title: 'Parent'
+  },
+  {
+    data: 'user',
+    title: 'User',
+  },
+  {
+    data: 'category',
+    title: 'Category',
+  },
+  {
+    data: 'domains',
+    title: 'Domains'
+  }
+]
+
+var usersTableCols = [
+  {
+    data: 'id',
+    title: 'Id'
+  },
+  {
+    data: 'name',
+    title: 'Name'
+  },
+  {
+    data: 'provider',
+    title: 'Provider'
+  },
+  {
+    data: 'category',
+    title: 'Category'
+  },
+  {
+    data: 'uid',
+    title: 'Uid'
+  },
+  {
+    data: 'username',
+    title: 'Username'
+  },
+  {
+    data: 'role',
+    title: 'Role'
+  },
+  {
+    data: 'group',
+    title: 'Group'
+  }
+]
+
+var groupsTableCols = [
+  {
+    data: 'id',
+    title: 'Id'
+  },
+  {
+    data: 'name',
+    title: 'Name'
+  },
+  {
+    data: 'description',
+    title: 'Description'
+  },
+  {
+    data: 'linked_groups',
+    title: 'Linked Groups'
+  }
+]
+
+var categoriesTableCols = [
+  {
+    data: 'id',
+    title: 'Id'
+  },
+  {
+    data: 'name',
+    title: 'Name'
+  },
+  {
+    data: 'description',
+    title: 'Description'
+  }
+]
+
 $(document).ready(function () {
-
-  var desktopsTableCols = [
-    {
-      data: 'id',
-      title: 'Id'
-    },
-    {
-      data: 'name',
-      title: 'Name'
-    },
-    {
-      data: 'username',
-      title: 'User'
-    },
-    {
-      data: 'category',
-      title: 'Category'
-    },
-    {
-      data: 'group',
-      title: 'Group'
-    },
-    {
-      data: 'accessed',
-      title: 'Last access',
-      render: function (accessed) {
-        return moment.unix(accessed).fromNow()
-      }
-    }
-  ]
-
-  var templatesTableCols = [
-    {
-      data: 'id',
-      title: 'Id'
-    },
-    {
-      data: 'name',
-      title: 'Name'
-    },
-    {
-      data: 'user',
-      title: 'User'
-    },
-    {
-      data: 'category',
-      title: 'Category'
-    },
-    {
-      data: 'group',
-      title: 'Group'
-    },
-    {
-      data: 'accessed',
-      title: 'Last access',
-      render: function (accessed) {
-        return moment.unix(accessed).fromNow()
-      }
-    }
-  ]
-
-  var deploymentsTableCols = [
-    {
-      data: 'id',
-      title: 'Id'
-    },
-    {
-      data: 'name',
-      title: 'Name'
-    },
-    {
-      data: 'create_dict',
-      title: 'Desktop name',
-      render: function (create_dict) {
-        return create_dict.name
-      }
-    },
-    {
-      data: 'user',
-      title: 'User'
-    },
-    {
-      data: 'category',
-      title: 'Category'
-    },
-    {
-      data: 'group',
-      title: 'Group'
-    }
-  ]
-
-  var storageTableCols = [
-    {
-      data: 'id',
-      title: 'Id'
-    },
-    {
-      data: 'directory_path',
-      title: 'Path'
-    },
-    {
-      data: 'status',
-      title: 'Status'
-    },
-    {
-      data: 'type',
-      title: 'Format'
-    },
-    {
-      data: 'qemu-img-info',
-      title: 'Size',
-      render: function (qemu_img_info) {
-        if (qemu_img_info) {
-          return Math.round(qemu_img_info["virtual-size"] / 1024 / 1024 / 1024) + " GB"
-        } else {
-          return '-'
-        }
-      }
-    },
-    {
-      data: 'qemu-img-info',
-      title: 'Used',
-      render: function (qemu_img_info) {
-        if (qemu_img_info) {
-          return Math.round(qemu_img_info["actual-size"] / 1024 / 1024 / 1024) + " GB"
-        } else {
-          return '-'
-        }
-      }
-    },
-    {
-      data: 'parent',
-      title: 'Parent'
-    },
-    {
-      data: 'user',
-      title: 'User',
-    },
-    {
-      data: 'category',
-      title: 'Category',
-    },
-    {
-      data: 'domains',
-      title: 'Domains'
-    }
-  ]
-
-  var usersTableCols = [
-    {
-      data: 'id',
-      title: 'Id'
-    },
-    {
-      data: 'name',
-      title: 'Name'
-    },
-    {
-      data: 'provider',
-      title: 'Provider'
-    },
-    {
-      data: 'category',
-      title: 'Category'
-    },
-    {
-      data: 'uid',
-      title: 'Uid'
-    },
-    {
-      data: 'username',
-      title: 'Username'
-    },
-    {
-      data: 'role',
-      title: 'Role'
-    },
-    {
-      data: 'group',
-      title: 'Group'
-    }
-  ]
-
-  var groupsTableCols = [
-    {
-      data: 'id',
-      title: 'Id'
-    },
-    {
-      data: 'name',
-      title: 'Name'
-    },
-    {
-      data: 'description',
-      title: 'Description'
-    },
-    {
-      data: 'linked_groups',
-      title: 'Linked Groups'
-    }
-  ]
-
-  var categoriesTableCols = [
-    {
-      data: 'id',
-      title: 'Id'
-    },
-    {
-      data: 'name',
-      title: 'Name'
-    },
-    {
-      data: 'description',
-      title: 'Description'
-    }
-  ]
-
   $recycle_bin_details_template = $(".template-recycle_bin-detail");
   $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+
+  function showRowDetails(table, tr, row) {
+    if (row.child.isShown()) {
+      row.child.hide();
+      tr.removeClass('shown');
+    } else {
+      table.rows('.shown').every(function () {
+        this.child.hide();
+        $(this.node()).removeClass('shown');
+      });
+      tr.addClass('shown');
+      row.child(renderRecycleBinDetail(row.data())).show();
+      fetchRecycleBin(row.data()['id'], '#' + table.tables().nodes().to$().attr('id'));
+    }
+  }
+
   var recyclebin_domains = $('#recyclebin_domains').DataTable({
     "ajax": {
       "url": "/api/v3/recycle_bin/item_count",
@@ -238,7 +253,7 @@ $(document).ready(function () {
     "rowId": "id",
     "deferRender": true,
     "createdRow": (row, data, index) => {
-      if (!['deleted', 'restored'].includes(data.status) ) {
+      if (!['deleted', 'restored'].includes(data.status)) {
         if ($('thead #select-all').is(':checked')) {
           $(row).find('.select-checkbox input[type="checkbox"]').prop('checked', true)
           $(row).addClass('active');
@@ -315,7 +330,7 @@ $(document).ready(function () {
         "data": null,
         "width": "60px",
         render: function (data, type, row, meta) {
-          if (!['deleted', 'restored', 'deleting'].includes(row.status) ) {
+          if (!['deleted', 'restored', 'deleting'].includes(row.status)) {
             return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button> \
                     <button id="btn-restore" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-undo" style="color:darkgreen"></i></button>'
           } else if (row.status === 'deleting') {
@@ -330,7 +345,7 @@ $(document).ready(function () {
         "width": "60px",
         "className": 'select-checkbox',
         render: function (data, type, row, meta) {
-          if (!['deleted', 'restored'].includes(data) ) {
+          if (!['deleted', 'restored'].includes(data)) {
             return '<input type="checkbox" class="form-check-input"></input>'
           }
         },
@@ -347,7 +362,7 @@ $(document).ready(function () {
     var rows = recyclebin_domains.rows({ filter: 'applied' }).data();
     var selectAll = $('#select-all').is(':checked')
     $.each(rows, function (index, row) {
-      if (!['deleted', 'restored'].includes(row.status) ) {
+      if (!['deleted', 'restored'].includes(row.status)) {
         $("#" + row.id).find('.select-checkbox input[type="checkbox"]').prop('checked', selectAll)
         selectAll ? $("#" + row.id).addClass('active') : $("#" + row.id).removeClass('active')
       }
@@ -363,20 +378,7 @@ $(document).ready(function () {
     row = recyclebin_domains.row(tr)
     switch ($(this).attr('id')) {
       case 'btn-details':
-        if (row.child.isShown()) {
-          // Close opened row
-          row.child.hide();
-          tr.removeClass("shown");
-        } else {
-          // Close other rows
-          if (recyclebin_domains.row('.shown').length) {
-            $('.details-control', recyclebin_domains.row('.shown').node()).click();
-          }
-          // Open this row
-          row.child(renderRecycleBinDetail(row.data())).show()
-          fetchRecycleBin(row.data()['id'])
-          tr.addClass('shown');
-        }
+        showRowDetails(recyclebin_domains, tr, row);
         break;
       case 'btn-delete':
         new PNotify({
@@ -456,59 +458,60 @@ $(document).ready(function () {
         break;
     }
 
-    function renderRecycleBinDetail(d) {
-      $newPanel = $recycle_bin_details_template.clone();
-      $newPanel.html(function (i, oldHtml) {
-        return oldHtml.replace(/d.id/g, d.id);
-      });
-      return $newPanel
-    }
-
-    function fetchRecycleBin(recycle_bin_id) {
-      $.ajax({
-        url: "/api/v3/recycle_bin/" + recycle_bin_id,
-        contentType: "application/json",
-        type: "GET",
-        success: function (result) {
-          loadDatatable('#recycleBinDesktopsTable', 'desktops', result, desktopsTableCols)
-          loadDatatable('#recycleBinTemplatesTable', 'templates', result, templatesTableCols)
-          loadDatatable('#recycleBinStorageTable', 'storages', result, storageTableCols)
-          loadDatatable('#recycleBinDeploymentsTable', 'deployments', result, deploymentsTableCols)
-          loadDatatable('#recycleBinUsersTable', 'users', result, usersTableCols)
-          loadDatatable('#recycleBinGroupsTable', 'groups', result, groupsTableCols)
-          loadDatatable('#recycleBinCategoriesTable', 'categories', result, categoriesTableCols)
-        },
-        error: function (data) {
-        }
-      });
-    }
-
-    function loadDatatable(tableId, kind, data, columns) {
-      $(`#${kind}-panel .quantity`).html(`(${data[kind].length} items)`)
-      if ($.fn.dataTable.isDataTable(tableId)) {
-        $(tableId).DataTable().destroy();
-      }
-
-      table = $(tableId).DataTable({
-        data: data[kind],
-        columns: columns
-      })
-    }   
   });
-  
-  function socketio_on(){
-    socket.on('update_recycle_bin', function(data){
-      dtUpdateInsert(recyclebin_domains,data,false);
-    })
-    socket.on('add_recycle_bin', function(data){
-      dtUpdateInsert(recyclebin_domains,data,false);
+
+  function renderRecycleBinDetail(d) {
+    $newPanel = $recycle_bin_details_template.clone();
+    $newPanel.html(function (i, oldHtml) {
+      return oldHtml.replace(/d.id/g, d.id);
+    });
+    return $newPanel
+  }
+
+  function fetchRecycleBin(recycle_bin_id, parentTableId = '#recyclebin_domains') {
+    $.ajax({
+      url: "/api/v3/recycle_bin/" + recycle_bin_id,
+      contentType: "application/json",
+      type: "GET",
+      success: function (result) {
+        loadDatatable(parentTableId + ' #recycleBinDesktopsTable', 'desktops', result, desktopsTableCols)
+        loadDatatable(parentTableId + ' #recycleBinTemplatesTable', 'templates', result, templatesTableCols)
+        loadDatatable(parentTableId + ' #recycleBinStorageTable', 'storages', result, storageTableCols)
+        loadDatatable(parentTableId + ' #recycleBinDeploymentsTable', 'deployments', result, deploymentsTableCols)
+        loadDatatable(parentTableId + ' #recycleBinUsersTable', 'users', result, usersTableCols)
+        loadDatatable(parentTableId + ' #recycleBinGroupsTable', 'groups', result, groupsTableCols)
+        loadDatatable(parentTableId + ' #recycleBinCategoriesTable', 'categories', result, categoriesTableCols)
+      },
+      error: function (data) {
+      }
+    });
+  }
+
+  function loadDatatable(tableId, kind, data, columns) {
+    $(`#${kind}-panel .quantity`).html(`(${data[kind].length} items)`)
+    if ($.fn.dataTable.isDataTable(tableId)) {
+      $(tableId).DataTable().destroy();
+    }
+
+    table = $(tableId).DataTable({
+      data: data[kind],
+      columns: columns
     })
   }
 
-  recyclebin_domains.on( 'click', 'tbody tr', function (e) {
+  function socketio_on() {
+    socket.on('update_recycle_bin', function (data) {
+      dtUpdateInsert(recyclebin_domains, data, false);
+    })
+    socket.on('add_recycle_bin', function (data) {
+      dtUpdateInsert(recyclebin_domains, data, false);
+    })
+  }
+
+  recyclebin_domains.on('click', 'tbody tr', function (e) {
     toggleRow(this, e);
   });
-  
+
   $('#mactions').on('change', function () {
     let action = $(this).val();
     let ids = []
@@ -550,11 +553,11 @@ $(document).ready(function () {
         width: '550'
       }).get().on('pnotify.confirm', function () {
         var method = (action == "delete") ? "DELETE" : (action == "restore") ? "GET" : "";
-        ids.forEach(function(id) {
+        ids.forEach(function (id) {
           $.ajax({
             type: method,
             url: '/api/v3/recycle_bin/' + action + '/' + id,
-            success: function(data){
+            success: function (data) {
               $('#mactions option[value="none"]').prop("selected", true);
               $('#recyclebin_domains tr.active .form-check-input').prop("checked", false);
               $('#recyclebin_domains tr.active').removeClass('active')
@@ -569,7 +572,7 @@ $(document).ready(function () {
                 type: 'success'
               });
             },
-            error: function(xhr){
+            error: function (xhr) {
               new PNotify({
                 title: 'Error',
                 text: 'Couldn\'t ' + action + ' recycle bin entries ',
@@ -585,7 +588,7 @@ $(document).ready(function () {
       }).on('pnotify.cancel', function () {
         $('#mactions option[value="none"]').prop("selected", true);
       })
-    // No rows selected
+      // No rows selected
     } else {
       $('#mactions option[value="none"]').prop("selected", true);
       return new PNotify({
@@ -602,6 +605,117 @@ $(document).ready(function () {
       })
     }
   });
+  $.ajax({
+    type: "GET",
+    url: "/api/v3/recycle_bin/status",
+    success: function (data) {
+      let notShownStatus = ['recycled', 'deleting']
+      let status = data.filter((s) => !notShownStatus.includes(s.status))
+      $.each(status, function (index, currentStatus) {
+        $('#status').append($('<option>', {
+          value: currentStatus.status,
+          text: `${currentStatus.status} (${currentStatus.count} items)`
+        }));
+      })
+    }
+  });
+  $('#status').on('change', (event) => {
+    newStatus = event.target.value
+    let tableId = '#recyclebin_domains_other'
+    if ($.fn.dataTable.isDataTable(tableId)) {
+      $(tableId).DataTable().destroy();
+    }
+    recyclebin_domains_other = $('#recyclebin_domains_other').DataTable({
+      "ajax": {
+        "url": `/api/v3/recycle_bin/item_count/status/${newStatus}`,
+        "contentType": "application/json",
+        "type": 'GET',
+      },
+      "sAjaxDataProp": "",
+      "language": {
+        "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+      },
+      "rowId": "id",
+      "deferRender": true,
+      "columns": [
+        {
+          className: "details-control",
+          orderable: false,
+          data: null,
+          defaultContent: '<button id="btn-details" class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+        },
+        {
+          "data": "accessed",
+          "title": "Deleted",
+          render: function (accessed) {
+            return moment.unix(accessed).fromNow()
+          }
+        },
+        {
+          "data": "status",
+          "title": "Status"
+        },
+        {
+          "data": "agent_name",
+          "title": "Agent name"
+        },
+        {
+          "data": "agent_type",
+          "title": "Agent type"
+        },
+        {
+          "data": "owner_name",
+          "title": "Owner name"
+        },
+        {
+          "data": "item_type",
+          "title": "Item type"
+        },
+        {
+          "data": "desktops",
+          "title": "Deleted desktops",
+        },
+        {
+          "data": "templates",
+          "title": "Deleted templates",
+        },
+        {
+          "data": "deployments",
+          "title": "Deleted deployments",
+        },
+        {
+          "data": "storages",
+          "title": "Deleted storages",
+        },
+        {
+          "data": "logs",
+          "title": "Last modification",
+          render: function (logs) {
+            try {
+              return moment.unix(logs.slice(-1)[0].time).fromNow()
+            } catch {
+              return null
+            }
+          }
+        },
+        {
+          "data": "id",
+          "title": "Id",
+          "visible": false
+        }
+      ],
+    });
+    adminShowIdCol(recyclebin_domains_other)
+    $("#recyclebin_domains_other tbody").off('click').on('click', 'button', function () {
+      let tr = $(this).closest("tr")
+      let row = recyclebin_domains_other.row(tr)
+      switch ($(this).attr('id')) {
+        case 'btn-details':
+          showRowDetails(recyclebin_domains_other, tr, row);
+          break;
+      }
+    })
+  })
 });
 
 $("#maxtime").on("change", function () {
@@ -657,9 +771,9 @@ function selectAutomaticDelete() {
       if (data !== "null" && $('meta[id=user_data]').attr('data-role') != 'admin') {
         var maxTime = parseInt(data);
         $('#maxtime option').each(function () {
-            if (($(this).val() > maxTime || $(this).val() == "null")) {
-                $(this).remove();
-            }
+          if (($(this).val() > maxTime || $(this).val() == "null")) {
+            $(this).remove();
+          }
         });
       }
     }

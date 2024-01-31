@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 124
+release_version = 125
+# release 125: Add owner_category index
 # release 124: Add/Remove required logs_users index
 # release 123: Fix email field users
 # release 122: Add maintenance field to categories
@@ -4587,6 +4588,14 @@ class Upgrade(object):
                     multi=True,
                 ).run(self.conn)
                 r.table("recycle_bin").index_wait("parents").run(self.conn)
+            except Exception as e:
+                print(e)
+        if version == 125:
+            try:
+                r.table(table).index_create(
+                    "owner_category",
+                    r.row["owner_category_id"],
+                ).run(self.conn)
             except Exception as e:
                 print(e)
 

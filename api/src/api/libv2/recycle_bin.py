@@ -41,6 +41,21 @@ db = RDB(app)
 db.init_app(app)
 
 
+def get_status(category_id=None):
+    with app.app_context():
+        query = r.table("recycle_bin")
+        if category_id:
+            query = query.get_all(category_id, index="owner_category")
+        query = (
+            query.group("status")
+            .count()
+            .ungroup()
+            .map(lambda doc: {"status": doc["group"], "count": doc["reduction"]})
+        )
+        status = list(query.run(db.conn))
+    return status
+
+
 def get_user_data(user_id):
     with app.app_context():
         user = (
@@ -751,14 +766,23 @@ class RecycleBin(object):
                     )
         return recycle_bin_list
 
-    def get_item_count(user_id=None, category_id=None):
+    def get_item_count(user_id=None, category_id=None, status=None):
         query = r.table("recycle_bin")
         if user_id:
-            query = query.get_all([user_id, "recycled"], index="owner_status")
+            query = query.get_all(r.args([user_id, "recycled"]), index="owner_status")
         elif category_id:
-            query = query.get_all(
-                [category_id, "recycled"], index="owner_category_status"
-            )
+            if status:
+                query = query.get_all(
+                    [category_id, status], index="owner_category_status"
+                )
+            else:
+                query = query.get_all(
+                    [category_id, "recycled"], index="owner_category_status"
+                )
+        elif status:
+            query = query.get_all(status, index="status")
+        else:
+            query = query.get_all(r.args(["recycled", "deleting"]), index="status")
         count_query = {
             "desktops": r.row["desktops"].count(),
             "templates": r.row["templates"].count(),
@@ -768,7 +792,7 @@ class RecycleBin(object):
             "groups": r.row["groups"].count(),
             "users": r.row["users"].count(),
         }
-        query = query.merge(count_query)
+        query = query.merge(count_query).without("logs", "tasks")
         with app.app_context():
             return list(query.run(db.conn))
 

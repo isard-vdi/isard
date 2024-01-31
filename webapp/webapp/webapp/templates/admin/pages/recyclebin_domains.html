@@ -69,6 +69,44 @@
   </div>
   {% include '/admin/pages/recyclebin_domains_detail.html' %}
 </div>
+
+<div class="row">
+  <div class="x_panel">
+    <div class="x_title">
+      <h3>
+        <i class="fa fa-trash"></i>
+        Domains in other status
+        <small>Select status to load</small>
+      </h3>
+      <ul class="nav navbar-right panel_toolbox">
+      </ul>
+      <div class="clearfix"></div>
+    </div>
+    <div class="x_content">
+      <p class="text-muted font-13 m-b-30"></p>
+      <div style="display:inline-flex;">
+        <div id="other_status" style="display:block; width: 15cm;">
+          <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="status">
+            <h4>
+              Other recycle bin status
+            </h4>
+          </label>
+          <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+            <select class="form-control" id="status" name="status">
+              <option value="none">Select status</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <table id="recyclebin_domains_other" class="table" width="100%">
+          <thead>
+          </thead>
+          <tbody>
+          </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endif %}
 {% endblock %}
 {% block pagescript %}
