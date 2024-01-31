@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="x_panel">
+  <div class="x_title">
+    <h3><i class="fa fa-object-group"></i> Storage Pools</h3>
+    <ul class="nav navbar-right panel_toolbox">
+      <li><a class="btn-add-new"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a></li>
+      <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
+    </ul>
+    <div class="clearfix"></div>
+  </div>
+  <div class="x_content">
+    <table id="storage_pools" class="table">
+      <thead>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% include '/admin/pages/storage_pools_detail.html' %}
+{% include '/admin/pages/storage_pools_modals.html' %}
+{% include '/snippets/alloweds_form.html' %}
+{% endblock %}
+
+{% block pagescript %}
+<script src="/isard-admin/static/js/restful.js"></script>
+<script src="/isard-admin/static/admin/js/storage_pools.js"></script>
+{% endblock %}

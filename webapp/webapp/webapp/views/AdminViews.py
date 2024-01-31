@@ -358,7 +358,7 @@ def admin_usage_config():
 
 
 """
-HYPERVISORS
+INFRASTRUCTURE
 """
 
 
@@ -387,6 +387,20 @@ def queues():
         title="Queues registeres",
         nav="Queues",
         monitor_host=monitor_host,
+    )
+
+
+@app.route("/isard-admin/admin/storage_pools", methods=["GET"])
+@login_required
+@isAdmin
+def storage_pools():
+    """
+    Storage Pools
+    """
+    return render_template(
+        "admin/pages/storage_pools.html",
+        title="Storage Pools",
+        nav="Storage Pools",
     )
 
 

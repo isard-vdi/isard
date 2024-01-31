@@ -1,0 +1,66 @@
+allowed:
+  type: dict
+  schema: allowed
+description:
+  type: string
+enabled:
+  type: boolean
+  required: false
+name:
+  type: string
+  empty: false
+category_id:
+  type: string
+paths:
+  type: dict
+  schema:
+    desktop:
+      type: list
+      schema:
+        type: dict
+        schema:
+          path:
+            type: string
+            required: true
+          weight:
+            type: integer
+            required: true
+    media:
+      type: list
+      schema:
+        type: dict
+        schema:
+          path:
+            type: string
+            required: true
+          weight:
+            type: integer
+            required: true
+    template:
+      type: list
+      schema:
+        type: dict
+        schema:
+          path:
+            type: string
+            required: true
+          weight:
+            type: integer
+            required: true
+    volatile:
+      type: list
+      schema:
+        type: dict
+        schema:
+          path:
+            type: string
+            required: true
+          weight:
+            type: integer
+            required: true
+read:
+  type: boolean
+startable:
+  type: boolean
+write:
+  type: boolean

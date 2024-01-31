@@ -115,6 +115,7 @@ from .views import (
     AdminResourcesView,
     AdminSchedulerView,
     AdminStoragePhysicalView,
+    AdminStoragePoolsView,
     AdminStorageView,
     AdminTablesView,
     AdminUsageView,

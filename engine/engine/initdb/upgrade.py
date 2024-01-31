@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 119
+release_version = 120
+# release 120: update "storage_pool" table with new fields, add index "name"
 # release 119: Add new password parameters to users
 # release 118: Authentication uuid ids and email verification upgrade
 # release 117: Remove computed usage totals
@@ -159,6 +160,7 @@ tables = [
     "secrets",
     "recycle_bin",
     "authentication",
+    "storage_pool",
 ]
 
 
@@ -4577,6 +4579,39 @@ class Upgrade(object):
                 )
                 r.table(table).index_create("starting_time").run(self.conn)
                 r.table(table).index_wait("starting_time").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        return True
+
+    """
+    STORAGE POOL TABLE UPGRADES
+    """
+
+    def storage_pool(self, version):
+        table = "storage_pool"
+        if version == 120:
+            try:
+                r.table(table).update(
+                    {
+                        "allowed": {
+                            "categories": False,
+                            "groups": False,
+                            "roles": False,
+                            "users": False,
+                        },
+                        "description": "System default storage pool",
+                        "startable": True,
+                        "enabled": True,
+                        "read": True,
+                        "write": True,
+                        "category_id": None,
+                    },
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                r.table(table).index_create("name").run(self.conn)
             except Exception as e:
                 print(e)
         return True

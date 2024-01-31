@@ -13,6 +13,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from ..libv2.load_validator_schemas import IsardValidator
+
 r = RethinkDB()
 import csv
 import io
@@ -357,3 +359,60 @@ def _add_storage_log(storage_id, status):
                 ),
             }
         ).run(db.conn)
+
+
+def add_storage_pool(data):
+    _check_with_validate_weight(data["paths"])
+    with app.app_context():
+        existing_pools = r.table("storage_pool").filter(
+            {"category_id": data["category_id"]}
+        )
+        if existing_pools.count().run(db.conn) > 0:
+            raise Error("conflict", "Pool with this category already exists")
+        else:
+            r.table("storage_pool").insert(data).run(db.conn)
+
+
+def get_storage_pools():
+    with app.app_context():
+        return list(
+            r.table("storage_pool")
+            .merge(
+                lambda pool: {
+                    "category_name": r.branch(
+                        pool["category_id"].eq(None),
+                        "--",
+                        r.table("categories").get(pool["category_id"])["name"],
+                    )
+                }
+            )
+            .run(db.conn)
+        )
+
+
+def get_storage_pool(storage_pool_id):
+    with app.app_context():
+        return r.table("storage_pool").get(storage_pool_id).run(db.conn)
+
+
+def update_storage_pool(storage_pool_id, data):
+    if data.get("paths"):
+        _check_with_validate_weight(data["paths"])
+    if storage_pool_id == "00000000-0000-0000-0000-000000000000" and "enabled" in data:
+        raise Error("bad_request", "Default pool can't be disabled")
+    with app.app_context():
+        r.table("storage_pool").get(storage_pool_id).update(data).run(db.conn)
+
+
+def delete_storage_pool(storage_pool_id):
+    if storage_pool_id == "00000000-0000-0000-0000-000000000000":
+        raise Error("bad_request", "Default pool can't be removed")
+    with app.app_context():
+        r.table("storage_pool").get(storage_pool_id).delete().run(db.conn)
+
+
+def _check_with_validate_weight(data):
+    for key in data:
+        total = sum(item["weight"] for item in data[key])
+        if total != 100:
+            raise Error("bad_request", "Same type's weight sum must be 100")

@@ -215,6 +215,7 @@ def admin_table_insert(table, data):
         data = _validate_item(table, data)
         if table == "desktops_priority":
             IsardValidator()._check_with_validate_time_values(data)
+
     with app.app_context():
         if r.table(table).get(data["id"]).run(db.conn) == None:
             if not _check(r.table(table).insert(data).run(db.conn), "inserted"):
