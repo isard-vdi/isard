@@ -1,4 +1,4 @@
-version: '3.5'
+version: "3.5"
 services:
   isard-authentication:
     environment:
@@ -16,7 +16,14 @@ services:
       - AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_NAME=cn
       - AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_EMAIL=mail
       - AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_PHOTO=jpegPhoto
-      # SAML 
+      - AUTHENTICATION_AUTHENTICATION_LDAP_AUTO_REGISTER=true
+      - AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP=memberOf
+      - AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH=ou=people,dc=planetexpress,dc=com
+      - AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_FILTER=(&(objectClass=Group)(member=%s))
+      - AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH_USE_DN=true
+      - AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH_FIELD=cn
+      - AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADMIN_GROUPS=admin_staff
+      # SAML
       - AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=true
       - AUTHENTICATION_AUTHENTICATION_SAML_METADATA_URL=http://${DOCKER_NET:-172.31.255}.86:8080/simplesaml/saml2/idp/metadata.php
       - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_UID=uid
@@ -30,6 +37,8 @@ services:
   isard-authentication-test-ldap:
     container_name: isard-authentication-test-ldap
     image: rroemhild/test-openldap
+    ulimits:
+      nofile: 1024
     networks:
       - isard-network
 
