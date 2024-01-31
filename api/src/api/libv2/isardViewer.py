@@ -287,9 +287,16 @@ class isardViewer:
                 "port": domain["viewer"].get("html5_ext_port", "443"),
                 "exp": (datetime.now(pytz.utc) + timedelta(minutes=240)).timestamp(),
             }
-            cookie = base64.b64encode(
-                json.dumps({"web_viewer": data}).encode("utf-8")
-            ).decode("utf-8")
+            cookie = jwt.encode(
+                {
+                    "exp": datetime.utcnow() + timedelta(minutes=240),
+                    "kid": "isardvdi-viewer",
+                    "type": "viewer",
+                    "web_viewer": data,
+                },
+                os.environ.get("API_ISARDVDI_SECRET"),
+                algorithm="HS256",
+            )
             if os.environ.get("DIRECTVIEWER_MODE") == "url":
                 viewer = (
                     viewer_url
