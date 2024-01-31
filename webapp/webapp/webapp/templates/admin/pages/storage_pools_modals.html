@@ -3,6 +3,15 @@
   #pathsTableEdit > tbody > tr > td  {
     border-top: none;
   }
+  .category-wrapper {
+    padding: 0px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+  }
+  .table-wrapper tbody td {
+    max-width: 315px;
+  }
+
 </style>
 
 <!-- ADD STORAGE POOL -->
@@ -37,8 +46,13 @@
                   <input id="description" name="description" placeholder="Pool description" class="roundbox" type="text" style="width:100%">
                 </div>
               </div>
+              <div class="col-md-12 category-wrapper">
+                <label class="control-label" for="category">Category
+                </label>
+                <select id="category" name="category_id" class="roundbox" style="width:100%"></select>
+              </div>
               <br>
-              <div class="row">
+              <div class="row table-wrapper">
                 <table id="pathsTableAdd" class="table">
                   <thead>
                     <tr>
@@ -52,7 +66,7 @@
                     <tr id="desktop">
                       <td id="type"><i class="fa fa-desktop fa-1x"></i><b> Desktops</b></td>
                       <td>
-                        <input id="path" name="desktop-path" value="/isard/groups" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9/]+$" data-parsley-trigger="change" type="text" style="width:100%">
+                        <span class="path_base"></span><input id="path" name="desktop-path" value="desktops" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="desktop-weight" type="number" value="100"></td>
                       <td>
@@ -66,7 +80,7 @@
                     <tr id="media">
                       <td id="type"><i class="fa fa-circle-o fa-1x"></i><b> Media</b></td>
                       <td>
-                        <input id="path" name="media-path" value="/isard/media" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9/]+$" data-parsley-trigger="change" type="text" style="width:100%">
+                        <span class="path_base"></span><input id="path" name="media-path" value="media" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="media-weight" type="number" value="100"></td>
                       <td>
@@ -80,7 +94,7 @@
                     <tr id="template">
                       <td id="type"><i class="fa fa-cubes fa-1x"></i><b> Templates</b></td>
                       <td>
-                        <input id="path" name="template-path" value="/isard/templates" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9/]+$" data-parsley-trigger="change" type="text" style="width:100%">
+                        <span class="path_base"></span><input id="path" name="template-path" value="templates" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="template-weight" type="number" value="100"></td>
                       <td>
@@ -94,7 +108,7 @@
                     <tr id="volatile">
                       <td id="type"><i class="fa fa-clock-o fa-1x"></i><b> Volatile</b></td>
                       <td>
-                        <input id="path" name="volatile-path" value="/isard/volatile" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9/]+$" data-parsley-trigger="change" type="text" style="width:100%">
+                        <span class="path_base"></span><input id="path" name="volatile-path" value="volatile" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="volatile-weight" type="number" value="100"></td>
                       <td>
@@ -107,7 +121,7 @@
               </div>
               <br>
 
-              <div class="row">
+              <!-- <div class="row">
                 <div class="col-md-4 col-xs-12">
                   <div class="checkbox">
                     <label><b>Startable</b> 
@@ -143,7 +157,7 @@
                     </label>
                   </div>
                 </div>
-              </div>
+              </div> -->
             </div>
           </div>
         </form>
@@ -196,9 +210,14 @@
                   <input id="description" name="description" placeholder="Pool description" class="roundbox" type="text" style="width:100%">
                 </div>
               </div>
+              <div class="col-md-12 category-wrapper">
+                <label class="control-label" for="category">Category
+                </label>
+                <select id="category" name="category_id" style="width:100%"></select>
+              </div>
               <br>
 
-              <div class="row">
+              <div class="row table-wrapper">
                 <table id="pathsTableEdit" class="table">
                   <thead>
                     <tr>
@@ -214,7 +233,7 @@
               </div>
               <br>
 
-              <div class="row">
+              <!-- <div class="row">
                 <div class="col-md-4 col-xs-12">
                   <div class="checkbox">
                     <label><b>Startable</b> 
@@ -250,7 +269,7 @@
                     </label>
                   </div>
                 </div>
-              </div>
+              </div> -->
             </div>
           </div>
         </form>

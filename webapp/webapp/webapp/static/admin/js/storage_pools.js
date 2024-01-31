@@ -22,9 +22,8 @@ $(document).ready(function () {
   storage_pools_table = $('#storage_pools').DataTable({
     "ajax": {
       "type": 'GET',
-      "url": "/admin/table/storage_pool",
+      "url": "/admin/storage_pools",
       "dataSrc": "",
-      "data": function(d) { return JSON.stringify({ 'order_by': 'id' }) },
       "contentType": "application/json",
     },
     "language": {
@@ -47,31 +46,33 @@ $(document).ready(function () {
       },
       { "data": "id", "title": "ID" },
       { "data": "name", "title": "Name" },
+      { "data": "category_name", "title": "Category" },
       { "data": "description", "title": "Description", 'defaultContent': '' },
-      { 
-        "data": "startable",
-        "title": "Startable",
-        "render": function(data, type, full, meta) {
-          return renderEnabled(full.startable, 'circle');
-        }
-      },
-      { 
-        "data": "read", 
-        "title": "Read",
-        "render": function(data, type, full, meta) {
-          return renderEnabled(full.read, 'circle');
-        }
-      },
-      { 
-        "data": "write", 
-        "title": "Write",
-        "render": function(data, type, full, meta) {
-          return renderEnabled(full.write, 'circle');
-        }
-      },
+      // { 
+      //   "data": "startable",
+      //   "title": "Startable",
+      //   "render": function(data, type, full, meta) {
+      //     return renderEnabled(full.startable, 'circle');
+      //   }
+      // },
+      // { 
+      //   "data": "read", 
+      //   "title": "Read",
+      //   "render": function(data, type, full, meta) {
+      //     return renderEnabled(full.read, 'circle');
+      //   }
+      // },
+      // { 
+      //   "data": "write", 
+      //   "title": "Write",
+      //   "render": function(data, type, full, meta) {
+      //     return renderEnabled(full.write, 'circle');
+      //   }
+      // },
       {
         className: "actions-control",
         orderable: false,
+        width: '125px',
         data: null,
         defaultContent:
           '<button id="btn-allowed" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
@@ -84,6 +85,10 @@ $(document).ready(function () {
 
   $('.btn-add-new').on('click', function(){
     $("#modalAddStoragePool #modalAdd")[0].reset();
+    $("#modalAddStoragePool #category").select2({
+      dropdownParent: $("#modalAddStoragePool"),
+    });
+    populateCategory("#modalAddStoragePool", null);
     $("#modalAddStoragePool").modal({
       backdrop: "static",
       keyboard: false,
@@ -113,8 +118,13 @@ $(document).ready(function () {
         modalAllowedsFormShow("storage_pool", data);
         break;
       case 'btn-edit':
+        
         $("#modalEditStoragePool #modalEdit")[0].reset();
         $('#modalEdit #pathsTableEdit tbody').html('');
+        $("#modalEditStoragePool #category").select2({
+          dropdownParent: $("#modalEditStoragePool"),
+        });
+        populateCategory("#modalEditStoragePool", data.category_id);
         $("#modalEditStoragePool").modal({
           backdrop: "static",
           keyboard: false,
@@ -126,6 +136,13 @@ $(document).ready(function () {
         $('#modalEdit #startable').iCheck(data.startable ? 'check' : 'uncheck').iCheck('update');
         $('#modalEdit #read').iCheck(data.read ? 'check' : 'uncheck').iCheck('update');
         $('#modalEdit #write').iCheck(data.write ? 'check' : 'uncheck').iCheck('update');
+
+        if(data.id == "00000000-0000-0000-0000-000000000000"){
+          $("#modalEdit #category").attr("disabled", true);
+          addPath("#modalEdit", "");
+        } else {
+          $("#modalEdit #category").attr("disabled", false);
+        }
 
         const pathsTableEdit = $('#modalEdit #pathsTableEdit tbody')[0];
         paths = data.paths;
@@ -154,8 +171,9 @@ $(document).ready(function () {
             } else {
               typeCell.innerHTML = `<b id="${type}">${type}</b>`;
             }
+            pathObj.path = pathObj.path.split("/")[pathObj.path.split("/").length-1]
 
-            pathCell.innerHTML = `<input id="path" name="${type}-path" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9/]+$" data-parsley-trigger="change" type="text" style="width:100%" value="${pathObj.path}">`;
+            pathCell.innerHTML = `<span class="path_base"></span><input id="path" name="${type}-patzh" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text" value="${pathObj.path}">`;
             weightCell.innerHTML = `<input id="weight" name="${type}-weight" type="number" value="${pathObj.weight}">`;
             buttonAddDelCell.innerHTML = `<input id='modalEdit-addrow-${type}' type='button' value='+' onclick='addRow("${type}", "modalEdit")'/> \
                                           <input id='modalEdit-delrow-${type}' type='button' value='-' onclick='delRow("${type}", "modalEdit")'/>`;
@@ -171,6 +189,7 @@ $(document).ready(function () {
         break;
       case 'btn-enable':
         let change = data["enabled"] ? "disable" : "enable";
+        let msg = (change == "enable") ? "This pool <b>will only become operational</b> after a system restart. Ensure that there is at least one hypervisor associated with this storage pool." : "";
         new PNotify({
           title: "<b>WARNING</b>",
           type: "error",
@@ -192,18 +211,18 @@ $(document).ready(function () {
         }).get().on('pnotify.confirm', function() {
           $.ajax({
             type: "PUT",
-            url: "/admin/table/update/storage_pool",
-            data: JSON.stringify({'id': data["id"], 'name':data["name"], 'enabled': !data.enabled}),
+            url: "/admin/storage_pool/"+data["id"],
+            data: JSON.stringify({'name':data["name"], 'enabled': !data.enabled}),
             contentType: "application/json",
             success: function (data) {
               new PNotify({
-                title: 'Updated',
-                text: 'Pool updated successfully',
+                title: 'Pool ' + change +'d successfully',
+                text:  msg,
                 hide: true,
-                delay: 1000,
+                delay: 7000,
                 icon: 'fa fa-' + data.icon,
                 opacity: 1,
-                type: 'success'
+                type: change == "enable" ? 'warning' : 'success'
               });
               storage_pools_table.ajax.reload();
             },
@@ -222,7 +241,6 @@ $(document).ready(function () {
         }).on('pnotify.cancel', function() {});
         break;
       case 'btn-delete':
-        console.log(data.id)
         if(data.id == "00000000-0000-0000-0000-000000000000"){
           return new PNotify({
             title: "ERROR deleting pool",
@@ -255,7 +273,7 @@ $(document).ready(function () {
         }).get().on("pnotify.confirm", function () {
           $.ajax({
             type: "DELETE",
-            url: "/admin/table/storage_pool/"+data["id"],
+            url: "/admin/storage_pool/"+data["id"],
             contentType: "application/json",
             success: function (data) {
               new PNotify({
@@ -286,6 +304,13 @@ $(document).ready(function () {
     }
   });
   $.getScript("/isard-admin/static/admin/js/socketio.js");
+
+  $("#modalAddStoragePool #category").on("change", function() {
+    addPath("#modalAddStoragePool", $(this).val());
+  });
+  $("#modalEditStoragePool #category").on("change", function() {
+    addPath("#modalEditStoragePool", $(this).val());
+  });
 })
 
 function renderEnabled(enabled, kind) {
@@ -354,9 +379,9 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
   form.parsley().validate();
   if (form.parsley().isValid()) {
     data = form.serializeObject();
-    data['startable'] = 'startable' in data ? true : false;
-    data['read'] = 'read' in data ? true : false;
-    data['write'] = 'write' in data ? true : false;
+    // data['startable'] = 'startable' in data ? true : false;
+    // data['read'] = 'read' in data ? true : false;
+    // data['write'] = 'write' in data ? true : false;
     data["allowed"] = {"roles": false, "categories": false, "groups": false, "users": false}
 
     e.preventDefault();
@@ -369,7 +394,7 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
         pathsTableAdd[type] = [];
       }
       pathsTableAdd[type].push({
-        'path': path,
+        'path': $(this).find("span").text() + path,
         'weight': weight
       });
     });
@@ -390,7 +415,7 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
     })
 
     $.ajax({
-      url: "/admin/table/add/storage_pool",
+      url: "/admin/storage_pool",
       type: "POST",
       data: JSON.stringify(data),
       contentType: "application/json",
@@ -443,7 +468,7 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
           pathsTableEdit[type] = [];
         }
         pathsTableEdit[type].push({
-          'path': path,
+          'path': $(this).find("span").text() + path,
           'weight': weight
         });
       }
@@ -457,43 +482,95 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
 
     data["paths"] = pathsTableEdit
 
-    var notice = new PNotify({
-      text: 'Updating pool...',
-      hide: false,
-      opacity: 1,
-      icon: 'fa fa-spinner fa-pulse'
-    })
+    if (data.id == "00000000-0000-0000-0000-000000000000") {
+      new PNotify({
+        title: "WARNING. You're about to edit the default pool",
+        type: "warning",
+        text: "Editing the default pool settings may impact system operations. Are you sure you want to update?",
+        hide: false,
+        opacity: 0.9,
+        confirm: {
+          confirm: true
+        },
+        buttons: {
+          closer: false,
+          sticker: false
+        },
+        history: {
+          history: false
+        },
+        addclass: 'pnotify-center-large',
+        width: '550'
+      }).get().on('pnotify.confirm', function () {
+        updateStoragePool(data);
+      });
+    } else {
+      updateStoragePool(data);
+    }
 
-    $.ajax({
-      url: "/admin/table/update/storage_pool",
-      type: "PUT",
-      data: JSON.stringify(data),
-      contentType: "application/json",
-      success: function (data) {
-        notice.update({
-          title: 'Updated',
-          text: 'Pool updated successfully',
-          hide: true,
-          delay: 1000,
-          icon: 'fa fa-' + data.icon,
-          opacity: 1,
-          type: 'success'
-        })
-        $('form').each(function () { this.reset() });
-        $('.modal').modal('hide');
-        storage_pools_table.ajax.reload();
-      },
-      error: function (xhr) {
-        notice.update({
-          title: 'ERROR updating pool',
-          text: xhr.responseJSON.description,
-          type: 'error',
-          hide: true,
-          icon: 'fa fa-warning',
-          delay: 2000,
-          opacity: 1
-        })
-      }
-    });
   }
 });
+
+function populateCategory(modal, category_id) {
+  $(modal + " #category").empty();
+  $.ajax({
+    type: "GET",
+    url: "/api/v3/admin/categories",
+    cache: false,
+    success: function (category) {
+      $.each(category, function (key, value) {
+        $(modal + ' #category').append(
+          `<option value="${value.id}">${value.name}</option>`
+        );
+        $(modal + " #category").val(category_id).trigger("change");
+      });
+    }
+  });
+}
+
+function updateStoragePool(data) {
+  var notice = new PNotify({
+    text: 'Updating pool...',
+    hide: false,
+    opacity: 1,
+    icon: 'fa fa-spinner fa-pulse'
+  })
+  $.ajax({
+    url: "/admin/storage_pool/" + data["id"],
+    type: "PUT",
+    data: JSON.stringify(data),
+    contentType: "application/json",
+    success: function (data) {
+      notice.update({
+        title: 'Updated',
+        text: 'Pool updated successfully',
+        hide: true,
+        delay: 1000,
+        icon: 'fa fa-' + data.icon,
+        opacity: 1,
+        type: 'success'
+      })
+      $('form').each(function () { this.reset() });
+      $('.modal').modal('hide');
+      storage_pools_table.ajax.reload();
+    },
+    error: function (xhr) {
+      notice.update({
+        title: 'ERROR updating pool',
+        text: xhr.responseJSON.description,
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 2000,
+        opacity: 1
+      })
+    }
+  });
+}
+
+function addPath(modal, category) {
+  $(modal + " .path_base").empty();
+  $.each($(modal + " .path_base"), function () {
+    $(this).text(`/isard/storage_pools/${(category ? category + "/" : "")}`);
+  });
+}

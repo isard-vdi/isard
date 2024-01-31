@@ -4600,12 +4600,13 @@ class Upgrade(object):
                             "roles": False,
                             "users": False,
                         },
-                        "description": "",
+                        "description": "System default storage pool",
                         "startable": True,
                         "enabled": True,
                         "read": True,
                         "write": True,
-                    }
+                        "category_id": None,
+                    },
                 ).run(self.conn)
             except Exception as e:
                 print(e)

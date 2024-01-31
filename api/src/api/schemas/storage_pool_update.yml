@@ -1,6 +1,3 @@
-id:
-  required: true
-  default_setter: genuuid
 allowed:
   type: dict
   schema: allowed
@@ -9,14 +6,11 @@ description:
 enabled:
   type: boolean
   required: false
-  default: false
 name:
   type: string
-  required: true
   empty: false
 category_id:
   type: string
-  required: true
 paths:
   type: dict
   schema:
@@ -66,13 +60,7 @@ paths:
             required: true
 read:
   type: boolean
-  required: true
-  default: true
 startable:
   type: boolean
-  required: true
-  default: true
 write:
   type: boolean
-  required: true
-  default: true

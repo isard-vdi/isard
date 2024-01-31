@@ -93,12 +93,6 @@ class IsardValidator(Validator):
         ):
             self._error("bad_request", "Incorrect time values.")
 
-    def _check_with_validate_weight(self, data):
-        for key in data:
-            total = sum(item["weight"] for item in data[key])
-            if total != 100:
-                self._error("bad_request", "Same type's weight sum must be 100")
-
     def _normalize_default_setter_gensecret(self, document):
         return b64encode(token_bytes(32)).decode()
 
