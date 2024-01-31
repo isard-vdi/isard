@@ -13,7 +13,11 @@ services:
         ipv4_address: ${DOCKER_NET:-172.31.255}.17
     privileged: true
     volumes:
-      - /opt/isard:/isard:rw
+      - /opt/isard/templates:/isard/templates:rw
+      - /opt/isard/groups:/isard/groups:rw
+      - /opt/isard/media:/isard/media:rw
+      - /opt/isard/volatile:/isard/volatile:rw
+      - /opt/isard/storage_pools:/isard/storage_pools:rw
       - /opt/isard-local/sockets/:/var/run/libvirt/
       - /opt/isard-local/environment:/usr/local/etc/environment
       - /dev/vfio:/dev/vfio

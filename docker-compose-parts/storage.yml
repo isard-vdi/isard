@@ -18,6 +18,8 @@ services:
       - /opt/isard/groups:/isard/groups:rw
       - /opt/isard/backups:/isard/backups:ro
       - /opt/isard/media:/isard/media:rw
+      - /opt/isard/volatile:/isard/volatile:rw
+      - /opt/isard/storage_pools:/isard/storage_pools:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       - /opt/isard-local/environment:/usr/local/etc/environment:ro

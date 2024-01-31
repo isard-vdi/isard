@@ -37,6 +37,7 @@ from engine.services.db.downloads import (
     update_download_percent,
     update_status_table,
 )
+from engine.services.db.storage_pool import get_category_storage_pool_id
 from engine.services.lib.download import test_url_for_download, test_url_google_drive
 from engine.services.lib.functions import get_tid
 from engine.services.lib.qcow import (
@@ -425,7 +426,6 @@ class DownloadChangesThread(threading.Thread):
     def __init__(
         self,
         manager,
-        pool_id,
         q_workers,
         threads_disk_operations,
         name="download_changes",
@@ -435,9 +435,10 @@ class DownloadChangesThread(threading.Thread):
         self.stop = False
         self.r_conn = False
         self.manager = manager
-        self.pool_id = pool_id
         self.q_workers = q_workers
         self.threads_disk_operations = threads_disk_operations
+
+        self.storage_pending = {}
 
         cfg = get_config_branch("resources")
         if cfg is not False:
@@ -475,14 +476,12 @@ class DownloadChangesThread(threading.Thread):
             extension = disk.get(
                 "extension", disk.get("file", "qcow2").rsplit(".", 1)[-1]
             )
-
         else:
             type_path_selected = "media"
             relative_path = dict_changes["id"]
             extension = dict_changes["kind"]
-        pool_id = dict_changes.get("create_dict", {}).get(
-            "storage_pool", DEFAULT_STORAGE_POOL_ID
-        )
+
+        pool_id = get_category_storage_pool_id(dict_changes["category"])
 
         new_file_path, path_selected = get_path_to_disk(
             relative_path=relative_path,
@@ -513,7 +512,7 @@ class DownloadChangesThread(threading.Thread):
         # change for other pools when pools are implemented in all media
         try:
             next_hyp = self.manager.diskoperations_pools[
-                self.pool_id
+                pool_id
             ].balancer.get_next_diskoperations()
             logs.downloads.debug(
                 "hypervisor where delete media {}: {}".format(new_file_path, next_hyp)
@@ -540,7 +539,7 @@ class DownloadChangesThread(threading.Thread):
 
         # change for other pools when pools are implemented in all media
         next_hyp = self.manager.diskoperations_pools[
-            self.pool_id
+            get_category_storage_pool_id(dict_changes["category"])
         ].balancer.get_next_diskoperations()
         logs.downloads.debug(
             "hypervisor where delete media {}: {}".format(
@@ -631,7 +630,7 @@ class DownloadChangesThread(threading.Thread):
         if new_file_path not in self.download_threads:
             # launching download threads
             logs.downloads.debug(
-                f"ready tu start DownloadThread --> url:{url} , path:{new_file_path}"
+                f"Starting DownloadThread for --> url:{url} , path:{new_file_path}"
             )
             self.download_threads[new_file_path] = DownloadThread(
                 url,
@@ -657,63 +656,72 @@ class DownloadChangesThread(threading.Thread):
                 )
             )
 
+    def execute(self, action, dict_changes, extra=None):
+        pool_id = get_category_storage_pool_id(dict_changes["category"])
+        next_diskop = self.manager.diskoperations_pools[
+            pool_id
+        ].balancer.get_next_diskoperations()
+        if next_diskop is False:
+            if pool_id not in self.storage_pending.keys():
+                self.storage_pending[pool_id] = []
+            self.storage_pending[pool_id].append(
+                {"action": action, "item": dict_changes}
+            )
+            logs.downloads.error(
+                f"DOWNLOAD: No disk operations active for pool {pool_id} to execute action {action} with id {dict_changes['id']}, storing in pending list. Actual list has {len(self.storage_pending[pool_id])} items"
+            )
+        else:
+            if action == "start_download":
+                self.start_download(dict_changes)
+            elif action == "abort_download":
+                self.abort_download(dict_changes)
+            elif action == "abort_download_final_status_download_failed":
+                self.abort_download(dict_changes, final_status="DownloadFailed")
+            elif action == "delete_media":
+                self.delete_media(dict_changes)
+            elif action == "remove_media":
+                remove_media(dict_changes)
+            elif action == "remove_download_thread":
+                self.remove_download_thread(dict_changes)
+            else:
+                logs.downloads.error(
+                    f"DOWNLOAD: action {action} not implemented for id {dict_changes['id']}"
+                )
+            # Remove item from self.storage_pending
+            try:
+                self.storage_pending[pool_id].remove(
+                    {"action": action, "item": dict_changes}
+                )
+            except:
+                pass
+
+    def restart_pending_downloads(self):
+        for pool_id in self.storage_pending.keys():
+            next_hyp = self.manager.diskoperations_pools[
+                pool_id
+            ].balancer.get_next_diskoperations()
+            if next_hyp is not False:
+                logs.downloads.debug(
+                    f"DOWNLOAD: Restarting pending {len(self.storage_pending[pool_id])} downloads for pool {pool_id}."
+                )
+                for item in self.storage_pending[pool_id]:
+                    self.execute(item["action"], item["item"])
+            else:
+                logs.downloads.debug(
+                    f"DOWNLOAD: Unable to restart pending {len(self.storage_pending[pool_id])} downloads for pool {pool_id}. No disk operations available"
+                )
+
     def run(self):
         self.tid = get_tid()
         logs.downloads.debug("RUN-DOWNLOAD-THREAD-------------------------------------")
-        pool_id = "default"
-        first_loop = True
+        self.downloads_with_storage_pending = {}
+        self.r_conn = new_rethink_connection()
         if self.stop is False:
-            if first_loop is True:
-                # if domains or media have status Downloading when engine restart
-                # we need to resetdownloading deleting file and
-                first_loop = False
-                # wait a hyp to downloads
-                next_hyp = False
-                while next_hyp is False:
-                    # logs.downloads.info('waiting an hypervisor online to launch downloading actions')
-                    next_hyp = self.manager.diskoperations_pools[
-                        self.pool_id
-                    ].balancer.get_next_diskoperations()
-                    if next_hyp:
-                        break
-                    sleep(1)
-                logs.downloads.info(f"hypervisor to launch download: {next_hyp}")
-
-                domains_status_downloading = get_domains_with_status("Downloading")
-                medias_status_downloading = get_media_with_status("Downloading")
-
-                for id_domain in domains_status_downloading:
-                    create_dict = get_domain(id_domain)["create_dict"]
-                    dict_changes = {
-                        "id": id_domain,
-                        "table": "domains",
-                        "create_dict": create_dict,
-                    }
-                    update_domain_status("ResetDownloading", id_domain)
-                    self.abort_download(dict_changes, final_status="DownloadFailed")
-
-                for id_media in medias_status_downloading:
-                    dict_media = get_media(id_media)
-                    dict_changes = {
-                        "id": id_media,
-                        "table": "media",
-                        "path": dict_media["path"],
-                        "hypervisors_pools": dict_media["hypervisors_pools"],
-                    }
-                    update_status_table("media", "ResetDownloading", id_media)
-                    self.abort_download(dict_changes, final_status="DownloadFailed")
-
-            self.r_conn = new_rethink_connection()
-            update_table_field(
-                "hypervisors_pools", pool_id, "download_changes", "Started"
-            )
             for c in (
                 r.table("media")
                 .get_all(
                     r.args(
                         [
-                            "Deleting",
-                            "Deleted",
                             "Downloaded",
                             "DownloadFailed",
                             "DownloadStarting",
@@ -725,7 +733,7 @@ class DownloadChangesThread(threading.Thread):
                     ),
                     index="status",
                 )
-                .pluck("id", "kind", "url-isard", "url-web", "status")
+                .pluck("id", "kind", "url-isard", "url-web", "status", "category")
                 .merge({"table": "media"})
                 .changes(include_initial=True)
                 .union(
@@ -737,70 +745,83 @@ class DownloadChangesThread(threading.Thread):
                                 "DownloadFailed",
                                 "DownloadStarting",
                                 "Downloading",
+                                "Download",
                                 "DownloadAborting",
                                 "ResetDownloading",
                             ]
                         ),
                         index="status",
                     )
-                    .pluck("id", "create_dict", "url-isard", "url-web", "status")
+                    .pluck(
+                        "id",
+                        "create_dict",
+                        "url-isard",
+                        "url-web",
+                        "status",
+                        "category",
+                    )
                     .merge({"table": "domains"})
                     .changes(include_initial=True)
                 )
                 .union(
                     r.table("engine")
-                    .pluck("threads", "status_all_threads")
-                    .merge({"table": "engine"})
-                    .changes()
+                    # .pluck("threads", "status_all_threads")
+                    .merge({"table": "engine"}).changes()
                 )
                 .run(self.r_conn)
             ):
                 if self.stop:
                     break
-                if c.get("new_val", None) != None:
-                    if c["new_val"].get("table", False) == "engine":
-                        if c["new_val"]["status_all_threads"] == "Stopping":
-                            break
-                        else:
-                            continue
+                if c.get("new_val", None) and c["new_val"].get("table") == "engine":
+                    if c["new_val"]["status_all_threads"] == "Stopping":
+                        break
+                    self.restart_pending_downloads()
+                    continue
 
                 logs.downloads.debug("DOWNLOAD CHANGES DETECTED:")
                 logs.downloads.debug(pprint.pformat(c))
+                self.restart_pending_downloads()
 
-                if c.get("old_val", None) is None:
+                if c.get("new_val", None) and c.get("old_val", None) == None:
                     if c["new_val"]["status"] == "DownloadStarting":
-                        self.start_download(c["new_val"])
-                elif c.get("new_val", None) is None:
-                    if c["old_val"]["status"] in ["DownloadAborting"]:
-                        self.remove_download_thread(c["old_val"])
+                        self.execute("start_download", c["new_val"])
+                    if c["new_val"]["status"] == "Downloading":
+                        if c["new_val"]["table"] == "media":
+                            self.reset_downloading("media", c["new_val"])
+                        elif c["new_val"]["table"] == "domains":
+                            self.reset_downloading("domains", c["new_val"])
 
-                elif "old_val" in c and "new_val" in c:
+                if c.get("old_val", None) and not c.get("new_val", None):
+                    if c["old_val"]["status"] in ["DownloadAborting"]:
+                        self.execute("remove_download_thread", c["old_val"])
+
+                if c.get("old_val", None) and c.get("new_val", None):
                     if (
                         c["old_val"]["status"] == "DownloadFailed"
                         and c["new_val"]["status"] == "DownloadStarting"
                     ):
-                        self.start_download(c["new_val"])
+                        self.execute("start_download", c["new_val"])
 
                     elif (
                         c["old_val"]["status"] == "Downloaded"
                         and c["new_val"]["status"] == "Deleting"
                     ):
                         if c["new_val"]["table"] == "media":
-                            self.delete_media(c["new_val"])
+                            self.execute("delete_media", c["new_val"])
 
                     elif (
                         c["old_val"]["status"] == "Deleting"
                         and c["new_val"]["status"] == "Deleted"
                     ):
                         if c["new_val"]["table"] == "media":
-                            remove_media(c["new_val"]["id"])
+                            self.execute("remove_media", c["new_val"]["id"])
 
                     elif (
                         c["old_val"]["status"] == "DownloadFailed"
                         and c["new_val"]["status"] == "Deleting"
                     ):
                         if c["new_val"]["table"] == "media":
-                            remove_media(c["new_val"]["id"])
+                            self.execute("delete_media", c["new_val"]["id"])
 
                     elif (
                         c["old_val"]["status"] == "Downloading"
@@ -824,20 +845,33 @@ class DownloadChangesThread(threading.Thread):
                         c["old_val"]["status"] == "Downloading"
                         and c["new_val"]["status"] == "DownloadAborting"
                     ):
-                        self.abort_download(c["new_val"])
+                        self.execute("abort_download", c["new_val"])
 
                     elif (
                         c["old_val"]["status"] == "Downloading"
                         and c["new_val"]["status"] == "ResetDownloading"
                     ):
-                        self.abort_download(c["new_val"], final_status="DownloadFailed")
+                        self.execute(
+                            "abort_download_final_status_download_failed",
+                            c["new_val"],
+                        )
+
+    def reset_downloading(self, kind, dict_changes):
+        if kind == "domains":
+            update_domain_status("ResetDownloading", dict_changes["id"])
+            self.abort_download(dict_changes, final_status="DownloadFailed")
+        elif kind == "media":
+            update_status_table("media", "ResetDownloading", dict_changes["id"])
+            self.abort_download(dict_changes, final_status="DownloadFailed")
+
+            # update_table_field(
+            #     "hypervisors_pools", pool_id, "download_changes", "Started"
+            # )
 
 
-def launch_thread_download_changes(
-    manager, pool_id, q_workers, threads_disk_operations
-):
+def launch_thread_download_changes(manager, q_workers, threads_disk_operations):
     # q_workers should be q_disk_operations?
-    t = DownloadChangesThread(manager, pool_id, q_workers, threads_disk_operations)
+    t = DownloadChangesThread(manager, q_workers, threads_disk_operations)
     t.daemon = True
     t.start()
     return t
