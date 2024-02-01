@@ -49,4 +49,3 @@ def mail(address: list, subject: str, text: str, html: str):
     )
     server.sendmail(message["from"], address, message.as_string())
     server.quit()
-    sleep(5)
