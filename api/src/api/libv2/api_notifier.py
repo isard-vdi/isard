@@ -27,10 +27,11 @@ from isardvdi_common.api_rest import ApiRest
 notifier_client = ApiRest("isard-notifier")
 
 
-def send_verification_email(email, token):
+def send_verification_email(email, user_id, token):
     try:
         data = {
             "email": email,
+            "user_id": user_id,
             "url": "https://"
             + os.environ.get("DOMAIN")
             + "/verify-email?token={token}".format(token=token),

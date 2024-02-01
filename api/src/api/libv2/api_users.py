@@ -686,7 +686,7 @@ class ApiUsers:
                         r.table("users").get(user_id).update(
                             {"email_verification_token": token, "email_verified": None}
                         ).run(db.conn)
-                        send_verification_email(data.get("email"), token)
+                        send_verification_email(data.get("email"), user_id, token)
                     else:
                         r.table("users").get(user_id).update(
                             {"email_verification_token": None, "email_verified": None}
