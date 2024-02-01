@@ -117,9 +117,9 @@
                   :disabled="loading"
                   @blur="v$.pwd.$touch"
                 />
-                <!-- <b-link :to="{name: 'ForgotPassword', query: { categoryId: category } }">
+                <b-link @click="redirectForgotPassword()">
                   {{ $t('views.login.form.forgot-password') }}
-                </b-link> -->
+                </b-link>
                 <b-button
                   type="submit"
                   :disabled="loading"
@@ -298,6 +298,15 @@ export default {
       }
     }
 
+    const redirectForgotPassword = () => {
+      if (category.value) {
+        context.root.$router.push({ name: 'ForgotPassword', query: { categoryId: category.value } })
+      } else {
+        v$.value.$reset()
+        document.getElementById('category').focus()
+      }
+    }
+
     return {
       category,
       loading,
@@ -317,7 +326,8 @@ export default {
       v$,
       login,
       loginForm,
-      authenticationSegment
+      authenticationSegment,
+      redirectForgotPassword
     }
   }
 }
