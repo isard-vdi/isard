@@ -57,7 +57,7 @@
       </b-tab>
     </b-tabs>
     <AllowedModal @updateAllowed="updateAllowed" />
-    <DeleteTemplateModal @deleteTemplate="deleteTemplate" />
+    <DeleteTemplateModal />
   </b-container>
 </template>
 <script>
