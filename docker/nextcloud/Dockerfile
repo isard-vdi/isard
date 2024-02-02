@@ -43,7 +43,7 @@ RUN set -ex; \
 COPY docker/nextcloud/requirements.txt .
 RUN apk add --no-cache \
         py3-pip && \
-    pip3 install --no-cache-dir -r requirements.txt && \
+    pip3 install --no-cache-dir --break-system-packages -r requirements.txt && \
     rm requirements.txt
 
 RUN mkdir -p \
