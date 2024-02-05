@@ -21,6 +21,7 @@
 
 import os
 
+from html_sanitizer import Sanitizer
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -34,6 +35,35 @@ db = RDB(app)
 db.init_app(app)
 
 users = ApiUsers()
+
+
+def no_sanitize_href(href):
+    return href
+
+
+sanitizer = Sanitizer(
+    {
+        "attributes": {"a": ("href", "name", "target", "title", "id", "rel", "class")},
+        "tags": {
+            "a",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "strong",
+            "em",
+            "p",
+            "ul",
+            "ol",
+            "li",
+            "br",
+            "sub",
+            "sup",
+            "hr",
+        },
+        "sanitize_href": no_sanitize_href,
+    }
+)
 
 
 def add_policy(data):
@@ -140,18 +170,27 @@ def force_policy_at_login(policy_id, policy_field):
 
 def get_disclaimer_template(user_id):
     user = r.table("users").get(user_id).pluck("role", "lang").run(db.conn)
-    template_id = users.get_user_policy("disclaimer", "all", user["role"], user_id)
+    template_id = users.get_user_policy("disclaimer", "all", user["role"], user_id).get(
+        "template"
+    )
     if template_id:
         with app.app_context():
-            disclaimer = (
-                r.table("notification_tmpls")
-                .get(template_id.get("template"))
-                .run(db.conn)
-            )
-        if disclaimer["lang"].get(user.get("lang")):
-            return disclaimer["lang"][user["lang"]]
-        elif disclaimer["lang"].get(disclaimer["default"]):
-            return disclaimer["lang"][disclaimer["default"]]
+            disclaimer = r.table("notification_tmpls").get(template_id).run(db.conn)
 
+        if disclaimer["lang"].get(user.get("lang")):
+            texts = disclaimer["lang"][user["lang"]]
+            return {
+                "title": texts["title"],
+                "body": sanitizer.sanitize(texts["body"]),
+                "footer": sanitizer.sanitize(texts["footer"]),
+            }
+        elif disclaimer["lang"].get(disclaimer["default"]):
+            texts = disclaimer["lang"][disclaimer["default"]]
+            return {
+                "title": texts["title"],
+                "body": sanitizer.sanitize(texts["body"]),
+                "footer": sanitizer.sanitize(texts["footer"]),
+            }
         raise Error("not_found", "Unable to find disclaimer template")
-    return None
+    else:
+        return None

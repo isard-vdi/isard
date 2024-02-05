@@ -887,6 +887,13 @@
             "email-sent": "S'ha enviat un correu electrònic a l'adreça proporcionada per a la verificació. Si us plau, comprova la teva safata d'entrada i segueix les instruccions. Redirigint a l'inici de sessió en {seconds} segons.",
             "email-verified": "El correu electrònic ha estat verificat correctament. Redirigint a l'inici de sessió en {seconds} segons.",
             "email-error": "El codi de validació proporcionat ha caducat. Redirigint a l'inici de sessió en {seconds} segons."
+        },
+        "disclaimer": {
+            "title": "Avís legal",
+            "reject": "Rebutjar",
+            "accept": "Acceptar",
+            "disclaimer-accepted": "S'ha acceptat l'avís legal. Redirigint a l'inici de sessió en {seconds} segons."
+
         }
     },
     "validations": {
@@ -1302,7 +1309,8 @@
             "recycleBin": "Paperera de reciclatge",
             "password": "Canviar contrasenya",
             "email": "Verificar correu electrònic",
-            "forgot-password": "Reestablir contrasenya"
+            "forgot-password": "Reestablir contrasenya",
+            "disclaimer": "Avís legal"
         }
     },
     "message-modal": {

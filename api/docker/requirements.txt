@@ -24,3 +24,4 @@ python-json-logger
 requests~=2.31
 simple-colors~=0.1
 Pillow==10.1.0
+html-sanitizer==2.2.0

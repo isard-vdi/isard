@@ -139,6 +139,7 @@ $(document).ready(function () {
             success: function (category) {
                 $(modal + ' #category-select select').append('<option selected value="all">ALL</option>');
                 showHideContent($('#modalPolicyAdd #disclaimer-content'), true);
+                showHideContent($('#modalPolicyAdd #disclaimer-warning'), false);
                 $.each(category, function (key, value) {
                     $(modal + ' #category-select select').append(
                         `<option value="${value.id}">${value.name}</option>`
@@ -165,52 +166,64 @@ $(document).ready(function () {
 
 
     $('#modalPolicyAdd #send').on('click', function (e) {
-        if (form.parsley().isValid()) {
-            const formData = $('#modalPolicyAddForm').serializeObject();
-            $('#modalPolicyAddForm').parsley().validate();
-            var data = formData;
-            data = {
-                'category': data["category"],
-                'role': data["role"],
-                'type': "local",
-                "password": {
-                    'digits': parseInt(data['digits']),
-                    'expiration': parseInt(data['expiration']),
-                    'length': parseInt(data['length']),
-                    'lowercase': parseInt(data['lowercase']),
-                    'old_passwords': parseInt(data['old_passwords']),
-                    'uppercase': parseInt(data['uppercase']),
-                    'special_characters': parseInt(data['special_characters']),
-                    'not_username': data['not_username'].toLowerCase() === 'true',
-                },
-                'email_verification': data['verification-cb'] == 'on',
-                'disclaimer': data['disclaimer-cb'] == 'off' && data['category'] !== "all" ? false :
-                    {
-                        'template': data['disclaimer-template']
+        const formData = $('#modalPolicyAddForm').serializeObject();
+        $('#modalPolicyAddForm').parsley().validate();
+        var data = formData;
+        if ($('#modalPolicyAddForm').parsley().isValid()) {
+            if (formData['disclaimer-cb'] == 'on' && !formData['disclaimer-template']) {
+                new PNotify({
+                    title: `ERROR enabling disclaimer`,
+                    text: 'If disclaimer acknowledgement is enabled, a text template must be selected',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            } else {
+                data = {
+                    'category': data["category"],
+                    'role': data["role"],
+                    'type': "local",
+                    "password": {
+                        'digits': parseInt(data['digits']),
+                        'expiration': parseInt(data['expiration']),
+                        'length': parseInt(data['length']),
+                        'lowercase': parseInt(data['lowercase']),
+                        'old_passwords': parseInt(data['old_passwords']),
+                        'uppercase': parseInt(data['uppercase']),
+                        'special_characters': parseInt(data['special_characters']),
+                        'not_username': data['not_username'].toLowerCase() === 'true',
+                    },
+                    'email_verification': data['verification-cb'] == 'on',
+                    'disclaimer': data['disclaimer-cb'] != 'on' && data['category'] !== "all" ? false :
+                        {
+                            'template': data['disclaimer-template']
+                        }
+                };
+                $.ajax({
+                    type: 'POST',
+                    url: `/api/v3/admin/authentication/policy/`,
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function (data) {
+                        $('form').each(function () { this.reset() });
+                        $('.modal').modal('hide');
+                        user_policy_table.ajax.reload();
+                    },
+                    error: function (data) {
+                        new PNotify({
+                            title: `ERROR adding user policy`,
+                            text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 5000,
+                            opacity: 1
+                        });
                     }
-            };
-            $.ajax({
-                type: 'POST',
-                url: `/api/v3/admin/authentication/policy/`,
-                data: JSON.stringify(data),
-                contentType: "application/json",
-                success: function (data) {
-                    $('form').each(function () { this.reset() });
-                    $('.modal').modal('hide');
-                    user_policy_table.ajax.reload();
-                },
-                error: function (data) {
-                    new PNotify({
-                        title: `ERROR adding user policy`,
-                        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
-                        type: 'error',
-                        hide: true,
-                        icon: 'fa fa-warning',
-                        delay: 5000,
-                        opacity: 1
-                    });
-                }
-            });
+                });
+            }
         }
     });
 
@@ -283,9 +296,10 @@ $(document).ready(function () {
             var modal = '#modalPolicyEdit';
             $(modal + " #id").val(data.id);
             $(modal + " #category").append(
-                `<option value="${data.category}">${data.category_name}</option>`
+                `<option selected value="${data.category}">${data.category_name}</option>`
             );
             showHideContent($(modal + " #disclaimer-content"), data.category == "all");
+            showHideContent($(modal + " #disclaimer-warning"), data.category != "all");
 
             populateTextTemplateSelect(modal);
             $.ajax({
@@ -342,48 +356,60 @@ $(document).ready(function () {
         var modal = '#modalPolicyEditForm';
         const formData = $(modal).serializeObject();
         $(modal).parsley().validate();
-        if (form.parsley().isValid()) {
-            var data = {
-                'type': 'local',
-                'password': {
-                    'digits': parseInt(formData['digits']),
-                    'expiration': parseInt(formData['expiration']),
-                    'length': parseInt(formData['length']),
-                    'lowercase': parseInt(formData['lowercase']),
-                    'old_passwords': parseInt(formData['old_passwords']),
-                    'uppercase': parseInt(formData['uppercase']),
-                    'special_characters': parseInt(formData['special_characters']),
-                    'not_username': formData['not_username'].toLowerCase() === 'true',
-                },
-                'email_verification': formData['verification-cb'] == 'on',
-                'disclaimer': formData['disclaimer-cb'] == 'off' && formData['category'] !== "all" ? null :
-                    {
-                        'template': formData['disclaimer-template']
+        if ($('#modalPolicyEditForm').parsley().isValid()) {
+            if (formData['disclaimer-cb'] == 'on' && !formData['disclaimer-template']) {
+                new PNotify({
+                    title: `ERROR enabling disclaimer`,
+                    text: 'If disclaimer acknowledgement is enabled, a text template must be selected',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            } else {
+                var data = {
+                    'type': 'local',
+                    'password': {
+                        'digits': parseInt(formData['digits']),
+                        'expiration': parseInt(formData['expiration']),
+                        'length': parseInt(formData['length']),
+                        'lowercase': parseInt(formData['lowercase']),
+                        'old_passwords': parseInt(formData['old_passwords']),
+                        'uppercase': parseInt(formData['uppercase']),
+                        'special_characters': parseInt(formData['special_characters']),
+                        'not_username': formData['not_username'].toLowerCase() === 'true',
+                    },
+                    'email_verification': formData['verification-cb'] == 'on',
+                    'disclaimer': formData['disclaimer-cb'] != 'on' && formData['category'] !== "all" ? null :
+                        {
+                            'template': formData['disclaimer-template']
+                        }
+                };
+    
+                $.ajax({
+                    type: 'PUT',
+                    url: `/api/v3/admin/authentication/policy/${formData.id}`,
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function (data) {
+                        $('form').each(function () { this.reset() });
+                        $('.modal').modal('hide');
+                        user_policy_table.ajax.reload();
+                    },
+                    error: function (data) {
+                        new PNotify({
+                            title: `ERROR editing policy`,
+                            text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 5000,
+                            opacity: 1
+                        });
                     }
-            };
-
-            $.ajax({
-                type: 'PUT',
-                url: `/api/v3/admin/authentication/policy/${formData.id}`,
-                data: JSON.stringify(data),
-                contentType: "application/json",
-                success: function (data) {
-                    $('form').each(function () { this.reset() });
-                    $('.modal').modal('hide');
-                    user_policy_table.ajax.reload();
-                },
-                error: function (data) {
-                    new PNotify({
-                        title: `ERROR editing policy`,
-                        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
-                        type: 'error',
-                        hide: true,
-                        icon: 'fa fa-warning',
-                        delay: 5000,
-                        opacity: 1
-                    });
-                }
-            });
+                });
+            }
         }
     });
 
@@ -431,6 +457,7 @@ $(document).ready(function () {
 
     $('#modalPolicyAdd #category').on('change', function () {
         showHideContent($('#modalPolicyAdd #disclaimer-content'), $('#category').val() == "all");
+        showHideContent($("#modalPolicyAdd #disclaimer-warning"), $('#category').val() != "all");
     });
     $('.disclaimer-cb').on('ifChanged', function () {
         showHideContent(
@@ -479,7 +506,6 @@ function populateTextTemplateSelect(modal) {
         url: "/api/v3/admin/notifications/templates",
         type: "GET"
     }).then(response => {
-        console.log(response)
         $(modal + " #template-content p").hide();
         $.each(response, function (key, template) {
             if (!["password", "email"].includes(template.kind)) {

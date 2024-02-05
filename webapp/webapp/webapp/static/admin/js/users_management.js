@@ -852,6 +852,15 @@ function socketio_on(){
                 }
             },
             {
+                "data": "disclaimer_acknowledged", "defaultContent": 'NaN', "render": function (data, type, full, meta) {
+                    if ('disclaimer_acknowledged' in full && full['disclaimer_acknowledged']) {
+                        return `<i class="fa fa-circle" aria-hidden="true"  style="color:green"</i>`
+                    } else {
+                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                    }
+                }
+            },
+            {
                 "data": "vpn.wireguard.connected", "width": "10px", "defaultContent": 'NaN', "render": function (data, type, full, meta) {
                     if ('vpn' in full && full['vpn']['wireguard']['connected']) {
                         return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="' + full["vpn"]["wireguard"]["remote_ip"] + ':' + full["vpn"]["wireguard"]["remote_port"] + '"></i>'

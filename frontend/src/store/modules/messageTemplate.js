@@ -1,7 +1,6 @@
 import axios from 'axios'
 import { apiV3Segment, authenticationSegment } from '../../shared/constants'
 import { ErrorUtils } from '../../utils/errorUtils'
-import store from '@/store/index.js'
 
 const getDefaultState = () => {
   return {
@@ -34,7 +33,7 @@ export default {
         disclaimerAxios.get(`${apiV3Segment}/disclaimer`).then(response => {
           context.commit(
             'setMessageTemplate',
-            response.data.message
+            response.data
           )
         }).catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -56,19 +55,7 @@ export default {
         config.headers.Authorization = `Bearer ${localStorage.token}`
         return config
       })
-      return disclaimerAxios.post(`${authenticationSegment}/acknowledge-disclaimer`).then(response => {
-        return new Promise((resolve, reject) => {
-          disclaimerAxios.post(`${authenticationSegment}/login`, { timeout: 25000 }).then(response => {
-            store.dispatch('loginSuccess', response.data)
-            resolve()
-          }).catch(e => {
-            store.dispatch('handleLoginError', e)
-            reject(e)
-          })
-        })
-      }).catch(e => {
-        ErrorUtils.handleAuthErrors(e, this._vm.$snotify)
-      })
+      return disclaimerAxios.post(`${authenticationSegment}/acknowledge-disclaimer`, {})
     }
   }
 }

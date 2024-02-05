@@ -1079,7 +1079,10 @@
         },
         "disclaimer": {
             "title": "Disclaimer",
-            "accept": "Accept"
+            "reject": "Reject",
+            "accept": "Accept",
+            "disclaimer-accepted": "The disclaimer has been acknowledged. Redirecting to login in {seconds} seconds"
+
         }
     },
     "messages": {
