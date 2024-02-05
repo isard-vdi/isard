@@ -177,6 +177,10 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR=2
 #AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_CATEGORY=.*
 #AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP=
 #AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP=.*
+### If this is configured, this will set a default group when autoregistering a user
+### This is only advised to be configured if you have users without a group, otherwise don't configure it
+### It's the equivalent of AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP with AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP applied to it
+#AUTHENTICATION_AUTHENTICATION_LDAP_DEFAULT_GROUP=
 ### The base search for listing all the groups of a user
 #AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH=
 ### Filter is the actual filter used to search all the groups of a user. The '%s' represents the user that is sent through the form

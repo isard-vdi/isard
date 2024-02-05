@@ -213,12 +213,19 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 			ExternalGID:   matchRegex(l.ReGroup, entry.GetAttributeValue(l.cfg.FieldGroup)),
 			Description:   "This is a auto register created by the authentication service. This group maps a LDAP group",
 		}
-		g.GenerateNameExternal(l.String())
 
 		// Ensure that we have found the group
 		if g.ExternalGID == "" {
-			return nil, nil, "", ErrInvalidCredentials
+			// If there's no default group, throw an error
+			if l.cfg.DefaultGroup == "" {
+				return nil, nil, "", ErrInvalidCredentials
+			}
+
+			// Otherwise set is as the ExternalGID
+			g.ExternalGID = l.cfg.DefaultGroup
 		}
+
+		g.GenerateNameExternal(l.String())
 
 		// List all the groups to setup the user role afterwards
 		gSearchID := usr

@@ -65,6 +65,7 @@ type AuthenticationLDAP struct {
 	RegexCategory      string     `mapstructure:"regex_category"`
 	FieldGroup         string     `mapstructure:"field_group"`
 	RegexGroup         string     `mapstructure:"regex_group"`
+	DefaultGroup       string     `mapstructure:"default_group"`
 	GroupsSearch       string     `mapstructure:"groups_search"`
 	GroupsFilter       string     `mapstructure:"groups_filter"`
 	GroupsSearchUseDN  bool       `mapstructure:"groups_search_use_dn"`
@@ -163,6 +164,7 @@ func setDefaults() {
 			"regex_category":       ".*",
 			"field_group":          "",
 			"regex_group":          ".*",
+			"default_group":        "",
 			"groups_search":        "",
 			"groups_filter":        "(&(objectClass=posixGroup)(memberUid=%s))",
 			"groups_search_use_dn": false,
