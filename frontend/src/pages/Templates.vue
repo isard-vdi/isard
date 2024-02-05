@@ -106,9 +106,6 @@ export default {
       return this.$store.getters.getTemplatesLoaded
     }
   },
-  created () {
-    this.$store.dispatch('fetchTemplates')
-  },
   destroyed () {
     this.$store.dispatch('resetTemplatesState')
   }
