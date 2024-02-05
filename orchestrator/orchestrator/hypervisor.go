@@ -143,15 +143,6 @@ hyperCreate:
 				return
 			}
 
-			// If it's only forced, disable it
-			if h.OnlyForced {
-				if err := o.apiCli.AdminHypervisorOnlyForced(ctx, h.ID, false); err != nil {
-					o.log.Error().Str("id", id).Str("status", string(h.Status)).Err(err).Msg("disable hypervisor only_forced")
-					failed <- id
-					return
-				}
-			}
-
 			created <- id
 		}(id)
 	}
