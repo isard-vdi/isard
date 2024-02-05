@@ -143,8 +143,6 @@ tables = [
     "deployments",
     "remotevpn",
     "storage",
-    "storage_physical_domains",
-    "storage_physical_media",
     "scheduler_jobs",
     "bookings_priority",
     "categories",
@@ -4174,20 +4172,6 @@ class Upgrade(object):
                 )
             except Exception as e:
                 print(e)
-        return True
-
-    def storage_physical_domains(self, version):
-        table = "storage_physical_domains"
-        log.info("UPGRADING " + table + " VERSION " + str(version))
-        if version == 45:
-            r.table(table).delete().run(self.conn)
-        return True
-
-    def storage_physical_media(self, version):
-        table = "storage_physical_media"
-        log.info("UPGRADING " + table + " VERSION " + str(version))
-        if version == 45:
-            r.table(table).delete().run(self.conn)
         return True
 
     # def storage_node(self, version):

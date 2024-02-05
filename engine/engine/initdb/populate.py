@@ -109,8 +109,6 @@ class Populate(object):
             "reservables_vgpus",
             "vgpus",
             "storage",
-            "storage_physical_domains",
-            "storage_physical_media",
             "storage_pool",
             "logs_desktops",
             "logs_users",
@@ -1192,20 +1190,6 @@ class Populate(object):
 
     def storage(self):
         self.create_table("storage")
-
-    def storage_physical_domains(self):
-        self.create_table("storage_physical_domains")
-        try:
-            self.index_create("storage_physical_domains", ["path", "kind"])
-        except:
-            None
-
-    def storage_physical_media(self):
-        self.create_table("storage_physical_media")
-        try:
-            self.index_create("storage_physical_media", ["path", "kind"])
-        except:
-            None
 
     def storage_pool(self):
         self.create_table("storage_pool")
