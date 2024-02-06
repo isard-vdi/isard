@@ -17,7 +17,7 @@ from engine.services.db.domains import (
     get_custom_dict_from_domain,
     update_custom_all_dict,
 )
-from engine.services.db.storage_pool import get_storage_pool
+from engine.services.db.storage_pool import get_category_storage_pool
 from engine.services.lib.functions import (
     backing_chain_cmd,
     exec_remote_cmd,
@@ -863,7 +863,7 @@ def backing_chain(path_disk, disk_operations_hostname, json_format=True):
 
 def get_path_to_disk(
     relative_path=None,
-    pool=DEFAULT_STORAGE_POOL_ID,
+    category_id=None,
     type_path="desktop",
     extension=None,
 ):
@@ -871,7 +871,7 @@ def get_path_to_disk(
         relative_path = str(uuid4())
     if extension:
         relative_path += f".{extension}"
-    pool_paths = get_storage_pool(pool)["paths"]
+    pool_paths = get_category_storage_pool(category_id)["paths"]
     paths_for_type = pool_paths[type_path]
     path_selected = choices(
         [path["path"] for path in paths_for_type],
@@ -888,6 +888,11 @@ def get_host_disk_operations_from_path(
     # d_pool = get_storage_pool(pool)
     # We are not returing the path, so why we need to get it here
 
+    if pool not in manager.diskoperations_pools.keys():
+        logs.main.error(
+            f"Pool {pool} is not in diskoperations_pools, can not get host for disk_operations"
+        )
+        return None
     disk_operations = manager.diskoperations_pools[
         pool
     ].balancer.get_next_diskoperations()

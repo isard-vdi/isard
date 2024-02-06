@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from cachetools import TTLCache, cached
+from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from rethinkdb import r
 
 from .db import rethink
@@ -25,23 +26,20 @@ from .db import rethink
 
 @rethink
 @cached(
-    cache=TTLCache(maxsize=1, ttl=60),
+    cache=TTLCache(maxsize=1, ttl=10),
     key=lambda connection: "storage_pools",
 )
 def get_storage_pools(connection):
-    pools = r.table("storage_pool").run(connection)
-    return [pool for pool in pools if pool.get("enabled", True)]
+    storage_pools = []
+    for sp in r.table("storage_pool").filter({"enabled": True}).run(connection):
+        if sp["id"] == DEFAULT_STORAGE_POOL_ID:
+            sp = _parse_default_storage_pool_paths(sp)
+        storage_pools.append(sp)
+    return storage_pools
 
 
 def get_storage_pool_ids():
     return [sp["id"] for sp in get_storage_pools()]
-
-
-def get_storage_pool(storage_pool_id):
-    pool = [sp for sp in get_storage_pools() if sp["id"] == storage_pool_id]
-    if len(pool) == 0:
-        return None
-    return pool[0]
 
 
 def get_category_storage_pool(category_id):
@@ -49,13 +47,56 @@ def get_category_storage_pool(category_id):
     default = {}
     for sp in sps:
         # default = uuid4 with zeroes
-        if sp["id"] == "00000000-0000-0000-0000-000000000000":
+        if sp["id"] == DEFAULT_STORAGE_POOL_ID:
             default = sp
         # TODO: Check if disabled storage?
-        if sp.get("category_id", None) == category_id:
-            return sp
+        if category_id in sp.get("categories", []):
+            return _parse_category_storage_pool_paths(sp, category_id)
     return default
+
+
+def get_default_storage_pool():
+    return [sp for sp in get_storage_pools() if sp["id"] == DEFAULT_STORAGE_POOL_ID][0]
 
 
 def get_category_storage_pool_id(category_id):
     return get_category_storage_pool(category_id)["id"]
+
+
+def _parse_category_storage_pool_paths(pool, category_id):
+    parsed_pool = pool.copy()
+    if pool["id"] == DEFAULT_STORAGE_POOL_ID:
+        return parsed_pool
+    type_paths = ["desktop", "media", "template", "volatile"]
+    pool_paths = {}
+    for type_path in type_paths:
+        paths = parsed_pool["paths"].get(type_path, [])
+        if not len(paths):
+            path_list = get_default_storage_pool()["paths"].get(type_path, [])
+            pool_paths[type_path] = path_list
+            continue
+        path_list = []
+        for path in paths:
+            path_key = (
+                parsed_pool["mountpoint"] + "/" + category_id + "/" + path["path"]
+            )
+            path_list.append({"path": path_key, "weight": path["weight"]})
+        pool_paths[type_path] = path_list
+    parsed_pool["paths"] = pool_paths.copy()
+    return parsed_pool
+
+
+def _parse_default_storage_pool_paths(pool):
+    if pool["id"] != DEFAULT_STORAGE_POOL_ID:
+        return False
+    type_paths = ["desktop", "media", "template", "volatile"]
+    pool_paths = {}
+    for type_path in type_paths:
+        paths = pool["paths"].get(type_path, [])
+        path_list = []
+        for path in paths:
+            path_key = "/isard/" + path["path"]
+            path_list.append({"path": path_key, "weight": path["weight"]})
+        pool_paths[type_path] = path_list
+    pool["paths"] = pool_paths
+    return pool

@@ -485,7 +485,7 @@ class DownloadChangesThread(threading.Thread):
 
         new_file_path, path_selected = get_path_to_disk(
             relative_path=relative_path,
-            pool=pool_id,
+            category_id=dict_changes["category"],
             type_path=type_path_selected,
             extension=extension,
         )
