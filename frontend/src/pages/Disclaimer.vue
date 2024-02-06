@@ -15,26 +15,6 @@
           <strong>{{ messageTemplate.title }}</strong>
         </h2>
         <div>
-          <b-alert
-            :show="dismissCountDown"
-            variant="warning"
-            @dismissed="dismissCountDown=0"
-            @dismiss-count-down="countDownChanged"
-          >
-            {{ $t('views.disclaimer.disclaimer-accepted', { seconds: dismissCountDown }) }}
-          </b-alert>
-          <b-button
-            v-show="dismissCountDown"
-            size="md"
-            class="btn-red rounded-pill mt-2"
-            @click="logout()"
-          >
-            {{ $t(`views.maintenance.go-login`) }}
-          </b-button>
-        </div>
-        <div
-          v-show="showUpdateDisclaimerText"
-        >
           <!-- eslint-disable -->
           <div
             class="p-2 mb-2 mt-2 ml-3"
@@ -70,42 +50,18 @@
 
 <script>
 import Logo from '@/components/Logo.vue'
-import { onMounted, computed, ref } from '@vue/composition-api'
-import { StringUtils } from '../utils/stringUtils'
+import { computed } from '@vue/composition-api'
 
 export default {
   components: { Logo },
   setup (_, context) {
     const $store = context.root.$store
-    onMounted(() => {
-      if (StringUtils.isNullOrUndefinedOrEmpty(localStorage.token)) {
-        $store.dispatch('navigate', 'login')
-      } else {
-        $store.dispatch('fetchMessageTemplate', 'disclaimer-acknowledgement')
-      }
-    })
-    const showUpdateDisclaimerText = ref(true)
+    $store.dispatch('fetchMessageTemplate', 'disclaimer-acknowledgement')
+
     const messageTemplate = computed(() => $store.getters.getMessageTemplate)
 
-    const dismissSecs = ref(10)
-    const dismissCountDown = ref(0)
-
-    const countDownChanged = (countDown) => {
-      dismissCountDown.value = countDown
-      if (countDown === 0) {
-        $store.dispatch('logout')
-      }
-    }
-    const showAlert = () => {
-      dismissCountDown.value = dismissSecs.value
-    }
-
     const accept = () => {
-      $store.dispatch('acknowledgeDisclaimer').then(() => {
-        localStorage.removeItem('token')
-        showUpdateDisclaimerText.value = false
-        showAlert()
-      })
+      $store.dispatch('acknowledgeDisclaimer')
     }
     const logout = () => {
       $store.dispatch('logout')
@@ -113,11 +69,7 @@ export default {
     return {
       messageTemplate,
       accept,
-      logout,
-      dismissCountDown,
-      countDownChanged,
-      showAlert,
-      showUpdateDisclaimerText
+      logout
     }
   }
 }

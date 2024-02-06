@@ -384,14 +384,6 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/disclaimer',
-      name: 'Disclaimer',
-      component: Disclaimer,
-      meta: {
-        title: i18n.t('router.titles.disclaimer')
-      }
-    },
-    {
       path: '/error/:code',
       name: 'Error',
       component: Error,
@@ -472,6 +464,9 @@ router.beforeEach(async (to, from, next) => {
           store.dispatch('saveNavigation', { url: from })
           next({ name: from.name })
         }
+      // Requires disclaimer acceptance, will be redirected
+      } else if (to.name !== 'Disclaimer' && ['disclaimer-acknowledgement-required'].includes(sessionData.type)) {
+        router.push({ name: 'Disclaimer' })
       // Requires email verification, will be redirected
       } else if (to.name !== 'VerifyEmail' && ['email-verification-required', 'email-verification'].includes(sessionData.type)) {
         router.push({ name: 'VerifyEmail' })

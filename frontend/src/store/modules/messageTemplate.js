@@ -1,6 +1,7 @@
 import axios from 'axios'
-import { apiV3Segment, authenticationSegment } from '../../shared/constants'
+import { apiV3Segment, authenticationSegment, sessionCookieName } from '../../shared/constants'
 import { ErrorUtils } from '../../utils/errorUtils'
+import { getCookie } from 'tiny-cookie'
 
 const getDefaultState = () => {
   return {
@@ -25,12 +26,7 @@ export default {
   actions: {
     fetchMessageTemplate (context, messageTemplateId) {
       if (messageTemplateId === 'disclaimer-acknowledgement') {
-        const disclaimerAxios = axios.create()
-        disclaimerAxios.interceptors.request.use(config => {
-          config.headers.Authorization = `Bearer ${localStorage.token}`
-          return config
-        })
-        disclaimerAxios.get(`${apiV3Segment}/disclaimer`).then(response => {
+        axios.get(`${apiV3Segment}/disclaimer`).then(response => {
           context.commit(
             'setMessageTemplate',
             response.data
@@ -52,10 +48,19 @@ export default {
     acknowledgeDisclaimer (context) {
       const disclaimerAxios = axios.create()
       disclaimerAxios.interceptors.request.use(config => {
-        config.headers.Authorization = `Bearer ${localStorage.token}`
+        config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
         return config
       })
-      return disclaimerAxios.post(`${authenticationSegment}/acknowledge-disclaimer`, {})
+      disclaimerAxios.post(`${authenticationSegment}/acknowledge-disclaimer`, {}).then((response) => {
+        axios.get(`${apiV3Segment}/user`, {}).then((response) => {
+          console.log(response.data)
+          const data = new FormData()
+          data.append('category_id', response.data.category)
+          data.append('provider', ['local', 'ldap'].includes(response.data.provider) ? 'form' : response.data.provider)
+          data.append('username', response.data.username)
+          context.dispatch('login', data)
+        })
+      })
     }
   }
 }

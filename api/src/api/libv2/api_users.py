@@ -1759,7 +1759,7 @@ class ApiUsers:
                 .pluck("role", "category", "lang", "disclaimer_acknowledged")
                 .run(db.conn)
             )
-        if user["disclaimer_acknowledged"]:
+        if user.get("disclaimer_acknowledged"):
             return False
 
         policy = self.get_user_policy("disclaimer", "all", user["role"], user_id)
