@@ -35,35 +35,6 @@
       </table>
     </div>
 
-    <!-- {% if current_user.role == 'admin' %}
-    <div class="row">
-      <div class="x_panel">
-        <div class="x_title">
-          <h3><i class="fa fa-times"></i> Physical media files <small>Unknown system files scanned from disk</small></h3>
-          <ul class="nav navbar-right panel_toolbox">
-            <li><a class="btn-phy-update" data-panel="storage_physical"><span style="color: #5499c7; "><i class="fa fa-spinner"></i> Read from remote</span></a>
-          </ul>
-          <div class="clearfix"></div>
-        </div>
-        <div class="x_content">
-          <table id="media_physical" class="table" width="100%">
-              <thead>
-              <tr>
-                <th>Path</th>
-                <th>Kind</th>
-                <th>Size</th>
-                <th>Hyper</th>
-              </tr>
-              </thead>
-              <tbody>
-              </tbody>
-          </table>
-        </div>
-    
-      </div>
-    </div>
-    {% endif %} -->
-
     {% include 'admin/pages/media_modals.html' %}
     {% include '/snippets/alloweds_form.html' %}
     {% include '/admin/pages/media_detail.html' %}
