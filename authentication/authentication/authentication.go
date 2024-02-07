@@ -283,7 +283,7 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 			return "", "", err
 		}
 
-		return ss, "", nil
+		return ss, redirect, nil
 	}
 
 	// Check if the user has the email verified
@@ -297,7 +297,7 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 			return "", "", err
 		}
 
-		return ss, "", nil
+		return ss, redirect, nil
 	}
 
 	pwdRst, err := a.Client.AdminUserRequiredPasswordReset(ctx, u.ID)
@@ -310,7 +310,7 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 			return "", "", err
 		}
 
-		return ss, "", nil
+		return ss, redirect, nil
 	}
 
 	// Set the last accessed time of the user
