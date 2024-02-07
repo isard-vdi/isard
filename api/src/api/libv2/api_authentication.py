@@ -159,7 +159,10 @@ def get_providers():
 def force_policy_at_login(policy_id, policy_field):
     policy = get_policy(policy_id)
 
-    query = r.table("users").get_all("local", index="provider")
+    if policy_field == "disclaimer_acknowledged":
+        query = r.table("users")
+    else:
+        query = r.table("users").get_all("local", index="provider")
     if policy["category"] != "all":
         query.filter({"category": policy["category"]})
     if policy["role"] != "all":
