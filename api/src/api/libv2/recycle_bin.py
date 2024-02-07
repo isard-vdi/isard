@@ -488,8 +488,6 @@ class RecycleBin(object):
                             + " not ready. Status: "
                             + storage.status,
                         )
-                    storage.status = "maintenance"
-                    _add_storage_log(storage.id, "maintenance")
                     task = Task(
                         user_id=self.owner_id,
                         queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
@@ -508,6 +506,9 @@ class RecycleBin(object):
                                         "statuses": {
                                             "finished": {
                                                 "deleted": {"storage": [storage.id]},
+                                            },
+                                            "failed": {
+                                                "recycled": {"storage": [storage.id]},
                                             },
                                             "canceled": {
                                                 "recycled": {"storage": [storage.id]},
