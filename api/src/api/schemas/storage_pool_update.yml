@@ -9,8 +9,10 @@ enabled:
 name:
   type: string
   empty: false
-category_id:
+mountpoint:
   type: string
+categories:
+  type: list
 paths:
   type: dict
   schema:

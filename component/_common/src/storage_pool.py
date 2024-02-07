@@ -61,19 +61,21 @@ class StoragePool(RethinkCustomBase):
         :return: StoragePool objects
         :rtype: list
         """
+        if path.startswith("/isard/storage_pools"):
+            # path to be found is the path without ANYTHING that comes after "/isard/storage_pools/ANYTHING/",
+            # so if we've got a path like "/isard/storage_pools/1/2/3/4" we want path to be /isard/storage_pools/1
+            path = (
+                "/isard/storage_pools/"
+                + path.split("/isard/storage_pools/")[1].split("/")[0]
+            )
+        else:
+            # Default path
+            path = "/isard"
         with cls._rdb_context():
             return [
                 cls(storage_pool["id"])
                 for storage_pool in r.table(cls._rdb_table)
-                .filter(
-                    lambda document: document["paths"]
-                    .values()
-                    .contains(
-                        lambda path_type: path_type.contains(
-                            lambda path_dict: path_dict["path"].eq(path)
-                        )
-                    )
-                )
+                .filter({"mountpoint": path})
                 .pluck("id")
                 .run(cls._rdb_connection)
             ]

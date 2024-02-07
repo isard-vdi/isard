@@ -63,7 +63,6 @@ from engine.services.lib.storage import (
     update_storage_deleted_domain,
 )
 from engine.services.log import *
-from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.domain import Domain
 
 DEFAULT_HOST_MODE = "host-passthrough"
@@ -696,7 +695,7 @@ class UiActions(object):
                 type_path_selected = "template"
 
                 new_file, path_selected = get_path_to_disk(
-                    pool=pool_id,
+                    category_id=dict_domain.get("category"),
                     type_path=type_path_selected,
                     extension=dict_new_template["create_dict"]["hardware"]["disks"][i][
                         "extension"
@@ -828,35 +827,36 @@ class UiActions(object):
             )
             return False
 
-    def creating_test_disk(
-        self,
-        test_disk_relative_route,
-        size_str="1M",
-        type_path="media",
-        pool_id=DEFAULT_STORAGE_POOL_ID,
-    ):
-        path_new_disk, path_selected = get_path_to_disk(
-            test_disk_relative_route, pool=pool_id, type_path=type_path
-        )
+    # Unused
+    # def creating_test_disk(
+    #     self,
+    #     test_disk_relative_route,
+    #     size_str="1M",
+    #     type_path="media",
+    #     pool_id=DEFAULT_STORAGE_POOL_ID,
+    # ):
+    #     path_new_disk, path_selected = get_path_to_disk(
+    #         test_disk_relative_route, pool=pool_id, type_path=type_path
+    #     )
 
-        hyp_to_disk_create = get_host_disk_operations_from_path(
-            self.manager,
-            pool=pool_id,
-            type_path=type_path,
-        )
+    #     hyp_to_disk_create = get_host_disk_operations_from_path(
+    #         self.manager,
+    #         pool=pool_id,
+    #         type_path=type_path,
+    #     )
 
-        cmds = create_cmd_disk_from_scratch(
-            path_new_disk=path_new_disk, size_str=size_str
-        )
+    #     cmds = create_cmd_disk_from_scratch(
+    #         path_new_disk=path_new_disk, size_str=size_str
+    #     )
 
-        action = {}
-        action["type"] = "create_disk_from_scratch"
-        action["disk_path"] = path_new_disk
-        action["index_disk"] = 0
-        action["domain"] = False
-        action["ssh_commands"] = cmds
+    #     action = {}
+    #     action["type"] = "create_disk_from_scratch"
+    #     action["disk_path"] = path_new_disk
+    #     action["index_disk"] = 0
+    #     action["domain"] = False
+    #     action["ssh_commands"] = cmds
 
-        self.manager.q_disk_operations[hyp_to_disk_create].put(action)
+    #     self.manager.q_disk_operations[hyp_to_disk_create].put(action)
 
     def creating_disk_from_scratch(self, id_new):
         dict_domain = get_domain(id_new)
@@ -875,7 +875,7 @@ class UiActions(object):
                 #     dict_to_create['hardware']['disks'][index_disk]['path_selected'] = path_selected
 
                 path_new_disk, path_selected = get_path_to_disk(
-                    pool=pool_id,
+                    category_id=dict_domain.get("category"),
                     extension=dict_to_create["hardware"]["disks"][0]["extension"],
                 )
                 # UPDATE PATH IN DOMAIN
@@ -887,8 +887,8 @@ class UiActions(object):
                         dict_to_create["hardware"]["disks"][1:]
                     ):
                         path_other_disk, path_other_disk_selected = get_path_to_disk(
-                            dict_other_disk["file"],
-                            pool=pool_id,
+                            relative_path=dict_other_disk["file"],
+                            category_id=dict_domain.get("category"),
                             type_path=dict_other_disk["type_path"],
                         )
                         d_update_domain["hardware"]["disks"].append({})
@@ -1022,7 +1022,7 @@ class UiActions(object):
 
         for index_disk in range(len(dict_to_create["hardware"]["disks"])):
             new_file, path_selected = get_path_to_disk(
-                pool=pool_id,
+                category_id=dict_domain.get("category"),
                 type_path=path_type,
                 extension=dict_to_create["hardware"]["disks"][index_disk].pop(
                     "extension"

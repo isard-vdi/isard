@@ -7,6 +7,7 @@ import OpenSSL
 from cachetools import TTLCache, cached
 from engine.models.balancers import BalancerInterface
 from engine.services.log import *
+from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 
 engine_threads = [
     "background",
@@ -25,7 +26,7 @@ virt_balancer = BalancerInterface(
 
 disk_balancer_type = os.environ.get("ENGINE_DISK_BALANCER", "less_cpu")
 disk_balancer = BalancerInterface(
-    "00000000-0000-0000-0000-000000000000",
+    DEFAULT_STORAGE_POOL_ID,
     balancer_type=disk_balancer_type,
 )
 

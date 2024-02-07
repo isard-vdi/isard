@@ -19,8 +19,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 120
-# release 120: update "storage_pool" table with new fields, add index "name"
+release_version = 121
+# release 121: BREAKING CHANGE, update "storage_pool" to new table
+# release 120: REMOVED: update "storage_pool" table with new fields, add index "name"
 # release 119: Add new password parameters to users
 # release 118: Authentication uuid ids and email verification upgrade
 # release 117: Remove computed usage totals
@@ -2437,9 +2438,11 @@ class Upgrade(object):
                             "id": domain["create_dict"]["hardware"]["disks"][0][
                                 "storage_id"
                             ],
-                            "directory_path": "/isard/groups"
-                            if domain["kind"] == "desktop"
-                            else "/isard/templates",
+                            "directory_path": (
+                                "/isard/groups"
+                                if domain["kind"] == "desktop"
+                                else "/isard/templates"
+                            ),
                             "status": "migrating",
                             "type": "qcow2",
                             "user_id": domain["user"],
@@ -3043,11 +3046,11 @@ class Upgrade(object):
                         "progress": {
                             "received": media["progress"]["total"],
                             "total_percent": 100,
-                            "total_bytes": hf.parse_size(
-                                media["progress"]["total"] + "iB"
-                            )
-                            if media["progress"]["total"] != "0"
-                            else 0,
+                            "total_bytes": (
+                                hf.parse_size(media["progress"]["total"] + "iB")
+                                if media["progress"]["total"] != "0"
+                                else 0
+                            ),
                         },
                     }
                 )
@@ -4252,9 +4255,9 @@ class Upgrade(object):
             )
 
             new_allowed = {
-                "categories": False
-                if default["categories"] == None
-                else default["categories"],
+                "categories": (
+                    False if default["categories"] == None else default["categories"]
+                ),
                 "groups": False if default["groups"] == None else default["groups"],
                 "roles": False if default["roles"] == None else default["roles"],
                 "users": False if default["users"] == None else default["users"],
@@ -4272,18 +4275,26 @@ class Upgrade(object):
             )
 
             new_allowed = {
-                "categories": False
-                if default_admins["categories"] == None
-                else default_admins["categories"],
-                "groups": False
-                if default_admins["groups"] == None
-                else default_admins["groups"],
-                "roles": False
-                if default_admins["roles"] == None
-                else default_admins["roles"],
-                "users": False
-                if default_admins["users"] == None
-                else default_admins["users"],
+                "categories": (
+                    False
+                    if default_admins["categories"] == None
+                    else default_admins["categories"]
+                ),
+                "groups": (
+                    False
+                    if default_admins["groups"] == None
+                    else default_admins["groups"]
+                ),
+                "roles": (
+                    False
+                    if default_admins["roles"] == None
+                    else default_admins["roles"]
+                ),
+                "users": (
+                    False
+                    if default_admins["users"] == None
+                    else default_admins["users"]
+                ),
             }
 
             r.table(table).get("default admins").update({"allowed": new_allowed}).run(
@@ -4574,30 +4585,65 @@ class Upgrade(object):
 
     def storage_pool(self, version):
         table = "storage_pool"
-        if version == 120:
+        # if version == 120:
+        #     try:
+        #         r.table(table).update(
+        #             {
+        #                 "allowed": {
+        #                     "categories": False,
+        #                     "groups": False,
+        #                     "roles": False,
+        #                     "users": False,
+        #                 },
+        #                 "description": "System default storage pool",
+        #                 "startable": True,
+        #                 "enabled": True,
+        #                 "read": True,
+        #                 "write": True,
+        #                 "category_id": None,
+        #             },
+        #         ).run(self.conn)
+        #     except Exception as e:
+        #         print(e)
+        #     try:
+        #         r.table(table).index_create("name").run(self.conn)
+        #     except Exception as e:
+        #         print(e)
+
+        if version == 121:
             try:
-                r.table(table).update(
+                r.table(table).delete().run(self.conn)
+                r.table(table).insert(
                     {
                         "allowed": {
                             "categories": False,
                             "groups": False,
-                            "roles": False,
+                            "roles": [],
                             "users": False,
                         },
-                        "description": "System default storage pool",
-                        "startable": True,
+                        "categories": [],
+                        "description": "Default storage pool",
                         "enabled": True,
+                        "id": "00000000-0000-0000-0000-000000000000",
+                        "mountpoint": "/isard",
+                        "name": "Default",
+                        "paths": {
+                            "desktop": [{"path": "groups", "weight": 100}],
+                            "media": [{"path": "media", "weight": 100}],
+                            "template": [{"path": "templates", "weight": 100}],
+                            "volatile": [{"path": "volatile", "weight": 100}],
+                        },
                         "read": True,
+                        "startable": True,
                         "write": True,
-                        "category_id": None,
-                    },
+                    }
                 ).run(self.conn)
             except Exception as e:
                 print(e)
             try:
                 r.table(table).index_create("name").run(self.conn)
             except Exception as e:
-                print(e)
+                pass
         return True
 
     def user_storage(self, version):

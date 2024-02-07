@@ -14,8 +14,12 @@ name:
   type: string
   required: true
   empty: false
-category_id:
+mountpoint:
+  required: true
   type: string
+categories:
+  empty: false
+  type: list
   required: true
 paths:
   type: dict

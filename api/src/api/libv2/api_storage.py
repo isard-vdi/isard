@@ -363,12 +363,16 @@ def _add_storage_log(storage_id, status):
 
 def add_storage_pool(data):
     _check_with_validate_weight(data["paths"])
+    _check_duplicated_paths(data["paths"])
     with app.app_context():
-        existing_pools = r.table("storage_pool").filter(
-            {"category_id": data["category_id"]}
-        )
-        if existing_pools.count().run(db.conn) > 0:
-            raise Error("conflict", "Pool with this category already exists")
+        existing_categories = list(r.table("storage_pool")["categories"].run(db.conn))
+        for categories in existing_categories:
+            if set(categories).intersection(set(data["categories"])):
+                raise Error(
+                    "conflict",
+                    "Pool with one of the selected categories already exists: "
+                    + str(set(categories).intersection(set(data["categories"]))),
+                )
         else:
             r.table("storage_pool").insert(data).run(db.conn)
 
@@ -379,10 +383,13 @@ def get_storage_pools():
             r.table("storage_pool")
             .merge(
                 lambda pool: {
-                    "category_name": r.branch(
-                        pool["category_id"].eq(None),
-                        "--",
-                        r.table("categories").get(pool["category_id"])["name"],
+                    "categories_names": r.branch(
+                        pool["categories"].is_empty(),
+                        [],
+                        r.table("categories")
+                        .get_all(r.args(pool["categories"]))
+                        .pluck("name", "id")
+                        .coerce_to("array"),
                     )
                 }
             )
@@ -397,9 +404,13 @@ def get_storage_pool(storage_pool_id):
 
 def update_storage_pool(storage_pool_id, data):
     if data.get("paths"):
+        _check_duplicated_paths(data["paths"])
         _check_with_validate_weight(data["paths"])
-    if storage_pool_id == "00000000-0000-0000-0000-000000000000" and "enabled" in data:
-        raise Error("bad_request", "Default pool can't be disabled")
+    if storage_pool_id == "00000000-0000-0000-0000-000000000000":
+        if "enabled" in data:
+            raise Error("bad_request", "Default pool can't be disabled")
+        else:
+            raise Error("bad_request", "Default pool can't be edited")
     with app.app_context():
         r.table("storage_pool").get(storage_pool_id).update(data).run(db.conn)
 
@@ -416,3 +427,16 @@ def _check_with_validate_weight(data):
         total = sum(item["weight"] for item in data[key])
         if total != 100:
             raise Error("bad_request", "Same type's weight sum must be 100")
+
+
+def _check_duplicated_paths(data):
+    seen_paths = set()
+    for key in data:
+        for item in data[key]:
+            path = item["path"]
+            if path in seen_paths:
+                raise Error(
+                    "bad_request", "Paths of the same pool must have a unique name"
+                )
+            seen_paths.add(path)
+    return True

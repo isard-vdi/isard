@@ -40,13 +40,21 @@ $(document).ready(function () {
       {
         "data": "enabled",
         "title": "Enabled",
+        "width": '55px',
         render: function (enabled, type) {
           return renderEnabled(enabled, 'check');
         }
       },
-      { "data": "id", "title": "ID" },
+      { "data": "id", "title": "Pool ID" },
       { "data": "name", "title": "Name" },
-      { "data": "category_name", "title": "Category" },
+      { "data": "mountpoint", "title": "Mountpoint" },
+      { "data": "categories_names", "title": "Categories", "render": function(data, type, full, meta) { 
+        var categoryList = []
+        $.each(data, function(index, category){
+          categoryList.push(category["name"])
+        })
+        return categoryList.join(", ");
+      } },
       { "data": "description", "title": "Description", 'defaultContent': '' },
       // { 
       //   "data": "startable",
@@ -74,11 +82,20 @@ $(document).ready(function () {
         orderable: false,
         width: '125px',
         data: null,
-        defaultContent:
-          '<button id="btn-allowed" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
-          <button id="btn-edit" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
-          <button id="btn-enable" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-power-off" style="color:darkgreen"></i></button> \
-          <button id="btn-delete" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>',
+        title: "Action",
+        render: function (data, type, full, meta) {
+          if (data.id == "00000000-0000-0000-0000-000000000000") { return "" } else {
+            return data.enabled ?
+              `<!--'<button id="btn-allowed" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>--> \
+                  <button id="btn-edit" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
+                  <button id="btn-enable" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-power-off" style="color:darkgreen"></i></button>`
+              :
+              `<!--'<button id="btn-allowed" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>--> \
+                  <button id="btn-edit" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
+                  <button id="btn-enable" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-power-off" style="color:darkgreen"></i></button> \
+                  <button id="btn-delete" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>`
+          }
+        }
       },
     ],
   })
@@ -89,6 +106,8 @@ $(document).ready(function () {
       dropdownParent: $("#modalAddStoragePool"),
     });
     populateCategory("#modalAddStoragePool", null);
+    addPath("#modalAddStoragePool .path_base_mountpoint", "");
+    
     $("#modalAddStoragePool").modal({
       backdrop: "static",
       keyboard: false,
@@ -100,31 +119,42 @@ $(document).ready(function () {
     tr = $(this).closest("tr");
     data = storage_pools_table.row($(this).parents('tr')).data();
     row = storage_pools_table.row(tr)
-    switch($(this).attr('id')){
+    switch ($(this).attr('id')) {
       case 'btn-details':
+        storage_pools_table.rows('.shown').every(function () {
+          this.child.hide();
+          $(this.node()).removeClass('shown');
+        });
         if (row.child.isShown()) {
           row.child.hide();
-          tr.removeClass("shown");
+          tr.removeClass('shown');
         } else {
           tr.addClass('shown');
-          if (storage_pools_table.row('.shown').length) {
-            $('.details-control', storage_pools_table.row('.shown').node()).click();
-          }
-          row.child(renderStoragePoolsPaths(row.data())).show()
-          // setAlloweds_viewer('#alloweds-' + row.data().id, row.data().id, "storage_pool");
+          row.child(renderStoragePoolsPaths(row.data())).show();
         }
         break;
       case 'btn-allowed':
         modalAllowedsFormShow("storage_pool", data);
         break;
       case 'btn-edit':
-        
+      if(data.id == "00000000-0000-0000-0000-000000000000"){
+        return new PNotify({
+          title: "ERROR editing pool",
+          text: "Default pool can't be edited",
+          hide: true,
+          delay: 3000,
+          icon: 'fa fa-warning',
+          opacity: 1,
+          type: 'error'
+        });
+      } else {
         $("#modalEditStoragePool #modalEdit")[0].reset();
         $('#modalEdit #pathsTableEdit tbody').html('');
         $("#modalEditStoragePool #category").select2({
           dropdownParent: $("#modalEditStoragePool"),
         });
-        populateCategory("#modalEditStoragePool", data.category_id);
+        populateCategory("#modalEditStoragePool", data.categories);
+            
         $("#modalEditStoragePool").modal({
           backdrop: "static",
           keyboard: false,
@@ -133,13 +163,18 @@ $(document).ready(function () {
         $("#modalEdit #id").val(data.id);
         $("#modalEdit #name").val(data.name);
         $("#modalEdit #description").val(data.description);
+
+        var fullMountpoint = data.mountpoint.split("/");
+        var mountpointVar = fullMountpoint.pop();
+
+        $("#modalEdit .path_base_mountpoint").text(fullMountpoint.join("/") + "/")
+
+        $("#modalEdit #mountpoint").val(mountpointVar);
         $('#modalEdit #startable').iCheck(data.startable ? 'check' : 'uncheck').iCheck('update');
         $('#modalEdit #read').iCheck(data.read ? 'check' : 'uncheck').iCheck('update');
         $('#modalEdit #write').iCheck(data.write ? 'check' : 'uncheck').iCheck('update');
-
         if(data.id == "00000000-0000-0000-0000-000000000000"){
           $("#modalEdit #category").attr("disabled", true);
-          addPath("#modalEdit", "");
         } else {
           $("#modalEdit #category").attr("disabled", false);
         }
@@ -186,14 +221,25 @@ $(document).ready(function () {
             }
           }
         }
-        break;
+       }
+       break;
       case 'btn-enable':
         let change = data["enabled"] ? "disable" : "enable";
-        let msg = (change == "enable") ? "This pool <b>will only become operational</b> after a system restart. Ensure that there is at least one hypervisor associated with this storage pool." : "";
+
+        let prompt_msg = (change == "enable") ?
+          "From now on, disks from this pool's categories will be created in the new paths defined"
+          :
+          "From now on, disks from this pool's categories will be created in default paths";
+
+        let msg = (change == "enable") ?
+          "This pool <b>will only become operational</b> after a system restart.Ensure that there is at least one hypervisor associated with this storage pool."
+          :
+          "";
+
         new PNotify({
           title: "<b>WARNING</b>",
           type: "error",
-          text: "Are you sure you want to <b>" + change + "</b> pool " + data["name"] + "?",
+          text: "Are you sure you want to <b>" + change + "</b> pool " + data["name"] + "? " + prompt_msg,
           hide: false,
           opacity: 0.9,
           confirm: {
@@ -304,13 +350,6 @@ $(document).ready(function () {
     }
   });
   $.getScript("/isard-admin/static/admin/js/socketio.js");
-
-  $("#modalAddStoragePool #category").on("change", function() {
-    addPath("#modalAddStoragePool", $(this).val());
-  });
-  $("#modalEditStoragePool #category").on("change", function() {
-    addPath("#modalEditStoragePool", $(this).val());
-  });
 })
 
 function renderEnabled(enabled, kind) {
@@ -320,32 +359,37 @@ function renderEnabled(enabled, kind) {
 }
 
 function renderStoragePoolsPaths(data) {
-  $newPanel = $(".template-storage_pools-detail").clone();
-  $pathsTBody = $newPanel.find("tbody");
-  $pathsTBody.empty();
-  $.each(data.paths, function(type, paths) {
-    if (type == "desktop") {
-      icon = "fa fa-desktop fa-1x"
-      typeName = "<b>Desktops</b>"
-    } else if (type == "media") {
-      icon = "fa fa-circle-o fa-1x"
-      typeName = "<b>Media</b>"
-    } else if (type == "template") {
-      icon = "fa fa-cubes fa-1x"
-      typeName = "<b>Templates</b>"
-    } else if (type == "volatile") {
-      icon = "fa fa-laptop fa-1x"
-      typeName = "<b>Volatile</b>"
-    }
-    $.each(paths, function(index, path) {
-      $pathsTBody.append(
-        $('<tr>').append(
-          $('<td>').append($('<i>').addClass(icon)).append(' ').append(typeName), 
-          $('<td>').text(path.path),
-          $('<td>').text(path.weight)
-        )
-      );
+  var $newPanel = "";
+  $.each(data["categories_names"], function (index, category) {
+    $panel = $(".template-storage_pools-detail").clone();
+    $panel.find(".x_title h3").text(category["name"]+" paths");
+    $pathsTBody = $panel.find("tbody");
+    $pathsTBody.empty();
+    $.each(data.paths, function (type, paths) {
+      if (type == "desktop") {
+        icon = "fa fa-desktop fa-1x"
+        typeName = "<b>Desktops</b>"
+      } else if (type == "media") {
+        icon = "fa fa-circle-o fa-1x"
+        typeName = "<b>Media</b>"
+      } else if (type == "template") {
+        icon = "fa fa-cubes fa-1x"
+        typeName = "<b>Templates</b>"
+      } else if (type == "volatile") {
+        icon = "fa fa-laptop fa-1x"
+        typeName = "<b>Volatile</b>"
+      }
+      $.each(paths, function (index, path) {
+        $pathsTBody.append(
+          $('<tr>').append(
+            $('<td>').append($('<i>').addClass(icon)).append(' ').append(typeName),
+            $('<td>').text(`${data.mountpoint}/${category["id"]}/${path.path}`),
+            $('<td>').text(path.weight)
+          )
+        );
+      });
     });
+    $newPanel.length ? $newPanel.find(".category-panel-container").append($panel.find(".detail-col")) : $newPanel = $panel;
   });
   // $newPanel.html(function(i, oldHtml){
   //   return oldHtml.replace(/d.id/g, data.id).replace(/d.name/g, data.name).replace(/d.description/g, data.description);
@@ -394,7 +438,7 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
         pathsTableAdd[type] = [];
       }
       pathsTableAdd[type].push({
-        'path': $(this).find("span").text() + path,
+        'path': path,
         'weight': weight
       });
     });
@@ -406,6 +450,7 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
     }
 
     data["paths"] = pathsTableAdd
+    data["mountpoint"] = form.find(".path_base_mountpoint").text() + data.mountpoint
 
     var notice = new PNotify({
       text: 'Creating pool...',
@@ -468,7 +513,7 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
           pathsTableEdit[type] = [];
         }
         pathsTableEdit[type].push({
-          'path': $(this).find("span").text() + path,
+          'path': path,
           'weight': weight
         });
       }
@@ -481,6 +526,7 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
     }
 
     data["paths"] = pathsTableEdit
+    data["mountpoint"] = form.find(".path_base_mountpoint").text() + data.mountpoint;
 
     if (data.id == "00000000-0000-0000-0000-000000000000") {
       new PNotify({
@@ -568,9 +614,9 @@ function updateStoragePool(data) {
   });
 }
 
-function addPath(modal, category) {
-  $(modal + " .path_base").empty();
-  $.each($(modal + " .path_base"), function () {
-    $(this).text(`/isard/storage_pools/${(category ? category + "/" : "")}`);
+function addPath(path, mountpoint) {
+  $(path).empty();
+  $.each($(path), function () {
+    $(this).text(`/isard/storage_pools/${mountpoint ?  mountpoint : ""}`);
   });
 }
