@@ -403,6 +403,7 @@ def get_storage_pool(storage_pool_id):
 
 
 def update_storage_pool(storage_pool_id, data):
+    _check_duplicated_paths(data["paths"])
     if data.get("paths"):
         _check_duplicated_paths(data["paths"])
         _check_with_validate_weight(data["paths"])
@@ -439,4 +440,3 @@ def _check_duplicated_paths(data):
                     "bad_request", "Paths of the same pool must have a unique name"
                 )
             seen_paths.add(path)
-    return True

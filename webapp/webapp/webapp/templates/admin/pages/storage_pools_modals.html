@@ -74,6 +74,7 @@
                 <table id="pathsTableAdd" class="table">
                   <thead>
                     <tr>
+                      <th style="width:90px;">Use default</th>
                       <th>Type</th>
                       <th>Path</th>
                       <th>Weight</th>
@@ -82,6 +83,17 @@
                   </thead>
                   <tbody>
                     <tr id="desktop">
+                      <td>
+                        <div class="checkbox"><label class="">
+                            <div class="icheckbox_flat-green" style="position: relative;">
+                              <input type="checkbox" name="default-desktop" data-type="desktop" class="flat default-cb" style="position: absolute; opacity: 0;">
+                              <ins class="iCheck-helper"
+                                style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                              </ins>
+                            </div>
+                          </label>
+                        </div>
+                      </td>
                       <td id="type"><i class="fa fa-desktop fa-1x"></i><b> Desktops</b></td>
                       <td>
                         <span class="path_base"></span><input id="path" name="desktop-path" value="groups" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
@@ -96,6 +108,17 @@
                       <td colspan="100%" style="border-top: 3px solid rgb(221, 221, 221);"></td>
                     </tr>
                     <tr id="media">
+                      <td>
+                        <div class="checkbox"><label class="">
+                            <div class="icheckbox_flat-green" style="position: relative;">
+                              <input type="checkbox" name="default-media" data-type="media" class="flat default-cb" style="position: absolute; opacity: 0;">
+                              <ins class="iCheck-helper"
+                                style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                              </ins>
+                            </div>
+                          </label>
+                        </div>
+                      </td>
                       <td id="type"><i class="fa fa-circle-o fa-1x"></i><b> Media</b></td>
                       <td>
                         <span class="path_base"></span><input id="path" name="media-path" value="media" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
@@ -110,6 +133,17 @@
                       <td colspan="100%" style="border-top: 3px solid rgb(221, 221, 221);"></td>
                     </tr>
                     <tr id="template">
+                      <td>
+                        <div class="checkbox"><label class="">
+                            <div class="icheckbox_flat-green" style="position: relative;">
+                              <input type="checkbox" name="default-template" data-type="template" class="flat default-cb" style="position: absolute; opacity: 0;">
+                              <ins class="iCheck-helper"
+                                style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                              </ins>
+                            </div>
+                          </label>
+                        </div>
+                      </td>
                       <td id="type"><i class="fa fa-cubes fa-1x"></i><b> Templates</b></td>
                       <td>
                         <span class="path_base"></span><input id="path" name="template-path" value="templates" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
@@ -124,6 +158,17 @@
                       <td colspan="100%" style="border-top: 3px solid rgb(221, 221, 221);"></td>
                     </tr>
                     <tr id="volatile">
+                      <td>
+                        <div class="checkbox"><label class="">
+                            <div class="icheckbox_flat-green" style="position: relative;">
+                              <input type="checkbox" name="default-volatile" data-type="volatile" class="flat default-cb" style="position: absolute; opacity: 0;">
+                              <ins class="iCheck-helper"
+                                style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                              </ins>
+                            </div>
+                          </label>
+                        </div>
+                      </td>
                       <td id="type"><i class="fa fa-clock-o fa-1x"></i><b> Volatile</b></td>
                       <td>
                         <span class="path_base"></span><input id="path" name="volatile-path" value="volatile" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
@@ -249,6 +294,7 @@
                 <table id="pathsTableEdit" class="table">
                   <thead>
                     <tr>
+                      <th style="width:90px;">Use default</th>
                       <th>Type</th>
                       <th>Path</th>
                       <th>Weight</th>

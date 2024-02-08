@@ -189,11 +189,21 @@ $(document).ready(function () {
             const row = pathsTableEdit.insertRow();
             row.setAttribute('id', type);
 
-            const typeCell = row.insertCell(0);
+            const checkboxCell = row.insertCell(0);
+            const typeCell = row.insertCell(1);
             typeCell.setAttribute('id', 'type');
-            const pathCell = row.insertCell(1);
-            const weightCell = row.insertCell(2);
-            const buttonAddDelCell = row.insertCell(3);
+            const pathCell = row.insertCell(2);
+            const weightCell = row.insertCell(3);
+            const buttonAddDelCell = row.insertCell(4);
+            checkboxCell.innerHTML = `<div class="checkbox"><label class="">
+                                          <div class="icheckbox_flat-green" style="position: relative;">
+                                            <input type="checkbox" id="default" name="default-${type}" class="flat" style="position: absolute; opacity: 0;">
+                                            <ins class="iCheck-helper"
+                                              style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                            </ins>
+                                          </div>
+                                        </label>
+                                      </div>`
 
             if (type === 'desktop') {
               typeCell.innerHTML = `<i class="fa fa-desktop fa-1x"></i><b id="${type}"> Desktops</b>`;
@@ -349,6 +359,11 @@ $(document).ready(function () {
         break;
     }
   });
+  $(".checkbox .default-cb").on('ifChecked', function() {
+    console.log($(this).data("type"))
+  })
+
+
   $.getScript("/isard-admin/static/admin/js/socketio.js");
 })
 
@@ -620,3 +635,4 @@ function addPath(path, mountpoint) {
     $(this).text(`/isard/storage_pools/${mountpoint ?  mountpoint : ""}`);
   });
 }
+
