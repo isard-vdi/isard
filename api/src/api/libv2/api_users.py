@@ -1778,7 +1778,10 @@ class ApiUsers:
             users = list(
                 r.table("users")
                 .get_all(category, index="category")
-                .filter({"email": email})
+                .filter(
+                    lambda user: user["email"].eq(email)
+                    & user["email_verified"].ne(None)
+                )
                 .pluck("id")["id"]
                 .run(db.conn)
             )
