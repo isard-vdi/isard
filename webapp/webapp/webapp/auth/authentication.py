@@ -62,7 +62,7 @@ def get_authenticated_user():
         return None
 
     response = requests.get(
-        "http://isard-api:5000/api/v3/user", headers={"Authorization": auth}
+        "http://isard-api:5000/api/v3/user", headers={"Authorization": auth}, timeout=5
     )
     if response.status_code == 200:
         return User(json.loads(response.text))
