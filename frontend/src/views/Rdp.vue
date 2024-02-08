@@ -80,7 +80,7 @@ export default {
       }
       if (jwt.length > 1 && urlCookie.length > 1) {
         cookie = urlCookie
-        localStorage.viewerToken = jwt
+        cookies.setCookie('viewerToken', jwt)
       } else {
         cookie = cookies.getCookie('browser_viewer')
       }
@@ -102,7 +102,7 @@ export default {
         scheme: 'rdp',
         hostname: this.desktopIp,
         'ignore-cert': true,
-        session: localStorage.viewerToken,
+        session: cookies.getCookie('viewerToken'),
         username: this.username,
         password: this.password,
         'resize-method': 'display-update',
@@ -351,7 +351,7 @@ export default {
       this.client.connect(query)
       window.onunload = () => {
         this.client.disconnect()
-        localStorage.viewerToken = ''
+        cookies.removeCookie('viewerToken')
       }
 
       this.mouse = new Guacamole.Mouse(displayElm)

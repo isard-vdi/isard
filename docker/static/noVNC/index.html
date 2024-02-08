@@ -296,6 +296,22 @@
 
         const url = new URL(window.location.href)
 
+        function getCookie (cookieName) {
+            const cookiesArray = document.cookie.split('; ')
+
+            for (let i = 0; i < cookiesArray.length; i++) {
+                const cookie = cookiesArray[i]
+                const cookieParts = cookie.split('=')
+                const name = cookieParts[0].trim()
+                const value = cookieParts[1]
+                if (name === cookieName) {
+                return decodeURIComponent(value)
+                }
+            }
+
+            return null
+        }
+
         function getWebViewer() {
             let urlCookie = url.searchParams.get('cookie')
             if (urlCookie !== null) {
@@ -318,9 +334,9 @@
         let webViewer = getWebViewer()
         let securityToken;
         if (url.searchParams.get('direct') === '1') {
-            securityToken = encodeURIComponent(localStorage.getItem("viewerToken") || localStorage.getItem("token"));
+            securityToken = encodeURIComponent(getCookie("viewerToken") || getCookie("isardvdi_session"));
         } else {
-            securityToken = encodeURIComponent(localStorage.getItem("token") || localStorage.getItem("viewerToken"));
+            securityToken = encodeURIComponent(getCookie("isardvdi_session") || getCookie("viewerToken"));
         }
 
         function getParameter(name) {

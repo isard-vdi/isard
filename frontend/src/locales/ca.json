@@ -353,6 +353,7 @@
             "errors": {
                 "404": "Codi no trobat",
                 "401": "Sessió expirada",
+                "409": "L'usuari ja existeix",
                 "500": "Error en el servidor"
             }
         },

@@ -2,7 +2,7 @@ import i18n from '@/i18n'
 import router from '@/router'
 import axios from 'axios'
 import * as cookies from 'tiny-cookie'
-import { apiV3Segment } from '../../shared/constants'
+import { apiV3Segment, sessionCookieName } from '../../shared/constants'
 import { DesktopUtils } from '../../utils/desktopsUtils'
 import { DirectViewerUtils } from '../../utils/directViewerUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
@@ -254,10 +254,9 @@ export default {
           ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.file-downloaded'), '', false, 1000)
         } else if (response.data.kind === 'browser') {
           if (response.data.protocol === 'rdp') {
-            localStorage.viewerToken = localStorage.token
+            cookies.setCookie('viewerToken', cookies.getCookie(sessionCookieName))
           }
           cookies.setCookie('browser_viewer', response.data.cookie)
-          cookies.setCookie('token', localStorage.token)
           el.setAttribute('href', response.data.viewer)
           el.setAttribute('target', '_blank')
         }
@@ -343,7 +342,6 @@ export default {
         el.setAttribute('download', `${payload.name}.${payload.ext}`)
       } else if (payload.kind === 'browser') {
         const exp = payload.protocol === 'rdp' ? jwtDecode(payload.cookie).web_viewer.exp * 1000 : JSON.parse(atob(decodeURIComponent(payload.cookie))).web_viewer.exp * 1000
-        cookies.setCookie('token', localStorage.viewerToken)
         cookies.setCookie('browser_viewer', payload.cookie, { expires: exp })
 
         const url = new URL(payload.viewer)

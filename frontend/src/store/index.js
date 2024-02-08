@@ -1,9 +1,7 @@
-import i18n from '@/i18n'
-import router from '@/router'
-import { apiAdminSegment, apiV3Segment, authenticationSegment } from '@/shared/constants'
-import store from '@/store/index.js'
+// import i18n from '@/i18n'
+import { apiV3Segment } from '@/shared/constants'
+// import store from '@/store/index.js'
 import axios from 'axios'
-import { getCookie } from 'tiny-cookie'
 import Vue from 'vue'
 import Vuex from 'vuex'
 import { ErrorUtils } from '../utils/errorUtils'
@@ -26,7 +24,6 @@ import template from './modules/template'
 import templates from './modules/templates'
 import vpn from './modules/vpn'
 import { MessageUtils } from '../utils/messageUtils'
-import { jwtDecode } from 'jwt-decode'
 
 Vue.use(Vuex)
 
@@ -47,7 +44,6 @@ export default new Vuex.Store({
   state: {
     categories: [],
     category: {},
-    pageErrorMessage: '',
     currentInternalTime: '',
     messageModal: {
       show: false,
@@ -62,9 +58,6 @@ export default new Vuex.Store({
     getCategory: state => {
       return state.category
     },
-    getPageErrorMessage: state => {
-      return state.pageErrorMessage
-    },
     getMessageModal: state => {
       return state.messageModal
     }
@@ -76,23 +69,9 @@ export default new Vuex.Store({
     setCategory (state, category) {
       state.category = category
     },
-    setPageErrorMessage (state, errorMessage) {
-      state.pageErrorMessage = errorMessage
-    },
     resetStore (state) {
-      state.auth.user = {
-        UID: '',
-        Username: '',
-        Provider: '',
-        Category: '',
-        role: '',
-        group: '',
-        name: '',
-        email: '',
-        photo: ''
-      }
-      state.auth.token = ''
-      state.auth.expirationDate = ''
+      state.auth.user = null
+      state.auth.session = false
       state.desktops.viewers = localStorage.viewers ? JSON.parse(localStorage.viewers) : {}
       state.desktops.desktops = []
       state.desktops.desktops_loaded = false
@@ -139,124 +118,6 @@ export default new Vuex.Store({
         })
       })
     },
-    handleLoginError ({ commit }, e) {
-      if (e.response.status === 401) {
-        commit('setPageErrorMessage', i18n.t('views.login.errors.401'))
-      } else if (e.response.status === 403 && e.response.data === 'disabled user') {
-        commit('setPageErrorMessage', i18n.t('errors.user_disabled'))
-      } else if (e.response.status === 429) {
-        commit('setPageErrorMessage', i18n.t('views.login.errors.429'))
-      } else if (e.response.status === 500) {
-        commit('setPageErrorMessage', i18n.t('views.login.errors.500'))
-      } else {
-        commit('setPageErrorMessage', i18n.t('views.login.errors.generic'))
-      }
-    },
-    login (context, data) {
-      return new Promise((resolve, reject) => {
-        axios.create().post(`${authenticationSegment}/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}&username=${data.get('username')}`, data, { timeout: 25000 }).then(response => {
-          const jwt = jwtDecode(response.data)
-          if (jwt.type === 'register') {
-            router.push({ name: 'Register' })
-          } else if (jwt.type === 'email-verification-required') {
-            localStorage.token = response.data
-            context.dispatch('setSession', response.data)
-            router.push({ name: 'VerifyEmail' })
-          } else if (jwt.type === 'password-reset-required') {
-            localStorage.token = response.data
-            store.dispatch('setSession', response.data)
-            router.push({ name: 'ResetPassword' })
-          } else {
-            store.dispatch('loginSuccess', response.data)
-          }
-
-          resolve()
-        }).catch(e => {
-          store.dispatch('handleLoginError', e)
-          reject(e)
-        })
-      })
-    },
-    async register (context, code) {
-      const data = new FormData()
-      data.append('code', code)
-      const registerAxios = axios.create()
-      registerAxios.interceptors.request.use(config => {
-        config.headers.Authorization = `Bearer ${getCookie('authorization')}`
-        return config
-      })
-
-      let provider = jwtDecode(getCookie('authorization')).provider
-      if (provider === 'local' || provider === 'ldap') {
-        provider = 'form'
-      }
-      const categoryId = jwtDecode(getCookie('authorization')).category_id
-      const username = jwtDecode(getCookie('authorization')).username
-      await registerAxios.post(`${apiV3Segment}/user/register`, data).then(response => {
-        return new Promise((resolve, reject) => {
-          registerAxios.post(`${authenticationSegment}/login?provider=${provider}&category_id=${categoryId}&username=${username}`, data, { timeout: 25000 }).then(response => {
-            store.dispatch('loginSuccess', response.data)
-            resolve()
-          }).catch(e => {
-            store.dispatch('handleLoginError', e)
-            reject(e)
-          })
-        })
-      }).catch(e => {
-        store.dispatch('handleRegisterError', e)
-      })
-    },
-    logout (context) {
-      axios.get(`${apiAdminSegment}/logout/remote`).then(() => {
-        localStorage.token = ''
-        context.commit('resetStore')
-        context.dispatch('closeSocket')
-        if (!store.getters.getUrlTokens.includes('login')) {
-          router.push({ name: 'Login' })
-        }
-      })
-    },
-    watchToken (context) {
-      window.addEventListener('storage', (e) => {
-        if (localStorage.token === undefined) {
-          store.dispatch('logout')
-        } else if (e.key === 'token' && e.newValue === null) {
-          store.dispatch('logout')
-        }
-      })
-    },
-    handleRegisterError ({ commit }, error) {
-      if (error.response.status === 404) {
-        commit('setPageErrorMessage', i18n.t('views.register.errors.404'))
-        return
-      } else if (error.response.status === 429) {
-        commit('setPageErrorMessage', i18n.t('views.login.errors.429'))
-        return
-      } else if (error.response.status === 401) {
-        if (error.response.data.error === 'authorization_header_missing') { // jwt header not sent
-          commit('setPageErrorMessage', i18n.t('views.register.errors.401'))
-          return
-        } else if (error.response.data.error === 'not_allowed') { // jwt token not present
-          commit('setPageErrorMessage', i18n.t('views.register.errors.401'))
-          return
-        }
-      }
-      commit('setPageErrorMessage', i18n.t('views.error.codes.500'))
-    },
-    parseErrorFromQuery ({ commit }, error) {
-      const errID = 'errors.' + error
-      if (i18n.t(errID) !== errID) {
-        commit('setPageErrorMessage', i18n.t(errID))
-      } else {
-        commit('setPageErrorMessage', i18n.t('views.error.codes.500'))
-      }
-    },
-    showErrorPopUp (context, errorMessageCode) {
-      console.log(errorMessageCode)
-      const errorMessageText = ErrorUtils.getErrorMessageText(errorMessageCode)
-      console.log(errorMessageText)
-      ErrorUtils.showErrorNotification(this._vm.$snotify, errorMessageText)
-    },
     showMessageModal (context, show) {
       context.commit('setShowMessageModal', show)
     },
@@ -266,48 +127,6 @@ export default new Vuex.Store({
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
-    },
-    sendResetPasswordEmail (context, data) {
-      const forgotPasswordAxios = axios.create()
-      return forgotPasswordAxios.post(`${authenticationSegment}/forgot-password`, data)
-    },
-    resetPassword (context, data) {
-      const resetPasswordAxios = axios.create()
-      const token = data.token
-      delete data.token
-      resetPasswordAxios.interceptors.request.use(config => {
-        config.headers.Authorization = `Bearer ${token}`
-        return config
-      })
-
-      return resetPasswordAxios.post(`${authenticationSegment}/reset-password`, data)
-    },
-    sendVerifyEmail (context, data) {
-      const verifyEmailAxios = axios.create()
-      verifyEmailAxios.interceptors.request.use(config => {
-        config.headers.Authorization = `Bearer ${localStorage.token}`
-        return config
-      })
-      return verifyEmailAxios.post(`${authenticationSegment}/request-email-verification`, data)
-    },
-    verifyEmail (context, token) {
-      const verifyEmailAxios = axios.create()
-      verifyEmailAxios.interceptors.request.use(config => {
-        config.headers.Authorization = `Bearer ${token}`
-        return config
-      })
-      return verifyEmailAxios.post(`${authenticationSegment}/verify-email`, {})
-    },
-    fetchExpiredPasswordPolicy (context, token) {
-      const expiredPasswordAxios = axios.create()
-      expiredPasswordAxios.interceptors.request.use(config => {
-        config.headers.Authorization = `Bearer ${token}`
-        return config
-      })
-      return expiredPasswordAxios.get(`${apiV3Segment}/user/expired/password-policy`)
-        .then(response => {
-          context.commit('setPasswordPolicy', response.data)
-        })
     }
   },
   modules: {

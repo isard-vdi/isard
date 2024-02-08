@@ -53,10 +53,10 @@
             class="justify-content-center"
           >
             <b-alert
-              v-model="showAlert"
+              v-model="showDismissibleAlert"
               variant="danger"
             >
-              {{ pageErrorMessage }}
+              {{ $t(errorMessage) }}
             </b-alert>
           </b-row>
           <b-overlay
@@ -143,10 +143,11 @@ export default {
   },
   setup (props, context) {
     const $store = context.root.$store
-    const pageErrorMessage = computed(() => $store.getters.getPageErrorMessage)
+    const errorMessage = computed(() => $store.getters.getPageErrorMessage)
     const loading = ref(false)
+    const showDismissibleAlert = ref(false)
     const deleteSessionAndGoToLogin = () => {
-      $store.dispatch('deleteSessionAndGoToLogin')
+      $store.dispatch('logout')
     }
 
     if (!cookies.getCookie('authorization')) {
@@ -168,6 +169,11 @@ export default {
       loading.value = true
       $store.dispatch('register', code.value).then(() => {
         loading.value = false
+      }).catch(e => {
+        // console.log(e)
+        showDismissibleAlert.value = true
+        loading.value = false
+        $store.dispatch('handleRegisterError', e)
       })
     }
     return {
@@ -175,13 +181,9 @@ export default {
       submitForm,
       code,
       deleteSessionAndGoToLogin,
-      pageErrorMessage,
-      loading
-    }
-  },
-  computed: {
-    showAlert () {
-      return this.pageErrorMessage !== ''
+      errorMessage,
+      loading,
+      showDismissibleAlert
     }
   }
 }

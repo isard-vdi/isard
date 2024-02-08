@@ -1,11 +1,14 @@
 import { socket } from '@/utils/socket-instance'
 import store from '@/store/index.js'
+import { sessionCookieName } from '@/shared/constants'
+import { getCookie } from 'tiny-cookie'
 
 export default {
   actions: {
     openSocket (context, { jwt, room }) {
       if (!socket.connected) {
-        socket.auth.jwt = localStorage.token ? localStorage.token : jwt
+        const sessionCookie = getCookie(sessionCookieName)
+        socket.auth.jwt = sessionCookie || jwt
         socket.io.opts.query = {
           room
         }

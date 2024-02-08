@@ -97,7 +97,6 @@ export default {
         return
       }
       $store.dispatch('sendResetPasswordEmail', { email: emailAddress.value, category_id: category }).then(() => {
-        localStorage.removeItem('token')
         showAlert()
       }).catch((e) => {
         ErrorUtils.showErrorMessage(context.root.$snotify, e)

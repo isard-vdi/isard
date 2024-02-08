@@ -6,6 +6,7 @@ export const apiWebSockets = '/api/v3/socket.io'
 export const apiAdminSegment = '/isard-admin'
 export const authenticationSegment = '/authentication'
 export const appTitle = 'IsardVDI'
+export const sessionCookieName = 'isardvdi_session'
 
 export const cardIcons = {
   default: ['fas', 'desktop'],

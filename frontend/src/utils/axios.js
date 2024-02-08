@@ -1,6 +1,7 @@
 import axios from 'axios'
-import store from '../store'
 import router from '@/router'
+import { sessionCookieName } from '../shared/constants'
+import { getCookie } from 'tiny-cookie'
 
 export default function axiosSetUp () {
   // point to your API endpoint
@@ -10,10 +11,10 @@ export default function axiosSetUp () {
     // Spinning show
     function (config) {
       document.body.classList.add('loading-cursor')
-      if (document.querySelector('[type="submit"]')) {
-        document.querySelector('[type="submit"]').setAttribute('disabled', 'disabled')
+      if (document.querySelector('#content[type="submit"]')) {
+        document.querySelector('#content[type="submit"]').setAttribute('disabled', 'disabled')
       }
-      config.headers.Authorization = `Bearer ${store.getters.getToken}`
+      config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
       return config
     },
     function (error) {

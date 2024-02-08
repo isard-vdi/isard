@@ -24,10 +24,10 @@ export default {
   setup (_, context) {
     const $store = context.root.$store
 
-    const urlTokens = computed(() => $store.getters.getUrlTokens)
+    const currentRoute = computed(() => $store.getters.getCurrentRoute)
 
     const section = computed(() => {
-      return sectionConfig[urlTokens.value] !== undefined ? urlTokens.value : 'default'
+      return sectionConfig[currentRoute.value] !== undefined ? currentRoute.value : 'default'
     })
 
     const currentStatusBarComponent = computed(() => {

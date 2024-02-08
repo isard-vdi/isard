@@ -534,3 +534,41 @@ function showLoading(loading) {
     }
     return false;
 }
+
+function saveCookie (name, value) {
+    document.cookie = name + '=' + value + '; 0; path=/; secure; SameSite=None'
+}
+
+function getCookie (cookieName) {
+    const cookiesArray = document.cookie.split('; ')
+
+    for (let i = 0; i < cookiesArray.length; i++) {
+        const cookie = cookiesArray[i]
+        const cookieParts = cookie.split('=')
+        const name = cookieParts[0].trim()
+        const value = cookieParts[1]
+        if (name === cookieName) {
+        return decodeURIComponent(value)
+        }
+    }
+
+    return null
+}
+
+function deleteCookie (cookieName) {
+    document.cookie = cookieName + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+}
+
+function listenCookieChange(callback, interval = 1000) {
+    let lastCookie = document.cookie;
+    setInterval(()=> {
+      let cookie = document.cookie;
+      if (cookie !== lastCookie) {
+        try {
+          callback({oldValue: lastCookie, newValue: cookie});
+        } finally {
+          lastCookie = cookie;
+        }
+      }
+    }, interval);
+  }

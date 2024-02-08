@@ -68,7 +68,7 @@
                 dismissible
                 variant="danger"
               >
-                {{ errorMessage }}
+                {{ $t(errorMessage) }}
               </b-alert>
               <b-overlay
                 :show="loading"
@@ -179,11 +179,12 @@
 <script>
 import Language from '@/components/Language.vue'
 import Logo from '@/components/Logo.vue'
-import { authenticationSegment } from '@/shared/constants'
+import { authenticationSegment, sessionCookieName } from '@/shared/constants'
 import PoweredBy from '@/components/shared/PoweredBy.vue'
 import { watch, ref, computed, onBeforeMount } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
+import { getCookie } from 'tiny-cookie'
 
 export default {
   name: 'Login',
@@ -219,10 +220,9 @@ export default {
     const showLoginForm = computed(() => categories.value.length || categoryByPath.value)
 
     onBeforeMount(() => {
-      if (localStorage.token) {
+      if (getCookie(sessionCookieName)) {
         $store.dispatch('navigate', 'desktops')
       }
-      $store.dispatch('removeAuthorizationCookie')
       $store.dispatch('fetchProviders')
       $store.dispatch('fetchCategories').then(() => {
         let defaultCategory = ''
@@ -281,11 +281,11 @@ export default {
         data.append('password', pwd.value)
         $store
           .dispatch('login', data)
-          .then(() => {})
-          .catch(err => {
-            console.log(err)
+          .catch(e => {
+            console.log(e)
             showDismissibleAlert.value = true
             loading.value = false
+            $store.dispatch('handleLoginError', e)
           })
       } else {
         if (category.value) {

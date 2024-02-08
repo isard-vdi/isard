@@ -102,7 +102,7 @@
 import { mapGetters, mapActions } from 'vuex'
 import CardList from '@/components/CardList.vue'
 import TableList from '@/components/TableList.vue'
-import { computed, watch } from '@vue/composition-api'
+import { computed } from '@vue/composition-api'
 import { desktopStates } from '@/shared/constants'
 import DirectLinkModal from '../components/directViewer/DirectLinkModal.vue'
 import StartNowModal from '@/components/booking/StartNowModal.vue'
@@ -122,13 +122,11 @@ export default {
     const $store = context.root.$store
     const config = computed(() => $store.getters.getConfig)
 
-    watch(config, (newVal, prevVal) => {
-      if (newVal.showTemporalTab) {
-        $store.dispatch('fetchAllowedTemplates', 'all')
-      } else {
-        $store.dispatch('setTemplatesLoaded', true)
-      }
-    }, { immediate: true })
+    if (config.value.showTemporalTab) {
+      $store.dispatch('fetchAllowedTemplates', 'all')
+    } else {
+      $store.dispatch('setTemplatesLoaded', true)
+    }
 
     $store.dispatch('fetchDesktops')
 

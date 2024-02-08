@@ -10,21 +10,27 @@
 </template>
 
 <script>
+import { onBeforeMount, onBeforeUnmount } from '@vue/composition-api'
 import MessageModal from './components/MessageModal.vue'
+import { listenCookieChange } from '@/helpers/cookies'
+import { sessionCookieName } from '@/shared/constants'
+import { getCookie } from 'tiny-cookie'
 
 export default {
   components: { MessageModal },
-  beforeMount () {
-    if (localStorage.token && !['VerifyEmail', 'ResetPassword', 'DirectViewer'].includes(this.$route.name)) {
-      this.$store.dispatch('setSession', localStorage.token)
-      this.$store.dispatch('openSocket', {})
-      this.$store.dispatch('fetchConfig')
-      this.$store.dispatch('fetchMaxTime')
-    }
-    this.$store.dispatch('watchToken')
-  },
-  beforeUnmount () {
-    this.$store.dispatch('closeSocket')
+  setup (_, context) {
+    const $store = context.root.$store
+    const viewsNotRedirected = ['Login', 'VerifyEmail', 'ResetPassword', 'ForgotPassword']
+    onBeforeMount(() => {
+      listenCookieChange((_, { oldValue, newValue }) => {
+        if (!getCookie(sessionCookieName)) {
+          $store.dispatch('logout', !viewsNotRedirected.includes(context.root.$route.name))
+        }
+      }, sessionCookieName, 1000)
+    })
+    onBeforeUnmount(() => {
+      $store.dispatch('closeSocket')
+    })
   }
 }
 

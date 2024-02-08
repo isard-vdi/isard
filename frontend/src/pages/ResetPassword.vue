@@ -54,11 +54,10 @@
 </template>
 
 <script>
-import { ref, computed, provide, onMounted } from '@vue/composition-api'
+import { ref, computed, provide } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import { required, sameAs } from '@vuelidate/validators'
 import UpdatePasswordForm from '@/components/UpdatePasswordForm'
-import { StringUtils } from '../utils/stringUtils'
 import { ErrorUtils } from '@/utils/errorUtils'
 
 export default {
@@ -71,17 +70,12 @@ export default {
 
     const password = computed(() => $store.getters.getPassword)
     const passwordConfirmation = computed(() => $store.getters.getPasswordConfirmation)
+    const session = computed(() => $store.getters.getSession)
 
     const updatePasswordButtonDisabled = ref(false)
     const showUpdatePasswordForm = ref(true)
 
-    onMounted(() => {
-      if (StringUtils.isNullOrUndefinedOrEmpty(localStorage.token) && !route.query.token) {
-        $store.dispatch('navigate', 'Login')
-      } else {
-        $store.dispatch('fetchExpiredPasswordPolicy', route.query.token ? route.query.token : localStorage.token)
-      }
-    })
+    $store.dispatch('fetchExpiredPasswordPolicy', route.query.token ? route.query.token : session.value)
 
     const v$ = useVuelidate({
       password: {
@@ -104,10 +98,10 @@ export default {
         updatePasswordButtonDisabled.value = false
         return
       }
-      $store.dispatch('resetPassword', { token: route.query.token ? route.query.token : localStorage.token, password: password.value }).then(() => {
+      $store.dispatch('resetPassword', { token: route.query.token ? route.query.token : session.value, password: password.value }).then(() => {
         showUpdatePasswordForm.value = false
         $store.dispatch('resetPasswordState')
-        localStorage.removeItem('token')
+        $store.dispatch('updateSession', false)
         showAlert()
       }).catch((e) => {
         showUpdatePasswordForm.value = true
