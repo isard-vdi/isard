@@ -26,3 +26,9 @@ password:
 email_verification:
   required: true
   type: boolean
+disclaimer:
+  type: [boolean, dict]
+  default: false
+  schema:
+    template:
+      type: string

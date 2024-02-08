@@ -22,6 +22,7 @@ import sockets from './modules/sockets'
 import storage from './modules/storage'
 import template from './modules/template'
 import templates from './modules/templates'
+import messageTemplate from './modules/messageTemplate'
 import vpn from './modules/vpn'
 import { MessageUtils } from '../utils/messageUtils'
 
@@ -147,6 +148,7 @@ export default new Vuex.Store({
     profile,
     media,
     storage,
-    recycleBin
+    recycleBin,
+    messageTemplate
   }
 })

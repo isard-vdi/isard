@@ -53,3 +53,9 @@ id:
 type:
   allowed:
     - local
+disclaimer:
+  type: [boolean, dict]
+  default: false
+  schema:
+    template:
+      type: string

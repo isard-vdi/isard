@@ -59,11 +59,26 @@ $(document).ready(function () {
                     return (data ? data : "all")
                 }
             },
-            { "data": "email_verification" },
-            // {
-            //     "data": "disclaimer",
-            //     "render": function (data, type, full, meta) { return data != undefined ? data : "-"; },
-            // },
+            {
+                "data": "email_verification",
+                "render": function (data, type, full, meta) {
+                    if (data) {
+                        return `<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>`
+                    } else {
+                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                    }
+                }
+            },
+            {
+                "data": "disclaimer",
+                "render": function (data, type, full, meta) {
+                    if (data) {
+                        return `<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>`
+                    } else {
+                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                    }
+                }
+            },
             { "data": "password.digits" },
             { "data": "password.length" },
             { "data": "password.lowercase" },
@@ -106,6 +121,11 @@ $(document).ready(function () {
             dropdownParent: $(modal),
         });
 
+        $(modal + ' .disclaimer-cb').iCheck('uncheck').iCheck('update');
+        $(modal + " #template-content").hide();
+        populateTextTemplateSelect(modal);
+        $(modal + " .disclaimer-template").val("null");
+
         $(modal).modal({
             backdrop: 'static',
             keyboard: false
@@ -118,6 +138,8 @@ $(document).ready(function () {
             cache: false,
             success: function (category) {
                 $(modal + ' #category-select select').append('<option selected value="all">ALL</option>');
+                showHideContent($('#modalPolicyAdd #disclaimer-content'), true);
+                showHideContent($('#modalPolicyAdd #disclaimer-warning'), false);
                 $.each(category, function (key, value) {
                     $(modal + ' #category-select select').append(
                         `<option value="${value.id}">${value.name}</option>`
@@ -147,44 +169,62 @@ $(document).ready(function () {
         const formData = $('#modalPolicyAddForm').serializeObject();
         $('#modalPolicyAddForm').parsley().validate();
         var data = formData;
-        data = {
-            'category': data["category"],
-            'role': data["role"],
-            'type': "local",
-            "password": {
-                'digits': parseInt(data['digits']),
-                'expiration': parseInt(data['expiration']),
-                'length': parseInt(data['length']),
-                'lowercase': parseInt(data['lowercase']),
-                'old_passwords': parseInt(data['old_passwords']),
-                'uppercase': parseInt(data['uppercase']),
-                'special_characters': parseInt(data['special_characters']),
-                'not_username': data['not_username'].toLowerCase() === 'true',
-            },
-            'email_verification': data['verification-cb'] == 'on'
-        };
-        $.ajax({
-            type: 'POST',
-            url: `/api/v3/admin/authentication/policy/`,
-            data: JSON.stringify(data),
-            contentType: "application/json",
-            success: function (data) {
-                $('form').each(function () { this.reset() });
-                $('.modal').modal('hide');
-                user_policy_table.ajax.reload();
-            },
-            error: function (data) {
+        if ($('#modalPolicyAddForm').parsley().isValid()) {
+            if (formData['disclaimer-cb'] == 'on' && !formData['disclaimer-template']) {
                 new PNotify({
-                    title: `ERROR adding user policy`,
-                    text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                    title: `ERROR enabling disclaimer`,
+                    text: 'If disclaimer acknowledgement is enabled, a text template must be selected',
                     type: 'error',
                     hide: true,
                     icon: 'fa fa-warning',
                     delay: 5000,
                     opacity: 1
+                })
+            } else {
+                data = {
+                    'category': data["category"],
+                    'role': data["role"],
+                    'type': "local",
+                    "password": {
+                        'digits': parseInt(data['digits']),
+                        'expiration': parseInt(data['expiration']),
+                        'length': parseInt(data['length']),
+                        'lowercase': parseInt(data['lowercase']),
+                        'old_passwords': parseInt(data['old_passwords']),
+                        'uppercase': parseInt(data['uppercase']),
+                        'special_characters': parseInt(data['special_characters']),
+                        'not_username': data['not_username'].toLowerCase() === 'true',
+                    },
+                    'email_verification': data['verification-cb'] == 'on',
+                    'disclaimer': data['disclaimer-cb'] != 'on' && data['category'] !== "all" ? false :
+                        {
+                            'template': data['disclaimer-template']
+                        }
+                };
+                $.ajax({
+                    type: 'POST',
+                    url: `/api/v3/admin/authentication/policy/`,
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function (data) {
+                        $('form').each(function () { this.reset() });
+                        $('.modal').modal('hide');
+                        user_policy_table.ajax.reload();
+                    },
+                    error: function (data) {
+                        new PNotify({
+                            title: `ERROR adding user policy`,
+                            text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 5000,
+                            opacity: 1
+                        });
+                    }
                 });
             }
-        });
+        }
     });
 
 
@@ -239,7 +279,7 @@ $(document).ready(function () {
             var modal = "#modalForceVerification";
             if (data.password.expiration) { $(modal + " #force-password").show() } else { $(modal + " #force-password").hide() }
             if (data.email_verification) { $(modal + " #force-email").show() } else { $(modal + " #force-email").hide() }
-            // if (data.disclaimer) { $(modal + " #force_disclaimer").show() } else { $(modal + " #force_disclaimer").hide() }
+            if (data.disclaimer) { $(modal + " #force_disclaimer").show() } else { $(modal + " #force_disclaimer").hide() }
 
             $(modal + " h5 #span-category").html(data.category_name);
             $(modal + " h5 #span-role").html(data.role);
@@ -256,8 +296,12 @@ $(document).ready(function () {
             var modal = '#modalPolicyEdit';
             $(modal + " #id").val(data.id);
             $(modal + " #category").append(
-                `<option value="${data.category}">${data.category_name}</option>`
+                `<option selected value="${data.category}">${data.category_name}</option>`
             );
+            showHideContent($(modal + " #disclaimer-content"), data.category == "all");
+            showHideContent($(modal + " #disclaimer-warning"), data.category != "all");
+
+            populateTextTemplateSelect(modal);
             $.ajax({
                 type: "GET",
                 url: "/api/v3/admin/roles",
@@ -271,7 +315,7 @@ $(document).ready(function () {
                         )
                     });
                 }
-            })
+            });
             $(modal + " #role").val(data.role);
             $.ajax({
                 type: "GET",
@@ -290,6 +334,14 @@ $(document).ready(function () {
                     } else {
                         $(modal + ' #verification-cb').iCheck('uncheck').iCheck('update');
                     }
+                    if (policy.disclaimer) {
+                        $(modal + ' .disclaimer-cb').iCheck('check').iCheck('update');
+                        $(modal + " #template-content").show();
+                        $(modal + ' .disclaimer-template').val(policy.disclaimer.template).trigger("change");
+                    } else {
+                        $(modal + ' .disclaimer-cb').iCheck('uncheck').iCheck('update');
+                        $(modal + " #template-content").hide();
+                    }
                 }
             })
             $(modal).modal({
@@ -304,43 +356,61 @@ $(document).ready(function () {
         var modal = '#modalPolicyEditForm';
         const formData = $(modal).serializeObject();
         $(modal).parsley().validate();
-        var data = {
-            'type': 'local',
-            'password': {
-                'digits': parseInt(formData['digits']),
-                'expiration': parseInt(formData['expiration']),
-                'length': parseInt(formData['length']),
-                'lowercase': parseInt(formData['lowercase']),
-                'old_passwords': parseInt(formData['old_passwords']),
-                'uppercase': parseInt(formData['uppercase']),
-                'special_characters': parseInt(formData['special_characters']),
-                'not_username': formData['not_username'].toLowerCase() === 'true',
-            },
-            'email_verification': formData['verification-cb'] == 'on'
-        };
-
-        $.ajax({
-            type: 'PUT',
-            url: `/api/v3/admin/authentication/policy/${formData.id}`,
-            data: JSON.stringify(data),
-            contentType: "application/json",
-            success: function (data) {
-                $('form').each(function () { this.reset() });
-                $('.modal').modal('hide');
-                user_policy_table.ajax.reload();
-            },
-            error: function (data) {
+        if ($('#modalPolicyEditForm').parsley().isValid()) {
+            if (formData['disclaimer-cb'] == 'on' && !formData['disclaimer-template']) {
                 new PNotify({
-                    title: `ERROR editing policy`,
-                    text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                    title: `ERROR enabling disclaimer`,
+                    text: 'If disclaimer acknowledgement is enabled, a text template must be selected',
                     type: 'error',
                     hide: true,
                     icon: 'fa fa-warning',
                     delay: 5000,
                     opacity: 1
+                })
+            } else {
+                var data = {
+                    'type': 'local',
+                    'password': {
+                        'digits': parseInt(formData['digits']),
+                        'expiration': parseInt(formData['expiration']),
+                        'length': parseInt(formData['length']),
+                        'lowercase': parseInt(formData['lowercase']),
+                        'old_passwords': parseInt(formData['old_passwords']),
+                        'uppercase': parseInt(formData['uppercase']),
+                        'special_characters': parseInt(formData['special_characters']),
+                        'not_username': formData['not_username'].toLowerCase() === 'true',
+                    },
+                    'email_verification': formData['verification-cb'] == 'on',
+                    'disclaimer': formData['disclaimer-cb'] != 'on' && formData['category'] !== "all" ? null :
+                        {
+                            'template': formData['disclaimer-template']
+                        }
+                };
+    
+                $.ajax({
+                    type: 'PUT',
+                    url: `/api/v3/admin/authentication/policy/${formData.id}`,
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function (data) {
+                        $('form').each(function () { this.reset() });
+                        $('.modal').modal('hide');
+                        user_policy_table.ajax.reload();
+                    },
+                    error: function (data) {
+                        new PNotify({
+                            title: `ERROR editing policy`,
+                            text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 5000,
+                            opacity: 1
+                        });
+                    }
                 });
             }
-        });
+        }
     });
 
     $("#modalForceVerification .modal-body .btn").on("click", function () {
@@ -384,4 +454,68 @@ $(document).ready(function () {
             });
         });
     });
+
+    $('#modalPolicyAdd #category').on('change', function () {
+        showHideContent($('#modalPolicyAdd #disclaimer-content'), $('#category').val() == "all");
+        showHideContent($("#modalPolicyAdd #disclaimer-warning"), $('#category').val() != "all");
+    });
+    $('.disclaimer-cb').on('ifChanged', function () {
+        showHideContent(
+            $(this).closest('#disclaimer_fields').find("#template-content"),
+            $(this).iCheck('update')[0].checked
+        );
+    });
+    $('.disclaimer-template').on('change', function () {
+        $.ajax({
+            url: "/api/v3/admin/notifications/template/" + $(this).val(),
+            type: "GET"
+        }).then(template => {
+            $(this).siblings("#preview-panel")
+                .empty()
+                .html(`
+                    <div class='x_title'>
+                        <b>${template.lang[template.default].title}</b>
+                    </div>
+                    <div class='clearfix'></div>
+                    ${template.lang[template.default].body}
+                    <hr>
+                    ${template.lang[template.default].footer}
+                `).show();
+        });
+    });
+
+
+
 });
+
+function showHideContent(content, display) {
+    if (display) {
+        $(content).show();
+    } else {
+        $(content).hide();
+    }
+}
+
+function populateTextTemplateSelect(modal) {
+    $(modal + " .disclaimer-template").empty().append(
+        "<option value='null' disabled>-- Select a template --</option>"
+    );
+    $(modal + " #preview-panel").hide();
+
+    $.ajax({
+        url: "/api/v3/admin/notifications/templates",
+        type: "GET"
+    }).then(response => {
+        $(modal + " #template-content p").hide();
+        $.each(response, function (key, template) {
+            if (!["password", "email"].includes(template.kind)) {
+                $(modal + " .disclaimer-template").append(`
+                        <option value="${template.id}">${template.name}</option>
+                    `);
+            }
+        });
+        if ($(modal + " .disclaimer-template").children().length <= 1) {
+            $(modal + " #template-content p").show();
+        } else { $(modal + " #template-content p").hide(); }
+    });
+}

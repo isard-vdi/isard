@@ -79,4 +79,14 @@ export class ErrorUtils {
       }
     }
   }
+
+  static handleAuthErrors (error, snotify) {
+    snotify.clear()
+    console.log(error)
+
+    // Errors 401, 500 and 503 are handled through axios interceptors in the axios.js file
+    if (![401, 500, 503].includes(error.response.status)) {
+      ErrorUtils.showErrorMessage(snotify, error)
+    }
+  }
 }

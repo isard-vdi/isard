@@ -282,6 +282,7 @@ class ApiUsers:
             "email",
             "accessed",
             "email_verified",
+            "disclaimer_acknowledged",
             {"vpn": {"wireguard": {"connected": True}}},
             {"user_storage": {"provider_quota": {"used": True, "relative": True}}},
         )
@@ -1750,6 +1751,23 @@ class ApiUsers:
         else:
             return user["email_verified"]
 
+    def check_acknowledged_disclaimer(self, user_id):
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("role", "category", "lang", "disclaimer_acknowledged")
+                .run(db.conn)
+            )
+        if user.get("disclaimer_acknowledged"):
+            return False
+
+        policy = self.get_user_policy("disclaimer", "all", user["role"], user_id)
+        if policy:
+            return True
+        else:
+            return False
+
     def get_lang(self, user_id):
         with app.app_context():
             lang = r.table("users").get(user_id).run(db.conn).get("lang")
@@ -1760,7 +1778,10 @@ class ApiUsers:
             users = list(
                 r.table("users")
                 .get_all(category, index="category")
-                .filter({"email": email})
+                .filter(
+                    lambda user: user["email"].eq(email)
+                    & user["email_verified"].ne(None)
+                )
                 .pluck("id")["id"]
                 .run(db.conn)
             )

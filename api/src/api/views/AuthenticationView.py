@@ -31,12 +31,13 @@ from ..libv2.api_authentication import (
     delete_policy,
     edit_policy,
     force_policy_at_login,
+    get_disclaimer_template,
     get_policies,
     get_policy,
     get_providers,
 )
 from ..libv2.validators import _validate_item
-from .decorators import is_admin
+from .decorators import has_token, is_admin
 
 
 @app.route("/api/v3/admin/authentication/policy", methods=["POST"])
@@ -133,7 +134,7 @@ def admin_force_email(payload, policy_id):
 )
 @is_admin
 def admin_force_disclaimer(payload, policy_id):
-    force_policy_at_login(policy_id, "disclaimer_accepted")
+    force_policy_at_login(policy_id, "disclaimer_acknowledged")
     return (
         json.dumps({}),
         200,
@@ -150,6 +151,17 @@ def admin_force_password(payload, policy_id):
     force_policy_at_login(policy_id, "password_last_updated")
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/disclaimer", methods=["GET"])
+@has_token
+def get_disclaimer(payload):
+    text = get_disclaimer_template(payload["user_id"])
+    return (
+        json.dumps(text),
         200,
         {"Content-Type": "application/json"},
     )

@@ -1114,7 +1114,7 @@ def admin_user_password_policy(payload, user_id):
 @is_admin
 def user_required_disclaimer_acknowledgement(payload, user_id):
     return (
-        json.dumps({"required": False}),
+        json.dumps({"required": users.check_acknowledged_disclaimer(user_id)}),
         200,
         {"Content-Type": "application/json"},
     )

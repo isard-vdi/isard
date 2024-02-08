@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from html_sanitizer import Sanitizer
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -26,10 +27,48 @@ from api import app
 from ..libv2.api_users import ApiUsers
 from .flask_rethink import RDB
 
+
+def no_sanitize_href(href):
+    return href
+
+
+sanitizer = Sanitizer(
+    {
+        "attributes": {"a": ("href", "name", "target", "title", "id", "rel", "class")},
+        "tags": {
+            "a",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "strong",
+            "em",
+            "p",
+            "ul",
+            "ol",
+            "li",
+            "br",
+            "sub",
+            "sup",
+            "hr",
+        },
+        "sanitize_href": no_sanitize_href,
+    }
+)
 r = RethinkDB()
 db = RDB(app)
 users = ApiUsers()
 db.init_app(app)
+
+
+def add_notification_template(template_data):
+    texts = template_data["lang"][template_data["default"]]
+    template_data["lang"][template_data["default"]] = {
+        "body": sanitizer.sanitize(texts["body"]),
+        "footer": sanitizer.sanitize(texts["footer"]),
+    }
+    with app.app_context():
+        r.table("notification_tmpls").insert(template_data).run(db.conn)
 
 
 def get_notification_templates():
@@ -53,15 +92,19 @@ def update_notification_template(template_id, data):
     if (
         len(data["lang"][language]["body"]) > 0
         and len(data["lang"][language]["title"]) > 0
-        and len(data["lang"][language]["footer"]) > 0
     ):
+        texts = data["lang"][language]
+        data["lang"][language] = {
+            "title": texts["title"],
+            "body": sanitizer.sanitize(texts["body"]),
+            "footer": sanitizer.sanitize(texts["footer"]),
+        }
         with app.app_context():
             r.table("notification_tmpls").get(template_id).update(data).run(db.conn)
 
     elif (
         len(data["lang"][language]["body"]) == 0
         and len(data["lang"][language]["title"]) == 0
-        and len(data["lang"][language]["footer"]) == 0
     ):
         with app.app_context():
             r.table("notification_tmpls").get(template_id).replace(
@@ -73,7 +116,12 @@ def update_notification_template(template_id, data):
 
 def delete_notification_template(template_id):
     with app.app_context():
-        r.table("notification_tmpls").get(template_id).delete().run(db.conn)
+        kind = r.table("notification_tmpls").get(template_id)["kind"].run(db.conn)
+        if kind in ["desktop", "password", "email"]:
+            raise Error("bad request", "Unable to delete default templates")
+
+    # TODO: check it's not being used
+    r.table("notification_tmpls").get(template_id).delete().run(db.conn)
 
 
 def get_notification_event_template(event, user_id, args):

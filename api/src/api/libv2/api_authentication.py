@@ -21,6 +21,7 @@
 
 import os
 
+from html_sanitizer import Sanitizer
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -36,7 +37,40 @@ db.init_app(app)
 users = ApiUsers()
 
 
+def no_sanitize_href(href):
+    return href
+
+
+sanitizer = Sanitizer(
+    {
+        "attributes": {"a": ("href", "name", "target", "title", "id", "rel", "class")},
+        "tags": {
+            "a",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "strong",
+            "em",
+            "p",
+            "ul",
+            "ol",
+            "li",
+            "br",
+            "sub",
+            "sup",
+            "hr",
+        },
+        "sanitize_href": no_sanitize_href,
+    }
+)
+
+
 def add_policy(data):
+    if data["category"] != "all" and data["disclaimer"]:
+        raise Error(
+            "bad_request", "Disclaimer option only available for all categories"
+        )
     if not check_duplicate_policy(data["category"], data["role"]):
         raise Error(
             "conflict",
@@ -125,10 +159,41 @@ def get_providers():
 def force_policy_at_login(policy_id, policy_field):
     policy = get_policy(policy_id)
 
-    query = r.table("users").get_all("local", index="provider")
+    if policy_field == "disclaimer_acknowledged":
+        query = r.table("users")
+    else:
+        query = r.table("users").get_all("local", index="provider")
     if policy["category"] != "all":
         query.filter({"category": policy["category"]})
     if policy["role"] != "all":
         query.filter({"role": policy["role"]})
     with app.app_context():
         query.update({policy_field: None}).run(db.conn)
+
+
+def get_disclaimer_template(user_id):
+    user = r.table("users").get(user_id).pluck("role", "lang").run(db.conn)
+    template_id = users.get_user_policy("disclaimer", "all", user["role"], user_id).get(
+        "template"
+    )
+    if template_id:
+        with app.app_context():
+            disclaimer = r.table("notification_tmpls").get(template_id).run(db.conn)
+
+        if disclaimer["lang"].get(user.get("lang")):
+            texts = disclaimer["lang"][user["lang"]]
+            return {
+                "title": texts["title"],
+                "body": sanitizer.sanitize(texts["body"]),
+                "footer": sanitizer.sanitize(texts["footer"]),
+            }
+        elif disclaimer["lang"].get(disclaimer["default"]):
+            texts = disclaimer["lang"][disclaimer["default"]]
+            return {
+                "title": texts["title"],
+                "body": sanitizer.sanitize(texts["body"]),
+                "footer": sanitizer.sanitize(texts["footer"]),
+            }
+        raise Error("not_found", "Unable to find disclaimer template")
+    else:
+        return None

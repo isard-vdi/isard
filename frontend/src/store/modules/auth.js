@@ -105,6 +105,9 @@ export default {
           }
         }
       }
+      if (getCookie('authorization')) {
+        removeCookie('authorization')
+      }
       if (redirect) {
         router.push({ name: 'Login' })
       }

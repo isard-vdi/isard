@@ -29,6 +29,7 @@ import RecycleBin from '@/pages/RecycleBin.vue'
 import ResetPassword from '@/pages/ResetPassword.vue'
 import ForgotPassword from '@/pages/ForgotPassword.vue'
 import VerifyEmail from '@/pages/VerifyEmail.vue'
+import Disclaimer from '@/pages/Disclaimer.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { appTitle } from '../shared/constants'
@@ -359,6 +360,14 @@ const router = new VueRouter({
       }
     },
     {
+      path: '/disclaimer',
+      component: Disclaimer,
+      name: 'Disclaimer',
+      meta: {
+        title: i18n.t('router.titles.disclaimer')
+      }
+    },
+    {
       path: '/login/:customUrlName?',
       name: 'Login',
       component: Login,
@@ -371,7 +380,8 @@ const router = new VueRouter({
       name: 'Register',
       component: Register,
       meta: {
-        title: i18n.t('router.titles.register')
+        title: i18n.t('router.titles.register'),
+        requiresAuth: true
       }
     },
     {
@@ -419,8 +429,10 @@ router.beforeEach(async (to, from, next) => {
     if (!session) {
       const authorizationCookie = getCookie('authorization')
       if (authorizationCookie) {
-        if (jwtDecode(authorizationCookie).type === 'register') {
+        if (to.name !== 'Register' && jwtDecode(authorizationCookie).type === 'register') {
           router.push({ name: 'Register' })
+        } else if (to.name === 'Register') {
+          next()
         } else {
           store.dispatch('loginSuccess', authorizationCookie)
         }
@@ -455,6 +467,9 @@ router.beforeEach(async (to, from, next) => {
           store.dispatch('saveNavigation', { url: from })
           next({ name: from.name })
         }
+      // Requires disclaimer acceptance, will be redirected
+      } else if (to.name !== 'Disclaimer' && ['disclaimer-acknowledgement-required'].includes(sessionData.type)) {
+        router.push({ name: 'Disclaimer' })
       // Requires email verification, will be redirected
       } else if (to.name !== 'VerifyEmail' && ['email-verification-required', 'email-verification'].includes(sessionData.type)) {
         router.push({ name: 'VerifyEmail' })
