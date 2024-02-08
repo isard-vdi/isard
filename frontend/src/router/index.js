@@ -380,7 +380,8 @@ const router = new VueRouter({
       name: 'Register',
       component: Register,
       meta: {
-        title: i18n.t('router.titles.register')
+        title: i18n.t('router.titles.register'),
+        requiresAuth: true
       }
     },
     {
@@ -428,8 +429,10 @@ router.beforeEach(async (to, from, next) => {
     if (!session) {
       const authorizationCookie = getCookie('authorization')
       if (authorizationCookie) {
-        if (jwtDecode(authorizationCookie).type === 'register') {
+        if (to.name !== 'Register' && jwtDecode(authorizationCookie).type === 'register') {
           router.push({ name: 'Register' })
+        } else if (to.name === 'Register') {
+          next()
         } else {
           store.dispatch('loginSuccess', authorizationCookie)
         }
