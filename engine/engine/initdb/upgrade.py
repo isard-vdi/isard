@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 121
+release_version = 122
+# release 122: Add maintenance field to categories
 # release 121: BREAKING CHANGE, update "storage_pool" to new table
 # release 120: REMOVED: update "storage_pool" table with new fields, add index "name"
 # release 119: Add new password parameters to users
@@ -4415,6 +4416,31 @@ class Upgrade(object):
                     ],
                     category["id"],
                 )
+        if version == 66:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table("categories").update({"custom_url_name": r.row["id"]}).run(
+                    self.conn
+                )
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create("custom_url_name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 122:
+            try:
+                r.table("categories").update({"maintenance": False}).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        return True
 
     def qos_net(self, version):
         table = "qos_net"
@@ -4434,32 +4460,6 @@ class Upgrade(object):
                 r.table(table).index_create("name").run(self.conn)
             except Exception as e:
                 print(e)
-        return True
-
-    """
-    CATEGORIES TABLE UPGRADES
-    """
-
-    def categories(self, version):
-        table = "categories"
-        if version == 66:
-            try:
-                r.table(table).index_create("name").run(self.conn)
-            except Exception as e:
-                print(e)
-
-            try:
-                r.table("categories").update({"custom_url_name": r.row["id"]}).run(
-                    self.conn
-                )
-            except Exception as e:
-                print(e)
-
-            try:
-                r.table(table).index_create("custom_url_name").run(self.conn)
-            except Exception as e:
-                print(e)
-
         return True
 
     """

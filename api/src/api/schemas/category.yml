@@ -72,3 +72,7 @@ custom_url_name:
   maxlength: 50
   type: string
   coerce: sanitize
+maintenance:
+  type: boolean
+  nullable: true
+  default: false

@@ -23,6 +23,7 @@ from ..libv2.flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+from cachetools import TTLCache, cached
 from isardvdi_common.tokens import (
     Error,
     get_auto_register_jwt_payload,
@@ -33,9 +34,21 @@ from ..libv2.api_allowed import get_all_linked_groups
 from ..libv2.maintenance import Maintenance
 
 
-def maintenance():
+@cached(TTLCache(maxsize=100, ttl=15))
+def get_category_maintenance(category_id):
+    with app.app_context():
+        category = (
+            r.table("categories").get(category_id).pluck("maintenance").run(db.conn)
+        )
+    return category.get("maintenance")
+
+
+def maintenance(category_id):
     if Maintenance.enabled:
         abort(503)
+    else:
+        if get_category_maintenance(category_id):
+            abort(503)
 
 
 def password_reset(f):
@@ -62,7 +75,7 @@ def has_token(f):
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
         if payload.get("role_id") != "admin":
-            maintenance()
+            maintenance(payload["category_id"])
         kwargs["payload"] = payload
         return f(*args, **kwargs)
 
@@ -74,7 +87,7 @@ def is_register(f):
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
         if payload.get("type", "") == "register":
-            maintenance()
+            maintenance(payload["category_id"])
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise Error(
@@ -91,7 +104,7 @@ def is_auto_register(f):
     def decorated(*args, **kwargs):
         payload = get_auto_register_jwt_payload()
         if payload.get("type", "") == "register":
-            maintenance()
+            maintenance(payload["category_id"])
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise Error(
@@ -124,7 +137,7 @@ def is_admin_or_manager(f):
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
         if payload.get("role_id") != "admin":
-            maintenance()
+            maintenance(payload["category_id"])
         if payload["role_id"] == "admin" or payload["role_id"] == "manager":
             kwargs["payload"] = payload
             return f(*args, **kwargs)
@@ -142,7 +155,7 @@ def is_admin_or_manager_or_advanced(f):
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
         if payload.get("role_id") != "admin":
-            maintenance()
+            maintenance(payload["category_id"])
         if (
             payload["role_id"] == "admin"
             or payload["role_id"] == "manager"
