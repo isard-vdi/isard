@@ -32,8 +32,8 @@
           </h2>
           <br key="space">
           <b-button
-            key="loginlink"
-            @click="navigate('Login')"
+            key="loginLink"
+            @click="goToLogin()"
           >
             {{ $t('views.maintenance.go-login') }}
           </b-button>
@@ -45,15 +45,24 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex'
-
 // @ is an alias to /src
+import { computed } from '@vue/composition-api'
 
 export default {
-  methods: {
-    ...mapActions([
-      'navigate'
-    ])
+  setup (props, context) {
+    const $store = context.root.$store
+    const user = computed(() => $store.getters.getUser)
+    const goToLogin = () => {
+      if (user) {
+        $store.dispatch('logout')
+      } else {
+        $store.dispatch('navigate', 'Login')
+      }
+    }
+
+    return {
+      goToLogin
+    }
   }
 }
 </script>

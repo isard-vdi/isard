@@ -42,6 +42,12 @@ $(document).ready(function () {
             { "data": "frontend", className: "xe-frontend" },
             { "data": "allowed_domain", className: "xe-allowed_domain" },
             { "data": "ephemeral_desktops", className: "xe-ephemeral_desktops" },
+            {
+                'data': 'maintenance',
+                'render': function (maintenance, type, row) {
+                    return `<i class="fa fa-circle" aria-hidden="true"  style="color: ${ maintenance ? 'red' : 'grey' }" title="${ maintenance ? 'Maintenance enabled' : 'Maintenance disabled' }"></i>`
+                }
+            },
             { "data": "id", "visible": false }
         ],
         "columnDefs": [
@@ -86,7 +92,7 @@ $(document).ready(function () {
     // Setup - add a text input to each footer cell
     $('#categories tfoot tr:first th').each(function () {
         var title = $(this).text();
-        if (['', 'Frontend dropdown show', 'Ephemeral desktops'].indexOf(title) == -1) {
+        if (['', 'Frontend dropdown show', 'Ephemeral desktops', 'Maintenance'].indexOf(title) == -1) {
             $(this).html('<input type="text" placeholder="Search ' + title + '" />');
         }
     });
@@ -207,6 +213,7 @@ $(document).ready(function () {
         if (form.parsley().isValid()) {
             data = form.serializeObject();
             data['frontend'] = 'frontend' in data;
+            data['maintenance'] = 'maintenance' in data;
             if (!('ephimeral-enabled' in data)) {
                 delete data['ephimeral-minutes'];
                 delete data['ephimeral-action'];
@@ -348,6 +355,7 @@ function actionsCategoryDetail() {
                 data['id'] = $('#modalEditCategoryForm #id').val();
                 data['name'] = $('#modalEditCategoryForm #name').val();
                 data['frontend'] = 'frontend' in data;
+                data['maintenance'] = 'maintenance' in data;
                 if (!('ephimeral-enabled' in data)) {
                     delete data['ephimeral-minutes'];
                     delete data['ephimeral-action'];
