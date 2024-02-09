@@ -28,6 +28,7 @@ from api import app
 from ..libv2.echarts import (
     get_daily_items,
     get_grouped_data,
+    get_grouped_unique_data,
     get_nested_array_grouped_data,
 )
 from .decorators import is_admin
@@ -53,6 +54,19 @@ def api_v3_echarts(payload, view="raw"):
         return (
             json.dumps(
                 get_grouped_data(data.get("table"), data.get("group_field")),
+                indent=4,
+                sort_keys=True,
+                default=str,
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    if view == "grouped_unique_items":
+        return (
+            json.dumps(
+                get_grouped_unique_data(
+                    data.get("table"), data.get("group_field"), data.get("unique_field")
+                ),
                 indent=4,
                 sort_keys=True,
                 default=str,

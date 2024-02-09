@@ -64,6 +64,17 @@ def get_grouped_data(table, field):
     return [{"value": v, "name": k} for k, v in data.items() if k is not None]
 
 
+def get_grouped_unique_data(table, field, unique_field):
+    query = r.table(table)
+    query = (
+        query.group(index=field) if field in TABLE_INDEXS[table] else query.group(field)
+    )
+    query = query.map(lambda group: group[unique_field]).distinct().count()
+    with app.app_context():
+        data = query.run(db.conn)
+    return [{"value": v, "name": k} for k, v in data.items() if k is not None]
+
+
 def get_nested_array_grouped_data(table, array_field, field):
     data = (
         r.table(table)

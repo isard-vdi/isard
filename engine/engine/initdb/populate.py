@@ -1528,9 +1528,6 @@ class Populate(object):
         try:
             log.info("Table logs_users not found, creating...")
             r.table_create("logs_users", primary_key="id").run(self.conn)
-            r.table("logs_users").index_create("user_id").run(self.conn)
-            r.table("logs_users").index_create("user_category_id").run(self.conn)
-            r.table("logs_users").index_create("user_role_id").run(self.conn)
             r.table("logs_users").index_create("started_time").run(self.conn)
             r.table("logs_users").index_create("stopped_time").run(self.conn)
         except:

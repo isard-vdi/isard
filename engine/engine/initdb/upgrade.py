@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 123
+release_version = 124
+# release 124: Add/Remove required logs_users index
 # release 123: Fix email field users
 # release 122: Add maintenance field to categories
 # release 121: BREAKING CHANGE, update "storage_pool" to new table
@@ -4516,6 +4517,33 @@ class Upgrade(object):
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 124:
+            try:
+                r.table(table).index_drop("user_category_id").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_drop("user_id").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_drop("user_role_id").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_create("owner_user_id").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_create("owner_group_id").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_create("owner_category_id").run(self.conn)
+            except Exception as e:
+                pass
+
         return True
 
     """

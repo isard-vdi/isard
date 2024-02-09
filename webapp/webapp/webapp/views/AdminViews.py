@@ -496,3 +496,15 @@ def admin_logs_desktops():
         nav="Logs desktops",
         monitor_host=monitor_host,
     )
+
+
+@app.route("/isard-admin/admin/logs_users", methods=["GET"])
+@login_required
+@isAdmin
+def admin_logs_users():
+    return render_template(
+        "admin/pages/logs_users.html",
+        title="Logs users",
+        nav="Logs users",
+        monitor_host=monitor_host,
+    )

@@ -124,6 +124,66 @@ $.fn.echartGroupedItems = function (table, group_field, nested_array_field) {
     });
   };
 
+  $.fn.echartGroupedUniqueItems = function (table, group_field, unique_field) {
+    kind="grouped_unique_items"
+    return this.each(function () {
+      const $container = $(this);
+      $.ajax({
+        url: '/api/v3/admin/echart/'+kind,
+        type: 'POST',
+        data: JSON.stringify({
+          "table": table,
+          "group_field": group_field,
+          "unique_field": unique_field,
+        }),
+        async: true
+      }).then(function (d) {
+        // ECharts chart configuration
+        const option = {
+            // legend: {
+            //     orient: "vertical",
+            //     left: "left",
+            //     data: $.each(d, function (i, v) {
+            //         return v.name;
+            //     })
+            // },
+            grid: {
+                containLabel: true,
+            },
+            series: [
+                {
+                    type: 'pie',
+                    data: d,
+                    roseType: 'area',
+                    label: {
+                        formatter: '{b}: {d}%',
+                        // fontSize: 12,
+                        // fontWeight: 'bold',
+                        overflow: 'break',
+                    },
+                    labelLine: {
+                        length: 10,
+                        length2: 5
+                    }
+                }
+            ]
+        };
+
+        // Create a canvas element
+        const canvas = document.createElement("canvas");
+
+        // Append the canvas to the container
+        $container.append(canvas);
+
+        // Initialize ECharts instance and set options
+        const chart = echarts.init(canvas);
+        chart.setOption(option);
+
+        $container.data('echartInstance', chart);
+      });
+    });
+  };
+
 $.fn.echartDailyItems = function (table, date_field) {
     return this.each(function () {
       const $container = $(this);
