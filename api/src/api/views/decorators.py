@@ -43,10 +43,10 @@ def get_category_maintenance(category_id):
     return category.get("maintenance")
 
 
-def maintenance(category_id):
+def maintenance(category_id=None):
     if Maintenance.enabled:
         abort(503)
-    else:
+    elif category_id:
         if get_category_maintenance(category_id):
             abort(503)
 
