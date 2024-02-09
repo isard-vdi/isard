@@ -362,8 +362,9 @@ def _add_storage_log(storage_id, status):
 
 
 def add_storage_pool(data):
-    _check_with_validate_weight(data["paths"])
-    _check_duplicated_paths(data["paths"])
+    if data.get("paths"):
+        _check_with_validate_weight(data["paths"])
+        _check_duplicated_paths(data["paths"])
     with app.app_context():
         existing_categories = list(r.table("storage_pool")["categories"].run(db.conn))
         for categories in existing_categories:
@@ -405,6 +406,8 @@ def get_storage_pool(storage_pool_id):
 def update_storage_pool(storage_pool_id, data):
     if data.get("paths"):
         _check_duplicated_paths(data["paths"])
+    if data.get("paths"):
+        _check_duplicated_paths(data["paths"])
         _check_with_validate_weight(data["paths"])
     if storage_pool_id == "00000000-0000-0000-0000-000000000000":
         if "enabled" in data:
@@ -424,9 +427,10 @@ def delete_storage_pool(storage_pool_id):
 
 def _check_with_validate_weight(data):
     for key in data:
-        total = sum(item["weight"] for item in data[key])
-        if total != 100:
-            raise Error("bad_request", "Same type's weight sum must be 100")
+        if len(data[key]):
+            total = sum(item["weight"] for item in data[key])
+            if total != 100:
+                raise Error("bad_request", "Same type's weight sum must be 100")
 
 
 def _check_duplicated_paths(data):
@@ -439,4 +443,3 @@ def _check_duplicated_paths(data):
                     "bad_request", "Paths of the same pool must have a unique name"
                 )
             seen_paths.add(path)
-    return True

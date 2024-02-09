@@ -107,6 +107,10 @@ $(document).ready(function () {
     });
     populateCategory("#modalAddStoragePool", null);
     addPath("#modalAddStoragePool .path_base_mountpoint", "");
+
+    addDefaultCheckboxListeners("#modalAdd", $("#modalAdd .checkbox .default-cb"));
+    $("#modalAdd .checkbox .default-cb").trigger("ifUnchecked");
+    $(`#modalAdd .table-wrapper input`).attr("disabled", false);
     
     $("#modalAddStoragePool").modal({
       backdrop: "static",
@@ -183,35 +187,84 @@ $(document).ready(function () {
         paths = data.paths;
 
         for (const type in paths) {
+          var title = '';
+          if (type === 'desktop') {
+            title = `<i class="fa fa-desktop fa-1x"></i><b id="${type}"> Desktops</b>`;
+          } else if (type === 'template') {
+            title = `<i class="fa fa-cubes fa-1x"></i><b id="${type}"> Templates</b>`;
+          } else if (type === 'media') {
+            title = `<i class="fa fa-circle-o fa-1x"></i><b id="${type}"> Media</b>`;
+          } else if (type === 'volatile') {
+            title = `<i class="fa fa-clock-o fa-1x"></i><b id="${type}"> Volatile</b>`;
+          } else {
+            title = `<b id="${type}">${type}</b>`;
+          }
           const pathArray = paths[type];
+          if (pathArray.length == 0) {
+            var row = `                    
+              <tr id="${type}">
+              <td>
+                <div class="checkbox"><label class="">
+                    <div class="icheckbox_flat-green" style="position: relative;">
+                      <input checked type="checkbox" name="default-${type}" data-type="${type}" class="flat default-cb" style="position: absolute; opacity: 0;">
+                      <ins class="iCheck-helper"
+                        style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                      </ins>
+                    </div>
+                  </label>
+                </div>
+              </td>
+              <td id="type">${title}</td>
+              <td>
+                <span class="path_base"></span><input id="path" name="${type}-path" value="${type=='desktop'? "groups" : type}" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
+              </td>
+              <td><input id="weight" name="${type}-weight" type="number" value="100"></td>
+              <td>
+                <input id="modalAdd-addrow-${type}" type="button" value="+" onclick="addRow('${type}', 'modalAdd')"/>
+                <input class="modalAdd-delrow-${type}" type="button" value="-" onclick="delRow('${type}', 'modalAdd')"/>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="100%" style="border-top: 3px solid rgb(221, 221, 221);"></td>
+            </tr>`
+            $('#modalEdit #pathsTableEdit tbody').append(row);
+
+            addDefaultCheckboxListeners("#modalEdit", $('#modalEdit #'+ type +' .default-cb'));
+            $('#modalEdit #'+ type +' .default-cb').iCheck('check').iCheck('update').trigger('ifChecked');
+          }
+         
           for (let i = 0; i < pathArray.length; i++) {
             const pathObj = pathArray[i];
             const row = pathsTableEdit.insertRow();
             row.setAttribute('id', type);
 
-            const typeCell = row.insertCell(0);
+            const checkboxCell = row.insertCell(0);
+            const typeCell = row.insertCell(1);
             typeCell.setAttribute('id', 'type');
-            const pathCell = row.insertCell(1);
-            const weightCell = row.insertCell(2);
-            const buttonAddDelCell = row.insertCell(3);
-
-            if (type === 'desktop') {
-              typeCell.innerHTML = `<i class="fa fa-desktop fa-1x"></i><b id="${type}"> Desktops</b>`;
-            } else if (type === 'template') {
-              typeCell.innerHTML = `<i class="fa fa-cubes fa-1x"></i><b id="${type}"> Templates</b>`;
-            } else if (type === 'media') {
-              typeCell.innerHTML = `<i class="fa fa-circle-o fa-1x"></i><b id="${type}"> Media</b>`;
-            } else if (type === 'volatile') {
-              typeCell.innerHTML = `<i class="fa fa-clock-o fa-1x"></i><b id="${type}"> Volatile</b>`;
-            } else {
-              typeCell.innerHTML = `<b id="${type}">${type}</b>`;
+            const pathCell = row.insertCell(2);
+            const weightCell = row.insertCell(3);
+            const buttonAddDelCell = row.insertCell(4);
+            checkboxCell.innerHTML = "";
+            if (i==0) {
+              checkboxCell.innerHTML = `<div class="checkbox"><label class="">
+                                            <div class="icheckbox_flat-green" style="position: relative;">
+                                              <input type="checkbox" name="default-${type}" data-type="${type}" class="flat default-cb" style="position: absolute; opacity: 0;">
+                                              <ins class="iCheck-helper"
+                                                style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                              </ins>
+                                            </div>
+                                          </label>
+                                        </div>`
+              addDefaultCheckboxListeners("#modalEdit", $("#modalEdit .checkbox .default-cb"));
             }
+
+            typeCell.innerHTML = title;
             pathObj.path = pathObj.path.split("/")[pathObj.path.split("/").length-1]
 
             pathCell.innerHTML = `<span class="path_base"></span><input id="path" name="${type}-patzh" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text" value="${pathObj.path}">`;
             weightCell.innerHTML = `<input id="weight" name="${type}-weight" type="number" value="${pathObj.weight}">`;
             buttonAddDelCell.innerHTML = `<input id='modalEdit-addrow-${type}' type='button' value='+' onclick='addRow("${type}", "modalEdit")'/> \
-                                          <input id='modalEdit-delrow-${type}' type='button' value='-' onclick='delRow("${type}", "modalEdit")'/>`;
+                                          <input class='modalEdit-delrow-${type}' type='button' value='-' onclick='delRow("${type}", "modalEdit")'/>`;
 
             if (i === pathArray.length - 1) {
               const additionalRow = pathsTableEdit.insertRow();
@@ -349,6 +402,7 @@ $(document).ready(function () {
         break;
     }
   });
+
   $.getScript("/isard-admin/static/admin/js/socketio.js");
 })
 
@@ -402,18 +456,19 @@ function addRow(type, modal) {
   if (modal == "modalAdd") {
     currentRow = document.getElementById(`modalAdd-addrow-${type}`).parentNode.parentNode;
   } else if (modal == "modalEdit") {
-    currentRow = document.getElementById(`modalEdit-addrow-${type}`).parentNode.parentNode;
+    currentRow = document.getElementById(`modalAdd-addrow-${type}`).parentNode.parentNode;
   }
   var newRow = currentRow.cloneNode(true);
+  $(newRow).find(".checkbox").remove();
   currentRow.parentNode.insertBefore(newRow, currentRow.nextSibling);
 }
 
 function delRow(type, modal) {
   var currentRow = ""
   if (modal == "modalAdd") {
-    currentRow = document.getElementById(`modalAdd-delrow-${type}`).parentNode.parentNode;
+    currentRow = $(`.modalAdd-delrow-${type}`).parent().parent().last();
   } else if (modal == "modalEdit") {
-    currentRow = document.getElementById(`modalEdit-delrow-${type}`).parentNode.parentNode;
+    currentRow = $(`.modalEdit-delrow-${type}`).parent().parent().last();
   }
   currentRow.remove();
 }
@@ -427,22 +482,23 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
     // data['read'] = 'read' in data ? true : false;
     // data['write'] = 'write' in data ? true : false;
     data["allowed"] = {"roles": false, "categories": false, "groups": false, "users": false}
-
     e.preventDefault();
     var pathsTableAdd = {};
-    $('#pathsTableAdd tbody tr').each(function() {
+
+    $('#pathsTableAdd tbody tr').each(function () {
       var type = $(this).attr("id");
       var weight = parseInt($(this).find('#weight').val());
       var path = $(this).find('#path').val();
       if (!pathsTableAdd[type]) {
         pathsTableAdd[type] = [];
       }
-      pathsTableAdd[type].push({
-        'path': path,
-        'weight': weight
-      });
+      if (data["default-" + type] != 'on') {
+        pathsTableAdd[type].push({
+          'path': path,
+          'weight': weight
+        });
+      }
     });
-
     for (let key in data) {
       if (key.endsWith("-weight") || key.endsWith("-path")) {
         delete data[key];
@@ -512,12 +568,16 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
         if (!pathsTableEdit[type]) {
           pathsTableEdit[type] = [];
         }
-        pathsTableEdit[type].push({
-          'path': path,
-          'weight': weight
-        });
+        if (data["default-" + type] != 'on') {
+          pathsTableEdit[type].push({
+            'path': path,
+            'weight': weight
+          });
+        }
       }
     });
+
+    console.log(pathsTableEdit)
 
     for (let key in data) {
       if (key.endsWith("-weight") || key.endsWith("-path")) {
@@ -619,4 +679,18 @@ function addPath(path, mountpoint) {
   $.each($(path), function () {
     $(this).text(`/isard/storage_pools/${mountpoint ?  mountpoint : ""}`);
   });
+}
+
+function addDefaultCheckboxListeners(modal, checkbox) {
+  $(checkbox).iCheck({
+    checkboxClass: 'icheckbox_flat-green',
+    radioClass: 'iradio_flat-green'
+  });
+  checkbox.on('ifChecked', function() {
+    $(modal + ` .table-wrapper tr#${$(this).data("type")} input`).attr("disabled", true)
+    $($(this)).attr("disabled", false);
+  })
+  checkbox.on('ifUnchecked', function() {
+    $(modal + ` .table-wrapper tr#${$(this).data("type")} input`).attr("disabled", false);
+  })
 }
