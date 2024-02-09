@@ -51,14 +51,16 @@ def default_guest_properties():
     }
 
 
-def viewer_jwt(desktop_id, minutes=240, admin_role=False):
+def viewer_jwt(category_id, desktop_id, minutes=240, admin_role=False):
     return jwt.encode(
         {
             "exp": datetime.utcnow() + timedelta(minutes=minutes),
             "kid": "isardvdi-viewer",
-            "data": {"desktop_id": desktop_id}
-            if not admin_role
-            else {"desktop_id": desktop_id, "role_id": "admin"},
+            "data": (
+                {"category_id": category_id, "desktop_id": desktop_id}
+                if not admin_role
+                else {"desktop_id": desktop_id, "role_id": "admin"}
+            ),
         },
         os.environ.get("API_ISARDVDI_SECRET"),
         algorithm="HS256",
@@ -94,7 +96,13 @@ class isardViewer:
                         r.table("domains")
                         .get(id)
                         .pluck(
-                            "id", "name", "status", "viewer", "guest_properties", "user"
+                            "id",
+                            "name",
+                            "status",
+                            "viewer",
+                            "guest_properties",
+                            "user",
+                            "category",
                         )
                         .run(db.conn)
                     )
@@ -176,6 +184,7 @@ class isardViewer:
                     domain["viewer"]["static"].split(":")[0],
                     self.rdpgw_port,
                     viewer_jwt(
+                        domain["category"],
                         domain["id"],
                         int(
                             parse_delta(
@@ -304,6 +313,7 @@ class isardViewer:
                     + cookie
                     + "&jwt="
                     + viewer_jwt(
+                        domain["category"],
                         domain["id"],
                         int(
                             parse_delta(
