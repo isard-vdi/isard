@@ -108,7 +108,7 @@ class ApiDesktopsCommon:
                 )
         viewers = {
             "desktopId": domain["id"],
-            "jwt": viewer_jwt(domain["id"], minutes=30),
+            "jwt": viewer_jwt(domain["category"], domain["id"], minutes=30),
             "vmName": domain["name"],
             "vmDescription": domain["description"],
             "vmState": "Started",
