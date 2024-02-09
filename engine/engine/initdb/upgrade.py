@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 122
+release_version = 123
+# release 123: Fix email field users
 # release 122: Add maintenance field to categories
 # release 121: BREAKING CHANGE, update "storage_pool" to new table
 # release 120: REMOVED: update "storage_pool" table with new fields, add index "name"
@@ -3710,6 +3711,13 @@ class Upgrade(object):
                 r.table(table).get_all("local", index="provider").filter(
                     ~r.row.has_fields("password_last_updated")
                 ).update({"password_last_updated": 0}).run(self.conn)
+            except Exception as e:
+                None
+        if version == 123:
+            try:
+                r.table(table).filter(~r.row.has_fields("email")).update(
+                    {"email": ""}
+                ).run(self.conn)
             except Exception as e:
                 None
 
