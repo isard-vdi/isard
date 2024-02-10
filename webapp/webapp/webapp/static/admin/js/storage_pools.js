@@ -84,7 +84,9 @@ $(document).ready(function () {
         data: null,
         title: "Action",
         render: function (data, type, full, meta) {
-          if (data.id == "00000000-0000-0000-0000-000000000000") { return "" } else {
+          if (data.id == "00000000-0000-0000-0000-000000000000") {
+            return '<button id="btn-edit" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
+          } else {
             return data.enabled ?
               `<!--'<button id="btn-allowed" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>--> \
                   <button id="btn-edit" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
@@ -141,17 +143,12 @@ $(document).ready(function () {
         modalAllowedsFormShow("storage_pool", data);
         break;
       case 'btn-edit':
-      if(data.id == "00000000-0000-0000-0000-000000000000"){
-        return new PNotify({
-          title: "ERROR editing pool",
-          text: "Default pool can't be edited",
-          hide: true,
-          delay: 3000,
-          icon: 'fa fa-warning',
-          opacity: 1,
-          type: 'error'
-        });
-      } else {
+        var isDefault = data.id == "00000000-0000-0000-0000-000000000000";
+        $("#modalEditStoragePool #modalEdit #name").attr("disabled", isDefault);
+        $("#modalEditStoragePool #modalEdit #description").attr("disabled", isDefault);
+        $("#modalEditStoragePool #modalEdit #mountpoint").attr("disabled", isDefault);
+        $("#modalEditStoragePool #modalEdit #category").attr("disabled", isDefault);
+        
         $("#modalEditStoragePool #modalEdit")[0].reset();
         $('#modalEdit #pathsTableEdit tbody').html('');
         $("#modalEditStoragePool #category").select2({
@@ -261,7 +258,7 @@ $(document).ready(function () {
             typeCell.innerHTML = title;
             pathObj.path = pathObj.path.split("/")[pathObj.path.split("/").length-1]
 
-            pathCell.innerHTML = `<span class="path_base"></span><input id="path" name="${type}-patzh" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text" value="${pathObj.path}">`;
+            pathCell.innerHTML = `<span class="path_base"></span><input id="path" name="${type}-path" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text" value="${pathObj.path}">`;
             weightCell.innerHTML = `<input id="weight" name="${type}-weight" type="number" value="${pathObj.weight}">`;
             buttonAddDelCell.innerHTML = `<input id='modalEdit-addrow-${type}' type='button' value='+' onclick='addRow("${type}", "modalEdit")'/> \
                                           <input class='modalEdit-delrow-${type}' type='button' value='-' onclick='delRow("${type}", "modalEdit")'/>`;
@@ -274,7 +271,6 @@ $(document).ready(function () {
             }
           }
         }
-       }
        break;
       case 'btn-enable':
         let change = data["enabled"] ? "disable" : "enable";
@@ -414,41 +410,52 @@ function renderEnabled(enabled, kind) {
 
 function renderStoragePoolsPaths(data) {
   var $newPanel = "";
-  $.each(data["categories_names"], function (index, category) {
+  if (data["categories_names"].length) {
+    $.each(data["categories_names"], function (index, category) {
+      $panel = $(".template-storage_pools-detail").clone();
+      $panel.find(".x_title h3").text(category["name"] + " paths");
+      $pathsTBody = $panel.find("tbody");
+      $pathsTBody.empty();
+      $.each(data.paths, function (type, paths) {
+        createDetailPanel(type, paths, category);
+      });
+      $newPanel.length ? $newPanel.find(".category-panel-container").append($panel.find(".detail-col")) : $newPanel = $panel;
+    });
+  } else {
     $panel = $(".template-storage_pools-detail").clone();
-    $panel.find(".x_title h3").text(category["name"]+" paths");
     $pathsTBody = $panel.find("tbody");
     $pathsTBody.empty();
     $.each(data.paths, function (type, paths) {
-      if (type == "desktop") {
-        icon = "fa fa-desktop fa-1x"
-        typeName = "<b>Desktops</b>"
-      } else if (type == "media") {
-        icon = "fa fa-circle-o fa-1x"
-        typeName = "<b>Media</b>"
-      } else if (type == "template") {
-        icon = "fa fa-cubes fa-1x"
-        typeName = "<b>Templates</b>"
-      } else if (type == "volatile") {
-        icon = "fa fa-laptop fa-1x"
-        typeName = "<b>Volatile</b>"
-      }
-      $.each(paths, function (index, path) {
-        $pathsTBody.append(
-          $('<tr>').append(
-            $('<td>').append($('<i>').addClass(icon)).append(' ').append(typeName),
-            $('<td>').text(`${data.mountpoint}/${category["id"]}/${path.path}`),
-            $('<td>').text(path.weight)
-          )
-        );
-      });
+      createDetailPanel(type, paths, null);
     });
-    $newPanel.length ? $newPanel.find(".category-panel-container").append($panel.find(".detail-col")) : $newPanel = $panel;
-  });
-  // $newPanel.html(function(i, oldHtml){
-  //   return oldHtml.replace(/d.id/g, data.id).replace(/d.name/g, data.name).replace(/d.description/g, data.description);
-  // });
+    $newPanel = $panel;
+  }
   return $newPanel;
+
+  function createDetailPanel(type, paths, category) {
+    if (type == "desktop") {
+      icon = "fa fa-desktop fa-1x";
+      typeName = "<b>Desktops</b>";
+    } else if (type == "media") {
+      icon = "fa fa-circle-o fa-1x";
+      typeName = "<b>Media</b>";
+    } else if (type == "template") {
+      icon = "fa fa-cubes fa-1x";
+      typeName = "<b>Templates</b>";
+    } else if (type == "volatile") {
+      icon = "fa fa-laptop fa-1x";
+      typeName = "<b>Volatile</b>";
+    }
+    $.each(paths, function (index, path) {
+      $pathsTBody.append(
+        $('<tr>').append(
+          $('<td>').append($('<i>').addClass(icon)).append(' ').append(typeName),
+          $('<td>').text(`${data.mountpoint}/${category ? category["id"] + "/" : ""}${path.path}`),
+          $('<td>').text(path.weight)
+        )
+      );
+    });
+  }
 }
 
 function addRow(type, modal) {
@@ -649,7 +656,7 @@ function updateStoragePool(data) {
     success: function (data) {
       notice.update({
         title: 'Updated',
-        text: 'Pool updated successfully',
+        text: 'Pool updated successfully', 
         hide: true,
         delay: 1000,
         icon: 'fa fa-' + data.icon,

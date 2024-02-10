@@ -9,6 +9,7 @@
 import time
 
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from rethinkdb import RethinkDB
 
 from api import app
@@ -409,17 +410,18 @@ def update_storage_pool(storage_pool_id, data):
     if data.get("paths"):
         _check_duplicated_paths(data["paths"])
         _check_with_validate_weight(data["paths"])
-    if storage_pool_id == "00000000-0000-0000-0000-000000000000":
+    if storage_pool_id == DEFAULT_STORAGE_POOL_ID:
         if "enabled" in data:
             raise Error("bad_request", "Default pool can't be disabled")
-        else:
-            raise Error("bad_request", "Default pool can't be edited")
+        for key in ["name", "description", "mountpoint", "categories"]:
+            if key in data:
+                data.pop(key)
     with app.app_context():
         r.table("storage_pool").get(storage_pool_id).update(data).run(db.conn)
 
 
 def delete_storage_pool(storage_pool_id):
-    if storage_pool_id == "00000000-0000-0000-0000-000000000000":
+    if storage_pool_id == DEFAULT_STORAGE_POOL_ID:
         raise Error("bad_request", "Default pool can't be removed")
     with app.app_context():
         r.table("storage_pool").get(storage_pool_id).delete().run(db.conn)
