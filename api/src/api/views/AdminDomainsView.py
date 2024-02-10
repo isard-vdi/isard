@@ -239,9 +239,22 @@ def api_v3_logs_desktops(payload, view="raw"):
             200,
             {"Content-Type": "application/json"},
         )
-    if view == "desktops_view":
+    if view == "desktop_grouping":
         ld = LogsDesktopsQuery(request.form)
-        ld.desktop_view
+        ld.group_by_desktop_id
+        return (
+            json.dumps(
+                ld.data,
+                indent=4,
+                sort_keys=True,
+                default=str,
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    if view == "category_grouping":
+        ld = LogsDesktopsQuery(request.form)
+        ld.group_by_category_id
         return (
             json.dumps(
                 ld.data,
@@ -270,9 +283,22 @@ def api_v3_logs_users(payload, view="raw"):
             200,
             {"Content-Type": "application/json"},
         )
-    if view == "users_view":
+    if view == "user_grouping":
         ld = LogsUsersQuery(request.form)
-        ld.user_view
+        ld.group_by_user_id
+        return (
+            json.dumps(
+                ld.data,
+                indent=4,
+                sort_keys=True,
+                default=str,
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    if view == "category_grouping":
+        ld = LogsUsersQuery(request.form)
+        ld.group_by_category_id
         return (
             json.dumps(
                 ld.data,
