@@ -203,7 +203,8 @@
             "logout": "Ausloggen",
             "profile": "Profil",
             "media": "Medien",
-            "templates": "Vorlagen"
+            "templates": "Vorlagen",
+            "storage": "Speicher"
         },
         "not-found": {
             "title": "Die angeforderte Adresse wurde nicht gefunden",
@@ -242,9 +243,15 @@
             },
             "no-info-default": "Keine Beschreibung vorhanden",
             "actions": {
-                "delete": "Löschen"
+                "delete": "Löschen",
+                "template": "Zur Vorlage machen",
+                "edit": "bearbeiten",
+                "direct-link": "direkter Link"
             },
-            "filter-label": "Filtern"
+            "filter-label": "Filtern",
+            "notification-bar": {
+                "next-booking": "Nächste Buchung"
+            }
         },
         "rdp-modal": {
             "button-refresh": "Aktualisieren",
@@ -268,7 +275,24 @@
             "checkbox-text-short": "Gestartet",
             "upload-file": "Datei hochladen",
             "cancel": "Abbrechen",
-            "select": "Auswählen"
+            "select": "Auswählen",
+            "deployment": {
+                "buttons": {
+                    "make-not-visible": {
+                        "title": "Unsichtbar machen"
+                    },
+                    "videowall": {
+                        "title": "Zur Videowand gehen"
+                    },
+                    "make-visible": {
+                        "title": "Sichtbar machen"
+                    },
+                    "allowed": {
+                        "title": "Nutzer bearbeiten"
+                    }
+                }
+            },
+            "new-media": "Neues Medium"
         },
         "select-search": {
             "empty": "Keine Optionen verfügbar"
@@ -325,7 +349,9 @@
                 "vcpus": "vCPUS",
                 "warning": "WARNUNG: Diese Hardware wurde aufgrund von Benutzerberechtigungen geändert:",
                 "interfaces": "Netzwerke",
-                "disk-size": "Festplattengröße (GB)"
+                "disk-size": "Festplattengröße (GB)",
+                "boot": "Hochfahren",
+                "disk-bus": "Festplatten-Interface"
             },
             "image": {
                 "title": "Bild"
@@ -424,7 +450,8 @@
         },
         "duplicate-template": {
             "title": "Vorlage duplizieren"
-        }
+        },
+        "show-pages": "Zeigen"
     },
     "errors": {
         "desktop_new_user_quota_exceeded": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",

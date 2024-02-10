@@ -45,7 +45,7 @@
                 }
             }
         },
-        "email":{
+        "email": {
             "modal": {
                 "title": "Cambio / Validación del correo electrónico",
                 "change-validate-address": "Cambiar o validar el correo electrónico",

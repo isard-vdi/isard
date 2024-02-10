@@ -1,6 +1,63 @@
 {
     "validations": {
         "required": "{property} 必填",
-        "sameAs": "{property}字段的值必须与{property2}相同。"
+        "sameAs": "{property}字段的值必须与{property2}相同。",
+        "url": "{property} 位置必须是“统一资源定位符(网址)”",
+        "undefined": "未定义"
+    },
+    "forms": {
+        "allowed": {
+            "groups": "组：",
+            "users": "用户：",
+            "modal": {
+                "buttons": {
+                    "update": "更新"
+                },
+                "title": "已允许更新"
+            },
+            "empty": "选中的和没选的都会向所有人共享"
+        },
+        "new-desktop": {
+            "filter": "筛选",
+            "section-title-advanced": "高级选项",
+            "desktop-template": "模板",
+            "filter-placeholder": "输入并搜索",
+            "template-table-column-headers": {
+                "selected": "已选中",
+                "image": "图片",
+                "description": "说明",
+                "name": "名字",
+                "category": "分类",
+                "group": "组",
+                "user": "用户"
+            }
+        },
+        "new-template": {
+            "title": "创建新模板",
+            "name": "名称",
+            "description": "描述"
+        },
+        "registration": {
+            "code": "注册码"
+        },
+        "password": {
+            "modal": {
+                "password": {
+                    "label": "密码",
+                    "placeholder": "密码"
+                },
+                "buttons": {
+                    "update": "更新"
+                },
+                "title": "更改密码",
+                "confirmation-password": {
+                    "label": "确认密码",
+                    "placeholder": "确认密码"
+                }
+            }
+        },
+        "duplicate-template": {
+            "title": "重复模板"
+        }
     }
 }
