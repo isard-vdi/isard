@@ -259,15 +259,20 @@ class LogsDesktopsQuery(DatatablesQuery):
         super().__init__(form_data)
 
     @property
-    def desktop_view(self):
-        self.group_by_desktop_name()
+    def group_by_desktop_id(self):
+        self.group_by_id("desktop_id")
 
-    def group_by_desktop_name(self):
+    @property
+    def group_by_category_id(self):
+        self.group_by_id("owner_category_id")
+
+    # @cached(cache=TTLCache(maxsize=2, ttl=300))
+    def group_by_id(self, index_id):
+        # The uniqueness desktop is given by the desktop_id
         query = r.table(self._table)
-        # query = self.add_range_filters(query)
+        query = query.group(index=index_id)
         query = (
-            query.group(index="desktop_id")
-            .map(
+            query.map(
                 lambda log: {
                     "count": 1,
                     "desktop_name": log["desktop_name"],
@@ -312,15 +317,18 @@ class LogsUsersQuery(DatatablesQuery):
         super().__init__(form_data)
 
     @property
-    def user_view(self):
-        self.group_by_user_name()
+    def group_by_user_id(self):
+        self.group_by_id("owner_user_id")
 
-    def group_by_user_name(self):
+    @property
+    def group_by_category_id(self):
+        self.group_by_id("owner_category_id")
+
+    def group_by_id(self, index_id):
         query = r.table(self._table)
-        # query = self.add_range_filters(query)
+        query = query.group(index=index_id)
         query = (
-            query.group(index="owner_user_id")
-            .map(
+            query.map(
                 lambda log: {
                     "count": 1,
                     "owner_user_name": log["owner_user_name"],

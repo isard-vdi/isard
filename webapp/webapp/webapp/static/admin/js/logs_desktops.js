@@ -177,6 +177,7 @@ $.fn.dataTable.Api.register( 'clearPipeline()', function () {
  
 logs_desktops_raw_table = null;
 logs_desktops_desktop_table = null;
+logs_desktops_category_table = null;
 
 $('#echart-daily-items').echartDailyItems("logs_desktops", "starting_time");
 $(document).ready(function () {
@@ -186,6 +187,9 @@ $(document).ready(function () {
         }
         if ($("#btn-desktop-view-tab").hasClass("active")){
             logs_desktops_desktop_table.clearPipeline().draw();
+        }
+        if ($("#btn-category-view-tab").hasClass("active")){
+            logs_desktops_category_table.clearPipeline().draw();
         }
     }, 2000);
     $('#echart-daily-items').data('echartInstance').on('datazoom', debounceZoom);
@@ -205,6 +209,13 @@ $(document).ready(function () {
                 desktop_table();
             }else{
                 logs_desktops_desktop_table.clearPipeline().draw();
+            }
+        }
+        if ($(this).attr('id') == 'btn-category-view-tab'){
+            if (logs_desktops_category_table == null){
+                desktop_by_category_table();
+            }else{
+                logs_desktops_category_table.clearPipeline().draw();
             }
         }
         if ($(this).attr('id') == 'btn-echarts-view-tab'){
@@ -362,7 +373,7 @@ function desktop_table(){
         processing: true,
         searching: false,
         ajax: $.fn.dataTable.pipeline({
-            url: "/api/v3/admin/logs_desktops/desktops_view",
+            url: "/api/v3/admin/logs_desktops/desktop_grouping",
             pages: 5, // number of pages to cache
             method: 'POST',
         }),
@@ -374,13 +385,14 @@ function desktop_table(){
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button" data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
+            { "data": "count"},
             { "data": "desktop_name"},
             { "data": "starting_time"},
             { "data": "owner_user_name"},
             { "data": "owner_group_name"},
             { "data": "owner_category_name"},
         ],
-        order: [[1, "asc"]], // Should be a column with a db index!
+        order: [[1, "desc"]], // Should be a column with a db index!
         initComplete: function (settings, json) {
 			let table = this.api()
             this.api()
@@ -425,6 +437,77 @@ function desktop_table(){
     });
     $('#table-logs-desktops-desktop-view').on( 'length.dt', function ( e, settings, len ) {
         logs_desktops_desktop_table.clearPipeline().draw();
+    } );
+}
+
+function desktop_by_category_table(){
+    logs_desktops_category_table = $('#table-logs-desktops-category-view').DataTable({
+        serverSide: true,
+		responsive: true,
+        autoWidth: false,
+        processing: true,
+        searching: false,
+        ajax: $.fn.dataTable.pipeline({
+            url: "/api/v3/admin/logs_desktops/category_grouping",
+            pages: 5, // number of pages to cache
+            method: 'POST',
+        }),
+        columns: [
+            {
+                "className": 'details-control',
+                "orderable": false,
+                "data": null,
+                "width": "10px",
+                "defaultContent": '<button class="btn btn-xs btn-info" type="button" data-placement="top" ><i class="fa fa-plus"></i></button>'
+            },
+            { "data": "count"},
+            { "data": "owner_category_name"},
+        ],
+        order: [[1, "desc"]], // Should be a column with a db index!
+        initComplete: function (settings, json) {
+			let table = this.api()
+            this.api()
+                .columns()
+                .every(function () {
+                    let column = this;
+					let columnDataField = column.settings().init().columns[column.index()].data;
+					if ( ! column.header().classList.contains('sorting_disabled') && $.inArray(columnDataField, json.indexs) > -1 ){
+						let input = document.createElement('input');
+						column.header().appendChild(input);
+						input.addEventListener('click', (event) => {
+							event.stopPropagation();
+						});
+
+						let debouncedKeyUp = debounce(function () {
+							if (column.search() !== input.value) {
+								column.search(input.value).draw();
+							}
+						}, 1000);
+
+						input.addEventListener('keyup', debouncedKeyUp);
+					}else{
+						// TODO: remove sort event and icon
+					}
+				});
+
+				$(table.table().container()).on('processing.dt', function (e, settings, processing) {
+					if (processing) {
+						$(this).addClass('loading');
+	
+						// Create and append the overlay with spinner
+						let overlay = document.createElement('div');
+						overlay.className = 'overlay';
+						overlay.innerHTML = '<div class="text-primary" role="status"><i class="fa fa-spinner fa-spin fa-5x fa-fw"></i></div>';
+						this.appendChild(overlay);
+					} else {
+						$(this).removeClass('loading');
+						$(this).find('.overlay').remove();
+					}
+				});
+        }
+    });
+    $('#table-logs-desktops-category-view').on( 'length.dt', function ( e, settings, len ) {
+        logs_desktops_category_table.clearPipeline().draw();
     } );
 }
 
