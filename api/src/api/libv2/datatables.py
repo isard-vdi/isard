@@ -32,6 +32,8 @@ r = RethinkDB()
 db = RDB(app)
 db.init_app(app)
 
+ARRAY_LIMIT = 500000
+
 
 def _get_table_indexs():
     indexs = {}
@@ -113,26 +115,39 @@ class DatatablesQuery(ABC):
         query = query.pluck(pluck)
         query = query.distinct().count()
         with app.app_context():
-            data = query.run(db.conn)
+            data = query.run(db.conn, array_limit=ARRAY_LIMIT)
 
         self.group_by_id("owner_category_id")
         totals = self.data_paged
 
         data = [
             {
-                "owner_category_id": key,
-                "owner_category_name": _get_category()[key],
+                "total": next(
+                    (t["count"] for t in totals if t["owner_category_id"] == key), 0
+                ),
                 "count": value,
-                "total": [t["count"] for t in totals if t["owner_category_id"] == key][
-                    0
-                ],
+                "owner_category_name": _get_category().get(key, "[DELETED]" + key),
+                "owner_category_id": key,
             }
             for key, value in data.items()
         ]
+        if self.form_data["order"][0]["column"] == "1":
+            order = "total"
+        elif self.form_data["order"][0]["column"] == "2":
+            order = "count"
+        elif self.form_data["order"][0]["column"] == "3":
+            order = "owner_category_name"
+        else:
+            order = "count"
+        if self.form_data["order"][0]["dir"] == "asc":
+            data = sorted(data, key=lambda x: x[order])
+        else:
+            data = sorted(data, key=lambda x: x[order], reverse=True)
+
         return {
             "draw": int(self.form_data["draw"]),
-            "recordsTotal": self.total,
-            "recordsFiltered": self.total,
+            "recordsTotal": len(data),
+            "recordsFiltered": len(data),
             "data": data,
             "indexs": [],
         }
