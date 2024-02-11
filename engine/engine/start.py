@@ -54,9 +54,11 @@ if __name__ == "__main__":
     werk.setLevel(logging.ERROR)
 
     # add log handler
-    handler = RotatingFileHandler("/tmp/api.log", maxBytes=10000, backupCount=1)
-    handler.setLevel(logging.INFO)
-    app.logger.addHandler(handler)
+    # handler = RotatingFileHandler(
+    #     "/var/log/isard/api.log", maxBytes=10000, backupCount=1
+    # )
+    # handler.setLevel(logging.INFO)
+    # app.logger.addHandler(handler)
 
     # register blueprints
     from engine.api import api as api_blueprint
