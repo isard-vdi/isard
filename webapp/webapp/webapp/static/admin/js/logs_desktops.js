@@ -460,6 +460,7 @@ function desktop_by_category_table(){
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button" data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
+            { "data": "total"},
             { "data": "count"},
             { "data": "owner_category_name"},
         ],

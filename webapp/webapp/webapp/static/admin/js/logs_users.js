@@ -438,7 +438,6 @@ function user_table(){
 }
 
 function category_table(){
-    console.log("category_table")
     logs_users_category_table = $('#table-logs-users-category-view').DataTable({
         serverSide: true,
 		responsive: true,
@@ -458,6 +457,7 @@ function category_table(){
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button" data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
+            { "data": "total"},
             { "data": "count"},
             { "data": "owner_category_name"},
         ],

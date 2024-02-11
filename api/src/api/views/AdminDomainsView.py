@@ -254,10 +254,9 @@ def api_v3_logs_desktops(payload, view="raw"):
         )
     if view == "category_grouping":
         ld = LogsDesktopsQuery(request.form)
-        ld.group_by_category_id
         return (
             json.dumps(
-                ld.data,
+                ld.data_category_unique,
                 indent=4,
                 sort_keys=True,
                 default=str,
@@ -298,10 +297,9 @@ def api_v3_logs_users(payload, view="raw"):
         )
     if view == "category_grouping":
         ld = LogsUsersQuery(request.form)
-        ld.group_by_category_id
         return (
             json.dumps(
-                ld.data,
+                ld.data_category_unique,
                 indent=4,
                 sort_keys=True,
                 default=str,
