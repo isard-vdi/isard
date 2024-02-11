@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import base64
+import tempfile
 from json import loads
 from os import environ, remove, rename
 from os.path import isdir, isfile
@@ -343,24 +344,17 @@ def virt_win_reg(storage_path, registry_patch):
         return e
 
     try:
-        tmp_file = f"/tmp/tmp.reg"
-        run(["touch", tmp_file])
-        with open(tmp_file, "w") as tmpreg:
-            tmpreg.write(registry_patch)
+        with tempfile.NamedTemporaryFile() as fp:
+            fp.write(registry_patch.encode())
+            fp.flush()
+            run(
+                [
+                    "virt-win-reg",
+                    "--merge",
+                    storage_path,
+                    fp.name,
+                ],
+                check=True,
+            ).returncode
     except Exception as e:
-        return e
-
-    try:
-        run(
-            [
-                "virt-win-reg",
-                "--merge",
-                storage_path,
-                tmp_file,
-            ],
-            check=True,
-        ).returncode
-        remove(tmp_file)
-    except Exception as e:
-        remove(tmp_file)
         return e
