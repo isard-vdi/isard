@@ -44,6 +44,15 @@ def _get_table_indexs():
 TABLE_INDEXS = _get_table_indexs()
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=60))
+def _get_category():
+    with app.app_context():
+        return {
+            item["id"]: item["name"]
+            for item in r.table("categories").pluck("id", "name").run(db.conn)
+        }
+
+
 class DatatablesQuery(ABC):
     @property
     @abstractmethod
@@ -72,27 +81,63 @@ class DatatablesQuery(ABC):
         self.q = query
 
     @property
-    @cached(cache=TTLCache(maxsize=1, ttl=5))
     def total(self):
         with app.app_context():
             return r.table(self._table).count().run(db.conn)
 
     @property
-    @cached(cache=TTLCache(maxsize=1, ttl=5))
     def filtered(self):
         self.default_query()
         with app.app_context():
             return self.q.count().run(db.conn)
 
     @property
-    @cached(cache=TTLCache(maxsize=1, ttl=5))
     def data_filtered(self):
         self.default_query()
         with app.app_context():
             return list(self.q.run(db.conn))
 
     @property
-    @cached(cache=TTLCache(maxsize=1, ttl=5))
+    @cached(
+        cache=TTLCache(maxsize=1, ttl=300),
+        key=lambda self: f"{self.__class__.__name__}_{self.__hash__()}",
+    )
+    def data_category_unique(self):
+        query = r.table(self._table)
+        query = query.group(index="owner_category_id")
+        query = self.add_range_filters(query, skip_indexs=True)
+        if self._table == "logs_users":
+            pluck = "owner_user_id"
+        if self._table == "logs_desktops":
+            pluck = "desktop_id"
+        query = query.pluck(pluck)
+        query = query.distinct().count()
+        with app.app_context():
+            data = query.run(db.conn)
+
+        self.group_by_id("owner_category_id")
+        totals = self.data_paged
+
+        data = [
+            {
+                "owner_category_id": key,
+                "owner_category_name": _get_category()[key],
+                "count": value,
+                "total": [t["count"] for t in totals if t["owner_category_id"] == key][
+                    0
+                ],
+            }
+            for key, value in data.items()
+        ]
+        return {
+            "draw": int(self.form_data["draw"]),
+            "recordsTotal": self.total,
+            "recordsFiltered": self.total,
+            "data": data,
+            "indexs": [],
+        }
+
+    @property
     def data_paged(self):
         self.default_query()
         query = self.add_pagination(self.q)
@@ -251,6 +296,76 @@ class DatatablesQuery(ABC):
                         sub_data[k] = v
         return data
 
+    def group_by_id(self, index_id):
+        query = r.table(self._table)
+        query = query.group(index=index_id)
+        if self._table == "logs_desktops":
+            query = (
+                query.map(
+                    lambda log: {
+                        "count": 1,
+                        "desktop_name": log["desktop_name"],
+                        "desktop_id": log["desktop_id"],
+                        "owner_user_name": log["owner_user_name"],
+                        "owner_user_id": log["owner_user_id"],
+                        "owner_group_name": log["owner_group_name"],
+                        "owner_group_id": log["owner_group_id"],
+                        "owner_category_name": log["owner_category_name"],
+                        "owner_category_id": log["owner_category_id"],
+                        "starting_time": log["starting_time"],
+                    }
+                )
+                .reduce(
+                    lambda left, right: {
+                        "count": left["count"] + right["count"],
+                        "desktop_name": left["desktop_name"],
+                        "desktop_id": left["desktop_id"],
+                        "owner_user_name": left["owner_user_name"],
+                        "owner_user_id": left["owner_user_id"],
+                        "owner_group_name": left["owner_group_name"],
+                        "owner_group_id": left["owner_group_id"],
+                        "owner_category_name": left["owner_category_name"],
+                        "owner_category_id": left["owner_category_id"],
+                        "starting_time": right["starting_time"],
+                    }
+                )
+                .ungroup()["reduction"]
+            )
+        if self._table == "logs_users":
+            query = (
+                query.map(
+                    lambda log: {
+                        "count": 1,
+                        "owner_user_name": log["owner_user_name"],
+                        "owner_user_id": log["owner_user_id"],
+                        "owner_group_name": log["owner_group_name"],
+                        "owner_group_id": log["owner_group_id"],
+                        "owner_category_name": log["owner_category_name"],
+                        "owner_category_id": log["owner_category_id"],
+                        "started_time": log["started_time"],
+                    }
+                )
+                .reduce(
+                    lambda left, right: {
+                        "count": left["count"] + right["count"],
+                        "owner_user_name": left["owner_user_name"],
+                        "owner_user_id": left["owner_user_id"],
+                        "owner_group_name": left["owner_group_name"],
+                        "owner_group_id": left["owner_group_id"],
+                        "owner_category_name": left["owner_category_name"],
+                        "owner_category_id": left["owner_category_id"],
+                        "started_time": right["started_time"],
+                    }
+                )
+                .ungroup()["reduction"]
+            )
+
+        query = self.add_order(query, skip_indexs=True)
+        query = self.add_range_filters(query, skip_indexs=True)
+        query = self.add_search_filters(query)
+        query = self.add_pluck(query)
+        self.query = query
+
 
 class LogsDesktopsQuery(DatatablesQuery):
     _table = "logs_desktops"
@@ -259,55 +374,20 @@ class LogsDesktopsQuery(DatatablesQuery):
         super().__init__(form_data)
 
     @property
+    @cached(
+        cache=TTLCache(maxsize=1, ttl=300),
+        key=lambda self: f"{self.__class__.__name__}_{self.__hash__()}",
+    )
     def group_by_desktop_id(self):
         self.group_by_id("desktop_id")
 
     @property
+    @cached(
+        cache=TTLCache(maxsize=1, ttl=300),
+        key=lambda self: f"{self.__class__.__name__}_{self.__hash__()}",
+    )
     def group_by_category_id(self):
-        self.group_by_id("owner_category_id")
-
-    # @cached(cache=TTLCache(maxsize=2, ttl=300))
-    def group_by_id(self, index_id):
-        # The uniqueness desktop is given by the desktop_id
-        query = r.table(self._table)
-        query = query.group(index=index_id)
-        query = (
-            query.map(
-                lambda log: {
-                    "count": 1,
-                    "desktop_name": log["desktop_name"],
-                    "desktop_id": log["desktop_id"],
-                    "owner_user_name": log["owner_user_name"],
-                    "owner_user_id": log["owner_user_id"],
-                    "owner_group_name": log["owner_group_name"],
-                    "owner_group_id": log["owner_group_id"],
-                    "owner_category_name": log["owner_category_name"],
-                    "owner_category_id": log["owner_category_id"],
-                    "starting_time": log["starting_time"],
-                }
-            )
-            .reduce(
-                lambda left, right: {
-                    "count": left["count"] + right["count"],
-                    "desktop_name": left["desktop_name"],
-                    "desktop_id": left["desktop_id"],
-                    "owner_user_name": left["owner_user_name"],
-                    "owner_user_id": left["owner_user_id"],
-                    "owner_group_name": left["owner_group_name"],
-                    "owner_group_id": left["owner_group_id"],
-                    "owner_category_name": left["owner_category_name"],
-                    "owner_category_id": left["owner_category_id"],
-                    "starting_time": right["starting_time"],
-                }
-            )
-            .ungroup()["reduction"]
-        )
-
-        query = self.add_order(query, skip_indexs=True)
-        query = self.add_range_filters(query, skip_indexs=True)
-        query = self.add_search_filters(query)
-        query = self.add_pluck(query)
-        self.query = query
+        return self.data_category_unique()
 
 
 class LogsUsersQuery(DatatablesQuery):
@@ -317,46 +397,17 @@ class LogsUsersQuery(DatatablesQuery):
         super().__init__(form_data)
 
     @property
+    @cached(
+        cache=TTLCache(maxsize=1, ttl=300),
+        key=lambda self: f"{self.__class__.__name__}_{self.__hash__()}",
+    )
     def group_by_user_id(self):
         self.group_by_id("owner_user_id")
 
     @property
+    @cached(
+        cache=TTLCache(maxsize=1, ttl=300),
+        key=lambda self: f"{self.__class__.__name__}_{self.__hash__()}",
+    )
     def group_by_category_id(self):
-        self.group_by_id("owner_category_id")
-
-    def group_by_id(self, index_id):
-        query = r.table(self._table)
-        query = query.group(index=index_id)
-        query = (
-            query.map(
-                lambda log: {
-                    "count": 1,
-                    "owner_user_name": log["owner_user_name"],
-                    "owner_user_id": log["owner_user_id"],
-                    "owner_group_name": log["owner_group_name"],
-                    "owner_group_id": log["owner_group_id"],
-                    "owner_category_name": log["owner_category_name"],
-                    "owner_category_id": log["owner_category_id"],
-                    "started_time": log["started_time"],
-                }
-            )
-            .reduce(
-                lambda left, right: {
-                    "count": left["count"] + right["count"],
-                    "owner_user_name": left["owner_user_name"],
-                    "owner_user_id": left["owner_user_id"],
-                    "owner_group_name": left["owner_group_name"],
-                    "owner_group_id": left["owner_group_id"],
-                    "owner_category_name": left["owner_category_name"],
-                    "owner_category_id": left["owner_category_id"],
-                    "started_time": right["started_time"],
-                }
-            )
-            .ungroup()["reduction"]
-        )
-
-        query = self.add_order(query, skip_indexs=True)
-        query = self.add_range_filters(query, skip_indexs=True)
-        query = self.add_search_filters(query)
-        query = self.add_pluck(query)
-        self.query = query
+        return self.data_category_unique()
