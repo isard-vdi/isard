@@ -25,6 +25,7 @@ from flask import request
 
 from api import app
 
+from ..libv2.api_hypervisors import check_storage_pool_availability
 from ..libv2.api_storage import (
     add_storage_pool,
     delete_storage_pool,
@@ -33,7 +34,7 @@ from ..libv2.api_storage import (
     update_storage_pool,
 )
 from ..libv2.validators import _validate_item
-from .decorators import is_admin
+from .decorators import has_token, is_admin
 
 
 @app.route("/api/v3/admin/storage_pool", methods=["POST"])
@@ -90,6 +91,17 @@ def admin_storage_pool_delete(payload, storage_pool_id):
     delete_storage_pool(storage_pool_id)
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/storage_pool/availability", methods=["GET"])
+@has_token
+def admin_storage_pool_check_availability(payload):
+
+    return (
+        json.dumps(check_storage_pool_availability(payload["category_id"])),
         200,
         {"Content-Type": "application/json"},
     )
