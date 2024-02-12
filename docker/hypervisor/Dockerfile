@@ -172,19 +172,6 @@ RUN mkdir -pv /var/run/openvswitch/
 
 RUN apk add wireguard-tools
 
-# FILESYSTEMS
-## NFS client
-RUN apk add --no-cache nfs-utils
-
-## SEAWEEDFS
-#RUN wget https://github.com/chrislusf/seaweedfs/releases/download/2.64/linux_amd64_large_disk.tar.gz
-#RUN tar xvf linux_amd64_large_disk.tar.gz
-#RUN rm linux_amd64_large_disk.tar.gz
-#RUN mv weed /usr/local/bin/
-
-## CIFS
-RUN apk add --no-cache cifs-utils
-
 ## MDEVCTL
 RUN mkdir -p \
     /etc/mdevctl.d \
