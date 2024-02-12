@@ -55,6 +55,13 @@ $(document).ready(function () {
         })
         return categoryList.join(", ");
       } },
+      {
+        "data": "hypers", "title": "Available hypervisors", "width": "130px", "render": function (data, type, full, meta) {
+          return (data == 0 && full.enabled) ?
+            `<i title="No hypervisors available for this pool. Disk operations will fail" class="fa fa-warning" style="color:red;"> ${data}</i> ` :
+            data
+        }
+      },
       { "data": "description", "title": "Description", 'defaultContent': '' },
       // { 
       //   "data": "startable",
@@ -583,8 +590,6 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
         }
       }
     });
-
-    console.log(pathsTableEdit)
 
     for (let key in data) {
       if (key.endsWith("-weight") || key.endsWith("-path")) {
