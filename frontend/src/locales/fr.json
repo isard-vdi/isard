@@ -579,15 +579,15 @@
             "description": "Description",
             "name": "Nom du média",
             "select-type": "Sélectionnez une option s'il vous plaît"
-        }
+        },
+        "duplicate": "Dupliquer",
+        "filter-placeholder": "Tapez pour rechercher"
     },
     "messages": {
         "yes": "Oui",
         "no": "Non",
         "title": {
             "delete": "Supprimer"
-        },
-        "confirmation": {
         },
         "info": {
             "deleting-desktop": "Suppression du bureau",
