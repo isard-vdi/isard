@@ -392,7 +392,14 @@ def get_storage_pools():
                         .get_all(r.args(pool["categories"]))
                         .pluck("name", "id")
                         .coerce_to("array"),
+                    ),
+                    "hypers": r.table("hypervisors")
+                    .filter(
+                        lambda hyper: hyper["status"] == "Online"
+                        and hyper["enabled"] == True
+                        and hyper["storage_pools"].contains(pool["id"])
                     )
+                    .count(),
                 }
             )
             .run(db.conn)
