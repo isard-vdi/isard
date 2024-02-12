@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 130
+release_version = 131
+# release 131: storage permissions on existing disks
 # release 130: Remove deleted storage from storage table
 # release 129: Add default maintenance text to config table
 # release 128: Add volatile field to applied quota
@@ -4370,6 +4371,30 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
             r.table("storage").get_all("deleted", index="status").delete().run(
                 self.conn
             )
+
+        if version == 131:
+            try:
+                r.table("storage").update({"perms": ["r", "w"]}).run(self.conn)
+
+                parents = list(  ## storage with disks dependencies
+                    r.table("storage")
+                    .filter(
+                        lambda storage: (
+                            storage["status"].ne("deleted") & storage["parent"].ne(None)
+                        )
+                    )["parent"]
+                    .distinct()
+                    .run(self.conn)
+                )
+                for parent in parents:
+                    try:
+                        r.table("storage").get(parent).update({"perms": ["r"]}).run(
+                            self.conn
+                        )
+                    except Exception:
+                        pass
+            except Exception as e:
+                print(e)
 
         return True
 

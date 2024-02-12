@@ -545,6 +545,7 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         title: 'Domains',
         data: 'domains'
       },
+      { data: "perms", title: "Perms" },
       {
         title: 'Last',
         data: 'last',

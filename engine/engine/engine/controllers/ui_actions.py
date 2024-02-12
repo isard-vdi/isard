@@ -707,7 +707,9 @@ class UiActions(object):
                 ] = path_selected
 
                 disk = dict_new_template["create_dict"]["hardware"]["disks"][i]
-                create_storage(disk, dict_domain.get("user"), force_parent=None)
+                create_storage(
+                    disk, dict_domain.get("user"), force_parent=None, perms=["r"]
+                )
                 update_table_field("domains", id_domain, "create_dict", create_dict)
 
                 action = {}
@@ -1004,6 +1006,12 @@ class UiActions(object):
             )
 
         update_table_field("domains", id_new, "create_dict", dict_to_create)
+        update_table_field(
+            "storage",
+            dict_to_create["hardware"]["disks"][index_disk]["storage_id"],
+            "perms",
+            ["r", "w"],
+        )
 
         # TODO: REVISAR SI RELAMENTE ES NECESARIO o esta acción responde a versiones antiguas de nuestras funciones de creación
         hardware_update = {}
@@ -1013,7 +1021,7 @@ class UiActions(object):
 
         for index_disk in range(len(dict_to_create["hardware"]["disks"])):
             disk = dict_to_create["hardware"]["disks"][index_disk]
-            insert_storage(disk)
+            insert_storage(disk, perms=["r"])
             backing_file = dict_to_create["hardware"]["disks"][index_disk]["parent"]
             new_file = dict_to_create["hardware"]["disks"][index_disk]["file"]
             path_selected = dict_to_create["hardware"]["disks"][index_disk][

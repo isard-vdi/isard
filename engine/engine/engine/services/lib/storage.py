@@ -45,7 +45,7 @@ def get_storage_id_filename(storage_id):
     return _get_filename(storage)
 
 
-def create_storage(disk, user, force_parent=False):
+def create_storage(disk, user, force_parent=False, perms=["r", "w"]):
     directory_path = disk.pop("path_selected")
     relative_path = PurePath(disk.pop("file")).relative_to(directory_path)
     storage_id = str(relative_path).removesuffix(relative_path.suffix)
@@ -55,6 +55,7 @@ def create_storage(disk, user, force_parent=False):
         parent = disk.pop("parent")
     else:
         parent = force_parent
+
     insert_table_dict(
         "storage",
         {
@@ -64,6 +65,7 @@ def create_storage(disk, user, force_parent=False):
             "parent": parent,
             "user_id": user,
             "status": "non_existing",
+            "perms": perms,
             "status_logs": [{"time": int(time.time()), "status": "created"}],
         },
     )
@@ -71,7 +73,7 @@ def create_storage(disk, user, force_parent=False):
     return storage_id
 
 
-def insert_storage(disk):
+def insert_storage(disk, perms=["r", "w"]):
     storage_id = disk.get("storage_id")
     if storage_id:
         storage = get_dict_from_item_in_table("storage", storage_id)
@@ -80,6 +82,7 @@ def insert_storage(disk):
                 "file": _get_filename(storage),
                 "parent": storage.get("parent"),
                 "path_selected": storage.get("directory_path"),
+                "perms": perms,
             }
         )
 
