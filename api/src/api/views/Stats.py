@@ -13,6 +13,7 @@ from ..libv2.api_stats import (
     GroupByCategories,
     Kind,
     OtherStatus,
+    StartedDomainsCount,
     Templates,
     Users,
 )
@@ -116,6 +117,17 @@ def stats_categories_limits(payload):
 def stats_categories_deployments(payload):
     return (
         json.dumps({"categories": CategoriesDeploys()}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/domains/started/count", methods=["GET"])
+@is_admin
+def api_v3_admin_domains_started_count(payload):
+    domains = StartedDomainsCount()
+    return (
+        json.dumps(domains),
         200,
         {"Content-Type": "application/json"},
     )

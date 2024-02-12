@@ -204,9 +204,11 @@ class ApiDesktopsPersistent:
             "image": template["image"],
             "server": False,
             "os": template["os"],
-            "guest_properties": new_data.get("guest_properties")
-            if new_data and new_data.get("guest_properties")
-            else template["guest_properties"],
+            "guest_properties": (
+                new_data.get("guest_properties")
+                if new_data and new_data.get("guest_properties")
+                else template["guest_properties"]
+            ),
             "create_dict": {
                 "hardware": create_dict["hardware"],
                 "origin": template["id"],
@@ -506,11 +508,13 @@ class ApiDesktopsPersistent:
             "group": payload["group_id"],
             "server": False,
             "xml": None,
-            "icon": "fa-circle-o"
-            if data["kind"] == "iso"
-            else "fa-disk-o"
-            if data["kind"] == "file"
-            else "fa-floppy-o",
+            "icon": (
+                "fa-circle-o"
+                if data["kind"] == "iso"
+                else "fa-disk-o"
+                if data["kind"] == "file"
+                else "fa-floppy-o"
+            ),
             "image": get_domain_stock_card(data["id"]),
             "os": "win",
             "guest_properties": data.get(
@@ -873,6 +877,27 @@ class ApiDesktopsPersistent:
             r.table("domains").get_all(
                 ["desktop", current_status], index="kind_status"
             ).update({"status": target_status}).run(db.conn)
+
+    def change_status_category(self, category, target_status):
+        filter_desktops = []
+
+        if target_status == "StartingPaused":
+            filter_desktops = ["Stopped", "Failed"]
+        if target_status == "Shutting-down":
+            filter_desktops = ["Started"]
+        if target_status == "Stopping":
+            filter_desktops = ["Shutting-down"]
+
+        with app.app_context():
+            r.table("domains").get_all(
+                ["desktop", category], index="kind_category"
+            ).filter(
+                lambda desktop: r.expr(filter_desktops).contains(desktop["status"])
+            ).update(
+                {"status": target_status}
+            ).run(
+                db.conn
+            )
 
 
 def check_template_status(template_id=None, template=None):

@@ -435,3 +435,23 @@ def CategoriesDeploys():
             .count()
             .run(db.conn)
         )
+
+
+def StartedDomainsCount():
+    with app.app_context():
+        result = (
+            r.table("domains")
+            .get_all(["desktop", "Started"], index="kind_status")
+            .group("category")
+            .count()
+            .ungroup()
+            .map(
+                lambda doc: {
+                    "category": doc["group"],
+                    "category_name": r.table("categories").get(doc["group"])["name"],
+                    "count": doc["reduction"],
+                }
+            )
+            .run(db.conn)
+        )
+        return result

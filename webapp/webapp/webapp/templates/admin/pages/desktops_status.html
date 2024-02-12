@@ -28,9 +28,9 @@
         box-shadow: 0.5px 0.5px 5px 2px rgba(0, 0, 0, .1);
 }
 
-#title-row span {
+.title-row span {
     font-size: 22px;
-    color:black
+    color:black !important;
 }
 
 @media (min-width: 1160px) and (max-width: 1390px) {
@@ -45,7 +45,6 @@
     }
 }
 
-
 table {
     width: 100% !important
 }
@@ -58,7 +57,7 @@ table {
     <div class="col">
         <div class="x_panel">
             <div class="x_title">
-                <div class="row" id="title-row">
+                <div class="row title-row">
                     <div class="col-6 col-md-6 col-sm-12 col-xs-12">
                         <h2><i class="fa fa-dashboard"></i> Desktops status</h2>
                     </div>
@@ -128,9 +127,56 @@ table {
              </div>
          </div>
          
-      </div>
-   </div>
-</div>
+        <div class="row">
+            <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                    <div class="x_title">
+                        <div class="title_left title-row">
+                            <div class="col-9 col-md-9 col-sm-6 col-xs-12">
+                            <h3><i class="fa fa-leaf"></i> Desktops status by category</h3>
+                        </div>
+                            <div class="col-3 col-md-3 col-sm-6 col-xs-12">
+                                <div>
+                                    <h4>Query time:</h4><b><span id="time_category"></span><span>s</span></b>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="clearfix"></div>
+                    </div>
+                    <div class="col-2 col-md-2 col-sm-4 col-xs-12">
+        
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="x_content">
+            <div class="x_panel" id="table-category-count-panel">
+                <div class="row">
+                    <table id="category-count" class="table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Started Desktops</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th>Category</th>
+                                <th>Started Desktops</th>
+                                <th>Accessed</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+        </div>
+        </div>
+        </div>
 
 {% endblock %}
 

@@ -26,6 +26,8 @@ $(document).ready(function () {
     // Trigger function each interval seconds
     $("#change-interval").val(interval);
     update();
+    initialize_table();
+    renderCategoryCountTable();
 });
 
 
@@ -340,4 +342,94 @@ function initialize_table(status) {
         },
         );
     }
+}
+
+
+function renderCategoryCountTable() {
+    var start_ts_cat
+    $("#category-count").DataTable({
+        ajax: {
+            url: "/api/v3/admin/domains/started/count/",
+            type: "GET",
+            contentType: 'application/json',
+        },
+        "sAjaxDataProp": "",
+        "language": {
+            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        },
+        "rowId": "id",
+        "deferRender": true,
+        initComplete: function () {
+            $("#category-count").on('click', '.btn', function () {
+                var action = $(this).data("action")
+                var rowIndex = $(this).closest('tr').index();
+                var rowData = $("#category-count").DataTable().row(rowIndex).data();
+                changeCategoryStatus(action, rowData);
+            });
+            reloadCategoryStatusTable();
+        },
+        columns: [
+            { "data": "category_name" },
+            { "data": "count" },
+            {
+                "data": null, "render": function () {
+                    return `<button type="button" class="btn btn-pause btn-pill-left btn-warning btn-xs" data-action="StartingPaused"><i class="fa fa-pause"></i> Start-Pause</button>
+                            <button type="button" class="btn btn-stop btn-pill-left btn-danger btn-xs" data-action="Shutting-down"><i class="fa fa-stop"></i> Stop</button>
+                            <button type="button" class="btn btn-force-stop btn-pill-left btn-danger btn-xs" data-action="Stopping"><i class="fa fa-stop"></i> Force Stop</button>`
+                }
+            }
+        ]
+
+    })
+}
+
+function changeCategoryStatus(action, rowData) {
+    new PNotify({
+        title: 'Are you sure?',
+        text: `Are you sure you want to change all desktops to ${action}?`,
+        hide: false,
+        type: 'warning',
+        confirm: {
+            confirm: true
+        }
+    }).get().on(
+        'pnotify.confirm',
+        function () {
+            $.ajax({
+                url: "/api/v3/desktops/category/" + rowData["category"] + "/" + action,
+                type: "PUT",
+                success: function (data) {
+                    new PNotify({
+                        title: 'Changing to ' + action + '...',
+                        hide: true,
+                        delay: 2000,
+                        opacity: 1,
+                        type: 'info'
+                    });
+                    $("#category-count").DataTable().ajax.reload();
+                },
+                error: function ({ responseJSON: { description } = {} }) {
+                    const msg = description ? description : 'Something went wrong';
+                    new PNotify({
+                        title: 'ERROR changing to ' + action,
+                        text: msg,
+                        hide: true,
+                        delay: 2000,
+                        opacity: 1,
+                        type: 'error'
+                    })
+                }
+            })
+        })
+}
+
+
+function reloadCategoryStatusTable() {
+    var start_ts_cat = new Date().getTime();
+    $("#category-count").DataTable().ajax.reload().draw();
+    var end_ts_cat = new Date().getTime();
+    query_seconds_cat = (end_ts_cat - start_ts_cat) / 1000;
+    $('#time_category').html(query_seconds_cat);
+    
+    setTimeout(reloadCategoryStatusTable, interval);
 }
