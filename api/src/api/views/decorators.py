@@ -75,7 +75,7 @@ def has_token(f):
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
         if payload.get("role_id") != "admin":
-            maintenance(payload["category_id"])
+            maintenance(payload.get("category_id"))
         kwargs["payload"] = payload
         return f(*args, **kwargs)
 
