@@ -11,6 +11,7 @@ import time
 import traceback
 
 import pytz
+from cachetools import TTLCache, cached
 from rethinkdb import RethinkDB
 
 from api import app
@@ -133,11 +134,13 @@ class ApiHypervisors:
             # Check if desktop is started in more than one mdev
             if len(list(set(desktops_started))) != len(desktops_started):
                 app.logger.error(
-                    "GPU CHECKS: " + "card " + card_id
-                    if card_id
-                    else "hypervisor "
-                    + hyper_id
-                    + " has the same started desktop in more than one GPU mdev!",
+                    (
+                        "GPU CHECKS: " + "card " + card_id
+                        if card_id
+                        else "hypervisor "
+                        + hyper_id
+                        + " has the same started desktop in more than one GPU mdev!"
+                    ),
                 )
                 desktops_started = list(
                     set(desktops_started)
@@ -157,11 +160,13 @@ class ApiHypervisors:
                     desktops_started
                 ):
                     app.logger.error(
-                        "GPU CHECKS: " + "card " + card_id
-                        if card_id
-                        else "hypervisor "
-                        + hyper_id
-                        + " has started mdev desktops not in Started or Shutting-down status!",
+                        (
+                            "GPU CHECKS: " + "card " + card_id
+                            if card_id
+                            else "hypervisor "
+                            + hyper_id
+                            + " has started mdev desktops not in Started or Shutting-down status!"
+                        ),
                     )
 
             # Should we check if domains table gpu desktops are set in hyper?
@@ -420,9 +425,11 @@ class ApiHypervisors:
             "uri": "",
             "user": user,
             "viewer": {
-                "static": isard_static_url + ":" + os.environ.get("HTTPS_PORT")
-                if os.environ.get("HTTPS_PORT")
-                else isard_static_url,  # isard-static nginx
+                "static": (
+                    isard_static_url + ":" + os.environ.get("HTTPS_PORT")
+                    if os.environ.get("HTTPS_PORT")
+                    else isard_static_url
+                ),  # isard-static nginx
                 "proxy_video": isard_video_url,  # Video Proxy Host
                 "spice_ext_port": spice_port,  # 80
                 "html5_ext_port": browser_port,  # 443
@@ -867,3 +874,33 @@ class ApiHypervisors:
                     "Mountpoints information still not available",
                 )
         return status
+
+
+@cached(cache=TTLCache(maxsize=200, ttl=10))
+def check_storage_pool_availability(category_id):
+    with app.app_context():
+        total_hypers = (
+            r.table("hypervisors")
+            .filter(
+                lambda hyper: hyper["status"] == "Online"
+                and hyper["enabled"] == True
+                and hyper["storage_pools"].contains(DEFAULT_STORAGE_POOL_ID)
+                | r.table("storage_pool")
+                .filter(
+                    lambda pool: pool["enabled"]
+                    == True & pool["categories"].contains(category_id)
+                )
+                .nth(0)["id"]
+            )
+            .count()
+            .run(db.conn)
+        )
+
+        if total_hypers == 0:
+            raise Error(
+                "not_found",
+                "No hypervisors available",
+                description_code="error_disk_creation",
+            )
+        else:
+            return True
