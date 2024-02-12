@@ -340,7 +340,12 @@ function actionsCategoryDetail() {
             if (category['frontend'] == true) {
                 $('#modalEditCategoryForm #frontend').iCheck('check').iCheck('update');
             } else {
-                $('#modalEditCategoryForm #frontend').iCheck('unckeck').iCheck('update');
+                $('#modalEditCategoryForm #frontend').iCheck('uncheck').iCheck('update');
+            }
+            if (category['maintenance'] == true) {
+                $('#modalEditCategoryForm #maintenance').iCheck('check').iCheck('update');
+            } else {
+                $('#modalEditCategoryForm #maintenance').iCheck('uncheck').iCheck('update');
             }
             // autoDesktopsShow('#modalEditCategoryForm', category)
             maxTimeEnabledShow('#modalEditCategoryForm')
