@@ -8,6 +8,7 @@ import (
 
 	"gitlab.com/isard/isardvdi-sdk-go"
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
+	"gitlab.com/isard/isardvdi/orchestrator/log"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 
 	"github.com/rs/zerolog"
@@ -297,7 +298,7 @@ availHypersLoop:
 		ramAvail += h.RAM.Free
 	}
 
-	r.log.Debug().Int("cpu_avail", cpuAvail).Int("ram_avail", ramAvail).Int("min_ram", minRAM).Int("max_ram", maxRAM).Msg("available resources")
+	r.log.Debug().Int("cpu_avail", cpuAvail).Int("ram_avail", ramAvail).Int("min_ram", minRAM).Int("max_ram", maxRAM).Object("cfg", log.NewModelCfg(r.cfg)).Msg("available resources")
 
 	// TODO: CPU
 	// Scale up
