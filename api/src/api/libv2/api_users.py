@@ -31,6 +31,7 @@ from isardvdi_common.api_exceptions import Error
 
 from api import app
 
+from .api_storage import remove_category_from_storage_pool
 from .bookings.api_booking import Bookings
 
 apib = Bookings()
@@ -995,6 +996,23 @@ class ApiUsers:
                 )
                 .run(db.conn)
             )
+            if table == "category":
+                storage_pools = (
+                    r.table("storage_pool")["categories"]
+                    .filter(lambda pool: pool.contains(r.args(item_ids)))
+                    .count()
+                    .run(db.conn)
+                )
+
+                return {
+                    "desktops": desktops,
+                    "templates": templates,
+                    "deployments": deployments,
+                    "media": media,
+                    "users": users,
+                    "groups": groups,
+                    "storage_pools": storage_pools,
+                }
 
         return {
             "desktops": desktops,
@@ -1268,6 +1286,7 @@ class ApiUsers:
     def CategoryDelete(self, category_id, agent_id):
         change_category_items_owner("media", category_id)
         category_delete(agent_id, category_id)
+        remove_category_from_storage_pool(category_id)
 
     def GroupGet(self, group_id):
         with app.app_context():
