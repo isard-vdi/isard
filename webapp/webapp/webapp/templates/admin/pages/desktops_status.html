@@ -156,8 +156,17 @@ table {
                     <table id="category-count" class="table">
                         <thead>
                             <tr>
-                                <th>Category</th>
-                                <th>Started Desktops</th>
+                                <th rowspan="2">Category</th>
+                                <th colspan="2">Started</th>
+                                <th colspan="2">Stopped</th>
+                                <th colspan="2">Failed</th>
+                            </tr>
+                            <tr>
+                                <th>Total</th>
+                                <th>Action</th>
+                                <th>Total</th>
+                                <th>Action</th>
+                                <th>Total</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -166,8 +175,12 @@ table {
                         <tfoot>
                             <tr>
                                 <th>Category</th>
-                                <th>Started Desktops</th>
-                                <th>Accessed</th>
+                                <th>Total Started</th>
+                                <th>Action</th>
+                                <th>Total Stopped</th>
+                                <th>Action</th>
+                                <th>Total Failed</th>
+                                <th>Action</th>
                             </tr>
                         </tfoot>
                     </table>

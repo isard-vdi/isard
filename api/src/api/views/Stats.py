@@ -9,11 +9,11 @@ from ..libv2.api_stats import (
     CategoriesKindState,
     CategoriesLimitsHardware,
     Desktops,
+    DomainsByCategoryCount,
     DomainsStatus,
     GroupByCategories,
     Kind,
     OtherStatus,
-    StartedDomainsCount,
     Templates,
     Users,
 )
@@ -125,7 +125,7 @@ def stats_categories_deployments(payload):
 @app.route("/api/v3/admin/domains/started/count", methods=["GET"])
 @is_admin
 def api_v3_admin_domains_started_count(payload):
-    domains = StartedDomainsCount()
+    domains = DomainsByCategoryCount()
     return (
         json.dumps(domains),
         200,
