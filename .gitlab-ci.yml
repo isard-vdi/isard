@@ -68,10 +68,10 @@ commit-lint:
   stage: lint
   image: node:lts
   before_script:
-    - npm install -g @commitlint/config-conventional
+    - npm install -g @commitlint/config-conventional@v18.6.0
   script:
     - git fetch https://gitlab.com/isard/isardvdi.git main
-    - npx commitlint -x "@commitlint/config-conventional" --from=$(git merge-base HEAD FETCH_HEAD)
+    - npx commitlint@v18.6.0 -x "@commitlint/config-conventional" --from=$(git merge-base HEAD FETCH_HEAD)
 
 version:
   stage: lint
