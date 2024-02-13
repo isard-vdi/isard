@@ -54,9 +54,7 @@ type NewOrchestratorOpts struct {
 	CheckCfg cfg.Check
 	CheckCli checkv1.CheckServiceClient
 
-	APIAddress string
-	APISecret  string
-	APICli     isardvdi.Interface
+	APICli isardvdi.Interface
 }
 
 func New(cfg *NewOrchestratorOpts) *Orchestrator {
@@ -72,8 +70,6 @@ func New(cfg *NewOrchestratorOpts) *Orchestrator {
 		operationsCli: cfg.OperationsCli,
 		checkCfg:      cfg.CheckCfg,
 		checkCli:      cfg.CheckCli,
-		apiAddress:    cfg.APIAddress,
-		apiSecret:     cfg.APISecret,
 		apiCli:        cfg.APICli,
 
 		log: &log2,
@@ -90,6 +86,17 @@ func (o *Orchestrator) Start(ctx context.Context) {
 
 		default:
 			time.Sleep(o.pollingInterval)
+
+			hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
+			if err != nil {
+				o.log.Error().Err(err).Msg("get hypervisors")
+				continue
+			}
+
+			if err := o.director.ExtraOperations(ctx, hypers); err != nil {
+				o.log.Error().Err(err).Msg("execute extra orchestrator operations")
+				continue
+			}
 
 			if !o.scaling {
 				hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
@@ -150,17 +157,6 @@ func (o *Orchestrator) Start(ctx context.Context) {
 						go o.destroyHypervisors(timeout, destroy)
 					}
 				}
-			}
-
-			hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
-			if err != nil {
-				o.log.Error().Err(err).Msg("get hypervisors")
-				continue
-			}
-
-			if err := o.director.ExtraOperations(ctx, hypers); err != nil {
-				o.log.Error().Err(err).Msg("execute extra orchestrator operations")
-				continue
 			}
 		}
 	}

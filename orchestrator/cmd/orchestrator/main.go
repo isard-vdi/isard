@@ -83,8 +83,6 @@ func main() {
 		OperationsCli:     operationsCli,
 		CheckCfg:          cfg.Orchestrator.Check,
 		CheckCli:          checkCli,
-		APIAddress:        cfg.Orchestrator.APIAddress,
-		APISecret:         cfg.Orchestrator.APISecret,
 		APICli:            api,
 	})
 	go orchestrator.Start(ctx)
