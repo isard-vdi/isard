@@ -123,10 +123,22 @@ export default new Vuex.Store({
       context.commit('setShowMessageModal', show)
     },
     checkCreateQuota (context, data) {
-      axios.get(`${apiV3Segment}/${data.itemType}/new/check_quota`).then(response => {
+      return axios.get(`${apiV3Segment}/${data.itemType}/new/check_quota`).then(response => {
         context.dispatch('navigate', data.routeName)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    checkHypervisorAvailability () {
+      return axios.get(`${apiV3Segment}/admin/storage_pool/availability`).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    checkHyperAvailableAndQuota (context, data) {
+      return context.dispatch('checkHypervisorAvailability').then(response => {
+        if (response.status === 200) {
+          context.dispatch('checkCreateQuota', data)
+        }
       })
     }
   },

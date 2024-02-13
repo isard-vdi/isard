@@ -1282,7 +1282,8 @@
         "not_verified": "Email address not verified",
         "user_not_found": "There's no user with the given email",
         "invalid_token": "Invalid token",
-        "old_passwords": "Current password can't be any of the last {num} last passwords"
+        "old_passwords": "Current password can't be any of the last {num} last passwords",
+        "no_storage_pool_available": "The resource creation is not available at this moment. Please try again later."
 
     },
     "router": {

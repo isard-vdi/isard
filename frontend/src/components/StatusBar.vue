@@ -151,7 +151,7 @@
               class="mr-0 mr-md-4"
               variant="outline-primary"
               size="sm"
-              @click="navigate('deploymentsnew')"
+              @click="createDeployment()"
             >
               <DeploymentModal />
               {{ `${$t("components.statusbar.new-deployment")}` }}
@@ -406,11 +406,19 @@ export default {
     const started = ref(false)
 
     const createDesktop = () => {
-      $store.dispatch('checkCreateQuota', { itemType: 'desktops', routeName: 'desktopsnew' })
+      $store.dispatch('checkHyperAvailableAndQuota', { itemType: 'desktops', routeName: 'desktopsnew' })
     }
 
     const createMedia = () => {
-      $store.dispatch('checkCreateQuota', { itemType: 'media', routeName: 'medianew' })
+      $store.dispatch('checkHyperAvailableAndQuota', { itemType: 'media', routeName: 'medianew' })
+    }
+
+    const createDeployment = () => {
+      $store.dispatch('checkHypervisorAvailability').then(response => {
+        if (response.status === 200) {
+          $store.dispatch('navigate', 'deploymentsnew')
+        }
+      })
     }
 
     $store.dispatch('fetchItemsInRecycleBin')
@@ -548,24 +556,28 @@ export default {
     }
 
     const recreateDeployment = () => {
-      context.root.$snotify.clear()
+      $store.dispatch('checkHypervisorAvailability').then(response => {
+        if (response.status === 200) {
+          context.root.$snotify.clear()
 
-      const yesAction = () => {
-        context.root.$snotify.clear()
-        $store.dispatch('recreateDeployment', { id: deployment.value.id })
-      }
+          const yesAction = () => {
+            context.root.$snotify.clear()
+            $store.dispatch('recreateDeployment', { id: deployment.value.id })
+          }
 
-      const noAction = (toast) => {
-        context.root.$snotify.clear()
-      }
+          const noAction = (toast) => {
+            context.root.$snotify.clear()
+          }
 
-      context.root.$snotify.prompt(`${i18n.t('messages.confirmation.recreate-deployment', { name: deployment.value.name })}`, {
-        position: 'centerTop',
-        buttons: [
-          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
-          { text: `${i18n.t('messages.no')}`, action: noAction }
-        ],
-        placeholder: ''
+          context.root.$snotify.prompt(`${i18n.t('messages.confirmation.recreate-deployment', { name: deployment.value.name })}`, {
+            position: 'centerTop',
+            buttons: [
+              { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+              { text: `${i18n.t('messages.no')}`, action: noAction }
+            ],
+            placeholder: ''
+          })
+        }
       })
     }
 
@@ -639,6 +651,7 @@ export default {
       recreateDeployment,
       createDesktop,
       createMedia,
+      createDeployment,
       started,
       checkLocation,
       changeView,

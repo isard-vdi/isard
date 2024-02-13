@@ -58,12 +58,12 @@ export default {
     goToNewTemplate (context, desktopId) {
       context.commit('setTemplateNewItemId', desktopId)
       context.commit('setTemplateNewOrigin', 'desktop')
-      context.dispatch('checkCreateQuota', { itemType: 'templates', routeName: 'templatenew' })
+      context.dispatch('checkHyperAvailableAndQuota', { itemType: 'templates', routeName: 'templatenew' })
     },
     goToDuplicate (context, templateId) {
       context.commit('setTemplateNewItemId', templateId)
       context.commit('setTemplateNewOrigin', 'template')
-      context.dispatch('checkCreateQuota', { itemType: 'templates', routeName: 'templateduplicate' })
+      context.dispatch('checkHyperAvailableAndQuota', { itemType: 'templates', routeName: 'templateduplicate' })
     }
   }
 }
