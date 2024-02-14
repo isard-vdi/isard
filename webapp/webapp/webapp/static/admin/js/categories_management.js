@@ -486,6 +486,7 @@ function actionsCategoryDetail() {
             populateDeleteModalTable(items.media, $('#modalDeleteCategory #table_modal_delete_media'));
             populateDeleteModalTable(items.users, $('#modalDeleteCategory #table_modal_delete_users'));
             populateDeleteModalTable(items.groups, $('#modalDeleteCategory #table_modal_delete_groups'));
+            (items.storage_pools > 0) ? $("#modalDeleteCategory #storage-pool-warning").show() :  $("#modalDeleteCategory #storage-pool-warning").hide();
         });
     });
 }

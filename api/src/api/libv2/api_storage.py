@@ -414,8 +414,6 @@ def get_storage_pool(storage_pool_id):
 def update_storage_pool(storage_pool_id, data):
     if data.get("paths"):
         _check_duplicated_paths(data["paths"])
-    if data.get("paths"):
-        _check_duplicated_paths(data["paths"])
         _check_with_validate_weight(data["paths"])
     if storage_pool_id == DEFAULT_STORAGE_POOL_ID:
         if "enabled" in data:
@@ -423,6 +421,19 @@ def update_storage_pool(storage_pool_id, data):
         for key in ["name", "description", "mountpoint", "categories"]:
             if key in data:
                 data.pop(key)
+    if "categories" in data:
+        existing_pools = list(
+            r.table("storage_pool").pluck("categories", "id").run(db.conn)
+        )
+        for pool in existing_pools:
+            if (
+                set(pool["categories"]).intersection(set(data["categories"]))
+                and pool["id"] != storage_pool_id
+            ):
+                raise Error(
+                    "conflict",
+                    "Pool with one of the selected categories already exists",
+                )
     with app.app_context():
         r.table("storage_pool").get(storage_pool_id).update(data).run(db.conn)
 
@@ -452,3 +463,14 @@ def _check_duplicated_paths(data):
                     "bad_request", "Paths of the same pool must have a unique name"
                 )
             seen_paths.add(path)
+
+
+def remove_category_from_storage_pool(category_id):
+    with app.app_context():
+        r.table("storage_pool").filter(
+            lambda pool: pool["categories"].contains(category_id)
+        ).update(
+            lambda pool: pool["categories"].filter(lambda cat: cat != category_id)
+        ).run(
+            db.conn
+        )
