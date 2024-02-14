@@ -33,14 +33,16 @@ def api_v3_admin_recycle_bin_count(payload):
 
 @app.route("/api/v3/recycle_bin/item_count", methods=["GET"])
 @app.route("/api/v3/recycle_bin/item_count/<kind>", methods=["GET"])
+@app.route("/api/v3/recycle_bin/item_count/status/<status>", methods=["GET"])
 @has_token
-def api_v3_admin_recycle_bin_item_count(payload, kind=None):
+def api_v3_admin_recycle_bin_item_count(payload, kind=None, status=None):
     if kind == "user":
         recycle_bins = RecycleBin.get_item_count(payload["user_id"])
     elif payload["role_id"] in ["manager", "admin"]:
         recycle_bins = RecycleBin.get_item_count(
             None,
             payload["category_id"] if payload["role_id"] == "manager" else None,
+            status,
         )
     else:
         raise Error(
@@ -123,6 +125,20 @@ def recycle_bin_empty(payload):
             continue
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/status", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_recycle_bin_status(payload):
+    return (
+        json.dumps(
+            get_status(
+                payload["category_id"] if payload["role_id"] == "manager" else None
+            )
+        ),
         200,
         {"Content-Type": "application/json"},
     )
