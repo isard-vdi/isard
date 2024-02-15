@@ -816,9 +816,11 @@ class Engine(object):
             "changes_domains",
         ]:
             try:
-                alive.append(name) if self.__getattribute__(
-                    "t_" + name
-                ).is_alive() else dead.append(name)
+                (
+                    alive.append(name)
+                    if self.__getattribute__("t_" + name).is_alive()
+                    else dead.append(name)
+                )
             except:
                 # thread not defined
                 not_defined.append(name)
@@ -835,8 +837,10 @@ class Engine(object):
         for name in ["workers", "status", "disk_operations"]:
             for hyp, t in self.__getattribute__("t_" + name).items():
                 try:
-                    alive.append(name + "_" + hyp) if t.is_alive() else dead.append(
-                        name + "_" + hyp
+                    (
+                        alive.append(name + "_" + hyp)
+                        if t.is_alive()
+                        else dead.append(name + "_" + hyp)
                     )
                 except:
                     not_defined.append(name)

@@ -124,11 +124,11 @@ class UiActions(object):
             )
             return False
 
-        memory = domain.get("create_dict", {}).get("hardware", {}).get("memory", 0)
-        if type(memory) is int or type(memory) is float:
-            memory_in_gb = memory / 1024 / 1024
-        else:
-            memory_in_gb = 0
+        # memory = domain.get("create_dict", {}).get("hardware", {}).get("memory", 0)
+        # if type(memory) is int or type(memory) is float:
+        #     memory_in_gb = memory / 1024 / 1024
+        # else:
+        #     memory_in_gb = 0
         if domain["kind"] != "desktop":
             log.error(
                 f"DANGER, domain {id_domain} ({domain['name']}) is a template and can't be started"
@@ -190,7 +190,6 @@ class UiActions(object):
                     xml,
                     id_domain,
                     pool_id=pool_id,
-                    memory_in_gb=memory_in_gb,
                     forced_hyp=domain.get("forced_hyp"),
                     favourite_hyp=domain.get("favourite_hyp"),
                     force_gpus=domain.get("force_gpus"),
@@ -229,7 +228,6 @@ class UiActions(object):
         id_domain,
         pool_id="default",
         action="start_domain",
-        memory_in_gb=0,
         forced_hyp=None,
         favourite_hyp=None,
         force_gpus=None,
@@ -277,7 +275,6 @@ class UiActions(object):
                     "type": action,
                     "xml": xml,
                     "id_domain": id_domain,
-                    "memory_in_gb": memory_in_gb,
                 }
 
                 if extra_info.get("nvidia", False) is True:
@@ -288,7 +285,7 @@ class UiActions(object):
                 priority = Q_PRIORITY_START
 
                 if action == "start_paused_domain":
-                    # start_paused only with 512MB of memory
+                    # start_paused only with 256 of memory
                     dict_action["xml"] = recreate_xml_if_start_paused(xml)
                     update_domain_status(
                         status="CreatingDomain",
@@ -826,37 +823,6 @@ class UiActions(object):
                 )
             )
             return False
-
-    # Unused
-    # def creating_test_disk(
-    #     self,
-    #     test_disk_relative_route,
-    #     size_str="1M",
-    #     type_path="media",
-    #     pool_id=DEFAULT_STORAGE_POOL_ID,
-    # ):
-    #     path_new_disk, path_selected = get_path_to_disk(
-    #         test_disk_relative_route, pool=pool_id, type_path=type_path
-    #     )
-
-    #     hyp_to_disk_create = get_host_disk_operations_from_path(
-    #         self.manager,
-    #         pool=pool_id,
-    #         type_path=type_path,
-    #     )
-
-    #     cmds = create_cmd_disk_from_scratch(
-    #         path_new_disk=path_new_disk, size_str=size_str
-    #     )
-
-    #     action = {}
-    #     action["type"] = "create_disk_from_scratch"
-    #     action["disk_path"] = path_new_disk
-    #     action["index_disk"] = 0
-    #     action["domain"] = False
-    #     action["ssh_commands"] = cmds
-
-    #     self.manager.q_disk_operations[hyp_to_disk_create].put(action)
 
     def creating_disk_from_scratch(self, id_new):
         dict_domain = get_domain(id_new)
