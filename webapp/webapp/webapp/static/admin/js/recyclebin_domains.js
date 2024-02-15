@@ -314,11 +314,11 @@ $(document).ready(function () {
         "title": "Deleted storages",
       },
       {
-        "data": "logs",
+        "data": "last",
         "title": "Last modification",
-        render: function (logs) {
+        render: function (last) {
           try {
-            return moment.unix(logs.slice(-1)[0].time).fromNow()
+            return moment.unix(last.time).fromNow()
           } catch {
             return null
           }
@@ -688,11 +688,11 @@ $(document).ready(function () {
           "title": "Deleted storages",
         },
         {
-          "data": "logs",
+          "data": "last",
           "title": "Last modification",
-          render: function (logs) {
+          render: function (last) {
             try {
-              return moment.unix(logs.slice(-1)[0].time).fromNow()
+              return moment.unix(last.time).fromNow()
             } catch {
               return null
             }

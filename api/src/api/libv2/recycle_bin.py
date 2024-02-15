@@ -791,6 +791,7 @@ class RecycleBin(object):
             "categories": r.row["categories"].count(),
             "groups": r.row["groups"].count(),
             "users": r.row["users"].count(),
+            "last": r.row["logs"][-1],
         }
         query = query.merge(count_query).without("logs", "tasks")
         with app.app_context():
