@@ -22,7 +22,7 @@ if [ "$FLAVOUR" = "all-in-one" ] || [ "$FLAVOUR" = "hypervisor" ] || [ "$FLAVOUR
 
     until ssh -p 2022 root@isard-hypervisor "test -e /var/run/libvirt/libvirt-sock-ro" > /tmp/libvirt.log 2>&1; do
         # Copy keys if they are missing
-        if grep -q "Permission denied, please try again." /tmp/libvirt.log; then
+        if grep -q "Permission denied" /tmp/libvirt.log; then
             ssh_copy_keys
 
         # Copy keys if the hypervisor has changed keys

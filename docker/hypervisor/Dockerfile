@@ -127,7 +127,7 @@ COPY --from=ovmf /usr/share/ovmf/OVMF.fd /usr/share/OVMF
 RUN echo "root:isard" |chpasswd
 RUN sed -i \
     -e 's|[#]*PermitRootLogin prohibit-password|PermitRootLogin yes|g' \
-    -e 's|[#]*PasswordAuthentication yes|PasswordAuthentication no|g' \
+    -e 's|[#]*PasswordAuthentication yes|PasswordAuthentication yes|g' \
     -e 's|[#]*#PubkeyAuthentication yes|PubkeyAuthentication yes|g' \
     -e 's|[#]*ChallengeResponseAuthentication yes|ChallengeResponseAuthentication yes|g' \
     -e 's|[#]*UsePAM yes|UsePAM yes|g' \
