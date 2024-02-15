@@ -629,7 +629,10 @@ class Engine(object):
                             or new_status == "CreatingDomainFromDisk"
                         ):
                             ui.creating_and_test_xml_start(
-                                domain_id, creating_from_create_dict=True, ssl=True
+                                domain_id,
+                                creating_from_create_dict=True,
+                                ssl=True,
+                                start_paused=False,
                             )
 
                     if old_status == "Stopped" and new_status == "CreatingTemplate":

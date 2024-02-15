@@ -1182,7 +1182,7 @@ class UiActions(object):
                 update_domain_status(
                     "Stopped",
                     id_domain,
-                    detail="Updating finalished, ready to derivate desktops",
+                    detail="Created",
                 )
 
                 return True
@@ -1194,6 +1194,7 @@ class UiActions(object):
         xml_from_virt_install=False,
         xml_string=None,
         ssl=True,
+        start_paused=True,
     ):
         if creating_from_create_dict is True:
             try:
@@ -1325,14 +1326,24 @@ class UiActions(object):
                     detail="DomainXML can't parse and modify xml to start",
                 )
             else:
-                self.start_paused_domain_from_xml(
-                    xml=xml,
-                    id_domain=id_domain,
-                    pool_id=pool_id,
-                    forced_hyp=domain.get("forced_hyp"),
-                    favourite_hyp=domain.get("favourite_hyp"),
-                    reservables=domain.get("create_dict", {}).get("reservables", {}),
-                )
+                # If comes from creating disk do not start paused
+                if start_paused is True:
+                    self.start_paused_domain_from_xml(
+                        xml=xml,
+                        id_domain=id_domain,
+                        pool_id=pool_id,
+                        forced_hyp=domain.get("forced_hyp"),
+                        favourite_hyp=domain.get("favourite_hyp"),
+                        reservables=domain.get("create_dict", {}).get(
+                            "reservables", {}
+                        ),
+                    )
+                else:
+                    update_domain_status(
+                        "Stopped",
+                        id_domain,
+                        detail="Updating finalished, ready to derivate desktops",
+                    )
 
     def domain_from_template(
         self,
