@@ -7,8 +7,8 @@
   <div class="x_panel">
     <div class="x_title">
       <h3>
-        <i class="fa fa-folder-open"></i> 
-        Storage files 
+        <i class="fa fa-folder-open"></i>
+        Storage files
         <small>Desktop and template files</small>
       </h3>
       <ul class="nav navbar-right panel_toolbox">
@@ -38,43 +38,9 @@
     <div class="x_content">
       <table id="storage" class="table" width="100%">
         <thead>
-          <tr>
-            <th></th>
-            <th>Path</th>
-            <th>Id</th>
-            <th>Format</th>
-            <th>Size</th>
-            <th>Used</th>
-            <th>Parent</th>
-            <th>User</th>
-            <th>Category</th>
-            <th>Domains</th>
-            <th>Last</th>
-            <th>Task</th>
-            <th></th>
-          </tr>
         </thead>
         <tbody>
         </tbody>
-        <tfoot>
-          <tr>
-            <th></th>
-            <th>Path</th>
-            <th>Id</th>
-            <th>Format</th>
-            <th>Size</th>
-            <th>Used</th>
-            <th>Parent</th>
-            <th>User</th>
-            <th>Category</th>
-            <th>Domains</th>
-            <th>Last</th>
-            <th></th>
-          </tr>
-          <tr>
-            <th colspan="12" style="text-align:right" class="storage-total-size"></th>
-          </tr>
-        </tfoot>
       </table>
     </div>
   </div>
@@ -83,16 +49,26 @@
 <div class="row">
   <div class="x_panel">
     <div class="x_title">
-      <h3><i class="fa fa-times"></i> Other status storage files <small>Desktop and template files in other statuses</small></h3>
-      <ul class="nav navbar-right panel_toolbox">
-        <!-- <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-link"></i> Upload from URL</span></a> -->
-        <!-- <li><a class="btn-new-local"><span style="color: #5499c7; "><i class="fa fa-plus"></i><i class="fa fa-hdd-o"></i>  Upload from local</span></a></li>-->
-      </ul>
+      <h3>Storages in other status<small> Select status to load</small></h3>
       <div class="clearfix"></div>
     </div>
-    {% if current_user.role == 'admin' %}
     <div class="x_content">
       <p class="text-muted font-13 m-b-30"></p>
+      <div style="display:inline-flex;">
+        <div id="other_status" style="display:block; width: 15cm;">
+          <label class="control-label col-md-4 col-sm-4 col-xs-12 pull-left" for="status">
+            <h4>
+              Other storages status
+            </h4>
+          </label>
+          <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+            <select class="form-control" id="status" name="status">
+              <option value="none">Select status</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      {% if current_user.role == 'admin' %}
       <div style="display:inline-flex;">
         <div style="display:block; width: 15cm;">
           <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">
@@ -101,132 +77,26 @@
             </h4>
           </label>
           <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
-            <select class="form-control mactionsStorage" name="mactions" selectedTableId="storage_other" status="other">
+            <select class="form-control mactionsStorage" name="mactions" selectedTableId="storagesOtherTable"
+              status="">
               <option value="none">Select action</option>
               <option value="status">Check disk info</option>
             </select>
           </div>
         </div>
       </div>
-    </div>
-    {% endif %}
-    <div class="x_content">
-      <table id="storage_other" class="table" width="100%">
-        <thead>
-          <tr>
-            <th></th>
-            <th>Status</th>
-            <th>Path</th>
-            <th>Id</th>
-            <th>Format</th>
-            <th>Size</th>
-            <th>Used</th>
-            <th>Parent</th>
-            <th>User</th>
-            <th>Category</th>
-            <th>Domains</th>
-            <th>Last</th>
-            <th>Task</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-        </tbody>
-        <tfoot>
-          <tr>
-            <th></th>
-            <th>Status</th>
-            <th>Path</th>
-            <th>Id</th>
-            <th>Format</th>
-            <th>Size</th>
-            <th>Used</th>
-            <th>Parent</th>
-            <th>User</th>
-            <th>Category</th>
-            <th>Domains</th>
-            <th>Last</th>
-            <th></th>
-          </tr>
-          <tr>
-            <th colspan="13" style="text-align:right" class="storage-other-total-size"></th>
-          </tr>
-        </tfoot>
+      {% endif %}
+      <table id="storagesOtherTable" class="table" width="100%">
+          <thead>
+          </thead>
+          <tbody>
+          </tbody>
       </table>
     </div>
-  </div>
-</div>
-
-<div class="row">
-  <div class="x_panel">
-    <div class="x_title">
-      <h3><i class="fa fa-times"></i> Deleted storage files log <small>Desktop and template files already deleted, just for logs</small></h3>
-      <ul class="nav navbar-right panel_toolbox">
-        <!-- <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-link"></i> Upload from URL</span></a> -->
-        <!-- <li><a class="btn-new-local"><span style="color: #5499c7; "><i class="fa fa-plus"></i><i class="fa fa-hdd-o"></i>  Upload from local</span></a></li>-->
-      </ul>
-      <div class="clearfix"></div>
-    </div>
-    {% if current_user.role == 'admin' %}
-    <div class="x_content">
-      <p class="text-muted font-13 m-b-30"></p>
-      <div style="display:inline-flex;">
-        <div style="display:block; width: 15cm;">
-          <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">
-            <h4>
-              Global actions:
-            </h4>
-          </label>
-          <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
-            <select class="form-control mactionsStorage" name="mactions" selectedTableId="storage_deleted" status="deleted">
-              <option value="none">Select action</option>
-              <option value="status">Check disk info</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-    <div class="x_content">
-      <table id="storage_deleted" class="table" width="100%">
-        <thead>
-          <tr>
-            <th>Id</th>
-            <th>Format</th>
-            <th>Size</th>
-            <th>Used</th>
-            <th>User</th>
-            <th>Last</th>
-            <th>Domains</th>
-            <th>Task</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-        </tbody>
-        <tfoot>
-          <tr>
-            <th>Id</th>
-            <th>Format</th>
-            <th>Size</th>
-            <th>Used</th>
-            <th>User</th>
-            <th>Last</th>
-            <th>Domains</th>
-            <th>Task</th>
-            <th></th>
-          </tr>
-          <tr>
-            <th colspan="9" style="text-align:right" class="storage_deleted-total-size"></th>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-
   </div>
 </div>
 {% include '/admin/pages/storage_detail.html' %}
 {% endblock %}
 {% block pagescript %}
-  <script src="/isard-admin/static/admin/js/storage.js"></script>
+<script src="/isard-admin/static/admin/js/storage.js"></script>
 {% endblock %}
