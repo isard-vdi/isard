@@ -322,7 +322,8 @@ def delete(path):
     :param path: Path to disk
     :type path: str
     """
-    remove(path)
+    if isfile(path):
+        remove(path)
 
 
 def virt_win_reg(storage_path, registry_patch):
