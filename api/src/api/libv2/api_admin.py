@@ -533,6 +533,7 @@ class ApiAdmin:
                                 "favourite_hyp",
                                 "booking_id",
                                 "role",
+                                "persistent",
                             ],
                             "left": ["group_name", "category_name"],
                         }

@@ -14,115 +14,121 @@ order=15
 loading_events=[]
 deleted_events=[]
 opened_row=null
-columns= [
+columns = [
     {
         "className": 'details-control',
         "orderable": false,
         "data": null,
         "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
     },
-    { "data": "icon" },
-    { "data": "name"},
-    { "data": "status"},
-    { "data": null, "className": 'viewer',},
-    { "data": "ram"},
-    { "data": "create_dict.hardware.vcpus", "width": "10px"},
-    { "data": "username"},
-    { "data": "role"},
-    { "data": "category_name"},
-    { "data": "group_name"},
-    { "data": "server", "width": "10px", "defaultContent":"-"},
-    { "data": "hyp_started", "width": "100px"},
-    { "data": "favourite_hyp", "width": "100px"},
-    { "data": "forced_hyp", "width": "100px"},
-    { "data": "accessed", 'defaultContent': '' },
+    {
+        "data": "icon", "render": function (data, type, full, meta) {
+            img_url = location.protocol + '//' + document.domain + ':' + location.port + full.image.url
+            if (! "booking_id" in full) {
+                booking_id = false
+            } else {
+                booking_id = full.booking_id
+            }
+            return renderBooking(full.create_dict.reservables, booking_id) + "<img src='" + img_url + "' width='50px'>"
+        }
+    },
+    { "data": "name" },
+    {
+        "data": "status", "render": function (data, type, full, meta) {
+            return renderStatus(full)
+        }
+    },
+    {
+        "data": null, "className": 'viewer',
+        "width": "100px",
+        "render": function (data, type, full, meta) {
+            return renderAction(full) + renderDisplay(full)
+        }
+    },
+        {
+        "data": "persistent", "render": function (data) {
+            if (data == false) {
+                return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+            } else {
+                return `<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>`
+            }
+        }
+    },
+    {
+        "data": "create_dict.reservables", "render": function (data, type, full) {
+            if (data) {
+                return data.vgpus
+            } else {
+                return '-'
+            }
+        }
+    },
+    {
+        "data": "ram", "width": "100px",
+        "render": function (data, type, full, meta) {
+            return (full.create_dict.hardware.memory / 1024 / 1024).toFixed(2) + "GB"
+        }
+    },
+    { "data": "create_dict.hardware.vcpus", "width": "10px" },
+    { "data": "username" },
+    { "data": "role" },
+    { "data": "category_name" },
+    { "data": "group_name" },
+    {
+        "data": "server", "width": "10px", "defaultContent": "-", "render": function (data, type, full, meta) {
+            if ('server' in full) {
+                if (full["server"] == true) {
+                    return 'SERVER';
+                } else {
+                    return '-';
+                }
+            } else {
+                return '-';
+            }
+        }
+    },
+    {
+        "data": "hyp_started", "width": "100px", "render": function (data, type, full, meta) {
+            if ('hyp_started' in full && full.hyp_started != '') {
+                return full.hyp_started;
+            } else {
+                return '-'
+            }
+        }
+    },
+    {
+        "data": "favourite_hyp", "width": "100px", "render": function (data, type, full, meta) {
+            if ('favourite_hyp' in full && full.favourite_hyp != '') {
+                return full.favourite_hyp.join(",");
+            } else {
+                return '-'
+            }
+        }
+    },
+    {
+        "data": "forced_hyp", "width": "100px", "render": function (data, type, full, meta) {
+            if ('forced_hyp' in full && full.forced_hyp != '') {
+                return full.forced_hyp.join(",");
+            } else {
+                return '-'
+            }
+        }
+    },
+    {
+        "data": "accessed", 'defaultContent': '', "render": function (data, type, full, meta) {
+            if (type === 'display' || type === 'filter') {
+                return moment.unix(full.accessed).fromNow()
+            }
+            return full.accessed
+        }
+    },
     {
         "className": 'text-center',
         "data": null,
         "orderable": false,
         "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
     },
-    { "data": "id", "visible": false},
-]
-
-columnDefs = [
-    {
-        "targets": 1,
-        "render": function ( data, type, full, meta ) {
-            img_url = location.protocol+'//' + document.domain + ':' + location.port + full.image.url
-            if( ! "booking_id" in full ){
-                booking_id=false
-            }else{
-                booking_id=full.booking_id
-            }
-            return  renderBooking(full.create_dict.reservables, booking_id) + "<img src='"+img_url+"' width='50px'>"
-        }
-    },{
-        "targets": 3,
-        "render": function (data, type, full, meta) {
-            return renderStatus(full)
-        }
-    },{
-        "targets": 4,
-        "width": "100px",
-        "render": function (data, type, full, meta) {
-            return renderAction(full) + renderDisplay(full)
-        }
-    },{
-        "targets": 5,
-        "width": "100px",
-        "render": function (data, type, full, meta) {
-            return (full.create_dict.hardware.memory / 1024 / 1024).toFixed(2) + "GB"
-        }
-    },{
-        "targets": 11,
-        "render": function (data, type, full, meta) {
-            if('server' in full){
-                if(full["server"] == true){
-                    return 'SERVER';
-                }else{
-                    return '-';
-                }
-            }else{
-                return '-';
-            }
-        }
-    },{
-        "targets": 12,
-        "render": function (data, type, full, meta) {
-            if('hyp_started' in full && full.hyp_started != ''){
-                return full.hyp_started;
-            } else {
-                return '-'
-            }
-        }
-    },{
-        "targets": 13,
-        "render": function (data, type, full, meta) {
-            if('favourite_hyp' in full && full.favourite_hyp != ''){ 
-                return full.favourite_hyp.join(",");
-            } else {
-                return '-'
-            }
-        }
-    },{
-        "targets": 14,
-        "render": function (data, type, full, meta) {
-            if('forced_hyp' in full && full.forced_hyp != ''){
-                return full.forced_hyp.join(",");
-            } else {
-                return '-'
-            }
-        }
-    },{
-        "targets": 15,
-        "render": function (data, type, full, meta) {
-            if ( type === 'display' || type === 'filter' ) {
-                return moment.unix(full.accessed).fromNow()
-            }
-            return full.accessed
-        }
-    }
+    { "data": "id", "visible": false },
 ]
 
 function getGroupParam() {
@@ -467,7 +473,6 @@ $(document).ready(function() {
       cache: false,
       columns: columns,
       order: [[order, "des"]],
-      columnDefs: columnDefs,
       rowCallback: function (row, data) {
         if ("server" in data) {
           if (data["server"] == true) {
