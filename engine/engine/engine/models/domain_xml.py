@@ -1853,7 +1853,7 @@ def recreate_xml_if_start_paused(xml, memory_mb=256):
             tree.xpath(f"/domain/{tag}")[0].text = str(mem_size)
 
     # Update to only one cpu
-    tree.xpath("/domain/vcpu")[0].text = "1"
+    # tree.xpath("/domain/vcpu")[0].text = "1"
 
     xml_output = indent(etree.tostring(tree, encoding="unicode"))
     return xml_output
