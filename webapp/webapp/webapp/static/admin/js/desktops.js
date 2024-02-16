@@ -904,8 +904,12 @@ function socketio_on(){
     socket.on('desktop_data', function(data){
         var data = JSON.parse(data);
         if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
-            if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
-                viewerButtonsIP(data.id,data['viewer']['guest_ip'])
+            try {
+                if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
+                    viewerButtonsIP(data.id,data['viewer']['guest_ip'])
+                }
+            } catch {
+                return
             }
         }
         data = {...domains_table.row("#"+data.id).data(),...data}
