@@ -1,3 +1,6 @@
+#
+# frontend
+#
 FROM node:18.17-alpine as frontend
 
 RUN mkdir /isard-frontend
@@ -18,14 +21,42 @@ RUN rm -rf src
 RUN rm -rf node_modules
 RUN rm -rf build
 
+#
+# spice-ts
+#
+FROM oven/bun:1.1.17 as spice-ts
+
+WORKDIR /build
+
+COPY docker/static/spice-ts/package.json /build
+COPY docker/static/spice-ts/bun.lockb /build
+
+RUN bun install
+
+WORKDIR /
+
+COPY docker/static/spice-ts /build
+
+WORKDIR /build
+
+RUN bun run build
+
+#
+# nginx
+#
 FROM nginxinc/nginx-unprivileged:1.25-alpine-slim as production
 
 USER root
 RUN apk -U upgrade --no-cache
 USER 101
 
+# Nginx configuration
 COPY docker/static/default.conf /etc/nginx/conf.d/default.conf
-COPY docker/static/spice-web-client /usr/share/nginx/html/viewer/spice-web-client
+
+# Viewers
 COPY docker/static/noVNC /usr/share/nginx/html/viewer/noVNC
+COPY --from=spice-ts /build/dist /usr/share/nginx/html/viewer/spice-ts
+
+# Frontend
 COPY frontend/src/assets/logo.svg /usr/share/nginx/html/default_logo.svg
 COPY --from=frontend /isard-frontend/dist /usr/share/nginx/html

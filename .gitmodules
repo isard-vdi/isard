@@ -1,8 +1,7 @@
-[submodule "docker/static/spice-web-client"]
-	path = docker/static/spice-web-client
-	url = https://github.com/isard-vdi/spice-web-client
-	branch = master
 [submodule "docker/static/noVNC/src"]
 	path = docker/static/noVNC/src
 	url = https://github.com/novnc/novnc
 	branch = master
+[submodule "docker/static/spice-ts"]
+	path = docker/static/spice-ts
+	url = https://gitlab.com/nefix/spice-ts
