@@ -346,7 +346,6 @@ function initialize_table(status) {
 
 
 function renderCategoryCountTable() {
-    var start_ts_cat
     $("#category-count").DataTable({
         ajax: {
             url: "/api/v3/admin/domains/started/count/",
@@ -362,65 +361,159 @@ function renderCategoryCountTable() {
         initComplete: function () {
             $("#category-count").on('click', '.btn', function () {
                 var action = $(this).data("action")
+                var currentStatus = $(this).data("current")
                 var rowIndex = $(this).closest('tr').index();
                 var rowData = $("#category-count").DataTable().row(rowIndex).data();
-                changeCategoryStatus(action, rowData);
+                changeCategoryStatusButtonAction(action, currentStatus, rowData);
             });
             reloadCategoryStatusTable();
         },
+        order: [[1, "desc"]],
         columns: [
             { "data": "category_name" },
-            { "data": "count" },
             {
-                "data": null, "render": function () {
-                    return `<button type="button" class="btn btn-pause btn-pill-left btn-warning btn-xs" data-action="StartingPaused"><i class="fa fa-pause"></i> Start-Pause</button>
-                            <button type="button" class="btn btn-stop btn-pill-left btn-danger btn-xs" data-action="Shutting-down"><i class="fa fa-stop"></i> Stop</button>
-                            <button type="button" class="btn btn-force-stop btn-pill-left btn-danger btn-xs" data-action="Stopping"><i class="fa fa-stop"></i> Force Stop</button>`
+                "data": "desktops", "width": "110px", "render": function (data) {
+                    total = data.find(status => status.status === "Started");
+                    if (total) return total.count;
+                    return 0;
+                }
+            },
+            {
+                "data": "desktops", "render": function (data) {
+                    if (data.find(status => status.status === "Started")) {
+                        return `<button type="button" data-current="Started" class="btn btn-stop btn-pill-left btn-danger btn-xs" data-action="Shutting-down"><i class="fa fa-stop"></i> Stop</button>
+                            <button type="button" data-current="Started" class="btn btn-force-stop btn-pill-left btn-danger btn-xs" data-action="Stopping"><i class="fa fa-stop"></i> Force Stop</button>`
+                    }
+                    return '';
+                }
+            },
+            {
+                "data": "desktops", "width": "110px", "render": function (data) {
+                    total = data.find(status => status.status === "Stopped");
+                    if (total) return total.count;
+                    return 0;
+                }
+            },
+            {
+                "data": "desktops", "render": function (data) {
+                    if (data.find(status => status.status === "Stopped")) {
+                        return `<button type="button" data-current="Stopped" class="btn btn-pause btn-pill-left btn-warning btn-xs" data-action="StartingPaused"><i class="fa fa-pause"></i> Start-Pause</button>`
+                    }
+                    return '';
+                }
+            },
+            {
+                "data": "desktops", "width": "110px", "render": function (data) {
+                    total = data.find(status => status.status === "Failed");
+                    if (total) return total.count;
+                    return 0;
+                }
+            },
+            {
+                "data": "desktops", "render": function (data) {
+                    if (data.find(status => status.status === "Failed")) {
+                        return `<button type="button" data-current="Failed" class="btn btn-pause btn-pill-left btn-warning btn-xs" data-action="StartingPaused"><i class="fa fa-pause"></i> Start-Pause</button>`
+                    }
+                    return '';
                 }
             }
         ]
-
     })
 }
 
-function changeCategoryStatus(action, rowData) {
-    new PNotify({
-        title: 'Are you sure?',
-        text: `Are you sure you want to change all desktops to ${action}?`,
-        hide: false,
-        type: 'warning',
-        confirm: {
-            confirm: true
-        }
-    }).get().on(
-        'pnotify.confirm',
-        function () {
-            $.ajax({
-                url: "/api/v3/desktops/category/" + rowData["category"] + "/" + action,
-                type: "PUT",
-                success: function (data) {
-                    new PNotify({
-                        title: 'Changing to ' + action + '...',
-                        hide: true,
-                        delay: 2000,
-                        opacity: 1,
-                        type: 'info'
-                    });
-                    $("#category-count").DataTable().ajax.reload();
-                },
-                error: function ({ responseJSON: { description } = {} }) {
-                    const msg = description ? description : 'Something went wrong';
-                    new PNotify({
-                        title: 'ERROR changing to ' + action,
-                        text: msg,
-                        hide: true,
-                        delay: 2000,
-                        opacity: 1,
-                        type: 'error'
-                    })
-                }
-            })
+function changeCategoryStatusButtonAction(action, currentStatus, rowData) {
+    if (action == "StartingPaused" && currentStatus == "Stopped") {
+        notice = new PNotify({
+            title: 'Warning!',
+            text: `You are about to change ${rowData.desktops.find(status => status.status === currentStatus).count} ${currentStatus} desktops to ${action}! This operation could consume a significant amount of time.
+                   \nPlease write <b>\"I'm aware\"</b> in order to confirm the action`,
+            hide: false,
+            opacity: 0.9,
+            type: 'error',
+            confirm: {
+                confirm: true,
+                prompt: true,
+                prompt_multi_line: false,
+                buttons: [
+                    {
+                        text: "Ok",
+                        addClass: "",
+                        promptTrigger: true,
+                        click: function (notice, value) {
+                            if (value == "I'm aware") {
+                                changeCategoryStatus(rowData["category"], action, currentStatus);
+                                notice.remove();
+                            } else {
+                                notice.update({
+                                    text: `You are about to change ${rowData.desktops.find(status => status.status === currentStatus).count} ${currentStatus} desktops to ${action}! This operation could consume a significant amount of time.
+                                    \nPlease write <b>\"I'm aware\"</b> in order to confirm the action
+                                    \nMake sure you typed it correctly `,
+                                });
+                            }
+                        }
+                    },
+                    {
+                        text: "Cancel",
+                        addClass: "",
+                        click: function (notice) {
+                            notice.remove();
+                        }
+                    }]
+            },
+            buttons: {
+                closer: false,
+                sticker: false
+            },
+            history: {
+                history: false
+            },
+            addclass: 'pnotify-center-large',
+            width: '550'
         })
+    } else {
+        new PNotify({
+            title: 'Are you sure?',
+            text: `Are you sure you want to change all ${currentStatus} desktops to ${action}?`,
+            hide: false,
+            type: 'warning',
+            confirm: {
+                confirm: true
+            }
+        }).get().on(
+            'pnotify.confirm',
+            function () {
+                changeCategoryStatus(rowData["category"], action, currentStatus);
+            });
+    }
+}
+
+
+function changeCategoryStatus(category, action, currentStatus) {
+    $.ajax({
+        url: `/api/v3/desktops/category/${category}/status/${currentStatus}/${action}`,
+        type: "PUT",
+        success: function (data) {
+            new PNotify({
+                title: 'Changing to ' + action + '...',
+                hide: true,
+                delay: 2000,
+                opacity: 1,
+                type: 'info'
+            });
+            $("#category-count").DataTable().ajax.reload();
+        },
+        error: function ({ responseJSON: { description } = {} }) {
+            const msg = description ? description : 'Something went wrong';
+            new PNotify({
+                title: 'ERROR changing to ' + action,
+                text: msg,
+                hide: true,
+                delay: 2000,
+                opacity: 1,
+                type: 'error'
+            });
+        }
+    });
 }
 
 

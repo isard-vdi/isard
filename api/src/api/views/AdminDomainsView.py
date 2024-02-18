@@ -315,13 +315,18 @@ def api_v3_logs_users(payload, view="raw"):
     )
 
 
-@app.route("/api/v3/desktops/category/<category>/<target_status>", methods=["PUT"])
+@app.route(
+    "/api/v3/desktops/category/<category>/status/<current_status>/<target_status>",
+    methods=["PUT"],
+)
 @is_admin
-def api_v3_desktops_status_category(payload, category, target_status):
+def api_v3_desktops_status_category(payload, category, current_status, target_status):
+    if not (current_status in ["Stopped", "Failed", "Started"]):
+        raise Error("bad_request", "Invalid current status")
     if not (target_status in ["Shutting-down", "Stopping", "StartingPaused"]):
         raise Error("bad_request", "Invalid target status")
 
-    desktops_persistent.change_status_category(category, target_status)
+    desktops_persistent.change_status_category(category, current_status, target_status)
 
     return (
         json.dumps({}),
