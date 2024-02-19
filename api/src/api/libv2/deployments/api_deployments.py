@@ -4,21 +4,20 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
+
 import copy
 import csv
 import io
 import os
 import traceback
-from datetime import datetime
+from uuid import uuid4
 
-import pytz
 from api.libv2.quotas import Quotas
 from rethinkdb import RethinkDB
 
 from api import app
 
 r = RethinkDB()
-import logging as log
 
 from isardvdi_common.api_exceptions import Error
 
@@ -47,7 +46,6 @@ from ..helpers import (
     _parse_deployment_desktop,
     parse_domain_insert,
     parse_domain_update,
-    set_current_booking,
 )
 from ..validators import _validate_item
 
@@ -380,26 +378,26 @@ def get_selected_users(
 
 
 def create_deployment_desktops(deployment_tag, desktop_data, users):
+    desktops = []
     for user in users:
         desktop = _validate_item("desktop_from_template", desktop_data)
-
-        domain_id = ApiDesktopsPersistent().NewFromTemplate(
-            desktop["name"],
-            desktop["description"],
-            desktop["template_id"],
-            user_id=user["id"],
-            deployment_tag_dict=deployment_tag,
-            domain_id=desktop["id"],
-            new_data=desktop,
-            image=desktop.get("image"),
+        domain_id = str(uuid4())
+        desktops.append(
+            {
+                "name": desktop["name"],
+                "description": desktop["description"],
+                "template_id": desktop["template_id"],
+                "hardware": desktop["hardware"],
+                "guest_properties": desktop.get("guest_properties"),
+                "image": desktop.get("image"),
+                "user_id": user["id"],
+                "deployment_tag_dict": deployment_tag,
+                "domain_id": domain_id,
+                "new_data": desktop,
+                "image": desktop.get("image"),
+            }
         )
-        domain = (
-            r.table("domains")
-            .get(domain_id)
-            .pluck("id", "create_dict", "tag")
-            .run(db.conn)
-        )
-        set_current_booking(domain)
+    ApiDesktopsPersistent().NewFromTemplateTh(desktops)
 
 
 def edit_deployment_users(payload, deployment_id, allowed):

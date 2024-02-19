@@ -13,6 +13,7 @@ import traceback
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import gevent
 import pytz
 
 from ..libv2.api_desktops_common import ApiDesktopsCommon
@@ -64,6 +65,7 @@ from .helpers import (
     gen_payload_from_user,
     parse_domain_insert,
     parse_domain_update,
+    set_current_booking,
 )
 
 MIN_AUTOBOOKING_TIME = 30
@@ -111,6 +113,40 @@ class ApiDesktopsPersistent:
                 raise Error("not_found", "Desktop not found", traceback.format_exc())
             return desktop
 
+    def NewFromTemplateTh(
+        self,
+        desktops,
+    ):
+        data = []
+        jobs = []
+        for desktop in desktops:
+            jobs.append(
+                gevent.spawn(
+                    self.NewFromTemplate,
+                    desktop["name"],
+                    desktop["description"],
+                    desktop["template_id"],
+                    desktop["user_id"],
+                    desktop["domain_id"],
+                    desktop["deployment_tag_dict"],
+                    desktop["new_data"],
+                    desktop["image"],
+                    db.conn,
+                )
+            )
+        gevent.joinall(jobs)
+        desktops_json = [job.value for job in jobs]
+        for result in desktops_json:
+            if result == None:
+                continue
+            set_current_booking(
+                {
+                    "id": result["id"],
+                    "tag": result["tag"],
+                    "create_dict": result["create_dict"],
+                }
+            )
+
     def NewFromTemplate(
         self,
         desktop_name,
@@ -121,6 +157,7 @@ class ApiDesktopsPersistent:
         deployment_tag_dict=False,
         new_data=None,
         image=None,
+        db_conn=db.conn,
     ):
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
@@ -263,7 +300,7 @@ class ApiDesktopsPersistent:
                     else:
                         img_uuid = api_cards.upload(domain_id, image_data)
                         card = api_cards.get_card(img_uuid, image_data["type"])
-                return domain_id
+                return new_desktop
 
     def BulkDesktops(self, payload, data):
         selected = data["allowed"]
