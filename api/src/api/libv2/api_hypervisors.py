@@ -877,30 +877,59 @@ class ApiHypervisors:
 
 
 @cached(cache=TTLCache(maxsize=200, ttl=10))
-def check_storage_pool_availability(category_id):
+def check_storage_pool_availability(category_id=None):
+    # Hypervisors online
     with app.app_context():
-        total_hypers = (
+        hypers_online = list(
             r.table("hypervisors")
-            .filter(
-                lambda hyper: hyper["status"] == "Online"
-                and hyper["enabled"] == True
-                and hyper["storage_pools"].contains(DEFAULT_STORAGE_POOL_ID)
-                | r.table("storage_pool")
-                .filter(
-                    lambda pool: pool["enabled"]
-                    == True & pool["categories"].contains(category_id)
-                )
-                .nth(0)["id"]
-            )
-            .count()
+            .filter({"status": "Online", "enabled": True, "only_forced": False})
+            .pluck("storage_pools")
             .run(db.conn)
         )
+    if not len(hypers_online):
+        raise Error(
+            "precondition_required",
+            "No storage pool hypervisor available in system",
+            description_code="no_storage_pool_available",
+        )
 
-        if total_hypers == 0:
-            raise Error(
-                "not_found",
-                "No hypervisors available",
-                description_code="error_disk_creation",
+    # Check category storage pools for category
+    with app.app_context():
+        storage_pools = list(
+            r.table("storage_pool")
+            .filter(
+                lambda pool: pool["enabled"]
+                and pool["categories"].contains(category_id)
             )
-        else:
+            .pluck("id")["id"]
+            .run(db.conn)
+        )
+    ## As only one category per pool is allowed. This should not happen.
+    if len(storage_pools) > 1:
+        raise Error(
+            "internal_server",
+            f"More than one storage pool available for category {category_id}",
+            description_code="no_storage_pool_available",
+        )
+    if not len(storage_pools) or category_id is None:
+        # Check if default storage pool is available
+        with app.app_context():
+            default_storage_pool = (
+                r.table("storage_pool").get(DEFAULT_STORAGE_POOL_ID).run(db.conn)
+            )
+        if not default_storage_pool.get("enabled"):
+            raise Error(
+                "precondition_required",
+                "No storage pool available",
+                description_code="no_storage_pool_available",
+            )
+        storage_pools = [DEFAULT_STORAGE_POOL_ID]
+    storage_pool = storage_pools[0]
+    for hyper in hypers_online:
+        if storage_pool in hyper.get("storage_pools", []):
             return True
+    raise Error(
+        "precondition_required",
+        f"No hypervisors available for category {category_id} with storage pool {storage_pool}",
+        description_code="no_storage_pool_available",
+    )
