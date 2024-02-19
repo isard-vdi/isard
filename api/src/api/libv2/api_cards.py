@@ -222,7 +222,7 @@ class ApiCards:
                         for d in r.table("domains")
                         .pluck("id", {"image": {"id", "type"}})
                         .run(db.conn)
-                        if d["image"]["type"] == "user"
+                        if d.get("image", {}).get("type") == "user"
                     ]
                 )
             )
