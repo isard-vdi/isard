@@ -1,29 +1,11 @@
-FROM alpine:3.18 as production
-MAINTAINER isard <info@isard.com>
+FROM alpine:3.19
 
 RUN apk -U upgrade --no-cache
-RUN apk add --no-cache \
-    yarn \
-    py3-openssl \
-    py3-pip \
-    py3-cachetools \
-    curl
+RUN apk add --no-cache python3 py3-pip yarn
 
-RUN apk add --no-cache --virtual .build_deps \
-    build-base \
-    python3-dev \
-    libffi-dev \
-    openssl-dev \
-        libc-dev \
-        libxml2-dev \
-        libxslt-dev \
-    gcc
-
-# RUN apk upgrade openssh-client
-RUN pip3 install --upgrade pip
-COPY webapp/docker/requirements.txt /requirements.txt
-RUN pip3 install --no-cache-dir -r requirements.txt
-RUN apk del .build_deps
+COPY webapp/docker/requirements.txt .
+RUN pip install -r requirements.txt --break-system-package && \
+    rm requirements.txt
 
 # Copy the isard source
 COPY webapp/webapp /isard
