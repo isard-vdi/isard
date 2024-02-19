@@ -17,31 +17,17 @@
 #   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
 import os
 
-from eventlet import monkey_patch
-
-monkey_patch()
-
-from flask_socketio import SocketIO
+from waitress import serve
+from webapp._common import log
 
 from webapp import app
 
-socketio = SocketIO(app)
-
-
-## Main
 if __name__ == "__main__":
-    import logging
-
-    logger = logging.getLogger("socketio")
-    logger.setLevel("ERROR")
-    engineio_logger = logging.getLogger("engineio")
-    engineio_logger.setLevel("ERROR")
-
     debug = os.environ.get("USAGE", "production") == "devel"
 
-    socketio.run(
-        app, host="0.0.0.0", port=5000, debug=debug
-    )  # , logger=logger, engineio_logger=engineio_logger)
+    if debug:
+        app.run(host="0.0.0.0", port=5000, debug=debug)
+    else:
+        serve(app, listen="*:5000")
