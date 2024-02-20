@@ -581,7 +581,10 @@
             "select-type": "Sélectionnez une option s'il vous plaît"
         },
         "duplicate": "Dupliquer",
-        "filter-placeholder": "Tapez pour rechercher"
+        "filter-placeholder": "Tapez pour rechercher",
+        "duplicate-template": {
+            "title": "Dupliquer le modèle"
+        }
     },
     "messages": {
         "yes": "Oui",
