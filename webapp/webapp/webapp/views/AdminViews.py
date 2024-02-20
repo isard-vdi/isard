@@ -79,6 +79,7 @@ LOGIN PAGE
 def login(category="default"):
     user = get_authenticated_user()
     if user:
+        logout_user()
         login_user(user)
         return jsonify(success=True)
     return redirect("/login")
