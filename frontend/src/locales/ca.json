@@ -914,7 +914,6 @@
             "reject": "Rebutjar",
             "accept": "Acceptar",
             "disclaimer-accepted": "S'ha acceptat l'avís legal. Redirigint a l'inici de sessió en {seconds} segons."
-
         }
     },
     "validations": {
