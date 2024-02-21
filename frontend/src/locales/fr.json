@@ -316,7 +316,10 @@
             "actions": {
                 "delete": "Supprimer"
             },
-            "filter-label": "Filtrer"
+            "filter-label": "Filtrer",
+            "notification-bar": {
+                "next-booking": "Prochaine réservation"
+            }
         },
         "rdp-modal": {
             "button-refresh": "Actualiser",
