@@ -17,11 +17,25 @@ from ..libv2.api_storage import (
     get_disk_tree,
     get_disks,
     get_media_domains,
+    get_status,
     get_storage_domains,
-    restore_disk,
 )
 from ..libv2.helpers import get_user_data
 from .decorators import is_admin_or_manager, ownsMediaId, ownsStorageId
+
+
+@app.route("/api/v3/storage/status", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_storage_status(payload):
+    return (
+        json.dumps(
+            get_status(
+                payload["category_id"] if payload["role_id"] == "manager" else None
+            )
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/admin/storage", methods=["GET"])
@@ -32,16 +46,16 @@ def api_v3_admin_storage(payload, status=None):
         disks = get_disks(
             status=status,
             last_domain_attached=True,
-            category_id=payload["category_id"]
-            if payload["role_id"] == "manager"
-            else None,
+            category_id=(
+                payload["category_id"] if payload["role_id"] == "manager" else None
+            ),
         )
     else:
         disks = get_disks(
             status=status,
-            category_id=payload["category_id"]
-            if payload["role_id"] == "manager"
-            else None,
+            category_id=(
+                payload["category_id"] if payload["role_id"] == "manager" else None
+            ),
         )
     return (
         json.dumps(disks),

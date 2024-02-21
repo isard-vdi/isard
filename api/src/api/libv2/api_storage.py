@@ -31,6 +31,27 @@ import logging as log
 from isardvdi_common.api_exceptions import Error
 
 
+def get_status(category_id=None):
+    query = r.table("storage").pluck("status", "user_id")
+    if category_id:
+        query = (
+            query.eq_join(
+                [r.row["user_id"], category_id], r.table("users"), index="user_category"
+            )
+            .pluck("left", {"right": {"category": True}})
+            .zip()
+        )
+    query = (
+        query.group("status")
+        .count()
+        .ungroup()
+        .map(lambda doc: {"status": doc["group"], "count": doc["reduction"]})
+    )
+    with app.app_context():
+        status = list(query.run(db.conn))
+    return status
+
+
 def get_disks_ids_by_status(status=None):
     query = r.table("storage")
     if status:
@@ -54,15 +75,7 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None):
         if status:
             query = query.filter({"status": status})
     elif status:
-        if status == "other":
-            # get status not in ready or deleted
-            query = query.filter(
-                lambda disk: r.expr(["ready", "deleted"])
-                .contains(disk["status"])
-                .not_()
-            )
-        else:
-            query = query.get_all(status, index="status")
+        query = query.get_all(status, index="status")
 
     if pluck:
         query = query.pluck(pluck)
@@ -80,53 +93,28 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None):
                 {"qemu-img-info": {"virtual-size": True, "actual-size": True}},
             ]
         )
-    if status != "deleted":
-        if user_id:
-            query = query.merge(
-                lambda disk: {
-                    "user_name": r.table("users")
-                    .get(disk["user_id"])
-                    .default({"name": "[DELETED] " + disk["user_id"]})["name"],
-                    "category": r.table("users")
-                    .get(disk["user_id"])
-                    .default({"category": "[DELETED]"})["category"],
-                    "domains": r.table("domains")
-                    .get_all(disk["id"], index="storage_ids")
-                    .filter({"user": user_id})
-                    .count(),
-                }
-            )
-        else:
-            query = query.merge(
-                lambda disk: {
-                    "user_name": r.table("users")
-                    .get(disk["user_id"])
-                    .default({"name": "[DELETED] " + disk["user_id"]})["name"],
-                    "category": r.table("users")
-                    .get(disk["user_id"])
-                    .default({"category": "[DELETED]"})["category"],
-                    "domains": r.table("domains")
-                    .get_all(disk["id"], index="storage_ids")
-                    .count(),
-                }
-            )
-    else:
-        query = query.merge(
-            lambda disk: {
-                "user_name": r.table("users")
-                .get(disk["user_id"])
-                .default({"name": "[DELETED] " + disk["user_id"]})["name"],
-                "category": r.table("users")
-                .get(disk["user_id"])
-                .default({"category": "[DELETED]"})["category"],
-                "domains": r.table("domains")
-                .get_all(disk["id"], index="storage_ids")
-                .count(),
-            }
-        )
-
     if category_id:
-        query = query.filter({"category": category_id})
+        query = (
+            query.eq_join(
+                [r.row["user_id"], category_id], r.table("users"), index="user_category"
+            )
+            .pluck("left", {"right": {"category": True}})
+            .zip()
+        )
+    query = query.merge(
+        lambda disk: {
+            "user_name": r.table("users")
+            .get(disk["user_id"])
+            .default({"name": "[DELETED] " + disk["user_id"]})["name"],
+            "category": r.table("users")
+            .get(disk["user_id"])
+            .default({"category": "[DELETED]"})["category"],
+            "domains": r.table("domains")
+            .get_all(disk["id"], index="storage_ids")
+            .count(),
+            "last": disk["status_logs"][-1],
+        }
+    ).without("status_logs")
 
     with app.app_context():
         return list(query.run(db.conn))

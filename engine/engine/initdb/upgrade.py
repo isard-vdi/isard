@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 125
+release_version = 126
+# release 126: Add user_category index to users table
 # release 125: Add owner_category index
 # release 124: Add/Remove required logs_users index
 # release 123: Fix email field users
@@ -3722,6 +3723,14 @@ class Upgrade(object):
                 ).run(self.conn)
             except Exception as e:
                 None
+
+        if version == 126:
+            try:
+                r.table(table).index_create(
+                    "user_category", [r.row["id"], r.row["category"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
 
         return True
 
