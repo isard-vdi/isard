@@ -36,7 +36,7 @@
                     "label": "Confirmation password",
                     "placeholder": "Confirm password"
                 },
-                "current-password":{
+                "current-password": {
                     "label": "Enter your current password:",
                     "placeholder": "Current password"
                 },
@@ -45,7 +45,7 @@
                 }
             }
         },
-        "email":{
+        "email": {
             "modal": {
                 "title": "Email change / validation",
                 "change-validate-address": "Change or validate your email address",
@@ -806,7 +806,7 @@
                     "local-client": "Use RDP client (recommended)",
                     "included": "Windows includes the required software for its use,",
                     "client-required": "but on other operating systems, it may require the installation of an external application. Consult the installation instructions:",
-                    "download-install":"Download viewer software",
+                    "download-install": "Download viewer software",
                     "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/",
                     "once-installed": "Once installed, click the 'RDP' button, that will download the virtual desktop file.",
                     "close-guide": "Close guide"
@@ -960,7 +960,7 @@
             }
         },
         "recycle-bin": {
-            "title":{
+            "title": {
                 "deployment": "Deployment '{name}' deleted at {date}",
                 "desktop": "Desktop '{name}' deleted at {date}",
                 "template": "Template '{name}' deleted at {date}",
@@ -1032,7 +1032,6 @@
                     "empty": "Empty"
                 }
             }
-
         },
         "recycle-bins": {
             "title": "Recycle bin",
@@ -1040,7 +1039,7 @@
                 "title": "There are no deleted items from this user",
                 "subtitle": "Move the items that you don't need into the recycle bin. They will be permanently deleted after {time}."
             },
-            "table-header" : {
+            "table-header": {
                 "id": "Id",
                 "accessed": "Deleted at",
                 "size": "Size",
@@ -1049,8 +1048,8 @@
                 "agent-name": "Deleted by",
                 "status": "Status",
                 "desktops": "Desktops",
-                "templates":"Templates",
-                "deployments":"Deployments",
+                "templates": "Templates",
+                "deployments": "Deployments",
                 "actions": "Actions"
             },
             "status": {
@@ -1104,7 +1103,6 @@
             "reject": "Reject",
             "accept": "Accept",
             "disclaimer-accepted": "The disclaimer has been acknowledged. Redirecting to login in {seconds} seconds"
-
         }
     },
     "messages": {
@@ -1209,7 +1207,7 @@
         "media_should_not_be_downloading": "Media should not be downloading",
         "media_url_not_found": "The given url could not be found",
         "media_url_not_valid": "The given url is not valid",
-        "media_url_bad_format": "The format of the given url is not valiid",
+        "media_url_bad_format": "The format of the given url is not valid",
         "group_total_size_limit_exceeded": "Group media storage size limit has been exceeded",
         "category_total_size_limit_exceeded": "Category media storage size limit has been exceeded",
         "total_size_quota_exceeded": "You've exceeded your storage size quota. You must remove a desktop, a template or a media to free disk space.",
@@ -1304,7 +1302,7 @@
         "password_uppercase": "Password must have at least {num} uppercase character(s)",
         "password_lowercase": "Password must have at least {num} lowercase character(s)",
         "password_digits": "Password must have at least {num} number(s)",
-        "password_special_characters":  "Password must have at least {num} special character(s): !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
+        "password_special_characters": "Password must have at least {num} special character(s): !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
         "password_already_used": "This password has already been used in the past",
         "password_username": "Password can not contain your own username",
         "wrong_password_entered": "Wrong password entered",
@@ -1313,7 +1311,6 @@
         "invalid_token": "Invalid token",
         "old_passwords": "Current password can't be any of the last {num} last passwords",
         "no_storage_pool_available": "The resource creation is not available at this moment. Please try again later."
-
     },
     "router": {
         "titles": {
