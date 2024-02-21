@@ -8,6 +8,7 @@ import json
 from api.libv2.api_desktop_events import deployment_delete
 from api.libv2.api_desktops_common import ApiDesktopsCommon
 from api.libv2.api_desktops_persistent import check_template_status
+from api.libv2.api_hypervisors import check_storage_pool_availability
 from api.libv2.deployments import api_deployments
 from api.libv2.validators import _validate_item
 from flask import request
@@ -58,6 +59,7 @@ def api_v3_deployments_new(payload):
     check_template_status(data["template_id"])
     checkDuplicate("deployments", data["name"], user=payload["user_id"])
 
+    check_storage_pool_availability(data.get("category_id"))
     api_deployments.new(
         payload,
         data["template_id"],

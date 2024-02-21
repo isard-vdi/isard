@@ -1206,7 +1206,8 @@
         "not_verified": "L'adreça de correu no ha estat validada",
         "user_not_found": "No existeix cap usuari amb el correu electrònic proporcionat",
         "invalid_token": "Token no vàlid",
-        "old_passwords": "L'última contrasenya no pot ser cap de les últimes {num} contrasenyes"
+        "old_passwords": "L'última contrasenya no pot ser cap de les últimes {num} contrasenyes",
+        "no_storage_pool_available": "En aquest moment no està disponible la creació de recursos. Esperi uns minuts i torni-ho a provar."
     },
     "messages": {
         "title": {

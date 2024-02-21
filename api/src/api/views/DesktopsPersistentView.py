@@ -18,6 +18,7 @@ from isardvdi_common.api_exceptions import Error
 
 from api import app
 
+from ..libv2.api_hypervisors import check_storage_pool_availability
 from ..libv2.api_logging import logs_domain_start_api, logs_domain_stop_api
 from ..libv2.quotas import Quotas
 
@@ -189,6 +190,7 @@ def api_v3_persistent_desktop_new(payload):
         desktop["name"],
         payload["user_id"],
     )
+    check_storage_pool_availability(payload.get("category_id"))
     desktops.NewFromTemplate(
         desktop_name=desktop["name"],
         desktop_description=desktop["description"],
@@ -217,6 +219,7 @@ def api_v3_persistent_desktop_bulk_new(payload):
     template = templates.Get(data["template_id"])
     check_template_status(None, template)
     allowed.is_allowed(payload, template, "domains")
+    check_storage_pool_availability(payload.get("category_id"))
     desktops_list = desktops.BulkDesktops(payload, data)
 
     return json.dumps(desktops_list), 200, {"Content-Type": "application/json"}
