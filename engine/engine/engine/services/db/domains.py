@@ -491,11 +491,11 @@ def get_domain_kind(id_domain):
 def get_domain_hyp_started(id_domain):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
-    results = rtable.get(id_domain).run(r_conn)
+    results = rtable.get(id_domain).pluck("hyp_started").run(r_conn)
     close_rethink_connection(r_conn)
     if not results:
         return False
-    return results["hyp_started"]
+    return results.get("hyp_started")
 
 
 def get_custom_dict_from_domain(id_domain):
@@ -880,7 +880,7 @@ def get_domain(id):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
 
-    dict_domain = rtable.get(id).run(r_conn)
+    dict_domain = rtable.get(id).without("tag_visible").run(r_conn)
     close_rethink_connection(r_conn)
     return dict_domain
 
