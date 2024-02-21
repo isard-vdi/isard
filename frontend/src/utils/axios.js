@@ -11,8 +11,8 @@ export default function axiosSetUp () {
     // Spinning show
     function (config) {
       document.body.classList.add('loading-cursor')
-      if (document.querySelector('#content[type="submit"]')) {
-        document.querySelector('#content[type="submit"]').setAttribute('disabled', 'disabled')
+      if (document.querySelector('[type="submit"]')) {
+        document.querySelector('[type="submit"]').setAttribute('disabled', 'disabled')
       }
       config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
       return config
