@@ -309,7 +309,8 @@
                 "action": "Action",
                 "description": "Description",
                 "state": "État",
-                "name": "Nom"
+                "name": "Nom",
+                "desktop-size": "Taille"
             },
             "no-info-default": "Aucune description disponible",
             "actions": {
