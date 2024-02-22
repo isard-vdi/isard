@@ -356,7 +356,46 @@ $(document).ready(function () {
         "visible": false
       }
     ],
+    initComplete: function () {
+      loadTableFilters(this)
+    }
   });
+
+  function loadTableFilters(table) {
+    // Create the table footer
+    var tfoot = $('<tfoot><tr></tr></tfoot>').appendTo($(table.api().table().node()));
+
+    // Add footer filters
+    $(table.api().table().header()).find('th').each(function (index) {
+      if (![0, 6, 12, 13].includes(index)) { // Exclude specific columns like the checkbox, actions and task columns
+        $('<th></th>')
+          .appendTo(tfoot.find('tr:first'))
+          .append($(`<input type="text" placeholder="Filter"/>`)
+            .on('keyup change', function () {
+              table.api().column(index).search($(this).val()).draw();
+            })
+          );
+      } else if (index == 6) {
+        $('<th></th>')
+          .appendTo(tfoot.find('tr:first'))
+          .append($(`<select>
+              <option value="">Filter</option>
+              <option value="desktop">Desktop</option>
+              <option value="template">Template</option>
+              <option value="deployment">Deployment</option>
+              <option value="user">User</option>
+              <option value="group">Group</option>
+              <option value="category">Category</option>
+            </select>`)
+            .on('change', function () {
+              table.api().column(index).search($(this).val()).draw();
+            })
+          )
+      } else {
+        $('<th></th>').appendTo(tfoot.find('tr'));
+      }
+    });
+  }
 
   $('thead #select-all').on('click', function (event) {
     var rows = recyclebin_domains.rows({ filter: 'applied' }).data();
@@ -491,6 +530,7 @@ $(document).ready(function () {
     $(`#${kind}-panel .quantity`).html(`(${data[kind].length} items)`)
     if ($.fn.dataTable.isDataTable(tableId)) {
       $(tableId).DataTable().destroy();
+      $(tableId).empty()
     }
 
     table = $(tableId).DataTable({
@@ -624,6 +664,7 @@ $(document).ready(function () {
     let tableId = '#recyclebin_domains_other'
     if ($.fn.dataTable.isDataTable(tableId)) {
       $(tableId).DataTable().destroy();
+      $(tableId).empty()
     }
     recyclebin_domains_other = $('#recyclebin_domains_other').DataTable({
       "ajax": {
@@ -704,6 +745,9 @@ $(document).ready(function () {
           "visible": false
         }
       ],
+      initComplete: function () {
+        loadTableFilters(this)
+      }
     });
     adminShowIdCol(recyclebin_domains_other)
     $("#recyclebin_domains_other tbody").off('click').on('click', 'button', function () {
