@@ -98,7 +98,11 @@ func (o *Orchestrator) Start(ctx context.Context) {
 				continue
 			}
 
-			if !o.scaling {
+			o.scaleMux.Lock()
+			scaling := o.scaling
+			o.scaleMux.Unlock()
+
+			if !scaling {
 				hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
 				if err != nil {
 					o.log.Error().Err(err).Msg("get hypervisors")
