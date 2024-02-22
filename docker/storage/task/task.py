@@ -20,8 +20,8 @@
 import base64
 import tempfile
 from json import loads
-from os import environ, remove, rename
-from os.path import isdir, isfile
+from os import environ, mkdir, remove, rename
+from os.path import basename, dirname, isdir, isfile, join
 from re import search
 from subprocess import PIPE, Popen, check_output, run
 from time import sleep
@@ -275,6 +275,22 @@ def move(origin_path, destination_path, rsync=False):
         ],
         extract_progress_from_rsync_output,
     )
+
+
+def move_delete(path):
+    """
+    Move the disk to a "deleted" subdirectory within the same directory path
+
+    :param path: Path of the original file
+    :type path: str
+    :rtype: int
+    """
+
+    delete_path = join(dirname(path), "deleted")
+    if not isdir(delete_path):
+        mkdir(delete_path)
+
+    rename(path, join(delete_path, basename(path)))
 
 
 def convert(convert_request):

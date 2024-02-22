@@ -421,12 +421,14 @@ class RecycleBin(object):
             "update_recycle_bin", {"id": self.id, "status": "restored"}
         )
 
-    def delete_storage(self, user_id):
+    def delete_storage(self, user_id, move=False):
         """
         Permanently delete the storage disks associated with a recycle bin entry
 
         :param user_id: User ID of who is performing the action
         :type user_id: str
+        :param move: True to move the disk file to deleted path instead of deleting it
+        :type move: bool
         """
 
         if self.categories:
@@ -503,10 +505,11 @@ class RecycleBin(object):
                             + " not ready. Status: "
                             + storage.status,
                         )
+                    task_name = "move_delete" if move else "delete"
                     task = Task(
                         user_id=self.owner_id,
                         queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
-                        task="delete",
+                        task=task_name,
                         job_kwargs={
                             "kwargs": {
                                 "path": storage.path,
