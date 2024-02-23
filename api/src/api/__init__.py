@@ -139,6 +139,7 @@ from .views import (
     StorageView,
     TemplatesView,
     UsersView,
+    ViewersConfigView,
     VpnViews,
     maintenance,
     socketio_emit,
