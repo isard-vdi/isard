@@ -1,0 +1,55 @@
+<style>
+    .form-inline #body {
+        resize: vertical;
+        width: 100%;
+        overflow-y: scroll;
+        height: 175px;
+    }
+
+    #body-panel .preview {
+        text-align: center;
+        padding-top: 20px;
+        width: 100%;
+    }
+</style>
+
+<div class="modal fade" id="modalEditViewersConfig" tabindex="-1" role="dialog"
+    aria-labelledby="modalEditViewersConfig" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4><i class="fa fa-file-text-o" aria-hidden="true"></i> Custom
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalEditViewersConfigForm" class="form-inline form-label-left">
+                    <input hidden id="viewer" name="viewer"/>
+                    <div class="x_panel">
+                        <div class="col-md-12 col-xs-12" id="body-panel">
+                            <textarea class="roundbox border form-control p-1" name="custom" rows="30" cols="60" id="custom"
+                                placeholder="Type your viewer config here..."></textarea>
+                        </div>
+                    </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Edit custom</button></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>

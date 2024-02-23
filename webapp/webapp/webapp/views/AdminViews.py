@@ -445,6 +445,18 @@ def admin_notifications():
     )
 
 
+@app.route("/isard-admin/admin/viewers", methods=["GET"])
+@login_required
+@isAdmin
+def admin_viewers():
+    return render_template(
+        "admin/pages/viewers_config.html",
+        nav="Viewers config",
+        title="Viewers configuration",
+        monitor_host=monitor_host,
+    )
+
+
 @app.route("/isard-admin/admin/system", methods=["GET"])
 @login_required
 @isAdmin
