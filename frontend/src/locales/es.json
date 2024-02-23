@@ -1164,7 +1164,9 @@
             "deleting-template": "Eliminando plantilla",
             "retry-desktop": "Comprobando el estado del escritorio",
             "restoring-recycle-bin": "Restaurando entrada",
-            "deleting-recycle-bin": "Eliminando entrada"
+            "deleting-recycle-bin": "Eliminando entrada",
+            "warning-desktop-waiting-ip": "Aún no se puede abrir el visor seleccionado. Espere por favor..."
+
         },
         "loading": "Cargando"
     },
