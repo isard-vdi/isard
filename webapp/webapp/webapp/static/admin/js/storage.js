@@ -525,6 +525,7 @@ function showRowDetails(table, tr, row) {
     });
 
     row.child(format(row.data())).show();
+    $('#cl' + row.data().id).parent().prepend(detailButtons(row.data()));
 
     childTable = $('#cl' + row.data().id).DataTable({
       dom: "t",
@@ -562,4 +563,39 @@ function showRowDetails(table, tr, row) {
     });
     tr.addClass('shown')
   }
+}
+
+
+function detailButtons(storage) {
+  return storage.status == "ready" ?
+    `<div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel" style="background-color: #F7F7F7;">
+        <div class="row">
+          <div class="col-md-12 col-sm-12 col-xs-12">
+            <div class="x_content">
+              <div class="row">
+                <div class="col-md-12 col-sm-12 col-xs-12">
+                  <div class="x_panel" style="margin:3px;">
+                  
+                    <!--<button class="btn btn-success btn-xs btn-move" data-id="${storage.id}" type="button"
+                      data-placement="top" title="Move to another path"><i class="fa fa-truck m-right-xs"></i>
+                      Move
+                    </button>-->
+                    <button class="btn btn-success btn-xs btn-convert" data-id="${storage.id}" type="button"
+                      data-placement="top" title="Convert disk"><i class="fa fa-exchange m-right-xs"></i>
+                      Convert
+                    </button>
+                    <!--<button class="btn btn-primary btn-xs btn-virt_win_reg" data-id="${storage.id}" type="button"
+                      data-placement="top" title="Add windows registry"><i class="fa fa-edit m-right-xs"></i>
+                      Windows registry
+                    </button>-->
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>` : "";
 }
