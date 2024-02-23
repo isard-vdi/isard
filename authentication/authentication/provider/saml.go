@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path"
 	"regexp"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
@@ -18,6 +19,11 @@ import (
 
 	"github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
+)
+
+const (
+	ACSRoute      = "/saml/acs"
+	MetadataRoute = "/saml/metadata"
 )
 
 type SAML struct {
@@ -32,12 +38,12 @@ type SAML struct {
 }
 
 func InitSAML(cfg cfg.Authentication) *SAML {
-	metadataURL, err := url.Parse(cfg.SAML.MetadataURL)
+	remoteMetadataURL, err := url.Parse(cfg.SAML.MetadataURL)
 	if err != nil {
 		log.Fatalf("parse metadata URL: %v", err)
 	}
 
-	metadata, err := samlsp.FetchMetadata(context.Background(), http.DefaultClient, *metadataURL)
+	metadata, err := samlsp.FetchMetadata(context.Background(), http.DefaultClient, *remoteMetadataURL)
 	if err != nil {
 		log.Fatalf("fetch metadata: %v", err)
 	}
@@ -52,18 +58,30 @@ func InitSAML(cfg cfg.Authentication) *SAML {
 		log.Fatalf("parse certificate: %v", err)
 	}
 
-	url, err := url.Parse(fmt.Sprintf("https://%s/authentication/callback", cfg.Host))
+	baseURL, err := url.Parse(fmt.Sprintf("https://%s/authentication", cfg.Host))
 	if err != nil {
 		log.Fatalf("parse root URL: %v", err)
 	}
 
+	url := *baseURL
+	url.Path = path.Join(baseURL.Path, "/callback")
+
 	middleware, _ := samlsp.New(samlsp.Options{
-		URL:                *url,
+		URL:                url,
 		Key:                k.PrivateKey.(*rsa.PrivateKey),
 		Certificate:        k.Leaf,
 		IDPMetadata:        metadata,
 		DefaultRedirectURI: "/authentication/callback",
 	})
+
+	// Configure the full path of the SAML endpoints
+	acsURL := *baseURL
+	acsURL.Path = path.Join(baseURL.Path, ACSRoute)
+	middleware.ServiceProvider.AcsURL = acsURL
+
+	metadataURL := *baseURL
+	metadataURL.Path = path.Join(baseURL.Path, MetadataRoute)
+	middleware.ServiceProvider.MetadataURL = metadataURL
 
 	s := &SAML{
 		cfg:        cfg,

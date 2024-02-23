@@ -74,9 +74,9 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	m.HandleFunc("/healthcheck", a.healthcheck)
 
 	// SAML authentication
-	m.Handle("/authentication/saml/login", http.StripPrefix("/authentication", http.HandlerFunc(a.loginSAML)))
-	m.Handle("/authentication/saml/metadata", http.StripPrefix("/authentication", http.HandlerFunc(a.Authentication.SAML().ServeMetadata)))
-	m.Handle("/authentication/saml/acs", http.StripPrefix("/authentication", http.HandlerFunc(a.Authentication.SAML().ServeACS)))
+	m.HandleFunc("/authentication/saml/login", a.loginSAML)
+	m.HandleFunc("/authentication/saml/metadata", a.Authentication.SAML().ServeMetadata)
+	m.HandleFunc("/authentication/saml/acs", a.Authentication.SAML().ServeACS)
 
 	// The OpenAPI specification server
 	m.Handle("/authentication/", http.StripPrefix("/authentication", oas))
@@ -130,9 +130,6 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 		w.Write([]byte("method not allowed"))
 		return
 	}
-
-	// Hijack the URL to ensure the redirect has the correct path
-	r.URL.Path = "/authentication/saml/login"
 
 	// Get the login parameters
 	var provider oasAuthentication.Providers
