@@ -24,6 +24,7 @@ function getGroupParam() {
 $(document).ready(function () {
   $template = $(".template-storage-detail");
   $('#status').attr('disabled', 'disabled')
+  addCheckboxListeners();
 
   // Storage ready table
   let tableId = '#storage'
@@ -311,6 +312,52 @@ $(document).on('click', '.btn-check-qemu-img-info', function () {
   });
 })
 
+$(document).on('click', '.btn-convert', function () {
+  element = $(this);
+  var storageId = element.data("id");
+  modal = "#modalConvertStorage";
+  $(modal + " select").empty();
+  $(modal + " #id").val(storageId);
+  populateDiskFormatSelects(element.data("current_type"));
+  $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+});
+
+
+$("#modalConvertStorage #send").on("click", function () {
+  var form = $('#modalConvertStorageForm');
+  form.parsley().validate();
+  if (form.parsley().isValid()) {
+    data = form.serializeObject();
+    var new_storage_status = data["change_status-cb"] ? "/" + data["new_status"] : "";
+    var compress = data["compress-cb"] ? "/compress" : "";
+    url = `/api/v3/storage/${data.storage_id}/convert/${data.disk_format}${new_storage_status}${compress}`
+    $.ajax({
+      url: url,
+      type: 'POST',
+    }).done(function () {
+      new PNotify({
+        title: 'Task created successfully',
+        text: `Converting storage...`,
+        hide: true,
+        delay: 2000,
+        opacity: 1,
+        type: 'success'
+      });
+      $('.modal').modal('hide');
+    }).fail(function (data) {
+      new PNotify({
+        title: `ERROR trying to convert storage`,
+        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+    });
+  }
+});
+
 function socketio_on() {
   socket.on('storage', function (data) {
     var data = JSON.parse(data);
@@ -477,7 +524,7 @@ function createDatatable(tableId, status, initCompleteFn = null) {
           try {
             return moment.unix(last.time).fromNow();
           } catch {
-            return null;
+            return "N/A";
           }
         }
       },
@@ -581,8 +628,8 @@ function detailButtons(storage) {
                       data-placement="top" title="Move to another path"><i class="fa fa-truck m-right-xs"></i>
                       Move
                     </button>-->
-                    <button class="btn btn-success btn-xs btn-convert" data-id="${storage.id}" type="button"
-                      data-placement="top" title="Convert disk"><i class="fa fa-exchange m-right-xs"></i>
+                    <button class="btn btn-success btn-xs btn-convert" data-id="${storage.id}" data-current_type=${storage.type} type="button"
+                      data-placement="top" title="Convert to another disk format"><i class="fa fa-exchange m-right-xs"></i>
                       Convert
                     </button>
                     <!--<button class="btn btn-primary btn-xs btn-virt_win_reg" data-id="${storage.id}" type="button"
@@ -598,4 +645,29 @@ function detailButtons(storage) {
         </div>
       </div>
     </div>` : "";
+}
+
+function populateDiskFormatSelects(currentType) {
+  $("#current-disk_format").append(`<option selected disabled value="${currentType}">.${currentType}</option>`);
+
+  $("#modalConvertStorageForm #new-disk_format").append(`
+    <option value="qcow2">.qcow2</option>
+    <option value="vmdk">.vmdk</option>
+  `);
+  $(`#modalConvertStorageForm #new-disk_format option[value="${currentType}"]`).remove();
+
+  $("#modalConvertStorageForm #new-status").append(`
+    <option value="ready">Ready</option>
+    <option value="downloadable">Downloadable</option>
+  `);
+
+}
+
+function addCheckboxListeners() {
+  $("#modalConvertStorageForm #change_status-cb").on('ifChecked', function (event) {
+    $("#modalConvertStorageForm #new_status-content").show();
+  });
+  $("#modalConvertStorageForm #change_status-cb").on('ifUnchecked', function (event) {
+    $("#modalConvertStorageForm #new_status-content").hide();
+  });
 }

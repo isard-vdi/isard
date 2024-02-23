@@ -1,0 +1,102 @@
+<style>
+    .alert-error {
+        margin-bottom: 0px;
+    }
+</style>
+
+<div class="modal fade" id="modalConvertStorage" tabindex="-1" role="dialog" aria-labelledby="modalConvertStorage"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel"><i class="fa fa-exchange"></i> Convert disk</h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalConvertStorageForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="storage_id" />
+                    <div class="x_panel">
+                        <div class="row">
+                            <div class="x_title">
+                                <h4>Convert storage disk to a different disk format</h4>
+                                <div class="clearfix">
+                                </div>
+                            </div>
+                            <div class="x_panel">
+                                <div class="col-md-6">
+                                    <label class="control-label">Current disk format:</label>
+                                    <select id="current-disk_format" style="width:100%;" disabled
+                                        class="roundbox form-control">
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="control-label">New disk format: </label>
+                                    <select name="disk_format" style="width:100%;" id="new-disk_format"
+                                        class="roundbox form-control"></select>
+                                    <label class="control-label" for="compress-enabled" style="margin:10px">
+                                        <div class="icheckbox_flat-green" style="position: relative;">
+                                            <input type="checkbox" id="compress-cb" name="compress-cb" class="flat"
+                                                style="position: absolute; opacity: 0;">
+                                            <ins class="iCheck-helper"
+                                                style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                            </ins>
+                                        </div>
+                                        Compress
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="x_title">
+                                <h4>Other options</h4>
+                                <div class="clearfix">
+                                </div>
+                            </div>
+                            <div class="x_panel">
+                                <div class="col-md-6">
+                                    <label class="control-label" for="change_status-enabled" style="margin:10px">
+                                        <div class="icheckbox_flat-green" style="position: relative;">
+                                            <input type="checkbox" id="change_status-cb" name="change_status-cb"
+                                                class="flat" style="position: absolute; opacity: 0;">
+                                            <ins class="iCheck-helper"
+                                                style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                            </ins>
+                                        </div>
+                                        Change disk status
+                                    </label>
+                                </div>
+                                <div class="col-md-6" id="new_status-content" style="display:none;">
+                                    <label class="control-label">New status:</label>
+                                    <select id="new-status" name="new_status" class="roundbox form-control">
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div role="alert" class="alert alert-error">
+                                <i class="fa fa-warning"></i> WARNING: This process may take a long time. The disk will
+                                be unavailable until the conversion is complete.
+                            </div>
+                        </div>
+                    </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success"><i class="fa fa-warning"></i>
+                            Convert</button></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>
