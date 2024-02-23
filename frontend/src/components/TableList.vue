@@ -137,6 +137,7 @@
                     :default-viewer="getDefaultViewer(data.item)"
                     :waiting-ip="data.item.state && data.item.state.toLowerCase() === desktopStates.waitingip"
                     @dropdownClicked="openDesktop"
+                    @notifyWaitingIp="notifyWaitingIp"
                   />
                 </div>
               </template>
@@ -434,6 +435,10 @@ export default {
       if (item.needsBooking) return 'list-orange-bar'
     }
 
+    const notifyWaitingIp = () => {
+      $store.dispatch('showNotification', { message: i18n.t('messages.info.warning-desktop-waiting-ip') })
+    }
+
     return {
       perPage,
       pageOptions,
@@ -442,7 +447,8 @@ export default {
       fields: desktopFields,
       canStart,
       changeDesktopStatus,
-      rowClass
+      rowClass,
+      notifyWaitingIp
     }
   },
   data () {

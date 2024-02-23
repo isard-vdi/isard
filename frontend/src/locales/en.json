@@ -1151,7 +1151,8 @@
             "deleting-template": "Deleting template",
             "retry-desktop": "Checking desktop status",
             "restoring-recycle-bin": "Restoring entry",
-            "deleting-recycle-bin": "Deleting entry"
+            "deleting-recycle-bin": "Deleting entry",
+            "warning-desktop-waiting-ip": "Viewer not available right now. Please wait.."
         },
         "loading": "Loading"
     },

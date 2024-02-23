@@ -4,7 +4,7 @@
     :variant="!(waitingIp && needsIp(defaultViewer)) ? variant : 'secondary'"
     :class="cssClass"
     split
-    @click="defaultViewer && !(waitingIp && needsIp(defaultViewer)) && $emit('dropdownClicked', {desktopId: desktop.id, viewer: defaultViewer})"
+    @click="(defaultViewer && !(waitingIp && needsIp(defaultViewer))) ? $emit('dropdownClicked', {desktopId: desktop.id, viewer: defaultViewer}) : $emit('notifyWaitingIp')"
   >
     <template #button-content>
       <div

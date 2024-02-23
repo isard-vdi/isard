@@ -1276,7 +1276,8 @@
             "deleting-template": "Esborrant plantilla",
             "retry-desktop": "Comprovant l'estat del escriptori",
             "restoring-recycle-bin": "Restaurant entrada",
-            "deleting-recycle-bin": "Eliminant entrada"
+            "deleting-recycle-bin": "Eliminant entrada",
+            "warning-desktop-waiting-ip": "Encara no es pot obrir el visor actual Espereu si us plau..."
         },
         "loading": "Carregant"
     },

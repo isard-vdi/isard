@@ -239,7 +239,7 @@
               v-if="!hideViewers && desktop.viewers && desktop.viewers.length > 1"
               :dd-disabled="!showDropDown"
               css-class="viewers-dropdown m-0"
-              :class="{ 'dropdown-inactive': !showDropDown, 'dropdown-wait': viewerNeedsIp(getDefaultViewer) && isWaiting(desktop.interfaces), 'dropdown-active': !viewerNeedsIp(getDefaultViewer) || !isWaiting(desktop.interfaces) }"
+              :class="{ 'dropdown-inactive': !showDropDown, 'dropdown-wait': viewerNeedsIp(getDefaultViewer) && (isWaiting(desktop.interfaces) || waitingIp), 'dropdown-active': (!viewerNeedsIp(getDefaultViewer) || !isWaiting(desktop.interfaces) && !waitingIp) }"
               variant="light"
               :viewers="filterViewerFromList"
               :desktop="desktop"
@@ -248,6 +248,7 @@
               :default-viewer="getDefaultViewer"
               :waiting-ip="waitingIp"
               @dropdownClicked="openDesktop"
+              @notifyWaitingIp="notifyWaitingIp"
             />
           </div>
         </div>
@@ -305,9 +306,14 @@ export default {
       $store.dispatch('goToItemBooking', data)
     }
 
+    const notifyWaitingIp = () => {
+      $store.dispatch('showNotification', { message: i18n.t('messages.info.warning-desktop-waiting-ip') })
+    }
+
     return {
       changeDesktopStatus,
-      onClickBookingDesktop
+      onClickBookingDesktop,
+      notifyWaitingIp
     }
   },
   data () {
