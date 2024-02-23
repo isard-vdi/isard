@@ -260,17 +260,24 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 
 		allUsrGrps, err := l.listAllGroups(gSearchID)
 		if err != nil {
-			if errors.Is(err, ErrInvalidCredentials) {
+			if !errors.Is(err, ErrInvalidCredentials) {
+				return nil, nil, "", &ProviderError{
+					User:   ErrInternal,
+					Detail: fmt.Errorf("list all groups: %w", err),
+				}
+			}
+
+			// If the error is ErrInvalidCredentials, means that the user is not part
+			// of any group. If there's a default group configured, use it as allUsrGrps.
+			// Otherwise, return the error
+			if l.cfg.DefaultGroup == "" {
 				return nil, nil, "", &ProviderError{
 					User:   ErrInvalidCredentials,
 					Detail: fmt.Errorf("list all groups: %w", err),
 				}
 			}
 
-			return nil, nil, "", &ProviderError{
-				User:   ErrInternal,
-				Detail: fmt.Errorf("list all groups: %w", err),
-			}
+			allUsrGrps = []string{l.cfg.DefaultGroup}
 		}
 
 		// Get the role that has more privileges
@@ -286,6 +293,8 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 				}
 			}
 		}
+
+		// Role fallback
 		if u.Role == "" {
 			u.Role = l.cfg.RoleDefault
 		}
