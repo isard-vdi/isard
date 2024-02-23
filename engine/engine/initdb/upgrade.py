@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 126
+release_version = 127
+# release 127: Add viewers config
 # release 126: Add user_category index to users table
 # release 125: Add owner_category index
 # release 124: Add/Remove required logs_users index
@@ -397,6 +398,138 @@ class Upgrade(object):
             try:
                 d["engine"]["intervals"]["transitional_states_polling"] = 10
                 r.table(table).update(d).run(self.conn)
+            except Exception as e:
+                log.error(
+                    "Could not update table "
+                    + table
+                    + " conversion fields for db version "
+                    + str(version)
+                    + "!"
+                )
+                log.error("Error detail: " + str(e))
+
+        if version == 127:
+            try:
+                rdp_fixed = """full address:s:%s"""
+                rdp_default = """enableworkspacereconnect:i:0
+                    disable wallpaper:i:0
+                    allow font smoothing:i:0
+                    allow desktop composition:i:0
+                    disable full window drag:i:1
+                    disable menu anims:i:1
+                    disable themes:i:0
+                    disable cursor setting:i:0
+                    bitmapcachepersistenable:i:1
+                    audiomode:i:0
+                    redirectprinters:i:1
+                    redirectcomports:i:0
+                    redirectsmartcards:i:1
+                    redirectclipboard:i:1
+                    redirectposdevices:i:0
+                    drivestoredirect:s:
+                    autoreconnection enabled:i:1
+                    authentication level:i:2
+                    prompt for credentials:i:0
+                    negotiate security layer:i:1
+                    remoteapplicationmode:i:0
+                    alternate shell:s:
+                    shell working directory:s:
+                    gatewayhostname:s:
+                    gatewayusagemethod:i:4
+                    gatewaycredentialssource:i:4
+                    gatewayprofileusagemethod:i:0
+                    promptcredentialonce:i:0
+                    gatewaybrokeringtype:i:0
+                    use redirection server name:i:0
+                    rdgiskdcproxy:i:0
+                    kdcproxyname:s:"""
+                rdpgw_fixed = """full address:s:%s
+                    gatewayhostname:s:%s:%s
+                    gatewayaccesstoken:s:%s
+                    username:s:%s
+                    password:s:%s"""
+                rdpgw_default = """enableworkspacereconnect:i:0
+                    disable wallpaper:i:0
+                    allow desktop composition:i:0
+                    disable full window drag:i:1
+                    disable menu anims:i:1
+                    disable themes:i:0
+                    disable cursor setting:i:0
+                    bitmapcachepersistenable:i:1
+                    audiomode:i: value:0
+                    redirectprinters:i:1
+                    redirectcomports:i:0
+                    redirectsmartcards:i:1
+                    redirectclipboard:i:1
+                    redirectposdevices:i:0
+                    drivestoredirect:s:
+                    autoreconnection enabled:i:1
+                    authentication level:i:2
+                    prompt for credentials:i:0
+                    negotiate security layer:i:1
+                    remoteapplicationmode:i:0
+                    alternate shell:s:
+                    shell working directory:s:
+                    gatewayusagemethod:i:1
+                    gatewaycredentialssource:i:5
+                    gatewayprofileusagemethod:i:1
+                    networkautodetect:i:1
+                    bandwidthautodetect:i:1
+                    promptcredentialonce:i:0
+                    gatewaybrokeringtype:i:0
+                    use redirection server name:i:0
+                    rdgiskdcproxy:i:0
+                    kdcproxyname:s:
+                    connection type:i:6
+                    domain:s:
+                    allow font smoothing:i:1
+                    bitmapcachesize:i:32000
+                    smart sizing:i:1"""
+                spice_fixed = """[virt-viewer]
+                    type=%s
+                    proxy=http://%s:%s
+                    host=%s
+                    password=%s
+                    tls-port=%s
+                    fullscreen=%s
+                    title=%s:%sd - Prem SHIFT+F12 per sortir"""
+                spice_default = """
+                    enable-smartcard=0
+                    enable-usb-autoshare=1
+                    delete-this-file=1
+                    usb-filter=-1,-1,-1,-1,0
+                    tls-ciphers=DEFAULT
+                    toggle-fullscreen=shift+f11
+                    release-cursor=shift+f12
+                    secure-attention=ctrl+alt+end
+                    secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
+                r.table(table).update(
+                    {
+                        "viewers": {
+                            "file_rdpvpn": {
+                                "viewer": "RDP VPN",
+                                "key": "file_rdpvpn",
+                                "fixed": rdp_fixed,
+                                "default": rdp_default.strip(),
+                                "custom": rdp_default.strip(),
+                            },
+                            "file_rdpgw": {
+                                "viewer": "RDP",
+                                "key": "file_rdpgw",
+                                "fixed": rdpgw_fixed,
+                                "default": rdpgw_default.strip(),
+                                "custom": rdpgw_default.strip(),
+                            },
+                            "file_spice": {
+                                "viewer": "SPICE",
+                                "key": "file_spice",
+                                "fixed": spice_fixed,
+                                "default": spice_default.strip(),
+                                "custom": spice_default.strip(),
+                            },
+                        }
+                    }
+                ).run(self.conn)
             except Exception as e:
                 log.error(
                     "Could not update table "
