@@ -300,7 +300,7 @@ func TestLogin(t *testing.T) {
 				}
 			},
 			ExpectedRedirect: "",
-			ExpectedErr:      fmt.Errorf("login: %w", provider.ErrInvalidCredentials).Error(),
+			ExpectedErr:      fmt.Errorf("login: %w: local: user not found", provider.ErrInvalidCredentials).Error(),
 		},
 		"should return an error if the user and password don't match": {
 			PrepareDB: func(m *r.Mock) {
@@ -335,7 +335,7 @@ func TestLogin(t *testing.T) {
 				}
 			},
 			ExpectedRedirect: "",
-			ExpectedErr:      fmt.Errorf("login: %w", provider.ErrInvalidCredentials).Error(),
+			ExpectedErr:      fmt.Errorf("login: %w: local: invalid password", provider.ErrInvalidCredentials).Error(),
 		},
 		"should return an error if the user is disabled": {
 			PrepareDB: func(m *r.Mock) {
