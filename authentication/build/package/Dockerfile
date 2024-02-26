@@ -31,7 +31,9 @@ FROM ${GOLANG_RUN_IMAGE}
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     ca-certificates \
-    openssl
+    openssl \
+    # Used for the healthcheck
+    curl
 
 COPY --from=build /build/authentication/build/package/run.sh /run.sh
 COPY --from=build /build/authentication/bin/authentication /authentication

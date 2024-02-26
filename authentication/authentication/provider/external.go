@@ -33,18 +33,27 @@ request:
 	return nil
 }
 
-func (e *External) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
+func (e *External) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
 	if err := checkRequiredArgs(args); err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: err,
+		}
 	}
 
 	claims, err := token.ParseExternalToken(e.db, args[TokenArgsKey])
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", &ProviderError{
+			User:   err,
+			Detail: errors.New("parse the external token"),
+		}
 	}
 
 	if model.Role(claims.Role).HasEqualOrMorePrivileges(model.RoleAdmin) {
-		return nil, nil, "", errors.New("cannot create an admin user through an external app")
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: errors.New("cannot create an admin user through an external app"),
+		}
 	}
 
 	g := &model.Group{
@@ -73,8 +82,11 @@ func (e *External) Login(ctx context.Context, categoryID string, args map[string
 	return g, u, "", nil
 }
 
-func (External) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
-	return nil, nil, "", errInvalidIDP
+func (External) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, *ProviderError) {
+	return nil, nil, "", &ProviderError{
+		User:   errInvalidIDP,
+		Detail: errors.New("the external provider doesn't support the callback operation"),
+	}
 }
 
 func (External) AutoRegister() bool {
@@ -83,4 +95,8 @@ func (External) AutoRegister() bool {
 
 func (External) String() string {
 	return types.External
+}
+
+func (External) Healthcheck() error {
+	return nil
 }

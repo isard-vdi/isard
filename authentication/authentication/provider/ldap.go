@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"regexp"
@@ -134,13 +135,16 @@ func (l *LDAP) listAllGroups(usr string) ([]string, error) {
 	return groups, nil
 }
 
-func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
+func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
 	usr := args[FormUsernameArgsKey]
 	pwd := args[FormPasswordArgsKey]
 
 	conn, err := l.newConn()
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: err,
+		}
 	}
 	defer conn.Close()
 
@@ -164,14 +168,23 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 	rsp, err := conn.Search(req)
 	if err != nil {
 		if ldap.IsErrorWithCode(err, ldap.LDAPResultNoSuchObject) {
-			return nil, nil, "", ErrInvalidCredentials
+			return nil, nil, "", &ProviderError{
+				User:   ErrInvalidCredentials,
+				Detail: errors.New("user not found"),
+			}
 		}
 
-		return nil, nil, "", fmt.Errorf("serach the user: %w", err)
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: fmt.Errorf("serach the user: %w", err),
+		}
 	}
 
 	if len(rsp.Entries) != 1 {
-		return nil, nil, "", ErrInvalidCredentials
+		return nil, nil, "", &ProviderError{
+			User:   ErrInvalidCredentials,
+			Detail: fmt.Errorf("user not found: found '%d' users", len(rsp.Entries)),
+		}
 	}
 
 	entry := rsp.Entries[0]
@@ -180,10 +193,16 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 
 	if err := conn.Bind(usr_dn, pwd); err != nil {
 		if ldap.IsErrorWithCode(err, ldap.LDAPResultInvalidCredentials) {
-			return nil, nil, "", ErrInvalidCredentials
+			return nil, nil, "", &ProviderError{
+				User:   ErrInvalidCredentials,
+				Detail: errors.New("invalid password"),
+			}
 		}
 
-		return nil, nil, "", fmt.Errorf("bind the user: %w", err)
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: fmt.Errorf("bind the user: %w", err),
+		}
 	}
 
 	var g *model.Group
@@ -204,7 +223,10 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 
 	if l.AutoRegister() {
 		if !l.cfg.GuessCategory && u.Category != categoryID {
-			return nil, nil, "", ErrInvalidCredentials
+			return nil, nil, "", &ProviderError{
+				User:   ErrInvalidCredentials,
+				Detail: fmt.Errorf("category missmatch: expecting '%s', found '%s'", categoryID, u.Category),
+			}
 		}
 
 		g = &model.Group{
@@ -218,7 +240,10 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 		if g.ExternalGID == "" {
 			// If there's no default group, throw an error
 			if l.cfg.DefaultGroup == "" {
-				return nil, nil, "", ErrInvalidCredentials
+				return nil, nil, "", &ProviderError{
+					User:   ErrInvalidCredentials,
+					Detail: errors.New("empty user group"),
+				}
 			}
 
 			// Otherwise set is as the ExternalGID
@@ -235,7 +260,17 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 
 		allUsrGrps, err := l.listAllGroups(gSearchID)
 		if err != nil {
-			return nil, nil, "", err
+			if errors.Is(err, ErrInvalidCredentials) {
+				return nil, nil, "", &ProviderError{
+					User:   ErrInvalidCredentials,
+					Detail: fmt.Errorf("list all groups: %w", err),
+				}
+			}
+
+			return nil, nil, "", &ProviderError{
+				User:   ErrInternal,
+				Detail: fmt.Errorf("list all groups: %w", err),
+			}
 		}
 
 		// Get the role that has more privileges
@@ -259,8 +294,11 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 	return g, u, "", nil
 }
 
-func (l *LDAP) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
-	return nil, nil, "", errInvalidIDP
+func (l *LDAP) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, *ProviderError) {
+	return nil, nil, "", &ProviderError{
+		User:   errInvalidIDP,
+		Detail: errors.New("the LDAP provider doesn't support the callback operation"),
+	}
 }
 
 func (l *LDAP) AutoRegister() bool {
@@ -269,4 +307,15 @@ func (l *LDAP) AutoRegister() bool {
 
 func (l *LDAP) String() string {
 	return types.LDAP
+}
+
+func (l *LDAP) Healthcheck() error {
+	conn, err := l.newConn()
+	if err != nil {
+		return fmt.Errorf("unable to connect to the LDAP server: %w", err)
+	}
+
+	defer conn.Close()
+
+	return nil
 }

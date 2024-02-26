@@ -19,15 +19,21 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/db"
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"
 
+	"github.com/crewjam/saml/samlsp"
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/rs/zerolog"
 	"gitlab.com/isard/isardvdi-sdk-go"
 )
 
 var _ oasAuthentication.Handler = &AuthenticationServer{}
 
+const healthcheckCacheKey = "healthcheck"
+
 type AuthenticationServer struct {
 	Addr           string
 	Authentication authentication.Interface
+
+	healthcheckCache *ttlcache.Cache[string, error]
 
 	Log *zerolog.Logger
 	WG  *sync.WaitGroup
@@ -37,26 +43,43 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	a := &AuthenticationServer{
 		Addr:           addr,
 		Authentication: auth,
-		Log:            log,
-		WG:             wg,
+		healthcheckCache: ttlcache.New[string, error](
+			// Set the cache duration to 30 seconds
+			ttlcache.WithTTL[string, error](30*time.Second),
+			// Disable the time extension when getting the values
+			ttlcache.WithDisableTouchOnHit[string, error](),
+		),
+		Log: log,
+		WG:  wg,
 	}
+
+	// Start the cache eviction process
+	go a.healthcheckCache.Start()
 
 	sec := &SecurityHandler{}
 
 	// TODO: Security handler
-	oas, err := oasAuthentication.NewServer(a, sec)
+	oas, err := oasAuthentication.NewServer(
+		a,
+		sec,
+		oasAuthentication.WithMiddleware(Logging(log)),
+	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("create the OpenAPI authentication server")
 	}
 
 	m := http.NewServeMux()
 
-	// SAML authentication
-	m.HandleFunc("/saml/login", a.loginSAML)
-	m.HandleFunc("/saml/metadata", a.Authentication.SAML().ServeMetadata)
-	m.HandleFunc("/saml/acs", a.Authentication.SAML().ServeACS)
+	// Observability endpoints
+	m.HandleFunc("/healthcheck", a.healthcheck)
 
-	m.Handle("/", oas)
+	// SAML authentication
+	m.Handle("/authentication/saml/login", http.StripPrefix("/authentication", http.HandlerFunc(a.loginSAML)))
+	m.Handle("/authentication/saml/metadata", http.StripPrefix("/authentication", http.HandlerFunc(a.Authentication.SAML().ServeMetadata)))
+	m.Handle("/authentication/saml/acs", http.StripPrefix("/authentication", http.HandlerFunc(a.Authentication.SAML().ServeACS)))
+
+	// The OpenAPI specification server
+	m.Handle("/authentication/", http.StripPrefix("/authentication", oas))
 
 	s := http.Server{
 		Addr:    a.Addr,
@@ -75,7 +98,30 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	defer cancel()
 
 	s.Shutdown(timeout)
+	a.healthcheckCache.Stop()
+
 	a.WG.Done()
+}
+
+func (a *AuthenticationServer) healthcheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	status := a.healthcheckCache.Get(healthcheckCacheKey)
+	if status == nil || status.IsExpired() {
+		err := a.Authentication.Healthcheck()
+
+		status = a.healthcheckCache.Set(healthcheckCacheKey, err, ttlcache.DefaultTTL)
+	}
+
+	if status.Value() != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request) {
@@ -119,8 +165,9 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 			Token:      tkn,
 		})
 		if err != nil {
+			a.Log.Error().Err(err).Msg("SAML login error")
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
+			w.Write([]byte("internal server error"))
 			return
 		}
 
@@ -195,6 +242,8 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		args["password"] = req.Value.Password.Value
 	}
 
+	log := a.Log.With().Str("provider", string(params.Provider)).Logger()
+
 	p := a.Authentication.Provider(string(params.Provider))
 	if p.String() == types.SAML {
 		c := &http.Cookie{
@@ -208,6 +257,12 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		}
 
 		if _, err := a.Authentication.SAML().Session.GetSession(r); err != nil {
+			if !errors.Is(err, samlsp.ErrNoSession) {
+				log.Error().Err(err).Msg("unknown error")
+
+				return nil, provider.ErrInternal
+			}
+
 			// Prepeare the redirection
 			q := url.Values{}
 			q.Add("provider", string(params.Provider))
@@ -230,13 +285,13 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	if err != nil {
 		if errors.Is(err, provider.ErrInvalidCredentials) {
 			return &oasAuthentication.LoginUnauthorized{
-				Data: bytes.NewReader([]byte(err.Error())),
+				Data: bytes.NewReader([]byte(provider.ErrInvalidCredentials.Error())),
 			}, nil
 		}
 
 		if errors.Is(err, provider.ErrUserDisabled) {
 			return &oasAuthentication.LoginForbidden{
-				Data: bytes.NewReader([]byte(err.Error())),
+				Data: bytes.NewReader([]byte(provider.ErrUserDisabled.Error())),
 			}, nil
 		}
 
@@ -252,7 +307,15 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 			}, nil
 		}
 
-		return nil, err
+		// If it's a provider error, return the user-facing error
+		var prvErr *provider.ProviderError
+		if errors.As(err, &prvErr) {
+			log.Error().Err(err).Msg("provider error")
+			return nil, prvErr.User
+		}
+
+		log.Error().Err(err).Msg("unknown error")
+		return nil, provider.ErrInternal
 	}
 
 	c := &http.Cookie{
@@ -310,7 +373,15 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 			}, nil
 		}
 
-		return nil, err
+		// If it's a provider error, return the user-facing error
+		var prvErr *provider.ProviderError
+		if errors.As(err, &prvErr) {
+			a.Log.Error().Err(err).Msg("provider error")
+			return nil, prvErr.User
+		}
+
+		a.Log.Error().Err(err).Msg("unknown error")
+		return nil, provider.ErrInternal
 	}
 
 	c := &http.Cookie{

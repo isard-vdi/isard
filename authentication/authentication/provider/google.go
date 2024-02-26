@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
@@ -39,30 +40,42 @@ func InitGoogle(cfg cfg.Authentication) *Google {
 	}
 }
 
-func (g *Google) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
+func (g *Google) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
 	redirect := args["redirect"]
 	redirect, err := g.provider.login(categoryID, redirect)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: err,
+		}
 	}
 
 	return nil, nil, redirect, nil
 }
 
-func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (*model.Group, *model.User, string, error) {
+func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
 	oTkn, err := g.provider.callback(ctx, args)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: err,
+		}
 	}
 
 	svc, err := gAPI.NewService(ctx, option.WithTokenSource(oauth2.StaticTokenSource(oTkn)))
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("create Google API client: %w", err)
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: fmt.Errorf("create Google API client: %w", err),
+		}
 	}
 
 	gUsr, err := svc.Userinfo.Get().Do()
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("get user information from Google: %w", err)
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: fmt.Errorf("get user information from Google: %w", err),
+		}
 	}
 
 	u := &model.User{
@@ -84,4 +97,13 @@ func (Google) AutoRegister() bool {
 
 func (g *Google) String() string {
 	return types.Google
+}
+
+func (g *Google) Healthcheck() error {
+	_, err := http.PostForm("https://oauth2.googleapis.com/token", nil)
+	if err != nil {
+		return fmt.Errorf("check google oauth2 endpoint: %w", err)
+	}
+
+	return nil
 }

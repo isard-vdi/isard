@@ -22,7 +22,7 @@ func InitLocal(db r.QueryExecutor) *Local {
 	return &Local{db}
 }
 
-func (l *Local) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
+func (l *Local) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
 	usr := args[FormUsernameArgsKey]
 	pwd := args[FormPasswordArgsKey]
 
@@ -34,21 +34,33 @@ func (l *Local) Login(ctx context.Context, categoryID string, args map[string]st
 	}
 	if err := u.LoadWithoutID(ctx, l.db); err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			return nil, nil, "", ErrInvalidCredentials
+			return nil, nil, "", &ProviderError{
+				User:   ErrInvalidCredentials,
+				Detail: errors.New("user not found"),
+			}
 		}
 
-		return nil, nil, "", fmt.Errorf("load user from DB: %w", err)
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: fmt.Errorf("load user from DB: %w", err),
+		}
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(pwd)); err != nil {
-		return nil, nil, "", ErrInvalidCredentials
+		return nil, nil, "", &ProviderError{
+			User:   ErrInvalidCredentials,
+			Detail: errors.New("invalid password"),
+		}
 	}
 
 	return nil, u, "", nil
 }
 
-func (l *Local) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
-	return nil, nil, "", errInvalidIDP
+func (l *Local) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, *ProviderError) {
+	return nil, nil, "", &ProviderError{
+		User:   errInvalidIDP,
+		Detail: errors.New("the local provider doesn't support the callback operation"),
+	}
 }
 
 func (Local) AutoRegister() bool {
@@ -57,4 +69,20 @@ func (Local) AutoRegister() bool {
 
 func (l *Local) String() string {
 	return types.Local
+}
+
+func (l *Local) Healthcheck() error {
+	rsp, err := r.Table("users").Status().Run(l.db)
+	if err != nil {
+		return fmt.Errorf("unable to connect to the DB: %w", err)
+	}
+
+	defer rsp.Close()
+
+	var res []interface{}
+	if rsp.All(&res); err != nil {
+		return fmt.Errorf("unable to connect to the DB: read DB response: %w", err)
+	}
+
+	return nil
 }

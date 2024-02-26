@@ -81,16 +81,22 @@ func parseFormArgs(args map[string]string) (string, string, error) {
 	return username, password, nil
 }
 
-func (f *Form) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
+func (f *Form) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
 	usr, pwd, err := parseFormArgs(args)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", &ProviderError{
+			User:   ErrInternal,
+			Detail: err,
+		}
 	}
 
 	if f.limits != nil {
 		// Check if the user is rate limited
 		if err := f.limits.IsRateLimited(usr, categoryID, f.String()); err != nil {
-			return nil, nil, "", err
+			return nil, nil, "", &ProviderError{
+				User:   err,
+				Detail: errors.New("user is currently rate limited"),
+			}
 		}
 
 	}
@@ -98,7 +104,7 @@ func (f *Form) Login(ctx context.Context, categoryID string, args map[string]str
 	args[FormUsernameArgsKey] = usr
 	args[FormPasswordArgsKey] = pwd
 
-	invCreds := false
+	var invCreds *ProviderError
 
 	if f.cfg.Local.Enabled {
 		g, u, redirect, err := f.providers[types.Local].Login(ctx, categoryID, args)
@@ -115,7 +121,8 @@ func (f *Form) Login(ctx context.Context, categoryID string, args map[string]str
 			return g, u, redirect, err
 		}
 
-		invCreds = true
+		invCreds = err
+		invCreds.Detail = fmt.Errorf("local: %w", invCreds.Detail)
 	}
 
 	if f.cfg.LDAP.Enabled {
@@ -133,25 +140,35 @@ func (f *Form) Login(ctx context.Context, categoryID string, args map[string]str
 			return g, u, redirect, err
 		}
 
-		invCreds = true
+		invCreds = err
+		invCreds.Detail = fmt.Errorf("ldap: %w", invCreds.Detail)
 	}
 
-	if invCreds {
+	if invCreds != nil {
 		if f.limits != nil {
 			// Record the failed attempt and return an error if the user has been rate limited
 			if err := f.limits.RecordFailedAttempt(usr, categoryID, f.String()); err != nil {
-				return nil, nil, "", err
+				return nil, nil, "", &ProviderError{
+					User:   err,
+					Detail: errors.New("user is currently rate limited"),
+				}
 			}
 		}
 
-		return nil, nil, "", ErrInvalidCredentials
+		return nil, nil, "", invCreds
 	}
 
-	return nil, nil, "", ErrUnknownIDP
+	return nil, nil, "", &ProviderError{
+		User:   ErrUnknownIDP,
+		Detail: errors.New("no active provider was found for the form login"),
+	}
 }
 
-func (f *Form) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
-	return nil, nil, "", errInvalidIDP
+func (f *Form) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, *ProviderError) {
+	return nil, nil, "", &ProviderError{
+		User:   errInvalidIDP,
+		Detail: errors.New("the local provider doesn't support the callback operation"),
+	}
 }
 
 func (f *Form) AutoRegister() bool {
@@ -175,4 +192,14 @@ func (f *Form) Providers() []string {
 	}
 
 	return providers
+}
+
+func (f *Form) Healthcheck() error {
+	for _, p := range f.providers {
+		if err := p.Healthcheck(); err != nil {
+			return fmt.Errorf("error in provider '%s': %w ", p.String(), err)
+		}
+	}
+
+	return nil
 }
