@@ -24,6 +24,7 @@ import (
 const (
 	ACSRoute      = "/saml/acs"
 	MetadataRoute = "/saml/metadata"
+	SLORoute      = "/saml/slo"
 )
 
 type SAML struct {
@@ -82,6 +83,10 @@ func InitSAML(cfg cfg.Authentication) *SAML {
 	metadataURL := *baseURL
 	metadataURL.Path = path.Join(baseURL.Path, MetadataRoute)
 	middleware.ServiceProvider.MetadataURL = metadataURL
+
+	sloURL := *baseURL
+	sloURL.Path = path.Join(baseURL.Path, SLORoute)
+	middleware.ServiceProvider.SloURL = sloURL
 
 	s := &SAML{
 		cfg:        cfg,

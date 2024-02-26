@@ -77,6 +77,7 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	m.HandleFunc("/authentication/saml/login", a.loginSAML)
 	m.HandleFunc("/authentication/saml/metadata", a.Authentication.SAML().ServeMetadata)
 	m.HandleFunc("/authentication/saml/acs", a.Authentication.SAML().ServeACS)
+	m.HandleFunc("/authentication/saml/slo", a.logoutSAML)
 
 	// The OpenAPI specification server
 	m.Handle("/authentication/", http.StripPrefix("/authentication", oas))
@@ -214,6 +215,19 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 		}
 
 	})).ServeHTTP(w, r)
+}
+
+func (a *AuthenticationServer) logoutSAML(w http.ResponseWriter, r *http.Request) {
+	if err := a.Authentication.SAML().Session.DeleteSession(w, r); err != nil {
+		a.Log.Error().Err(err).Msg("delete SAML session")
+
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("internal server error"))
+		return
+	}
+
+	// TODO: This should be an endpoint to logout
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.OptLoginRequestMultipart, params oasAuthentication.LoginParams) (oasAuthentication.LoginRes, error) {
