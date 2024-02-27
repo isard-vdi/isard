@@ -209,9 +209,19 @@ def suggested_removals(categories=None, months_without_use=6):
             lambda desktop: {
                 "logs": r.table("logs_desktops")
                 .get_all(desktop["id"], index="desktop_id")
+                .filter(
+                    lambda log: r.expr(
+                        ["desktop-owner", "deployment-owner", "desktop-directviewer"]
+                    ).contains(log["starting_by"])
+                )
                 .count(),
                 "logs_between": r.table("logs_desktops")
                 .get_all(desktop["id"], index="desktop_id")
+                .filter(
+                    lambda log: r.expr(
+                        ["desktop-owner", "deployment-owner", "desktop-directviewer"]
+                    ).contains(log["starting_by"])
+                )
                 .filter(
                     lambda log: log["starting_time"].during(
                         r.now().sub(r.expr(60 * 60 * 24 * 30 * months_without_use)),
