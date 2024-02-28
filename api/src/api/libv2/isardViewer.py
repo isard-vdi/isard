@@ -1,9 +1,22 @@
-# Copyright 2017 the Isard-vdi project authors:
-#      Josep Maria Viñolas Auquer
-#      Alberto Larraz Dalmases
-# License: AGPLv3
-
-#!/usr/bin/env python
+#
+#   Copyright © 2017-2024 Josep Maria Viñolas
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 import base64
 import json
@@ -16,6 +29,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2.log import *
+from .api_viewers_config import rdp_file_viewer, rdpgw_file_viewer, spice_file_viewer
 
 r = RethinkDB()
 import urllib
@@ -353,14 +367,10 @@ class isardViewer:
 
     def get_rdp_file(self, ip):
         fixed = """full address:s:%s""" % (ip)
-        with app.app_context():
-            custom = (
-                r.table("config")
-                .get(1)
-                .pluck("viewers")["viewers"]["file_rdpvpn"]["custom"]
-                .run(db.conn)
-            )
-        return fixed + "\n" + custom
+        custom = rdp_file_viewer()["custom"]
+        consola = fixed + "\n" + custom
+        consola = "\n".join([line.strip() for line in consola.splitlines()])
+        return consola
 
     def get_rdp_gw_file(
         self, ip, proxy_video, proxy_port, jwt_token, username, password
@@ -376,14 +386,11 @@ class isardViewer:
                 password,
             )
         )
-        with app.app_context():
-            custom = (
-                r.table("config")
-                .get(1)
-                .pluck("viewers")["viewers"]["file_rdpgw"]["custom"]
-                .run(db.conn)
-            )
-        return fixed + "\n" + custom
+        custom = rdpgw_file_viewer()["custom"]
+
+        consola = fixed + "\n" + custom
+        consola = "\n".join([line.strip() for line in consola.splitlines()])
+        return consola
 
     def get_spice_file(self, domain, port, vmPort):
         op_fscr = int(
@@ -412,13 +419,7 @@ class isardViewer:
             c,
         )
 
-        with app.app_context():
-            custom = (
-                r.table("config")
-                .get(1)
-                .pluck("viewers")["viewers"]["file_spice"]["custom"]
-                .run(db.conn)
-            )
+        custom = spice_file_viewer()["custom"]
 
         consola = (
             consola
@@ -434,6 +435,7 @@ class isardViewer:
         )
 
         consola = consola.replace("'", "")
+        consola = "\n".join([line.strip() for line in consola.splitlines()])
         return "vv", "application/x-virt-viewer", consola
 
     ##### VNC NOT DONE

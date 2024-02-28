@@ -1,3 +1,24 @@
+#
+#   Copyright © 2024 Miriam Melina Gamboa Valdez
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+from cachetools import TTLCache, cached
 from rethinkdb import RethinkDB
 
 from api import app
@@ -9,9 +30,9 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from isardvdi_common.api_exceptions import Error
+_viewers = TTLCache(maxsize=1, ttl=3600)
 
-from .helpers import _check
+## Config view functions
 
 
 def get_viewers_config():
@@ -32,31 +53,34 @@ def get_viewers_config():
 
 def update_viewers_config(viewer, custom):
     with app.app_context():
-        query = (
-            r.table("config")
-            .get(1)
-            .update({"viewers": {viewer: {"custom": custom}}})
-            .run(db.conn)
-        )
-    if not _check(query, "inserted"):
-        raise Error(
-            "internal_server",
-            "update_viewers_config: unable to update viewer custom field in database",
+        r.table("config").get(1).update({"viewers": {viewer: {"custom": custom}}}).run(
+            db.conn
         )
 
 
 def reset_viewers_config(viewer):
     with app.app_context():
-        query = (
-            r.table("config")
-            .get(1)
-            .update(
-                {"viewers": {viewer: {"custom": r.row["viewers"][viewer]["default"]}}}
-            )
-            .run(db.conn)
-        )
-    if not _check(query, "inserted"):
-        raise Error(
-            "internal_server",
-            "update_viewers_config: unable to update viewer custom field in database",
-        )
+        r.table("config").get(1).update(
+            {"viewers": {viewer: {"custom": r.row["viewers"][viewer]["default"]}}}
+        ).run(db.conn)
+
+
+## IsardVDI viewers configuration
+
+
+@cached(_viewers)
+def get_viewers():
+    with app.app_context():
+        return r.table("config").get(1).pluck("viewers")["viewers"].run(db.conn)
+
+
+def rdp_file_viewer():
+    return get_viewers()["file_rdpvpn"]
+
+
+def rdpgw_file_viewer():
+    return get_viewers()["file_rdpgw"]
+
+
+def spice_file_viewer():
+    return get_viewers()["file_spice"]

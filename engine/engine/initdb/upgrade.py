@@ -412,97 +412,97 @@ class Upgrade(object):
             try:
                 rdp_fixed = """full address:s:%s"""
                 rdp_default = """enableworkspacereconnect:i:0
-                    disable wallpaper:i:0
-                    allow font smoothing:i:0
-                    allow desktop composition:i:0
-                    disable full window drag:i:1
-                    disable menu anims:i:1
-                    disable themes:i:0
-                    disable cursor setting:i:0
-                    bitmapcachepersistenable:i:1
-                    audiomode:i:0
-                    redirectprinters:i:1
-                    redirectcomports:i:0
-                    redirectsmartcards:i:1
-                    redirectclipboard:i:1
-                    redirectposdevices:i:0
-                    drivestoredirect:s:
-                    autoreconnection enabled:i:1
-                    authentication level:i:2
-                    prompt for credentials:i:0
-                    negotiate security layer:i:1
-                    remoteapplicationmode:i:0
-                    alternate shell:s:
-                    shell working directory:s:
-                    gatewayhostname:s:
-                    gatewayusagemethod:i:4
-                    gatewaycredentialssource:i:4
-                    gatewayprofileusagemethod:i:0
-                    promptcredentialonce:i:0
-                    gatewaybrokeringtype:i:0
-                    use redirection server name:i:0
-                    rdgiskdcproxy:i:0
-                    kdcproxyname:s:"""
+disable wallpaper:i:0
+allow font smoothing:i:0
+allow desktop composition:i:0
+disable full window drag:i:1
+disable menu anims:i:1
+disable themes:i:0
+disable cursor setting:i:0
+bitmapcachepersistenable:i:1
+audiomode:i:0
+redirectprinters:i:1
+redirectcomports:i:0
+redirectsmartcards:i:1
+redirectclipboard:i:1
+redirectposdevices:i:0
+drivestoredirect:s:
+autoreconnection enabled:i:1
+authentication level:i:2
+prompt for credentials:i:0
+negotiate security layer:i:1
+remoteapplicationmode:i:0
+alternate shell:s:
+shell working directory:s:
+gatewayhostname:s:
+gatewayusagemethod:i:4
+gatewaycredentialssource:i:4
+gatewayprofileusagemethod:i:0
+promptcredentialonce:i:0
+gatewaybrokeringtype:i:0
+use redirection server name:i:0
+rdgiskdcproxy:i:0
+kdcproxyname:s:"""
                 rdpgw_fixed = """full address:s:%s
-                    gatewayhostname:s:%s:%s
-                    gatewayaccesstoken:s:%s
-                    username:s:%s
-                    password:s:%s"""
+gatewayhostname:s:%s:%s
+gatewayaccesstoken:s:%s
+username:s:%s
+password:s:%s"""
                 rdpgw_default = """enableworkspacereconnect:i:0
-                    disable wallpaper:i:0
-                    allow desktop composition:i:0
-                    disable full window drag:i:1
-                    disable menu anims:i:1
-                    disable themes:i:0
-                    disable cursor setting:i:0
-                    bitmapcachepersistenable:i:1
-                    audiomode:i: value:0
-                    redirectprinters:i:1
-                    redirectcomports:i:0
-                    redirectsmartcards:i:1
-                    redirectclipboard:i:1
-                    redirectposdevices:i:0
-                    drivestoredirect:s:
-                    autoreconnection enabled:i:1
-                    authentication level:i:2
-                    prompt for credentials:i:0
-                    negotiate security layer:i:1
-                    remoteapplicationmode:i:0
-                    alternate shell:s:
-                    shell working directory:s:
-                    gatewayusagemethod:i:1
-                    gatewaycredentialssource:i:5
-                    gatewayprofileusagemethod:i:1
-                    networkautodetect:i:1
-                    bandwidthautodetect:i:1
-                    promptcredentialonce:i:0
-                    gatewaybrokeringtype:i:0
-                    use redirection server name:i:0
-                    rdgiskdcproxy:i:0
-                    kdcproxyname:s:
-                    connection type:i:6
-                    domain:s:
-                    allow font smoothing:i:1
-                    bitmapcachesize:i:32000
-                    smart sizing:i:1"""
+disable wallpaper:i:0
+allow desktop composition:i:0
+disable full window drag:i:1
+disable menu anims:i:1
+disable themes:i:0
+disable cursor setting:i:0
+bitmapcachepersistenable:i:1
+audiomode:i: value:0
+redirectprinters:i:1
+redirectcomports:i:0
+redirectsmartcards:i:1
+redirectclipboard:i:1
+redirectposdevices:i:0
+drivestoredirect:s:
+autoreconnection enabled:i:1
+authentication level:i:2
+prompt for credentials:i:0
+negotiate security layer:i:1
+remoteapplicationmode:i:0
+alternate shell:s:
+shell working directory:s:
+gatewayusagemethod:i:1
+gatewaycredentialssource:i:5
+gatewayprofileusagemethod:i:1
+networkautodetect:i:1
+bandwidthautodetect:i:1
+promptcredentialonce:i:0
+gatewaybrokeringtype:i:0
+use redirection server name:i:0
+rdgiskdcproxy:i:0
+kdcproxyname:s:
+connection type:i:6
+domain:s:
+allow font smoothing:i:1
+bitmapcachesize:i:32000
+smart sizing:i:1"""
                 spice_fixed = """[virt-viewer]
-                    type=%s
-                    proxy=http://%s:%s
-                    host=%s
-                    password=%s
-                    tls-port=%s
-                    fullscreen=%s
-                    title=%s:%sd - Prem SHIFT+F12 per sortir"""
+type=%s
+proxy=http://%s:%s
+host=%s
+password=%s
+tls-port=%s
+fullscreen=%s
+title=%s:%sd - Prem SHIFT+F12 per sortir"""
                 spice_default = """
-                    enable-smartcard=0
-                    enable-usb-autoshare=1
-                    delete-this-file=1
-                    usb-filter=-1,-1,-1,-1,0
-                    tls-ciphers=DEFAULT
-                    toggle-fullscreen=shift+f11
-                    release-cursor=shift+f12
-                    secure-attention=ctrl+alt+end
-                    secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
+enable-smartcard=0
+enable-usb-autoshare=1
+delete-this-file=1
+usb-filter=-1,-1,-1,-1,0
+tls-ciphers=DEFAULT
+toggle-fullscreen=shift+f11
+release-cursor=shift+f12
+secure-attention=ctrl+alt+end
+secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
                 r.table(table).update(
                     {
                         "viewers": {
