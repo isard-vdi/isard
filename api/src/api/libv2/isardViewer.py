@@ -1,9 +1,22 @@
-# Copyright 2017 the Isard-vdi project authors:
-#      Josep Maria Viñolas Auquer
-#      Alberto Larraz Dalmases
-# License: AGPLv3
-
-#!/usr/bin/env python
+#
+#   Copyright © 2017-2024 Josep Maria Viñolas
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 import base64
 import json
@@ -16,6 +29,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2.log import *
+from .api_viewers_config import rdp_file_viewer, rdpgw_file_viewer, spice_file_viewer
 
 r = RethinkDB()
 import urllib
@@ -352,75 +366,31 @@ class isardViewer:
         )
 
     def get_rdp_file(self, ip):
-        ## This are the default values dumped from a windows rdp client connection to IsardVDI
-        # connection type:i:7
-        # networkautodetect:i:1
-        # bandwidthautodetect:i:1
-        # displayconnectionbar:i:1
-        # username:s:
-        # enableworkspacereconnect:i:0
-        # disable wallpaper:i:0
-        # allow font smoothing:i:0
-        # allow desktop composition:i:0
-        # disable full window drag:i:1
-        # disable menu anims:i:1
-        # disable themes:i:0
-        # disable cursor setting:i:0
-        # bitmapcachepersistenable:i:1
-        # audiomode:i:0
-        # redirectprinters:i:1
-        # redirectcomports:i:0
-        # redirectsmartcards:i:1
-        # redirectclipboard:i:1
-        # redirectposdevices:i:0
-        # drivestoredirect:s:
-        # autoreconnection enabled:i:1
-        # authentication level:i:2
-        # prompt for credentials:i:0
-        # negotiate security layer:i:1
-        # remoteapplicationmode:i:0
-        # alternate shell:s:
-        # shell working directory:s:
-        # gatewayhostname:s:
-        # gatewayusagemethod:i:4
-        # gatewaycredentialssource:i:4
-        # gatewayprofileusagemethod:i:0
-        # promptcredentialonce:i:0
-        # gatewaybrokeringtype:i:0
-        # use redirection server name:i:0
-        # rdgiskdcproxy:i:0
-        # kdcproxyname:s:
-        return """full address:s:%s
-""" % (
-            ip
-        )
+        fixed = """full address:s:%s""" % (ip)
+        custom = rdp_file_viewer()["custom"]
+        consola = fixed + "\n" + custom
+        consola = "\n".join([line.strip() for line in consola.splitlines()])
+        return consola
 
     def get_rdp_gw_file(
         self, ip, proxy_video, proxy_port, jwt_token, username, password
     ):
-        return """full address:s:%s
-gatewayhostname:s:%s:%s
-gatewaycredentialssource:i:5
-gatewayusagemethod:i:1
-gatewayprofileusagemethod:i:1
-gatewayaccesstoken:s:%s
-networkautodetect:i:1
-bandwidthautodetect:i:1
-connection type:i:6
-username:s:%s
-password:s:%s
-domain:s:
-bitmapcachesize:i:32000
-allow font smoothing:i:1
-smart sizing:i:1
-audiomode:i: value:0""" % (
-            ip,
-            proxy_video,
-            proxy_port,
-            jwt_token,
-            username,
-            password,
+        fixed = (
+            """full address:s:%s\ngatewayhostname:s:%s:%s\ngatewayaccesstoken:s:%s\nusername:s:%s\npassword:s:%s"""
+            % (
+                ip,
+                proxy_video,
+                proxy_port,
+                jwt_token,
+                username,
+                password,
+            )
         )
+        custom = rdpgw_file_viewer()["custom"]
+
+        consola = fixed + "\n" + custom
+        consola = "\n".join([line.strip() for line in consola.splitlines()])
+        return consola
 
     def get_spice_file(self, domain, port, vmPort):
         op_fscr = int(
@@ -437,11 +407,6 @@ audiomode:i: value:0""" % (
         tls-port=%s
         fullscreen=%s
         title=%s:%sd - Prem SHIFT+F12 per sortir
-        enable-smartcard=0
-        enable-usb-autoshare=1
-        delete-this-file=1
-        usb-filter=-1,-1,-1,-1,0
-        tls-ciphers=DEFAULT
         """ % (
             "spice",
             domain["viewer"]["proxy_video"],
@@ -454,23 +419,23 @@ audiomode:i: value:0""" % (
             c,
         )
 
+        custom = spice_file_viewer()["custom"]
+
         consola = (
             consola
             + """%shost-subject=%s
-        %sca=%r
-        toggle-fullscreen=shift+f11
-        release-cursor=shift+f12
-        secure-attention=ctrl+alt+end
-        secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
+                %sca=%r"""
             % (
                 "" if domain["viewer"]["tls"]["host-subject"] is not False else ";",
                 domain["viewer"]["tls"]["host-subject"],
                 "" if domain["viewer"]["tls"]["certificate"] is not False else ";",
                 domain["viewer"]["tls"]["certificate"],
             )
+            + custom
         )
 
         consola = consola.replace("'", "")
+        consola = "\n".join([line.strip() for line in consola.splitlines()])
         return "vv", "application/x-virt-viewer", consola
 
     ##### VNC NOT DONE
