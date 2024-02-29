@@ -130,9 +130,9 @@ class DesktopsUsage:
         return data
 
     def _process_consumption(self, consumption):
-        if "hardware_bookables_gpu" in consumption:
+        if "hardware_bookables_vgpus" in consumption:
             gpu_mem = int(
-                consumption["hardware_bookables_vgpus"].split("_")[2][:-1]
+                consumption["hardware_bookables_vgpus"].split("-")[2][:-1]
             )  # Memory GB from profile
         else:
             gpu_mem = 0

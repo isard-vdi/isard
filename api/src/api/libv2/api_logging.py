@@ -201,7 +201,7 @@ def _logs_domain_start(
         log.debug(traceback.format_exc())
         return
     if domain.get("create_dict", {}).get("reservables", {}).get("vgpus"):
-        data["hardware_bookables_vgpus"]: domain["create_dict"]["reservables"]["vgpus"]
+        data["hardware_bookables_vgpus"] = domain["create_dict"]["reservables"]["vgpus"]
         if domain.get("booking_id"):
             with app.app_context():
                 try:
