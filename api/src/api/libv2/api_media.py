@@ -62,7 +62,11 @@ def media_task_delete(media_id, user_id=None, keep_status=None):
         r.table("media").get(media.id).update({"status": "deleted"}).run(db.conn)
         return
     finished_status = actual_status if keep_status else "deleted"
-    media.status = "maintenance"
+    if actual_status == "DownloadFailed":
+        media.status = "deleted"
+        return
+    else:
+        media.status = "maintenance"
     task_id = Task(
         user_id=user_id,
         queue=f"storage.{StoragePool.get_best_for_action('delete', path=media.path_downloaded.rsplit('/', 1)[0]).id}.default",
@@ -83,6 +87,9 @@ def media_task_delete(media_id, user_id=None, keep_status=None):
                                 "deleted": {
                                     "media": [media.id],
                                 },
+                            },
+                            "failed": {
+                                "Downloaded": {"media": [media.id]},
                             },
                             "canceled": {
                                 "Downloaded": {
