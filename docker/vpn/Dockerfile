@@ -57,7 +57,8 @@ RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/
 COPY docker/vpn/ovs /ovs
 
-RUN apk add dnsmasq conntrack-tools
+RUN apk add --repositories-file=/etc/apk/repos_edge dnsmasq
+RUN apk add conntrack-tools
 COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
 COPY docker/vpn/src /src
 COPY docker/vpn/run.sh /
