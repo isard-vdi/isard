@@ -356,9 +356,15 @@ class Wg(object):
             if table == "remotevpn":
                 r.table(table).get(new_peer["id"]).replace(r.row.without("nets")).run()
         else:
-            if table == False:
-                table = self.table
-            r.table(table).get(new_peer["id"]).delete().run()
+            log.error("Error adding peer: " + peer["id"])
+            try:
+                self.remove_peer(peer, table)
+            except:
+                log.error("Error removing failed peer: " + peer["id"])
+        # else:
+        #     if table == False:
+        #         table = self.table
+        #     r.table(table).get(new_peer["id"]).delete().run()
 
     def remove_peer(self, peer, table=False):
         if table == False:
