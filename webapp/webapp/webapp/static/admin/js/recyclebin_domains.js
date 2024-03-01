@@ -811,9 +811,9 @@ function selectAutomaticDelete() {
     type: "GET",
     url: "/scheduler/recycle_bin_delete/max_time",
     success: function (data) {
-      $('#maxtime').val(data)
-      if (data !== "null" && $('meta[id=user_data]').attr('data-role') != 'admin') {
-        var maxTime = parseInt(data);
+      $('#maxtime').val(data.time)
+      if (data.max_time !== "null" && $('meta[id=user_data]').attr('data-role') != 'admin') {
+        var maxTime = parseInt(data.max_time);
         $('#maxtime option').each(function () {
           if (($(this).val() > maxTime || $(this).val() == "null")) {
             $(this).remove();
