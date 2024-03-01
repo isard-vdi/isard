@@ -170,7 +170,7 @@ class Wg(object):
             wglist = list(r.table(self.table).pluck("id", "vpn").run())
             # wglist = [d for d in wglist if d['id'] != 'isard-hypervisor']
         elif self.table == "users":
-            wglist = list(r.table(self.table).pluck("id", "vpn").run())
+            wglist = list(r.table(self.table).pluck("id", "vpn", "active").run())
             wglist_remotevpn = list(r.table("remotevpn").pluck("id", "vpn").run())
 
         self.clients_reserved_ips = self.clients_reserved_ips + [
@@ -196,9 +196,17 @@ class Wg(object):
                 new_peer = self.gen_new_peer(peer)
                 create_peers.append(new_peer)
             if new_peer == False:
-                self.up_peer(peer)
+                if self.table == "users":
+                    if peer.get("active") == True:
+                        self.up_peer(peer)
+                else:
+                    self.up_peer(peer)
             else:
-                self.up_peer(new_peer)
+                if self.table == "users":
+                    if new_peer.get("active") == True:
+                        self.up_peer(new_peer)
+                else:
+                    self.up_peer(new_peer)
             # if self.table=='users':
             #    self.uipt.add_user(peer['id'],peer['vpn']['wireguard']['Address'])
 
@@ -509,3 +517,19 @@ PersistentKeepalive = 25
         )
         for started_desktop in started_desktops:
             self.desktop_iptables(started_desktop)
+
+    def user_desktop_iptables(self, data):
+        # Updated
+        if data["status"] == "Started" and "guest_ip" in data.get("viewer", {}):
+            # As the changes filters for guest_ip in viewer we won't have viewer field till guest_ip is set.
+            self.uipt.desktop_add(data["user"], data["viewer"]["guest_ip"])
+
+    def set_user_rules(self, user_id):
+        started_desktops = (
+            r.table("domains")
+            .get_all(["Started", user_id], index="status_user")
+            .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
+            .run()
+        )
+        for started_desktop in started_desktops:
+            self.user_desktop_iptables(started_desktop)
