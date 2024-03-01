@@ -358,7 +358,7 @@ class Wg(object):
         else:
             log.error("Error adding peer: " + peer["id"])
             try:
-                self.remove_peer(peer, table)
+                self.down_peer(peer, table)
             except:
                 log.error("Error removing failed peer: " + peer["id"])
         # else:
@@ -366,7 +366,7 @@ class Wg(object):
         #         table = self.table
         #     r.table(table).get(new_peer["id"]).delete().run()
 
-    def remove_peer(self, peer, table=False):
+    def down_peer(self, peer, table=False):
         if table == False:
             table = self.table
         if "vpn" in peer.keys() and "wireguard" in peer["vpn"].keys():

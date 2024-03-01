@@ -58,7 +58,7 @@ while True:
         # for user in r.table('users').pluck('id','vpn').changes(include_initial=False).run():
         for data in (
             r.table("users")
-            .pluck("id", "vpn")
+            .pluck("id", "vpn", "active")
             .without({"vpn": {"wireguard": "connected"}})
             .merge({"table": "users"})
             .changes(include_initial=False)
@@ -88,9 +88,9 @@ while True:
             if data["new_val"] == None:
                 ### Was deleted
                 if data["old_val"]["table"] in ["users", "remotevpn"]:
-                    wg_users.remove_peer(data["old_val"])
+                    wg_users.down_peer(data["old_val"])
                 elif data["old_val"]["table"] == "hypers":
-                    wg_hypers.remove_peer(data["old_val"])
+                    wg_hypers.down_peer(data["old_val"])
                 elif data["old_val"]["table"] == "domains":
                     wg_users.desktop_iptables(data)
                 continue
