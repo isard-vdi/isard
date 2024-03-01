@@ -44,7 +44,7 @@ quotas = Quotas()
 
 from string import ascii_lowercase, digits
 
-from jose import jwt
+import jwt
 from rethinkdb import RethinkDB
 
 from .api_notifier import send_verification_email

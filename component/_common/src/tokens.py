@@ -22,8 +22,8 @@ import logging as log
 import os
 
 import gevent
+import jwt
 from flask import request
-from jose import jwt
 from rethinkdb import r
 
 from .api_exceptions import Error
@@ -76,7 +76,7 @@ def get_token_auth_header():
 
 def get_expired_user_data(token):
     try:
-        claims = jwt.get_unverified_claims(token)
+        claims = jwt.decode(token, options={"verify_signature": False})
     except:
         return None
     try:
@@ -96,7 +96,7 @@ def get_expired_user_data(token):
 
 def get_token_payload(token):
     try:
-        claims = jwt.get_unverified_claims(token)
+        claims = jwt.decode(token, options={"verify_signature": False})
     except:
         raise Error(
             "unauthorized",

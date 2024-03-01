@@ -29,7 +29,7 @@ import threading
 
 from flask import request
 from flask_socketio import join_room, leave_room
-from jose.jwt import ExpiredSignatureError
+from jwt import ExpiredSignatureError
 
 from .. import socketio
 

@@ -24,8 +24,8 @@ import os
 import traceback
 from datetime import datetime, timedelta
 
+import jwt
 import requests
-from jose import jwt
 
 from .exceptions import Error
 

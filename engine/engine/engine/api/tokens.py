@@ -8,10 +8,10 @@ import os
 import traceback
 from functools import wraps
 
+import jwt
 from engine.services.db.db import get_isardvdi_secret, update_table_field
 from engine.services.log import logs
 from flask import request
-from jose import jwt
 
 from .exceptions import Error
 
