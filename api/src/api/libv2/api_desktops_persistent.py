@@ -29,6 +29,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from ..libv2.bookings.api_reservables_planner_compute import payload_priority
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .api_desktop_events import desktop_start, desktop_updating
 
@@ -59,6 +60,7 @@ api_allowed = ApiAllowed()
 from .api_desktop_events import desktop_delete, desktop_reset, desktop_stop
 from .helpers import (
     _check,
+    _get_reservables,
     _parse_media_info,
     default_guest_properties,
     gen_new_mac,
@@ -819,6 +821,15 @@ class ApiDesktopsPersistent:
 
     def check_max_booking_date(self, payload, desktop_id):
         current_plan = self.check_current_plan(payload, desktop_id)
+        # First check the users priority max time
+        reservables, units, item_name = _get_reservables("desktop", desktop_id)
+        users_priority = payload_priority(payload, reservables)
+        if not users_priority["max_time"]:
+            raise Error(
+                "precondition_required",
+                "Max time reached",
+                description_code="bookings_max_time_reached",
+            )
         priority = apib.get_min_profile_priority("desktop", desktop_id)
 
         forbid_time = priority["forbid_time"]
