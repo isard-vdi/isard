@@ -1,7 +1,7 @@
 rq~=1.14
 rethinkdb==2.4.9
 requests~=2.30
-python-jose~=3.3
+PyJWT==2.8.0
 cachetools~=5.3
 uuid
 betterproto~=1.2.5

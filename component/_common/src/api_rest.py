@@ -25,8 +25,8 @@ import time
 import traceback
 from datetime import datetime, timedelta
 
+import jwt
 import requests
-from jose import jwt
 
 
 def header_auth(service):

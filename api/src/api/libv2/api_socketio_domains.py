@@ -9,7 +9,7 @@ import os
 import time
 from pprint import pformat
 
-from jose.jwt import ExpiredSignatureError
+from jwt import ExpiredSignatureError
 from rethinkdb import RethinkDB
 
 from api import app

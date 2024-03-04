@@ -12,7 +12,7 @@ libpci==0.2
 pem==21.2.0
 flatten-dict==0.4.2
 yattag==1.14.0
-python-jose==3.3.0
+PyJWT==2.8.0
 humanfriendly==10.0
 pytz==2022.7
 cachetools~=5.3

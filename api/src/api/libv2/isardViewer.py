@@ -45,7 +45,7 @@ db.init_app(app)
 
 from datetime import datetime, timedelta
 
-from jose import jwt
+import jwt
 
 
 def default_guest_properties():
