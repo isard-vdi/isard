@@ -13,6 +13,9 @@ COPY webapp/webapp /isard
 RUN cd /isard/webapp && yarn install
 COPY component/_common/src /isard/webapp/_common
 EXPOSE 5000
+COPY webapp/docker/healthcheck.js /
+HEALTHCHECK --interval=12s --timeout=12s --start-period=30s \
+    CMD node /healthcheck.js
 WORKDIR /isard
 CMD [ "python3", "-u", "start.py" ]
 STOPSIGNAL SIGINT
