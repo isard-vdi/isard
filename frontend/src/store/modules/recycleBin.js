@@ -134,7 +134,7 @@ export default {
     },
     fetchMaxTime (context, data) {
       axios.get(`${schedulerSegment}/recycle_bin_delete/max_time`).then(response => {
-        context.commit('setMaxTime', RecycleBinUtils.parseMaxTime(response.data))
+        context.commit('setMaxTime', RecycleBinUtils.parseMaxTime(response.data.time))
       }).catch(e => {
       })
     },

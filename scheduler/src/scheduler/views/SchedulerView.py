@@ -55,8 +55,9 @@ def max_time(payload):
     max_time = app.scheduler.get_max_time(
         None if payload["role_id"] == "admin" else payload["category_id"]
     )
+    max_time_admin = app.scheduler.get_max_time_admin()
     return (
-        json.dumps(max_time),
+        json.dumps({"time": max_time, "max_time": max_time_admin}),
         200,
         {"Content-Type": "application/json"},
     )

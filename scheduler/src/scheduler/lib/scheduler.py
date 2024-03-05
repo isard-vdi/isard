@@ -361,3 +361,13 @@ class Scheduler:
                 .run(db.conn)
             )
         return results if results else None
+
+    def get_max_time_admin(self):
+        try:
+            return (
+                r.table("scheduler_jobs")
+                .get("admin.recycle_bin_delete_admin")["kwargs"]["max_delete_period"]
+                .run(db.conn)
+            )
+        except:
+            return "null"

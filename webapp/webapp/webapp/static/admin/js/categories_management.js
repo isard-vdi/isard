@@ -194,8 +194,8 @@ $(document).ready(function () {
         $("#modalAddCategoryForm #max-delete-data").hide();
         $('#maxtime_panel :checkbox').iCheck('uncheck').iCheck('update');
         api.ajax('/scheduler/recycle_bin_delete/max_time', 'GET', '').done(function (time) {
-            if (time !== "null") {
-                var maxTime = parseInt(time);
+            if (time.time !== "null") {
+                var maxTime = parseInt(time.time);
                 $('#modalAddCategoryForm #max-delete option').each(function () {
                     if (($(this).val() > maxTime || $(this).val() == "null")) {
                         $(this).remove();
@@ -327,8 +327,8 @@ function actionsCategoryDetail() {
                 }
             });
             api.ajax('/scheduler/recycle_bin_delete/max_time', 'GET', '').done(function (time) {
-                if (time !== "null") {
-                    var maxTime = parseInt(time);
+                if (time.time !== "null") {
+                    var maxTime = parseInt(time.time);
                     $('#modalEditCategoryForm #max-delete option').each(function () {
                         if (($(this).val() > maxTime || $(this).val() === "null")) {
                             $("#modalAddCategoryForm #max-delete-data").show();
