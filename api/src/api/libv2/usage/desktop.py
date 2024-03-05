@@ -92,7 +92,6 @@ class DesktopsUsage:
             self.has_data = False
 
     def _get_data(self):
-        t = time()
         data = list(
             r.table("logs_desktops")
             .without("events")
@@ -132,7 +131,7 @@ class DesktopsUsage:
     def _process_consumption(self, consumption):
         if "hardware_bookables_vgpus" in consumption:
             gpu_mem = int(
-                consumption["hardware_bookables_vgpus"].split("-")[2][:-1]
+                consumption["hardware_bookables_vgpus"][0].split("-")[2][:-1]
             )  # Memory GB from profile
         else:
             gpu_mem = 0
