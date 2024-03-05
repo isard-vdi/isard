@@ -5,6 +5,7 @@
   >
     <b-tabs>
       <b-tab
+        v-if="hasDesktopQuota"
         :active="currentTab === 'desktops'"
         @click="updateCurrentTab('desktops')"
       >
@@ -52,7 +53,7 @@
       </b-tab>
 
       <b-tab
-        v-if="config.showTemporalTab"
+        v-if="config.showTemporalTab && hasTemporalQuota"
         :active="currentTab === 'templates'"
         @click="updateCurrentTab('templates')"
       >
@@ -131,12 +132,16 @@ export default {
     }, { immediate: true })
 
     $store.dispatch('fetchDesktops')
+    $store.dispatch('fetchProfile')
 
     const currentTab = computed(() => $store.getters.getCurrentTab)
     const showStarted = computed(() => $store.getters.getShowStarted)
     const desktops = computed(() => $store.getters.getDesktops)
     const templates = computed(() => $store.getters.getTemplates)
     const filterDesktopsText = computed(() => $store.getters.getDesktopsFilter)
+
+    const hasDesktopQuota = computed(() => $store.getters.getProfile.quota === false || $store.getters.getProfile.quota.desktops)
+    const hasTemporalQuota = computed(() => $store.getters.getProfile.quota === false || $store.getters.getProfile.quota.volatile)
 
     const persistentDesktops = computed(() => desktops.value.filter(desktop => showStarted.value ? desktop.type === 'persistent' && [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(desktop.state.toLowerCase()) : desktop.type === 'persistent'))
     const nonpersistentDesktops = computed(() => templates.value.map(template => desktops.value.find((desktop) => template.id === desktop.template && desktop.type === 'nonpersistent') || template))
@@ -150,7 +155,9 @@ export default {
       filteredPersistentDesktops,
       visibleNonPersistentDesktops,
       currentTab,
-      config
+      config,
+      hasDesktopQuota,
+      hasTemporalQuota
     }
   },
   computed: {

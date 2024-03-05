@@ -34,6 +34,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
         }).done(function(usrquota) {
             parentid=parentid+' ';
             $(parentid+"#quota-desktops").removeAttr("max");
+            $(parentid+"#quota-volatile").removeAttr("max");
             $(parentid+"#quota-templates").removeAttr("max");
             $(parentid+"#quota-isos").removeAttr("max");
             $(parentid+"#quota-running").removeAttr("max");
@@ -49,6 +50,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
             // Admins don't have limits at all
             if(usrquota.limits != false){
                 $(parentid+"#quota-desktops").attr("max", usrquota.limits.desktops);
+                $(parentid+"#quota-volatile").attr("max", usrquota.limits.volatile);
                 $(parentid+"#quota-templates").attr("max", usrquota.limits.templates);
                 $(parentid+"#quota-isos").attr("max", usrquota.limits.isos);
                 $(parentid+"#quota-running").attr("max", usrquota.limits.running);
@@ -73,6 +75,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
                 $(parentid+"#unlimited").removeAttr('checked').iCheck('update');
                 enable=true
                 $(parentid+"#quota-desktops").val(usrquota.quota.desktops);
+                $(parentid+"#quota-volatile").val(usrquota.quota.volatile);
                 $(parentid+"#quota-running").val(usrquota.quota.running);
                 $(parentid+"#quota-templates").val(usrquota.quota.templates);
                 $(parentid+"#quota-isos").val(usrquota.quota.isos);
@@ -117,6 +120,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
                 enable=true
                 $(parentid+"#limits-users").val(usrquota.limits.users);
                 $(parentid+"#limits-desktops").val(usrquota.limits.desktops);
+                $(parentid+"#limits-volatile").val(usrquota.limits.volatile);
                 $(parentid+"#limits-running").val(usrquota.limits.running);
                 $(parentid+"#limits-templates").val(usrquota.limits.templates);
                 $(parentid+"#limits-isos").val(usrquota.limits.isos);
@@ -146,6 +150,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
     function quotaEnable(parentid){
         $(parentid+"users").removeAttr("disabled");
         $(parentid+"desktops").removeAttr("disabled");
+        $(parentid+"volatile").removeAttr("disabled");
         $(parentid+"running").removeAttr("disabled");
         $(parentid+"templates").removeAttr("disabled");
         $(parentid+"isos").removeAttr("disabled");
@@ -159,6 +164,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
     function quotaDisable(parentid){
         $(parentid+"users").attr("disabled", true);
         $(parentid+"desktops").attr("disabled", true);
+        $(parentid+"volatile").attr("disabled", true);
         $(parentid+"running").attr("disabled", true);
         $(parentid+"templates").attr("disabled", true);
         $(parentid+"isos").attr("disabled", true);
@@ -208,6 +214,9 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
             $(div_id+" #quota-desktops").data("ionRangeSlider").update({
                         from: domain['quota-desktops']
             });
+            $(div_id+" #quota-volatile").data("ionRangeSlider").update({
+                from: domain['quota-volatile']
+    });
             $(div_id+" #quota-running").data("ionRangeSlider").update({
                         from: domain['quota-running']
             });

@@ -453,7 +453,8 @@
                     "group_quota": "Group quota",
                     "category_quota": "Category quota"
                 },
-                "desktops": "Created desktops / Total desktops",
+                "desktops": "Created persistent desktops / Total persistent desktops",
+                "volatile": "Created temporal desktops / Total temporal desktops",
                 "media": "Created media / Total media",
                 "memory": "Used memory / Total memory (GB)",
                 "running": "Running desktops / Total running desktops",

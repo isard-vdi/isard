@@ -92,7 +92,18 @@ class Quotas:
             # Used
             user_desktops = (
                 r.table("domains")
-                .get_all(["desktop", user_id, False], index="kind_user_tag")
+                .get_all(
+                    ["desktop", user_id, False],
+                    index="kind_user_tag",
+                )
+                .filter({"persistent": True})
+                .count()
+                .run(db.conn)
+            )
+            user_volatile = (
+                r.table("domains")
+                .get_all(["desktop", user_id], index="kind_user")
+                .filter({"persistent": False})
                 .count()
                 .run(db.conn)
             )
@@ -136,6 +147,7 @@ class Quotas:
 
         used = {
             "desktops": user_desktops,
+            "volatile": user_volatile,
             "templates": user_templates,
             "isos": user_media,
             "total_size": user_total_size,
@@ -245,13 +257,14 @@ class Quotas:
             group_quantity = (
                 r.table("domains")
                 .get_all(["desktop", user["group"]], index="kind_group")
+                .filter({"persistent": True})
                 .count()
                 .run(db.conn)
             )
-        with app.app_context():
             category_quantity = (
                 r.table("domains")
                 .get_all(["desktop", user["category"]], index="kind_category")
+                .filter({"persistent": True})
                 .count()
                 .run(db.conn)
             )
@@ -275,6 +288,78 @@ class Quotas:
         self.check_field_quotas_and_limits(
             user,
             "desktops",
+            quantity,
+            quota_error,
+            group_quantity,
+            category_quantity,
+            limits_error,
+        )
+
+    def volatile_create(self, user_id, quantity=1):
+        try:
+            with app.app_context():
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                            "role_name": r.table("roles").get(d["role"])["name"],
+                        }
+                    )
+                    .pluck(
+                        "id",
+                        "name",
+                        "category",
+                        "group",
+                        "quota",
+                        "category_name",
+                        "group_name",
+                        "role_name",
+                    )
+                    .run(db.conn)
+                )
+        except:
+            raise Error("not_found", "User not found")
+        with app.app_context():
+            group_quantity = (
+                r.table("domains")
+                .get_all(["desktop", user["group"]], index="kind_group")
+                .filter({"persistent": False})
+                .count()
+                .run(db.conn)
+            )
+        with app.app_context():
+            category_quantity = (
+                r.table("domains")
+                .get_all(["desktop", user["category"]], index="kind_category")
+                .filter({"persistent": False})
+                .count()
+                .run(db.conn)
+            )
+        quota_error = {
+            "error_description": user["name"]
+            + " quota exceeded for creating new non persistent desktop",
+            "error_description_code": "desktop_new_user_quota_exceeded",
+        }
+        limits_error = {
+            "group": {
+                "error_description": user["group_name"]
+                + " group limits exceeded for creating new non persistent desktop",
+                "error_description_code": "desktop_new_group_limit_exceeded",
+            },
+            "category": {
+                "error_description": user["name"]
+                + " category limits exceeded for creating new non persistent desktop",
+                "error_description_code": "desktop_new_category_limit_exceeded",
+            },
+        }
+        self.check_field_quotas_and_limits(
+            user,
+            "volatile",
             quantity,
             quota_error,
             group_quantity,
@@ -1258,9 +1343,11 @@ class Quotas:
                 query_pluck=["id", "name", "description"],
                 order="name",
                 query_merge=False,
-                extra_ids_allowed=[]
-                if "interfaces" not in domain.get("hardware", [])
-                else domain["hardware"]["interfaces"],
+                extra_ids_allowed=(
+                    []
+                    if "interfaces" not in domain.get("hardware", [])
+                    else domain["hardware"]["interfaces"]
+                ),
             )
         if not kind or kind == "graphics":
             dict["graphics"] = allowed.get_items_allowed(
@@ -1269,9 +1356,11 @@ class Quotas:
                 query_pluck=["id", "name", "description"],
                 order="name",
                 query_merge=False,
-                extra_ids_allowed=[]
-                if "graphics" not in domain.get("hardware", [])
-                else domain["hardware"]["graphics"],
+                extra_ids_allowed=(
+                    []
+                    if "graphics" not in domain.get("hardware", [])
+                    else domain["hardware"]["graphics"]
+                ),
             )
         if not kind or kind == "videos":
             dict["videos"] = allowed.get_items_allowed(
@@ -1280,9 +1369,11 @@ class Quotas:
                 query_pluck=["id", "name", "description"],
                 order="name",
                 query_merge=False,
-                extra_ids_allowed=[]
-                if "videos" not in domain.get("hardware", [])
-                else domain["hardware"]["videos"],
+                extra_ids_allowed=(
+                    []
+                    if "videos" not in domain.get("hardware", [])
+                    else domain["hardware"]["videos"]
+                ),
             )
         if not kind or kind == "boot_order":
             dict["boot_order"] = allowed.get_items_allowed(
@@ -1291,9 +1382,11 @@ class Quotas:
                 query_pluck=["id", "name", "description"],
                 order="name",
                 query_merge=False,
-                extra_ids_allowed=[]
-                if "boot_order" not in domain.get("hardware", [])
-                else domain["hardware"]["boot_order"],
+                extra_ids_allowed=(
+                    []
+                    if "boot_order" not in domain.get("hardware", [])
+                    else domain["hardware"]["boot_order"]
+                ),
             )
         if not kind or kind == "qos_id":
             dict["qos_id"] = allowed.get_items_allowed(
@@ -1302,9 +1395,11 @@ class Quotas:
                 query_pluck=["id", "name", "description"],
                 order="name",
                 query_merge=False,
-                extra_ids_allowed=[]
-                if "qos_disk" not in domain.get("hardware", [])
-                else domain["hardware"]["qos_disk"],
+                extra_ids_allowed=(
+                    []
+                    if "qos_disk" not in domain.get("hardware", [])
+                    else domain["hardware"]["qos_disk"]
+                ),
             )
         if not kind or kind == "reservables":
             dict["reservables"] = {
@@ -1314,9 +1409,11 @@ class Quotas:
                     query_pluck=["id", "name", "description"],
                     order="name",
                     query_merge=False,
-                    extra_ids_allowed=[]
-                    if not domain.get("reservables", {}).get("vgpus")
-                    else domain["reservables"]["vgpus"],
+                    extra_ids_allowed=(
+                        []
+                        if not domain.get("reservables", {}).get("vgpus")
+                        else domain["reservables"]["vgpus"]
+                    ),
                 )
             }
         if not kind or kind == "disk_bus":
@@ -1326,9 +1423,11 @@ class Quotas:
                 query_pluck=["id", "name", "description"],
                 order="name",
                 query_merge=False,
-                extra_ids_allowed=[]
-                if "disk_bus" not in domain.get("hardware", [])
-                else domain["hardware"]["disk_bus"],
+                extra_ids_allowed=(
+                    []
+                    if "disk_bus" not in domain.get("hardware", [])
+                    else domain["hardware"]["disk_bus"]
+                ),
             )
         if not kind or kind == "forced_hyp":
             dict["forced_hyp"] = []

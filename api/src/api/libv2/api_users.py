@@ -316,8 +316,14 @@ class ApiUsers:
                     "category_name": r.table("categories").get(user["category"])[
                         "name"
                     ],
-                    "desktops": r.table("domains")
+                    "volatile": r.table("domains")
                     .get_all(["desktop", user["id"]], index="kind_user")
+                    .filter({"persistent": False})
+                    .pluck("id")
+                    .count(),
+                    "desktops": r.table("domains")
+                    .get_all(["desktop", user["id"], False], index="kind_user_tag")
+                    .filter({"persistent": True})
                     .pluck("id")
                     .count(),
                     "templates": r.table("domains")

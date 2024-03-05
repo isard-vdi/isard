@@ -45,6 +45,8 @@ $(document).ready(function() {
             { "data": "limits.total_size", className: "xe-desktops", defaultContent: "-"},
             { "data": "quota.desktops", className: "xe-desktops", defaultContent: "-"},
             { "data": "limits.desktops", className: "xe-desktops", defaultContent: "-"},
+            { "data": "quota.volatile", className: "xe-desktops", defaultContent: "-"},
+            { "data": "limits.volatile", className: "xe-desktops", defaultContent: "-"},
             { "data": "quota.running", className: "xe-running", defaultContent: "-"},
             { "data": "limits.running", className: "xe-running", defaultContent: "-"},
             { "data": "quota.vcpus", className: "xe-vcpu", defaultContent: "-"},

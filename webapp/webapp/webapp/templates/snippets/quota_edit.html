@@ -30,21 +30,28 @@
                 </h4>
                 <div class="x_content" style="padding: 0px;">
                     <div class="row">
-                        <div class="col-xs-4 form-group" title="Amount of desktops that can be created">
-                            <label>Desktops</label>
+                        <div class="col-xs-3 form-group" title="Amount of persistent desktops that can be created">
+                            <label>Persistent</label>
                             <input id="{{ type }}-desktops" name="{{ type }}-desktops"
                                 class="form-control roundbox quota-form-input" disabled value="1" min="0" maxlength="5"
                                 pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change" required
                                 type="number" />
                         </div>
-                        <div class="col-xs-4 form-group" title="Amount of templates that can be created">
+                        <div class="col-xs-3 form-group" title="Amount of temporal desktops that can be created">
+                            <label>Temporal</label>
+                            <input id="{{ type }}-volatile" name="{{ type }}-volatile"
+                                class="form-control roundbox quota-form-input" disabled value="1" min="0" maxlength="5"
+                                pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                type="number" />
+                        </div>
+                        <div class="col-xs-3 form-group" title="Amount of templates that can be created">
                             <label>Templates</label>
                             <input id="{{ type }}-templates" name="{{ type }}-templates"
                                 class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5"
                                 pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change" required
                                 type="number" />
                         </div>
-                        <div class="col-xs-4 form-group" title="Amount of media that can be uploaded">
+                        <div class="col-xs-3 form-group" title="Amount of media that can be uploaded">
                             <label>Media</label>
                             <input id="{{ type }}-isos" name="{{ type }}-isos"
                                 class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5"
