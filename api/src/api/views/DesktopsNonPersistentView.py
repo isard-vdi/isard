@@ -47,8 +47,7 @@ def api_v3_desktop_new(payload):
             traceback.format_exc(),
             description_code="missing_required_data",
         )
-
-    quotas.desktop_create(payload["user_id"])
+    quotas.volatile_create(payload["user_id"])
     quotas.desktop_start(user_id, template_id)
 
     template = templates.Get(template_id)

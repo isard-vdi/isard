@@ -88,6 +88,7 @@ function drawUserQuota(data){
 
 function drawCategoryLimits(limits){
   $('.limits-desktops-bar').css('width', limits.dqp+'%').attr('aria-valuenow', limits.dqp).text(limits.dqp+'%');
+  $('.limits-volatile-bar').css('width', limits.dqp+'%').attr('aria-valuenow', limits.dqp).text(limits.dqp+'%');
   $('.limits-concurrent-bar').css('width', limits.rqp+'%').attr('aria-valuenow', limits.rqp).text(limits.rqp+'%');
   $('.limits-templates-bar').css('width', limits.tqp+'%').attr('aria-valuenow', limits.tqp).text(limits.tqp+'%');
   $('.limits-isos-bar').css('width', limits.iqp+'%').attr('aria-valuenow', limits.iqp).text(limits.iqp+'%');
@@ -97,6 +98,7 @@ function drawCategoryLimits(limits){
 }
 function drawAdminGlobals(admin){
   $('.system-desktops').css('width', '100%').attr('aria-valuenow', 100).text(admin.d);
+  $('.system-volatile').css('width', '100%').attr('aria-valuenow', 100).text(admin.d);
   $('.system-concurrent').css('width', '100%').attr('aria-valuenow', 100).text(admin.r);
   $('.system-templates').css('width', '100%').attr('aria-valuenow', 100).text(admin.t);
   $('.system-isos').css('width', '100%').attr('aria-valuenow', 100).text(admin.i);

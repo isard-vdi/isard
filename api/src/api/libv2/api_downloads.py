@@ -218,16 +218,22 @@ def get_new_kind(kind, username):
                     {
                         **w,
                         **{
-                            "id": dbb_dict[w["url-isard"]]["id"]
-                            if w["url-isard"]
-                            else dbb_dict[w["url-web"]]["id"],
+                            "id": (
+                                dbb_dict[w["url-isard"]]["id"]
+                                if w["url-isard"]
+                                else dbb_dict[w["url-web"]]["id"]
+                            ),
                             "new": False,
-                            "status": dbb_dict[w["url-isard"]]["status"]
-                            if w["url-isard"]
-                            else dbb_dict[w["url-web"]]["status"],
-                            "progress": dbb_dict[w["url-isard"]].get("progress")
-                            if w["url-isard"]
-                            else dbb_dict[w["url-web"]].get("progress"),
+                            "status": (
+                                dbb_dict[w["url-isard"]]["status"]
+                                if w["url-isard"]
+                                else dbb_dict[w["url-web"]]["status"]
+                            ),
+                            "progress": (
+                                dbb_dict[w["url-isard"]].get("progress")
+                                if w["url-isard"]
+                                else dbb_dict[w["url-web"]].get("progress")
+                            ),
                         },
                     }
                 )
@@ -335,6 +341,8 @@ def formatDomains(data, user_id):
         d["create_dict"]["hardware"]["interfaces"] = [
             {"id": interface, "mac": gen_new_mac()} for interface in interfaces
         ]
+        d["tag"] = False
+        d["persistent"] = True
         if d.get("options"):
             d.pop("options")
         d.update(get_user_data(user_id))

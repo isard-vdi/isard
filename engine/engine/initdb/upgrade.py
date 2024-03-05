@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 127
+release_version = 128
+# release 128: Add volatile field to applied quota
 # release 127: Add viewers config
 # release 126: Add user_category index to users table
 # release 125: Add owner_category index
@@ -2801,6 +2802,16 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
                 print("Domains ids updated: " + str(updated_domains_ids))
             except Exception as e:
                 print(e)
+        if version == 128:
+            try:
+                r.table("domains").get_all("desktop", index="kind").filter(
+                    r.row.has_fields("persistent").not_()
+                ).update({"persistent": True}).run(self.conn)
+                r.table("domains").get_all("desktop", index="kind").filter(
+                    r.row.has_fields("tag").not_()
+                ).update({"tag": False}).run(self.conn)
+            except Exception as e:
+                print(e)
 
         return True
 
@@ -3324,6 +3335,14 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
         if version == 66:
             try:
                 r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 128:
+            try:
+                r.table(table).filter(r.row["quota"].eq(False).not_()).update(
+                    {"quota": {"volatile": 999}}
+                ).run(self.conn)
             except Exception as e:
                 print(e)
 
@@ -3861,6 +3880,14 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
             try:
                 r.table(table).index_create(
                     "user_category", [r.row["id"], r.row["category"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 128:
+            try:
+                r.table(table).filter(r.row["quota"].eq(False).not_()).update(
+                    {"quota": {"volatile": 999}}
                 ).run(self.conn)
             except Exception as e:
                 print(e)
@@ -4589,6 +4616,14 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
         if version == 122:
             try:
                 r.table("categories").update({"maintenance": False}).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 128:
+            try:
+                r.table(table).filter(r.row["quota"].eq(False).not_()).update(
+                    {"quota": {"volatile": 999}}
+                ).run(self.conn)
             except Exception as e:
                 print(e)
 

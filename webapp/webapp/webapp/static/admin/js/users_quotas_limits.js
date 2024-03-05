@@ -45,6 +45,7 @@ $(document).ready(function() {
             { "data": "group_name", "width": "10px"},
             { "data": "templates", "width": "10px", defaultContent: "0"},
             { "data": "desktops", "width": "10px", defaultContent: "0"},
+            { "data": "volatile", "width": "10px", defaultContent: "0"},
             { "data": "domains_size", className: "xe-desktops", defaultContent: "-"},
             { "data": "media_size", className: "xe-desktops", defaultContent: "-"},
             { "data": null, className: "xe-desktops", defaultContent: "-"},
@@ -65,25 +66,25 @@ $(document).ready(function() {
                 }
             },
             {
-                "targets": 8,
+                "targets": 9,
                 "render": function ( data, type, full, meta ) {
                     return full.domains_size ? full.domains_size.toFixed(1) : 0.0;
                 }
             },
             {
-                "targets": 9,
+                "targets": 10,
                 "render": function ( data, type, full, meta ) {
                     return full.media_size ? full.media_size.toFixed(1) : 0.0;
                 }
             },
             {
-                "targets": 10,
+                "targets": 11,
                 "render": function ( data, type, full, meta ) {
                     return (full.domains_size && full.media_size) ? (full.domains_size + full.media_size).toFixed(1) : 0.0;
                 }
             },
             {
-                "targets": 11,
+                "targets": 12,
                 "render": function ( data, type, full, meta ) {
                     if (full.hasOwnProperty('user_storage')){
                         return full.user_storage.provider_quota.used +' ('+full.user_storage.provider_quota.relative+'%)'
@@ -96,7 +97,7 @@ $(document).ready(function() {
 
             // Total over this page
             pageTotal = api
-                .column(10, {search: 'applied'})
+                .column(11, {search: 'applied'})
                 .data()
                 .reduce(function (a, b) {
                     return a + b['domains_size'] + b['media_size']

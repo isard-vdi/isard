@@ -29,10 +29,11 @@ export class ProfileUtils {
 
   static parseQuota (quota) {
     const {
-      desktops, templates, isos, memory, running, vcpus, total_size: totalSize, total_soft_size: totalSoftSize, storage_size: storageSize, media_size: mediaSize
+      desktops, volatile, templates, isos, memory, running, vcpus, total_size: totalSize, total_soft_size: totalSoftSize, storage_size: storageSize, media_size: mediaSize
     } = quota
     return {
       desktops,
+      volatile,
       templates,
       isos,
       memory,

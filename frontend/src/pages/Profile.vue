@@ -213,6 +213,12 @@
                                 :max="profile.quota.desktops"
                               />
                               <QuotaProgressBar
+                                v-if="config.showTemporalTab"
+                                :title="$t('components.profile.quota.volatile')"
+                                :value="profile.used.volatile"
+                                :max="profile.quota.volatile"
+                              />
+                              <QuotaProgressBar
                                 :title="$t('components.profile.quota.templates')"
                                 :value="profile.used.templates"
                                 :max="profile.quota.templates"
@@ -321,6 +327,7 @@ export default {
     $store.dispatch('fetchProfile')
     const profile = computed(() => $store.getters.getProfile)
     const config = computed(() => $store.getters.getConfig)
+
     const profileLoaded = computed(() => $store.getters.getProfileLoaded)
     const showEmailVerificationModal = () => {
       $store.dispatch('showEmailVerificationModal', true)

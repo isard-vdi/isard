@@ -455,6 +455,7 @@
                     "category_quota": "Cuota de categoría"
                 },
                 "desktops": "Escritorios creados / Total de escritorios",
+                "volatile": "Escritorios temporales creados / Escritorios temporales totales",
                 "media": "Medios creados / Total de medios",
                 "memory": "Memoria utilizada / Total de memoria (GB)",
                 "running": "Escritorios arrancados / Total de escritorios arrancados",

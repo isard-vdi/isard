@@ -2,6 +2,10 @@ desktops:
   type: integer
   required: true
   min: 0
+volatile:
+  type: integer
+  required: true
+  min: 0
 desktops_disk_size:
   type: integer
   required: true

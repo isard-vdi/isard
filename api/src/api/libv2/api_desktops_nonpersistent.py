@@ -82,7 +82,6 @@ class ApiDesktopsNonPersistent:
         return desktop_id
 
     def _nonpersistent_desktop_from_tmpl(self, user_id, template_id):
-        quotas.desktop_create(user_id)
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
             if not template:
