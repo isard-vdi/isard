@@ -5,7 +5,6 @@
   >
     <b-tabs>
       <b-tab
-        v-if="hasDesktopQuota"
         :active="currentTab === 'desktops'"
         @click="updateCurrentTab('desktops')"
       >
@@ -140,7 +139,6 @@ export default {
     const templates = computed(() => $store.getters.getTemplates)
     const filterDesktopsText = computed(() => $store.getters.getDesktopsFilter)
 
-    const hasDesktopQuota = computed(() => $store.getters.getProfile.quota === false || $store.getters.getProfile.quota.desktops)
     const hasTemporalQuota = computed(() => $store.getters.getProfile.quota === false || $store.getters.getProfile.quota.volatile)
 
     const persistentDesktops = computed(() => desktops.value.filter(desktop => showStarted.value ? desktop.type === 'persistent' && [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(desktop.state.toLowerCase()) : desktop.type === 'persistent'))
@@ -156,7 +154,6 @@ export default {
       visibleNonPersistentDesktops,
       currentTab,
       config,
-      hasDesktopQuota,
       hasTemporalQuota
     }
   },
