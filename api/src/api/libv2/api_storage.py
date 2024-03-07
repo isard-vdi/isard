@@ -112,7 +112,7 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None):
             "domains": r.table("domains")
             .get_all(disk["id"], index="storage_ids")
             .count(),
-            "last": disk["status_logs"][-1],
+            "last": disk["status_logs"].default([None])[-1],
         }
     ).without("status_logs")
 
