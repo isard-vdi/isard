@@ -1018,7 +1018,7 @@
         "inputFormat": "Onartutako karaktereak dira hizkiak, zenbakiak, koma, puntua, -,_",
         "sameAs": "{property} eremuak {property2} eremuko balio bera izan behar du.",
         "url": "{property} eremua url bat izan behar da.",
-        "undefined": "Definitu gabe",
+        "undefined": "Definitu gabea",
         "email": "{property} eremua email helbide zuzen bat izan behar da.",
         "URLFormat": "\"https://\" erabiliz hasi behar da."
     },
