@@ -77,7 +77,8 @@
                 "next-booking": "Hurrengo erreserba",
                 "no-next-booking": "Idazmahaia ez dago erreserbatuta!",
                 "booking-ends": "Erreserba hemen amaitzen da. "
-            }
+            },
+            "open-with": "Ireki bisorearekin"
         },
         "rdp-modal": {
             "message": {
@@ -130,6 +131,12 @@
                     },
                     "make-not-visible": {
                         "title": "Ikustezin bihurtu"
+                    },
+                    "allowed": {
+                        "title": "Editatu erabiltzaileak"
+                    },
+                    "edit": {
+                        "title": "Editatu hedapena"
                     }
                 },
                 "back": "Hedapeenetara itzuli"
@@ -137,6 +144,26 @@
             "new-deployment": "Hedapen berria",
             "videowall": {
                 "back": "Hedapenera itzuli"
+            },
+            "recycle-bin": {
+                "back": "Itzuli zakarrontzira",
+                "buttons": {
+                    "restore": {
+                        "title": "Berrezarri"
+                    },
+                    "delete": {
+                        "title": "Ezabatu"
+                    },
+                    "info": {
+                        "title": "Informazio gehiago"
+                    }
+                },
+                "title": "zakarrontzia"
+            },
+            "recycle-bins": {
+                "immediately": "Zakarrontzia hutsik egongo da, elementuak berehala ezabatzen baitira etengabe.",
+                "max-time": "Zakarrontziko elementuak behin betiko ezabatuko dira: {time}.",
+                "empty-recycle-bin": "Hustu zakarrontzia"
             }
         },
         "deployment-desktop-list": {
@@ -242,10 +269,12 @@
                 "vcpus": "Vcpus erabilia/Vcpus guztira",
                 "total-size": "Erabilitako tamaina/Guztizko tamaina (GB)",
                 "unit": "Unitate pertsonalaren tamaina/unitate osoaren tamaina (MB)",
-                "running": "Abian dauden mahaigainak / Guztira abian dauden mahaigainak"
+                "running": "Abian dauden mahaigainak / Guztira abian dauden mahaigainak",
+                "volatile": "Sortutako aldi baterako idazmahaiak / Aldi baterako idazmahaiak, guztira"
             },
             "language": "Hizkuntza",
-            "change-password": "Aldatu pasahitza"
+            "change-password": "Aldatu pasahitza",
+            "change-email": "Posta elektronikoa aldatu / egiaztatu"
         },
         "start-now-modal": {
             "title": "Hasi orain",
@@ -295,7 +324,8 @@
                 "select-category": "Mesedez, aukeratu bat",
                 "usr": "Erabiltzailearen izena",
                 "pwd": "Pasahitza",
-                "login": "Saioa hasi"
+                "login": "Saioa hasi",
+                "forgot-password": "Pasahitza ahaztu duzu?"
             },
             "other-logins": "edo honako hauek erabiliz hasi",
             "isard-logo-alt": "IsardVDIren logotipoa sarrio baten burua da.",
@@ -327,7 +357,8 @@
             "errors": {
                 "500": "Zerbitzariaren errorea",
                 "401": "Amaitutako saioa",
-                "404": "Kodea ez da aurkitu"
+                "404": "Kodea ez da aurkitu",
+                "409": "Erabiltzailea badago lehendik"
             }
         },
         "select-template": {
@@ -404,6 +435,10 @@
                 "starting": {
                     "text": "Abiarazten",
                     "action": "Abiarazten"
+                },
+                "updating": {
+                    "text": "Prozesaketa",
+                    "action": "Prozesaketa"
                 }
             },
             "error": {
@@ -491,7 +526,8 @@
                 "title": {
                     "make-invisible": "'{name}' hedapena ikusezina",
                     "download-csv": "Deskargatu {name} CSV ikusle zuzena",
-                    "make-visible": "'{name}' hedapena ikusgai"
+                    "make-visible": "'{name}' hedapena ikusgai",
+                    "delete": "Ezabatu hedapena"
                 },
                 "option": {
                     "dont-stop-desktops": "Hedapen hori ikusezina izan dadila erabiltzaileentzat, eta mahaigaineko gailuen erabilera ahalbidetu dadila, geldiarazten diren arte",
@@ -505,7 +541,12 @@
                     "dont-stop": "Ez gelditu mahaigainak",
                     "make-visible": "Ikusarazi",
                     "keep-csv": "Gorde url-ak eta deskargatu csv",
-                    "reset-csv": "berrezarri eta deskargatu csv"
+                    "reset-csv": "berrezarri eta deskargatu csv",
+                    "delete": "Ezabatu"
+                },
+                "body": {
+                    "text": "Ekintza hori ezin da desegin, eta hari lotutako datu guztiak galdu egingo dira.",
+                    "send-to-recycle-bin": "Ezarpena zakarrontzira bidali (behin betiko ezabatu arte, erabiltzailearen kuotan kontuan hartuko da biltegiratzea)."
                 }
             }
         },
@@ -541,7 +582,10 @@
                     "rdp-help": "RDP instalatzeko argibideak",
                     "close-guide": "Gida itxi",
                     "local-client": "RDP bezeroa erabili (gomendatua)",
-                    "once-installed": "Instalatu ondoren, egin klik 'RDP' botoian, zeinak mahaigain birtualaren fitxategia deskargatuko duen."
+                    "once-installed": "Instalatu ondoren, egin klik 'RDP' botoian, zeinak mahaigain birtualaren fitxategia deskargatuko duen.",
+                    "download-install": "Deskargatu bistaratze-softwarea",
+                    "client-required": "baina beste sistema eragile batzuetan, baliteke kanpoko aplikazio bat instalatu behar izatea. Kontsultatu instalatzeko jarraibideak:",
+                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/"
                 },
                 "spice": {
                     "local-client": "Tokiko bezeroa erabili (gomendatua)",
@@ -556,7 +600,10 @@
                     "spice-help": "SPICE instalatzeko jarraibideak",
                     "best-performance": "Errendimendu oneneko aukera da",
                     "once-installed": "Instalatu ondoren, egin klik \"SPICE\" botoian, zeinak mahaigain birtualeko fitxategia deskargatuko baitu.",
-                    "spice-client-required": "baina kanpoko aplikazioren bat behar da."
+                    "spice-client-required": "baina kanpoko aplikazioren bat behar da.",
+                    "download-install": "Deskargatu bistaratze-softwarea",
+                    "generic-text": "Egin klik esteka honetan, deskargatzeko estekak eta instalatzeko jarraibideak aurkitzeko:",
+                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/"
                 }
             },
             "description": {
@@ -611,6 +658,26 @@
                 },
                 "duplicate": {
                     "title": "Txantiloia bikoiztu"
+                },
+                "delete": {
+                    "title": "Ezabatu txantiloia"
+                }
+            },
+            "modal": {
+                "delete": {
+                    "title": "Mendekotasun-abisua",
+                    "warning": {
+                        "pending": "OHARRA Zenbait domeinu txantiloi honen mende daude, eta EZ da zure jabetzakoa.",
+                        "delete": "ADI! Txantiloi eta idazmahai horiek txantiloi horren araberakoak dira, eta ezabatu egingo dira.",
+                        "footer": "Ezin duzu txantiloi hau ezabatu. Jarri administratzailearekin harremanetan"
+                    },
+                    "table-header": {
+                        "name": "Izena",
+                        "user": "Erabiltzaile"
+                    },
+                    "button": {
+                        "delete": "Ezabatu txantiloia"
+                    }
                 }
             }
         },
@@ -645,7 +712,13 @@
                 "downloaded": "Deskargatuta",
                 "downloading": "Deskargatzen",
                 "deleting": "Ezabatzen",
-                "maintenance": "Mantentze-lanak"
+                "maintenance": "Mantentze-lanak",
+                "downloadfailed": "Deskargak huts egin du",
+                "downloadstarting": "Deskargatu",
+                "faileddeleted": "Deskargak huts egin du",
+                "downloadaborting": "Deskarga ezeztatuta",
+                "resetdownloading": "Deskargaren berrezarpena",
+                "downloadfailedinvalidformat": "Formatuak ez du balio"
             },
             "no-media": {
                 "subtitle": "Errore bat dela uste baduzu, jarri harremanetan administratzailearekin",
@@ -684,6 +757,76 @@
             "no-storage": {
                 "subtitle": "Errore bat dela uste baduzu, jarri harremanetan administratzailearekin",
                 "title": "Ez dago erabiltzaile honen diskorik"
+            }
+        },
+        "recycle-bin": {
+            "title": {
+                "desktop": "Mahaigai '{name}' ezabatu da {date}",
+                "template": "Txantiloia '{name}' ezabatu da {date}",
+                "deployment": "Hedapena'{name}' ezabatu da {date}",
+                "user": "Erabiltzailea ezabatua{date}",
+                "bulk": "Zenbait mahaigai ezabatuta {date}"
+            },
+            "modal": {
+                "title": {
+                    "delete": "Ezabatu etengabe sarrera",
+                    "restore": "Berrezarri sarrera",
+                    "empty": "Hustu zakarrontzia"
+                },
+                "confirmation": {
+                    "delete": "Ezabatu",
+                    "restore": "Berrezarri"
+                },
+                "option": {
+                    "delete": "Ekintza hori ezin da desegin, eta hari lotutako datu guztiak galduko dira. Ziur zaude ezabatu nahi duzula?",
+                    "restore": "Lotutako datuak berreskuratuko dira (eragina izango du kuotak aplikatzen badira). Ziur zaude berrezarri nahi duzula?",
+                    "empty": "Zakarrontzia hustuko da. Ekintza hori ezin da desegin, eta hari lotutako datu guztiak galduko dira. Ziur zaude ezabatu nahi duzula?"
+                }
+            },
+            "storages": {
+                "table-header": {
+                    "size": "Tamaina",
+                    "id": "Id",
+                    "format": "Formatua",
+                    "used": "Erabilita",
+                    "user": "Erabiltzailea",
+                    "category": "Kategoria",
+                    "status": "Egoera"
+                },
+                "title": "Biltegia"
+            },
+            "desktops": {
+                "table-header": {
+                    "accessed": "Azken sarbidea",
+                    "id": "Id",
+                    "name": "Mahaigai izena",
+                    "user": "Jabea",
+                    "category": "Kategoria",
+                    "group": "Taldea"
+                },
+                "title": "Mahaigai"
+            },
+            "templates": {
+                "title": "Txantiloiak",
+                "table-header": {
+                    "user": "Jabea",
+                    "category": "Kategoria",
+                    "group": "Taldea",
+                    "accessed": "Azken sarbidea",
+                    "id": "Id",
+                    "name": "Txantiloi izena"
+                }
+            },
+            "deployments": {
+                "table-header": {
+                    "name": "Hedapen izena",
+                    "desktop-name": "Mahaigai izena",
+                    "category": "Kategoria",
+                    "id": "Id",
+                    "user": "Jabea",
+                    "group": "Taldea"
+                },
+                "title": "Hedapenak"
             }
         }
     },
@@ -745,7 +888,8 @@
             "media": {
                 "title": "Media",
                 "floppies": "Floppiak",
-                "isos": "Isoak"
+                "isos": "Isoak",
+                "placeholder": "Idatzi gutxienez 2 letra bilatzeko."
             }
         },
         "clear": "Garbitu",
@@ -821,6 +965,11 @@
                 },
                 "buttons": {
                     "update": "Eguneratu"
+                },
+                "warning": "Zure pasahitza iraungi egin da. Aldatu egin behar duzu jarraitzeko",
+                "current-password": {
+                    "label": "Sartu uneko pasahitza:",
+                    "placeholder": "uneko pasahitza"
                 }
             }
         },
@@ -842,7 +991,25 @@
                 "title": "Zuzeneko ikuslearen esteka"
             }
         },
-        "show-pages": "Erakutsi"
+        "show-pages": "Erakutsi",
+        "edit-deployment": {
+            "desktop": {
+                "title": "Editatu hedapen-idazmahaiak"
+            }
+        },
+        "email": {
+            "modal": {
+                "title": "Posta elektronikoa aldatzea / egiaztatzea",
+                "change-validate-address": "Helbide elektronikoa aldatu edo egiaztatu",
+                "email": {
+                    "label": "Posta elektronikoa",
+                    "placeholder": "Posta elektronikoa"
+                },
+                "buttons": {
+                    "verify": "Posta elektronikoa eguneratu eta egiaztatu"
+                }
+            }
+        }
     },
     "validations": {
         "required": "{property} derrigorrezkoa da.",
