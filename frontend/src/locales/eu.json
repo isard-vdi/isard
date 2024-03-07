@@ -850,7 +850,10 @@
         "maxLengthValue": "{property} eremuak {model} hizki dauzka, baina gehienez {max} hizki izan ditzake.",
         "inputFormat": "Onartutako karaktereak dira hizkiak, zenbakiak, koma, puntua, -,_",
         "sameAs": "{property} eremuak {property2} eremuko balio bera izan behar du.",
-        "url": "{property} eremua url bat izan behar da."
+        "url": "{property} eremua url bat izan behar da.",
+        "undefined": "Definitu gabe",
+        "email": "{property} eremua email helbide zuzen bat izan behar da.",
+        "URLFormat": "\"https://\" erabiliz hasi behar da."
     },
     "messages": {
         "confirmation": {
