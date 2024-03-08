@@ -839,8 +839,68 @@
             },
             "table-header": {
                 "id": "Id",
-                "accessed": "Hemen ezabatua:"
+                "accessed": "Hemen ezabatua",
+                "agent-name": "Honek ezabatua",
+                "status": "Egoera",
+                "actions": "Ekintzak",
+                "templates": "Txantiloiak",
+                "deployments": "Hedapenak",
+                "size": "Tamaina",
+                "name": "Izena",
+                "desktops": "Mahaigain",
+                "type": "Mota"
+            },
+            "item-type": {
+                "template": "Txantiloia",
+                "user": "Erabiltzaile",
+                "desktop": "Mahaigain",
+                "deployment": "Hedapena",
+                "bulk": "Ezabatze masiboa"
+            },
+            "status": {
+                "recycled": "Birziklatuta"
             }
+        },
+        "desktop": {
+            "modal": {
+                "confirmation": {
+                    "delete": "Ezabatu"
+                },
+                "title": {
+                    "delete": "Ezabatu mahaigain"
+                },
+                "body": {
+                    "text": "Ekintza hau ezin da desegin, eta hari lotutako datu guztiak galdu egingo dira.",
+                    "send-to-recycle-bin": "Mahaigaina zakarrontzira bidali (behin betiko ezabatu arte, erabiltzailearen kuotatik hartuko da)."
+                }
+            }
+        },
+        "forgot-password": {
+            "placeholder": "Posta Elektronikoa",
+            "label": "Posta Elektronikoa",
+            "description": "IsardVDI helbide elektroniko egiaztatua behar du",
+            "reset-password": "Berrezarri pasahitza",
+            "email-sent": "Adierazitako helbidera mezu elektroniko bat bidali da pasahitza berreskuratzeko. Mesedez, egiaztatu sarrerako ontzia eta segi jarraibideei. Saio-hasierara birbideratzen {seconds} segundotan",
+            "title": "Pasahitza ahaztu da"
+        },
+        "verify-email": {
+            "email-error": "Emandako egiaztatze-kodea iraungi egin da. Saioaren hasierara birbideratzen, {seconds} ““segundo”tan",
+            "title": "Posta elektronikoaren bidezko egiaztapena",
+            "label": "Posta elektronikoa",
+            "placeholder": "Posta elektronikoa",
+            "description": "Helbide elektronikoa IsardVDIk egiaztatu behar du",
+            "send-verify-email": "Bidali posta elektronikoa",
+            "email-sent": "Mezu elektroniko bat bidali da egiaztatzeko. Berrikusi zure sarrerako ontzia eta segi jarraibideei. Birbideratzea, saioa {seconds} segundotan hasteko",
+            "email-verified": "Helbide elektronikoa behar bezala egiaztatu da. Saioaren hasierara birbideratzen, {seconds} ““segundo”tan"
+        },
+        "disclaimer": {
+            "title": "Legezko oharra",
+            "reject": "Errefusatu",
+            "accept": "Onartu",
+            "disclaimer-accepted": "Erantzukizunaren deskargua onartu egin da. Birbideratu saio-hasierara {seconds} segundotan"
+        },
+        "reset-password": {
+            "password-reset": "Pasahitza behar bezala berrezarri da. Birbideratu saioa abiarazteko {seconds} segundo"
         }
     },
     "forms": {
@@ -1052,7 +1112,9 @@
             "go-to-profile": "Kuota ikusi",
             "new-deployment": "{quantity} mahaigain sortuko dira, hautatutako erabiltzaile bakoitzeko bat. Jarraitu nahi duzu?",
             "change-desktop-gpu": "Maihaigainaren profila aldatu",
-            "go-to-bookings": "Mahaigaina erreserbatu"
+            "go-to-bookings": "Mahaigaina erreserbatu",
+            "edit-deployment": "'{name}' mahaigaiak editatuko dira, aurrera?",
+            "delete-media": "'{name}' mediak ezabatuko dira, aurrera?"
         },
         "title": {
             "delete": "Ezabatu"
@@ -1091,7 +1153,15 @@
             "wireguard-network-required": "Ezin dira RDP ikustaileak hautatu wireguard sarea beharrezkoa dutelako. Jarri harremanetan administratzailearekin wireguard sarea erabiltzeko",
             "creating-deployment": "Hedapena sortzen",
             "recreating-deployment": "Hedapena Birsortzen",
-            "making-visible-deployment": "Hedapena ikusgai jartzen"
+            "making-visible-deployment": "Hedapena ikusgai jartzen",
+            "deleting-media": "Media ezabatzen",
+            "creating-media": "Media sortzen",
+            "deleting-template": "Txantiloia ezabatu",
+            "retry-desktop": "Mahaigaiaren egoera egiaztatu",
+            "restoring-recycle-bin": "Sarrera berrezartzea",
+            "deleting-recycle-bin": "Sarrera kentzen",
+            "downloading-media": "Deskargatu media",
+            "warning-desktop-waiting-ip": "Une honetan ezin da bisorea erabili. Itxaron, mesedez..."
         },
         "loading": "Kargatzen",
         "ok": "Ados",
@@ -1147,7 +1217,39 @@
         "template_new_category_limit_exceeded": "Txantiloiak sortzeko kategoria-muga gainditu da",
         "media_url_not_found": "Ezin izan da emandako URLa aurkitu",
         "media_url_not_valid": "Emandako URLak ez du balio",
-        "desktop_start_group_vcpu_limit_exceeded": "Taldeko vCPU muga gainditu da"
+        "desktop_start_group_vcpu_limit_exceeded": "Taldeko vCPU muga gainditu da",
+        "booking_new_event_overlap_error": "Gertaera bat dator",
+        "desktop_is_not_visible": "Mahaigaina ez da ikusten erabiltzaile honentzat orain.",
+        "unable_to_process_vpnfile": "Ezin du VPN fitxategia prozesatu",
+        "category_total_size_limit_exceeded": "Kategoriako baliabideak biltegiratzeko tamainaren muga gainditu da",
+        "new_desktop_name_exists": "Badago izen bereko mahaigain bat erabiltzaile honentzat",
+        "desktop_not_booked_until": "Mahaigaina ezin da hasi hurrengo erreserbara arte:{start}",
+        "not_found": "Ez da aurkitu",
+        "booking_new_event_end_error": "Amaiera-ordua ez da baliozkoa",
+        "booking_does_not_fit_date": "Erreserba ez dator bat eskatutako datarekin",
+        "unable_to_insert": "Ezin da txertatu datu-basean .",
+        "hypervisor_transition_initial_status_incorrect": "Hiperbisorearen hasierako trantsizio-egoera ez da zuzena",
+        "no_reservables": "elementua ezin da erreserbatu",
+        "vpn_missing_itemid": "Itemid VPN falta da",
+        "invalid_start_date": "Hasiera-data ez da baliozkoa",
+        "invalid_end_date": "Amaiera-data ez da baliozkoa",
+        "deployment_desktop_new_category_limit_exceeded": "Gainditu egin da '“kategoriak”ko '{category}' mahaigaiak sortzeko muga",
+        "deployment_stop": "Ekintza hori egiteko, hedapen-mahaigainek itzalita egon behar dute",
+        "booking_desktop_delete_stop": "Erreserba hori kentzeko, mahaigaina gelditu behar da",
+        "booking_deployment_delete_stop": "Erreserba hori ezabatzeko, hedapen-mahaigainak gelditu behar dira",
+        "conflict": "Arazoa",
+        "deployment_desktop_new_group_limit_exceeded": "Gainditu egin da \"“grupo’”'{group}' taldeko mahaigaiak sortzeko muga",
+        "desktop_not_booked": "Mahaigaiak erreserba behar du hasteko",
+        "incorrect_new_plan_body_data": "Plan berriaren datu okerrak",
+        "duplicated_name": "Izena bikoiztuta",
+        "new_template_name_exists": "Badago izen bereko txantiloi bat erabiltzaile honentzat",
+        "total_size_quota_exceeded": "Biltegiratze-tamainaren kuota gainditu duzu. mahaigain bat, txantiloi bat edo euskarri bat ezabatu behar duzu diskoan lekua egiteko.",
+        "booking_new_event_start_error": "Hasiera-ordua ez da baliozkoa",
+        "group_total_size_limit_exceeded": "Taldeko baliabideen biltegiratze-tamainaren muga gainditu da",
+        "booking_max_items_exceeded": "Erabiltzaile-erreserba maximoa gainditu duzu",
+        "unable_to_update": "Ezin da eguneratu datu-basean .",
+        "unknown_extension": "Kargatutako fitxategia ez da agertzen , luzapen ezezaguna duelako",
+        "no_wireguard_keys": "Oraindik ez dago wireguard gakorik webapp config.-en. Saiatu berriro segundo batzuetan..."
     },
     "message-modal": {
         "messages": {
