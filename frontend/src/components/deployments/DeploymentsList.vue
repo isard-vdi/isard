@@ -224,7 +224,6 @@ export default {
     const totalRows = ref(1)
     const filter = ref('')
     const filterOn = reactive(['name', 'description', 'desktopName', 'template'])
-    const sendToRecycleBin = ref(false)
 
     const onFiltered = (filteredItems) => {
       // Trigger pagination to update the number of buttons/pages due to filtering
@@ -271,8 +270,7 @@ export default {
         show: true,
         type: 'delete',
         color: 'red',
-        item: { id: deployment.id, name: deployment.name },
-        permanent: !sendToRecycleBin.value
+        item: { id: deployment.id, name: deployment.name }
       })
     }
 

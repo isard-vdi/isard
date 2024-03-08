@@ -53,6 +53,9 @@ export default {
     },
     getItemsInRecycleBin: state => {
       return state.itemsInRecycleBin
+    },
+    getDefaultCheck: state => {
+      return state.defaultCheck
     }
   },
   mutations: {
@@ -75,6 +78,9 @@ export default {
     },
     setItemsInRecycleBin: (state, itemsInRecycleBin) => {
       state.itemsInRecycleBin = itemsInRecycleBin
+    },
+    setDefaultCheck: (state, defaultCheck) => {
+      state.defaultCheck = defaultCheck
     },
     insertUpdateRecycleBinsItem: (state, recycleBin) => {
       const item = state.recycleBins.find(d => d.id === recycleBin.id)
@@ -141,6 +147,11 @@ export default {
     fetchItemsInRecycleBin (context) {
       axios.get(`${apiV3Segment}/recycle_bin/count`).then(response => {
         context.commit('setItemsInRecycleBin', response.data)
+      })
+    },
+    fetchDefaultCheck (context) {
+      return axios.get(`${apiV3Segment}/recycle_bin/config/default-delete`).then(response => {
+        context.commit('setDefaultCheck', response.data)
       })
     },
     restoreRecycleBin (context, data) {

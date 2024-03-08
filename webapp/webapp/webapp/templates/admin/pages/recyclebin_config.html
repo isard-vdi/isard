@@ -1,0 +1,43 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block content %}
+
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="page-title">
+                <div class="title_left" style="width:100%">
+                    <h3><i class="fa fa-gears"></i> Recycle Bin config <small></small></h3>
+                </div>
+                <div class="clearfix"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="clearfix"></div>
+
+<div class="row">
+    <div class="col-md-6 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-times"></i> Enable Recycle Bin by default </h3><br>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <h4><b> By default send items to recycle bin instead of deleting them permanently</b></h4>
+
+                <span id="default-delete_wrapper" class="x_panel">
+                    <input id="default-delete-checkbox" type="checkbox">
+                    <label for="default-delete-checkbox">Send to recycle bin by default</label>
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block pagescript %}
+<script src="/isard-admin/static/admin/js/recycle_bin_config.js"></script>
+{% endblock %}

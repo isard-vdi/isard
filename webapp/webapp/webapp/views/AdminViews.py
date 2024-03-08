@@ -245,6 +245,11 @@ def admin_recyclebin(nav="Disks"):
         return render_template(
             "admin/pages/recyclebin_domains.html", title=nav, nav=nav, icon=icon
         )
+    if nav == "Config":
+        icon = "gears"
+        return render_template(
+            "admin/pages/recyclebin_config.html", title=nav, nav=nav, icon=icon
+        )
 
 
 @app.route("/isard-admin/admin/domains/render/status")

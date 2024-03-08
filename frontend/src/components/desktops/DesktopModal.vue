@@ -57,23 +57,26 @@
   </b-modal>
 </template>
 <script>
-import { ref, computed } from '@vue/composition-api'
+import { computed, ref } from '@vue/composition-api'
 
 export default {
   setup (_, context) {
     const $store = context.root.$store
-    const sendToRecycleBin = ref(false)
     const modal = computed(() => $store.getters.getDesktopModal)
     const maxTime = computed(() => $store.getters.getMaxTime)
-    const deleteDesktop = () => {
-      $store.dispatch('deleteDesktop', { id: modal.value.item.id, permanent: !sendToRecycleBin.value }).then(() => {
-        closeModal()
-      })
-    }
+    const sendToRecycleBin = ref(false)
+    $store.dispatch('fetchDefaultCheck').then(() => {
+      sendToRecycleBin.value = $store.getters.getDefaultCheck
+    })
 
     const closeModal = () => {
-      sendToRecycleBin.value = false
       $store.dispatch('resetDesktopModal')
+    }
+    const deleteDesktop = () => {
+      $store.dispatch('deleteDesktop', { id: modal.value.item.id, permanent: !sendToRecycleBin.value }).then(() => {
+        sendToRecycleBin.value = $store.getters.getDefaultCheck
+        closeModal()
+      })
     }
     return {
       closeModal,

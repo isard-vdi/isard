@@ -881,6 +881,23 @@ class RecycleBin(object):
                         results = "null"
             return results
 
+    @classmethod
+    def set_default_delete(cls, set_default):
+        with app.app_context():
+            r.table("config")[0].update(
+                {"recycle_bin": {"default_delete": set_default}}
+            ).run(db.conn)
+
+    @classmethod
+    def get_default_delete(cls):
+        with app.app_context():
+            try:
+                return r.table("config")[0]["recycle_bin"]["default_delete"].run(
+                    db.conn
+                )
+            except r.ReqlNonExistenceError:
+                return False
+
 
 class RecycleBinDomain(RecycleBin):
     def __init__(self, id=None, item_type="desktop", user_id=None):
