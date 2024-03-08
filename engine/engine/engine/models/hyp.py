@@ -1166,7 +1166,7 @@ class hyp(object):
                 b[0].strip(): {"type_id": b[2], "pci_id": b[1]}
                 for b in [a.split() for a in mdev_ctl_list]
             }
-            [d.update(d_mdevs_domains[k]) for k, d in d_mdevs.items()]
+            [d.update(d_mdevs_domains.get(k, {})) for k, d in d_mdevs.items()]
             return d_mdevs
         else:
             return {}
@@ -1197,7 +1197,7 @@ class hyp(object):
             # if uuids not exists in database
             if uuid_running not in all_uuids.keys():
                 remove_uuids.append(uuid_running)
-                if len(d["vm_name"]) > 0:
+                if len(d.get("vm_name", [])) > 0:
                     destroy_domains.append(d["vm_name"])
             else:
                 pci_mdev_id_running = d["pci_id"]
