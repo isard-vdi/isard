@@ -147,7 +147,7 @@ def api_v3_admin_media_insert(payload):
 
 @app.route("/api/v3/media", methods=["GET"])
 @has_token
-def api_v3_admin_media(payload):
+def api_v3_media(payload):
     media = api_media.Media(payload)
     return json.dumps(media), 200, {"Content-Type": "application/json"}
 
