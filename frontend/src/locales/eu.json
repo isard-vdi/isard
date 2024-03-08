@@ -775,7 +775,8 @@
                 },
                 "confirmation": {
                     "delete": "Ezabatu",
-                    "restore": "Berrezarri"
+                    "restore": "Berrezarri",
+                    "empty": "Hutsik"
                 },
                 "option": {
                     "delete": "Ekintza hori ezin da desegin, eta hari lotutako datu guztiak galduko dira. Ziur zaude ezabatu nahi duzula?",
@@ -791,7 +792,8 @@
                     "used": "Erabilita",
                     "user": "Erabiltzailea",
                     "category": "Kategoria",
-                    "status": "Egoera"
+                    "status": "Egoera",
+                    "domains": "Dominioak"
                 },
                 "title": "Biltegia"
             },
@@ -827,6 +829,17 @@
                     "group": "Taldea"
                 },
                 "title": "Hedapenak"
+            }
+        },
+        "recycle-bins": {
+            "title": "Zakarrontzia",
+            "no-recycle-bin": {
+                "title": "Ez dago erabiltzaile honetatik ezabatutako elementurik",
+                "subtitle": "Mugitu behar ez dituzun elementuak zakarrontzian. Behin betiko ezabatuko dira {time}."
+            },
+            "table-header": {
+                "id": "Id",
+                "accessed": "Hemen ezabatua:"
             }
         }
     },
