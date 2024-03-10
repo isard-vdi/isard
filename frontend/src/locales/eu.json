@@ -1249,11 +1249,66 @@
         "booking_max_items_exceeded": "Erabiltzaile-erreserba maximoa gainditu duzu",
         "unable_to_update": "Ezin da eguneratu datu-basean .",
         "unknown_extension": "Kargatutako fitxategia ez da agertzen , luzapen ezezaguna duelako",
-        "no_wireguard_keys": "Oraindik ez dago wireguard gakorik webapp config.-en. Saiatu berriro segundo batzuetan..."
+        "no_wireguard_keys": "Oraindik ez dago wireguard gakorik webapp config.-en. Saiatu berriro segundo batzuetan...",
+        "media_invalid": "Deskargatutako fitxategia ez da baliozko multimedia-formatua. Ezabatu egin behar da, ezin baita erabili",
+        "only_works_rdp": "\"GPU bakarrik\" moduak RDP bisoreekin bakarrik funtzionatzen du",
+        "password_character_length": "Pasahitzak gutxienez {num} ““karaktere-zenbakia” izan behar du",
+        "password_digits": "Pasahitzak gutxienez zenbaki hau {num} izan behar du",
+        "invalid_token": "Token baliogabea",
+        "old_passwords": "Uneko pasahitza ezin da izan azken {num} pasahitzetako bat",
+        "no_storage_pool_available": "Une honetan ezin da baliabidea sortu. Saiatu berriro geroago.",
+        "needs_deployment_booking": "Mahaigain ezin da orain hasi; jar zaitez harremanetan hedapenaren jabearekin, erreserbatzeko",
+        "template_failed": "Akats bat dela eta, txantiloi hau ezin da erabili mahaigain berri bat sortzeko. Mesedez, jarri harremanetan administratzailearekin",
+        "desktop_storage_not_ready": "Mahaigaineko biltegia ez dago prest",
+        "cant_edit_booked_deployment": "Ezin dira editatu erreserba programatua duen hedapen baten erreserbak",
+        "temporal_new_reservable": "Ezin da aldi baterako mahaigainirik sortu erreserba duen txantiloi batetik abiatuta",
+        "password_uppercase": "Pasahitzak gutxienez {num} karaktere izan behar ditu letra larriz",
+        "not_enough_advanced_time": "Ez dago denbora aurreraturik mahaigaina hasteko",
+        "one_viewer_minimum": "Bisore bat hautatu behar da gutxienez",
+        "wrong_password_entered": "Pasahitz okerra sartu duzu",
+        "not_verified": "Egiaztatu gabeko posta elektronikoa",
+        "user_not_found": "Ez dago adierazitako posta elektronikoa duen erabiltzailerik",
+        "password_already_used": "Pasahitz hori lehendik ere erabili da",
+        "password_username": "Pasahitzak ezin du bere erabiltzaile-izena izan",
+        "current_plan_doesnt_match": "Ez dago GPU erabilgarririk mahaigaineko profilarekin",
+        "password_special_characters": "Pasahitzak karaktere berezi hau {num} izan behar du gutxienez: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
+        "password_lowercase": "Pasahitzak gutxienez {num} karaktere izan behar ditu letra txikiz"
     },
     "message-modal": {
         "messages": {
-            "searching-resources": "Mahaigainarentzako baliabideak bilatzen ari gara. Minutu gutxi barru hasiko da."
+            "searching-resources": "Mahaigainarentzako baliabideak bilatzen ari gara. Minutu gutxi barru hasiko da.",
+            "desktop-time-limit": "'{name}' mahaigaina {date}n geldituko da."
+        },
+        "title": "Informazio garrantzitsua"
+    },
+    "router": {
+        "titles": {
+            "desktops": "Mahaigainak",
+            "edit-deployment": "Hedapena editatatu",
+            "direct_viewer": "Bisore zuzena",
+            "password": "Berrezarri pasahitza",
+            "new_desktop": "Mahaigain berria",
+            "images": "Irudiak",
+            "booking": "Erreserba",
+            "not_found": "Ez da aurkitu",
+            "maintenance": "Mantentze-lanak",
+            "login": "Hasi saioa",
+            "error": "Akatsa",
+            "email": "Posta elektronikoa egiaztatzea",
+            "forgot-password": "Pasahitza ahaztu dut",
+            "disclaimer": "Erantzukizunari uko egitea",
+            "edit-domain": "Editatu domeinua",
+            "storage": "Biltegiratzea",
+            "recycleBin": "Zakarrontzia",
+            "duplicate_template": "Txantiloi bikoiztua",
+            "new_deployment": "Hedapen berria",
+            "deployment_videowall": "Hedapeneko Bideowall",
+            "deployments": "Hedapenak",
+            "templates": "Txantiloiak",
+            "deployment": "Hedapena",
+            "profile": "Profila",
+            "new_template": "Txantiloi berria",
+            "planning": "Plangintza"
         }
     }
 }
