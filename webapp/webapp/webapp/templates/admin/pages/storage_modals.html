@@ -183,3 +183,101 @@
 
         </div>
     </div>
+</div>
+
+
+<div class="modal fade" id="modalCreateStorage" tabindex="-1" role="dialog" aria-labelledby="modalCreateStorage"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel"><i class="fa fa-plus"></i> Create disk</h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalCreateStorageForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="parent" />
+                    <input hidden id="kind" name="kind" />
+                    <div class="x_panel">
+                        <div class="row">
+                            <h4></h4>
+                            <div class="x_panel">
+                                <div class="row x_content">
+                                    <div class="col-md-12" id="owner-wrapper">
+                                        <label class="control-label">Owner: </label>
+                                        <select name="user_id" id="user" style="width:100%;"
+                                            class="roundbox form-control tags-select">
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row x_content">
+                                    <div class="col-md-12" id="storage_id-wrapper">
+                                        <label class="control-label">Parent storage ID: </label>
+                                        <span id="storage_id">
+                                    </div>
+                                </div>
+                                <div class="row x_content">
+                                    <div class="col-md-6 col-sm-12">
+                                        <label class="control-label">Type: </label>
+                                        <select name="usage_type" id="usage_type" style="width:100%;"
+                                            class="roundbox form-control">
+                                            <option selected value="desktop">Desktop</option>
+                                            <option value="media">Media</option>
+                                            <option value="template">Template</option>
+                                            <option value="volatile">Volatile</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-sm-12">
+                                        <label class="control-label">New disk format: </label>
+                                        <select disabled name="storage_type" id="storage_type" style="width:100%;"
+                                            class="roundbox form-control">
+                                            <option selected value="qcow2">.qcow2</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row x_content">
+                                    <div class="col-md-6 col-sm-12">
+                                        <label class="control-label">Priority: </label>
+                                        <select name="priority" id="priority" style="width:100%;"
+                                            class="roundbox form-control">
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-sm-12">
+                                        <label class="control-label">Size: <br></label>
+                                        <div>
+                                            <input style="width:66%;" value="10" name="size" id="size" type="number"
+                                                class="roundbox form-control" data-parsley-trigger="change">
+                                            <select disabled name="size_unit" style="width:32%;display:inline!important;"
+                                                id="size_unit" class="roundbox form-control">
+                                                <option value="M">MB</option>
+                                                <option selected value="G">GB</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Create</button></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>

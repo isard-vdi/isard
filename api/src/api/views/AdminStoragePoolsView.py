@@ -22,6 +22,7 @@
 import json
 
 from flask import request
+from isardvdi_common.storage_pool import StoragePool
 
 from api import app
 
@@ -34,7 +35,7 @@ from ..libv2.api_storage import (
     update_storage_pool,
 )
 from ..libv2.validators import _validate_item
-from .decorators import has_token, is_admin
+from .decorators import has_token, is_admin, is_admin_or_manager
 
 
 @app.route("/api/v3/admin/storage_pool", methods=["POST"])
@@ -64,6 +65,18 @@ def admin_storage_pools_get(payload):
 @app.route("/api/v3/admin/storage_pool/<storage_pool_id>", methods=["GET"])
 @is_admin
 def admin_storage_pool_get(payload, storage_pool_id):
+    return (
+        json.dumps(get_storage_pool(storage_pool_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/storage_pool/path/", methods=["PUT"])
+@is_admin_or_manager
+def admin_storage_pool_get_by_path(payload):
+    path = request.get_json()["path"]
+    storage_pool_id = StoragePool.get_by_path(path)[0].id
     return (
         json.dumps(get_storage_pool(storage_pool_id)),
         200,

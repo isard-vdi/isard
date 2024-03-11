@@ -334,6 +334,11 @@ def get_domains_delete_pending(category_id=None):
         return list(query.run(db.conn))
 
 
+def get_storage_category(storage):
+    with app.app_context():
+        return r.table("users").get(storage.user_id).run(db.conn)["category"]
+
+
 def delete_storage(storage_id):
     with app.app_context():
         if not _check(

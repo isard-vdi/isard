@@ -4,19 +4,27 @@
 # License: AGPLv3
 
 import json
+import time
 
 from flask import jsonify, request
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.domain import Domain
 from isardvdi_common.storage import Storage
 from isardvdi_common.storage_pool import StoragePool
 from isardvdi_common.task import Task
+
+from ..libv2.quotas import Quotas
+
+quotas = Quotas()
+
 from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
 
 from api import app
 
 from ..libv2.api_storage import (
     get_disks_ids_by_status,
+    get_storage_category,
     get_user_ready_disks,
     parse_disks,
 )
@@ -60,11 +68,11 @@ def set_storage_maintenance(payload, storage_id):
     return storage
 
 
-@app.route("/api/v3/storage", methods=["POST"])
+@app.route("/api/v3/storage/priority/<priority>", methods=["POST"])
 # TODO: Quotas should be implemented before open this endpoint
 # @has_token
 @is_admin
-def create_storage(payload):
+def create_storage(payload, priority="low"):
     """
     Endpoint to create a storage with storage specifications as JSON in body request.
 
@@ -102,6 +110,12 @@ def create_storage(payload):
             description="priority should be low, default or high",
         )
     parent_args = {}
+    parent = ""
+    if not "parent" in request_json and not "user_id" in request_json:
+        raise Error(
+            error="bad_request",
+            description="Must provide a parent storage or a user ID",
+        )
     if "parent" in request_json:
         if not Storage.exists(request_json.get("parent")):
             raise Error(error="not_found", description="Parent storage not found")
@@ -114,16 +128,61 @@ def create_storage(payload):
             "parent_path": parent.path,
             "parent_type": parent.type,
         }
-    storage_pool = StoragePool.get_best_for_action("create")
+    if payload["role_id"] != "admin":
+        priority = "low"
+    else:
+        if priority not in ["low", "default", "high"]:
+            raise Error(
+                error="bad_request",
+                description=f"Priority must be low, default or high",
+            )
+
+    if request.get_json().get("storage_pool"):
+        storage_pool = StoragePool(request.get_json().get("storage_pool"))
+        if not storage_pool.paths[request_json.get("usage_type")]:
+            storage_pool = StoragePool(DEFAULT_STORAGE_POOL_ID)
+    else:
+        if parent:
+            storage_pool = StoragePool.get_best_for_action(
+                "create", parent.directory_path
+            )
+        else:
+            if request.get_json().get("user_id"):
+                storage_pool = StoragePool.get_by_user_kind(
+                    request.get_json().get("user_id"),
+                    request.get_json().get("usage_type"),
+                )
+
+            else:
+                storage_pool = StoragePool.get_best_for_action("create")
+
+    category = ""
+    if "parent" in request_json and storage_pool.id != DEFAULT_STORAGE_POOL_ID:
+        category = get_storage_category(parent) + "/"
+
+    directory_path = storage_pool.get_directory_path_by_usage(
+        request_json.get("usage_type")
+    )
+    user_id = (
+        request.get_json().get("user_id")
+        if request.get_json().get("user_id")
+        else payload.get("user_id")
+    )
+
+    quota = quotas.get_applied_quota(user_id).get("quota")
+    if quota and quota.get("desktops_disk_size") < int(request_json.get("size")[:-1]):
+        raise Error("bad_request", "Disk size quota exceeded")
+
     storage = Storage(
         status="maintenance",
-        user_id=payload.get("user_id"),
+        user_id=user_id,
         type=request_json.get("storage_type"),
         parent=request_json.get("parent"),
-        directory_path=storage_pool.get_directory_path_by_usage(
-            request_json.get("usage_type")
-        ),
+        directory_path=f"{storage_pool.mountpoint}/{category}{directory_path}",
+        status_logs=[{"time": int(time.time()), "status": "created"}],
+        perms=["r", "w"] if request_json.get("usage_type") != "template" else ["r"],
     )
+
     try:
         storage.create_task(
             user_id=payload.get("user_id"),
@@ -139,20 +198,38 @@ def create_storage(payload):
             },
             dependents=[
                 {
-                    "queue": "core",
-                    "task": "update_status",
+                    "queue": f"storage.{storage_pool.id}.default",
+                    "task": "qemu_img_info_backing_chain",
                     "job_kwargs": {
                         "kwargs": {
-                            "statuses": {
-                                "finished": {
-                                    "ready": {
-                                        "storage": [storage.id],
-                                    },
-                                },
-                            },
-                        },
+                            "storage_id": storage.id,
+                            "storage_path": storage.path,
+                        }
                     },
-                }
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "update_status",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "statuses": {
+                                                "finished": {
+                                                    "ready": {
+                                                        "storage": [storage.id],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                },
             ],
         )
     except Exception as e:

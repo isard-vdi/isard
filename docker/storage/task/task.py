@@ -122,22 +122,30 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
         size = [size]
     else:
         size = []
+
+    options = ""
+    if storage_type == "qcow2":
+        options = f"""cluster_size={
+            environ.get('QCOW2_CLUSTER_SIZE','4k')
+        },extended_l2={
+            environ.get('QCOW2_EXTENDED_L2','off')
+        }"""
+
+    command = [
+        "qemu-img",
+        "create",
+        "-f",
+        storage_type,
+        *backing_file,
+        storage_path,
+        *size,
+    ]
+
+    if options:
+        command.insert(6, "-o")
+        command.insert(7, options)
     return run(
-        [
-            "qemu-img",
-            "create",
-            "-f",
-            storage_type,
-            *backing_file,
-            "-o",
-            f"""cluster_size={
-                environ.get('QCOW2_CLUSTER_SIZE','4k')
-            },extended_l2={
-                environ.get('QCOW2_EXTENDED_L2','off')
-            }""",
-            storage_path,
-            *size,
-        ],
+        command,
         check=True,
     ).returncode
 

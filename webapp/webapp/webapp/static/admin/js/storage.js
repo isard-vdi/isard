@@ -419,7 +419,6 @@ $(document).on('click', '.btn-increase', function () {
 
 });
 
-
 $("#modalIncreaseStorage #send").on("click", function () {
   var form = $('#modalIncreaseStorageForm');
   form.parsley().validate();
@@ -453,6 +452,140 @@ $("#modalIncreaseStorage #send").on("click", function () {
     });
   }
 });
+
+$(document).on('click', '.btn-add-storage', function () {
+  var modal = "#modalCreateStorage";
+  $(modal + " #storage_id").val(null);
+  $(modal + " #id").attr("disabled", true);
+  $(modal + " #storage_id-wrapper").hide();
+  $(modal + " #storage_pool").attr("disabled", false).empty();
+  $(modal + " #owner-wrapper").show();
+  $(modal + " .modal-body h4").text("Add new unattached storage disk");
+  resetCreateDiskForm();
+
+  $(modal + " #user").select2({
+    placeholder: "Type at least 2 letters to search.",
+    minimumInputLength: 2,
+    dropdownParent: $(modal),
+    ajax: {
+      type: "POST",
+      url: '/admin/allowed/term/users',
+      dataType: 'json',
+      contentType: "application/json",
+      delay: 250,
+      data: function (params) {
+        return JSON.stringify({
+          term: params.term,
+          pluck: ['id', 'name']
+        });
+      },
+      processResults: function (data) {
+        return {
+          results: $.map(data, function (item, i) {
+            return {
+              text: item.name + '[' + item['uid'] + '] ',
+              id: item.id
+            }
+          })
+        };
+      }
+    },
+  });
+
+  $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+});
+
+
+$(document).on('click', '.btn-create', function () {
+  element = $(this);
+  var id = element.data("id");
+  var modal = "#modalCreateStorage";
+  resetCreateDiskForm();
+
+  $.ajax({
+    url: `/api/v3/admin/storage/info/${id}`,
+    type: 'GET',
+    contentType: "application/json",
+  }).done(function (data) {
+    $.ajax({
+      url: `/api/v3/admin/storage_pool/path`,
+      type: 'PUT',
+      data: JSON.stringify({ "path": data["directory_path"] }),
+      contentType: "application/json",
+    }).done(function (pool) {
+      var subpath = data["directory_path"].split(pool.mountpoint + "/")[1];
+      $.each(pool.paths, function (key, value) {
+        $.each(value, function (_, value) {
+          if (subpath.endsWith(value.path)) {
+            $(modal + " #kind").val(key);
+          }
+        });
+      });
+      if ($(modal + " #kind").val() != "template") {
+        new PNotify({
+          title: `ERROR`,
+          text: 'Disks can only be derived from template disks',
+          type: 'error',
+          hide: true,
+          icon: 'fa fa-warning',
+          delay: 5000,
+          opacity: 1
+        });
+      } else {
+        $(modal + " #id").attr("disabled", false).val(id);
+        $(modal + " .modal-body h4").text("Create derived storage disk");
+        $(modal + " #storage_id-wrapper").show();
+        $(modal + " #owner-wrapper").hide();
+        $(modal + " #storage_pool").attr("disabled", true);
+        $(modal + " #storage_id").text(id);
+        $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+      }
+    });
+  });
+
+});
+
+
+$("#modalCreateStorage #send").on("click", function () {
+  var form = $('#modalCreateStorageForm');
+  form.parsley().validate();
+  if (form.parsley().isValid()) {
+    formData = form.serializeObject();
+    unit = formData.size_unit != undefined ? formData.size_unit : "G";
+    formData.size = formData.size + unit;
+    formData.storage_type = "qcow2";
+    delete formData.size_unit;
+    var priority = $("#user_data").data("role") == "admin" ? formData.priority : "low";
+
+    $.ajax({
+      url: "/api/v3/storage/priority/" + priority,
+      type: 'POST',
+      data: JSON.stringify(formData),
+      contentType: 'application/json',
+    }).done(function () {
+      new PNotify({
+        title: 'Task created successfully',
+        text: `Creating new storage...`,
+        hide: true,
+        delay: 2000,
+        opacity: 1,
+        type: 'success'
+      });
+      $('.modal').modal('hide');
+    }).fail(function (data) {
+      new PNotify({
+        title: `ERROR trying to create the new storage`,
+        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+    });
+  }
+});
+
 
 function socketio_on() {
   socket.on('storage', function (data) {
@@ -750,7 +883,7 @@ function detailButtons(storage) {
               <div class="row">
                 <div class="col-md-12 col-sm-12 col-xs-12">
                   <div class="x_panel" style="margin:3px;">
-                  
+
                     <!--<button class="btn btn-success btn-xs btn-move" data-id="${storage.id}" type="button"
                       data-placement="top" title="Move to another path"><i class="fa fa-truck m-right-xs"></i>
                       Move
@@ -759,7 +892,7 @@ function detailButtons(storage) {
                       data-placement="top" title="Convert to another disk format"><i class="fa fa-exchange m-right-xs"></i>
                       Convert
                     </button>
-                    <!--<button class="btn btn-primary btn-xs btn-virt_win_reg" data-id="${storage.id}" type="button"
+                   <!--<button class="btn btn-primary btn-xs btn-virt_win_reg" data-id="${storage.id}" type="button"
                       data-placement="top" title="Add windows registry"><i class="fa fa-edit m-right-xs"></i>
                       Windows registry
                     </button>-->
@@ -767,7 +900,12 @@ function detailButtons(storage) {
                       data-placement="top" title="Increase disk size"><i class="fa fa-external-link-square m-right-xs"></i>
                       Increase
                     </button>
-
+		    ${(function() { return ($("#user_data").data("role") == "admin") ? `
+	              <button class="btn btn-info btn-xs btn-create" data-id="${storage.id}" type="button"
+			 data-placement="top" title="Create new disk derivated from this one"><i class="fa fa-plus m-right-xs"></i>
+		       	 Add disk
+		      </button>` : ""
+		    })()}
                   </div>
                 </div>
               </div>
@@ -826,4 +964,14 @@ function populatePrioritySelect(modal) {
     <option selected disabled value="low">Low</option>
     `);
   }
+}
+
+function resetCreateDiskForm() {
+  var modal = "#modalCreateStorageForm";
+  $(modal + " #user").val("");
+  $(modal + " #usage_type").val("desktop");
+  $(modal + " #storage_type").val("qcow2");
+  $(modal + " #size").val(10);
+  $(modal + " #size_unit").val("G");
+  populatePrioritySelect(modal);
 }
