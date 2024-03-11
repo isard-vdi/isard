@@ -573,8 +573,20 @@ function showRowDetails(table, tr, row) {
                 '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
             },
             columns: [
-                { data: "kind" },
-                { data: "name" },
+                { data: "kind", title: "Kind" },
+                { data: "name", title: "Name" },
+                { data: "user_data.username", title: "User" },
+                { data: "category_name", title: "Group" },
+                { data: "group_name", title: "Category" },
+                { data: "id", title: "Id" },
+                {
+                    data: null, title: "Link",
+                    render: function (data) {
+                        let kind = data.kind.charAt(0).toUpperCase() + data.kind.slice(1).replace(/_/g, ' ');
+                        let link = '<a href="/isard-admin/admin/domains/render/' + kind + 's?searchDomainId=' + data.id + '"><b>' + kind[0] + ': </b>' + data.name + '</a>';
+                        return link;
+                    }
+                },
             ],
             columnDefs: [
             ],

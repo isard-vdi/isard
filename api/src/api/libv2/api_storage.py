@@ -190,6 +190,8 @@ def get_media_domains(media_ids):
                         "group": True,
                         "category": True,
                         "role": True,
+                        "name": True,
+                        "username": True,
                     },
                 }
             )
@@ -204,7 +206,19 @@ def get_media_domains(media_ids):
                         "category_id": doc["right"]["category"],
                         "group_id": doc["right"]["group"],
                         "user_id": doc["right"]["id"],
+                        "user_name": doc["right"]["name"],
+                        "username": doc["right"]["username"],
                     },
+                }
+            )
+            .merge(
+                lambda doc: {
+                    "category_name": r.table("categories").get(
+                        doc["user_data"]["category_id"]
+                    )["name"],
+                    "group_name": r.table("groups").get(doc["user_data"]["group_id"])[
+                        "name"
+                    ],
                 }
             )
             .run(db.conn)
