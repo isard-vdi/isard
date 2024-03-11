@@ -88,7 +88,34 @@ $(document).ready(function() {
             { "data": "group_name", "width": "10px"},
             { "data": null,"width": "150px", "className": "text-center"},
             { "data": "domains", 'defaultContent': 0,"width": "80px"},
-            { "data": null, 'defaultContent': ''},
+            {
+                "data": null,
+                'defaultContent': '',
+                render: function (data, type, row, meta) {
+                    const checkButton = '<button id="btn-check" type="button" data-id="' + row.id + '" class="btn btn-pill-right btn-success btn-xs" title="Check media status"><i class="fa fa-refresh"></i></button>'
+                    if (['Available', 'DownloadFailed', 'deleted'].includes(row.status)) {
+                        return checkButton +'<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
+                                <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                    } else if (row.status == 'DownloadFailedInvalidFormat') {
+                        return checkButton + '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                    } else if (row.status == 'Downloading') {
+                        return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
+                    } else if (row.status == 'Downloaded' || row.status == 'Stopped') {
+                        if (row.kind.startsWith('qcow')) {
+                            return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button> \
+                                    <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                        } else {
+                            return checkButton + '<button id="btn-createfromiso" title="Create desktop from media" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button> \
+                            <button id="btn-alloweds" title="Change allowed users" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
+                            <button id="btn-owner" title="Change owner" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-exchange" style="color:darkblue"></i></button> \
+                            <button id="btn-delete" title="Delete media" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button> '
+                        }
+                    } else if ('maintenance' === row.status) {
+                        return '<button id="btn-task" type="button" data-task="' + row.task + '" class="btn btn-pill-right btn-info btn-xs" title="Show last task info"><i class="fa fa-tasks"></i></button> \
+                            <button id="btn-check" type="button" data-id="' + row.id + '" class="btn btn-pill-right btn-success btn-xs" title="Check disk info"><i class="fa fa-refresh"></i></button>'
+                    }
+                }
+            },
             { "data": "id", "visible": false},
         ],
         "columnDefs": [
@@ -201,6 +228,7 @@ $(document).ready(function() {
 
     $('#media').find(' tbody').on( 'click', 'button', function () {
         data = table.row( $(this).parents('tr') ).data();
+        let task = $(this).data("task");
         switch($(this).attr('id')){
              case 'btn-delete':
                 $("#modalDeleteMediaForm")[0];
@@ -353,6 +381,59 @@ $(document).ready(function() {
                             };
                         }
                     },
+                });
+            break;
+            case 'btn-task':
+                $.ajax({
+                    type: "GET",
+                    url: '/api/v3/task/' + task,
+                }).done(function (domains) {
+                    $('#table_modal_media_delete tbody').empty()
+                    $.each(domains, function (key, value) {
+                        infoDomains(value, $('#table_modal_media_delete tbody'));
+                    });
+                });
+            break;
+            case 'btn-check':
+                new PNotify({
+                    title: "Check media status",
+                    text: "Do you really want to update the media status?",
+                    hide: false,
+                    opacity: 0.9,
+                    confirm: { confirm: true },
+                    buttons: { closer: false, sticker: false },
+                    history: { history: false },
+                    addclass: "pnotify-center",
+                }).get().on('pnotify.confirm', function() {
+                    $.ajax({
+                        type: "PUT",
+                        url: '/api/v3/media/check/' + data['id'],
+                        error: function (data) {
+                            new PNotify({
+                                title: "ERROR checking the media status",
+                                text: data.responseJSON.description,
+                                type: 'error',
+                                hide: true,
+                                icon: 'fa fa-warning',
+                                delay: 15000,
+                                opacity: 1
+                            });
+                        },
+                        success: function (data) {
+                            $('form').each(function () { this.reset() });
+                            $('.modal').modal('hide');
+                            new PNotify({
+                                title: "Checked",
+                                text: 'Media status checked successfully',
+                                hide: true,
+                                delay: 2000,
+                                icon: 'fa fa-' + data.icon,
+                                opacity: 1,
+                                type: 'success'
+                            })
+                        }
+                    })
+                }).on('pnotify.cancel', function() {
                 });
             break;
         };

@@ -18,7 +18,7 @@ from ..libv2.quotas import Quotas
 
 quotas = Quotas()
 
-from ..libv2.api_media import ApiMedia, media_task_delete
+from ..libv2.api_media import ApiMedia, media_task_check, media_task_delete
 
 api_media = ApiMedia()
 
@@ -253,4 +253,22 @@ def api_v3_admin_media_delete(payload, media_id):
     ownsMediaId(payload, media_id)
     api_media.DeleteDesktops(media_id)
     task_id = media_task_delete(media_id, payload.get("user_id"))
+    return jsonify(task_id)
+
+
+@app.route("/api/v3/media/check/<media_id>", methods=["PUT"])
+@is_admin_or_manager
+def api_v3_admin_media_check(payload, media_id):
+    """
+    Endpoint to check a media status
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param media_id: Media ID
+    :type media_id: str
+    :return: Task ID or None
+    :rtype: Set with Flask response values and data in JSON
+    """
+    ownsMediaId(payload, media_id)
+    task_id = media_task_check(media_id, payload.get("user_id"))
     return jsonify(task_id)

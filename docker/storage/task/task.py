@@ -228,6 +228,24 @@ def check_existence(storage_id, storage_path):
     return storage
 
 
+def check_media_existence(media_id, path):
+    """
+    Returns Media data with `Downloaded` status if file exists otherwise with `deleted` status.
+
+    :param storage_path: Media path
+    :type storage_id: str
+    :return: Media data to update
+    :rtype: dict
+    """
+    media = {"id": media_id}
+    if path and isfile(path):
+        media["status"] = "Downloaded"
+        media["total_percent"] = 100
+    else:
+        media["status"] = "deleted"
+    return media
+
+
 def check_backing_filename():
     """
     Check backing filename
