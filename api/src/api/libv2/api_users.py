@@ -1662,15 +1662,14 @@ class ApiUsers:
             )
         matching_policies = []
         for policy in policies:
-            if policy.get(subtype):
-                if policy["category"] == category and policy["role"] == role:
-                    return policy[subtype]
-                elif policy["category"] == category and policy["role"] == "all":
-                    matching_policies.append({"priority": 0, "policy": policy[subtype]})
-                elif policy["category"] == "all" and policy["role"] == role:
-                    matching_policies.append({"priority": 1, "policy": policy[subtype]})
-                elif policy["category"] == "all" and policy["role"] == "all":
-                    matching_policies.append({"priority": 2, "policy": policy[subtype]})
+            if policy["category"] == category and policy["role"] == role:
+                return policy.get(subtype)
+            elif policy["category"] == category and policy["role"] == "all":
+                matching_policies.append({"priority": 0, "policy": policy.get(subtype)})
+            elif policy["category"] == "all" and policy["role"] == role:
+                matching_policies.append({"priority": 1, "policy": policy.get(subtype)})
+            elif policy["category"] == "all" and policy["role"] == "all":
+                matching_policies.append({"priority": 2, "policy": policy.get(subtype)})
 
         matching_policies.sort(key=lambda x: x["priority"])
         if matching_policies:
