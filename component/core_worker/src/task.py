@@ -231,3 +231,20 @@ def recycle_bin_update(**recycle_bin_dict):
             "status": task.status,
         },
     )
+
+
+def media_update(**media_dict):
+    """
+    Update media if task success.
+
+    :param media_dict: Media data
+    :type media_dict: dict
+    """
+    task = Task(get_current_job().id)
+    if task.depending_status == "finished":
+        if media_dict:
+            Media(**media_dict)
+        else:
+            for dependency in task.dependencies:
+                if dependency.task in ("check_media_existence"):
+                    media_update(**dependency.result)

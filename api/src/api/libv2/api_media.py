@@ -105,6 +105,34 @@ def media_task_delete(media_id, user_id=None, keep_status=None):
     return task_id
 
 
+def media_task_check(media_id, user_id=None):
+    media = Media(media_id)
+
+    if not Media.exists(media_id):
+        raise Error(error="not_found", description="Media not found")
+    if not media.path_downloaded:
+        media.status = "deleted"
+        return
+    task_id = Task(
+        user_id=user_id,
+        queue=f"storage.{StoragePool.get_best_for_action('check_media_existence', path=media.path_downloaded.rsplit('/', 1)[0]).id}.default",
+        task="check_media_existence",
+        job_kwargs={
+            "kwargs": {
+                "media_id": media.id,
+                "path": media.path_downloaded,
+            },
+        },
+        dependents=[
+            {
+                "queue": "core",
+                "task": "media_update",
+            }
+        ],
+    ).id
+    return task_id
+
+
 class ApiMedia:
     def __init__(self):
         None
@@ -237,13 +265,15 @@ def domain_from_disk(user, name, description, icon, create_dict, hyper_pools):
         "group": userObj["group"],
         "xml": None,
         "icon": icon,
-        "image": image
-        if image
-        else {
-            "id": "_" + user + "-" + parsed_name,
-            "url": "/assets/img/desktops/stock/1.jpg",
-            "type": "stock",
-        },
+        "image": (
+            image
+            if image
+            else {
+                "id": "_" + user + "-" + parsed_name,
+                "url": "/assets/img/desktops/stock/1.jpg",
+                "type": "stock",
+            }
+        ),
         "server": False,
         "os": create_dict["create_from_virt_install_xml"],  #### Or name
         "options": {"viewers": {"spice": {"fullscreen": False}}},
