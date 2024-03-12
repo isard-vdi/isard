@@ -92,7 +92,7 @@ $(document).ready(function() {
                 "data": null,
                 'defaultContent': '',
                 render: function (data, type, row, meta) {
-                    const checkButton = '<button id="btn-check" type="button" data-id="' + row.id + '" class="btn btn-pill-right btn-success btn-xs" title="Check media status"><i class="fa fa-refresh"></i></button>'
+                    const checkButton = '<button id="btn-check" type="button" data-id="' + row.id + '" class="btn btn-pill-right  btn-xs" title="Check media status"><i class="fa fa-refresh" style="color:darkgreen"></i></button>'
                     if (['Available', 'DownloadFailed', 'deleted'].includes(row.status)) {
                         return checkButton +'<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
                                 <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
@@ -111,8 +111,8 @@ $(document).ready(function() {
                             <button id="btn-delete" title="Delete media" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button> '
                         }
                     } else if ('maintenance' === row.status) {
-                        return '<button id="btn-task" type="button" data-task="' + row.task + '" class="btn btn-pill-right btn-info btn-xs" title="Show last task info"><i class="fa fa-tasks"></i></button> \
-                            <button id="btn-check" type="button" data-id="' + row.id + '" class="btn btn-pill-right btn-success btn-xs" title="Check disk info"><i class="fa fa-refresh"></i></button>'
+                        return '<button id="btn-task" type="button" data-task="' + row.task + '" class="btn btn-pill-right btn-xs" title="Show last task info"><i class="fa fa-tasks" style="color:darkblue"></i></button> \
+                            <button id="btn-check" type="button" data-id="' + row.id + '" class="btn btn-pill-right btn-xs" title="Check disk info"><i class="fa fa-refresh" style="color:darkgreen"></i></button>'
                     }
                 }
             },
