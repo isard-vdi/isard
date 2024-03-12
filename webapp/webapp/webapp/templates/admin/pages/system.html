@@ -1,8 +1,16 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
-{% block css %}
-{% endblock %}
 {% block content %}
+
+<style>
+    #preview-panel {
+        background-color: aliceblue;
+    }
+    #preview {
+        white-space: pre-line;
+    }
+</style>
+
 <div class="row">
     <div class="col-md-12 col-sm-12 col-xs-12">
         <div class="x_panel">
@@ -10,7 +18,7 @@
                 <div class="title_left">
                     <h3><i class="fa fa-cogs"></i> System <small> Isard global configurations</small></h3>
                 </div>
-            </div> 
+            </div>
             <div class="clearfix"></div>
         </div>
     </div>
@@ -19,7 +27,7 @@
 <div class="clearfix"></div>
 
 <div class="row">
-    <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="col-md-6 col-sm-12 col-xs-12">
         <div class="x_panel">
             <div class="x_title">
                 <h3><i class="fa fa-wrench"></i> Maintenance mode</h3>
@@ -34,14 +42,44 @@
             </div>
         </div>
     </div>
-</div>
-<div class="clearfix"></div>
+
+    <div class="col-md-6 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-file-text-o"></i> Maintenance text <small> Message shown while the system is in
+                        maintenance</small></h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <a id="btn-edit-maintenance-text"><span style="color: #5499c7;">
+                                <i class="fa fa-pencil"></i> Edit</span>
+                        </a>
+                    </li>
+                </ul>
+                <div class="clearfix"></div>
+            </div>
+            <div>
+                <div class="x_content">
+                    <span id="enable-maintenance-text-wrapper" class="x_panel">
+                        <input id="enable-maintenance-text-checkbox" type="checkbox">
+                        <label for="enable-maintenance-text-checkbox">Enable custom text</label>
+                    </span>
+                </div>
+                <hr>
+                <h4>Current text:</h4>
+            </div>
+            <div class="x_panel" id="preview-panel">
+                <div id="preview"></div>
+            </div>
+        </div>
+    </div>
+    <div class="clearfix"></div>
 
 
-{% include '/snippets/alloweds_form.html' %}
-{% endblock %}
-{% block pagescript %}
+    {% include '/snippets/alloweds_form.html' %}
+    {% include '/admin/pages/system_modals.html' %}
+    {% endblock %}
+    {% block pagescript %}
     <script src="/isard-admin/static/js/restful.js"></script>
     <script src="/isard-admin/static/admin/js/system.js"></script>
     <script src="/isard-admin/static/js/snippets/form_items.js"></script>
-{% endblock %}
+    {% endblock %}

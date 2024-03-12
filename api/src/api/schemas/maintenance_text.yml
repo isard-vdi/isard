@@ -1,0 +1,10 @@
+title:
+  type: string
+  required: true
+  coerce: sanitize
+  maxlength: 100
+body:
+  type: string
+  required: true
+  maxlength: 500
+  coerce: sanitize

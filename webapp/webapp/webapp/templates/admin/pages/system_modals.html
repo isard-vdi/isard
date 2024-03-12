@@ -1,0 +1,61 @@
+<style>
+    textarea#text {
+        width: 100%;
+        height: 85px;
+        resize: vertical;
+        overflow-y: scroll;
+    }
+
+    input#title {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .disabled-preview {
+        opacity: 50%;
+    }
+</style>
+
+<div class="modal fade" id="modalEditMaintenanceText" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-pencil fa-1x"></i> Edit maintenance text
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalEditMaintenanceTextForm">
+                    <h4>Current text:</h4>
+                    <div class="x_panel">
+                        <input id="title" class="form-control roundbox" maxlength="100" data-parsley-length="[1, 100]"
+                            name="title" placeholder="Currently, Isard service is under maintenance."
+                            data-parsley-trigger="change" type="text">
+                        <textarea maxlength="500" data-parsley-length="[1, 500]" data-parsley-trigger="change"
+                            name="body" id="text" placeholder="The service is going to be available again in a few minutes
+Sorry for the inconvenience">
+                        </textarea>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-info">Edit</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
