@@ -40,6 +40,48 @@ api_allowed = ApiAllowed()
 persistent = ApiDesktopsPersistent()
 
 
+def get_status(category_id=None):
+    query = r.table("media")
+    if category_id:
+        query = query.get_all(category_id, index="category")
+    query = query.pluck("status", "user", "category")
+    query = (
+        query.group("status")
+        .count()
+        .ungroup()
+        .map(lambda doc: {"status": doc["group"], "count": doc["reduction"]})
+    )
+    with app.app_context():
+        status = list(query.run(db.conn))
+    return status
+
+
+def get_media(status=None, category_id=None):
+    query = r.table("media")
+    if status:
+        if category_id:
+            query = query.get_all([status, category_id], index="status_category")
+        else:
+            query = query.get_all(status, index="status")
+    elif category_id:
+        query = query.get_all(category_id, index="category")
+
+    query = query.merge(
+        lambda media: {
+            "domains": r.table("domains")
+            .get_all(media["id"], index="media_ids")
+            .count(),
+            "category_name": r.table("categories").get(media["category"])["name"],
+            "group_name": r.table("groups").get(media["group"])["name"],
+        }
+    )
+
+    with app.app_context():
+        media = list(query.run(db.conn))
+
+    return media
+
+
 def media_task_delete(media_id, user_id=None, keep_status=None):
     media = Media(media_id)
 

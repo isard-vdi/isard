@@ -15,31 +15,51 @@
     </div>
     <div class="x_content">
       <table id="media" class="table" width="100%">
-          <thead>
-          <tr>
-            <th></th>
-            <th></th>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Owner</th>
-            <th>Category</th>
-            <th>Group</th>
-            <th>Progress/Size</th>
-            <th>Domains</th>
-            <th>Actions</th>
-            <th>Id</th>
-          </tr>
-          </thead>
-          <tbody>
-          </tbody>
+        <thead>
+        </thead>
+        <tbody>
+        </tbody>
       </table>
     </div>
-
-    {% include 'admin/pages/media_modals.html' %}
-    {% include '/snippets/alloweds_form.html' %}
-    {% include '/admin/pages/media_detail.html' %}
   </div>
 </div>
+    
+
+<div class="row">
+  <div class="x_panel">
+    <div class="x_title">
+      <h3><i class="fa fa-circle-o"></i> Media in other status <small>Select status to load</small></h3>
+      <div class="clearfix"></div>
+    </div>
+    <div class="x_content">
+      <p class="text-muted font-13 m-b-30"></p>
+      <div style="display:inline-flex;">
+        <div id="other_status" style="display:block; width: 15cm;">
+          <label class="control-label col-md-4 col-sm-4 col-xs-12 pull-left" for="status">
+            <h4>
+              Other media status
+            </h4>
+          </label>
+          <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+            <select class="form-control" id="status" name="status">
+              <option value="none">Select status</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <table id="mediaOtherTable" class="table" width="100%">
+        <thead>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% include 'admin/pages/media_modals.html' %}
+{% include '/snippets/alloweds_form.html' %}
+{% include '/admin/pages/media_detail.html' %}
 
 {% endblock %}
 {% block pagescript %}
