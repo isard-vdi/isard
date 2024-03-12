@@ -1225,7 +1225,7 @@
             "stop-deployment-desktops": "Els escriptoris de '{name}' s'aturaran, continuar?",
             "delete-event": "La reserva '{name}' s'esborrarà, continuar?",
             "enable-template": "'{name}' serà visible pels seus usuaris, continuar?",
-            "disable-template": "'{name}' serà invisible pels seus usuaris, continuar?",
+            "disable-template": "'{name}' serà invisible pels seus usuaris i els escriptoris temporals derivats (si existeixen) s'esborraràn, continuar?",
             "delete-media": "El mitjà '{name}' s'esborrarà, continuar?",
             "image-uploaded": "Imatge pujada correctament",
             "edit-domain": "El hardware de '{name}' es limitarà i les seves dades es modificaran, continuar?",

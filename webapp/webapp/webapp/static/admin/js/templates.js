@@ -413,7 +413,7 @@ $(document).ready(function() {
                 }
                 new PNotify({
                     title: 'This template will be ' + (enabled==true? 'enabled': 'disabled') ,
-                        text: "Are you sure you want to " + (enabled==true? 'enable': 'disable') + " this template?",
+                        text: "Are you sure you want to " + (enabled==true? 'enable': 'disable') + " this template?" + (enabled ? '' : ' All the temporal desktops (if any) derivated from this template will be deleted'),
                         hide: false,
                         opacity: 0.9,
                         confirm: {

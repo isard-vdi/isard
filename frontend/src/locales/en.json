@@ -1100,7 +1100,7 @@
             "start-deployment-desktops": "'{name}' desktops will be started, continue?",
             "stop-deployment-desktops": "'{name}' desktops will be stopped, continue?",
             "enable-template": "'{name}' will be visible for its users, continue?",
-            "disable-template": "'{name}' will be invisible for its users, continue?",
+            "disable-template": "'{name}' will be invisible for its users and all the temporal desktops derivated, if exists, will be deleted, continue?",
             "delete-event": "'{name}' booking will be deleted, continue?",
             "delete-media": "'{name}' media will be deleted, continue?",
             "edit-domain": "'{name}' hardware will be limited and its data will be changed, continue?",

@@ -297,3 +297,10 @@ class ApiTemplates:
                 domains.append({})
 
         return {"domains": domains, "pending": pending}
+
+
+def delete_desktops_non_persistent(template_id):
+    with app.app_context():
+        r.table("domains").get_all(template_id, index="parents").filter(
+            {"persistent": False}
+        ).update({"status": "ForceDeleting"}).run(db.conn)
