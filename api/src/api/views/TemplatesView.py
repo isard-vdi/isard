@@ -32,7 +32,7 @@ from ..libv2.api_users import ApiUsers
 
 users = ApiUsers()
 
-from ..libv2.api_templates import ApiTemplates
+from ..libv2.api_templates import ApiTemplates, delete_desktops_non_persistent
 
 templates = ApiTemplates()
 
@@ -182,6 +182,8 @@ def api_v3_template_update(payload):
     data = _validate_item("template_update", data)
     if data.get("enabled"):
         quotas.template_create(payload["user_id"])
+    else:
+        delete_desktops_non_persistent(template_id)
     return (
         json.dumps(templates.UpdateTemplate(template_id, data)),
         200,
