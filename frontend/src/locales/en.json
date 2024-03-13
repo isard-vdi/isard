@@ -1351,5 +1351,8 @@
             "desktop-time-limit": "The '{name}' desktop will be stopped at {date}.",
             "searching-resources": "We are looking for resources for the desktop. It will be started in a few minutes, please wait."
         }
+    },
+    "bookings": {
+        "max_time_reached": "Max booking time reached"
     }
 }
