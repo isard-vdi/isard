@@ -126,7 +126,6 @@ $(document).ready(function() {
         }
 
         mediaOtherTable = createDatatable(tableId, newStatus)
-
         adminShowIdCol(mediaOtherTable)
 
         $(tableId + " tbody").off('click').on('click', 'button', function () {
@@ -513,7 +512,7 @@ function createDatatable(tableId, status, initCompleteFn = null) {
                 render: function ( data, type, full, meta ) {
                     const checkButtons = '<button id="btn-task" type="button" data-task="' + full.task + '" class="btn btn-pill-right btn-xs" title="Show last task info"><i class="fa fa-tasks" style="color:darkblue"></i></button> \
                         <button id="btn-check" type="button" data-id="' + full.id + '" class="btn btn-pill-right  btn-xs" title="Check media status"><i class="fa fa-refresh" style="color:darkgreen"></i></button>'
-                    if(['Available', 'DownloadFailed', 'deleted'].includes(full.status)){
+                    if(['Available', 'DownloadFailed'].includes(full.status)){
                         return checkButtons + '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
                                 <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
                     }
