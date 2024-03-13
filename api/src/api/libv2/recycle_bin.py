@@ -772,7 +772,7 @@ class RecycleBin(object):
     def get_item_count(user_id=None, category_id=None, status=None):
         query = r.table("recycle_bin")
         if user_id:
-            query = query.get_all(r.args([user_id, "recycled"]), index="owner_status")
+            query = query.get_all([user_id, "recycled"], index="owner_status")
         elif category_id:
             if status:
                 query = query.get_all(
@@ -785,7 +785,7 @@ class RecycleBin(object):
         elif status:
             query = query.get_all(status, index="status")
         else:
-            query = query.get_all(r.args(["recycled", "deleting"]), index="status")
+            query = query.get_all(["recycled", "deleting"], index="status")
         count_query = {
             "desktops": r.row["desktops"].count(),
             "templates": r.row["templates"].count(),
