@@ -1366,5 +1366,8 @@
             "desktop-time-limit": "El escritorio '{name}' se apagará automáticamente a las {date}.",
             "searching-resources": "Estamos buscando recursos para el escritorio. Se iniciará en breves minutos, por favor espere."
         }
+    },
+    "bookings": {
+        "max_time_reached": "Se ha llegado al tiempo máximo de reservas"
     }
 }
