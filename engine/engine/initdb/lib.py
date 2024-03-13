@@ -7,6 +7,7 @@ import datetime
 import os
 import random
 import string
+import time
 
 import bcrypt
 import pem
@@ -35,6 +36,30 @@ class Certificates(object):
         self.server_file = "/certs/server-cert.pem"
         cfg = loadConfig()
         self.cfg = cfg.cfg()
+        self.check_db()
+
+    def check_db(self):
+        ready = False
+        while not ready:
+            try:
+                self.conn = r.connect(
+                    host=self.cfg["RETHINKDB_HOST"],
+                    port=self.cfg["RETHINKDB_PORT"],
+                    db=self.cfg["RETHINKDB_DB"],
+                ).repl()
+                print("Database server OK")
+                list(r.db("isard").table_list().run(self.conn))
+                ready = True
+            except Exception as e:
+                print(
+                    "Certificates error: Database server "
+                    + self.cfg["RETHINKDB_HOST"]
+                    + ":"
+                    + self.cfg["RETHINKDB_PORT"]
+                    + " not present. Waiting to be ready"
+                )
+                time.sleep(0.5)
+        ready = False
 
     def get_viewer(self, update_db=False):
         if update_db is False:
@@ -184,20 +209,7 @@ class Certificates(object):
             }
 
     def __update_hypervisor_pool(self, viewer):
-        try:
-            self.conn = r.connect(
-                self.cfg["RETHINKDB_HOST"],
-                self.cfg["RETHINKDB_PORT"],
-                self.cfg["RETHINKDB_DB"],
-            ).repl()
-        except Exception as e:
-            print(
-                "Database not reacheable at "
-                + self.cfg["RETHINKDB_HOST"]
-                + ":"
-                + self.cfg["RETHINKDB_PORT"]
-            )
-            exit
+        self.check_db()
         r.table("hypervisors_pools").get(self.pool).update({"viewer": viewer}).run()
         if viewer["defaultMode"] == "Secure" and viewer["certificate"] is False:
             try:

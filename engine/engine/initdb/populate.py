@@ -19,21 +19,7 @@ class Populate(object):
     def __init__(self):
         cfg = loadConfig()
         self.cfg = cfg.cfg()
-        try:
-            self.conn = r.connect(
-                self.cfg["RETHINKDB_HOST"],
-                self.cfg["RETHINKDB_PORT"],
-                self.cfg["RETHINKDB_DB"],
-            ).repl()
-        except Exception as e:
-            log.error(e)
-            log.error(
-                "Database not reacheable at "
-                + self.cfg["RETHINKDB_HOST"]
-                + ":"
-                + self.cfg["RETHINKDB_PORT"]
-            )
-            sys.exit()
+        self.check_db()
         self.p = Password()
         self.passwd = self.p.encrypt(self.cfg["WEBAPP_ADMIN_PWD"])
         if self.is_database_created() is True:
@@ -42,6 +28,28 @@ class Populate(object):
         else:
             log.error("Something went wrong when initially populating db")
             exit
+
+    def check_db(self):
+        ready = False
+        while not ready:
+            try:
+                self.conn = r.connect(
+                    host=self.cfg["RETHINKDB_HOST"],
+                    port=self.cfg["RETHINKDB_PORT"],
+                    db=self.cfg["RETHINKDB_DB"],
+                ).repl()
+                print("Database server OK")
+                ready = True
+            except Exception as e:
+                print(
+                    "Populate error: Database server "
+                    + self.cfg["RETHINKDB_HOST"]
+                    + ":"
+                    + self.cfg["RETHINKDB_PORT"]
+                    + " not present. Waiting to be ready"
+                )
+                time.sleep(0.5)
+        ready = False
 
     """
     DATABASE

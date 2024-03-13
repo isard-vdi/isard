@@ -177,21 +177,7 @@ class Upgrade(object):
 
         self.conn = False
         self.cfg = False
-        try:
-            self.conn = r.connect(
-                self.conf["RETHINKDB_HOST"],
-                self.conf["RETHINKDB_PORT"],
-                self.conf["RETHINKDB_DB"],
-            ).repl()
-        except Exception as e:
-            log.error(
-                "Database not reacheable at "
-                + self.conf["RETHINKDB_HOST"]
-                + ":"
-                + self.conf["RETHINKDB_PORT"]
-            )
-            sys.exit()
-
+        self.check_db()
         if self.conn is not False and r.db_list().contains(
             self.conf["RETHINKDB_DB"]
         ).run(self.conn):
@@ -216,6 +202,28 @@ class Upgrade(object):
                 else:
                     log.info("No database upgrade needed.")
         self.upgrade_if_needed()
+
+    def check_db(self):
+        ready = False
+        while not ready:
+            try:
+                self.conn = r.connect(
+                    host=self.conf["RETHINKDB_HOST"],
+                    port=self.conf["RETHINKDB_PORT"],
+                    db=self.conf["RETHINKDB_DB"],
+                ).repl()
+                print("Database server OK")
+                ready = True
+            except Exception as e:
+                print(
+                    "Upgrade error: Database server "
+                    + self.cfg["RETHINKDB_HOST"]
+                    + ":"
+                    + self.cfg["RETHINKDB_PORT"]
+                    + " not present. Waiting to be ready"
+                )
+                time.sleep(0.5)
+        ready = False
 
     def do_backup(self):
         None
