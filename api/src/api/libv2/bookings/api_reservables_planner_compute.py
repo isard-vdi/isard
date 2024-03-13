@@ -617,6 +617,7 @@ def min_profile_priority(reservables):
                     r.table("bookings_priority")
                     .get_all(priority_id, index="rule_id")
                     .filter(lambda row: row["id"] != "default admins")
+                    .filter(lambda row: row["max_time"] != 0)
                     .min("forbid_time")
                     .run(db.conn)
                 )
@@ -828,9 +829,9 @@ def compute_overridable_bookings(overridable, nonoverridable, plans, units):
     join_plan_op = lambda x, y: {
         "units": x["units"] - y["units"],
         "id": x["id"] + "/" + y["id"],
-        "event_type": "available"
-        if x["units"] - (units + y["units"]) > 0
-        else "unavailable",
+        "event_type": (
+            "available" if x["units"] - (units + y["units"]) > 0 else "unavailable"
+        ),
     }
 
     for interval in overridable:
@@ -853,11 +854,13 @@ def compute_overridable_bookings(overridable, nonoverridable, plans, units):
     join_plan_op = lambda x, y: {
         "units": x["units"] - y["units"],
         "id": x["id"] + "/" + y["id"],
-        "event_type": "unavailable"
-        if x["units"] - (units + y["units"]) < 0
-        else "overridable"
-        if x["units"] - (units + y["units"]) < 0
-        else "available",
+        "event_type": (
+            "unavailable"
+            if x["units"] - (units + y["units"]) < 0
+            else "overridable"
+            if x["units"] - (units + y["units"]) < 0
+            else "available"
+        ),
     }
 
     for interval in nonoverridable:
@@ -958,9 +961,9 @@ def intersect_nonoverridable_with_plan(plan, units, keep_non_overlapped=False):
     join_plan_op = lambda x, y: {
         "units": y["units"] - x["units"],
         "id": y["id"] + "/" + x["id"],
-        "event_type": "available"
-        if y["units"] - (units + x["units"]) > 0
-        else "unavailable",
+        "event_type": (
+            "available" if y["units"] - (units + x["units"]) > 0 else "unavailable"
+        ),
     }
 
     output = P.IntervalDict()
