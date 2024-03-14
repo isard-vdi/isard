@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 128
+release_version = 129
+# release 129: Add default maintenance text to config table
 # release 128: Add volatile field to applied quota
 # release 127: Add viewers config
 # release 126: Add user_category index to users table
@@ -541,6 +542,27 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
                 )
                 log.error("Error detail: " + str(e))
 
+        if version == 129:
+            try:
+                d["maintenance_text"] = {}
+                d["maintenance_text"][
+                    "title"
+                ] = "Currently, Isard service is under maintenance"
+                d["maintenance_text"][
+                    "body"
+                ] = "The service is going to be available again in a few minutes\nSorry for the inconvenience"
+                d["maintenance_text"]["enabled"] = False
+                r.table(table).update(d).run(self.conn)
+            except Exception as e:
+                log.error(
+                    "Could not update table "
+                    + table
+                    + " conversion fields for db version "
+                    + str(version)
+                    + "!"
+                )
+                log.error(e)
+                log.error("Error detail: " + str(e))
         return True
 
     """

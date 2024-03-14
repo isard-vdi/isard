@@ -5,7 +5,10 @@
   >
     <b-row class="h-100 d-flex justify-content-center align-items-center">
       <b-col md="1" />
-      <b-col md="10">
+      <b-col
+        v-if="!customMaintenanceText.enabled"
+        md="10"
+      >
         <transition-group
           appear
           name="fade"
@@ -13,8 +16,7 @@
           <b-img
             key="img"
             fluid
-            style="max-width: 12rem; max
-          -height: 16rem;"
+            style="max-width: 12rem; max-height: 16rem;"
             class="mt-n4"
             src="../assets/logo.svg"
           />
@@ -39,6 +41,36 @@
           </b-button>
         </transition-group>
       </b-col>
+      <b-col
+        v-else
+        md="10"
+      >
+        <transition-group
+          appear
+          name="fade"
+        >
+          <b-img
+            key="img"
+            fluid
+            style="max-width: 12rem; max-height: 16rem;"
+            class="mt-n4"
+            src="../assets/logo.svg"
+          />
+          <h1 key="text">
+            {{ customMaintenanceText.title }}
+          </h1>
+          <h2 key="text2">
+            {{ customMaintenanceText.body }}
+          </h2>
+          <br key="space">
+          <b-button
+            key="loginLink"
+            @click="goToLogin()"
+          >
+            {{ $t('views.maintenance.go-login') }}
+          </b-button>
+        </transition-group>
+      </b-col>
       <b-col md="1" />
     </b-row>
   </b-container>
@@ -46,12 +78,29 @@
 
 <script>
 // @ is an alias to /src
-import { computed } from '@vue/composition-api'
+import { computed, onMounted, ref } from '@vue/composition-api'
 
 export default {
   setup (props, context) {
     const $store = context.root.$store
     const user = computed(() => $store.getters.getUser)
+
+    const customMaintenanceText = ref(false)
+
+    const checkMaintenanceStatus = async () => {
+      const status = await $store.dispatch('fetchMaintenanceStatus')
+      if (!status) {
+        $store.dispatch('navigate', 'desktops')
+      }
+    }
+
+    onMounted(async () => {
+      const data = await $store.dispatch('fetchMaintenanceText')
+      customMaintenanceText.value = data
+
+      await checkMaintenanceStatus()
+      setInterval(checkMaintenanceStatus, 5000)
+    })
     const goToLogin = () => {
       if (user) {
         $store.dispatch('logout')
@@ -61,7 +110,8 @@ export default {
     }
 
     return {
-      goToLogin
+      goToLogin,
+      customMaintenanceText
     }
   }
 }
@@ -74,4 +124,7 @@ export default {
   .fade-enter, .fade-leave-to {
     opacity: 0;
   }
+  h2 {
+        white-space: pre-line;
+    }
 </style>

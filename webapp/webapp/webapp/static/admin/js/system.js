@@ -69,9 +69,108 @@ $(document).ready(function () {
         $("#maintenance_wrapper").show();
     })
 
+    enable_maintenance_text_bind_checkbox = () => {
+        $("#enable-maintenance-text-checkbox").on("ifChecked", () => {
+            enable_maintenance_update_status(true);
+        })
+        $("#enable-maintenance-text-checkbox").on("ifUnchecked", () => {
+            enable_maintenance_update_status(false);
+        })
+    }
+
+
+    enable_maintenance_update_status = (enabled) => {
+        $.ajax({
+            type: "PUT",
+            url: "/api/v3/maintenance/text/enable/" + enabled,
+            accept: "application/json",
+        }).done(() => {
+            new PNotify({
+                title: "Set to " + (enabled ? 'enabled' : 'disabled'),
+                text: "",
+                hide: true,
+                delay: 1000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success'
+            });
+            enabled ? $("#preview-panel").removeClass("disabled-preview") : $("#preview-panel").addClass("disabled-preview");
+        }).fail(function (data) {
+            new PNotify({
+                title: `ERROR ${(enabled ? 'enabling' : 'disabling')} custom maintenance text`,
+                text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                type: 'error',
+                hide: true,
+                icon: 'fa fa-warning',
+                delay: 5000,
+                opacity: 1
+            });
+        });
+    }
+
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on);
 
+    $("#btn-edit-maintenance-text").on("click", function () {
+        var modal = "#modalEditMaintenanceText";
+        $.ajax({
+            url: "/api/v3/maintenance/text",
+        }).done(function (data) {
+            $(modal + " #title").val(data.title);
+            $(modal + " #text").val(data.body);
+        });
+        $(modal).modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+    });
+
+    $("#modalEditMaintenanceText #send").on("click", function () {
+        var form = $('#modalEditMaintenanceTextForm');
+        data = form.serializeObject();
+        form.parsley().validate();
+        $.ajax({
+            type: "PUT",
+            url: "/api/v3/maintenance/text",
+            contentType: 'application/json',
+            data: JSON.stringify(data)
+        }).done(function (data) {
+            new PNotify({
+                title: 'Updated',
+                text: `Maintenance text successfully`,
+                hide: true,
+                delay: 2000,
+                opacity: 1,
+                type: 'success'
+            });
+            $('.modal').modal('hide');
+            showMaintenanceText();
+        }).fail(function (data) {
+            new PNotify({
+                title: `ERROR editing maintenance text`,
+                text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                type: 'error',
+                hide: true,
+                icon: 'fa fa-warning',
+                delay: 5000,
+                opacity: 1
+            });
+        });
+    });
+
+    showMaintenanceText();
 
 });
 
 function socketio_on() { }
+
+function showMaintenanceText(div) {
+    $.ajax({
+        url: "/api/v3/maintenance/text",
+    }).done(function (data) {
+        $("#preview").text(`${data.title}\n\n${data.body}`)
+        $("#enable-maintenance-text-checkbox").iCheck(data.enabled ? "check" : "uncheck").iCheck('update');
+        data.enabled ? $("#preview-panel").removeClass("disabled-preview") : $("#preview-panel").addClass("disabled-preview");
+    });
+    enable_maintenance_text_bind_checkbox();
+}
+

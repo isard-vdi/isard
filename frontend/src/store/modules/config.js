@@ -31,6 +31,14 @@ export default {
     async fetchConfig ({ commit }) {
       const rsp = await axios.get(`${apiV3Segment}/user/config`)
       commit('setConfig', ConfigUtils.parseConfig(rsp.data))
+    },
+    async fetchMaintenanceText ({ _ }) {
+      const rsp = await axios.get(`${apiV3Segment}/maintenance/text/frontend`)
+      return rsp.data
+    },
+    async fetchMaintenanceStatus ({ _ }) {
+      const rsp = await axios.get(`${apiV3Segment}/maintenance`)
+      return rsp.data
     }
   }
 }
