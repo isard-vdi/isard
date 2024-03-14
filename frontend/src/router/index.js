@@ -450,34 +450,38 @@ router.beforeEach(async (to, from, next) => {
     // Local login
     } else {
       const sessionData = jwtDecode(session)
-      store.dispatch('saveNavigation', { url: to })
-      store.dispatch('fetchUser')
-      // Logged in without requirements
-      if (!to.query.token && !sessionData.type) {
-        if (to.meta.allowedRoles && to.meta.allowedRoles.includes(store.getters.getUser.role_id)) {
-          store.dispatch('openSocket', {})
-          if (isEmpty(store.getters.getConfig)) {
-            store.dispatch('fetchConfig')
-          }
-          if (!store.getters.getMaxTime) {
-            store.dispatch('fetchMaxTime')
-          }
-          next()
-        } else {
-          store.dispatch('saveNavigation', { url: from })
-          next({ name: from.name })
-        }
-      // Requires disclaimer acceptance, will be redirected
-      } else if (to.name !== 'Disclaimer' && ['disclaimer-acknowledgement-required'].includes(sessionData.type)) {
-        router.push({ name: 'Disclaimer' })
-      // Requires email verification, will be redirected
-      } else if (to.name !== 'VerifyEmail' && ['email-verification-required', 'email-verification'].includes(sessionData.type)) {
-        router.push({ name: 'VerifyEmail' })
-      // Requires password reset, will be redirected
-      } else if (to.name !== 'ResetPassword' && ['password-reset-required', 'password-reset'].includes(sessionData.type)) {
-        router.push({ name: 'ResetPassword' })
+      if (new Date() > new Date(sessionData.exp * 1000)) {
+        store.dispatch('logout')
       } else {
-        next()
+        store.dispatch('saveNavigation', { url: to })
+        store.dispatch('fetchUser')
+        // Logged in without requirements
+        if (!to.query.token && !sessionData.type) {
+          if (to.meta.allowedRoles && to.meta.allowedRoles.includes(store.getters.getUser.role_id)) {
+            store.dispatch('openSocket', {})
+            if (isEmpty(store.getters.getConfig)) {
+              store.dispatch('fetchConfig')
+            }
+            if (!store.getters.getMaxTime) {
+              store.dispatch('fetchMaxTime')
+            }
+            next()
+          } else {
+            store.dispatch('saveNavigation', { url: from })
+            next({ name: from.name })
+          }
+        // Requires disclaimer acceptance, will be redirected
+        } else if (to.name !== 'Disclaimer' && ['disclaimer-acknowledgement-required'].includes(sessionData.type)) {
+          router.push({ name: 'Disclaimer' })
+        // Requires email verification, will be redirected
+        } else if (to.name !== 'VerifyEmail' && ['email-verification-required', 'email-verification'].includes(sessionData.type)) {
+          router.push({ name: 'VerifyEmail' })
+        // Requires password reset, will be redirected
+        } else if (to.name !== 'ResetPassword' && ['password-reset-required', 'password-reset'].includes(sessionData.type)) {
+          router.push({ name: 'ResetPassword' })
+        } else {
+          next()
+        }
       }
     }
   } else {
