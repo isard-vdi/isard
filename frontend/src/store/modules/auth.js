@@ -98,21 +98,18 @@ export default {
     logout (context, redirect = true) {
       if (getCookie(sessionCookieName)) {
         const session = jwtDecode(context.getters.getSession)
-        context.commit('setSession', false)
         if (!session.type) {
-          if (['admin', 'manager'].includes(context.getters.getUser.role_id)) {
+          if (context.getters.getUser && ['admin', 'manager'].includes(context.getters.getUser.role_id)) {
             webapp.get('/logout/remote')
           }
         }
       }
-      if (getCookie('authorization')) {
-        removeCookie('authorization')
-      }
+      context.commit('setSession', false)
+      context.commit('resetStore')
+      context.dispatch('closeSocket')
       if (redirect) {
         router.push({ name: 'Login' })
       }
-      context.commit('resetStore')
-      context.dispatch('closeSocket')
     },
     saveNavigation (context, payload) {
       const currentRoute = payload.url.name
