@@ -175,7 +175,7 @@ export default {
     const user = computed(() => $store.getters.getUser)
     const recycleBins = computed(() => $store.getters.getRecycleBins)
     const recycleBinsLoaded = computed(() => $store.getters.getRecycleBinsLoaded)
-    const maxTime = computed(() => $store.getters.getMaxTime.time)
+    const maxTime = computed(() => $store.getters.getMaxTime)
 
     const perPage = ref(10)
     const pageOptions = ref([10, 20, 30, 50, 100])
