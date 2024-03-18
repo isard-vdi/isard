@@ -87,6 +87,7 @@ $(document).ready(function() {
                 showRowDetails(mediaReady, tr, row);
                 break;
             case 'btn-check':
+            case 'btn-task':
             case 'btn-delete':
             case 'btn-abort':
             case 'btn-download':
@@ -135,7 +136,8 @@ $(document).ready(function() {
                 case 'btn-details':
                     showRowDetails(mediaOtherTable, tr, row);
                     break;
-                case 'bnt-check':
+                case 'btn-check':
+                case 'btn-task':
                 case 'btn-delete':
                 case 'btn-abort':
                 case 'btn-download':
@@ -532,6 +534,8 @@ function createDatatable(tableId, status, initCompleteFn = null) {
                             <button id="btn-owner" title="Change owner" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-exchange" style="color:darkblue"></i></button> \
                             <button id="btn-delete" title="Delete media" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button> '
                         }
+                    } else {
+                        return checkButtons
                     }
                 }
             },
@@ -597,6 +601,7 @@ function showRowDetails(table, tr, row) {
 }
 
 function showActions(table ,tr, row, button) {
+    var element = $(this);
     let data = row.data();
     switch(button.attr('id')){
         case 'btn-check':
@@ -639,6 +644,37 @@ function showActions(table ,tr, row, button) {
                     }
                 })
             }).on('pnotify.cancel', function () {
+            });
+            break;
+        case 'btn-task':
+            $.ajax({
+                type: 'GET',
+                url: '/api/v3/task/' + data.task,
+                contentType: 'application/json',
+                success: function (result) {
+                    element.html('<i class="fa fa-tasks"></i>')
+                    new PNotify({
+                        title: 'Last task info',
+                        text: '<pre><li><b>TASK ID</b>: ' + result.id + '</li><li><b>TASK</b>: ' + result.task + '</li><li><b>USER ID</b>: ' + result.user_id + '</li><li><b>TASK STATUS</b>: ' + result.status + '</li><li><b>RESULT</b>: ' + JSON.stringify(result.result, undefined, 2) + '</li></pre>',
+                        hide: false,
+                        icon: '',
+                        opacity: 1,
+                        type: 'info',
+                        addclass: 'pnotify-center-large',
+                    })
+                },
+                error: function (xhr, ajaxOptions, thrownError) {
+                    element.html('<i class="fa fa-tasks" style="color:red" title="Task not found!"></i>')
+                    new PNotify({
+                        title: 'Error',
+                        text: xhr.responseJSON.description,
+                        hide: true,
+                        delay: 3000,
+                        icon: 'fa fa-warning',
+                        opacity: 1,
+                        type: 'error'
+                    });
+                }
             });
             break;
         case 'btn-delete':

@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from .rethink_custom_base_factory import RethinkCustomBase
+from .task import Task
 
 
 class Media(RethinkCustomBase):
@@ -30,3 +31,23 @@ class Media(RethinkCustomBase):
     """
 
     _rdb_table = "media"
+
+    def create_task(self, *args, **kwargs):
+        """
+        Create Task for a Media.
+        """
+        if "blocking" in kwargs:
+            blocking = kwargs.pop("blocking")
+        else:
+            blocking = True
+        if (
+            blocking
+            and self.task
+            and Task.exists(self.task)
+            and Task(self.task).pending
+        ):
+            raise Exception(
+                "precondition_required",
+                f"Media {self.id} has the pending task {self.task}",
+            )
+        self.task = Task(*args, **kwargs).id
