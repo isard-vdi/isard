@@ -550,9 +550,7 @@ class ApiDesktopsPersistent:
             "icon": (
                 "fa-circle-o"
                 if data["kind"] == "iso"
-                else "fa-disk-o"
-                if data["kind"] == "file"
-                else "fa-floppy-o"
+                else "fa-disk-o" if data["kind"] == "file" else "fa-floppy-o"
             ),
             "image": get_domain_stock_card(data["id"]),
             "os": "win",

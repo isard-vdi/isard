@@ -10,6 +10,7 @@ GLOBAL = {
     "admin_downloads_url_suffix": "/isard-admin/admin/updates",
 }
 
+
 # TODO: Edge implementation
 # @pytest.fixture(params=["chrome", "firefox", "edge"], scope="class")
 @pytest.fixture(params=["chrome", "firefox"], scope="class")

@@ -552,11 +552,11 @@ def isard_user_storage_provider_basic_auth_add(
                     "description": description,
                     "url": domain,
                     "urlprefix": urlprefix,
-                    "access": access
-                    if type(access) == list
-                    else [access]
-                    if access != "*"
-                    else [],
+                    "access": (
+                        access
+                        if type(access) == list
+                        else [access] if access != "*" else []
+                    ),
                     "quota": quota,
                     "user": False,
                     "password": False,

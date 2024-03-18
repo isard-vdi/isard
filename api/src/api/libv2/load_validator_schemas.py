@@ -32,9 +32,11 @@ class IsardValidator(Validator):
             return new_list
         elif type(value) == dict:
             data = {
-                key: escape(value)
-                if type(value) == str
-                else self._normalize_coerce_sanitize(value)
+                key: (
+                    escape(value)
+                    if type(value) == str
+                    else self._normalize_coerce_sanitize(value)
+                )
                 for key, value in value.items()
             }
             return data

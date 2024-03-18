@@ -114,9 +114,11 @@ class ResourceItemsGpus:
         new_gpu = {
             "architecture": gpu_profile["architecture"],
             "brand": gpu_profile["brand"],
-            "description": data["description"]
-            if data["description"]
-            else gpu_profile["description"],
+            "description": (
+                data["description"]
+                if data["description"]
+                else gpu_profile["description"]
+            ),
             "memory": gpu_profile["memory"],
             "model": gpu_profile["model"],
             "name": data["name"],

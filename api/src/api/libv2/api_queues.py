@@ -98,12 +98,16 @@ def workers():
             {
                 "id": str(worker).split(":")[2].split("'")[0],
                 "queue": str(worker).split(":")[2].split(".")[0].split("'")[0],
-                "queue_id": str(worker).split(":")[2].split(".")[1]
-                if len(str(worker).split(":")[2].split(".")) > 1
-                else None,
-                "priority_id": str(worker).split(":")[2].split(".")[2].split("'")[0]
-                if len(str(worker).split(":")[2].split(".")) > 2
-                else None,
+                "queue_id": (
+                    str(worker).split(":")[2].split(".")[1]
+                    if len(str(worker).split(":")[2].split(".")) > 1
+                    else None
+                ),
+                "priority_id": (
+                    str(worker).split(":")[2].split(".")[2].split("'")[0]
+                    if len(str(worker).split(":")[2].split(".")) > 2
+                    else None
+                ),
             }
         )
     for worker in w:

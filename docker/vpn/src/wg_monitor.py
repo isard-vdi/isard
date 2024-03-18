@@ -66,9 +66,11 @@ class RemotePeer(NamedTuple):
             public_key=pub,
             remote_addr=remote_addr if remote_addr != "(none)" else None,
             allowed_ips=ip_list.split(","),
-            latest_handshake=datetime.fromtimestamp(int(handshake_ts))
-            if handshake_ts != "0"
-            else None,
+            latest_handshake=(
+                datetime.fromtimestamp(int(handshake_ts))
+                if handshake_ts != "0"
+                else None
+            ),
             transfer_rx=int(bytes_rx),
             transfer_tx=int(bytes_tx),
         )

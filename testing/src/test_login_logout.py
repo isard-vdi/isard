@@ -10,6 +10,7 @@ GLOBAL = {
     "admin_desktops_url_suffix": "/isard-admin/desktops",
 }
 
+
 # TODO: Edge implementation
 # @pytest.fixture(params=["chrome", "firefox", "edge"], scope="class")
 @pytest.fixture(params=["chrome", "firefox"], scope="class")
