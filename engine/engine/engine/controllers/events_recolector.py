@@ -802,13 +802,13 @@ class ThreadHypEvents(threading.Thread):
 
         hyp_libvirt_conn.registerCloseCallback(myConnectionCloseCallback, None)
 
-        cb_ids[
-            "VIR_DOMAIN_EVENT_ID_LIFECYCLE"
-        ] = hyp_libvirt_conn.domainEventRegisterAny(
-            None,
-            libvirt.VIR_DOMAIN_EVENT_ID_LIFECYCLE,
-            myDomainEventCallbackRethink,
-            r_status,
+        cb_ids["VIR_DOMAIN_EVENT_ID_LIFECYCLE"] = (
+            hyp_libvirt_conn.domainEventRegisterAny(
+                None,
+                libvirt.VIR_DOMAIN_EVENT_ID_LIFECYCLE,
+                myDomainEventCallbackRethink,
+                r_status,
+            )
         )
         # hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_REBOOT, myDomainEventRebootCallback, None)
 
@@ -826,22 +826,22 @@ class ThreadHypEvents(threading.Thread):
 
         # INFO TO DEVELOPER: by default registering graphics events
         if self.REGISTER_GRAPHICS_EVENTS:
-            cb_ids[
-                "VIR_DOMAIN_EVENT_ID_GRAPHICS"
-            ] = hyp_libvirt_conn.domainEventRegisterAny(
-                None,
-                libvirt.VIR_DOMAIN_EVENT_ID_GRAPHICS,
-                myDomainEventGraphicsCallbackRethink,
-                r_status,
+            cb_ids["VIR_DOMAIN_EVENT_ID_GRAPHICS"] = (
+                hyp_libvirt_conn.domainEventRegisterAny(
+                    None,
+                    libvirt.VIR_DOMAIN_EVENT_ID_GRAPHICS,
+                    myDomainEventGraphicsCallbackRethink,
+                    r_status,
+                )
             )
 
-        cb_ids[
-            "VIR_DOMAIN_EVENT_ID_CONTROL_ERROR"
-        ] = hyp_libvirt_conn.domainEventRegisterAny(
-            None,
-            libvirt.VIR_DOMAIN_EVENT_ID_CONTROL_ERROR,
-            myDomainEventControlErrorCallback,
-            None,
+        cb_ids["VIR_DOMAIN_EVENT_ID_CONTROL_ERROR"] = (
+            hyp_libvirt_conn.domainEventRegisterAny(
+                None,
+                libvirt.VIR_DOMAIN_EVENT_ID_CONTROL_ERROR,
+                myDomainEventControlErrorCallback,
+                None,
+            )
         )
         # hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_BLOCK_JOB, myDomainEventBlockJobCallback, None)
         # hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_BALLOON_CHANGE, myDomainEventBalloonChangeCallback, None)
@@ -874,13 +874,13 @@ class ThreadHypEvents(threading.Thread):
                 )
                 logs.main.info(f"Personal unit mount of {desktop_id} queued")
 
-        cb_ids[
-            "VIR_DOMAIN_EVENT_ID_AGENT_LIFECYCLE"
-        ] = hyp_libvirt_conn.domainEventRegisterAny(
-            None,
-            libvirt.VIR_DOMAIN_EVENT_ID_AGENT_LIFECYCLE,
-            myDomainEventAgentLifecycleCallback,
-            None,
+        cb_ids["VIR_DOMAIN_EVENT_ID_AGENT_LIFECYCLE"] = (
+            hyp_libvirt_conn.domainEventRegisterAny(
+                None,
+                libvirt.VIR_DOMAIN_EVENT_ID_AGENT_LIFECYCLE,
+                myDomainEventAgentLifecycleCallback,
+                None,
+            )
         )
 
         hyp_libvirt_conn.setKeepAlive(5, 3)

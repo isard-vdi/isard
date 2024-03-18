@@ -162,9 +162,9 @@ def api_v3_admin_user_csv(payload):
         ownsUserId(payload, user_data["id"])
 
         if user_data.get("password"):
-            user_data[
-                "password_last_updated"
-            ] = 0  # password must be restored by user after an admin changes it
+            user_data["password_last_updated"] = (
+                0  # password must be restored by user after an admin changes it
+            )
 
         users.Update([user_data["id"]], user_data)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
@@ -222,9 +222,9 @@ def api_v3_admin_user_update(payload, user_id=None):
         data = _validate_item("user_update", data)
 
     if data.get("password") and user_id != payload["user_id"]:
-        data[
-            "password_last_updated"
-        ] = 0  # password must be restored by user after an admin changes it
+        data["password_last_updated"] = (
+            0  # password must be restored by user after an admin changes it
+        )
 
     users.Update(data["ids"], data)
     return json.dumps({}), 200, {"Content-Type": "application/json"}

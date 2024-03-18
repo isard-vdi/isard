@@ -1096,9 +1096,9 @@ class hyp(object):
                 ram_gb = int(ram / 1024)
                 new_video_dict["id"] = video_id
                 new_video_dict["name"] = f"Nvidia vGPU {model} {ram_gb}GB"
-                new_video_dict[
-                    "description"
-                ] = f"Nvidia vGPU {model} with profile {profile} with {ram_gb}GB vRAM with maximum {max} vGPUs per device"
+                new_video_dict["description"] = (
+                    f"Nvidia vGPU {model} with profile {profile} with {ram_gb}GB vRAM with maximum {max} vGPUs per device"
+                )
                 new_video_dict["model"] = model
                 new_video_dict["profile"] = profile
                 new_video_dict["ram"] = ram
@@ -1266,9 +1266,11 @@ class hyp(object):
                     path = sorted(sub_paths)[i]
                 uuid64 = str(uuid.uuid4())
                 d[uuid64] = {
-                    "pci_mdev_id": l_pci_mdev_id[i]
-                    if len(l_pci_mdev_id) > 0
-                    else path.split("/")[-1],
+                    "pci_mdev_id": (
+                        l_pci_mdev_id[i]
+                        if len(l_pci_mdev_id) > 0
+                        else path.split("/")[-1]
+                    ),
                     "type_id": d_type["id"],
                     "created": False,
                     "domain_started": False,

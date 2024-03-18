@@ -864,9 +864,9 @@ class UiActions(object):
                         d_update_domain["hardware"]["disks"][i + 1][
                             "path_selected"
                         ] = path_other_disk_selected
-                        d_update_domain["hardware"]["disks"][i + 1][
-                            "bus"
-                        ] = dict_other_disk.get("bus", "virtio")
+                        d_update_domain["hardware"]["disks"][i + 1]["bus"] = (
+                            dict_other_disk.get("bus", "virtio")
+                        )
                         if dict_other_disk.get("readonly", True) is True:
                             d_update_domain["hardware"]["disks"][i + 1][
                                 "readonly"
@@ -1437,9 +1437,9 @@ class UiActions(object):
 
         if only_cmds is True:
             dict_domain_new["status"] = "Crashed"
-            dict_domain_new[
-                "detail"
-            ] = "Disk not created, only for testing ui purpose, create command is not launched"
+            dict_domain_new["detail"] = (
+                "Disk not created, only for testing ui purpose, create command is not launched"
+            )
             return dict_domain_new, cmds
 
         else:
@@ -1454,10 +1454,10 @@ class UiActions(object):
                 )
                 # err,out = create_disk_from_base(old_path_disk,new_path_disk)
                 dict_domain_new["status"] = "CreatingDisk"
-                dict_domain_new[
-                    "detail"
-                ] = "Creating disk operation is launched ({} operations in queue)".format(
-                    self.pool.queue_disk_operation.qsize()
+                dict_domain_new["detail"] = (
+                    "Creating disk operation is launched ({} operations in queue)".format(
+                        self.pool.queue_disk_operation.qsize()
+                    )
                 )
                 # list_backing_chain = backing_chain(new_path_disk)
 
@@ -1465,9 +1465,9 @@ class UiActions(object):
             else:
                 log.error("queue disk operation is not created")
                 dict_domain_new["status"] = "Crashed"
-                dict_domain_new[
-                    "detail"
-                ] = "Disk not created, queue for disk creation does not exist"
+                dict_domain_new["detail"] = (
+                    "Disk not created, queue for disk creation does not exist"
+                )
 
             if create_domain_in_db is True:
                 insert_domain(dict_domain_new)

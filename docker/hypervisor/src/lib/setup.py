@@ -52,23 +52,27 @@ def SetupHypervisor():
         "cap_hyper": bool(strtobool(os.environ.get("CAPABILITIES_HYPER", "true"))),
         "enabled": False,
         "description": "Added through api",
-        "browser_port": os.environ["VIEWER_BROWSER"]
-        if os.environ.get("VIEWER_BROWSER", False)
-        else "443",
-        "spice_port": os.environ["VIEWER_SPICE"]
-        if os.environ.get("VIEWER_SPICE", False)
-        else "80",
+        "browser_port": (
+            os.environ["VIEWER_BROWSER"]
+            if os.environ.get("VIEWER_BROWSER", False)
+            else "443"
+        ),
+        "spice_port": (
+            os.environ["VIEWER_SPICE"]
+            if os.environ.get("VIEWER_SPICE", False)
+            else "80"
+        ),
         "isard_static_url": static_url,
         "isard_video_url": video_domain,
         "isard_proxy_hyper_url": proxy_hyper_url,
         "isard_hyper_vpn_host": isard_hyper_vpn_host,
         "only_forced": json.loads(os.environ.get("ONLY_FORCED_HYP", "false").lower()),
-        "nvidia_enabled": True
-        if os.environ.get("GPU_NVIDIA_SCAN") == "true"
-        else False,
-        "force_get_hyp_info": True
-        if os.environ.get("GPU_NVIDIA_RESCAN") == "true"
-        else False,
+        "nvidia_enabled": (
+            True if os.environ.get("GPU_NVIDIA_SCAN") == "true" else False
+        ),
+        "force_get_hyp_info": (
+            True if os.environ.get("GPU_NVIDIA_RESCAN") == "true" else False
+        ),
         "min_free_mem_gb": os.environ.get("HYPER_FREEMEM", "0"),
         "min_free_gpu_mem_gb": os.environ.get("GPU_ONLY_MEM", "0"),
         "storage_pools": os.environ.get(

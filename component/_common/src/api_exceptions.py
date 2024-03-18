@@ -178,11 +178,13 @@ class Error(Exception):
             "{}\n{}\r\n{}\r\n\r\n{}{}".format(
                 "----------- REQUEST START -----------",
                 self.request.method + " " + self.request.url,
-                "\r\n".join(
-                    "{}: {}".format(k, v) for k, v in self.request.headers.items()
-                )
-                if hasattr(self.request, "headers")
-                else "",
+                (
+                    "\r\n".join(
+                        "{}: {}".format(k, v) for k, v in self.request.headers.items()
+                    )
+                    if hasattr(self.request, "headers")
+                    else ""
+                ),
                 self.request.body if hasattr(self.request, "body") else "",
                 "----------- REQUEST STOP  -----------",
             )
@@ -215,9 +217,11 @@ class Error(Exception):
                         "error": self.error.get("description"),
                         "error_type": error,
                         "request": {
-                            "method": self.request.method
-                            if hasattr(self.request, "method")
-                            else "",
+                            "method": (
+                                self.request.method
+                                if hasattr(self.request, "method")
+                                else ""
+                            ),
                             "url": url[0],
                         },
                         "data": data if data else "",

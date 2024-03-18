@@ -65,7 +65,9 @@ def check_user_duplicated_domain_name(name, user_id, kind="desktop", item_id=Non
                 "conflict",
                 "User " + user_name + " already has " + kind + " with name " + name,
                 traceback.format_exc(),
-                description_code="new_desktop_name_exists"
-                if kind == "desktop"
-                else "new_template_name_exists",
+                description_code=(
+                    "new_desktop_name_exists"
+                    if kind == "desktop"
+                    else "new_template_name_exists"
+                ),
             )

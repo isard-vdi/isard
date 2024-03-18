@@ -928,9 +928,11 @@ def TemplateTreeList(template_id):
         domains.append(
             {
                 "id": d["id"],
-                "parent": d["parents"][-1]
-                if d.get("parents")
-                else d["duplicate_parent_template"],
+                "parent": (
+                    d["parents"][-1]
+                    if d.get("parents")
+                    else d["duplicate_parent_template"]
+                ),
                 "duplicate_parent_template": d.get("duplicate_parent_template", False),
                 "name": d["name"],
                 "kind": d["kind"],
@@ -963,9 +965,11 @@ def GetAllTemplateDerivates(template_id, user_id=None):
         )
     for n in derivated:
         levels.setdefault(
-            n["duplicate_parent_template"]
-            if n.get("duplicate_parent_template", False)
-            else n["parent"],
+            (
+                n["duplicate_parent_template"]
+                if n.get("duplicate_parent_template", False)
+                else n["parent"]
+            ),
             [],
         ).append(n)
     all_domains_id = [

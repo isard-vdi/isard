@@ -814,11 +814,11 @@ def get_usage_credits(item_id, item_type, grouping_id, start_date, end_date):
             {
                 "limits": None,
                 "start_date": start_date,
-                "end_date": inner[0]["start_date"]
-                if len(inner)
-                else after[0]["start_date"]
-                if len(after)
-                else end_date,
+                "end_date": (
+                    inner[0]["start_date"]
+                    if len(inner)
+                    else after[0]["start_date"] if len(after) else end_date
+                ),
             }
         ]
     if len(after):
@@ -827,11 +827,11 @@ def get_usage_credits(item_id, item_type, grouping_id, start_date, end_date):
         after = [
             {
                 "limits": None,
-                "start_date": inner[-1]["end_date"]
-                if len(inner)
-                else before[0]["end_date"]
-                if len(before)
-                else start_date,
+                "start_date": (
+                    inner[-1]["end_date"]
+                    if len(inner)
+                    else before[0]["end_date"] if len(before) else start_date
+                ),
                 "end_date": end_date,
             }
         ]

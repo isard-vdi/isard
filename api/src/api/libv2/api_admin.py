@@ -746,9 +746,11 @@ class ApiAdmin:
         derivated = self.TemplateTreeList(template_id, user_id)
         for n in derivated:
             levels.setdefault(
-                n["duplicate_parent_template"]
-                if n.get("duplicate_parent_template", False)
-                else n["parent"],
+                (
+                    n["duplicate_parent_template"]
+                    if n.get("duplicate_parent_template", False)
+                    else n["parent"]
+                ),
                 [],
             ).append(n)
         recursion = self.TemplateTreeRecursion(template_id, levels)
@@ -786,13 +788,17 @@ class ApiAdmin:
                 "id": d["id"],
                 "title": d["name"],
                 "expanded": True,
-                "unselectable": False
-                if user["role"] == "manager" or user["role"] == "admin"
-                else True,
+                "unselectable": (
+                    False
+                    if user["role"] == "manager" or user["role"] == "admin"
+                    else True
+                ),
                 "selected": True if user["id"] == d["user"] else False,
-                "parent": d["parents"][-1]
-                if "parents" in d.keys() and len(d["parents"]) > 0
-                else "",
+                "parent": (
+                    d["parents"][-1]
+                    if "parents" in d.keys() and len(d["parents"]) > 0
+                    else ""
+                ),
                 "duplicate_parent_template": d.get("duplicate_parent_template", False),
                 "user": d["username"],
                 "category": d["category_name"],
@@ -898,19 +904,21 @@ class ApiAdmin:
 
         if user["role"] == "manager":
             derivated = [
-                {
-                    **d,
-                    "user": "-",
-                    "username": "-",
-                    "category": "-",
-                    "category_name": "-",
-                    "group": "-",
-                    "group_name": "-",
-                    "unselectable": True,
-                    "name": "-",
-                }
-                if d["category"] != user["category"]
-                else d
+                (
+                    {
+                        **d,
+                        "user": "-",
+                        "username": "-",
+                        "category": "-",
+                        "category_name": "-",
+                        "group": "-",
+                        "group_name": "-",
+                        "unselectable": True,
+                        "name": "-",
+                    }
+                    if d["category"] != user["category"]
+                    else d
+                )
                 for d in derivated
             ]
 
@@ -921,24 +929,26 @@ class ApiAdmin:
                     {
                         "id": d["id"],
                         "title": d["name"],
-                        "expanded": True
-                        if not d.get("unselectable")
-                        else not d["unselectable"],
-                        "unselectable": False
-                        if not d.get("unselectable")
-                        else d["unselectable"],
+                        "expanded": (
+                            True if not d.get("unselectable") else not d["unselectable"]
+                        ),
+                        "unselectable": (
+                            False if not d.get("unselectable") else d["unselectable"]
+                        ),
                         "selected": True if user["id"] == d["user"] else False,
-                        "parent": d["parents"][-1]
-                        if d.get("parents")
-                        else d["duplicate_parent_template"],
+                        "parent": (
+                            d["parents"][-1]
+                            if d.get("parents")
+                            else d["duplicate_parent_template"]
+                        ),
                         "user": d["username"],
                         "category": d["category_name"],
                         "group": d["group_name"],
                         "kind": d["kind"] if d["kind"] == "desktop" else "template",
                         "status": d["status"],
-                        "icon": "fa fa-desktop"
-                        if d["kind"] == "desktop"
-                        else "fa fa-cube",
+                        "icon": (
+                            "fa fa-desktop" if d["kind"] == "desktop" else "fa fa-cube"
+                        ),
                         "duplicate_parent_template": d.get(
                             "duplicate_parent_template", False
                         ),
@@ -959,9 +969,9 @@ class ApiAdmin:
                         "group": d["group_name"],
                         "kind": d["kind"] if d["kind"] == "desktop" else "template",
                         "status": d["status"],
-                        "icon": "fa fa-desktop"
-                        if d["kind"] == "desktop"
-                        else "fa fa-cube",
+                        "icon": (
+                            "fa fa-desktop" if d["kind"] == "desktop" else "fa fa-cube"
+                        ),
                         "duplicate_parent_template": d.get(
                             "duplicate_parent_template", False
                         ),

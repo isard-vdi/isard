@@ -857,9 +857,7 @@ def compute_overridable_bookings(overridable, nonoverridable, plans, units):
         "event_type": (
             "unavailable"
             if x["units"] - (units + y["units"]) < 0
-            else "overridable"
-            if x["units"] - (units + y["units"]) < 0
-            else "available"
+            else "overridable" if x["units"] - (units + y["units"]) < 0 else "available"
         ),
     }
 
