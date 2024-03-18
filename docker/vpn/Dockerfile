@@ -4,6 +4,31 @@ ARG DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 ARG DOCKER_IMAGE_TAG
 FROM ${DOCKER_IMAGE_PREFIX}rdpgw:$DOCKER_IMAGE_TAG as rdpgw
 
+#
+# Guacamole build
+#
+FROM alpine:3.19 as guacd-build
+RUN apk add alpine-sdk doas && \
+    adduser build -D && \
+    addgroup build wheel && \
+    addgroup build abuild && \
+    echo "permit nopass :wheel" >> /etc/doas.d/doas.conf && \
+    mkdir -p /var/cache/distfiles && \
+    chmod a+w /var/cache/distfiles && \
+    chgrp abuild /var/cache/distfiles && \
+    chmod g+w /var/cache/distfiles
+
+COPY docker/vpn/guacd /home/build/guacd
+
+WORKDIR /home/build/guacd
+USER build
+RUN abuild-keygen -a -i -n && \
+    doas chown build -R /home/build/guacd && \
+    abuild -r
+
+#
+# VPN
+#
 FROM alpine:3.18 as production
 MAINTAINER isard <info@isardvdi.com>
 
@@ -47,17 +72,19 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 RUN apk del .build_deps
 
 # Install guacd and freerdp
-RUN echo -e "https://dl-cdn.alpinelinux.org/alpine/edge/main\n\
-https://dl-cdn.alpinelinux.org/alpine/edge/community\n\
-https://dl-cdn.alpinelinux.org/alpine/edge/testing" > /etc/apk/repos_edge
-RUN apk add --repositories-file=/etc/apk/repos_edge guacamole-server guacamole-server-dev freerdp freerdp-libs freerdp-plugins
+RUN echo -e "https://dl-cdn.alpinelinux.org/alpine/v3.19/main\n\
+https://dl-cdn.alpinelinux.org/alpine/v3.19/community\n\
+https://dl-cdn.alpinelinux.org/alpine/v3.19/testing" > /etc/apk/repos_3_19
+RUN apk add --repositories-file=/etc/apk/repos_3_19 freerdp freerdp-libs
+COPY --from=guacd-build /home/build/packages/build/x86_64 /tmp/guacd
+RUN apk add --allow-untrusted --no-cache /tmp/guacd/*.apk && rm -rf /tmp/guacd
 
 RUN apk add openvswitch
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/
 COPY docker/vpn/ovs /ovs
 
-RUN apk add --repositories-file=/etc/apk/repos_edge dnsmasq
+RUN apk add --repositories-file=/etc/apk/repos_3_19 dnsmasq
 RUN apk add conntrack-tools
 COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
 COPY docker/vpn/src /src
