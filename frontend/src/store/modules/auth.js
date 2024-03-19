@@ -66,7 +66,7 @@ export default {
         }
         return config
       })
-      await authentication.post(`/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}&username=${data.get('username')}`, data, { timeout: 25000 }).then(response => {
+      await authentication.post(`/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}`, data, { timeout: 25000 }).then(response => {
         if (jwtDecode(response.data).type === 'register') {
           router.push({ name: 'Register' })
         } else {
