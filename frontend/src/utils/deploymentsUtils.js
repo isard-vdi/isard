@@ -9,11 +9,12 @@ export class DeploymentsUtils {
   }
 
   static parseDeploymentsItem (deployment) {
-    const { id, name, description, startedDesktops, totalDesktops, visible, needs_booking: needsBooking, desktop_name: desktopName, template } = deployment
+    const { id, name, description, visibleDesktops, startedDesktops, totalDesktops, visible, needs_booking: needsBooking, desktop_name: desktopName, template } = deployment
     return {
       id,
       name,
       description,
+      visibleDesktops,
       startedDesktops,
       totalDesktops,
       visible,
@@ -45,7 +46,7 @@ export class DeploymentsUtils {
   }
 
   static parseDeploymentDesktop (desktop) {
-    const { id, ip, name, user, user_name: userName, user_photo: userPhoto, category_name: categoryName, group_name: groupName, state, viewer, viewers, image, accessed, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId } = desktop
+    const { id, ip, name, user, user_name: userName, user_photo: userPhoto, category_name: categoryName, group_name: groupName, state, viewer, viewers, image, accessed, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, visible } = desktop
     return {
       id,
       ip,
@@ -64,7 +65,8 @@ export class DeploymentsUtils {
       bookingId,
       needsBooking,
       nextBookingStart: nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : '',
-      nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : ''
+      nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : '',
+      visible
     }
   }
 }

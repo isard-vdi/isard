@@ -14,6 +14,18 @@
       <span
         v-if="modal.item.visible"
       >
+        <b-alert
+          show
+          variant="warning"
+          class="ml-2 mb-2 pr-3"
+        >
+          <p
+            class="mb-0"
+          >
+            {{ $t(`views.deployment.modal.body.invisible-warning`, { visible: desktopsVisible, invisible: desktopsInvisible }) }}
+          </p>
+        </b-alert>
+        <hr>
         <b-row
           class="ml-2 my-2 pr-3"
         >
@@ -69,33 +81,48 @@
           </b-col>
         </b-row>
       </span>
-      <b-row
+      <span
         v-if="!modal.item.visible"
-        class="ml-2 my-2 pr-3"
       >
-        <b-col
-          cols="9"
-          class="mt-2"
+        <b-alert
+          show
+          variant="warning"
+          class="ml-2 mb-2 pr-3"
         >
-          <p>
-            {{ $t(`views.deployment.modal.option.make-visible`) }}
-          </p>
-        </b-col>
-        <b-col
-          cols="3"
-          class="my-2 text-center"
-        >
-          <b-button
-            :pill="true"
-            variant="outline-primary"
-            block
-            size="sm"
-            @click="toggleVisibility"
+          <p
+            class="mb-0"
           >
-            {{ $t(`views.deployment.modal.confirmation.make-visible`) }}
-          </b-button>
-        </b-col>
-      </b-row>
+            {{ $t(`views.deployment.modal.body.visible-warning`, { visible: desktopsVisible, invisible: desktopsInvisible }) }}
+          </p>
+        </b-alert>
+        <hr>
+        <b-row
+          class="ml-2 my-2 pr-3"
+        >
+          <b-col
+            cols="9"
+            class="mt-2"
+          >
+            <p>
+              {{ $t(`views.deployment.modal.option.make-visible`) }}
+            </p>
+          </b-col>
+          <b-col
+            cols="3"
+            class="my-2 text-center"
+          >
+            <b-button
+              :pill="true"
+              variant="outline-primary"
+              block
+              size="sm"
+              @click="toggleVisibility"
+            >
+              {{ $t(`views.deployment.modal.confirmation.make-visible`) }}
+            </b-button>
+          </b-col>
+        </b-row>
+      </span>
     </span>
     <span v-else-if="modal.type === 'downloadCSV'">
       <b-row
@@ -213,6 +240,7 @@ import i18n from '@/i18n'
 export default {
   setup (_, context) {
     const $store = context.root.$store
+    const deployment = computed(() => $store.getters.getDeployment)
     const modal = computed(() => $store.getters.getDeploymentModal)
     const maxTime = computed(() => $store.getters.getMaxTime)
     const sendToRecycleBin = ref(false)
@@ -255,6 +283,13 @@ export default {
       })
     }
 
+    const desktopsVisible = computed(() => {
+      return deployment.value.desktops.filter(d => d.visible).length
+    })
+    const desktopsInvisible = computed(() => {
+      return deployment.value.desktops.filter(d => !d.visible).length
+    })
+
     const closeModal = () => {
       $store.dispatch('resetDeploymentModal')
     }
@@ -266,7 +301,9 @@ export default {
       downloadDirectViewerCSV,
       deleteDeployment,
       maxTime,
-      sendToRecycleBin
+      sendToRecycleBin,
+      desktopsVisible,
+      desktopsInvisible
     }
   }
 }

@@ -3,47 +3,46 @@
     id="content"
     fluid
   >
-    <h5 class="font-weight-bold">
-      <b-iconstack
-        v-if="deployment.needsBooking"
-        font-scale="1"
-        role="button"
-        :title="$t('components.desktop-cards.actions.booking')"
-        @click="onClickBookingDesktop(deployment)"
-      >
-        <b-icon
-          stacked
-          icon="calendar"
-          variant="warning"
-        />
-        <b-icon
-          stacked
-          icon="exclamation-triangle-fill"
-          scale="0.5"
-          shift-v="-1"
-          variant="warning"
-        />
-      </b-iconstack>
-      {{ deployment.name }}
-      <b-badge :variant="badgeVariant">
-        {{ badgeText }}
-      </b-badge>
-      <b-badge
-        v-if="deployment.needsBooking"
-        class="ml-2"
-        variant="warning"
-      >
-        {{ bookingBadge }}
-      </b-badge>
-    </h5>
-    <hr class="mb-0">
-    <b-alert
-      show
-      :class="deploymentVariant"
-      class="mt-3"
+    <span
+      class="d-flex justify-content-between align-items-center"
     >
-      {{ $t('views.deployment.visibility-warning', { visibility: badgeText.toLowerCase() }) }}
-    </b-alert>
+      <h5 class="font-weight-bold mb-0">
+        <b-iconstack
+          v-if="deployment.needsBooking"
+          font-scale="1"
+          role="button"
+          :title="$t('components.desktop-cards.actions.booking')"
+          @click="onClickBookingDesktop(deployment)"
+        >
+          <b-icon
+            stacked
+            icon="calendar"
+            variant="warning"
+          />
+          <b-icon
+            stacked
+            icon="exclamation-triangle-fill"
+            scale="0.5"
+            shift-v="-1"
+            variant="warning"
+          />
+        </b-iconstack>
+        {{ deployment.name }}
+        <b-badge
+          v-if="deployment.needsBooking"
+          class="ml-2"
+          variant="warning"
+        >
+          {{ bookingBadge }}
+        </b-badge>
+      </h5>
+      <p
+        class="text-muted mb-0"
+      >
+        {{ desktopsBadge }} | {{ startedBadge }} | {{ visibleBadge }}
+      </p>
+    </span>
+    <hr class="mb-0">
     <DeploymentDesktopsList
       :desktops="sortedDesktops"
       :loading="!getDeploymentLoaded"
@@ -89,13 +88,26 @@ export default {
       }
     })
 
+    const desktopsBadge = computed(() => {
+      return i18n.t('views.deployment.desktop.desktops') + ': ' + deployment.value.desktops.length
+    })
+    const startedBadge = computed(() => {
+      return i18n.t('views.deployment.desktop.started') + ': ' + deployment.value.desktops.filter(d => [desktopStates.started, desktopStates.waitingip].includes(d.state.toLowerCase())).length
+    })
+    const visibleBadge = computed(() => {
+      return i18n.t('views.deployment.desktop.visible') + ': ' + deployment.value.desktops.filter(d => d.visible).length
+    })
+
     return {
       deployment,
       badgeVariant,
       badgeText,
       deploymentVariant,
       onClickBookingDesktop,
-      bookingBadge
+      bookingBadge,
+      desktopsBadge,
+      startedBadge,
+      visibleBadge
     }
   },
   computed: {
