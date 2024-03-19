@@ -109,7 +109,7 @@ def media_task_delete(media_id, user_id=None, keep_status=None):
         return
     else:
         media.status = "maintenance"
-    task_id = Task(
+    media.create_task(
         user_id=user_id,
         queue=f"storage.{StoragePool.get_best_for_action('delete', path=media.path_downloaded.rsplit('/', 1)[0]).id}.default",
         task="delete",
@@ -143,8 +143,8 @@ def media_task_delete(media_id, user_id=None, keep_status=None):
                 },
             }
         ],
-    ).id
-    return task_id
+    )
+    return media.task
 
 
 def media_task_check(media_id, user_id=None):
@@ -155,7 +155,7 @@ def media_task_check(media_id, user_id=None):
     if not media.path_downloaded:
         media.status = "deleted"
         return
-    task_id = Task(
+    media.create_task(
         user_id=user_id,
         queue=f"storage.{StoragePool.get_best_for_action('check_media_existence', path=media.path_downloaded.rsplit('/', 1)[0]).id}.default",
         task="check_media_existence",
@@ -171,8 +171,8 @@ def media_task_check(media_id, user_id=None):
                 "task": "media_update",
             }
         ],
-    ).id
-    return task_id
+    )
+    return media.task
 
 
 class ApiMedia:
