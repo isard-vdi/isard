@@ -47,6 +47,10 @@ func (p *ProviderError) Is(target error) bool {
 	return errors.Is(p.User, target)
 }
 
+func (p *ProviderError) Unwrap() error {
+	return p.Detail
+}
+
 var (
 	ErrInternal           = errors.New("internal server error")
 	ErrInvalidCredentials = errors.New("invalid credentials")
