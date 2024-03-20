@@ -466,7 +466,8 @@
                 "total-media-size": "Used media size / Total media size",
                 "total-size": "Used size / Total size (GB)",
                 "unit": "Personal unit size / Total unit size (MB)"
-            }
+            },
+            "reset-vpn": "Reset VPN"
         },
         "start-now-modal": {
             "title": "Start now",
@@ -1116,7 +1117,8 @@
             "new-deployment": "{quantity} desktops will be created, one for each selected user. Continue?",
             "go-to-profile": "View quota",
             "go-to-bookings": "Book desktop",
-            "change-desktop-gpu": "Modify desktop profile"
+            "change-desktop-gpu": "Modify desktop profile",
+            "reset-vpn": "Reset VPN keys? You will have to download a new VPN file"
         },
         "ok": "Ok",
         "yes": "Yes",
@@ -1164,7 +1166,8 @@
             "retry-desktop": "Checking desktop status",
             "restoring-recycle-bin": "Restoring entry",
             "deleting-recycle-bin": "Deleting entry",
-            "warning-desktop-waiting-ip": "Viewer not available right now. Please wait.."
+            "warning-desktop-waiting-ip": "Viewer not available right now. Please wait..",
+            "reset-vpn": "VPN keys reset"
         },
         "loading": "Loading"
     },

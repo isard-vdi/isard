@@ -1194,3 +1194,14 @@ def admin_user_auto_register(payload):
     )
 
     return json.dumps({"id": user_id}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/user/reset-vpn/<user_id>", methods=["PUT"])
+@is_admin_or_manager
+def admin_user_reset_vpn(payload, user_id):
+    users.reset_vpn(user_id)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )

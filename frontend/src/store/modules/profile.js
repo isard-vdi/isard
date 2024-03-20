@@ -1,4 +1,5 @@
 import axios from 'axios'
+import i18n from '@/i18n'
 import { apiV3Segment } from '../../shared/constants'
 import { ErrorUtils } from '../../utils/errorUtils'
 import { ProfileUtils } from '../../utils/profileUtils'
@@ -163,6 +164,15 @@ export default {
     },
     resetEmailAddressState (context) {
       context.commit('resetEmailAddressState')
+    },
+    resetVPN (context, userId) {
+      axios.put(`${apiV3Segment}/user/reset-vpn`)
+        .then(response => {
+          ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.reset-vpn'))
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
     }
   }
 }

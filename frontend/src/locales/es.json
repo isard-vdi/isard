@@ -467,7 +467,8 @@
                 "total-media-size": "Tamaño de medios utilizado / Total de tamaño de medios",
                 "total-size": "Tamaño utilizado / Total de tamaño",
                 "unit": "Tamaño unidad personal / Tamaño total unidad personal (MB)"
-            }
+            },
+            "reset-vpn": "Restaurar VPN"
         },
         "start-now-modal": {
             "title": "Iniciar ahora",
@@ -1129,7 +1130,8 @@
             "new-deployment": "Se crearán {quantity} escritorios, uno por cada usuario seleccionado. Continuar?",
             "go-to-profile": "Ver cuota",
             "go-to-bookings": "Reservar escritorio",
-            "change-desktop-gpu": "Modificar el perfil del escritorio"
+            "change-desktop-gpu": "Modificar el perfil del escritorio",
+            "reset-vpn": "Reestablecer claves de VPN? Se tendrá que descargar un nuevo archivo VPN"        
         },
         "ok": "De acuerdo",
         "yes": "Si",
@@ -1177,7 +1179,8 @@
             "retry-desktop": "Comprobando el estado del escritorio",
             "restoring-recycle-bin": "Restaurando entrada",
             "deleting-recycle-bin": "Eliminando entrada",
-            "warning-desktop-waiting-ip": "Aún no se puede abrir el visor seleccionado. Espere por favor..."
+            "warning-desktop-waiting-ip": "Aún no se puede abrir el visor seleccionado. Espere por favor...",
+            "reset-vpn": "Claves VPN restauradas"
 
         },
         "loading": "Cargando"

@@ -276,7 +276,8 @@
                 "total-media-size": "Mida de mitjans utilitzats / Total de mida dels mitjans (GB)",
                 "total-size": "Mida utilitzada / Mida total (GB)",
                 "unit": "Mida unitat personal / Mida total unitat personal (MB)"
-            }
+            },
+            "reset-vpn": "Restablir VPN"
         },
         "start-now-modal": {
             "title": "Iniciar ara",
@@ -1241,7 +1242,8 @@
             "new-deployment": "Es crearan {quantity} escriptoris, un per cada usuari seleccionat. Continuar?",
             "go-to-profile": "Veure quota",
             "go-to-bookings": "Reservar escriptori",
-            "change-desktop-gpu": "Modificar el perfil de l'escriptori"
+            "change-desktop-gpu": "Modificar el perfil de l'escriptori",
+            "reset-vpn": "Restablir les claus VPN? S'haurà de descarregar un nou fitxer VPN"   
         },
         "ok": "D'acord",
         "yes": "Sí",
@@ -1289,7 +1291,8 @@
             "retry-desktop": "Comprovant l'estat del escriptori",
             "restoring-recycle-bin": "Restaurant entrada",
             "deleting-recycle-bin": "Eliminant entrada",
-            "warning-desktop-waiting-ip": "Encara no es pot obrir el visor actual Espereu si us plau..."
+            "warning-desktop-waiting-ip": "Encara no es pot obrir el visor actual Espereu si us plau...",
+            "reset-vpn": "Claus VPN restablertes"
         },
         "loading": "Carregant"
     },
