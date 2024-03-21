@@ -47,8 +47,8 @@ class Certificates(object):
                     port=self.cfg["RETHINKDB_PORT"],
                     db=self.cfg["RETHINKDB_DB"],
                 ).repl()
+                r.db("isard").wait().run(self.conn)
                 print("Database server OK")
-                list(r.db("isard").table_list().run(self.conn))
                 ready = True
             except Exception as e:
                 print(
@@ -59,7 +59,6 @@ class Certificates(object):
                     + " not present. Waiting to be ready"
                 )
                 time.sleep(0.5)
-        ready = False
 
     def get_viewer(self, update_db=False):
         if update_db is False:
