@@ -3,8 +3,8 @@ Flask==2.3.3
 Flask-Login==0.6.3
 rethinkdb==2.4.9
 lxml~=4.6
-# paramiko >= 2.9 to have support for rsa-sha2
-paramiko~=3.4.0
+# paramiko~=3.4.0 error reading banner with gpus
+paramiko~=3.2.0
 pyOpenSSL~=23.1
 schema==0.7.4
 xmltodict==0.12.0
