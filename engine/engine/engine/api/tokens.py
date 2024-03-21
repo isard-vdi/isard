@@ -66,11 +66,15 @@ def get_token_payload(token):
     except jwt.ExpiredSignatureError:
         logs.main.info("Token expired")
         raise Error("unauthorized", "Token is expired", traceback.format_stack())
-    except jwt.JWTClaimsError:
+    except (jwt.InvalidAudienceError, jwt.InvalidIssuerError):
         raise Error(
             "unauthorized",
             "Incorrect claims, please check the audience and issuer",
-            traceback.format_stack(),
+        )
+    except jwt.InvalidTokenError:
+        raise Error(
+            "unauthorized",
+            "Error when decoding token",
         )
     except Exception:
         raise Error(
