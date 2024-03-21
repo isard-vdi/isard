@@ -25,6 +25,7 @@ echo "root:$API_HYPERVISORS_SECRET" |chpasswd
 echo "---> Starting sshd server..."
 ssh-keygen -A
 /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config &
+sleep 1
 
 echo "---> Setting up hypervisor certificates from api..."
 python3 /src/lib/hypervisor.py setup

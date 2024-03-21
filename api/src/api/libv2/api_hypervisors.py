@@ -360,7 +360,7 @@ class ApiHypervisors:
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
-            if result["unchanged"] or not hypervisor["enabled"]:
+            if result["unchanged"] or result["replaced"] or not hypervisor["enabled"]:
                 pass
             else:
                 return {
