@@ -140,10 +140,15 @@ def get_token_payload(token):
             description_code="token_expired",
             data=get_expired_user_data(token),
         )
-    except jwt.JWTClaimsError:
+    except (jwt.InvalidAudienceError, jwt.InvalidIssuerError):
         raise Error(
             "unauthorized",
             "Incorrect claims, please check the audience and issuer",
+        )
+    except jwt.InvalidTokenError:
+        raise Error(
+            "unauthorized",
+            "Error when decoding token",
         )
     except Exception:
         raise Error(
