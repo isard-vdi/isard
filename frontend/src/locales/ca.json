@@ -128,7 +128,9 @@
         },
         "deployment-desktop-list": {
             "actions": {
-                "delete": "Esborrar"
+                "delete": "Esborrar",
+                "hide": "Fer invisible",
+                "show": "Fer visible"
             },
             "table-header": {
                 "user": "Usuari",
@@ -514,7 +516,9 @@
             "table-header": {
                 "name": "Nom",
                 "visible": "Visible",
-                "started-desktops": "Escriptoris iniciats / Total",
+                "started-desktops": "Iniciats",
+                "visible-desktops": "Visibles",
+                "total-desktops": "Total",
                 "actions": "Accions",
                 "template": "Plantilla",
                 "desktop-name": "Nom de l'escriptori",
@@ -526,7 +530,10 @@
                 "title": "Aquest desplegmanet no té cap escriptori iniciat"
             },
             "desktop": {
-                "not-available": "Escriptori no disponible"
+                "not-available": "Escriptori no disponible",
+                "desktops": "Escriptoris",
+                "started": "Iniciats",
+                "visible": "Visibles"
             },
             "visibility-warning": "Els escriptoris d'aquest desplegament són {visibility}.",
             "visibility": {
@@ -542,7 +549,9 @@
                 },
                 "body": {
                     "text": "Aquesta acció és irreversible i es perdran totes les dades associades.",
-                    "send-to-recycle-bin": "Enviar desplegament a la paperera de reciclatge (l'emmagatzematge continuarà comptant a la quota d'usuari fins que s'esborri definitivament)."
+                    "send-to-recycle-bin": "Enviar desplegament a la paperera de reciclatge (l'emmagatzematge continuarà comptant a la quota d'usuari fins que s'esborri definitivament).",
+                    "invisible-warning": "Hi ha {visible} escriptoris visibles i {invisible} invisibles en aquest desplegament. Si continueu, els farà tots invisibles per als usuaris.",
+                    "visible-warning": "Hi ha {visible} escriptoris visibles i {invisible} invisibles en aquest desplegament. Si continueu, els farà tots visibles per als usuaris."
                 },
                 "option": {
                     "dont-stop-desktops": "Fer invisible aquest desplegament pels usuaris i permetre l'ús dels escriptoris fins que s'aturin",
@@ -1248,6 +1257,8 @@
             "deleting-deployment": "Esborrant desplegament",
             "making-visible-deployment": "Fent el desplegament visible",
             "making-invisible-deployment": "Fent el desplegament invisible",
+            "making-visible-desktop": "Fent el escriptori visible",
+            "making-invisible-desktop": "Fent el escriptori invisible",
             "starting-desktops": "Iniciant els escriptoris del desplegament",
             "stopping-desktops": "Aturant els escriptoris del desplegament",
             "creating-template": "Creant plantilla",

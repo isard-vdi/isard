@@ -318,7 +318,9 @@
         },
         "deployment-desktop-list": {
             "actions": {
-                "delete": "Delete"
+                "delete": "Delete",
+                "hide": "Make invisible",
+                "show": "Make visible"
             },
             "table-header": {
                 "user": "User",
@@ -704,7 +706,9 @@
             "table-header": {
                 "name": "Name",
                 "visible": "Visible",
-                "started-desktops": "Started desktops / Total",
+                "started-desktops": "Started",
+                "visible-desktops": "Visible",
+                "total-desktops": "Total",
                 "actions": "Actions",
                 "template": "Template",
                 "desktop-name": "Desktops name",
@@ -716,7 +720,10 @@
                 "title": "There are no started desktops at this deployment"
             },
             "desktop": {
-                "not-available": "Desktop not available"
+                "not-available": "Desktop not available",
+                "desktops": "Desktops",
+                "started": "Started",
+                "visible": "Visible"
             },
             "visibility-warning": "The desktops from this deployment are {visibility}.",
             "visibility": {
@@ -732,7 +739,9 @@
                 },
                 "body": {
                     "text":  "This action cannot be undone and all its associated data will be lost.",
-                    "send-to-recycle-bin": "Send deployment to recycle bin (its storage will still be considered in the user quota until permanently removed)."
+                    "send-to-recycle-bin": "Send deployment to recycle bin (its storage will still be considered in the user quota until permanently removed).",
+                    "invisible-warning": "There are {visible} desktops visible and {invisible} invisible in this deployment. Proceeding will make them all invisible to the users.",
+                    "visible-warning": "There are {visible} desktops visible and {invisible} invisible in this deployment. Proceeding will make them all visible to the users."
                 },
                 "option": {
                     "dont-stop-desktops": "Make this deployment invisible to the users and allow the use of the desktops until they're stopped",
@@ -1123,6 +1132,8 @@
             "deleting-deployment": "Deleting deployment",
             "making-visible-deployment": "Making the deployment visible",
             "making-invisible-deployment": "Making the deployment invisible",
+            "making-visible-desktop": "Making the desktop visible",
+            "making-invisible-desktop": "Making the desktop invisible",
             "starting-desktops": "Starting deployment desktops",
             "stopping-desktops": "Stopping deployment desktops",
             "creating-template": "Creating template",

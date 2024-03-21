@@ -75,8 +75,8 @@
 
         <b-row>
           <b-col
-            cols="12"
-            class="d-flex flex-row flex-wrap justify-content-start"
+            cols="13"
+            class="d-flex flex-row flex-wrap justify-content-start w-100"
           >
             <b-table
               id="deployments-table"
@@ -91,13 +91,6 @@
               @filtered="onFiltered"
               @row-clicked="redirectDeployment"
             >
-              <template #cell(visible)="data">
-                <p class="text-dark-gray m-0 text-center">
-                  <b-badge :variant="data.item.visible ? 'success' : 'danger'">
-                    {{ data.item.visible ? $t('views.deployment.visibility.visible') : $t('views.deployment.visibility.not-visible') }}
-                  </b-badge>
-                </p>
-              </template>
               <template #cell(name)="data">
                 <p class="m-0 font-weight-bold">
                   {{ data.item.name }}
@@ -110,7 +103,17 @@
               </template>
               <template #cell(startedDesktops)="data">
                 <p class="text-dark-gray m-0">
-                  {{ data.item.startedDesktops }} / {{ data.item.totalDesktops }}
+                  {{ data.item.startedDesktops }}
+                </p>
+              </template>
+              <template #cell(visibleDesktops)="data">
+                <p class="text-dark-gray m-0">
+                  {{ data.item.visibleDesktops }}
+                </p>
+              </template>
+              <template #cell(totalDesktops)="data">
+                <p class="text-dark-gray m-0">
+                  {{ data.item.totalDesktops }}
                 </p>
               </template>
               <template #cell(actions)="data">
@@ -235,7 +238,7 @@ export default {
 
     const rowClass = (item, type) => {
       if (item && type === 'row') {
-        if (item.visible === true) {
+        if (item.visibleDesktops > 0) {
           return 'cursor-pointer visibleHighlight'
         } else {
           return 'cursor-pointer'
@@ -303,12 +306,6 @@ export default {
     return {
       fields: [
         {
-          key: 'visible',
-          sortable: true,
-          label: i18n.t('views.deployments.table-header.visible'),
-          thStyle: { width: '5%' }
-        },
-        {
           key: 'name',
           sortable: true,
           label: i18n.t('views.deployments.table-header.name'),
@@ -340,7 +337,19 @@ export default {
           key: 'startedDesktops',
           sortable: true,
           label: i18n.t('views.deployments.table-header.started-desktops'),
-          thStyle: { width: '35%' }
+          thStyle: { width: '5%' }
+        },
+        {
+          key: 'visibleDesktops',
+          sortable: true,
+          label: i18n.t('views.deployments.table-header.visible-desktops'),
+          thStyle: { width: '5%' }
+        },
+        {
+          key: 'totalDesktops',
+          sortable: true,
+          label: i18n.t('views.deployments.table-header.total-desktops'),
+          thStyle: { width: '5%' }
         },
         {
           key: 'actions',

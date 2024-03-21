@@ -319,7 +319,9 @@
         },
         "deployment-desktop-list": {
             "actions": {
-                "delete": "Borrar"
+                "delete": "Borrar",
+                "hide": "Hacer invisible",
+                "show": "Hacer visible"
             },
             "table-header": {
                 "user": "Usuario",
@@ -705,7 +707,9 @@
             "table-header": {
                 "name": "Nombre",
                 "visible": "Visible",
-                "started-desktops": "Escritorios arrancados / Total",
+                "started-desktops": "Arrancados",
+                "visible-desktops": "Visibles",
+                "total-desktops": "Total",
                 "actions": "Acciones",
                 "template": "Plantilla",
                 "desktop-name": "Nombre del escritorio",
@@ -717,7 +721,10 @@
                 "title": "Este despliegue no tiene ningún escritorio iniciado"
             },
             "desktop": {
-                "not-available": "Escritorio no disponible"
+                "not-available": "Escritorio no disponible",
+                "desktops": "Escritorios",
+                "started": "Iniciados",
+                "visible": "Visibles"
             },
             "visibility-warning": "Los escritorios de este despliegue son {visibility}.",
             "visibility": {
@@ -733,7 +740,9 @@
                 },
                 "body": {
                     "text": "Esta acción es irreversible y se perderán todos los datos asociados.",
-                    "send-to-recycle-bin": "Enviar despliegue a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente)"
+                    "send-to-recycle-bin": "Enviar despliegue a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente)",
+                    "invisible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en esta implementación. El procedimiento los hará todos invisibles para los usuarios.",
+                    "visible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en esta implementación. El procedimiento los hará todos invisibles para los usuarios."
                 },
                 "option": {
                     "dont-stop-desktops": "Hacer invisible este despliegue para los usuarios y permitir el uso de los escritorios hasta que se paren",
@@ -1136,6 +1145,8 @@
             "deleting-deployment": "Eliminando despliegue",
             "making-visible-deployment": "Haciendo el despliegue visible",
             "making-invisible-deployment": "Haciendo el despliegue invisible",
+            "making-visible-desktop": "Haciendo el escritorio visible",
+            "making-invisible-desktop": "Haciendo el escritorio invisible",
             "starting-desktops": "Iniciando los escritorios del despliegue",
             "stopping-desktops": "Parando los escritorios del despliegue",
             "creating-template": "Creando plantilla",

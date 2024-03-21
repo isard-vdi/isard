@@ -21,6 +21,7 @@ from ..decorators import (
     checkDuplicate,
     is_not_user,
     ownsDeploymentId,
+    ownsDomainId,
 )
 
 common = ApiDesktopsCommon()
@@ -115,6 +116,14 @@ def api_v3_deployments_viewer(payload, deployment_id):
     data = request.get_json()
     api_deployments.visible(deployment_id, data.get("stop_started_domains"))
 
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/deployments/domain/visible/<domain_id>", methods=["PUT"])
+@is_not_user
+def api_v3_deployments_domain_visible(payload, domain_id):
+    ownsDomainId(payload, domain_id)
+    api_deployments.user_visible(domain_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 

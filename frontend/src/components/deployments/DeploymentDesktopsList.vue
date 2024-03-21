@@ -86,6 +86,7 @@
               :current-page="currentPage"
               :filter="filter"
               :filter-included-fields="filterOn"
+              :tbody-tr-class="rowClass"
               @filtered="onFiltered"
             >
               <template #cell(image)="data">
@@ -181,17 +182,29 @@
                   @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
                 />
               </template>
-              <template #cell(delete)="data">
-                <b-button
-                  class="rounded-circle btn-red px-2 mr-2"
-                  :title="$t('components.deployment-desktop-list.actions.delete')"
-                  @click="onClickDeleteDesktop(data.item)"
-                >
-                  <b-icon
-                    icon="x"
-                    scale="1"
-                  />
-                </b-button>
+              <template #cell(options)="data">
+                <div class="d-flex align-items-center">
+                  <b-button
+                    class="rounded-circle btn-red px-2 mr-2"
+                    :title="$t('components.deployment-desktop-list.actions.delete')"
+                    @click="onClickDeleteDesktop(data.item)"
+                  >
+                    <b-icon
+                      icon="x"
+                      scale="1"
+                    />
+                  </b-button>
+                  <b-button
+                    :class="`rounded-circle ${data.item.visible ? 'btn-blue' : 'btn-grey' } px-2 mr-2`"
+                    :title="data.item.visible ? $t('components.deployment-desktop-list.actions.hide') : $t('components.deployment-desktop-list.actions.show')"
+                    @click="onClickDesktopVisible(data.item)"
+                  >
+                    <b-icon
+                      :icon="data.item.visible ? 'eye-fill' : 'eye-slash-fill'"
+                      scale="0.75"
+                    />
+                  </b-button>
+                </div>
               </template>
             </b-table>
             <b-row
@@ -284,6 +297,18 @@ export default {
       totalRows.value = newVal.length
     })
 
+    const rowClass = (item, type) => {
+      if (item && type === 'row') {
+        if (item.visible === true) {
+          return 'cursor-pointer visibleHighlight'
+        } else {
+          return 'cursor-pointer'
+        }
+      } else {
+        return null
+      }
+    }
+
     onUnmounted(() => {
       $store.dispatch('resetDeploymentState')
     })
@@ -305,7 +330,8 @@ export default {
       currentPage,
       totalRows,
       getDate,
-      canStart
+      canStart,
+      rowClass
     }
   },
   data () {
@@ -368,7 +394,7 @@ export default {
           tdClass: 'px-4 action'
         },
         {
-          key: 'delete',
+          key: 'options',
           label: '',
           thStyle: { width: '5%' }
         }
@@ -445,6 +471,9 @@ export default {
       }
       return ''
     },
+    onClickDesktopVisible (desktop) {
+      this.$store.dispatch('toggleDesktopVisible', { id: desktop.id, visible: desktop.visible })
+    },
     onClickDeleteDesktop (desktop) {
       if ([desktopStates.failed, desktopStates.stopped].includes(this.getItemState(desktop))) {
         this.$snotify.clear()
@@ -476,7 +505,7 @@ export default {
 
 <style scoped>
 .table-scrollable-div {
-  height: calc(100vh - 300px);
+  height: calc(100vh - 200px);
   overflow-y: auto;
   overflow-x: hidden;
 }

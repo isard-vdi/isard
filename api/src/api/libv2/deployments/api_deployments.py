@@ -68,6 +68,10 @@ def lists(user_id):
                     .get_all(deployment["id"], index="tag")
                     .filter({"status": "Started"})
                     .count(),
+                    "visibleDesktops": r.table("domains")
+                    .get_all(deployment["id"], index="tag")
+                    .filter({"tag_visible": True})
+                    .count(),
                     "description": deployment["create_dict"]["description"],
                     "visible": deployment["create_dict"]["tag_visible"],
                     "template": r.table("domains")
@@ -101,6 +105,10 @@ def get(deployment_id, desktops=True):
                 lambda deployment: {
                     "totalDesktops": r.table("domains")
                     .get_all(deployment["id"], index="tag")
+                    .count(),
+                    "visibleDesktops": r.table("domains")
+                    .get_all(deployment["id"], index="tag")
+                    .filter({"tag_visible": True})
                     .count(),
                     "startedDesktops": r.table("domains")
                     .get_all(deployment["id"], index="tag")
@@ -693,6 +701,20 @@ def visible(deployment_id, stop_started_domains=True):
                 .run(db.conn)
             )
             desktops_stop(desktops_ids, force=True, wait_seconds=5)
+
+
+def user_visible(id):
+    with app.app_context():
+        query = r.table("domains").get(id).pluck("user", "tag_visible").run(db.conn)
+    result = dict(query)
+
+    with app.app_context():
+        update_query = (
+            r.table("domains")
+            .get(id)
+            .update({"tag_visible": not result["tag_visible"]})
+        )
+        update_query.run(db.conn)
 
 
 def direct_viewer_csv(deployment_id):

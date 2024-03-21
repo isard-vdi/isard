@@ -246,6 +246,19 @@ class DomainsThread(threading.Thread):
                                     room=deployment["user"],
                                 )
 
+                            elif event == "update" or c["old_val"].get(
+                                "tag_visible"
+                            ) != c["new_val"].get("tag_visible"):
+                                socketio.emit(
+                                    "deploymentdesktop_update",
+                                    json.dumps(
+                                        _parse_deployment_desktop(
+                                            data, deployment["user"]
+                                        )
+                                    ),
+                                    namespace="/userspace",
+                                    room=deployment["user"],
+                                )
                             elif event == "add":
                                 socketio.emit(
                                     "deploymentdesktop_add",
@@ -258,17 +271,6 @@ class DomainsThread(threading.Thread):
                                     room=deployment["user"],
                                 )
 
-                            elif event == "update":
-                                socketio.emit(
-                                    "deploymentdesktop_update",
-                                    json.dumps(
-                                        _parse_deployment_desktop(
-                                            data, deployment["user"]
-                                        )
-                                    ),
-                                    namespace="/userspace",
-                                    room=deployment["user"],
-                                )
                             # Event to deployment view (list of desktops)
                             socketio.emit(
                                 "deployments_update",

@@ -298,6 +298,12 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
+    toggleDesktopVisible (context, data) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t(data.visible ? 'messages.info.making-invisible-desktop' : 'messages.info.making-visible-desktop'), '', true, 1000)
+      axios.put(`${apiV3Segment}/deployments/domain/visible/${data.id}`).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
     deleteNonpersistentDesktop (_, desktopId) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-desktop'))
 
