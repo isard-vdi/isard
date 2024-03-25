@@ -10,6 +10,7 @@ import time
 
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.task import Task
 from rethinkdb import RethinkDB
 
 from api import app
@@ -117,7 +118,14 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None):
     ).without("status_logs")
 
     with app.app_context():
-        return list(query.run(db.conn))
+        storages = list(query.run(db.conn))
+
+    if status == "maintenance":
+        for storage in storages:
+            if storage.get("task"):
+                storage["progress"] = Task(storage.get("task")).to_dict()["progress"]
+
+    return storages
 
 
 def get_user_ready_disks(user_id):
