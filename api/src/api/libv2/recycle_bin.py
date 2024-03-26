@@ -421,7 +421,7 @@ class RecycleBin(object):
             "update_recycle_bin", {"id": self.id, "status": "restored"}
         )
 
-    def delete_storage(self, user_id, move=False):
+    def delete_storage(self, user_id):
         """
         Permanently delete the storage disks associated with a recycle bin entry
 
@@ -505,6 +505,7 @@ class RecycleBin(object):
                             + " not ready. Status: "
                             + storage.status,
                         )
+                    move = self.get_delete_action() == "move"
                     task_name = "move_delete" if move else "delete"
                     task = Task(
                         user_id=self.owner_id,
@@ -897,6 +898,21 @@ class RecycleBin(object):
                 )
             except r.ReqlNonExistenceError:
                 return False
+
+    @classmethod
+    def set_delete_action(cls, action):
+        with app.app_context():
+            r.table("config")[0].update({"recycle_bin": {"delete_action": action}}).run(
+                db.conn
+            )
+
+    @classmethod
+    def get_delete_action(cls):
+        with app.app_context():
+            try:
+                return r.table("config")[0]["recycle_bin"]["delete_action"].run(db.conn)
+            except r.ReqlNonExistenceError:
+                return "delete"
 
 
 class RecycleBinDomain(RecycleBin):

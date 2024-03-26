@@ -34,7 +34,33 @@
             </div>
         </div>
     </div>
+
+    <div class="col-md-6 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-folder"></i> Actions after deleting storage </h3><br>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <h4><b> After the storage is automatically deleted from the recycle bin:</b></h4>
+
+                <span id="default-action_wrapper" class="x_panel">
+                    <div class="row">
+                        <div class="col-md-6 col-xs-12">
+                            <input id="delete-action-radio" type="radio" name="deleted-action" value="delete">
+                            <label for="delete-action-radio">Delete disk files permanently</label>
+                        </div>
+                        <div class="col-md-6 col-xs-12">
+                            <input id="move-action-radio" type="radio" name="deleted-action" value="move">
+                            <label for="move-action-radio">Keep files as a back up in a subfolder</label>
+                        </div>
+                    </div>
+                </span>
+            </div>
+        </div>
+    </div>
 </div>
+
 
 {% endblock %}
 
