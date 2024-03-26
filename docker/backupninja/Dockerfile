@@ -1,4 +1,4 @@
-FROM alpine:3.18 as build
+FROM alpine:3.19 as build
 MAINTAINER isard <info@isard.com>
 RUN apk add --no-cache \
     automake \
@@ -12,7 +12,7 @@ RUN git clone https://gitlab.com/isard/backupninja.git && \
     bash ./autogen.sh && bash configure && \
     make && make install
 
-FROM alpine:3.18 as production
+FROM alpine:3.19 as production
 MAINTAINER isard <info@isard.com>
 
 RUN apk -U upgrade --no-cache
@@ -40,6 +40,8 @@ RUN apk add --no-cache \
     py3-pip
 ## Optional packages
 #cryptsetup duplicity flashrom gzip hwinfo rdiff-backup restic rsync sfdisk
-RUN pip3 install --no-cache-dir \
+RUN pip3 install \
+    --no-cache-dir \
+    --break-system-packages \
     rethinkdb
 CMD [ "run.sh" ]
