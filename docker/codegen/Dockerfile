@@ -1,4 +1,4 @@
-FROM alpine:3.18
+FROM alpine:3.19
 
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache go python3 npm
