@@ -243,7 +243,11 @@ export default {
     const deployment = computed(() => $store.getters.getDeployment)
     const modal = computed(() => $store.getters.getDeploymentModal)
     const maxTime = computed(() => $store.getters.getMaxTime)
+
     const sendToRecycleBin = ref(false)
+    $store.dispatch('fetchDefaultCheck').then(() => {
+      sendToRecycleBin.value = $store.getters.getDefaultCheck
+    })
 
     const title = computed(() => {
       if (modal.value.type === 'visibility') {
@@ -279,6 +283,7 @@ export default {
 
     const deleteDeployment = () => {
       $store.dispatch('deleteDeployment', { id: modal.value.item.id, permanent: !sendToRecycleBin.value, pathName: 'deployments' }).then(() => {
+        sendToRecycleBin.value = $store.getters.getDefaultCheck
         closeModal()
       })
     }

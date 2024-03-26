@@ -7,7 +7,13 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.recycle_bin import *
-from .decorators import has_token, is_admin_or_manager, ownsCategoryId, ownsRecycleBinId
+from .decorators import (
+    has_token,
+    is_admin,
+    is_admin_or_manager,
+    ownsCategoryId,
+    ownsRecycleBinId,
+)
 
 
 @app.route("/api/v3/recycle_bin/<recycle_bin_id>", methods=["GET"])
@@ -139,6 +145,45 @@ def api_v3_admin_recycle_bin_status(payload):
                 payload["category_id"] if payload["role_id"] == "manager" else None
             )
         ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/config/default-delete", methods=["PUT"])
+@is_admin
+def api_v3_admin_recycle_bin_default_delete_set(payload):
+    """
+    Ednpoint to set whether by default an item is sent to the recycle bin or deleted permanently.
+
+    Configuration specifications in JSON:
+    {
+        "set_default": "whether by default an item is sent to the recycle bin or deleted permanently."
+    }
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: None
+    :rtype: Set with Flask response values and data in JSON
+    """
+    if not request.is_json:
+        raise Error(
+            description="No JSON in body request with configuration specifications",
+        )
+    request_json = request.get_json()
+    rb_default = request_json.get("rb_default")
+    RecycleBin.set_default_delete(rb_default)
+    return (
+        {},
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/config/default-delete", methods=["GET"])
+@is_admin
+def api_v3_admin_recycle_bin_default_delete(payload):
+    return (
+        json.dumps(RecycleBin.get_default_delete()),
         200,
         {"Content-Type": "application/json"},
     )
