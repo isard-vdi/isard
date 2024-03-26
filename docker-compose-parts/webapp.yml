@@ -14,5 +14,7 @@ services:
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
-    env_file:
-      - .env
+    environment:
+      API_ISARDVDI_SECRET:
+      LOG_LEVEL:
+      WEBAPP_SESSION_SECRET:
