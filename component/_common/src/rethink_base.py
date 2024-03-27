@@ -221,3 +221,14 @@ class RethinkBase(ABC):
         :rtype: bool
         """
         return cls.insert(documents, conflict="update")
+
+    @classmethod
+    def delete(cls, document_id):
+        with cls._rdb_context():
+            result = (
+                r.table(cls._rdb_table)
+                .get(document_id)
+                .delete()
+                .run(cls._rdb_connection)
+            )
+            return result["deleted"] > 0

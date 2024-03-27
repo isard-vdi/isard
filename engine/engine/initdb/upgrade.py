@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 129
+release_version = 130
+# release 130: Remove deleted storage from storage table
 # release 129: Add default maintenance text to config table
 # release 128: Add volatile field to applied quota
 # release 127: Add viewers config
@@ -4363,6 +4364,10 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
                 )
             )
             r.table("storage").get_all(r.args(incorrect_storages_ids)).delete().run(
+                self.conn
+            )
+        if version == 130:
+            r.table("storage").get_all("deleted", index="status").delete().run(
                 self.conn
             )
 

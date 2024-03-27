@@ -541,7 +541,14 @@ class RecycleBin(object):
                                         "job_kwargs": {
                                             "kwargs": {"recycle_bin_id": self.id}
                                         },
-                                    }
+                                    },
+                                    {
+                                        "queue": "core",
+                                        "task": "storage_delete",
+                                        "job_kwargs": {
+                                            "kwargs": {"storage_id": storage.id}
+                                        },
+                                    },
                                 ],
                             }
                         ],
