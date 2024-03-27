@@ -187,3 +187,26 @@ def api_v3_admin_recycle_bin_default_delete(payload):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/recycle_bin/config/delete-action/<action>", methods=["PUT"])
+@is_admin
+def api_v3_admin_recycle_bin_delete_action_set(payload, action):
+    if action not in ["move", "delete"]:
+        raise Error("bad_request", 'Action must be "move" or "delete"')
+    RecycleBin.set_delete_action(action)
+    return (
+        {},
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/config/delete-action", methods=["GET"])
+@is_admin
+def api_v3_admin_recycle_bin_delete_action(payload):
+    return (
+        json.dumps(RecycleBin.get_delete_action()),
+        200,
+        {"Content-Type": "application/json"},
+    )

@@ -22,6 +22,7 @@
 
 $(document).ready(function () {
     checkDefaultDelete();
+    checkDeleteAction();
 })
 
 function toggleDefaultDelete(set) {
@@ -59,6 +60,57 @@ function checkDefaultDelete() {
         });
         $("#default-delete-checkbox").on("ifUnchecked", function () {
             toggleDefaultDelete(false);
+        });
+    });
+}
+
+function toggleDeleteAction(action) {
+    $.ajax({
+        type: "PUT",
+        url: "/api/v3/recycle_bin/config/delete-action/" + action,
+        accept: "application/json",
+    }).done(() => {
+        new PNotify({
+            title: "Delete action set to " + action,
+            text: "",
+            hide: true,
+            delay: 1000,
+            icon: 'fa fa-success',
+            opacity: 1,
+            type: 'success'
+        });
+    }).fail(function (data) {
+        new PNotify({
+            title: "ERROR",
+            text: data.responseJSON.description,
+            type: 'error',
+            hide: true,
+            icon: 'fa fa-warning',
+            delay: 5000,
+            opacity: 1
+        });
+    });
+}
+
+function checkDeleteAction() {
+    $.ajax({
+        type: "GET",
+        url: "/api/v3/recycle_bin/config/delete-action/",
+        accept: "application/json",
+    }).done(function (deleteAction) {
+        $('#default-action_wrapper input[name="deleted-action"][value="' + deleteAction + '"]').prop("checked", true).iCheck('update')
+        $('#default-action_wrapper input[name="deleted-action"]').on("ifChecked", function () {
+            toggleDeleteAction($(this).val());
+        });
+    }).fail(function (data) {
+        new PNotify({
+            title: "ERROR",
+            text: data.responseJSON.description,
+            type: 'error',
+            hide: true,
+            icon: 'fa fa-warning',
+            delay: 5000,
+            opacity: 1
         });
     });
 }
