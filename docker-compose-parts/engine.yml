@@ -22,20 +22,8 @@ services:
       - /etc/localtime:/etc/localtime:ro
     depends_on:
       - isard-db
+    env_file:
+      - .env
     environment:
-      API_ISARDVDI_SECRET:
-      DOMAIN:
-      ENGINE_DISK_BALANCER:
-      ENGINE_HYPER_BALANCER:
-      GPU_FAKE:
-      JETBRAINS_REMOTE_RUN:
-      LOG_LEVEL:
-      QCOW2_CLUSTER_SIZE:
-      QCOW2_EXTENDED_L2:
-      RETHINKDB_DB:
-      RETHINKDB_HOST:
-      RETHINKDB_PORT:
-      STATS_RETHINKDB_PORT:
-      TELEGRAM_ENGINE_CHAT_ID:
-      TELEGRAM_ENGINE_TOKEN:
-      WEBAPP_ADMIN_PWD:
+      - TELEGRAM_ENGINE_TOKEN=${TELEGRAM_ENGINE_TOKEN}
+      - TELEGRAM_ENGINE_CHAT_ID=${TELEGRAM_ENGINE_CHAT_ID}
