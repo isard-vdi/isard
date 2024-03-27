@@ -673,24 +673,29 @@ def storage_move(payload, storage_id, path):
 
 
 @app.route(
-    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>",
+    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/priority/<priority>",
     methods=["POST"],
 )
 @app.route(
-    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/<new_storage_status>",
+    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/<new_storage_status>/priority/<priority>",
     methods=["POST"],
 )
 @app.route(
-    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/compress",
+    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/compress/priority/<priority>",
     methods=["POST"],
 )
 @app.route(
-    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/<new_storage_status>/compress",
+    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/<new_storage_status>/compress/priority/<priority>",
     methods=["POST"],
 )
 @has_token
 def storage_convert(
-    payload, storage_id, new_storage_type, new_storage_status="ready", compress=None
+    payload,
+    storage_id,
+    new_storage_type,
+    new_storage_status="ready",
+    compress=None,
+    priority="low",
 ):
     """
     Endpoint that creates a Task to convert an storage to a new storage.
@@ -718,6 +723,9 @@ def storage_convert(
             error="bad_request",
             description=f"Storage status {new_storage_status} not supported",
         )
+    if payload["role_id"] != "admin":
+        priority = "low"
+
     origin_storage = set_storage_maintenance(payload, storage_id)
     compress = request.url_rule.rule.endswith("/compress")
     new_storage = Storage(
@@ -730,7 +738,7 @@ def storage_convert(
     try:
         origin_storage.create_task(
             user_id=payload.get("user_id"),
-            queue=f"storage.{StoragePool.get_best_for_action('convert', path=origin_storage.directory_path).id}.default",
+            queue=f"storage.{StoragePool.get_best_for_action('convert', path=origin_storage.directory_path).id}.{priority}",
             task="convert",
             job_kwargs={
                 "timeout": 4096,

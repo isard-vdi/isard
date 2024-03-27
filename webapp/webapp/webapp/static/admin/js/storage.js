@@ -319,6 +319,7 @@ $(document).on('click', '.btn-convert', function () {
   $(modal + " select").empty();
   $(modal + " #id").val(storageId);
   populateDiskFormatSelects(element.data("current_type"));
+  populatePrioritySelect(modal);
   $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
 });
 
@@ -330,7 +331,8 @@ $("#modalConvertStorage #send").on("click", function () {
     data = form.serializeObject();
     var new_storage_status = data["change_status-cb"] ? "/" + data["new_status"] : "";
     var compress = data["compress-cb"] ? "/compress" : "";
-    url = `/api/v3/storage/${data.storage_id}/convert/${data.disk_format}${new_storage_status}${compress}`
+    var priority = data.priority ? data.priority : "low";
+    url = `/api/v3/storage/${data.storage_id}/convert/${data.disk_format}${new_storage_status}${compress}/priority/${priority}`
     $.ajax({
       url: url,
       type: 'POST',
@@ -809,4 +811,19 @@ function renderProgress(perc) {
               '+ perc + '%  \
             </div> \
           </<div>';
+}
+
+function populatePrioritySelect(modal) {
+  $(modal + " select#priority").empty();
+  if ($("#user_data").data("role") == "admin") {
+    $(modal + " select#priority").append(`
+      <option selected value="low">Low</option>
+      <option value="default">Default</option>
+      <option value="high">High</option>
+    `);
+  } else {
+    $(modal + " select#priority").append(`
+    <option selected disabled value="low">Low</option>
+    `);
+  }
 }
