@@ -2,6 +2,10 @@
     .alert-error {
         margin-bottom: 0px;
     }
+
+    #modalIncreaseStorage .parsley-errors-list {
+        position: fixed;
+    }
 </style>
 
 <div class="modal fade" id="modalConvertStorage" tabindex="-1" role="dialog" aria-labelledby="modalConvertStorage"
@@ -84,6 +88,7 @@
                             </div>
                         </div>
                     </div>
+                </form>
             </div>
 
             <!-- Modal Footer -->
@@ -100,3 +105,72 @@
         </div>
     </div>
 </div>
+
+
+<div class="modal fade" id="modalIncreaseStorage" tabindex="-1" role="dialog" aria-labelledby="modalIncreaseStorage"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel"><i class="fa fa-external-link-square"></i> Increase disk size
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalIncreaseStorageForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="storage_id" />
+                    <input hidden id="current_size" name="current_size" />
+
+                    <div class="x_panel">
+                        <div class="row">
+                            <label class="col-md-3">Current size:</label>
+                            <div class="col-md-9" id="current-size">
+                                GB
+                            </div>
+                        </div>
+                    </div>
+                    <div class="x_panel">
+                        <div class="row">
+                            <label class="col-md-3">New size:</label>
+                            <div class="col-md-3">
+                                <input class="form-control roundbox" name="new_size" type="number" placeholder="20"
+                                    style="width:80%" id="new-size" data-parsley-trigger="change"
+                                    data-parsley-type="number" required /> GB
+                                <ul style="display:none" class="parsley-errors-list filled" id="parsley-id-9"
+                                    aria-hidden="false"></ul>
+                            </div>
+                            <div class="col-md-6" id="max-quota-div"><i>(max. <span id="max-quota"></span>GB)</i></div>
+                        </div>
+                    </div>
+                    <div class="x_panel" id="priority-panel">
+                        <div class="row">
+                            <label class="col-md-3">Priority: </label>
+                            <div class="col-md-3">
+                                <select name="priority" id="priority" class="roundbox form-control" style="width:100%;">
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success"></i>
+                            Increase</button></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>

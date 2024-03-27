@@ -59,6 +59,18 @@ def extract_progress_from_rsync_output(process):
     )
 
 
+def extract_progress_from_resize_output(process):
+    """
+    Extract progress from rsync standard output.
+
+    :param process: Process executed
+    :type process: Popen object
+    :return: Progress percentage as decimal
+    :rtype: float
+    """
+    return float(process.stdout.read1().decode().split("%", 1))
+
+
 def run_with_progress(command, extract_progress):
     """
     Run command reporting progress to RQ job metadata.
@@ -391,5 +403,25 @@ def virt_win_reg(storage_path, registry_patch):
                 ],
                 check=True,
             ).returncode
+    except Exception as e:
+        return e
+
+
+def resize(storage_path, increment):
+    """
+    Increase disk size
+
+    :param storage_path: Path to disk
+    :type storage_id: str
+    :param increment: Size of the increment in GB
+    :type increment: int
+    :return: Exit code of qemu-img command
+    :rtype: int
+    """
+    try:
+        return run_with_progress(
+            ["qemu-img", "resize", storage_path, f"+{increment}G"],
+            extract_progress_from_resize_output,
+        )
     except Exception as e:
         return e

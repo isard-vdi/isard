@@ -233,6 +233,21 @@ def get_media_domains(media_ids):
         )
 
 
+def get_storage(storage_id):
+    with app.app_context():
+        disk = (
+            r.table("storage")
+            .get(storage_id)
+            .merge(
+                lambda stg: {
+                    "category": r.table("users").get(stg["user_id"])["category"]
+                }
+            )
+            .run(db.conn)
+        )
+        return parse_disks([disk])[0]
+
+
 def parse_disks(disks):
     parsed_disks = []
     for disk in disks:

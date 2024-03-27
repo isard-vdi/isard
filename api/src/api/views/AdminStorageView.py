@@ -18,6 +18,7 @@ from ..libv2.api_storage import (
     get_disks,
     get_media_domains,
     get_status,
+    get_storage,
     get_storage_domains,
 )
 from ..libv2.helpers import get_user_data
@@ -101,6 +102,17 @@ def api_v3_admin_storage_disk_tree(payload):
 def api_v3_admin_storage_delete(payload, storage_id):
     return (
         json.dumps(delete_storage(storage_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/storage/info/<storage_id>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_storage_get(payload, storage_id):
+    ownsStorageId(payload, storage_id)
+    return (
+        json.dumps(get_storage(storage_id)),
         200,
         {"Content-Type": "application/json"},
     )

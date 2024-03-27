@@ -20,6 +20,9 @@ from ..libv2.api_storage import (
     get_user_ready_disks,
     parse_disks,
 )
+from ..libv2.quotas import Quotas
+
+quotas = Quotas()
 from .decorators import has_token, is_admin, is_admin_or_manager, ownsStorageId
 
 
@@ -806,3 +809,83 @@ def storage_update_by_status(payload, status):
         storage.check_backing_chain(user_id=payload.get("user_id"))
 
     return jsonify({})
+
+
+@app.route(
+    "/api/v3/storage/<path:storage_id>/priority/<priority>/increase/<increment>",
+    methods=["PUT"],
+)
+@has_token
+def storage_increase_size(payload, storage_id, increment, priority="low"):
+    quota = quotas.get_applied_quota(Storage(storage_id).user_id).get("quota")
+
+    if payload["role_id"] != "admin":
+        priority = "low"
+    if quota and (
+        quota.get("desktops_disk_size")
+        < (
+            getattr(storage, "qemu-img-info")["virtual-size"] / 1024 / 1024 / 1024
+            - int(increment)
+        )
+    ):
+        raise Error("bad_request", "Disk size quota exceeded")
+
+    storage = set_storage_maintenance(payload, storage_id)
+    try:
+        storage.create_task(
+            user_id=payload.get("user_id"),
+            queue=f"storage.{StoragePool.get_best_for_action('resize').id}.{priority}",
+            task="resize",
+            job_kwargs={
+                "kwargs": {"storage_path": storage.path, "increment": increment},
+            },
+            dependents=[
+                {
+                    "queue": f"storage.{StoragePool.get_best_for_action('resize').id}.{priority}",
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": storage.id,
+                            "storage_path": storage.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                        },
+                        {
+                            "queue": "core",
+                            "task": "update_status",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "statuses": {
+                                        "finished": {
+                                            "ready": {
+                                                "storage": [storage.id],
+                                            },
+                                        },
+                                        "canceled": {
+                                            "deleted": {
+                                                "storage": [storage.id],
+                                            },
+                                        },
+                                    }
+                                }
+                            },
+                        },
+                    ],
+                }
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error creating storage",
+        )
+    return jsonify(storage.task)
