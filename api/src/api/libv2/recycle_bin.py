@@ -785,7 +785,7 @@ class RecycleBin(object):
         elif status:
             query = query.get_all(status, index="status")
         else:
-            query = query.get_all(["recycled", "deleting"], index="status")
+            query = query.get_all(r.args(["recycled", "deleting"]), index="status")
         count_query = {
             "desktops": r.row["desktops"].count(),
             "templates": r.row["templates"].count(),
