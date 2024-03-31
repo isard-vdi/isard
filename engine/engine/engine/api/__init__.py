@@ -116,12 +116,31 @@ def engine_status_detail(payload):
         "status_virt": 0,
         "status_disk": 0,
         "problems": [],
+        "hypers_virt": 0,
+        "hypers_diskop": 0,
+        "hypervisors": {},
+        "virt_th": {},
+        "disk_th": {},
+        "virt_th_alive": 0,
+        "disk_th_alive": 0,
+        "virt_queued_total": 0,
+        "disk_queued_total": 0,
+        "queued_virtop": 0,
+        "queued_diskop": 0,
+        "alive": True,
+        "alive_level": 0,
+        "alive_detail": "System operational",
+        "hypers_virt_next": False,
+        "hypers_diskop_next": False,
+        "next_virt": False,
+        "next_diskop": False,
     }
     try:
         # Background thread
         if not app.m.t_background.is_alive():
             engine["status_main"] = 2
             engine["operational"] = False
+            engine["alive_detail"] = "Background thread dead"
             engine["problems"].append([2, "main", "Dead thread(s): background"])
 
         # Main threads
@@ -136,6 +155,7 @@ def engine_status_detail(payload):
         if len(deads) > 0:
             engine["status_main"] = 2
             engine["operational"] = False
+            engine["alive_detail"] = "Main thread(s) dead"
             engine["problems"].append(
                 [2, "main", "Dead thread(s): " + ", ".join(deads)]
             )
@@ -150,12 +170,12 @@ def engine_status_detail(payload):
             if hyper["status"] == "Online":
                 if hyper["capabilities"]["hypervisor"]:
                     if (
-                        hyp["id"] in app.m.t_workers
-                        and app.m.t_workers[hyp["id"]].is_alive()
+                        hyper["id"] in app.m.t_workers
+                        and app.m.t_workers[hyper["id"]].is_alive()
                     ):
                         virtualization = True
                         engine["hypers_virt"] += 1
-                        virtualization_queued = app.m.q.workers[hyp["id"]].qsize()
+                        virtualization_queued = app.m.q.workers[hyper["id"]].qsize()
                     else:
                         virtualization = False
                         engine["problems"].append(
@@ -169,13 +189,13 @@ def engine_status_detail(payload):
                         )
                 if hyper["capabilities"]["disk_operations"]:
                     if (
-                        hyp["id"] in app.m.t_disk_operations
-                        and app.m.t_disk_operations[hyp["id"]].is_alive()
+                        hyper["id"] in app.m.t_disk_operations
+                        and app.m.t_disk_operations[hyper["id"]].is_alive()
                     ):
                         disk_operations = True
                         engine["hypers_diskop"] += 1
                         disk_operations_queued = app.m.q_disk_operations[
-                            hyp["id"]
+                            hyper["id"]
                         ].qsize()
                     else:
                         disk_operations = False
@@ -190,7 +210,7 @@ def engine_status_detail(payload):
                         )
             engine["hypervisors"][hyper["id"]] = {
                 "status": hyper["status"],
-                "stats": hyper["stats"],
+                "stats": hyper.get("stats"),
                 "virt_cap": virtualization,
                 "virt_op_queued": virtualization_queued,
                 "disk_cap": disk_operations,
@@ -204,11 +224,14 @@ def engine_status_detail(payload):
                 engine["problems"].append(
                     [2, "database", "No virtualization hypervisors registered."]
                 )
+                engine["operational"] = False
+                engine["hypers_virt_next"] = False
         else:
             if engine["hypers_virt"] == 0:
                 engine["problems"].append(
                     [2, "database", "No virtualization hypervisors registered."]
                 )
+                engine["operational"] = False
                 engine["hypers_virt_next"] = False
             else:
                 engine["hypers_virt_next"] = get_next_hypervisor()
@@ -216,6 +239,7 @@ def engine_status_detail(payload):
                 engine["problems"].append(
                     [2, "database", "No disk operations hypervisors registered."]
                 )
+                engine["operational"] = False
                 engine["hypers_diskop_next"] = False
             else:
                 engine["hypers_diskop_next"] = get_next_disk()
@@ -224,15 +248,17 @@ def engine_status_detail(payload):
         engine["next_virt"] = get_next_hypervisor()
         if not engine["next_virt"]:
             engine["alive_level"] = 2
+            engine["operational"] = False
             engine["alive_detail"] = "No hypervisor for virtualization available"
         engine["next_diskop"] = get_next_disk()
         if not engine["next_diskop"]:
             engine["alive_level"] = 2
+            engine["operational"] = False
             engine["alive_detail"] = "No hypervisor for disk operations available"
         # Virtualization and disk operations threads and queues
         for hyp in db_hypers:
             if hyp["id"] in app.m.t_workers and app.m.t_workers[hyp["id"]].is_alive():
-                engine["virt_th"][hyp["id"]] = hyp
+                engine["virt_th"][hyp["id"]] = {}
                 engine["virt_th_alive"] += 1
                 engine["virt_th"][hyp["id"]]["queued"] = app.m.q.workers[
                     hyp["id"]
@@ -244,7 +270,7 @@ def engine_status_detail(payload):
                 hyp["id"] in app.m.t_disk_operations
                 and app.m.t_disk_operations[hyp["id"]].is_alive()
             ):
-                engine["disk_th"][hyp["id"]] = hyp
+                engine["disk_th"][hyp["id"]] = {}
                 engine["disk_th_alive"] += 1
                 engine["disk_th"][hyp["id"]]["queued"] = app.m.q_disk_operations[
                     hyp["id"]
@@ -255,15 +281,6 @@ def engine_status_detail(payload):
             else:
                 engine["disk_th"][hyp["id"]] = False
         # Compute alive
-
-        # if engine["main_th"]["background"] == False:
-
-        engine["alive_detail"] = engine["main_th"]
-        ## Engine needs restart if any of the virtualization threads is not alive
-        engine["alive_detail"].update(engine["virt_th"])
-        ## Engine needs restart if any of the disk operations threads is not alive
-        engine["alive_detail"].update(engine["disk_th"])
-        engine["alive_detail"]
         engine["alive"] = (
             engine["alive"]
             and engine["virt_th_alive"] == len(db_hypers)
@@ -271,6 +288,7 @@ def engine_status_detail(payload):
         )
         return jsonify(engine), 200
     except Exception as e:
+        logs.main.error(e)
         logs.main.error("engine_status: {}".format(e))
         return jsonify({"alive": False, "error": str(e)}), 500
 
