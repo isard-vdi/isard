@@ -250,20 +250,25 @@ def storage_delete(payload, storage_id):
                     "job_kwargs": {
                         "kwargs": {
                             "statuses": {
-                                "finished": {
-                                    "deleted": {
+                                "canceled": {
+                                    "ready": {
                                         "storage": [storage.id],
                                     },
                                 },
-                                "canceled": {
-                                    "ready": {
+                                "finished": {
+                                    "deleted": {
                                         "storage": [storage.id],
                                     },
                                 },
                             },
                         },
                     },
-                }
+                    "dependents": {
+                        "queue": "core",
+                        "task": "storage_delete",
+                        "job_kwargs": {"kwargs": {"storage_id": storage.id}},
+                    },
+                },
             ],
         )
     except Exception as e:

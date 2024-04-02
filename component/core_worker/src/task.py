@@ -218,6 +218,17 @@ def storage_update(**storage_dict):
                         storage_update(**result)
 
 
+def storage_delete(storage_id):
+    """
+    Delete storage from database
+
+    :param storage_id: Storage ID
+    :type storage_id: str
+    """
+    if Storage(storage_id).status == "deleted":
+        Storage.delete(storage_id)
+
+
 def recycle_bin_update(**recycle_bin_dict):
     """
     Update recycle bin if task success.
