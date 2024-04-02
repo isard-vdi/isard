@@ -11,3 +11,4 @@ waitress~=2.1
 simple-colors~=0.1.5
 python-json-logger~=2.0.7
 html-sanitizer==2.2.0
+lxml==5.1.0
