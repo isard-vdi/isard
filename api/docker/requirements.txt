@@ -1,4 +1,4 @@
-Flask==2.3.3
+Flask[async]==2.3.3
 Flask-Login==0.6.3
 Flask-Cors==3.0.10
 gevent-websocket==0.10.1
@@ -19,10 +19,12 @@ humanize==4.0.0
 portion==2.2.0
 cachetools~=5.3
 rq~=1.14
-betterproto~=1.2
+betterproto~=2.0.0b6
 python-json-logger
 requests~=2.31
 simple-colors~=0.1
 Pillow==10.3.0
 html-sanitizer==2.2.0
 lxml==5.1.0
+grpcio==1.62.1
+protobuf==5.26.1

@@ -27,7 +27,7 @@ from subprocess import PIPE, Popen, check_output, run
 from time import sleep
 
 from isardvdi_common.task import Task
-from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
+from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
 from rq import Queue, get_current_job
 
 
@@ -324,7 +324,7 @@ def convert(convert_request):
     Convert disk.
 
     :param convert_request: Protobuf Message
-    :type convert_request: isardvdi_protobuf.queue.storage.v1.ConvertRequest
+    :type convert_request: isardvdi_protobuf_old.queue.storage.v1.ConvertRequest
     :return: Exit code of qemu-img command
     :rtype: int
     """

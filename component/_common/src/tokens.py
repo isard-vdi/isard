@@ -156,3 +156,68 @@ def get_token_payload(token):
             log.warning("Unable to update user logs")
         return payload["data"]
     return payload
+
+
+def get_jwt_payload():
+    token = get_token_auth_header()
+    try:
+        claims = jwt.decode(token, options={"verify_signature": False})
+    except:
+        raise Error(
+            "unauthorized",
+            "Bad token format",
+        )
+    try:
+        if claims.get("kid") == "isardvdi":
+            secret = os.environ.get("API_ISARDVDI_SECRET")
+        elif claims.get("kid") == "isardvdi-viewer":
+            secret = os.environ.get("API_ISARDVDI_SECRET")
+            if not claims.get("data").get("desktop_id"):
+                raise Error(
+                    "unauthorized",
+                    "Not authorized viewer token",
+                )
+        elif claims.get("kid") == "isardvdi-hypervisors":
+            secret = os.environ.get("API_HYPERVISORS_SECRET")
+        else:
+            # Not a system secret
+            raise Error(
+                "unauthorized",
+                "Bad token Key ID",
+            )
+    except:
+        raise Error(
+            "unauthorized",
+            "Unable to parse authentication token",
+        )
+
+    try:
+        payload = jwt.decode(
+            token,
+            secret,
+            algorithms=["HS256"],
+            options=dict(verify_aud=False, verify_sub=False, verify_exp=True),
+        )
+    except jwt.ExpiredSignatureError:
+        raise Error(
+            "unauthorized",
+            "Token expired",
+            description_code="token_expired",
+            data=get_expired_user_data(token),
+        )
+    except (jwt.InvalidAudienceError, jwt.InvalidIssuerError):
+        raise Error(
+            "unauthorized",
+            "Incorrect claims, please check the audience and issuer",
+        )
+    except jwt.InvalidTokenError:
+        raise Error(
+            "unauthorized",
+            "Error when decoding token",
+        )
+    except Exception:
+        raise Error(
+            "unauthorized",
+            "Unable to parse authentication token",
+        )
+    return payload

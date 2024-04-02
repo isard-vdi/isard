@@ -1,0 +1,18 @@
+version: "3.5"
+services:
+  isard-sessions:
+    container_name: isard-sessions
+    image: ${DOCKER_IMAGE_PREFIX}sessions:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.99
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - .env

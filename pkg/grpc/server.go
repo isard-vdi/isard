@@ -16,7 +16,10 @@ func Serve(ctx context.Context, log *zerolog.Logger, wg *sync.WaitGroup, registe
 		log.Fatal().Err(err).Str("addr", addr).Msg("listen gRPC address")
 	}
 
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.UnaryInterceptor(newUnaryInterceptorLogger(log)),
+	)
+
 	registerServer(s)
 
 	reflection.Register(s)

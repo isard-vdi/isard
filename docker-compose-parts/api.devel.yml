@@ -1,4 +1,4 @@
-version: '3.5'
+version: "3.5"
 services:
   isard-api:
     container_name: isard-api
@@ -7,9 +7,10 @@ services:
       - "7039:7039"
       - "5000:5000"
     volumes:
-    - ${BUILD_ROOT_PATH}/api/src:/api
-    - ${BUILD_ROOT_PATH}/component/_common/src:/opt/isardvdi/isardvdi_common
-    - ${BUILD_ROOT_PATH}/pkg/gen/proto/python:/opt/isardvdi/isardvdi_protobuf
+      - ${BUILD_ROOT_PATH}/api/src:/api
+      - ${BUILD_ROOT_PATH}/component/_common/src:/opt/isardvdi/isardvdi_common
+      - ${BUILD_ROOT_PATH}/pkg/gen/proto/python:/opt/isardvdi/isardvdi_protobuf
+      - ${BUILD_ROOT_PATH}/pkg/gen/proto/python_old:/opt/isardvdi/isardvdi_protobuf_old
     # - ${BUILD_ROOT_PATH}/webapp/webapp/lib:/api/lib:ro
     build:
       context: ${BUILD_ROOT_PATH}

@@ -1,0 +1,9 @@
+version: '3.5'
+services:
+  isard-sessions:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: sessions/build/package/Dockerfile
+      args:
+        - "GOLANG_BUILD_IMAGE=${GOLANG_BUILD_IMAGE}"
+        - "GOLANG_RUN_IMAGE=${GOLANG_RUN_IMAGE}"

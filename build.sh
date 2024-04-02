@@ -62,6 +62,7 @@ ALLINONE_PARTS="
 	infrastructure
 	check
 	notifier
+	sessions
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
@@ -116,6 +117,7 @@ WEB_PARTS="
 	postgres
 	infrastructure
 	notifier
+	sessions
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="

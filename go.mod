@@ -11,6 +11,7 @@ require (
 	github.com/go-faster/errors v0.7.1
 	github.com/go-faster/jx v1.1.0
 	github.com/go-ldap/ldap/v3 v3.4.8
+	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	// https://github.com/grafana/loki/issues/2826. This is the equivalent of the main branch at 2023/11/27 (d62d4e37d1f3dba83cf10a1f6db82830794e1c05)
@@ -22,6 +23,8 @@ require (
 	github.com/oracle/oci-go-sdk/v65 v65.65.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.19.0
+	github.com/prometheus/common v0.48.0 // indirect
+	github.com/redis/go-redis/v9 v9.2.0
 	github.com/rs/zerolog v1.32.0
 	github.com/shirou/gopsutil/v3 v3.24.3
 	github.com/spf13/viper v1.18.2
@@ -170,7 +173,6 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/prometheus/alertmanager v0.26.0 // indirect
 	github.com/prometheus/client_model v0.6.0 // indirect
-	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/common/sigv4 v0.1.0 // indirect
 	github.com/prometheus/exporter-toolkit v0.10.1-0.20230714054209-2f4150c63f97 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
