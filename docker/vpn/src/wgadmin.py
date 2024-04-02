@@ -29,10 +29,11 @@ def dbConnect():
     ).repl()
 
 
+log.info("Starting isard-vpn...")
 while True:
     try:
         # App was restarted or db was lost. Just sync peers before get into changes.
-        print("Checking initial config...")
+        log.info("Connecting to database...")
         dbConnect()
 
         wg_users = Wg(
@@ -56,9 +57,10 @@ while True:
             "Config regenerated from database...\nStarting to monitor users changes..."
         )
         # for user in r.table('users').pluck('id','vpn').changes(include_initial=False).run():
+
         for data in (
             r.table("users")
-            .pluck("id", "vpn")
+            .pluck("id", "vpn", "active")
             .without({"vpn": {"wireguard": "connected"}})
             .merge({"table": "users"})
             .changes(include_initial=False)
@@ -85,58 +87,106 @@ while True:
             .run()
         ):
 
-            if data["new_val"] == None:
-                ### Was deleted
-                if data["old_val"]["table"] in ["users", "remotevpn"]:
-                    wg_users.remove_peer(data["old_val"])
-                elif data["old_val"]["table"] == "hypers":
-                    wg_hypers.remove_peer(data["old_val"])
-                elif data["old_val"]["table"] == "domains":
-                    wg_users.desktop_iptables(data)
-                continue
-            elif data["old_val"] is None:
-                ### New
-                log.info("New: " + data["new_val"]["id"] + " found...")
-                if data["new_val"]["table"] in ["users", "remotevpn"]:
-                    wg_users.add_peer(data["new_val"], table=data["new_val"]["table"])
-                elif data["new_val"]["table"] == "hypers":
-                    wg_hypers.add_peer(data["new_val"])
-                elif data["new_val"]["table"] == "domains":
-                    wg_users.desktop_iptables(data)
-            else:
-                ### Update
-                if data["old_val"]["table"] in ["users", "remotevpn", "hypers"]:
-                    if "vpn" not in data["old_val"]:
-                        continue  # Was just added
+            try:
+                if data["new_val"] == None:
+                    ### Was deleted
+                    log.info(
+                        f'Removed {data["old_val"]["table"]} item {data["old_val"]["id"]}, removing wg client connection...'
+                    )
+                    if data["old_val"]["table"] in ["users", "remotevpn"]:
+                        wg_users.down_peer(data["old_val"])
+                    elif data["old_val"]["table"] == "hypers":
+                        wg_hypers.down_peer(data["old_val"])
+                    elif data["old_val"]["table"] == "domains":
+                        wg_users.desktop_iptables(data)
+                elif data["old_val"] is None:
+                    ### New
+                    log.info(
+                        f'Added {data["new_val"]["table"]} item {data["new_val"]["id"]}, generating new vpn config...'
+                    )
+                    if data["new_val"]["table"] in ["users", "remotevpn"]:
+                        wg_users.add_peer(
+                            data["new_val"], table=data["new_val"]["table"]
+                        )
+                    elif data["new_val"]["table"] == "hypers":
+                        wg_hypers.add_peer(data["new_val"])
+                    elif data["new_val"]["table"] == "domains":
+                        wg_users.desktop_iptables(data)
+                else:
+                    ### Update
+                    if data["old_val"]["table"] in ["users", "remotevpn", "hypers"]:
+                        if "vpn" not in data["old_val"]:
+                            continue  # Was just added
+                        if data["old_val"]["table"] == "users":
+                            # User vpn reset. Should generate new keys and update iptables
+                            if (
+                                data["new_val"]
+                                .get("vpn", {})
+                                .get("wireguard", {})
+                                .get("keys")
+                                == False
+                            ):
+                                log.info(
+                                    f'Reset {data["new_val"]["table"]} item {data["new_val"]["id"]}, generating new vpn config...'
+                                )
+                                if data["old_val"].get("vpn"):
+                                    wg_users.down_peer(data["old_val"])
+                                # This will overwrite vpn data in database for it's id
+                                wg_users.add_peer(
+                                    data["new_val"], table=data["new_val"]["table"]
+                                )
+                                wg_users.set_user_rules(data["new_val"]["id"])
 
-                    if (
-                        data["old_val"]["vpn"]["iptables"]
-                        != data["new_val"]["vpn"]["iptables"]
-                    ):
-                        print("Modified iptables")
-                        if data["old_val"]["table"] in ["users", "remotevpn"]:
-                            wg_users.set_iptables(data["new_val"])
+                            ## Enabled/Disabled user
+                            if (
+                                data["old_val"].get("active") == True
+                                and data["new_val"].get("active") == False
+                            ):
+                                log.info(
+                                    f'Disabled {data["old_val"]["table"]} item {data["old_val"]["id"]}, removing wg client connection...'
+                                )
+                                wg_users.down_peer(data["old_val"])
+                            elif (
+                                data["old_val"].get("active") == False
+                                and data["new_val"].get("active") == True
+                            ):
+                                log.info(
+                                    f'Enabled {data["new_val"]["table"]} item {data["new_val"]["id"]}, adding wg client connection...'
+                                )
+                                wg_users.up_peer(data["new_val"])
+
+                        if (
+                            data["old_val"]["vpn"]["iptables"]
+                            != data["new_val"]["vpn"]["iptables"]
+                        ):
+                            print("Modified iptables")
+                            if data["old_val"]["table"] in ["users", "remotevpn"]:
+                                wg_users.set_iptables(data["new_val"])
+                            else:
+                                ## Maybe just avoid rules on hypers table?????
+                                ## I THINK THIS IS NOT NEEDED
+                                # wg_hypers.set_iptables(data['new_val'])
+                                pass
                         else:
-                            ## Maybe just avoid rules on hypers table?????
-                            ## I THINK THIS IS NOT NEEDED
-                            # wg_hypers.set_iptables(data['new_val'])
-                            pass
-                    else:
-                        continue
-                        print("Modified wireguard config")
-                        # who else could modify the wireguard config??
-                        # if data['old_val']['table'] in ['users','remotevpn']:
-                        #     wg_users.update_peer(data['new_val'])
-                        # else:
-                        #     wg_hypers.update_peer(data['new_val'])
-                elif data["old_val"]["table"] == "domains":
-                    wg_users.desktop_iptables(data)
-
+                            continue
+                            print("Modified wireguard config")
+                            # who else could modify the wireguard config??
+                            # if data['old_val']['table'] in ['users','remotevpn']:
+                            #     wg_users.update_peer(data['new_val'])
+                            # else:
+                            #     wg_hypers.update_peer(data['new_val'])
+                    elif data["old_val"]["table"] == "domains":
+                        wg_users.desktop_iptables(data)
+            except (ReqlDriverError, ReqlOpFailedError, ReqlTimeoutError):
+                raise
+            except:
+                log.error("internal error: \n" + traceback.format_exc())
+                continue
     except (ReqlDriverError, ReqlOpFailedError):
-        log.error("Users: Rethink db connection missing!")
+        log.error("START: Rethink db connection missing!")
         time.sleep(0.5)
     except Exception as e:
-        log.error("Users internal error: \n" + traceback.format_exc())
+        log.error("START: internal error: \n" + traceback.format_exc())
         # exit(1)
 
 print("Thread ENDED!!!!!!!")
