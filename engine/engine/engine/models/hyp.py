@@ -105,6 +105,9 @@ devid_nvidia_ampere[0x20F5] = "A800 80GB PCIe"
 devid_nvidia_ampere[0x20F3] = "A800-SXM4-80GB"
 # Hopper
 devid_nvidia_ampere[0x2331] = "H100 PCIe"
+devid_nvidia_ampere[0x26B5] = "L40"
+devid_nvidia_ampere[0x26B9] = "L40S"
+devid_nvidia_ampere[0x26BA] = "L20"
 
 
 class HypStats(object):

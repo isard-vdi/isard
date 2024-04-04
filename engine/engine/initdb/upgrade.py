@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 131
+release_version = 132
+# release 132: update gpus_profiles
 # release 131: storage permissions on existing disks
 # release 130: Remove deleted storage from storage table
 # release 129: Add default maintenance text to config table
@@ -4405,7 +4406,7 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
     def gpu_profiles(self, version):
         table = "gpu_profiles"
         log.info("UPGRADING " + table + " VERSION " + str(version))
-        if version in [74, 76]:
+        if version in [74, 76, 132]:
             try:
                 f = open("./initdb/profiles/gpu_profiles.json")
                 gpu_profiles = json.loads(f.read())
