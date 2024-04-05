@@ -358,6 +358,100 @@ $("#modalConvertStorage #send").on("click", function () {
   }
 });
 
+$(document).on('click', '.btn-increase', function () {
+  element = $(this);
+  var storageId = element.data("id");
+  modal = "#modalIncreaseStorage";
+  $(modal + " input").empty();
+  $(modal + " #id").val(storageId);
+
+  if ($("#user_data").data("role") == "admin") {
+    $(modal + " select#priority").append(`
+      <option selected value="low">Low</option>
+      <option value="default">Default</option>
+      <option value="high">High</option>
+    `);
+  } else {
+    $(modal + " select#priority").append(`
+    <option selected disabled value="low">Low</option>
+    `);
+    $(modal + " .different_pool").hide();
+  }
+
+  $.ajax({
+    url: `/api/v3/admin/storage/info/${storageId}`,
+    type: 'GET',
+    contentType: "application/json",
+  }).done(function (storage) {
+    var virtual_size = storage.virtual_size / 1024 / 1024 / 1024
+    $(modal + " #current-size").text(virtual_size.toFixed(0) + " GB");
+    $(modal + " #current_size").val(virtual_size);
+    $(modal + " #new-size").val(virtual_size.toFixed(0)).prop("min", virtual_size.toFixed(0));
+
+    $.ajax({
+      url: "/api/v3/admin/user/appliedquota/" + storage["user_id"],
+      type: 'GET',
+    }).done(function (quota) {
+      if (quota.quota) {
+        $(modal + " #max-quota-div").show();
+        $(modal + " #max-quota").text(quota.quota.desktops_disk_size);
+        $(modal + " #new-size").prop("max", quota.quota.desktops_disk_size);
+      } else {
+        $(modal + " #max-quota-div").hide();
+        $(modal + " #new-size").removeAttr("max");
+      }
+    });
+
+    $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+  }).fail(function (data) {
+    new PNotify({
+      title: `ERROR trying to fetch storage size`,
+      text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+      type: 'error',
+      hide: true,
+      icon: 'fa fa-warning',
+      delay: 5000,
+      opacity: 1
+    });
+  });
+
+});
+
+
+$("#modalIncreaseStorage #send").on("click", function () {
+  var form = $('#modalIncreaseStorageForm');
+  form.parsley().validate();
+  if (form.parsley().isValid()) {
+    data = form.serializeObject();
+    var priority = data.priority ? data.priority : "low";
+    var increment = data.new_size - data.current_size;
+    $.ajax({
+      url: `/api/v3/storage/${data.storage_id}/priority/${priority}/increase/${increment.toFixed(0)}`,
+      type: 'PUT',
+    }).done(function () {
+      new PNotify({
+        title: 'Task created successfully',
+        text: `Increasing storage size...`,
+        hide: true,
+        delay: 2000,
+        opacity: 1,
+        type: 'success'
+      });
+      $('.modal').modal('hide');
+    }).fail(function (data) {
+      new PNotify({
+        title: `ERROR trying to increase storage size`,
+        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+    });
+  }
+});
+
 function socketio_on() {
   socket.on('storage', function (data) {
     var data = JSON.parse(data);
@@ -371,9 +465,9 @@ function socketio_on() {
             if (typeof (storagesOtherTable.row('#' + data.id.replaceAll("/", "_")).id()) != 'undefined') {
               actual_data = storagesOtherTable.row("#" + data.id.replaceAll("/", "_")).data()
               storagesOtherTable.row('#' + data.id.replaceAll("/", "_")).remove().draw();
-              storagesOtherTable.row.add({...actual_data, ...data}).draw()
+              storagesOtherTable.row.add({ ...actual_data, ...data }).draw()
             } else {
-              storagesOtherTable.row.add({...actual_data, ...data}).draw()
+              storagesOtherTable.row.add({ ...actual_data, ...data }).draw()
             }
           }
         } else {
@@ -384,7 +478,7 @@ function socketio_on() {
           actual_data = storagesOtherTable.row("#" + data.id.replaceAll("/", "_")).data()
           if ("status" in data && data.status != newStatus) {
             storagesOtherTable.row('#' + data.id.replaceAll("/", "_")).remove().draw();
-            storagesOtherTable.row.add({...actual_data, ...data}).draw()
+            storagesOtherTable.row.add({ ...actual_data, ...data }).draw()
             showNotification(data.status)
           } else {
             storagesOtherTable.row('#' + data.id.replaceAll("/", "_")).data({ ...actual_data, ...data }).invalidate();
@@ -465,11 +559,11 @@ function createDatatable(tableId, status, initCompleteFn = null) {
     },
     rowId: 'id',
     deferRender: true,
-    createdRow: function(row, data, dataIndex) {
+    createdRow: function (row, data, dataIndex) {
       if (status = "maintenance") {
         $(row).attr('data-task', data.task);
       }
-  },
+    },
     columns: [
       {
         className: "details-control",
@@ -564,8 +658,8 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         visible: $('meta[id=user_data]').attr('data-role') === 'admin',
         render: function (data, type, row, meta) {
           if (data) {
-            return '<button type="button" data-task="'+data+'" class="btn btn-pill-right btn-info btn-xs btn-task-info" title="Show last task info"><i class="fa fa-tasks"></i></button>'
-          }else {
+            return '<button type="button" data-task="' + data + '" class="btn btn-pill-right btn-info btn-xs btn-task-info" title="Show last task info"><i class="fa fa-tasks"></i></button>'
+          } else {
             '-'
           }
         }
@@ -665,6 +759,10 @@ function detailButtons(storage) {
                       data-placement="top" title="Add windows registry"><i class="fa fa-edit m-right-xs"></i>
                       Windows registry
                     </button>-->
+                    <button class="btn btn-info btn-xs btn-increase" data-id="${storage.id}" type="button"
+                      data-placement="top" title="Increase disk size"><i class="fa fa-external-link-square m-right-xs"></i>
+                      Increase
+                    </button>
 
                   </div>
                 </div>
