@@ -20,6 +20,7 @@
 
 import json
 import os
+import shlex
 import subprocess
 import time
 
@@ -49,11 +50,13 @@ login_name = os.environ.get("NEXTCLOUD_ADMIN_USER", "isardvdi")
 #         + '"'
 #     )
 # Meanwhile we will be creating new one at each start
-app_password = subprocess.getoutput(
-    'su -p "www-data" -s /bin/sh -c "/usr/local/bin/php /var/www/html/occ user:add-app-password --password-from-env '
-    + login_name
-    + '"'
-).split("\n")[-1]
+app_password = subprocess.run(
+    shlex.split(
+        f'su -p "www-data" -s /bin/sh -c "/usr/local/bin/php /var/www/html/occ user:add-app-password --password-from-env {login_name}"'
+    ),
+    capture_output=True,
+    text=True,
+).stdout.split("\n")[-1]
 print(
     f"Registering/Updating nextcloud instance in {domain} IsardVDI with login {login_name} and new generated app password."
 )
