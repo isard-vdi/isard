@@ -13,6 +13,7 @@ import time
 import traceback
 import unicodedata
 import uuid
+from threading import Semaphore
 
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
@@ -733,9 +734,11 @@ def gen_random_mac():
     return ":".join(map(lambda x: "%02x" % x, mac))
 
 
-def gen_new_mac():
+def macs_in_use():
+    # This function is called on start from api/__init__.py
+    # as it is taking too long to load all macs in use
     with app.app_context():
-        all_macs = list(
+        return list(
             r.table("domains")
             .get_all("desktop", index="kind")
             .pluck({"create_dict": {"hardware": {"interfaces": True}}})["create_dict"][
@@ -744,12 +747,21 @@ def gen_new_mac():
             .concat_map(lambda x: x["mac"])
             .run(db.conn)
         )
-    new_mac = gen_random_mac()
-    # 24 bit combinations = 16777216 ~= 16.7 million. Is this enough macs for your system?
-    # Take into account that each desktop could have múltime interfaces... still milions of unique macs
-    while all_macs.count(new_mac) > 0:
+
+
+sem = Semaphore()
+
+
+def gen_new_mac():
+    sem.acquire()
+    try:
         new_mac = gen_random_mac()
-    return new_mac
+        while app.macs_in_use.count(new_mac) > 0:
+            new_mac = gen_random_mac()
+        app.macs_in_use.append(new_mac)
+        return new_mac
+    finally:
+        sem.release()
 
 
 def change_owner_desktop(user_id, desktop_id):
