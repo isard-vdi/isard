@@ -70,7 +70,7 @@ app.config["MAX_CONTENT_LENGTH"] = 1 * 1000 * 1000  # 1 MB
 # '''
 # app.secret_key = "Change this key!//\xf7\x83\xbe\x17\xfa\xa3zT\n\\]m\xa6\x8bF\xdd\r\xf7\x9e\x1d\x1f\x14'"
 
-from api.libv2.helpers import InternalUsers
+from api.libv2.helpers import InternalUsers, macs_in_use
 
 app.internal_users = InternalUsers()
 
@@ -81,6 +81,15 @@ from api.libv2.load_config import loadConfig
 cfg = loadConfig(app)
 if not cfg.init_app(app):
     exit(0)
+
+app.logger.info(f"Preloading desktops macs...")
+app.macs_in_use = macs_in_use()
+app.logger.info(f"MACs in use found: {len(app.macs_in_use)}")
+
+# Check for duplicated MAC addresses
+duplicates = set([x for x in app.macs_in_use if app.macs_in_use.count(x) > 1])
+if duplicates:
+    app.logger.warning(f"Duplicated MAC addresses found: {duplicates}")
 
 from api.libv2.load_validator_schemas import load_validators
 
