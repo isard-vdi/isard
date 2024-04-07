@@ -86,11 +86,6 @@ app.logger.info(f"Preloading desktops macs...")
 app.macs_in_use = macs_in_use()
 app.logger.info(f"MACs in use found: {len(app.macs_in_use)}")
 
-# Check for duplicated MAC addresses
-duplicates = set([x for x in app.macs_in_use if app.macs_in_use.count(x) > 1])
-if duplicates:
-    app.logger.warning(f"Duplicated MAC addresses found: {duplicates}")
-
 from api.libv2.load_validator_schemas import load_validators
 
 app.validators = load_validators()
