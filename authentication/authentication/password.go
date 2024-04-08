@@ -124,7 +124,7 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd string) err
 	}
 
 	if err := a.Client.AdminUserResetPassword(ctx, userID, pwd); err != nil {
-		var apiErr isardvdi.Err
+		var apiErr *isardvdi.Err
 		if !errors.As(err, &apiErr) {
 			return fmt.Errorf("unknown API error: %w", err)
 		}

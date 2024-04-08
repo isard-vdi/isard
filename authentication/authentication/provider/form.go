@@ -94,8 +94,8 @@ func (f *Form) Login(ctx context.Context, categoryID string, args map[string]str
 		// Check if the user is rate limited
 		if err := f.limits.IsRateLimited(usr, categoryID, f.String()); err != nil {
 			return nil, nil, "", &ProviderError{
-				User:   err,
-				Detail: errors.New("user is currently rate limited"),
+				User:   errors.New("user is currently rate limited"),
+				Detail: err,
 			}
 		}
 
@@ -149,8 +149,8 @@ func (f *Form) Login(ctx context.Context, categoryID string, args map[string]str
 			// Record the failed attempt and return an error if the user has been rate limited
 			if err := f.limits.RecordFailedAttempt(usr, categoryID, f.String()); err != nil {
 				return nil, nil, "", &ProviderError{
-					User:   err,
-					Detail: errors.New("user is currently rate limited"),
+					User:   errors.New("user is currently rate limited"),
+					Detail: err,
 				}
 			}
 		}

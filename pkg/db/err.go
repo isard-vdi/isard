@@ -28,6 +28,10 @@ func (e *Err) Is(target error) bool {
 	return t.Msg == e.Msg && t.Err.Error() == e.Err.Error()
 }
 
+func (e *Err) Unwrap() error {
+	return e.Err
+}
+
 var (
 	ErrNotFound = &Err{
 		Msg: "not found",

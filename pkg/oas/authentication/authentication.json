@@ -931,7 +931,7 @@
                         "nullable": false,
                         "type": "string"
                     },
-                    "descrpition_code": {
+                    "description_code": {
                         "title": "Error description code",
                         "nullable": false,
                         "type": "string",

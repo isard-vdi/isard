@@ -1,5 +1,34 @@
 package http
 
+import (
+	"errors"
+	"fmt"
+	"testing"
+	"time"
+
+	"gitlab.com/isard/isardvdi/authentication/authentication/limits"
+	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestUnwrapErrors(t *testing.T) {
+	assert := assert.New(t)
+
+	err := fmt.Errorf("oh no: %w", &provider.ProviderError{
+		User: errors.New("internal server error"),
+		Detail: &limits.RateLimitError{
+			RetryAfter: time.Now(),
+		},
+	})
+
+	var prvErr *provider.ProviderError
+	assert.True(errors.As(err, &prvErr))
+
+	var rateErr *limits.RateLimitError
+	assert.True(errors.As(err, &rateErr))
+}
+
 // func TestLogin(t *testing.T) {
 // 	assert := assert.New(t)
 
