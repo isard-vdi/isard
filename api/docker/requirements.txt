@@ -23,6 +23,6 @@ betterproto~=1.2
 python-json-logger
 requests~=2.31
 simple-colors~=0.1
-Pillow==10.2.0
+Pillow==10.3.0
 html-sanitizer==2.2.0
 lxml==5.1.0
