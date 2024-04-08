@@ -391,7 +391,7 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 			return nil, prvErr.User
 		}
 
-		a.Log.Error().Err(err).Msg("unknown error")
+		a.Log.Error().Err(err).Msg("unknown callback error")
 		return nil, provider.ErrInternal
 	}
 
@@ -489,6 +489,8 @@ func (a *AuthenticationServer) AcknowledgeDisclaimer(ctx context.Context, req *o
 			}, nil
 		}
 
+		a.Log.Error().Err(err).Msg("unknown acknowledge disclaimer error")
+
 		return &oasAuthentication.AcknowledgeDisclaimerInternalServerError{
 			Error: oasAuthentication.AcknowledgeDisclaimerErrorErrorInternalServer,
 			Msg:   "unknown error",
@@ -537,6 +539,8 @@ func (a *AuthenticationServer) RequestEmailVerification(ctx context.Context, req
 			}, nil
 		}
 
+		a.Log.Error().Err(err).Msg("unknown request email verification error")
+
 		return &oasAuthentication.RequestEmailVerificationInternalServerError{
 			Error: oasAuthentication.RequestEmailVerificationErrorErrorInternalServer,
 			Msg:   "unknown error",
@@ -571,6 +575,8 @@ func (a *AuthenticationServer) VerifyEmail(ctx context.Context, req *oasAuthenti
 			}, nil
 		}
 
+		a.Log.Error().Err(err).Msg("unknown verify email error")
+
 		return &oasAuthentication.VerifyEmailInternalServerError{
 			Error: oasAuthentication.VerifyEmailErrorErrorInternalServer,
 			Msg:   "unknown error",
@@ -604,6 +610,8 @@ func (a *AuthenticationServer) ForgotPassword(ctx context.Context, req *oasAuthe
 			}, nil
 		}
 
+		a.Log.Error().Err(err).Msg("unknown forgot password error")
+
 		return &oasAuthentication.ForgotPasswordInternalServerError{
 			Error: oasAuthentication.ForgotPasswordErrorErrorInternalServer,
 			Msg:   "unknown error",
@@ -630,7 +638,7 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 			}, nil
 		}
 
-		var apiErr isardvdi.Err
+		var apiErr *isardvdi.Err
 		if errors.As(err, &apiErr) {
 			// Extract the extra description_code and params from the error
 			var (
@@ -676,6 +684,8 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 				}, nil
 			}
 
+			a.Log.Error().Err(err).Msg("unknown reset password api error")
+
 			return &oasAuthentication.ResetPasswordInternalServerError{
 				Error:           oasAuthentication.ResetPasswordErrorErrorInternalServer,
 				DescrpitionCode: descCode,
@@ -683,6 +693,8 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 				Msg:             "unknown api error",
 			}, nil
 		}
+
+		a.Log.Error().Err(err).Msg("unknown reset password error")
 
 		return &oasAuthentication.ResetPasswordInternalServerError{
 			Error: oasAuthentication.ResetPasswordErrorErrorInternalServer,

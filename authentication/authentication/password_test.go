@@ -187,7 +187,7 @@ func TestResetPassword(t *testing.T) {
 				descriptionCode := "password_special_characters"
 				err.DescriptionCode = &descriptionCode
 
-				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "weak password :3").Return(err)
+				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "weak password :3").Return(&err)
 			},
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Filter(r.And(
