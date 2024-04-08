@@ -642,15 +642,15 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 		if errors.As(err, &apiErr) {
 			// Extract the extra description_code and params from the error
 			var (
-				descCode oasAuthentication.OptResetPasswordErrorDescrpitionCode
+				descCode oasAuthentication.OptResetPasswordErrorDescriptionCode
 				params   oasAuthentication.OptResetPasswordErrorParams
 			)
 
 			if apiErr.DescriptionCode != nil {
-				var code oasAuthentication.ResetPasswordErrorDescrpitionCode
+				var code oasAuthentication.ResetPasswordErrorDescriptionCode
 				// Only set the code if there's no error unmarshaling it
 				if err := code.UnmarshalText([]byte(*apiErr.DescriptionCode)); err == nil {
-					descCode = oasAuthentication.NewOptResetPasswordErrorDescrpitionCode(code)
+					descCode = oasAuthentication.NewOptResetPasswordErrorDescriptionCode(code)
 				}
 			}
 
@@ -669,7 +669,7 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 			if errors.Is(err, isardvdi.ErrBadRequest) {
 				return &oasAuthentication.ResetPasswordBadRequest{
 					Error:           oasAuthentication.ResetPasswordErrorErrorBadRequest,
-					DescrpitionCode: descCode,
+					DescriptionCode: descCode,
 					Params:          params,
 					Msg:             "bad request",
 				}, nil
@@ -678,7 +678,7 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 			if errors.Is(err, isardvdi.ErrInternalServer) {
 				return &oasAuthentication.ResetPasswordInternalServerError{
 					Error:           oasAuthentication.ResetPasswordErrorErrorInternalServer,
-					DescrpitionCode: descCode,
+					DescriptionCode: descCode,
 					Params:          params,
 					Msg:             "api error",
 				}, nil
@@ -688,7 +688,7 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 
 			return &oasAuthentication.ResetPasswordInternalServerError{
 				Error:           oasAuthentication.ResetPasswordErrorErrorInternalServer,
-				DescrpitionCode: descCode,
+				DescriptionCode: descCode,
 				Params:          params,
 				Msg:             "unknown api error",
 			}, nil
