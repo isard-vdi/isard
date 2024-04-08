@@ -695,7 +695,9 @@ function showRowDetails(table, tr, row) {
     });
 
     row.child(format(row.data())).show();
-    $('#cl' + row.data().id).parent().prepend(detailButtons(row.data()));
+    if ($("#user_data").data("role") == "admin") {
+      $('#cl' + row.data().id).parent().prepend(detailButtons(row.data()));
+    }
 
     childTable = $('#cl' + row.data().id).DataTable({
       dom: "t",
