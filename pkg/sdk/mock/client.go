@@ -87,6 +87,11 @@ func (c *Client) AdminUserRequiredPasswordReset(ctx context.Context, id string) 
 	return args.Bool(0), args.Error(1)
 }
 
+func (c *Client) AdminUserAutoRegister(ctx context.Context, registerTkn, roleID, groupID string) (string, error) {
+	args := c.Called(ctx, registerTkn, roleID, groupID)
+	return args.String(0), args.Error(1)
+}
+
 func (c *Client) AdminGroupCreate(ctx context.Context, category, uid, name, description, externalAppID, externalGID string) (*isardvdi.Group, error) {
 	args := c.Called(ctx, category, uid, name, description, externalAppID, externalGID)
 	return args.Get(0).(*isardvdi.Group), args.Error(1)

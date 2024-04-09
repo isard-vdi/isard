@@ -69,7 +69,7 @@ func (c *Client) AdminUserDelete(ctx context.Context, id string) error {
 }
 func (c *Client) AdminUserResetPassword(ctx context.Context, id, pwd string) error {
 	body := map[string]string{
-		"user_id": id,
+		"user_id":  id,
 		"password": pwd,
 	}
 
@@ -131,4 +131,28 @@ func (c *Client) AdminUserRequiredPasswordReset(ctx context.Context, id string) 
 	}
 
 	return *rsp.Required, nil
+}
+
+func (c *Client) AdminUserAutoRegister(ctx context.Context, registerTkn string, roleID string, groupID string) (string, error) {
+	body := map[string]string{
+		"role_id":  roleID,
+		"group_id": groupID,
+	}
+
+	req, err := c.newJSONRequest(http.MethodPost, "admin/user/auto-register", body)
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Add("Register-Claims", fmt.Sprintf("Bearer %s", registerTkn))
+
+	rsp := struct {
+		ID *string `json:"id,omitempty"`
+	}{}
+
+	if _, err := c.do(ctx, req, &rsp); err != nil {
+		return "", fmt.Errorf("auto register the user: %w", err)
+	}
+
+	return *rsp.ID, nil
 }
