@@ -308,6 +308,153 @@
         "memory": 8192,
         "name": "NVIDIA A10 8C",
         "profile": "8C",
-        "units": 3}]}
+        "units": 3}]},    
+  {
+    "brand": "NVIDIA",
+    "id": "NVIDIA-L40",
+    "name": "NVIDIA L40",
+    "architecture": "NVIDIA Ada Lovelace",
+    "description": "The NVIDIA L4 delivers revolutionary neural graphics, virtualization, compute, and AI capabilities for GPU-accelerated data center workloads.",
+    "memory": "24 GB GDDR",
+    "model": "L40",
+    "profiles": [
+      {
+        "description": "",
+        "id": "NVIDIA-L40-48Q",
+        "memory": 49152,
+        "name": "NVIDIA L40 48Q",
+        "profile": "48Q",
+        "units": 1
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-24Q",
+        "memory": 24576,
+        "name": "NVIDIA L40 24Q",
+        "profile": "24Q",
+        "units": 2
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-16Q",
+        "memory": 16384,
+        "name": "NVIDIA L40 16Q",
+        "profile": "16Q",
+        "units": 3
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-12Q",
+        "memory": 12288,
+        "name": "NVIDIA L40 12Q",
+        "profile": "12Q",
+        "units": 4
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-8Q",
+        "memory": 8192,
+        "name": "NVIDIA L40 8Q",
+        "profile": "8Q",
+        "units": 6
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-6Q",
+        "memory": 6144,
+        "name": "NVIDIA L40 6Q",
+        "profile": "6Q",
+        "units": 8
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-4Q",
+        "memory": 4096,
+        "name": "NVIDIA L40 4Q",
+        "profile": "4Q",
+        "units": 12
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-3Q",
+        "memory": 3072,
+        "name": "NVIDIA L40 3Q",
+        "profile": "3Q",
+        "units": 16
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-2Q",
+        "memory": 2048,
+        "name": "NVIDIA L40 2Q",
+        "profile": "2Q",
+        "units": 24
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-1Q",
+        "memory": 1024,
+        "name": "NVIDIA L40 1Q",
+        "profile": "1Q",
+        "units": 32
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-48C",
+        "memory": 49152,
+        "name": "NVIDIA L40 48C",
+        "profile": "48C",
+        "units": 1
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-24C",
+        "memory": 24576,
+        "name": "NVIDIA L40 24C",
+        "profile": "24C",
+        "units": 2
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-16C",
+        "memory": 16384,
+        "name": "NVIDIA L40 16C",
+        "profile": "16C",
+        "units": 3
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-12C",
+        "memory": 12288,
+        "name": "NVIDIA L40 12C",
+        "profile": "12C",
+        "units": 4
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-8C",
+        "memory": 8192,
+        "name": "NVIDIA L40 8C",
+        "profile": "8C",
+        "units": 6
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-6C",
+        "memory": 6144,
+        "name": "NVIDIA L40 6C",
+        "profile": "6C",
+        "units": 8
+      },
+      {
+        "description": "",
+        "id": "NVIDIA-L40-4C",
+        "memory": 4096,
+        "name": "NVIDIA L40 4C",
+        "profile": "4C",
+        "units": 12
+      }
+    ]
+  }
 ]
   
