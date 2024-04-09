@@ -1,0 +1,11 @@
+role_id:
+  type: string
+  required: true
+  empty: false
+  coerce: sanitize
+
+group_id:
+  type: string
+  required: true
+  empty: false
+  coerce: sanitize

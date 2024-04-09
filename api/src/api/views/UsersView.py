@@ -37,7 +37,6 @@ vpn = isardVpn()
 from .decorators import (
     checkDuplicateUser,
     has_token,
-    is_auto_register,
     is_not_user,
     is_register,
     ownsDomainId,
@@ -71,24 +70,6 @@ def api_v3_user_data(payload, user_id=None):
         ownsUserId(payload, user_id)
     user = users.Get(user_id, True)
     return json.dumps(user), 200, {"Content-Type": "application/json"}
-
-
-@app.route("/api/v3/user/auto-register", methods=["POST"])
-@is_auto_register
-def api_v3_user_auto_register(payload):
-    checkDuplicateUser(payload["user_id"], payload["category_id"], payload["provider"])
-    user_id = users.Create(
-        payload["provider"],
-        payload["category_id"],
-        payload["user_id"],
-        payload["username"],
-        payload["name"],
-        payload["role"],
-        payload["group"],
-        photo=payload["photo"],
-        email=payload["email"],
-    )
-    return json.dumps({"id": user_id}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/user/register", methods=["POST"])

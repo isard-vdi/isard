@@ -60,6 +60,7 @@ from .decorators import (
     has_token,
     is_admin,
     is_admin_or_manager,
+    is_auto_register,
     itemExists,
     ownsCategoryId,
     ownsDomainId,
@@ -1166,3 +1167,26 @@ def admin_get_user_applied_quota(payload, user_id):
     applied_quota = quotas.get_applied_quota(user_id)
 
     return json.dumps(applied_quota), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/user/auto-register", methods=["POST"])
+@is_admin
+@is_auto_register
+def admin_user_auto_register(payload):
+    data = request.get_json()
+    data = _validate_item("user_auto_register", data)
+
+    checkDuplicateUser(payload["user_id"], payload["category_id"], payload["provider"])
+    user_id = users.Create(
+        payload["provider"],
+        payload["category_id"],
+        payload["user_id"],
+        payload["username"],
+        payload["name"],
+        data["role_id"],
+        data["group_id"],
+        photo=payload["photo"],
+        email=payload["email"],
+    )
+
+    return json.dumps({"id": user_id}), 200, {"Content-Type": "application/json"}
