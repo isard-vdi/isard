@@ -87,29 +87,32 @@ def workers():
         workers = r.keys()
     w = []
     for worker in workers:
-        if str(worker).split(":")[1] != "workers":
-            continue
-        if str(worker).split(":")[2].split(".")[0].split("'")[0] not in [
-            "core",
-            "storage",
-        ]:
-            continue
-        w.append(
-            {
-                "id": str(worker).split(":")[2].split("'")[0],
-                "queue": str(worker).split(":")[2].split(".")[0].split("'")[0],
-                "queue_id": (
-                    str(worker).split(":")[2].split(".")[1]
-                    if len(str(worker).split(":")[2].split(".")) > 1
-                    else None
-                ),
-                "priority_id": (
-                    str(worker).split(":")[2].split(".")[2].split("'")[0]
-                    if len(str(worker).split(":")[2].split(".")) > 2
-                    else None
-                ),
-            }
-        )
+        try:
+            if str(worker).split(":")[1] != "workers":
+                continue
+            if str(worker).split(":")[2].split(".")[0].split("'")[0] not in [
+                "core",
+                "storage",
+            ]:
+                continue
+            w.append(
+                {
+                    "id": str(worker).split(":")[2].split("'")[0],
+                    "queue": str(worker).split(":")[2].split(".")[0].split("'")[0],
+                    "queue_id": (
+                        str(worker).split(":")[2].split(".")[1]
+                        if len(str(worker).split(":")[2].split(".")) > 1
+                        else None
+                    ),
+                    "priority_id": (
+                        str(worker).split(":")[2].split(".")[2].split("'")[0]
+                        if len(str(worker).split(":")[2].split(".")) > 2
+                        else None
+                    ),
+                }
+            )
+        except:
+            app.logger.error(f"Error parsing worker {worker}, skipping...")
     for worker in w:
         if worker["priority_id"] == None:
             worker["priority"] = None
