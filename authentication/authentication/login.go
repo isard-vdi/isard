@@ -10,6 +10,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/pkg/db"
+	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 )
 
 func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args map[string]string) (string, string, error) {
@@ -196,7 +197,13 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 		return "", "", fmt.Errorf("update user in the DB: %w", err)
 	}
 
-	ss, err := token.SignLoginToken(a.Secret, a.Duration, u)
+	// Create the session
+	sess, err := a.Sessions.New(ctx, &sessionsv1.NewRequest{})
+	if err != nil {
+		return "", "", fmt.Errorf("create the session: %w", err)
+	}
+
+	ss, err := token.SignLoginToken(a.Secret, a.Duration, sess.GetId(), u)
 	if err != nil {
 		return "", "", err
 	}

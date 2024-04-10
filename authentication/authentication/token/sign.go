@@ -18,7 +18,7 @@ const (
 // TODO: Maybe this should be configuable
 var signingMethod = jwt.SigningMethodHS256
 
-func SignLoginToken(secret string, duration time.Duration, u *model.User) (string, error) {
+func SignLoginToken(secret string, duration time.Duration, sessID string, u *model.User) (string, error) {
 	tkn := jwt.NewWithClaims(signingMethod, &LoginClaims{
 		RegisteredClaims: &jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
@@ -26,7 +26,8 @@ func SignLoginToken(secret string, duration time.Duration, u *model.User) (strin
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    issuer,
 		},
-		KeyID: keyID,
+		KeyID:     keyID,
+		SessionID: sessID,
 		Data: LoginClaimsData{
 			Provider:   u.Provider,
 			ID:         u.ID,

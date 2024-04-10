@@ -20,12 +20,14 @@ func TestSignLoginToken(t *testing.T) {
 
 	cases := map[string]struct {
 		Duration    time.Duration
+		SessionID   string
 		User        *model.User
 		ExpectedErr string
 		CheckToken  func(string)
 	}{
 		"should work as expected": {
-			Duration: time.Hour,
+			Duration:  time.Hour,
+			SessionID: "ThoJuroQueEsUnID",
 			User: &model.User{
 				ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 				UID:                    "nefix",
@@ -74,11 +76,12 @@ func TestSignLoginToken(t *testing.T) {
 				claims["nbf"] = nil
 
 				assert.Equal(map[string]any{
-					"kid": "isardvdi",
-					"iss": "isard-authentication",
-					"exp": nil,
-					"iat": nil,
-					"nbf": nil,
+					"kid":        "isardvdi",
+					"iss":        "isard-authentication",
+					"exp":        nil,
+					"iat":        nil,
+					"nbf":        nil,
+					"session_id": "ThoJuroQueEsUnID",
 					"data": map[string]any{
 						"provider":    "local",
 						"user_id":     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
@@ -94,7 +97,7 @@ func TestSignLoginToken(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ss, err := token.SignLoginToken("", tc.Duration, tc.User)
+			ss, err := token.SignLoginToken("", tc.Duration, tc.SessionID, tc.User)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

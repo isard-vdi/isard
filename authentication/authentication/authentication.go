@@ -2,6 +2,7 @@ package authentication
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
+	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 
 	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
@@ -50,12 +52,13 @@ type Authentication struct {
 	DB       r.QueryExecutor
 	API      isardvdi.Interface
 	Notifier notifier.Invoker
+	Sessions sessionsv1.SessionsServiceClient
 
 	providers map[string]provider.Provider
 	saml      *samlsp.Middleware
 }
 
-func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli isardvdi.Interface, notifierCli notifier.Invoker) *Authentication {
+func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli isardvdi.Interface, notifierCli notifier.Invoker, sessionsCli sessionsv1.SessionsServiceClient) *Authentication {
 	a := &Authentication{
 		Log:      log,
 		Secret:   cfg.Authentication.Secret,
@@ -69,6 +72,7 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli isardvdi.
 		DB:       db,
 		API:      apiCli,
 		Notifier: notifierCli,
+		Sessions: sessionsCli,
 	}
 
 	providers := map[string]provider.Provider{
@@ -120,13 +124,24 @@ func (a *Authentication) Provider(p string) provider.Provider {
 	return prv
 }
 
-func (a *Authentication) Check(ctx context.Context, ss string) error {
-	_, err := token.ParseLoginToken(a.Secret, ss)
+func (a *Authentication) check(ctx context.Context, ss string) (*token.LoginClaims, error) {
+	claims, err := token.ParseLoginToken(a.Secret, ss)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	if _, err := a.Sessions.Get(ctx, &sessionsv1.GetRequest{
+		Id: claims.SessionID,
+	}); err != nil {
+		return nil, fmt.Errorf("get the session: %w", err)
+	}
+
+	return claims, nil
+}
+
+func (a *Authentication) Check(ctx context.Context, ss string) error {
+	_, err := a.check(ctx, ss)
+	return err
 }
 
 func (a *Authentication) SAML() *samlsp.Middleware {

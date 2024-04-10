@@ -81,7 +81,7 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd string) err
 	switch typ {
 	// Reset from the profile page in the frontend
 	case token.TypeLogin:
-		claims, err := token.ParseLoginToken(a.Secret, tkn)
+		claims, err := a.check(ctx, tkn)
 		if err != nil {
 			return err
 		}

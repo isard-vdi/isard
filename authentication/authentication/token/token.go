@@ -32,9 +32,10 @@ type TypeClaims struct {
 
 type LoginClaims struct {
 	*jwt.RegisteredClaims
-	KeyID string          `json:"kid"`
-	Type  Type            `json:"type,omitempty"`
-	Data  LoginClaimsData `json:"data"`
+	KeyID     string          `json:"kid"`
+	Type      Type            `json:"type,omitempty"`
+	SessionID string          `json:"session_id"`
+	Data      LoginClaimsData `json:"data"`
 }
 
 type LoginClaimsData struct {

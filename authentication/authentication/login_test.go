@@ -10,6 +10,8 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
+	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -17,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
+	"go.nhat.io/grpcmock"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -26,8 +29,9 @@ func TestLogin(t *testing.T) {
 	now := float64(time.Now().Unix())
 
 	cases := map[string]struct {
-		PrepareDB  func(*r.Mock)
-		PrepareAPI func(*apiMock.Client)
+		PrepareDB       func(*r.Mock)
+		PrepareAPI      func(*apiMock.Client)
+		PrepareSessions func(*grpcmock.Server)
 
 		Provider    string
 		CategoryID  string
@@ -106,6 +110,11 @@ func TestLogin(t *testing.T) {
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{}).Return(&sessionsv1.NewResponse{
+					Id: "ThoJuroQueEsUnID",
+				})
+			},
 			Provider:   "form",
 			CategoryID: "default",
 			PrepareArgs: func() map[string]string {
@@ -178,6 +187,11 @@ func TestLogin(t *testing.T) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{}).Return(&sessionsv1.NewResponse{
+					Id: "ThoJuroQueEsUnID",
+				})
 			},
 			Provider:   "form",
 			CategoryID: "default",
@@ -253,6 +267,11 @@ func TestLogin(t *testing.T) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{}).Return(&sessionsv1.NewResponse{
+					Id: "ThoJuroQueEsUnID",
+				})
 			},
 			Provider:   "form",
 			CategoryID: "default",
@@ -560,6 +579,8 @@ func TestLogin(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
 			dbMock := r.NewMock()
@@ -571,10 +592,25 @@ func TestLogin(t *testing.T) {
 				tc.PrepareAPI(apiMock)
 			}
 
-			a := authentication.Init(cfg, log, dbMock, nil, nil)
+			if tc.PrepareSessions == nil {
+				tc.PrepareSessions = func(s *grpcmock.Server) {}
+			}
+			sessionsSrv := grpcmock.NewServer(
+				grpcmock.RegisterService(sessionsv1.RegisterSessionsServiceServer),
+				tc.PrepareSessions,
+			)
+			t.Cleanup(func() {
+				sessionsSrv.Close()
+			})
+
+			sessionsCli, sessionsConn, err := grpc.NewClient(ctx, sessionsv1.NewSessionsServiceClient, sessionsSrv.Address())
+			require.NoError(err)
+			defer sessionsConn.Close()
+
+			a := authentication.Init(cfg, log, dbMock, nil, nil, sessionsCli)
 			a.API = apiMock
 
-			tkn, redirect, err := a.Login(context.Background(), tc.Provider, tc.CategoryID, tc.PrepareArgs())
+			tkn, redirect, err := a.Login(ctx, tc.Provider, tc.CategoryID, tc.PrepareArgs())
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

@@ -16,6 +16,7 @@ type Cfg struct {
 	HTTP           cfg.HTTP
 	API            API
 	Notifier       Notifier
+	Sessions       Sessions
 	Authentication Authentication
 }
 
@@ -107,6 +108,10 @@ type API struct {
 }
 
 type Notifier struct {
+	Address string `mapstructure:"address"`
+}
+
+type Sessions struct {
 	Address string `mapstructure:"address"`
 }
 
@@ -210,5 +215,9 @@ func setDefaults() {
 
 	viper.SetDefault("notifier", map[string]interface{}{
 		"address": "http://isard-notifier:5000",
+	})
+
+	viper.SetDefault("sessions", map[string]interface{}{
+		"address": "isard-sessions:1312",
 	})
 }

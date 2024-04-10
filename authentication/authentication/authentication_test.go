@@ -9,10 +9,13 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
+	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.nhat.io/grpcmock"
 )
 
 func TestCheck(t *testing.T) {
@@ -21,12 +24,13 @@ func TestCheck(t *testing.T) {
 	now := float64(time.Now().Unix())
 
 	cases := map[string]struct {
-		PrepareToken func() string
-		ExpectedErr  string
+		PrepareToken    func() string
+		PrepareSessions func(*grpcmock.Server)
+		ExpectedErr     string
 	}{
 		"should work if the token is a valid login token": {
 			PrepareToken: func() string {
-				ss, err := token.SignLoginToken("", time.Hour, &model.User{
+				ss, err := token.SignLoginToken("", time.Hour, "ThoJuroQueEsUnID", &model.User{
 					ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 					UID:                    "nefix",
 					Username:               "nefix",
@@ -45,10 +49,15 @@ func TestCheck(t *testing.T) {
 
 				return ss
 			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/Get").WithPayload(&sessionsv1.GetRequest{
+					Id: "ThoJuroQueEsUnID",
+				}).Return(&sessionsv1.GetResponse{})
+			},
 		},
 		"should return an error if the token is invalid": {
 			PrepareToken: func() string {
-				ss, err := token.SignLoginToken("", -time.Hour, &model.User{
+				ss, err := token.SignLoginToken("", -time.Hour, "ThoJuroQueEsUnID", &model.User{
 					ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 					UID:                    "nefix",
 					Username:               "nefix",
@@ -82,12 +91,29 @@ func TestCheck(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
 
-			a := authentication.Init(cfg, log, nil, nil, nil)
+			if tc.PrepareSessions == nil {
+				tc.PrepareSessions = func(s *grpcmock.Server) {}
+			}
+			sessionsSrv := grpcmock.NewServer(
+				grpcmock.RegisterService(sessionsv1.RegisterSessionsServiceServer),
+				tc.PrepareSessions,
+			)
+			t.Cleanup(func() {
+				sessionsSrv.Close()
+			})
 
-			err := a.Check(context.Background(), tc.PrepareToken())
+			sessionsCli, sessionsConn, err := grpc.NewClient(ctx, sessionsv1.NewSessionsServiceClient, sessionsSrv.Address())
+			require.NoError(err)
+			defer sessionsConn.Close()
+
+			a := authentication.Init(cfg, log, nil, nil, nil, sessionsCli)
+
+			err = a.Check(ctx, tc.PrepareToken())
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
