@@ -5,9 +5,9 @@ services:
       - isard-pipework
     environment:
       - pipework_cmd=--direct-phys ${HYPERVISOR_HOST_TRUNK_INTERFACE} -i ${HYPERVISOR_HOST_TRUNK_INTERFACE} isard-hypervisor 0/0
-
+  # https://gitlab.com/isard/dreamcat4-docker-images/pipework (isardvdi branch)
   isard-pipework:
-    image: dreamcat4/pipework
+    image: registry.gitlab.com/isard/isardvdi/pipework:latest
     logging:
       driver: "json-file"
       options:
@@ -22,4 +22,4 @@ services:
       - run_mode=batch,daemon
       - host_routes=true
       - route_add_delay=1
-   
+
