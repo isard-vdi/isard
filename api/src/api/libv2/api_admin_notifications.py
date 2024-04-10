@@ -64,6 +64,7 @@ db.init_app(app)
 def add_notification_template(template_data):
     texts = template_data["lang"][template_data["default"]]
     template_data["lang"][template_data["default"]] = {
+        "title": texts["title"],
         "body": sanitizer.sanitize(texts["body"]),
         "footer": sanitizer.sanitize(texts["footer"]),
     }
