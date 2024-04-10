@@ -88,7 +88,7 @@ func TestForgotPassword(t *testing.T) {
 				tc.PrepareDB(mock)
 			}
 
-			a := authentication.Init(cfg, log, mock)
+			a := authentication.Init(cfg, log, mock, nil, nil)
 
 			if tc.PrepareNotifier != nil {
 				tc.PrepareNotifier(notifier)
@@ -223,7 +223,7 @@ func TestResetPassword(t *testing.T) {
 				tc.PrepareDB(dbMock)
 			}
 
-			a := authentication.Init(cfg, log, dbMock)
+			a := authentication.Init(cfg, log, dbMock, nil, nil)
 			a.Client = apiMock
 
 			err := a.ResetPassword(context.Background(), tc.PrepareToken(), tc.Password)

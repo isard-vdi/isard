@@ -10,8 +10,6 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
-	"gitlab.com/isard/isardvdi/pkg/http"
-	"gitlab.com/isard/isardvdi/pkg/jwt"
 
 	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
@@ -57,46 +55,21 @@ type Authentication struct {
 	saml      *samlsp.Middleware
 }
 
-// TODO: Setup the notifier client
-func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication {
+func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli isardvdi.Interface, notifierCli notifier.Invoker) *Authentication {
 	a := &Authentication{
 		Log:      log,
 		Secret:   cfg.Authentication.Secret,
 		Duration: cfg.Authentication.TokenDuration,
-		DB:       db,
+
 		BaseURL: &url.URL{
 			Scheme: "https",
 			Host:   cfg.Authentication.Host,
 		},
+
+		DB:       db,
+		Client:   apiCli,
+		Notifier: notifierCli,
 	}
-
-	cli, err := isardvdi.NewClient(&isardvdi.Cfg{
-		Host: "http://isard-api:5000",
-	})
-	if err != nil {
-		log.Fatal().Err(err).Msg("create API client")
-	}
-
-	cli.BeforeRequestHook = func(c *isardvdi.Client) error {
-		ss, err := jwt.SignAPIJWT(a.Secret)
-		if err != nil {
-			return err
-		}
-
-		c.SetToken(ss)
-
-		return nil
-	}
-
-	a.Client = cli
-
-	nCli, err := notifier.NewClient(cfg.Notifier.Address, notifier.WithClient(http.NewIsardVDIClient(a.Secret)))
-	nCli.PostFrontend(context.Background(), notifier.OptNotifyFrontendRequest0bf6af6{})
-	if err != nil {
-		log.Fatal().Err(err).Msg("create notifier client")
-	}
-
-	a.Notifier = nCli
 
 	providers := map[string]provider.Provider{
 		types.Unknown:  &provider.Unknown{},

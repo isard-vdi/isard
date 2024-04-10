@@ -11,6 +11,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/transport/http"
 	"gitlab.com/isard/isardvdi/pkg/db"
+	pkgHttp "gitlab.com/isard/isardvdi/pkg/http"
 	"gitlab.com/isard/isardvdi/pkg/log"
 )
 
@@ -27,7 +28,17 @@ func main() {
 		log.Fatal().Err(err).Msg("connect to the database")
 	}
 
-	authentication := authentication.Init(cfg, log, db)
+	apiCli, err := pkgHttp.NewAPIClient(cfg.API.Address, cfg.Authentication.Secret)
+	if err != nil {
+		log.Fatal().Err(err).Msg("create the API client")
+	}
+
+	notifierCli, err := pkgHttp.NewNotifierClient(cfg.Notifier.Address, cfg.Authentication.Secret)
+	if err != nil {
+		log.Fatal().Err(err).Msg("create notifier client")
+	}
+
+	authentication := authentication.Init(cfg, log, db, apiCli, notifierCli)
 
 	go http.Serve(ctx, &wg, log, cfg.HTTP.Addr(), authentication)
 	wg.Add(1)

@@ -85,7 +85,7 @@ func TestCheck(t *testing.T) {
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
 
-			a := authentication.Init(cfg, log, nil)
+			a := authentication.Init(cfg, log, nil, nil, nil)
 
 			err := a.Check(context.Background(), tc.PrepareToken())
 

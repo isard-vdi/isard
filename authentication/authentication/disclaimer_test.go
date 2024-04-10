@@ -99,7 +99,7 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 				tc.PrepareDB(mock)
 			}
 
-			a := authentication.Init(cfg, log, mock)
+			a := authentication.Init(cfg, log, mock, nil, nil)
 
 			err := a.AcknowledgeDisclaimer(context.Background(), tc.PrepareToken())
 
