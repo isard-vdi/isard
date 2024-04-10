@@ -13,9 +13,9 @@ import (
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/jwt"
 	"gitlab.com/isard/isardvdi/pkg/log"
-	"google.golang.org/grpc"
 )
 
 func main() {
@@ -56,22 +56,17 @@ func main() {
 		log.Fatal().Str("director", cfg.Orchestrator.Director).Strs("available_directors", director.Available).Msg("unknown director type!")
 	}
 
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	operationsConn, err := grpc.DialContext(ctx, cfg.Orchestrator.OperationsAddress, opts...)
+	operationsCli, operationsConn, err := grpc.NewClient(ctx, operationsv1.NewOperationsServiceClient, cfg.Orchestrator.OperationsAddress)
 	if err != nil {
-		log.Fatal().Str("addr", cfg.Orchestrator.OperationsAddress).Err(err).Msg("dial gRPC operations service")
+		log.Fatal().Str("addr", cfg.Orchestrator.OperationsAddress).Err(err).Msg("create the operations service client")
 	}
 	defer operationsConn.Close()
 
-	operationsCli := operationsv1.NewOperationsServiceClient(operationsConn)
-
-	checkConn, err := grpc.DialContext(ctx, cfg.Orchestrator.CheckAddress, opts...)
+	checkCli, checkConn, err := grpc.NewClient(ctx, checkv1.NewCheckServiceClient, cfg.Orchestrator.CheckAddress)
 	if err != nil {
-		log.Fatal().Str("addr", cfg.Orchestrator.CheckAddress).Err(err).Msg("dial gRPC check service")
+		log.Fatal().Str("addr", cfg.Orchestrator.CheckAddress).Err(err).Msg("create the check service client")
 	}
 	defer checkConn.Close()
-
-	checkCli := checkv1.NewCheckServiceClient(checkConn)
 
 	orchestrator := orchestrator.New(&orchestrator.NewOrchestratorOpts{
 		Log:               log,
