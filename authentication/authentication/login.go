@@ -138,7 +138,7 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 	}
 
 	// Check if the user needs to acknowledge the disclaimer
-	dscl, err := a.Client.AdminUserRequiredDisclaimerAcknowledgement(ctx, u.ID)
+	dscl, err := a.API.AdminUserRequiredDisclaimerAcknowledgement(ctx, u.ID)
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user needs to accept the disclaimer: %w", err)
 	}
@@ -152,7 +152,7 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 	}
 
 	// Check if the user has the email verified
-	vfEmail, err := a.Client.AdminUserRequiredEmailVerification(ctx, u.ID)
+	vfEmail, err := a.API.AdminUserRequiredEmailVerification(ctx, u.ID)
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user needs to verify the email: %w", err)
 	}
@@ -165,7 +165,7 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 		return ss, redirect, nil
 	}
 
-	pwdRst, err := a.Client.AdminUserRequiredPasswordReset(ctx, u.ID)
+	pwdRst, err := a.API.AdminUserRequiredPasswordReset(ctx, u.ID)
 	if err != nil {
 		return "", "", fmt.Errorf("check if the user needs to reset the password: %w", err)
 	}

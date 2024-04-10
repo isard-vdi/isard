@@ -224,7 +224,7 @@ func TestResetPassword(t *testing.T) {
 			}
 
 			a := authentication.Init(cfg, log, dbMock, nil, nil)
-			a.Client = apiMock
+			a.API = apiMock
 
 			err := a.ResetPassword(context.Background(), tc.PrepareToken(), tc.Password)
 

@@ -48,7 +48,7 @@ type Authentication struct {
 	BaseURL *url.URL
 
 	DB       r.QueryExecutor
-	Client   isardvdi.Interface
+	API      isardvdi.Interface
 	Notifier notifier.Invoker
 
 	providers map[string]provider.Provider
@@ -67,7 +67,7 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli isardvdi.
 		},
 
 		DB:       db,
-		Client:   apiCli,
+		API:      apiCli,
 		Notifier: notifierCli,
 	}
 

@@ -572,7 +572,7 @@ func TestLogin(t *testing.T) {
 			}
 
 			a := authentication.Init(cfg, log, dbMock, nil, nil)
-			a.Client = apiMock
+			a.API = apiMock
 
 			tkn, redirect, err := a.Login(context.Background(), tc.Provider, tc.CategoryID, tc.PrepareArgs())
 
