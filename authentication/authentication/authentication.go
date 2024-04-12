@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
@@ -26,7 +25,7 @@ type Interface interface {
 	Login(ctx context.Context, provider string, categoryID string, args map[string]string) (tkn, redirect string, err error)
 	Callback(ctx context.Context, ss string, args map[string]string) (tkn, redirect string, err error)
 	Check(ctx context.Context, tkn string) error
-	// Refresh()
+	Renew(ctx context.Context, ss string) (tkn string, err error)
 	// Register()
 
 	AcknowledgeDisclaimer(ctx context.Context, tkn string) error
@@ -43,9 +42,8 @@ type Interface interface {
 var _ Interface = &Authentication{}
 
 type Authentication struct {
-	Log      *zerolog.Logger
-	Secret   string
-	Duration time.Duration
+	Log    *zerolog.Logger
+	Secret string
 
 	BaseURL *url.URL
 
@@ -60,9 +58,8 @@ type Authentication struct {
 
 func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli isardvdi.Interface, notifierCli notifier.Invoker, sessionsCli sessionsv1.SessionsServiceClient) *Authentication {
 	a := &Authentication{
-		Log:      log,
-		Secret:   cfg.Authentication.Secret,
-		Duration: cfg.Authentication.TokenDuration,
+		Log:    log,
+		Secret: cfg.Authentication.Secret,
 
 		BaseURL: &url.URL{
 			Scheme: "https",

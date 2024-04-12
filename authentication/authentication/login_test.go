@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
 	"go.nhat.io/grpcmock"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -113,6 +114,11 @@ func TestLogin(t *testing.T) {
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{}).Return(&sessionsv1.NewResponse{
 					Id: "ThoJuroQueEsUnID",
+					Time: &sessionsv1.NewResponseTime{
+						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
+						MaxRenewTime:   timestamppb.New(time.Now().Add(30 * time.Minute)),
+						ExpirationTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+					},
 				})
 			},
 			Provider:   "form",
@@ -191,6 +197,11 @@ func TestLogin(t *testing.T) {
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{}).Return(&sessionsv1.NewResponse{
 					Id: "ThoJuroQueEsUnID",
+					Time: &sessionsv1.NewResponseTime{
+						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
+						MaxRenewTime:   timestamppb.New(time.Now().Add(30 * time.Minute)),
+						ExpirationTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+					},
 				})
 			},
 			Provider:   "form",
@@ -271,6 +282,11 @@ func TestLogin(t *testing.T) {
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{}).Return(&sessionsv1.NewResponse{
 					Id: "ThoJuroQueEsUnID",
+					Time: &sessionsv1.NewResponseTime{
+						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
+						MaxRenewTime:   timestamppb.New(time.Now().Add(30 * time.Minute)),
+						ExpirationTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+					},
 				})
 			},
 			Provider:   "form",
@@ -583,11 +599,11 @@ func TestLogin(t *testing.T) {
 
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
-			dbMock := r.NewMock()
-			apiMock := &apiMock.Client{}
 
+			dbMock := r.NewMock()
 			tc.PrepareDB(dbMock)
 
+			apiMock := &apiMock.Client{}
 			if tc.PrepareAPI != nil {
 				tc.PrepareAPI(apiMock)
 			}
@@ -595,15 +611,15 @@ func TestLogin(t *testing.T) {
 			if tc.PrepareSessions == nil {
 				tc.PrepareSessions = func(s *grpcmock.Server) {}
 			}
-			sessionsSrv := grpcmock.NewServer(
+			sessionsMockServer := grpcmock.NewServer(
 				grpcmock.RegisterService(sessionsv1.RegisterSessionsServiceServer),
 				tc.PrepareSessions,
 			)
 			t.Cleanup(func() {
-				sessionsSrv.Close()
+				sessionsMockServer.Close()
 			})
 
-			sessionsCli, sessionsConn, err := grpc.NewClient(ctx, sessionsv1.NewSessionsServiceClient, sessionsSrv.Address())
+			sessionsCli, sessionsConn, err := grpc.NewClient(ctx, sessionsv1.NewSessionsServiceClient, sessionsMockServer.Address())
 			require.NoError(err)
 			defer sessionsConn.Close()
 

@@ -15,7 +15,7 @@ type apiRegisterUserRsp struct {
 }
 
 func (a *Authentication) registerUser(u *model.User) error {
-	tkn, err := token.SignRegisterToken(a.Secret, a.Duration, u)
+	tkn, err := token.SignRegisterToken(a.Secret, u)
 	if err != nil {
 		return err
 	}

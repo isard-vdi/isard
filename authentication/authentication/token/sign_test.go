@@ -19,15 +19,15 @@ func TestSignLoginToken(t *testing.T) {
 	now := float64(time.Now().Unix())
 
 	cases := map[string]struct {
-		Duration    time.Duration
+		Expiration  time.Time
 		SessionID   string
 		User        *model.User
 		ExpectedErr string
 		CheckToken  func(string)
 	}{
 		"should work as expected": {
-			Duration:  time.Hour,
-			SessionID: "ThoJuroQueEsUnID",
+			Expiration: time.Now().Add(time.Hour),
+			SessionID:  "ThoJuroQueEsUnID",
 			User: &model.User{
 				ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 				UID:                    "nefix",
@@ -97,7 +97,7 @@ func TestSignLoginToken(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ss, err := token.SignLoginToken("", tc.Duration, tc.SessionID, tc.User)
+			ss, err := token.SignLoginToken("", tc.Expiration, tc.SessionID, tc.User)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

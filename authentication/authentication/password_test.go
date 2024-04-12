@@ -142,7 +142,7 @@ func TestResetPassword(t *testing.T) {
 			PrepareToken: func() string {
 				now := float64(time.Now().Unix())
 
-				ss, err := token.SignLoginToken("", time.Hour, "ThoJuroQueEsUnID", &model.User{
+				ss, err := token.SignLoginToken("", time.Now().Add(time.Hour), "ThoJuroQueEsUnID", &model.User{
 					ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 					UID:                    "nefix",
 					Username:               "nefix",

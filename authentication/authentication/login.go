@@ -59,7 +59,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		// Manual registration
 		if !p.AutoRegister() {
 			// If the user has logged in correctly, but doesn't exist in the DB, they have to register first!
-			ss, err := token.SignRegisterToken(a.Secret, a.Duration, u)
+			ss, err := token.SignRegisterToken(a.Secret, u)
 
 			a.Log.Info().Err(err).Str("usr", u.UID).Str("tkn", ss).Msg("register token signed")
 
@@ -119,7 +119,7 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args map[strin
 	normalizeIdentity(nil, u)
 
 	if !exists {
-		ss, err = token.SignRegisterToken(a.Secret, a.Duration, u)
+		ss, err = token.SignRegisterToken(a.Secret, u)
 		if err != nil {
 			return "", "", err
 		}
@@ -203,7 +203,7 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 		return "", "", fmt.Errorf("create the session: %w", err)
 	}
 
-	ss, err := token.SignLoginToken(a.Secret, a.Duration, sess.GetId(), u)
+	ss, err := token.SignLoginToken(a.Secret, sess.Time.ExpirationTime.AsTime(), sess.GetId(), u)
 	if err != nil {
 		return "", "", err
 	}

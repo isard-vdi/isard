@@ -24,6 +24,12 @@ func parseAuthenticationToken[T jwt.Claims](secret, ss string, claims jwt.Claims
 		return []byte(secret), nil
 	})
 	if err != nil {
+		// If the claims were recovered, return them
+		claims, ok := tkn.Claims.(T)
+		if ok {
+			ret = claims
+		}
+
 		return ret, fmt.Errorf("error parsing the JWT token: %w", err)
 	}
 
