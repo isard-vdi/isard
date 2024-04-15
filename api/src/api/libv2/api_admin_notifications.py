@@ -117,9 +117,11 @@ def update_notification_template(template_id, data):
 
 def delete_notification_template(template_id):
     with app.app_context():
-        kind = r.table("notification_tmpls").get(template_id)["kind"].run(db.conn)
-        if kind in ["desktop", "password", "email"]:
-            raise Error("bad request", "Unable to delete default templates")
+        kind = (
+            r.table("notification_tmpls").get(template_id).pluck("kind").run(db.conn)
+        ).get("kind")
+    if kind in ["disclaimer", "desktop", "password", "email"]:
+        raise Error("bad request", "Unable to delete default templates")
 
     # TODO: check it's not being used
     r.table("notification_tmpls").get(template_id).delete().run(db.conn)
