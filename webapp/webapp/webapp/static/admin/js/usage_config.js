@@ -356,6 +356,13 @@ $(document).ready(function () {
 });
 
 function render_table_credits() {
+  $('#table-credit tfoot th').each(function () {
+    var title = $(this).text();
+    if (['', 'Icon', 'Action', 'Enabled'].indexOf(title) == -1) {
+      $(this).html('<input type="text" placeholder="Search ' + title + '" />');
+    }
+  });
+
   table_credits = $('#table-credit').DataTable({
     "ajax": {
       "url": "/api/v3/admin/usage/category_credits",
@@ -440,6 +447,18 @@ function render_table_credits() {
         }
       },
     ],
+  });
+
+  table_credits.columns().every(function () {
+    var that = this;
+
+    $('input', this.footer()).on('keyup change', function () {
+      if (that.search() !== this.value) {
+        that
+          .search(this.value)
+          .draw();
+      }
+    });
   });
 };
 
