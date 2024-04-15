@@ -738,7 +738,7 @@ class RecycleBin(object):
                 with app.app_context():
                     recycle_bin_list = list(
                         r.table("recycle_bin")
-                        .get_all(r.args(["recycled", "deleting"]), index="status")
+                        .get_all("recycled", index="status")
                         .filter({"owner_category_id": category})["id"]
                         .run(db.conn)
                     )
@@ -747,7 +747,7 @@ class RecycleBin(object):
                 with app.app_context():
                     recycle_bin_list = list(
                         r.table("recycle_bin")
-                        .get_all(r.args(["recycled", "deleting"]), index="status")
+                        .get_all("recycled", index="status")
                         .filter(
                             r.row["accessed"]
                             < (datetime.now() - max_delete_period).timestamp()
@@ -760,7 +760,7 @@ class RecycleBin(object):
                 with app.app_context():
                     recycle_bin_list = list(
                         r.table("recycle_bin")
-                        .get_all(r.args(["recycled", "deleting"]), index="status")["id"]
+                        .get_all("recycled", index="status")["id"]
                         .run(db.conn)
                     )
             else:
@@ -768,7 +768,7 @@ class RecycleBin(object):
                 with app.app_context():
                     recycle_bin_list = list(
                         r.table("recycle_bin")
-                        .get_all(r.args(["recycled", "deleting"]), index="status")
+                        .get_all("recycled", index="status")
                         .filter(
                             r.row["accessed"]
                             < (datetime.now() - max_delete_period).timestamp()
