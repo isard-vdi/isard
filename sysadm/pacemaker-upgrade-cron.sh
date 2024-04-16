@@ -41,7 +41,7 @@ do
     # Download newer images for each flavour but do not bring it up
     "${script_path%/*}"/isard-upgrade-cron.sh -c "$config_name" -n
     # Check which service is running in this host and restart only this one.
-    if pcs status --full | grep -q "^\s*$config_name\s\+(ocf::heartbeat:compose):\s\+Started\s\+$(hostname)$"
+    if pcs status --full | grep -q "\s**\s$config_name\s\+(ocf:heartbeat:compose):\s\+Started\s\+$(hostname)$"
     then
          if [ $EXCLUDE_HYPER = 1 ]
          then
