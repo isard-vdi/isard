@@ -86,7 +86,10 @@ const router = new VueRouter({
             allowedRoles: ['admin', 'manager', 'advanced', 'user']
           }
         }
-      ]
+      ],
+      meta: {
+        requiresAuth: true
+      }
     },
     {
       path: '/booking',
@@ -110,7 +113,10 @@ const router = new VueRouter({
             allowedRoles: ['admin', 'manager', 'advanced', 'user']
           }
         }
-      ]
+      ],
+      meta: {
+        requiresAuth: true
+      }
     },
     {
       path: '/planning',
@@ -125,7 +131,10 @@ const router = new VueRouter({
             allowedRoles: ['admin']
           }
         }
-      ]
+      ],
+      meta: {
+        requiresAuth: true
+      }
     },
     {
       path: '/templates',
@@ -468,7 +477,7 @@ router.beforeEach(async (to, from, next) => {
             next()
           } else {
             store.dispatch('saveNavigation', { url: from })
-            next({ name: from.name })
+            next({ name: 'desktops' })
           }
         // Requires disclaimer acceptance, will be redirected
         } else if (to.name !== 'Disclaimer' && ['disclaimer-acknowledgement-required'].includes(sessionData.type)) {
