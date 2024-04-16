@@ -19,4 +19,4 @@ else
     cp /etc/agent/config.yml /etc/agent/agent.yml
 fi
 
-/bin/agent -config.file=/etc/agent/agent.yml -config.expand-env=true --metrics.wal-directory=/tmp/agent/data
+/bin/grafana-agent -config.file=/etc/agent/agent.yml -config.expand-env=true --metrics.wal-directory=/tmp/agent/data
