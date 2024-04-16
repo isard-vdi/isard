@@ -87,7 +87,7 @@ services:
 
   isard-grafana-agent:
     container_name: isard-grafana-agent
-    image: grafana/agent:v0.24.2
+    image: grafana/agent:v0.40.4
     volumes:
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/config.yml:/etc/agent/config.yml
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/web.yml:/etc/agent/web.yml
