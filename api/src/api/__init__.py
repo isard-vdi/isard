@@ -25,7 +25,6 @@ from flask import Flask, render_template, send_from_directory
 
 app = Flask(__name__, static_url_path="")
 
-import api.libv2.log
 
 app.url_map.strict_slashes = False
 

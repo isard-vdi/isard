@@ -15,8 +15,6 @@ from rethinkdb import RethinkDB
 
 from api import app
 
-from ..libv2.log import *
-
 r = RethinkDB()
 
 from ..libv2.flask_rethink import RDB

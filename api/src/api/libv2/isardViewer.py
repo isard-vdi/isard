@@ -28,7 +28,6 @@ from rethinkdb import RethinkDB
 
 from api import app
 
-from ..libv2.log import *
 from .api_viewers_config import rdp_file_viewer, rdpgw_file_viewer, spice_file_viewer
 
 r = RethinkDB()
