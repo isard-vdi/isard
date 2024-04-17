@@ -888,11 +888,11 @@ function detailButtons(storage) {
                       data-placement="top" title="Move to another path"><i class="fa fa-truck m-right-xs"></i>
                       Move
                     </button>-->
-                    <button class="btn btn-success btn-xs btn-convert" data-id="${storage.id}" data-current_type=${storage.type} type="button"
+                    <!--<button class="btn btn-success btn-xs btn-convert" data-id="${storage.id}" data-current_type=${storage.type} type="button"
                       data-placement="top" title="Convert to another disk format"><i class="fa fa-exchange m-right-xs"></i>
                       Convert
-                    </button>
-                   <!--<button class="btn btn-primary btn-xs btn-virt_win_reg" data-id="${storage.id}" type="button"
+                    </button>-->
+                    <!--<button class="btn btn-primary btn-xs btn-virt_win_reg" data-id="${storage.id}" type="button"
                       data-placement="top" title="Add windows registry"><i class="fa fa-edit m-right-xs"></i>
                       Windows registry
                     </button>-->
