@@ -57,6 +57,18 @@ func (s *Sessions) New(ctx context.Context) (*model.Session, error) {
 }
 
 func (s *Sessions) Get(ctx context.Context, id string) (*model.Session, error) {
+	if id == "isardvdi-service" {
+		now := time.Now()
+		return &model.Session{
+			ID: "isardvdi-service",
+			Time: &model.SessionTime{
+				MaxTime:        now.Add(20 * time.Second),
+				MaxRenewTime:   now.Add(20 * time.Second),
+				ExpirationTime: now.Add(20 * time.Second),
+			},
+		}, nil
+	}
+
 	sess := &model.Session{ID: id}
 	if err := sess.Load(ctx, s.redis); err != nil {
 		return nil, fmt.Errorf("load session: %w", err)

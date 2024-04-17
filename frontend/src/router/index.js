@@ -432,7 +432,7 @@ const router = new VueRouter({
 router.beforeEach(async (to, from, next) => {
   moment.locale(localStorage.language)
   document.title = to.meta.title ? `${appTitle} - ${to.meta.title}` : appTitle
-  const session = store.getters.getSession
+  let session = store.getters.getSession
   if (to.matched.some(record => record.meta.requiresAuth)) {
     // No session yet
     if (!session) {
@@ -459,8 +459,16 @@ router.beforeEach(async (to, from, next) => {
     // Local login
     } else {
       const sessionData = jwtDecode(session)
+      // TODO: The session might not be expired but it could be revoked
       if (new Date() > new Date(sessionData.exp * 1000)) {
-        store.dispatch('logout')
+        await store.dispatch('renew')
+        session = store.getters.getSession
+        if (session) {
+          store.dispatch('saveNavigation', { url: to })
+          next()
+        } else {
+          store.dispatch('logout')
+        }
       } else {
         store.dispatch('saveNavigation', { url: to })
         store.dispatch('fetchUser')

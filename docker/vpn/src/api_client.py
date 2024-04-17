@@ -84,6 +84,7 @@ class ApiClient:
             {
                 "exp": datetime.utcnow() + timedelta(seconds=20),
                 "kid": "isardvdi",
+                "session_id": "isardvdi-service",
                 "data": {
                     "role_id": "admin",
                     "category_id": "*",

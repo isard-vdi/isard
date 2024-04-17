@@ -49,13 +49,6 @@ Users jwt endpoints
 """
 
 
-@app.route("/api/v3/jwt", methods=["GET"])
-@has_token
-def api_v3_jwt(payload):
-    ### Refreshes it's own token with new one.
-    return users.Jwt(payload["user_id"])
-
-
 @app.route("/api/v3/user", methods=["GET"])
 @has_token
 def api_v3_user_exists(payload):

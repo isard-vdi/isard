@@ -13,7 +13,6 @@ RUN go install github.com/bufbuild/buf/cmd/buf@v1.31.0 && \
 RUN python3 -m venv /venv && \
     source /venv/bin/activate && \
     pip3 install \
-        # TODO: Rollback this
     	"betterproto[compiler]==2.0.0-beta6" \
 	"grpcio-tools==1.62.1"
 RUN npm install --global @bufbuild/protoc-gen-es@1.9.0

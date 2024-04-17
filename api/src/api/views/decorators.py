@@ -3,7 +3,6 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-import asyncio
 import json
 import logging as log
 from functools import wraps
