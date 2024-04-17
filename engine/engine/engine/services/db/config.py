@@ -10,6 +10,7 @@ def get_config():
     r_conn = new_rethink_connection()
     rtable = r.table("config")
     config = rtable.get(1).run(r_conn)
+    close_rethink_connection(r_conn)
     return config
 
 
@@ -32,6 +33,7 @@ def table_config_created_and_populated():
             print(
                 f"rethink host {RETHINK_HOST} and port {RETHINK_PORT} has connected but rethink database {RETHINK_DB} is not created"
             )
+            r.conn_test.close()
             return False
         else:
             r_conn = new_rethink_connection()
@@ -54,7 +56,7 @@ def table_config_created_and_populated():
     except Exception as e:
         logs.exception_id.debug("0039")
         print(
-            f"rethink db connectin failed with hostname {RETHINK_HOST} and port {RETHINK_PORT}"
+            f"rethink db connecting failed with hostname {RETHINK_HOST} and port {RETHINK_PORT}"
         )
         print(e)
         print("Traceback: \n .{}".format(traceback.format_exc()))

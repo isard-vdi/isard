@@ -396,6 +396,7 @@ def update_domain_status(
             "domain_id {} does not exist in domains table".format(id_domain)
         )
         logs.main.debug("function: {}".format(sys._getframe().f_code.co_name))
+        close_rethink_connection(r_conn)
         return False
 
 
@@ -414,6 +415,7 @@ def update_last_hyp_id(id_domain, last_hyp_id):
         logs.main.debug(
             f"error updating last_hyp_id in database with id_domain {id_domain} and last_hyp_id: {last_hyp_id}"
         )
+    close_rethink_connection(r_conn)
 
 
 def update_domain_hw_stats(hw_stats, id_domain):
@@ -547,6 +549,7 @@ def get_domain_hyp_started_and_status_and_detail(id_domain):
         )
     except:
         # if results is None:
+        close_rethink_connection(r_conn)
         return {}
     close_rethink_connection(r_conn)
     return results
@@ -802,10 +805,10 @@ def get_if_all_disk_template_created(id_domain):
     dict_disk_templates = (
         rtable.get(id_domain).pluck("disk_template_created").run(r_conn)
     )
+    close_rethink_connection(r_conn)
     created = len(dict_disk_templates["disk_template_created"]) == sum(
         dict_disk_templates["disk_template_created"]
     )
-    close_rethink_connection(r_conn)
     return created
 
 
@@ -855,9 +858,10 @@ def get_domain_forced_hyp(id_domain):
 
     try:
         d = rtable.get(id_domain).pluck("forced_hyp", "favourite_hyp").run(r_conn)
-        close_rethink_connection(r_conn)
     except:
+        close_rethink_connection(r_conn)
         return False, False
+    close_rethink_connection(r_conn)
     forced_hyp = d.get("forced_hyp", False)
     favourite_hyp = d.get("favourite_hyp", False)
     ## By now, even the webapp will update it as a list, only lets
@@ -1003,17 +1007,15 @@ def get_disks_all_domains():
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
 
-    domains_info_disks = rtable.pluck("id", {"hardware": [{"disks": ["file"]}]}).run(
-        r_conn
+    domains_info_disks = list(
+        rtable.pluck("id", {"hardware": [{"disks": ["file"]}]}).run(r_conn)
     )
-
+    close_rethink_connection(r_conn)
     tuples_id_disk = [
         (d["id"], d["hardware"]["disks"][0]["file"])
         for d in domains_info_disks
         if "hardware" in d.keys()
     ]
-
-    close_rethink_connection(r_conn)
     return tuples_id_disk
 
 
@@ -1501,7 +1503,6 @@ def get_domain_spice(id_domain):
 
 def get_domains_from_group(group, kind="desktop"):
     r_conn = new_rethink_connection()
-    rtable = r.table("domains")
     l = list(
         r.table("domains")
         .eq_join("user", r.table("users"))
@@ -1674,7 +1675,7 @@ def get_domains_started_in_hyp(hyp_id, only_started=False, only_unknown=False):
     list_domain = list(
         rtable.get_all(hyp_id, index="hyp_started").pluck("id", "status").run(r_conn)
     )
-
+    close_rethink_connection(r_conn)
     if only_started is True:
         d = {
             d["id"]: d["status"]
@@ -1686,7 +1687,6 @@ def get_domains_started_in_hyp(hyp_id, only_started=False, only_unknown=False):
     else:
         d = {d["id"]: d["status"] for d in list_domain}
 
-    close_rethink_connection(r_conn)
     return d
 
 

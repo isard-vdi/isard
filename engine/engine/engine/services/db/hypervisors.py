@@ -452,13 +452,13 @@ def get_hyp_hostname_from_id(id):
 def get_hypers_ids_with_status(status):
     r_conn = new_rethink_connection()
     rtable = r.table("hypervisors")
-
     l = list(rtable.filter({"status": status}).pluck("id").run(r_conn))
+    close_rethink_connection(r_conn)
     if len(l) > 0:
         hypers = [d["id"] for d in l]
     else:
         hypers = []
-    close_rethink_connection(r_conn)
+
     return hypers
 
 
@@ -698,6 +698,7 @@ def get_diskopts_online(
         .pluck("id", "only_forced", "gpu_only", "stats", "mountpoints")
         .run(r_conn)
     )
+    close_rethink_connection(r_conn)
     return filter_available_hypers(
         disk_opts_online,
         forced_hyp=forced_hyp,
@@ -879,7 +880,7 @@ def get_hypers_gpu_online(
         )
         .run(r_conn)
     )
-
+    close_rethink_connection(r_conn)
     # exclude hypers with low memory (HYPER_FREE_MEM)
     if exclude_outofmem:
         hypers_online = filter_outofmem_hypers(hypers_online)
@@ -1039,6 +1040,8 @@ def get_hypers_in_pool(
         .run(r_conn)
     )
 
+    close_rethink_connection(r_conn)
+
     hyps_gpu_only = [a["id"] for a in l_gpu_only]
     hyps_only_forced = [a["id"] for a in l_forced]
     hyps_all = [a["id"] for a in l]
@@ -1046,7 +1049,6 @@ def get_hypers_in_pool(
         a["id"] for a in l if a["id"] not in (hyps_only_forced + hyps_gpu_only)
     ]
 
-    close_rethink_connection(r_conn)
     return hyps_to_start, hyps_only_forced, hyps_all
 
 
@@ -1088,9 +1090,8 @@ def get_hypers_info(
             .pluck(pluck)
             .run(r_conn)
         )
-
-    results = [a for a in l_all if a["id"] not in l_hyp_id_exclude]
     close_rethink_connection(r_conn)
+    results = [a for a in l_all if a["id"] not in l_hyp_id_exclude]
     return results
 
 
@@ -1225,7 +1226,7 @@ def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
     for pci_bus, d_vgpu in d_info_nvidia.items():
         vgpu_id = "-".join([hyp_id, pci_bus])
         try:
-            result = rtable.get(vgpu_id).delete().run(r_conn)
+            rtable.get(vgpu_id).delete().run(r_conn)
         except ReqlNonExistenceError:
             pass
         d = {}
@@ -1238,7 +1239,7 @@ def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
         d["info"] = d_vgpu
         d["model"] = d_vgpu["model"]
         d["brand"] = "NVIDIA"
-        result = rtable.insert(d).run(r_conn)
+        rtable.insert(d).run(r_conn)
 
         gpus = list(
             r.table("gpus")

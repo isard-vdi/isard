@@ -6,11 +6,12 @@ def get_last_domain_status(name):
     r_conn = new_rethink_connection()
     rtable = r.table("domains_status")
     try:
-        return rtable.get_all(name, index="name").nth(-1).run(r_conn)
+        last = rtable.get_all(name, index="name").nth(-1).run(r_conn)
+        close_rethink_connection(r_conn)
+        return last
         # ~ filter({'name':name}).\
         # ~ order_by(r.desc('when')).\
         # ~ limit(1).\
-        close_rethink_connection(r_conn)
     except:
         close_rethink_connection(r_conn)
         return None
@@ -24,13 +25,14 @@ def stop_last_domain_status(name):
     r_conn = new_rethink_connection()
     rtable = r.table("domains_status")
     try:
-        return (
+        last = (
             rtable.get_all(name, index="name")
             .nth(-1)
             .update({"state": "Stopped", "state_reason": "not running"})
             .run(r_conn)
         )
         close_rethink_connection(r_conn)
+        return last
     except:
         close_rethink_connection(r_conn)
         return None
