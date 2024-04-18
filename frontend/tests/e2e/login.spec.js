@@ -14,16 +14,11 @@ test.describe('Login', () => {
     await login.finished()
   })
 
-  test('should login correctly using LDAP (code registration)', async ({ page, adminUsers }) => {
+  test('should login correctly using LDAP (autoregistration)', async ({ page }) => {
     const login = new PageLogin(page)
-    const register = new PageRegister(page)
-
     await login.goto()
     await login.form('fry', 'fry')
-
-    await register.goto()
-    await register.register(adminUsers.registerCode)
-    await register.finished()
+    await login.finished()
   })
 
   test('should login correctly using SAML (code registration)', async ({ page, adminUsers }) => {

@@ -35,13 +35,7 @@ def get_header_jwt_payload():
 
 
 def get_auto_register_jwt_payload():
-    register_payload = get_token_payload(get_token_auth_header())
-    login_payload = get_token_payload(get_token_header("Login-Claims"))
-
-    register_payload["role"] = login_payload["role_id"]
-    register_payload["group"] = login_payload["group_id"]
-
-    return register_payload
+    return get_token_payload(get_token_header("Register-Claims"))
 
 
 def get_token_header(header):
@@ -50,21 +44,21 @@ def get_token_header(header):
     if not auth:
         raise Error(
             "unauthorized",
-            "Authorization header is expected",
+            header + " header is expected",
         )
 
     parts = auth.split()
     if parts[0].lower() != "bearer":
         raise Error(
             "unauthorized",
-            "Authorization header must start with Bearer",
+            header + " header must start with Bearer",
         )
     elif len(parts) == 1:
         raise Error("bad_request", "Token not found")
     elif len(parts) > 2:
         raise Error(
             "unauthorized",
-            "Authorization header must be Bearer token",
+            header + " header must be Bearer token",
         )
 
     return parts[1]  # Token

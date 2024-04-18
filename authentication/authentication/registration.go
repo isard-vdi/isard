@@ -2,9 +2,7 @@ package authentication
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -16,41 +14,18 @@ type apiRegisterUserRsp struct {
 	ID string `json:"id"`
 }
 
-// TODO: Make this use the isardvdi-go-sdk and the pkg/jwt package
 func (a *Authentication) registerUser(u *model.User) error {
 	tkn, err := token.SignRegisterToken(a.Secret, a.Duration, u)
 	if err != nil {
 		return err
 	}
 
-	login, err := token.SignLoginToken(a.Secret, a.Duration, u)
+	id, err := a.Client.AdminUserAutoRegister(context.Background(), tkn, string(u.Role), u.Group)
 	if err != nil {
-		return err
+		return fmt.Errorf("register the user: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, "http://isard-api:5000/api/v3/user/auto-register", nil)
-	if err != nil {
-		return fmt.Errorf("create http request: %w", err)
-	}
-
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tkn))
-	req.Header.Set("Login-Claims", fmt.Sprintf("Bearer %s", login))
-
-	rsp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("do http request: %w", err)
-	}
-
-	if rsp.StatusCode != 200 {
-		return fmt.Errorf("http code not 200: %d", rsp.StatusCode)
-	}
-
-	r := &apiRegisterUserRsp{}
-	defer rsp.Body.Close()
-	if err := json.NewDecoder(rsp.Body).Decode(r); err != nil {
-		return fmt.Errorf("parse auto register JSON response: %w", err)
-	}
-	u.ID = r.ID
+	u.ID = id
 	u.Active = true
 
 	return nil
