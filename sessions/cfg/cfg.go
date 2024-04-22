@@ -3,8 +3,9 @@ package cfg
 import (
 	"time"
 
-	"github.com/spf13/viper"
 	"gitlab.com/isard/isardvdi/pkg/cfg"
+
+	"github.com/spf13/viper"
 )
 
 type Cfg struct {
@@ -35,9 +36,11 @@ func setDefaults() {
 	cfg.SetRedisDefaults()
 	cfg.SetGRPCDefaults()
 
+	viper.SetDefault("redis.db", 1)
+
 	viper.SetDefault("sessions", map[string]any{
-		"max_time":        "8h",
-		"max_renew_time":  "30m",
-		"expiration_time": "5m",
+		"max_time":        "4h",
+		"max_renew_time":  "4h",
+		"expiration_time": "4h",
 	})
 }

@@ -112,16 +112,16 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 # Maximum valid session time. If this duration is exceeded, the user won't be able to renew
 # the session. This time is counted since the user login.
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
-#SESSIONS_SESSIONS_MAX_TIME=8h
+SESSIONS_SESSIONS_MAX_TIME=8h
 # Maximum time a user will be able to renew their session. If this duration is exceeded, the user won't be able to renew
 # the session. Renewals are automatically done by the frontend every time the user performs an action.
 # This time is counted since the last session renewal
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
-#SESSIONS_SESSIONS_MAX_RENEW_TIME=30m
+SESSIONS_SESSIONS_MAX_RENEW_TIME=30m
 # Maximum time a token will be valid. If this duration is exceeded, token won't be able to be used
 # for any action. This time is counted since the last session renewal
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
-#SESSIONS_SESSIONS_EXPIRATION_TIME=5m
+SESSIONS_SESSIONS_EXPIRATION_TIME=5m
 # The hostname of the Redis
 #SESSIONS_SESSIONS_REDIS_HOST=isard-redis
 # The port of the Redis

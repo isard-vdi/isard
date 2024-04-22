@@ -89,7 +89,6 @@ func New(name string, setDefaults func(), target interface{}) {
 	))); err != nil {
 		log.Fatal().Str("service", name).Err(err).Msg("unmarshal configuration")
 	}
-
 }
 
 func setCommonDefaults() {
@@ -116,7 +115,7 @@ func SetRedisDefaults() {
 		"port": 6379,
 		"usr":  "",
 		"pwd":  "",
-		"db":   1,
+		"db":   0,
 	})
 }
 
