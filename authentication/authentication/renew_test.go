@@ -5,9 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
 	"gitlab.com/isard/isardvdi/authentication/authentication"
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
@@ -16,6 +13,10 @@ import (
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.nhat.io/grpcmock"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

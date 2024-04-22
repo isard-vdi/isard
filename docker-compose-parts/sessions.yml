@@ -14,5 +14,14 @@ services:
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
-    env_file:
-      - .env
+    environment:
+      SESSIONS_SESSIONS_MAX_TIME:
+      SESSIONS_SESSIONS_MAX_RENEW_TIME:
+      SESSIONS_SESSIONS_EXPIRATION_TIME:
+      SESSIONS_SESSIONS_REDIS_HOST:
+      SESSIONS_SESSIONS_REDIS_PORT:
+      SESSIONS_SESSIONS_REDIS_USR:
+      SESSIONS_SESSIONS_REDIS_PWD:
+      SESSIONS_SESSIONS_REDIS_DB:
+      SESSIONS_SESSIONS_GRPC_HOST:
+      SESSIONS_SESSIONS_GRPC_PORT:
