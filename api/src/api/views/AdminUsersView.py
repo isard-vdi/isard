@@ -378,6 +378,10 @@ def api_v3_admin_user_delete(payload):
             raise Error(
                 "forbidden", "Can not delete default admin", traceback.format_exc()
             )
+        elif user["id"] == payload["user_id"]:
+            raise Error(
+                "forbidden", "Can not delete your own user", traceback.format_exc()
+            )
     for user in data["user"]:
         users.Delete(user, payload["user_id"], data["delete_user"])
     return json.dumps({}), 200, {"Content-Type": "application/json"}
