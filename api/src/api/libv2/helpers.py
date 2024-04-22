@@ -668,13 +668,12 @@ def generate_db_media(path_downloaded, filesize):
 def get_user_data(user_id="admin"):
     if user_id == "admin":
         with app.app_context():
-            user = list(
+            user = (
                 r.table("users")
-                .get_all("admin", index="uid")
-                .filter({"provider": "local"})
+                .get("local-default-admin-admin")
                 .pluck("id", "username", "category", "group")
                 .run(db.conn)
-            )[0]
+            )
     else:
         with app.app_context():
             user = (
