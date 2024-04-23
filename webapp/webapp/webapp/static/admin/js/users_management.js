@@ -312,6 +312,13 @@ function socketio_on(){
                 opacity: 1,
                 delay: 1000
             });
+        } else if (usersToDelete.includes(($('meta[id=user_data]').attr('data-userid')))) {
+            new PNotify({
+                text: "Can not delete your own user",
+                hide: true,
+                opacity: 1,
+                delay: 1000
+            });
         } else if (!(usersToDelete.length == 0)) {
             $("#modalDeleteUserForm")[0].reset();
             $('#modalDeleteUserForm :radio').iCheck('uncheck').iCheck('update');
@@ -1100,6 +1107,14 @@ function actionsUserDetail(){
         $("#modalDeleteUserForm")[0].reset();
         $('#modalDeleteUserForm :radio').iCheck('uncheck').iCheck('update');
         $('#modalDeleteUserForm #id').val(pk)
+        if (pk == ($('meta[id=user_data]').attr('data-userid'))) {
+            new PNotify({
+                text: "Can not delete your own user",
+                hide: true,
+                opacity: 1,
+                delay: 1000
+            }); 
+    } else {
         $('#modalDeleteUser').modal({
             backdrop: 'static',
             keyboard: false
@@ -1123,6 +1138,7 @@ function actionsUserDetail(){
             populateDeleteModalTable(items.media, $('#table_modal_delete_media'));
             populateDeleteModalTable(items.users, $('#table_modal_delete_users'));
         });
+    }
     });
 
     $('.btn-active').on('click', function () {
