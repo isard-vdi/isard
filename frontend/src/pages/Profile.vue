@@ -230,11 +230,13 @@
                                 :max="profile.quota.volatile"
                               />
                               <QuotaProgressBar
+                                v-if="profile.role.toLowerCase() !== 'user'"
                                 :title="$t('components.profile.quota.templates')"
                                 :value="profile.used.templates"
                                 :max="profile.quota.templates"
                               />
                               <QuotaProgressBar
+                                v-if="profile.role.toLowerCase() !== 'user'"
                                 :title="$t('components.profile.quota.media')"
                                 :value="profile.used.isos"
                                 :max="profile.quota.isos"
