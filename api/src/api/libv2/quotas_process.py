@@ -86,13 +86,84 @@ class QuotasProcess:
                 )
             except r.ReqlNonExistenceError:
                 starteds = {"count": 0, "memory": 0, "vcpus": 0}
+            deployments = (
+                r.table("deployments")
+                .get_all(user["id"], index="user")
+                .count()
+                .run(db.conn)
+            )
+            deployment_desktops = 0
+
+            started_deployment_desktops = (
+                r.table("domains")
+                .get_all(
+                    r.args(
+                        list(
+                            r.table("deployments")
+                            .get_all(user_id, index="user")
+                            .pluck("id")["id"]
+                            .run(db.conn)
+                        )
+                    ),
+                    index="tag",
+                )
+                .filter(
+                    lambda desktop: r.expr(
+                        [
+                            "Started",
+                            "Starting",
+                            "StartingPaused",
+                            "CreatingAndStarting",
+                            "Shutting-down",
+                        ]
+                    ).contains(desktop["status"])
+                )
+                .eq_join("start_logs_id", r.table("logs_desktops"))
+                .pluck({"right": ["starting_by"]}, "left")
+                .zip()
+                .filter(lambda log: log.get_field("starting_by").eq("deployment-owner"))
+                .count()
+                .run(db.conn)
+            ) + (
+                r.table("domains")
+                .get_all(
+                    r.args(
+                        list(
+                            r.table("deployments")
+                            .get_all(user_id, index="user")
+                            .pluck("id")["id"]
+                            .run(db.conn)
+                        )
+                    ),
+                    index="tag",
+                )
+                .filter(
+                    lambda desktop: r.expr(
+                        [
+                            "Started",
+                            "Starting",
+                            "StartingPaused",
+                            "CreatingAndStarting",
+                            "Shutting-down",
+                        ]
+                    ).contains(desktop["status"])
+                )
+                .eq_join("start_logs_id", r.table("logs_desktops"))
+                .pluck({"right": ["starting_by"]}, "left")
+                .zip()
+                .filter(
+                    lambda log: log.get_field("starting_by").eq("deployment-co-owner")
+                )
+                .count()
+                .run(db.conn)
+            )
 
         vcpus = starteds["vcpus"]
         memory = round(starteds["memory"] / 1048576)
 
         if user["quota"] == False:
-            qpdesktops = qpup = qptemplates = qpisos = qpvcpus = qpmemory = 0
-            dq = rq = tq = iq = vq = mq = 9999
+            qpdesktops = qpup = qptemplates = qpisos = qpvcpus = qpmemory = qpDeployments = qpDktpDeployment = qpStartDeploymentDktp = 0  # fmt: skip
+            dq = rq = tq = iq = vq = mq = deploymentsq = dktpDeploymentq = startDeploymentDktpq = 9999  # fmt: skip
         else:
             qpdesktops = (
                 desktops * 100 / user["quota"]["desktops"]
@@ -132,6 +203,29 @@ class QuotasProcess:
             )  # convert GB to KB (domains are in KB by default)
             mq = user["quota"]["memory"]
 
+            qpDeployments = (
+                deployments * 100 / user["quota"]["deployments_total"]
+                if user["quota"]["deployments_total"]
+                else 100
+            )
+            deploymentsq = user["quota"]["deployments_total"]
+
+            qpDktpDeployment = (
+                deployment_desktops * 100 / user["quota"]["deployment_desktops"]
+                if user["quota"]["deployment_desktops"]
+                else 100
+            )
+            dktpDeploymentq = user["quota"]["deployment_desktops"]
+
+            qpStartDeploymentDktp = (
+                started_deployment_desktops
+                * 100
+                / user["quota"]["started_deployment_desktops"]
+                if user["quota"]["started_deployment_desktops"]
+                else 100
+            )
+            startDeploymentDktpq = user["quota"]["started_deployment_desktops"]
+
         return {
             "user": user,
             "d": desktops,
@@ -152,6 +246,15 @@ class QuotasProcess:
             "m": int(round(memory)),
             "mq": mq,
             "mqp": int(round(qpmemory, 0)),
+            "deployments": deployments,
+            "deploymentsq": deploymentsq,
+            "deploymentsqp": int(round(qpDeployments, 0)),
+            "dktpDeployment": deployment_desktops,
+            "dktpDeploymentq": dktpDeploymentq,
+            "dktpDeploymentqp": int(round(qpDktpDeployment, 0)),
+            "startDeploymentDktp": started_deployment_desktops,
+            "startDeploymentDktpq": startDeploymentDktpq,
+            "startDeploymentDktpqp": int(round(qpStartDeploymentDktp, 0)),
         }
 
     def process_category_limits(self, id, from_user_id=None, from_group_id=None):
@@ -227,12 +330,20 @@ class QuotasProcess:
                 .run(db.conn)
             )
 
+            deployments = (
+                r.table("deployments")
+                .eq_join("user", r.table("users"))
+                .filter({"right": {"category": category["id"]}})
+                .count()
+                .run(db.conn)
+            )
+
         vcpus = starteds["vcpus"]
         memory = round(starteds["memory"] / 1048576)
 
         if category["limits"] == False:
-            qpdesktops = qpup = qptemplates = qpisos = qpvcpus = qpmemory = qpusers = 0
-            dq = rq = tq = iq = vq = mq = uq = 9999
+            qpdesktops = qpup = qptemplates = qpisos = qpvcpus = qpmemory = qpusers = qpDeployments = 0  # fmt: skip
+            dq = rq = tq = iq = vq = mq = uq = deploymentsq = 9999  # fmt: skip
         else:
             qpdesktops = (
                 desktops * 100 / category["limits"]["desktops"]
@@ -283,6 +394,13 @@ class QuotasProcess:
             )
             uq = category["limits"]["users"]
 
+            qpDeployments = (
+                deployments * 100 / category["limits"]["deployments_total"]
+                if category["limits"]["deployments_total"]
+                else 100
+            )
+            deploymentsq = category["limits"]["deployments_total"]
+
         return {
             "category": category,
             "d": desktops,
@@ -306,6 +424,9 @@ class QuotasProcess:
             "u": users,
             "uq": uq,
             "uqp": int(round(qpusers, 0)),
+            "deployments": deployments,
+            "deploymentsq": deploymentsq,
+            "deploymentsqp": int(round(qpDeployments, 0)),
         }
 
     def process_group_limits(self, id, from_user_id=None):
@@ -370,12 +491,20 @@ class QuotasProcess:
                 .run(db.conn)
             )
 
+            deployments = (
+                r.table("deployments")
+                .eq_join("user", r.table("users"))
+                .filter({"right": {"group": group["id"]}})
+                .count()
+                .run(db.conn)
+            )
+
         vcpus = starteds["vcpus"]
         memory = round(starteds["memory"] / 1048576)
 
         if group["limits"] == False:
-            qpdesktops = qpup = qptemplates = qpisos = qpvcpus = qpmemory = qpusers = 0
-            dq = rq = tq = iq = vq = mq = uq = 9999
+            qpdesktops = qpup = qptemplates = qpisos = qpvcpus = qpmemory = qpusers = qpdeployments = 0  # fmt: skip
+            dq = rq = tq = iq = vq = mq = uq = deploymentsq = 9999  # fmt: skip
         else:
             qpdesktops = (
                 desktops * 100 / group["limits"]["desktops"]
@@ -422,6 +551,13 @@ class QuotasProcess:
             )
             uq = group["limits"]["users"]
 
+            qpdeployments = (
+                deployments * 100 / group["limits"]["deployments_total"]
+                if group["limits"]["deployments_total"]
+                else 100
+            )
+            deploymentsq = group["limits"]["deployments_total"]
+
         return {
             "group": group,
             "d": desktops,
@@ -445,6 +581,9 @@ class QuotasProcess:
             "u": users,
             "uq": uq,
             "uqp": int(round(qpusers, 0)),
+            "deployments": deployments,
+            "deploymentsq": deploymentsq,
+            "deploymentsqp": int(round(qpdeployments, 0)),
         }
 
     def get_manager_usage(self, category_id):
@@ -496,6 +635,13 @@ class QuotasProcess:
                 .count()
                 .run(db.conn)
             )
+            deployments = (
+                r.table("deployments")
+                .eq_join("user", r.table("users"))
+                .filter({"right": {"category": category_id}})
+                .count()
+                .run(db.conn)
+            )
 
         return {
             "d": desktops,
@@ -505,6 +651,7 @@ class QuotasProcess:
             "v": starteds["vcpus"],
             "m": round(starteds["memory"] / 1048576),
             "u": users,
+            "deployments": deployments,
         }
 
     def get_admin_usage(self):
@@ -543,6 +690,7 @@ class QuotasProcess:
             except r.ReqlNonExistenceError:
                 starteds = {"count": 0, "memory": 0, "vcpus": 0}
             users = r.table("users").count().run(db.conn)
+            deployments = r.table("deployments").count().run(db.conn)
 
         return {
             "d": desktops,
@@ -552,6 +700,7 @@ class QuotasProcess:
             "v": starteds["vcpus"],
             "m": round(starteds["memory"] / 1048576),
             "u": users,
+            "deployments": deployments,
         }
 
     def check_payload_quota_newdesktop(self, payload):

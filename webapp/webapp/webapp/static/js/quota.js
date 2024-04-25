@@ -95,6 +95,7 @@ function drawCategoryLimits(limits){
   $('.limits-vcpus-bar').css('width', limits.vqp+'%').attr('aria-valuenow', limits.vqp).text(limits.vqp+'%');
   $('.limits-memory-bar').css('width', limits.mqp+'%').attr('aria-valuenow', limits.mqp).text(limits.mqp+'%');
   $('.limits-users-bar').css('width', limits.uqp+'%').attr('aria-valuenow', limits.uqp).text(limits.uqp+'%');
+  $('.limits-deployments-bar').css('width', limits.deploymentsqp+'%').attr('aria-valuenow', limits.deploymentsqp).text(limits.deploymentsqp+'%');
 }
 function drawAdminGlobals(admin){
   $('.system-desktops').css('width', '100%').attr('aria-valuenow', 100).text(admin.d);
@@ -105,4 +106,5 @@ function drawAdminGlobals(admin){
   $('.system-vcpus').css('width', '100%').attr('aria-valuenow', 100).text(admin.v);
   $('.system-memory').css('width', '100%').attr('aria-valuenow', 100).text(admin.m+'G');
   $('.system-users').css('width', '100%').attr('aria-valuenow', 100).text(admin.u);
+  $('.system-deployments').css('width', '100%').attr('aria-valuenow', 100).text(admin.deployments);
 }

@@ -43,6 +43,9 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
             $(parentid+"#quota-desktops_disk_size").removeAttr("max");
             $(parentid+"#quota-total_size").removeAttr("max");
             $(parentid+"#quota-total_soft_size").removeAttr("max");
+            $(parentid+"#quota-deployments_total").removeAttr("max");
+            $(parentid+"#quota-deployment_desktops").removeAttr("max");
+            $(parentid+"#quota-started_deployment_desktops").removeAttr("max");
 
             // ONLY FOR KIND=USER
             // if limits are defined for user set as max value
@@ -59,8 +62,9 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
                 $(parentid+"#quota-desktops_disk_size").attr("max", usrquota.limits.desktops_disk_size);
                 $(parentid+"#quota-total_size").attr("max", usrquota.limits.total_size);
                 $(parentid+"#quota-total_soft_size").attr("max", usrquota.limits.total_soft_size);
-
+                
                 $(parentid+"#quota-desktops").attr("title", "Limit: "+usrquota.limits.desktops);
+                $(parentid+"#quota-volatile").attr("max", usrquota.limits.volatile);
                 $(parentid+"#quota-templates").attr("title", "Limit: "+usrquota.limits.templates);
                 $(parentid+"#quota-isos").attr("title", "Limit: "+usrquota.limits.isos);
                 $(parentid+"#quota-running").attr("title", "Limit: "+usrquota.limits.running);
@@ -84,6 +88,9 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
                 $(parentid+"#quota-desktops_disk_size").val(usrquota.quota.desktops_disk_size);
                 $(parentid+"#quota-total_size").val(usrquota.quota.total_size);
                 $(parentid+"#quota-total_soft_size").val(usrquota.quota.total_soft_size);
+                $(parentid+"#quota-deployments_total").val(usrquota.quota.deployments_total);
+                $(parentid+"#quota-deployment_desktops").val(usrquota.quota.deployment_desktops);
+                $(parentid+"#quota-started_deployment_desktops").val(usrquota.quota.deployment_desktops);
             }else{
                 $(parentid+"#unlimited").iCheck('check');
                 enable=false
@@ -129,6 +136,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
                 $(parentid+"#limits-desktops_disk_size").val(usrquota.limits.desktops_disk_size);
                 $(parentid+"#limits-total_size").val(usrquota.limits.total_size);
                 $(parentid+"#limits-total_soft_size").val(usrquota.limits.total_soft_size);
+                $(parentid+"#limits-deployments_total").val(usrquota.limits.deployments_total);
             }else{
                 $(parentid+"#unlimited").iCheck('check');
                 enable=false
@@ -159,6 +167,9 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
         $(parentid+"desktops_disk_size").removeAttr("disabled");
         $(parentid+"total_size").removeAttr("disabled");
         $(parentid+"total_soft_size").removeAttr("disabled");
+        $(parentid+"deployments_total").removeAttr("disabled");
+        $(parentid+"deployment_desktops").removeAttr("disabled");
+        $(parentid+"started_deployment_desktops").removeAttr("disabled");
     }
 
     function quotaDisable(parentid){
@@ -173,6 +184,9 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
         $(parentid+"desktops_disk_size").attr("disabled", true);
         $(parentid+"total_size").attr("disabled", true);
         $(parentid+"total_soft_size").attr("disabled", true);
+        $(parentid+"deployments_total").attr("disabled", true);
+        $(parentid+"deployment_desktops").attr("disabled", true);
+        $(parentid+"started_deployment_desktops").attr("disabled", true);
     }
 
     function quota2dict(data){

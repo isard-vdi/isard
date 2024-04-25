@@ -437,16 +437,49 @@ class RecycleBin(object):
 
     def check_can_restore(self):
         for desktop in self.desktops:
-            quotas.desktop_create(desktop["user"])
+            if not desktop.get("tag"):
+                quotas.desktop_create(desktop["user"])
 
         for template in self.templates:
             quotas.template_create(template["user"])
+
+        for deployment in self.deployments:
+            users = [
+                {
+                    "id": desktop["user"],
+                    "username": desktop["username"],
+                    "category": desktop["category"],
+                    "group": desktop["group"],
+                }
+                for desktop in [
+                    desktop
+                    for desktop in self.desktops
+                    if desktop.get("tag") == deployment["id"]
+                ]
+            ]
+            quotas.deployment_create(users, deployment["user"])
+
+    def send_socket_user(self, kind, data):
+        socketio.emit(
+            kind,
+            data,
+            namespace="/userspace",
+            room=self.owner_id,
+        )
+
+    def send_socket_admin(self, kind, data):
+        socketio.emit(
+            kind,
+            data,
+            namespace="/administrators",
+            room="admins",
+        )
 
     def restore(self):
         """
         Restore an entry including domains and storage. Call this function with RecycleBin object instanced with ID
         """
-        if self.item_type not in ["deployment", "user", "group", "category"]:
+        if self.item_type not in ["user", "group", "category"]:
             self.check_can_restore()
         if self.status in ["deleted", "restored"]:
             raise Error(

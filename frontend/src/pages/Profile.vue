@@ -242,6 +242,28 @@
                                 :max="profile.quota.isos"
                               />
                               <QuotaProgressBar
+                                v-if="profile.role.toLowerCase() !== 'user'"
+                                :title="$t('components.profile.quota.deployments_total')"
+                                :value="profile.used.deploymentsTotal"
+                                :max="profile.quota.deploymentsTotal"
+                              />
+                              <QuotaProgressBar
+                                v-if="profile.role.toLowerCase() !== 'user'"
+                                :title="$t('components.profile.quota.deployment_desktops')"
+                                :value="profile.used.deploymentDesktops"
+                                :max="profile.quota.deploymentDesktops"
+                              />
+                              <QuotaProgressBar
+                                v-if="profile.role.toLowerCase() !== 'user'"
+                                v-b-tooltip="{ title: `${$t('components.profile.quota.started_deployment_desktops.description')}`,
+                                               placement: 'left',
+                                               customClass: 'isard-tooltip',
+                                               trigger: 'hover' }"
+                                :title="$t('components.profile.quota.started_deployment_desktops.title')"
+                                :value="profile.used.startedDeploymentDesktops"
+                                :max="profile.quota.startedDeploymentDesktops"
+                              />
+                              <QuotaProgressBar
                                 :title="$t('components.profile.quota.running')"
                                 :value="profile.used.running"
                                 :max="profile.quota.running"

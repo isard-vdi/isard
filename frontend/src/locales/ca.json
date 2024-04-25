@@ -284,7 +284,10 @@
                 "total-disk-size": "Mida de disc utilitzat / Total de mida de disc (GB)",
                 "total-media-size": "Mida de mitjans utilitzats / Total de mida dels mitjans (GB)",
                 "total-size": "Mida utilitzada / Mida total (GB)",
-                "unit": "Mida unitat personal / Mida total unitat personal (MB)"
+                "unit": "Mida unitat personal / Mida total unitat personal (MB)",
+                "deployments_total": "Desplegaments creats / Total de desplegaments",
+                "deployment_desktops": "Maxim d'escriptoris per desplegament",
+                "started_deployment_desktops": "Escriptoris iniciats per desplegament"
             },
             "reset-vpn": "Restablir VPN"
         },
@@ -1214,6 +1217,11 @@
         "media_url_not_found": "L'adreça introduïda no s'ha trobat",
         "media_url_not_valid": "L'adreça introduïda no és vàlida",
         "media_url_bad_format": "El format de l'adreça introduïda no és vàlid",
+        "deployment_new_user_quota_exceeded": "Has excedit la teva quota de creació de desplegaments. Cal que eliminis algun desplegament per a poder crear-ne de nous.",
+        "deployments_new_group_limit_exceeded": "S'ha excedit el límit de creació de desplegaments del grup",
+        "deployments_new_category_limit_exceeded": "S'ha excedit la quota de creació de desplegaments de la categoria",
+        "deployment_desktop_new_user_quota_exceeded": "Has excedit la quota d'escriptoris per aquest desplegament. Cal que redueixis la quantitat d'escriptoris d'aquest desplegament per a poder crear-lo.",
+        "deployment_start_user_quota_exceeded": "Has excedit la teva quota per iniciar escriptoris de desplegaments. Cal que aturis altres escriptoris de desplegaments per a poder iniciar-ne de nous.",
         "group_total_size_limit_exceeded": "S'ha excedit el límit de mida del disc del grup",
         "category_total_size_limit_exceeded": "S'ha excedit el límit de mida del disc de la categoria",
         "total_size_quota_exceeded": "Has excedit la teva quota de mida de disc. Cal que elimins un escriptori, una plantilla o un mitjà per tal d'alliberar espai.",

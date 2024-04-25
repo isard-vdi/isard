@@ -301,7 +301,7 @@ def new(
     }
 
     users = get_selected_users(payload, selected, desktop_name, False, True)
-    quotas.deployment_create(users)
+    quotas.deployment_create(users, payload["user_id"])
 
     """Create deployment"""
     with app.app_context():

@@ -78,6 +78,30 @@ def api_v3_deployments_new(payload):
     return json.dumps({"id": data["id"]}), 200, {"Content-Type": "application/json"}
 
 
+@app.route("/api/v3/deployments/new/check_quota", methods=["GET", "POST"])
+@is_not_user
+def api_v3_deployments_check_quota(payload):
+    users = []
+    if request.method == "POST":
+        try:
+            data = request.get_json(force=True)
+        except:
+            raise Error(
+                "bad_request",
+                "Could not decode body data",
+                description_code="bad_request",
+            )
+        allowed = data.get("allowed")
+        users = api_deployments.get_selected_users(payload, allowed, "", "")
+
+    quotas.deployment_create(users, payload["user_id"])
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/deployments/<deployment_id>", methods=["DELETE"])
 @app.route("/api/v3/deployments/<deployment_id>/<permanent>", methods=["DELETE"])
 @is_not_user
@@ -209,6 +233,10 @@ def api_v3_deployment_edit_users(payload, deployment_id):
         )
 
     data = _validate_item("allowed", data)
+
+    users = api_deployments.get_selected_users(payload, data["allowed"], "", "")
+    quotas.deployment_update(users, payload["user_id"])
+
     api_deployments.edit_deployment_users(payload, deployment_id, data.get("allowed"))
     return (
         json.dumps({}),

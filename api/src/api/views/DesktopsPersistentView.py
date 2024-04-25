@@ -40,6 +40,7 @@ from .decorators import (
     has_token,
     is_admin_or_manager,
     is_admin_or_manager_or_advanced,
+    ownsDeploymentDesktopId,
     ownsDomainId,
 )
 
@@ -63,7 +64,10 @@ def api_v3_desktop_start(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
     user_id = desktops.UserDesktop(desktop_id)
 
-    desktop = quotas.desktop_start(user_id, desktop_id)
+    if ownsDeploymentDesktopId(payload, desktop_id):
+        desktop = quotas.deployment_desktop_start(payload["user_id"], desktop_id)
+    else:
+        desktop = quotas.desktop_start(user_id, desktop_id)
     desktop = _parse_desktop_booking(desktop)
 
     if desktop["needs_booking"]:

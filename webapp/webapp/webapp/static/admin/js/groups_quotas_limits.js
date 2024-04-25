@@ -57,6 +57,10 @@ $(document).ready(function() {
             { "data": "limits.templates", className: "xe-templates", defaultContent: "-"},
             { "data": "quota.isos", className: "xe-isos", defaultContent: "-"},
             { "data": "limits.isos", className: "xe-isos", defaultContent: "-"},
+            { "data": "quota.deployments_total", className: "xe-deployments", defaultContent: "-"},
+            { "data": "limits.deployments_total", className: "xe-deployments", defaultContent: "-"},
+            { "data": "quota.deployment_desktops", className: "xe-deployments", defaultContent: "-"},
+            { "data": "limits.deployment_desktops", className: "xe-deployments", defaultContent: "-"},
             { "data": "id", "visible": false}
         ],
         "columnDefs": [

@@ -424,11 +424,7 @@ export default {
     }
 
     const createDeployment = () => {
-      $store.dispatch('checkHypervisorAvailability').then(response => {
-        if (response.status === 200) {
-          $store.dispatch('navigate', 'deploymentsnew')
-        }
-      })
+      $store.dispatch('checkHyperAvailableAndQuota', { itemType: 'deployments', routeName: 'deploymentsnew' })
     }
 
     $store.dispatch('fetchItemsInRecycleBin')

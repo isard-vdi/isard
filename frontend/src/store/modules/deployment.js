@@ -212,6 +212,11 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
+    checkDeploymentsCreateQuota (context, data) {
+      return axios.post(`${apiV3Segment}/deployments/new/check_quota`, data).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
     toggleDeploymentsShowStarted (context) {
       context.commit('toggleDeploymentsShowStarted')
     },
