@@ -1497,7 +1497,7 @@ function showUserExportButtons(table, buttonsRowClass) {
                 extend: 'csv',
                 text: 'CSV with import format',
                 exportOptions: {
-                    columns: [14] // ID column
+                    columns: [15] // ID column
                 },
                 title: "csv_with_import_format",
                 titleAttr: "Generate a CSV file from the current displayed data, to use in the \"Update from CSV\" feature.",
