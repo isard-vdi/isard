@@ -6,3 +6,5 @@ quota:
     - dict
     - boolean
   schema: quotas
+role:
+  type: string

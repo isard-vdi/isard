@@ -530,7 +530,7 @@ def api_v3_admin_quota_category(payload, category_id):
     propagate = True if "propagate" in data.keys() else False
     if data.get("quota"):
         data["id"] = category_id
-        _validate_item("category_update_quota", data)
+        data = _validate_item("category_update_quota", data)
     if data["role"] == "all_roles":
         data["role"] = False
     ownsCategoryId(payload, category_id)
