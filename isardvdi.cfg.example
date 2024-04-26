@@ -535,6 +535,11 @@ WG_GUESTS_RESERVED_HOSTS=20
 #REDIS_HOST=isard-redis
 #REDIS_PORT=6379
 
+# Redis workers
+## Amount of workers used by the isard-storage service
+## WARNING: The increase of workers could lead to cpu overload
+#REDIS_WORKERS=1
+
 ##################################################################
 ## STATS PARAMETERS                                             ##
 ##################################################################
