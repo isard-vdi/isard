@@ -1167,7 +1167,8 @@
             "restoring-recycle-bin": "Restoring entry",
             "deleting-recycle-bin": "Deleting entry",
             "warning-desktop-waiting-ip": "Viewer not available right now. Please wait..",
-            "reset-vpn": "VPN keys reset"
+            "reset-vpn": "VPN keys reset",
+            "video-default": "The 'Videos' parameter on the desktop was changed to 'Default', as there is no GPU profile assigned"
         },
         "loading": "Loading"
     },

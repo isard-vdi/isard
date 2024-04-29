@@ -31,9 +31,11 @@
 </template>
 
 <script>
-import { computed, onMounted } from '@vue/composition-api'
+import { computed, onMounted, watch } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
+import { ErrorUtils } from '@/utils/errorUtils'
+import i18n from '@/i18n'
 
 export default {
   setup (props, context) {
@@ -45,6 +47,14 @@ export default {
       set: (value) => {
         domain.value.reservables.vgpus = value ? [value] : []
         $store.commit('setDomain', domain.value)
+      }
+    })
+
+    // When not selecting a GPU, set the video to default
+    watch(vgpus, (newVal, prevVal) => {
+      if (vgpus.value[0] === 'None') {
+        ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.video-default'), '', true, 5000)
+        $store.dispatch('changeVideos', ['default'])
       }
     })
 

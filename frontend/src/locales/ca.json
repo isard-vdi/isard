@@ -1292,7 +1292,8 @@
             "restoring-recycle-bin": "Restaurant entrada",
             "deleting-recycle-bin": "Eliminant entrada",
             "warning-desktop-waiting-ip": "Encara no es pot obrir el visor actual Espereu si us plau...",
-            "reset-vpn": "Claus VPN restablertes"
+            "reset-vpn": "Claus VPN restablertes",
+            "video-default": "S'ha canviat el paràmetre 'Videos' de l'escriptori a 'Default', atès que no hi ha cap perfil de GPU assignat"
         },
         "loading": "Carregant"
     },

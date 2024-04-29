@@ -1180,8 +1180,8 @@
             "restoring-recycle-bin": "Restaurando entrada",
             "deleting-recycle-bin": "Eliminando entrada",
             "warning-desktop-waiting-ip": "Aún no se puede abrir el visor seleccionado. Espere por favor...",
-            "reset-vpn": "Claves VPN restauradas"
-
+            "reset-vpn": "Claves VPN restauradas",
+            "video-default": "Se ha cambiado el parámetro 'Videos' del escritorio a 'Default', dado que no hay ningún perfil de GPU asignado"
         },
         "loading": "Cargando"
     },

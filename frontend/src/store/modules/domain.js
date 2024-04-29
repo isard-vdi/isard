@@ -164,6 +164,9 @@ export default {
     setMediaInstalls: (state, installs) => {
       state.mediaInstalls = installs
       state.mediaInstallsLoaded = true
+    },
+    changeVideos: (state, videos) => {
+      state.domain.hardware.videos = videos
     }
   },
   actions: {
@@ -261,6 +264,9 @@ export default {
     },
     setSelectedOSTemplateId (context, selectedOSTemplateId) {
       context.commit('setSelectedOSTemplateId', selectedOSTemplateId)
+    },
+    changeVideos (context, videos) {
+      context.commit('changeVideos', videos)
     }
   }
 }
