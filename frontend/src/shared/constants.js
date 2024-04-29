@@ -27,7 +27,8 @@ export const desktopStates = {
   'shutting-down': 'shutting-down',
   downloading: 'downloading',
   paused: 'paused',
-  updating: 'updating'
+  updating: 'updating',
+  maintenance: 'maintenance'
 }
 
 export const status = {
@@ -80,6 +81,10 @@ export const status = {
   updating: {
     action: '',
     icon: 'arrow-repeat'
+  },
+  maintenance: {
+    action: '',
+    variant: 'warning'
   }
 }
 

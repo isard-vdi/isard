@@ -780,6 +780,7 @@ class ApiUsers:
                             "booking_id",
                             "scheduled",
                             "tag",
+                            "current_action",
                         ]
                     )
                     .run(db.conn)

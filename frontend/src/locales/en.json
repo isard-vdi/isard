@@ -314,7 +314,13 @@
             },
             "no-info-default": "No description available",
             "open-with": "Open with viewer",
-            "filter-label": "Filter"
+            "filter-label": "Filter",
+            "storage-operation": {
+                "increase": "The disk size of this desktop is being increased",
+                "virt-win-reg": "The registry is being edited",
+                "move": "This desktop's disk is being moved"
+
+            }
         },
         "deployment-desktop-list": {
             "actions": {
@@ -697,6 +703,10 @@
                 "updating": {
                     "text": "Processing",
                     "action": "Processing"
+                },
+                "maintenance": {
+                    "text": "In maintenance",
+                    "action": "In maintenance"
                 }
             }
         },

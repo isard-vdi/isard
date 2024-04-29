@@ -315,6 +315,11 @@
             },
             "no-info-default": "No hay descripción disponible",
             "open-with": "Acceder con visor",
+            "storage-operation": {
+                "increase": "El tamaño de disco de este escritorio está siendo incrementado",
+                "virt-win-reg": "Se está editando el registro",
+                "move": "El disco de este escritorio se está moviendo"
+            },
             "filter-label": "Filtrar"
         },
         "deployment-desktop-list": {
@@ -698,6 +703,10 @@
                 "updating": {
                     "text": "Procesando",
                     "action": "Procesando"
+                },
+                "maintenance": {
+                    "text": "En mantenimiento",
+                    "action": "En mantenimiento"
                 }
             }
         },

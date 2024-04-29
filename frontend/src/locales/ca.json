@@ -117,6 +117,12 @@
             },
             "no-info-default": "No hi ha cap descripció disponible",
             "open-with": "Accedir amb visor",
+            "storage-operation": {
+                "increase": "La mida del disc d'aquest escriptori s'està incrementant",
+                "virt-win-reg": "S'està editant el registre",
+                "move": "El disc d'aquest escriptori s'està movent"
+
+            },
             "actions": {
                 "delete": "Esborrar",
                 "template": "Convertir en plantilla",
@@ -507,6 +513,10 @@
                 "updating": {
                     "text": "Processant",
                     "action": "Processant"
+                },
+                "maintenance": {
+                    "text": "En manteniment",
+                    "action": "En manteniment"
                 }
             }
         },

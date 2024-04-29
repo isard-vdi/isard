@@ -259,3 +259,16 @@ def media_update(**media_dict):
             for dependency in task.dependencies:
                 if dependency.task in ("check_media_existence"):
                     media_update(**dependency.result)
+
+
+def domains_update(domain_list):
+    """
+    Update domain if task success.
+
+    :param domain_list:List of domain IDs
+    :type domain_listt: list
+    """
+
+    if domain_list:
+        for domain_id in domain_list:
+            Domain(domain_id).current_status = None

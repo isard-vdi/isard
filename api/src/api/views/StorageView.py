@@ -22,16 +22,27 @@ from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
 
 from api import app
 
+from ..libv2.api_admin import ApiAdmin
 from ..libv2.api_storage import (
+    _check_domains_status,
     get_disks_ids_by_status,
     get_storage_category,
+    get_storage_derivatives,
     get_user_ready_disks,
     parse_disks,
 )
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()
-from .decorators import has_token, is_admin, is_admin_or_manager, ownsStorageId
+from .decorators import (
+    has_token,
+    is_admin,
+    is_admin_or_manager,
+    ownsDomainId,
+    ownsStorageId,
+)
+
+admins = ApiAdmin()
 
 
 def check_storage_existence_and_permissions(payload, storage_id):
@@ -63,9 +74,24 @@ def set_storage_maintenance(payload, storage_id):
     check_storage_existence_and_permissions(payload, storage_id)
     storage = Storage(storage_id)
     if storage.status != "ready":
-        raise Error(error="precondition_required", description="Storage not ready")
+        raise Error(
+            error="precondition_required",
+            description="Storage not ready",
+            description_code="storage_not_ready",
+        )
     storage.status = "maintenance"
     return storage
+
+
+def set_desktops_maintenance(payload, storage_id, action):
+    domains = get_storage_derivatives(storage_id)
+
+    for domain_id in domains:
+        ownsDomainId(payload, domain_id)
+    for domain_id in domains:
+        domain = Domain(domain_id)
+        domain.status = "Maintenance"
+        domain.current_action = action
 
 
 @app.route("/api/v3/storage/priority/<priority>", methods=["POST"])
@@ -120,10 +146,15 @@ def create_storage(payload, priority="low"):
         if not Storage.exists(request_json.get("parent")):
             raise Error(error="not_found", description="Parent storage not found")
         parent = Storage(request_json.get("parent"))
+        if not parent.user_id:
+            raise Error("not_found", description_code="storage_not_found")
         if parent.status != "ready":
             raise Error(
-                error="precondition_required", description="Parent storage not ready"
+                error="precondition_required",
+                description="Storage not ready",
+                description_code="storage_not_ready",
             )
+
         parent_args = {
             "parent_path": parent.path,
             "parent_type": parent.type,
@@ -185,7 +216,7 @@ def create_storage(payload, priority="low"):
 
     try:
         storage.create_task(
-            user_id=payload.get("user_id"),
+            user_id=storage.user_id,
             queue=f"storage.{storage_pool.id}.{priority}",
             task="create",
             job_kwargs={
@@ -388,11 +419,23 @@ def storage_virt_win_reg(payload, storage_id):
         raise Error(
             description="registry_patch must be specified in JSON of body request",
         )
+    storage = Storage(storage_id)
+    if not storage.user_id:
+        raise Error("not_found", description_code="storage_not_found")
+    if not _check_domains_status(storage_id):
+        raise Error(
+            "precondition_required",
+            "All desktops must be 'Stopped' for storage operations.",
+            description_code="desktops_not_stopped",
+        )
 
-    storage = set_storage_maintenance(payload, storage_id)
+    set_desktops_maintenance(payload, storage_id, "virt_win_reg")
+    set_storage_maintenance(payload, storage_id)
+    storage_domains = get_storage_derivatives(storage.id)
+
     try:
         storage.create_task(
-            user_id=payload.get("user_id"),
+            user_id=storage.user_id,
             queue=f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=storage.directory_path).id}.low",
             task="virt_win_reg",
             job_kwargs={
@@ -412,16 +455,29 @@ def storage_virt_win_reg(payload, storage_id):
                                     "ready": {
                                         "storage": [storage.id],
                                     },
+                                    "Stopped": {
+                                        "domain": [
+                                            domain.id for domain in storage.domains
+                                        ],
+                                    },
                                 },
                                 "canceled": {
                                     "ready": {
                                         "storage": [storage.id],
                                     },
+                                    "Stopped": {
+                                        "domain": [storage_domains],
+                                    },
                                 },
                             },
                         },
                     },
-                }
+                },
+                {
+                    "queue": "core",
+                    "task": "domains_update",
+                    "job_kwargs": {"domain_list": [storage_domains]},
+                },
             ],
         )
     except Exception as e:
@@ -657,22 +713,32 @@ def storage_move(payload, storage_id, path):
     if not storage_pool_destination:
         raise Error(error="not_found", description="Path not found")
     storage = Storage(storage_id)
+    if not storage.user_id:
+        raise Error("not_found", description_code="storage_not_found")
     if storage.status != "ready":
-        raise Error(error="precondition_required", description="Storage not ready")
+        raise Error(
+            error="precondition_required",
+            description="Storage not ready",
+            description_code="storage_not_ready",
+        )
     if storage.directory_path == path:
         raise Error(error="bad_request", description="Storage already in path")
-    for domain in Domain.get_with_storage(storage):
-        if domain.status != "Stopped":
-            raise Error(
-                error="precondition_required",
-                description=f"Storage in use by domain {domain.id}",
-            )
     if storage.children:
         raise Error(
             error="conflict",
             description=f"Used as backing file for {', '.join([storage.id for storage in storage.children])}",
         )
+    if not _check_domains_status(storage_id):
+        raise Error(
+            "precondition_required",
+            "All desktops must be 'Stopped' for storage operations.",
+            description_code="desktops_not_stopped",
+        )
+
+    set_desktops_maintenance(payload, storage_id, "move")
     storage.status = "maintenance"
+    storage_domains = get_storage_derivatives(storage.id)
+
     storage_pool_origin = StoragePool.get_best_for_action(
         "move", path=storage.directory_path
     )
@@ -694,7 +760,7 @@ def storage_move(payload, storage_id, path):
         move_job_kwargs["timeout"] = 3600
     try:
         storage.create_task(
-            user_id=payload.get("user_id"),
+            user_id=storage.user_id,
             queue=f"storage.{queue}.default",
             task="move",
             job_kwargs=move_job_kwargs,
@@ -718,19 +784,22 @@ def storage_move(payload, storage_id, path):
                             "job_kwargs": {
                                 "kwargs": {
                                     "statuses": {
-                                        "finished": {
+                                        "_all": {
                                             "ready": {
                                                 "storage": [storage.id],
                                             },
-                                        },
-                                        "canceled": {
-                                            "ready": {
-                                                "storage": [storage.id],
+                                            "Stopped": {
+                                                "domain": [storage_domains],
                                             },
                                         },
                                     },
                                 },
                             },
+                        },
+                        {
+                            "queue": "core",
+                            "task": "domains_update",
+                            "job_kwargs": {"domain_list": storage_domains},
                         },
                     ],
                 },
@@ -799,11 +868,25 @@ def storage_convert(
         raise Error(
             error="bad_request",
             description=f"Storage status {new_storage_status} not supported",
+            description_code="status_not_ready",
+        )
+    if not _check_domains_status(storage_id):
+        raise Error(
+            "precondition_required",
+            "All desktops must be 'Stopped' for storage operations.",
+            description_code="desktops_not_stopped",
         )
     if payload["role_id"] != "admin":
         priority = "low"
 
-    origin_storage = set_storage_maintenance(payload, storage_id)
+    origin_storage = Storage(storage_id)
+    if not origin_storage.user_id:
+        raise Error("not_found", description_code="storage_not_found")
+    if len(get_storage_derivatives(storage_id)) > 1:
+        raise Error(
+            "precondition_required", "Unable to convert storage with derivatives"
+        )
+    set_storage_maintenance(payload, storage_id)
     compress = request.url_rule.rule.endswith("/compress")
     new_storage = Storage(
         user_id=origin_storage.user_id,
@@ -814,7 +897,7 @@ def storage_convert(
     )
     try:
         origin_storage.create_task(
-            user_id=payload.get("user_id"),
+            user_id=new_storage.user_id,
             queue=f"storage.{StoragePool.get_best_for_action('convert', path=origin_storage.directory_path).id}.{priority}",
             task="convert",
             job_kwargs={
@@ -907,7 +990,11 @@ def storage_update_by_status(payload, status):
 )
 @has_token
 def storage_increase_size(payload, storage_id, increment, priority="low"):
-    quota = quotas.get_applied_quota(Storage(storage_id).user_id).get("quota")
+    storage = Storage(storage_id)
+    if not storage.user_id:
+        raise Error("not_found", description_code="storage_not_found")
+
+    quota = quotas.get_applied_quota(storage.user_id).get("quota")
 
     if payload["role_id"] != "admin":
         priority = "low"
@@ -920,10 +1007,21 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
     ):
         raise Error("bad_request", "Disk size quota exceeded")
 
-    storage = set_storage_maintenance(payload, storage_id)
+    storage = Storage(storage_id)
+    if not _check_domains_status(storage_id):
+        raise Error(
+            "precondition_required",
+            "All desktops must be 'Stopped' for storage operations.",
+            description_code="desktops_not_stopped",
+        )
+
+    set_desktops_maintenance(payload, storage_id, "increase")
+    set_storage_maintenance(payload, storage_id)
+    storage_domains = get_storage_derivatives(storage.id)
+
     try:
         storage.create_task(
-            user_id=payload.get("user_id"),
+            user_id=storage.user_id,
             queue=f"storage.{StoragePool.get_best_for_action('resize').id}.{priority}",
             task="resize",
             job_kwargs={
@@ -950,19 +1048,22 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
                             "job_kwargs": {
                                 "kwargs": {
                                     "statuses": {
-                                        "finished": {
+                                        "_all": {
                                             "ready": {
                                                 "storage": [storage.id],
                                             },
-                                        },
-                                        "canceled": {
-                                            "deleted": {
-                                                "storage": [storage.id],
+                                            "Stopped": {
+                                                "domain": storage_domains,
                                             },
                                         },
                                     }
                                 }
                             },
+                        },
+                        {
+                            "queue": "core",
+                            "task": "domains_update",
+                            "job_kwargs": {"kwargs": {"domain_list": storage_domains}},
                         },
                     ],
                 }
@@ -979,3 +1080,25 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
             "Error creating storage",
         )
     return jsonify(storage.task)
+
+
+@app.route("/api/v3/storage/<storage_id>/stop", methods=["PUT"])
+@is_admin_or_manager
+def storage_stop_all_desktops(payload, storage_id):
+    domains = [
+        domain.id for domain in Storage(storage_id).domains if domain.kind == "desktop"
+    ]
+    admins.MultipleActions("domains", "stopping", domains, payload["user_id"])
+    return jsonify({}), 200
+
+
+@app.route("/api/v3/storage/<storage_id>/check_stopped_desktops", methods=["GET"])
+@is_admin_or_manager
+def storage_check_stopped_desktops(payload, storage_id):
+    return jsonify({"is_stopped": Storage(storage_id)._check_domains_status()}), 200
+
+
+@app.route("/api/v3/storage/<storage_id>/check_storage_derivatives", methods=["GET"])
+@is_admin_or_manager
+def storage_check_storage_derivatives(payload, storage_id):
+    return jsonify({"derivatives": len(get_storage_derivatives(storage_id))}), 200

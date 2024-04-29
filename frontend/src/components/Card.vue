@@ -140,9 +140,12 @@
           </p>
 
           <!-- State -->
-          <div class="ml-4 d-flex flex-row justify-left">
+          <div
+            v-b-tooltip="{title: `${desktop.currentAction ? $t('components.desktop-cards.storage-operation.'+desktop.currentAction, { action: desktop.currentAction} ) : ''}`}"
+            class="ml-4 d-flex flex-row justify-left"
+          >
             <b-spinner
-              v-if="[desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())"
+              v-if="[desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.maintenance].includes(desktopState.toLowerCase())"
               small
               variant="light"
               class="align-self-center mr-2 status-spinner"
@@ -153,6 +156,13 @@
             >
               {{ desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${desktopState}.text`) }}
             </p>
+          </div>
+          <div
+            v-if="desktop.currentAction && desktopState == desktopStates.maintenance"
+
+            class="my-4 mx-2 card-text text-warning"
+          >
+            {{ $t('components.desktop-cards.storage-operation.'+desktop.currentAction, { action: desktop.currentAction} ) }}
           </div>
 
           <div
@@ -394,7 +404,8 @@ export default {
         'shutting-down': 'status-orange',
         working: 'status-orange',
         downloading: 'status-orange',
-        paused: 'status-red'
+        paused: 'status-red',
+        maintenance: 'status-orange'
       }
       return stateColors[this.desktopState]
     },

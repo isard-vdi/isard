@@ -10,6 +10,7 @@ import time
 
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.storage import Storage
 from isardvdi_common.task import Task
 from rethinkdb import RethinkDB
 
@@ -505,3 +506,43 @@ def remove_category_from_storage_pool(category_id):
         ).run(
             db.conn
         )
+
+
+def get_storage_derivatives(storage_id):
+    total = []
+    domains = Storage(storage_id).domains
+    for domain in domains:
+        total.append(domain.id)
+        if domain.kind == "template":
+            with app.app_context():
+                derivative_list = list(
+                    r.table("domains")
+                    .get_all(domain.id, index="parents")
+                    .distinct()
+                    .map(
+                        lambda doc: doc.merge(
+                            {
+                                "storage": doc["create_dict"]["hardware"]["disks"][0][
+                                    "storage_id"
+                                ]
+                            }
+                        )
+                    )
+                    .pluck("id", "storage", "status")
+                    .run(db.conn)
+                )
+            for derivative in derivative_list:
+                total.append(derivative["id"])
+                d = get_storage_derivatives(derivative["storage"])
+                if d:
+                    total.extend(d)
+    return list(set(total))
+
+
+def _check_domains_status(storage_id):
+    for domain_id in get_storage_derivatives(storage_id):
+        with app.app_context():
+            domain_status = r.table("domains").get(domain_id)["status"].run(db.conn)
+        if domain_status not in ["Stopped"]:
+            return False
+    return True

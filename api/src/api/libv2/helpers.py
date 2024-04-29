@@ -193,6 +193,7 @@ def _is_frontend_desktop_status(status):
         "Downloading",
         "DownloadStarting",
         "Updating",
+        "Maintenance",
     ]
     return True if status in frontend_desktop_status else False
 
@@ -318,6 +319,7 @@ def _parse_desktop(desktop):
             "category_name": desktop.get("category_name"),
             "reservables": desktop["create_dict"].get("reservables"),
             "interfaces": desktop["create_dict"]["hardware"]["interfaces"],
+            "current_action": desktop.get("current_action"),
         },
         **_parse_desktop_booking(desktop),
     }

@@ -534,6 +534,7 @@ class ApiAdmin:
                                 "booking_id",
                                 "role",
                                 "persistent",
+                                "current_action",
                             ],
                             "left": ["group_name", "category_name"],
                         }
