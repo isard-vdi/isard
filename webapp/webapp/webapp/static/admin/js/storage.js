@@ -31,8 +31,8 @@ $(document).ready(function () {
   storage_ready = createDatatable(tableId, 'ready', function () {
     let searchStorageId = getGroupParam()
     if (searchStorageId) {
-      storage_ready.api().column(3).search(searchStorageId).draw();
-      storage_other.column(3).footer(3).firstChild.value = searchStorageId;
+      storage_ready.column(3).search(searchStorageId).draw();
+      $(tableId + ' tfoot input').eq(2).val(searchStorageId);
     }
   })
   $(tableId + " tbody").off('click').on('click', 'button', function () {
@@ -74,7 +74,13 @@ $(document).ready(function () {
       $(tableId).empty()
     }
 
-    storagesOtherTable = createDatatable(tableId, newStatus)
+    storagesOtherTable = createDatatable(tableId, newStatus, function () {
+      let searchStorageId = getGroupParam()
+      if (searchStorageId) {
+        storagesOtherTable.column(3).search(searchStorageId).draw();
+        $(tableId + ' tfoot input').eq(2).val(searchStorageId);
+      }
+    })
 
     $(tableId + " tbody").off('click').on('click', 'button', function () {
       let tr = $(this).closest("tr")
