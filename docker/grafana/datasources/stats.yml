@@ -16,7 +16,7 @@ datasources:
   - name: Loki
     type: loki
     access: proxy
-    url: $LOKI_ADDRESS
+    url: ${LOKI_ADDRESS}
     jsonData:
       maxLines: 1000
 
