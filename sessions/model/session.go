@@ -2,21 +2,20 @@ package model
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
+
+	pkgRedis "gitlab.com/isard/isardvdi/pkg/redis"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
-var ErrNotFound = errors.New("session not found")
-
 type Session struct {
 	// ID is the session ID
-	ID   string       `json:"id"`
-	Time *SessionTime `json:"time"`
+	ID     string       `json:"id"`
+	UserID string       `json:"user_id"`
+	Time   *SessionTime `json:"time"`
 }
 
 // SessionTime contains all the information related with the lifespan of the session
@@ -29,16 +28,11 @@ type SessionTime struct {
 	ExpirationTime time.Time `json:"expiration_time"`
 }
 
-const sessionKeyPrefix = "session:"
-
-func sessionKey(id string) string {
-	return sessionKeyPrefix + id
-}
-
-func NewSession(ctx context.Context, db redis.UniversalClient, time *SessionTime) (*Session, error) {
+func NewSession(ctx context.Context, db redis.UniversalClient, userID string, time *SessionTime) (*Session, error) {
 	s := &Session{
-		ID:   uuid.NewString(),
-		Time: time,
+		ID:     uuid.NewString(),
+		UserID: userID,
+		Time:   time,
 	}
 
 	if err := s.Update(ctx, db); err != nil {
@@ -48,45 +42,24 @@ func NewSession(ctx context.Context, db redis.UniversalClient, time *SessionTime
 	return s, nil
 }
 
+const sessionKeyPrefix = "session:"
+
+func (s Session) Key() string {
+	return sessionKeyPrefix + s.ID
+}
+
+func (s Session) Expiration() time.Duration {
+	return time.Until(s.Time.MaxTime)
+}
+
 func (s *Session) Load(ctx context.Context, db redis.UniversalClient) error {
-	b, err := db.Get(ctx, sessionKey(s.ID)).Bytes()
-	if err != nil {
-		if errors.Is(err, redis.Nil) {
-			return ErrNotFound
-		}
-
-		return fmt.Errorf("get session: %w", err)
-	}
-
-	if err := json.Unmarshal(b, &s); err != nil {
-		return fmt.Errorf("unmarshal session from json: %w", err)
-	}
-
-	return nil
+	return pkgRedis.NewModel(s).Load(ctx, db)
 }
 
 func (s *Session) Update(ctx context.Context, db redis.UniversalClient) error {
-	b, err := json.Marshal(s)
-	if err != nil {
-		return fmt.Errorf("marshal session to json: %w", err)
-	}
-
-	if err := db.Set(ctx, sessionKey(s.ID), b, time.Until(s.Time.MaxTime)).Err(); err != nil {
-		return fmt.Errorf("update session: %w", err)
-	}
-
-	return nil
+	return pkgRedis.NewModel(s).Update(ctx, db)
 }
 
 func (s *Session) Delete(ctx context.Context, db redis.UniversalClient) error {
-	del, err := db.Del(ctx, sessionKey(s.ID)).Result()
-	if err != nil {
-		return fmt.Errorf("delete session: %w", err)
-	}
-
-	if del == 0 {
-		return ErrNotFound
-	}
-
-	return nil
+	return pkgRedis.NewModel(s).Delete(ctx, db)
 }

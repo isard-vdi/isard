@@ -18,8 +18,8 @@ type SessionsMock struct {
 	mock.Mock
 }
 
-func (m *SessionsMock) New(ctx context.Context) (*model.Session, error) {
-	mArgs := m.Called(ctx)
+func (m *SessionsMock) New(ctx context.Context, userID string) (*model.Session, error) {
+	mArgs := m.Called(ctx, userID)
 	return mArgs.Get(0).(*model.Session), mArgs.Error(1)
 }
 

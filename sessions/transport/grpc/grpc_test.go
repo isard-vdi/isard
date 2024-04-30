@@ -9,6 +9,7 @@ import (
 	"time"
 
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
+	"gitlab.com/isard/isardvdi/pkg/redis"
 	"gitlab.com/isard/isardvdi/sessions/model"
 	"gitlab.com/isard/isardvdi/sessions/sessions"
 	"gitlab.com/isard/isardvdi/sessions/transport/grpc"
@@ -34,7 +35,7 @@ func TestNew(t *testing.T) {
 	}{
 		"should work as expected": {
 			PrepareSessions: func(sm *sessions.SessionsMock) {
-				sm.On("New", mock.AnythingOfType("context.backgroundCtx")).
+				sm.On("New", mock.AnythingOfType("context.backgroundCtx"), "nefix").
 					Return(&model.Session{
 						ID: "hola Néfix :)",
 						Time: &model.SessionTime{
@@ -44,7 +45,9 @@ func TestNew(t *testing.T) {
 						},
 					}, nil)
 			},
-			Req: &sessionsv1.NewRequest{},
+			Req: &sessionsv1.NewRequest{
+				UserId: "nefix",
+			},
 			ExpectedRsp: &sessionsv1.NewResponse{
 				Id: "hola Néfix :)",
 				Time: &sessionsv1.NewResponseTime{
@@ -56,10 +59,12 @@ func TestNew(t *testing.T) {
 		},
 		"should return an Internal status if an unexpected error occurs": {
 			PrepareSessions: func(sm *sessions.SessionsMock) {
-				sm.On("New", mock.AnythingOfType("context.backgroundCtx")).
+				sm.On("New", mock.AnythingOfType("context.backgroundCtx"), "nefix").
 					Return(&model.Session{}, errors.New("unexpected error"))
 			},
-			Req:         &sessionsv1.NewRequest{},
+			Req: &sessionsv1.NewRequest{
+				UserId: "nefix",
+			},
 			ExpectedErr: status.Error(codes.Internal, fmt.Errorf("create new session: %w", errors.New("unexpected error")).Error()).Error(),
 		},
 	}
@@ -125,12 +130,12 @@ func TestGet(t *testing.T) {
 		"should return an NotFound status if the session is not found": {
 			PrepareSessions: func(sm *sessions.SessionsMock) {
 				sm.On("Get", mock.AnythingOfType("context.backgroundCtx"), "hola Pau :)").
-					Return(&model.Session{}, model.ErrNotFound)
+					Return(&model.Session{}, redis.ErrNotFound)
 			},
 			Req: &sessionsv1.GetRequest{
 				Id: "hola Pau :)",
 			},
-			ExpectedErr: status.Error(codes.NotFound, model.ErrNotFound.Error()).Error(),
+			ExpectedErr: status.Error(codes.NotFound, redis.ErrNotFound.Error()).Error(),
 		},
 		"should return an Unauthenticated status if the session has expired": {
 			PrepareSessions: func(sm *sessions.SessionsMock) {
@@ -212,12 +217,12 @@ func TestRenew(t *testing.T) {
 		"should return an NotFound status if the session is not found": {
 			PrepareSessions: func(sm *sessions.SessionsMock) {
 				sm.On("Renew", mock.AnythingOfType("context.backgroundCtx"), "234456").
-					Return(&model.SessionTime{}, model.ErrNotFound)
+					Return(&model.SessionTime{}, redis.ErrNotFound)
 			},
 			Req: &sessionsv1.RenewRequest{
 				Id: "234456",
 			},
-			ExpectedErr: status.Error(codes.NotFound, model.ErrNotFound.Error()).Error(),
+			ExpectedErr: status.Error(codes.NotFound, redis.ErrNotFound.Error()).Error(),
 		},
 		"renew time has expired": {
 			PrepareSessions: func(sm *sessions.SessionsMock) {
@@ -297,13 +302,13 @@ func TestRevoke(t *testing.T) {
 		"should return an NotFound status if the session is not found": {
 			PrepareSessions: func(sm *sessions.SessionsMock) {
 				sm.On("Revoke", mock.AnythingOfType("context.backgroundCtx"), "aHR0cHM6Ly9odHRwLmNhdC80MDQ=").
-					Return(model.ErrNotFound)
+					Return(redis.ErrNotFound)
 
 			},
 			Req: &sessionsv1.RevokeRequest{
 				Id: "aHR0cHM6Ly9odHRwLmNhdC80MDQ=",
 			},
-			ExpectedErr: status.Error(codes.NotFound, model.ErrNotFound.Error()).Error(),
+			ExpectedErr: status.Error(codes.NotFound, redis.ErrNotFound.Error()).Error(),
 		},
 		"should return an Internal status if an unexpected error occurs": {
 			PrepareSessions: func(sm *sessions.SessionsMock) {

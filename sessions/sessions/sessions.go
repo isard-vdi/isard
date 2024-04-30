@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	pkgRedis "gitlab.com/isard/isardvdi/pkg/redis"
 	"gitlab.com/isard/isardvdi/sessions/cfg"
 	"gitlab.com/isard/isardvdi/sessions/model"
 
@@ -20,7 +21,7 @@ var (
 )
 
 type Interface interface {
-	New(ctx context.Context) (*model.Session, error)
+	New(ctx context.Context, userID string) (*model.Session, error)
 	Get(ctx context.Context, id string) (*model.Session, error)
 	Renew(ctx context.Context, id string) (*model.SessionTime, error)
 	Revoke(ctx context.Context, id string) error
@@ -40,7 +41,7 @@ func Init(ctx context.Context, log *zerolog.Logger, cfg cfg.Sessions, redis redi
 	}
 }
 
-func (s *Sessions) New(ctx context.Context) (*model.Session, error) {
+func (s *Sessions) New(ctx context.Context, userID string) (*model.Session, error) {
 	now := time.Now()
 	time := &model.SessionTime{
 		MaxTime:        now.Add(s.Cfg.MaxTime),
@@ -48,9 +49,27 @@ func (s *Sessions) New(ctx context.Context) (*model.Session, error) {
 		ExpirationTime: now.Add(s.Cfg.ExpirationTime),
 	}
 
-	sess, err := model.NewSession(ctx, s.redis, time)
+	usr := &model.User{ID: userID}
+	if err := usr.Load(ctx, s.redis); err != nil {
+		if !errors.Is(err, pkgRedis.ErrNotFound) {
+			return nil, fmt.Errorf("load user: %w", err)
+		}
+
+	} else {
+		// If there's already a user with an active session, revoke the existing
+		// session to ensure there's only one active session per user
+		if err := s.Revoke(ctx, usr.SessionID); err != nil {
+			return nil, fmt.Errorf("revoke old user session: %w", err)
+		}
+	}
+
+	sess, err := model.NewSession(ctx, s.redis, userID, time)
 	if err != nil {
 		return nil, fmt.Errorf("create new session: %w", err)
+	}
+
+	if _, err := model.NewUser(ctx, s.redis, userID, sess.ID, sess.Time.MaxTime); err != nil {
+		return nil, fmt.Errorf("create new user: %w", err)
 	}
 
 	return sess, nil
@@ -114,6 +133,14 @@ func (s *Sessions) Revoke(ctx context.Context, id string) error {
 
 	if err := sess.Delete(ctx, s.redis); err != nil {
 		return fmt.Errorf("delete session: %w", err)
+	}
+
+	usr := &model.User{ID: sess.UserID}
+	if err := usr.Load(ctx, s.redis); err != nil {
+		return fmt.Errorf("load user: %w", err)
+	}
+	if err := usr.Delete(ctx, s.redis); err != nil {
+		return fmt.Errorf("delete user: %w", err)
 	}
 
 	return nil

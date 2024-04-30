@@ -27,6 +27,7 @@ func TestNew(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareRedis func(redismock.ClientMock)
+		UserID       string
 		CheckSession func(*model.Session)
 		ExpectedErr  string
 	}{
@@ -126,14 +127,12 @@ func TestNew(t *testing.T) {
 			log := zerolog.New(os.Stdout)
 			cfg := cfg.New()
 
-			uuid.EnableRandPool()
-
 			redis, redisMock := redismock.NewClientMock()
 			tc.PrepareRedis(redisMock)
 
 			s := sessions.Init(ctx, &log, cfg.Sessions, redis)
 
-			sess, err := s.New(ctx)
+			sess, err := s.New(ctx, tc.UserID)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

@@ -17,7 +17,10 @@ service SessionsService {
 }
 
 // NewRequest is the request for the New method
-message NewRequest {}
+message NewRequest {
+    // user_id is the ID of the user who's session is going to be created
+    string user_id = 1;
+}
 
 // NewResponse is the response for the New method
 message NewResponse {
