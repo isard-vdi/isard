@@ -1,7 +1,10 @@
 #
 # Build phase
 #
-FROM golang:1.20-alpine AS build
+ARG GOLANG_BUILD_IMAGE
+ARG GOLANG_RUN_IMAGE
+
+FROM ${GOLANG_BUILD_IMAGE} as build
 
 WORKDIR /build
 
@@ -22,7 +25,7 @@ RUN CGO_ENABLED=0 go build -o bin/check cmd/check/main.go
 #
 # Check
 #
-FROM alpine:3.18
+FROM ${GOLANG_RUN_IMAGE}
 
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \

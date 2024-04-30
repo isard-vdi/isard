@@ -4,6 +4,9 @@ services:
     build:
       context: ${BUILD_ROOT_PATH}
       dockerfile: check/build/package/Dockerfile
+      args:
+        - "GOLANG_BUILD_IMAGE=${GOLANG_BUILD_IMAGE}"
+        - "GOLANG_RUN_IMAGE=${GOLANG_RUN_IMAGE}"
 
   isard-check-client:
     container_name: isard-check-client
@@ -11,3 +14,6 @@ services:
     build:
       context: ${BUILD_ROOT_PATH}
       dockerfile: check/build/package/Dockerfile.client
+      args:
+        - "GOLANG_BUILD_IMAGE=${GOLANG_BUILD_IMAGE}"
+        - "GOLANG_RUN_IMAGE=${GOLANG_RUN_IMAGE}"
