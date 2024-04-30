@@ -33,6 +33,9 @@ func TestNew(t *testing.T) {
 	}{
 		"should work as expected": {
 			PrepareRedis: func(m redismock.ClientMock) {
+				var sessionID string
+
+				m.ExpectGet("user:7005e5a3-6eba-4247-a771-2a2d575cf349").RedisNil()
 				m.CustomMatch(func(expected, actual []interface{}) error {
 					assert.Equal(len(expected), len(actual))
 
@@ -50,6 +53,8 @@ func TestNew(t *testing.T) {
 					err = json.Unmarshal(b, sess)
 					assert.NoError(err)
 
+					sessionID = sess.ID
+
 					assert.Equal(uuid.String(), sess.ID)
 
 					assert.True(sess.Time.MaxTime.Before(now.Add(8*time.Hour + 1*time.Minute)))
@@ -66,7 +71,34 @@ func TestNew(t *testing.T) {
 
 					return nil
 				}).ExpectSet(`session:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetVal("OK")
+				m.CustomMatch(func(expected, actual []interface{}) error {
+					assert.Equal(len(expected), len(actual))
+
+					// SET operation
+					assert.Equal(expected[0], actual[0])
+
+					// key -> user:XXXXX actual prefix expected
+					assert.True(strings.HasPrefix(actual[1].(string), expected[1].(string)))
+					usrUUID, err := uuid.Parse(strings.TrimPrefix(actual[1].(string), expected[1].(string)))
+					assert.NoError(err)
+
+					// session
+					b := actual[2].([]byte)
+					usr := &model.User{}
+					err = json.Unmarshal(b, usr)
+					assert.NoError(err)
+
+					assert.Equal(usrUUID.String(), usr.ID)
+
+					sessUUID, err := uuid.Parse(usr.SessionID)
+					assert.NoError(err)
+
+					assert.Equal(sessionID, sessUUID.String())
+
+					return nil
+				}).ExpectSet(`user:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetVal("OK")
 			},
+			UserID: "7005e5a3-6eba-4247-a771-2a2d575cf349",
 			CheckSession: func(sess *model.Session) {
 				_, err := uuid.Parse(sess.ID)
 				assert.NoError(err)
@@ -83,6 +115,7 @@ func TestNew(t *testing.T) {
 		},
 		"should return an error if there's an error setting the new session in redis": {
 			PrepareRedis: func(m redismock.ClientMock) {
+				m.ExpectGet("user:05837779-35f8-4f17-a4a9-b0540cc0fe81").RedisNil()
 				m.CustomMatch(func(expected, actual []interface{}) error {
 					assert.Equal(len(expected), len(actual))
 
@@ -116,8 +149,10 @@ func TestNew(t *testing.T) {
 
 					return nil
 				}).ExpectSet(`session:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetErr(errors.New("i'm really tired :("))
+
 			},
-			ExpectedErr: "create new session: save session: update session: i'm really tired :(",
+			UserID:      "05837779-35f8-4f17-a4a9-b0540cc0fe81",
+			ExpectedErr: "create new session: save session: update: i'm really tired :(",
 		},
 	}
 
@@ -126,6 +161,9 @@ func TestNew(t *testing.T) {
 			ctx := context.Background()
 			log := zerolog.New(os.Stdout)
 			cfg := cfg.New()
+			cfg.Sessions.MaxTime = 8 * time.Hour
+			cfg.Sessions.MaxRenewTime = 30 * time.Minute
+			cfg.Sessions.ExpirationTime = 5 * time.Minute
 
 			redis, redisMock := redismock.NewClientMock()
 			tc.PrepareRedis(redisMock)
@@ -189,6 +227,9 @@ func TestRenew(t *testing.T) {
 			ctx := context.Background()
 			log := zerolog.New(os.Stdout)
 			cfg := cfg.New()
+			cfg.Sessions.MaxTime = 8 * time.Hour
+			cfg.Sessions.MaxRenewTime = 30 * time.Minute
+			cfg.Sessions.ExpirationTime = 5 * time.Minute
 
 			redis, redisMock := redismock.NewClientMock()
 			tc.PrepareRedis(redisMock)
@@ -223,7 +264,8 @@ func TestRevoke(t *testing.T) {
 			PrepareRedis: func(m redismock.ClientMock) {
 				v := map[string]interface{}{
 					"session": &model.Session{
-						ID: "hola Pau :)",
+						ID:     "hola Pau :)",
+						UserID: "Pau",
 					},
 				}
 
@@ -232,6 +274,17 @@ func TestRevoke(t *testing.T) {
 
 				m.ExpectGet("session:hola Pau :)").SetVal(string(b))
 				m.ExpectDel("session:hola Pau :)").SetVal(1)
+				u := map[string]interface{}{
+					"user": &model.User{
+						ID:        "Pau",
+						SessionID: "hola Pau :)",
+					},
+				}
+
+				ub, err := json.Marshal(u)
+				require.NoError(err)
+				m.ExpectGet("user:Pau").SetVal(string(ub))
+				m.ExpectDel("user:Pau").SetVal(1)
 			},
 			SessionID: "hola Pau :)",
 		},
@@ -242,6 +295,9 @@ func TestRevoke(t *testing.T) {
 			ctx := context.Background()
 			log := zerolog.New(os.Stdout)
 			cfg := cfg.New()
+			cfg.Sessions.MaxTime = 8 * time.Hour
+			cfg.Sessions.MaxRenewTime = 30 * time.Minute
+			cfg.Sessions.ExpirationTime = 5 * time.Minute
 
 			redis, redisMock := redismock.NewClientMock()
 			tc.PrepareRedis(redisMock)

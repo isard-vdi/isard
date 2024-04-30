@@ -112,7 +112,9 @@ func TestLogin(t *testing.T) {
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
-				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{}).Return(&sessionsv1.NewResponse{
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
+					ID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+				}).Return(&sessionsv1.NewResponse{
 					Id: "ThoJuroQueEsUnID",
 					Time: &sessionsv1.NewResponseTime{
 						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
@@ -195,7 +197,9 @@ func TestLogin(t *testing.T) {
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
-				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{}).Return(&sessionsv1.NewResponse{
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
+					ID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+				}).Return(&sessionsv1.NewResponse{
 					Id: "ThoJuroQueEsUnID",
 					Time: &sessionsv1.NewResponseTime{
 						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
@@ -280,7 +284,9 @@ func TestLogin(t *testing.T) {
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
-				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{}).Return(&sessionsv1.NewResponse{
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
+					ID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+				}).Return(&sessionsv1.NewResponse{
 					Id: "ThoJuroQueEsUnID",
 					Time: &sessionsv1.NewResponseTime{
 						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -17,15 +18,8 @@ type Modelable interface {
 	Expiration() time.Duration
 }
 
-// Model creates a CRUD layer for the underlying type
-type Model[T Modelable] struct{ t T }
-
-func NewModel[T Modelable](v T) *Model[T] {
-	return &Model[T]{v}
-}
-
-func (m *Model[T]) Load(ctx context.Context, db redis.UniversalClient) error {
-	b, err := db.Get(ctx, m.t.Key()).Bytes()
+func Load(ctx context.Context, db redis.UniversalClient, m Modelable) error {
+	b, err := db.Get(ctx, m.Key()).Bytes()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return ErrNotFound
@@ -34,28 +28,32 @@ func (m *Model[T]) Load(ctx context.Context, db redis.UniversalClient) error {
 		return fmt.Errorf("get: %w", err)
 	}
 
-	if err := json.Unmarshal(b, m.t); err != nil {
+	log.Println(string(b))
+
+	if err := json.Unmarshal(b, m); err != nil {
 		return fmt.Errorf("unmarshal from JSON: %w", err)
 	}
+
+	log.Fatalf("%+v", m)
 
 	return nil
 }
 
-func (m *Model[T]) Update(ctx context.Context, db redis.UniversalClient) error {
-	b, err := json.Marshal(m.t)
+func Update(ctx context.Context, db redis.UniversalClient, m Modelable) error {
+	b, err := json.Marshal(m)
 	if err != nil {
 		return fmt.Errorf("marshal to JSON: %w", err)
 	}
 
-	if err := db.Set(ctx, m.t.Key(), b, m.t.Expiration()).Err(); err != nil {
+	if err := db.Set(ctx, m.Key(), b, m.Expiration()).Err(); err != nil {
 		return fmt.Errorf("update: %w", err)
 	}
 
 	return nil
 }
 
-func (m *Model[T]) Delete(ctx context.Context, db redis.UniversalClient) error {
-	del, err := db.Del(ctx, m.t.Key()).Result()
+func Delete(ctx context.Context, db redis.UniversalClient, m Modelable) error {
+	del, err := db.Del(ctx, m.Key()).Result()
 	if err != nil {
 		return fmt.Errorf("delete: %w", err)
 	}
