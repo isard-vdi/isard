@@ -340,11 +340,11 @@ create_docker_compose_file(){
 	fi
 	if [ -z "$GOLANG_BUILD_IMAGE" ]
 	then
-		export GOLANG_BUILD_IMAGE="golang:1.21-alpine3.18"
+		export GOLANG_BUILD_IMAGE="golang:1.21-alpine3.19"
 	fi
 	if [ -z "$GOLANG_RUN_IMAGE" ]
 	then
-		export GOLANG_RUN_IMAGE="alpine:3.18"
+		export GOLANG_RUN_IMAGE="alpine:3.19"
 	fi
 	if [ -z "$FLAVOUR" ]
 	then
@@ -445,7 +445,7 @@ generate_code(){
 	case "$USAGE" in 
 	build | test | devel)
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
-		docker pull $DOCKER_IMAGE || docker build -t "$DOCKER_IMAGE" ./docker/codegen
+		# docker pull $DOCKER_IMAGE || docker build -t "$DOCKER_IMAGE" ./docker/codegen
 		docker run -u $(id -u) -v "$(pwd):/build" "$DOCKER_IMAGE"
 		echo "Generated the code successfully"
 		;;
