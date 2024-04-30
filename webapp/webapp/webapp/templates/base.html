@@ -109,45 +109,25 @@
     <script src="/isard-admin/socketio/socket.io.min.js"></script>
     <!-- isard initializers -->
     <script src="/isard-admin/static/isard.js"></script>
+    <!-- IsardVDI session management -->
+    <script src="/isard-admin/static/js/auth.js"></script>
+    <!-- Set user jwt header in ajax requests -->
+    <script>
+        const sessionCookie = getCookie('isardvdi_session')
+        let sessionData = jwtDecode(sessionCookie)
+        setAjaxHeader()
+        $.fn.dataTable.ext.errMode = function (settings, helpPage, message) {
+          console.log(message)
+        };
+
+        listenCookieChange((_, { oldValue, newValue }) => {
+          if (!getCookie('isardvdi_session')) {
+            window.location = '/isard-admin/logout'
+          }
+        }, 1000);
+    </script>
     <!-- isard quota sse -->
 	  <script src="/isard-admin/static/js/quota.js"></script>
-    <!-- Set user jwt header in ajax requests -->
-    <script type="text/javascript">
-      const sessionCookie = getCookie('isardvdi_session')
-      $.ajaxSetup({
-        headers: {
-          "Authorization": "Bearer " + sessionCookie
-        },
-        url: "/api/v3",
-        beforeSend: function (jqXHR, settings) {
-          // TODO: remove url check
-          if (settings.url.split("/")[1] == 'admin') {
-            settings.url = "/api/v3" + settings.url
-          }
-          $("body").css("cursor", "wait");
-        },
-        complete: function () {
-          $("body").css("cursor", "");
-        },
-      });
-
-      // Ajax calls error handler for expired token error
-      $( document ).ajaxError(function( event, jqxhr, settings, thrownError ) {
-        if (jqxhr.status == 401 && jqxhr.responseJSON.error == 'unauthorized') {
-          window.location = '/isard-admin/logout';
-        }
-      })
-
-      $.fn.dataTable.ext.errMode = function ( settings, helpPage, message ) {
-        console.log(message)
-      };
-
-      listenCookieChange(({oldValue, newValue})=> {
-        if (!newValue) {
-          window.location = '/isard-admin/logout'
-        }
-      }, 1000);
-    </script>
     <!-- flashed messages with pnotify -->
     {% with messages = get_flashed_messages(with_categories=true) %}
 	  {% if messages %}
