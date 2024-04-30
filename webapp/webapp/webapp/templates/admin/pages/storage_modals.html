@@ -114,8 +114,6 @@
         </div>
     </div>
 </div>
-
-
 <div class="modal fade" id="modalIncreaseStorage" tabindex="-1" role="dialog" aria-labelledby="modalIncreaseStorage"
     aria-hidden="true">
     <div class="modal-dialog">
@@ -136,19 +134,14 @@
                 <form id="modalIncreaseStorageForm" class="form-inline form-label-left">
                     <input hidden id="id" name="storage_id" />
                     <input hidden id="current_size" name="current_size" />
-
                     <div class="x_panel">
                         <div class="row">
-                            <label class="col-md-3">Current size:</label>
-                            <div class="col-md-9" id="current-size">
+                            <label class="col-md-3 col-sm-6">Current size:</label>
+                            <div class="col-md-3 col-sm-6" id="current-size">
                                 GB
                             </div>
-                        </div>
-                    </div>
-                    <div class="x_panel">
-                        <div class="row">
-                            <label class="col-md-3">New size:</label>
-                            <div class="col-md-3">
+                            <label class="col-md-2 col-sm-6">New size:</label>
+                            <div class="col-md-3 col-sm-6">
                                 <input class="form-control roundbox" name="new_size" type="number" placeholder="20"
                                     style="width:80%" id="new-size" data-parsley-trigger="change"
                                     data-parsley-type="number" required /> GB
@@ -164,6 +157,13 @@
                             <div class="col-md-3">
                                 <select name="priority" id="priority" class="roundbox form-control" style="width:100%;">
                                 </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="x_panel">
+                        <div class="row">
+                            <div role="alert" class="alert alert-error"><i class="fa fa-warning"></i> WARNING: Please be
+                                mindful that this action could potentially lead to storage data corruption.
                             </div>
                         </div>
                     </div>

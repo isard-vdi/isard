@@ -58,48 +58,49 @@ def feedback(task_id=None):
         task_id = get_current_job().dependency.id
     task = Task(task_id)
     task_as_json = json.dumps(task.to_dict())
-    user = user_info(task.user_id)
-    socketio(
-        [
-            {
-                "event": "task",
-                "data": task_as_json,
-                "namespace": "/administrators",
-                "room": "admins",
-            },
-            {
-                "event": "task",
-                "data": task_as_json,
-                "namespace": "/administrators",
-                "room": user.get("category"),
-            },
-            {
-                "event": "task",
-                "data": task_as_json,
-                "namespace": "/userspace",
-                "room": task.user_id,
-            },
-            # Task queue ws result
-            {
-                "event": task.queue.split(".")[0],
-                "data": json.dumps(task.result),
-                "namespace": "/administrators",
-                "room": "admins",
-            },
-            {
-                "event": task.queue.split(".")[0],
-                "data": json.dumps(task.result),
-                "namespace": "/administrators",
-                "room": user.get("category"),
-            },
-            {
-                "event": task.queue.split(".")[0],
-                "data": json.dumps(task.result),
-                "namespace": "/administrators",
-                "room": task.user_id,
-            },
-        ]
-    )
+    if task.user_id != "isard-scheduler":
+        user = user_info(task.user_id)
+        socketio(
+            [
+                {
+                    "event": "task",
+                    "data": task_as_json,
+                    "namespace": "/administrators",
+                    "room": "admins",
+                },
+                {
+                    "event": "task",
+                    "data": task_as_json,
+                    "namespace": "/administrators",
+                    "room": user.get("category"),
+                },
+                {
+                    "event": "task",
+                    "data": task_as_json,
+                    "namespace": "/userspace",
+                    "room": task.user_id,
+                },
+                # Task queue ws result
+                {
+                    "event": task.queue.split(".")[0],
+                    "data": json.dumps(task.result),
+                    "namespace": "/administrators",
+                    "room": "admins",
+                },
+                {
+                    "event": task.queue.split(".")[0],
+                    "data": json.dumps(task.result),
+                    "namespace": "/administrators",
+                    "room": user.get("category"),
+                },
+                {
+                    "event": task.queue.split(".")[0],
+                    "data": json.dumps(task.result),
+                    "namespace": "/administrators",
+                    "room": task.user_id,
+                },
+            ]
+        )
 
 
 def update_status(statuses={}):

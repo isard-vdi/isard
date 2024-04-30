@@ -444,6 +444,7 @@ $(document).on('click', '.btn-increase', function () {
   modal = "#modalIncreaseStorage";
   $(modal + " input").empty();
   $(modal + " #id").val(storageId);
+  $(modal + " select#priority").empty();
 
   if ($("#user_data").data("role") == "admin") {
     $(modal + " select#priority").append(`
@@ -463,30 +464,68 @@ $(document).on('click', '.btn-increase', function () {
     type: 'GET',
     contentType: "application/json",
   }).done(function (storage) {
-    var virtual_size = storage.virtual_size / 1024 / 1024 / 1024
-    $(modal + " #current-size").text(virtual_size.toFixed(0) + " GB");
-    $(modal + " #current_size").val(virtual_size);
-    $(modal + " #new-size").val(virtual_size.toFixed(0)).prop("min", virtual_size.toFixed(0));
-
     $.ajax({
-      url: "/api/v3/admin/user/appliedquota/" + storage["user_id"],
-      type: 'GET',
-    }).done(function (quota) {
-      if (quota.quota) {
-        $(modal + " #max-quota-div").show();
-        $(modal + " #max-quota").text(quota.quota.desktops_disk_size);
-        $(modal + " #new-size").prop("max", quota.quota.desktops_disk_size);
+      url: `/api/v3/storage/${storageId}/check_storage_derivatives`,
+    }).done(function (data) {
+      if (data.derivatives <= 1) {
+        var virtual_size = storage.virtual_size / 1024 / 1024 / 1024
+        $(modal + " #current-size").text(virtual_size.toFixed(0) + " GB");
+        $(modal + " #current_size").val(virtual_size);
+        $(modal + " #new-size").val(virtual_size.toFixed(0)).prop("min", (virtual_size + 1).toFixed(0));
+  
+        $.ajax({
+          url: "/api/v3/admin/user/appliedquota/" + storage["user_id"],
+          type: 'GET',
+        }).done(function (quota) {
+          if (quota.quota) {
+            $(modal + " #max-quota-div").show();
+            $(modal + " #max-quota").text(quota.quota.desktops_disk_size);
+            $(modal + " #new-size").prop("max", quota.quota.desktops_disk_size);
+          } else {
+            $(modal + " #max-quota-div").hide();
+            $(modal + " #new-size").removeAttr("max");
+          }
+  
+  
+          $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+        }).fail(function (data) {
+          new PNotify({
+            title: `ERROR trying to fetch storage size`,
+            text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+            type: 'error',
+            hide: true,
+            icon: 'fa fa-warning',
+            delay: 5000,
+            opacity: 1
+          });
+        });
       } else {
-        $(modal + " #max-quota-div").hide();
-        $(modal + " #new-size").removeAttr("max");
+        new PNotify({
+          title: `ERROR`,
+          text: 'Size of disks with derivatives cannot be modified',
+          type: 'error',
+          hide: true,
+          icon: 'fa fa-warning',
+          delay: 5000,
+          opacity: 1
+        });
       }
+    }).fail(function (data) {
+      new PNotify({
+        title: `ERROR`,
+        text: 'Something went wrong',
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
     });
-
-    $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+   
   }).fail(function (data) {
     new PNotify({
-      title: `ERROR trying to fetch storage size`,
-      text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+      title: `ERROR`,
+      text: 'Something went wrong',
       type: 'error',
       hide: true,
       icon: 'fa fa-warning',
@@ -494,8 +533,7 @@ $(document).on('click', '.btn-increase', function () {
       opacity: 1
     });
   });
-
-});
+  });
 
 $("#modalIncreaseStorage #send").on("click", function () {
   var form = $('#modalIncreaseStorageForm');

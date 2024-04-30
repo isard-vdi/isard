@@ -998,6 +998,10 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
 
     if payload["role_id"] != "admin":
         priority = "low"
+    if priority not in ["low", "default", "high"]:
+        raise Error(
+            description="priority should be low, default or high",
+        )
     if quota and (
         quota.get("desktops_disk_size")
         < (
@@ -1008,6 +1012,12 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
         raise Error("bad_request", "Disk size quota exceeded")
 
     storage = Storage(storage_id)
+    storage_domains = get_storage_derivatives(storage_id)
+    if len(storage_domains) > 1:
+        raise Error(
+            "precondition_required",
+            "Unable to increase size of storage with derivatives",
+        )
     if not _check_domains_status(storage_id):
         raise Error(
             "precondition_required",
@@ -1017,7 +1027,6 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
 
     set_desktops_maintenance(payload, storage_id, "increase")
     set_storage_maintenance(payload, storage_id)
-    storage_domains = get_storage_derivatives(storage.id)
 
     try:
         storage.create_task(

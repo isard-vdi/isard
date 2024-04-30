@@ -59,18 +59,6 @@ def extract_progress_from_rsync_output(process):
     )
 
 
-def extract_progress_from_resize_output(process):
-    """
-    Extract progress from rsync standard output.
-
-    :param process: Process executed
-    :type process: Popen object
-    :return: Progress percentage as decimal
-    :rtype: float
-    """
-    return float(process.stdout.read1().decode().split("%", 1))
-
-
 def run_with_progress(command, extract_progress):
     """
     Run command reporting progress to RQ job metadata.
@@ -427,9 +415,13 @@ def resize(storage_path, increment):
     :rtype: int
     """
     try:
-        return run_with_progress(
-            ["qemu-img", "resize", storage_path, f"+{increment}G"],
-            extract_progress_from_resize_output,
-        )
+        return run(
+            [
+                "qemu-img",
+                "resize",
+                storage_path,
+                f"+{increment}G",
+            ]
+        ).returncode
     except Exception as e:
         return e
