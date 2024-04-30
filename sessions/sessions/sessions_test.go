@@ -198,7 +198,7 @@ func TestRenew(t *testing.T) {
 	cases := map[string]struct {
 		PrepareRedis func(redismock.ClientMock)
 		SessionID    string
-		ExpectedTime *model.SessionTime
+		CheckTime    func(*model.SessionTime)
 		ExpectedErr  string
 	}{
 		"should return an error if the session has reached its max time": {
@@ -219,6 +219,66 @@ func TestRenew(t *testing.T) {
 			},
 			SessionID:   "hola Melina :)",
 			ExpectedErr: sessions.ErrMaxSessionTime.Error(),
+		},
+		"should set the renew time as the max time if the session has reached its max renew time surpasses its max time": {
+			PrepareRedis: func(m redismock.ClientMock) {
+				sess := &model.Session{
+					ID: "hola Néfix :)",
+					Time: &model.SessionTime{
+						MaxTime:        now.Add(8 * time.Hour),
+						MaxRenewTime:   now.Add(7*time.Hour + 45*time.Minute),
+						ExpirationTime: now.Add(-15 * time.Minute),
+					},
+				}
+
+				b, err := json.Marshal(sess)
+				require.NoError(err)
+
+				m.ExpectGet("session:hola Néfix :)").SetVal(string(b))
+
+				m.CustomMatch(func(expected, actual []interface{}) error {
+					assert.Equal(len(expected), len(actual))
+
+					// SET operation
+					assert.Equal(expected[0], actual[0])
+
+					// key -> session:XXXXX actual prefix expected
+					assert.True(strings.HasPrefix(actual[1].(string), expected[1].(string)))
+
+					// session
+					b := actual[2].([]byte)
+					sess := &model.Session{}
+					err = json.Unmarshal(b, sess)
+					assert.NoError(err)
+
+					assert.Equal("hola Néfix :)", sess.ID)
+
+					assert.True(sess.Time.MaxTime.Before(now.Add(8*time.Hour + 1*time.Minute)))
+					assert.True(sess.Time.MaxTime.After(now.Add(7*time.Hour + 59*time.Minute)))
+
+					assert.True(sess.Time.MaxRenewTime.Before(now.Add(8*time.Hour + 1*time.Minute)))
+					assert.True(sess.Time.MaxRenewTime.After(now.Add(7*time.Hour + 59*time.Minute)))
+
+					assert.True(sess.Time.ExpirationTime.Before(now.Add(6 * time.Minute)))
+					assert.True(sess.Time.ExpirationTime.After(now.Add(4 * time.Minute)))
+
+					// duration
+					assert.Equal(expected[4].(int64), actual[4].(int64))
+
+					return nil
+				}).ExpectSet(`session:`, nil, time.Until(now.Add(8*time.Hour))).SetVal("OK")
+			},
+			SessionID: "hola Néfix :)",
+			CheckTime: func(sessTime *model.SessionTime) {
+				assert.True(sessTime.MaxTime.Before(now.Add(8*time.Hour + 1*time.Minute)))
+				assert.True(sessTime.MaxTime.After(now.Add(7*time.Hour + 59*time.Minute)))
+
+				assert.True(sessTime.MaxRenewTime.Before(now.Add(8*time.Hour + 1*time.Minute)))
+				assert.True(sessTime.MaxRenewTime.After(now.Add(7*time.Hour + 59*time.Minute)))
+
+				assert.True(sessTime.ExpirationTime.Before(now.Add(6 * time.Minute)))
+				assert.True(sessTime.ExpirationTime.After(now.Add(4 * time.Minute)))
+			},
 		},
 	}
 
@@ -244,7 +304,11 @@ func TestRenew(t *testing.T) {
 				assert.NoError(err)
 			}
 
-			assert.Equal(tc.ExpectedTime, sessTime)
+			if tc.CheckTime == nil {
+				assert.Nil(sessTime)
+			} else {
+				tc.CheckTime(sessTime)
+			}
 
 			assert.NoError(redisMock.ExpectationsWereMet())
 		})

@@ -116,7 +116,13 @@ func (s *Sessions) Renew(ctx context.Context, id string) (*model.SessionTime, er
 	}
 
 	sess.Time.ExpirationTime = now.Add(s.Cfg.ExpirationTime)
-	sess.Time.MaxRenewTime = now.Add(s.Cfg.MaxRenewTime)
+
+	if sess.Time.MaxRenewTime.Add(s.Cfg.MaxRenewTime).After(sess.Time.MaxTime) {
+		sess.Time.MaxRenewTime = sess.Time.MaxTime
+
+	} else {
+		sess.Time.MaxRenewTime = now.Add(s.Cfg.MaxRenewTime)
+	}
 
 	if err := sess.Update(ctx, s.redis); err != nil {
 		return nil, fmt.Errorf("update the renewed session: %w", err)
