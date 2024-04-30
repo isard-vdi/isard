@@ -151,12 +151,12 @@ export default {
       })
     },
     handleRegisterError ({ commit }, error) {
-      if ([401, 404, 409].includes(error.response.status)) {
+      if ([401, 403, 404, 409].includes(error.response.status)) {
         commit('setPageErrorMessage', `views.register.errors.${error.response.status}`)
       } else if (error.response.status === 429) {
         commit('setPageErrorMessage', 'views.login.errors.429')
       } else {
-        commit('setPageErrorMessage', 'views.error.codes.500')
+        commit('setPageErrorMessage', 'views.register.errors.500')
       }
     },
     fetchUser (context) {

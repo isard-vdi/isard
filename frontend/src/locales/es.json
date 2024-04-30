@@ -546,8 +546,9 @@
             "code": "Código de registro",
             "register": "Registrarse",
             "errors": {
-                "404": "Código no encontrado",
                 "401": "Sesión expirada",
+                "403": "El dominio de correo electrónico que estás intentando utilizar no está autorizado para tu categoría.",
+                "404": "Código no encontrado",
                 "409": "L'usuari ja existeix",
                 "500": "Error en el servidor"
             }

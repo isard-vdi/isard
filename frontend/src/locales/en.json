@@ -545,8 +545,9 @@
             "code": "Sign up code",
             "register": "Sign up",
             "errors": {
-                "404": "Code not found",
                 "401": "Session expired",
+                "403": "The email domain you are trying to use is not authorized for your category.",
+                "404": "Code not found",
                 "409": "L'usuari ja existeix",
                 "500": "Server error"
             }

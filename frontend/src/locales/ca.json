@@ -355,8 +355,9 @@
             "code": "Codi de registre",
             "register": "Registrar-se",
             "errors": {
-                "404": "Codi no trobat",
                 "401": "Sessió expirada",
+                "403": "El domini de correu electrònic que estàs intentant utilitzar no està autoritzat per a la teva categoria.",
+                "404": "Codi no trobat",
                 "409": "L'usuari ja existeix",
                 "500": "Error en el servidor"
             }
