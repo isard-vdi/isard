@@ -113,7 +113,7 @@ func TestLogin(t *testing.T) {
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
-					ID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					UserId: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 				}).Return(&sessionsv1.NewResponse{
 					Id: "ThoJuroQueEsUnID",
 					Time: &sessionsv1.NewResponseTime{
@@ -198,7 +198,7 @@ func TestLogin(t *testing.T) {
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
-					ID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					UserId: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 				}).Return(&sessionsv1.NewResponse{
 					Id: "ThoJuroQueEsUnID",
 					Time: &sessionsv1.NewResponseTime{
@@ -285,7 +285,7 @@ func TestLogin(t *testing.T) {
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
-					ID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					UserId: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 				}).Return(&sessionsv1.NewResponse{
 					Id: "ThoJuroQueEsUnID",
 					Time: &sessionsv1.NewResponseTime{

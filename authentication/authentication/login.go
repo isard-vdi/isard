@@ -199,7 +199,7 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 
 	// Create the session
 	sess, err := a.Sessions.New(ctx, &sessionsv1.NewRequest{
-		ID: u.ID,
+		UserId: u.ID,
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("create the session: %w", err)
