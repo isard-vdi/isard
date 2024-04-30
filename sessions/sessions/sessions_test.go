@@ -262,14 +262,12 @@ func TestRevoke(t *testing.T) {
 	}{
 		"should work as expected": {
 			PrepareRedis: func(m redismock.ClientMock) {
-				v := map[string]interface{}{
-					"session": &model.Session{
-						ID:     "hola Pau :)",
-						UserID: "Pau",
-					},
+				s := &model.Session{
+					ID:     "hola Pau :)",
+					UserID: "Pau",
 				}
 
-				b, err := json.Marshal(v)
+				b, err := json.Marshal(s)
 				require.NoError(err)
 
 				m.ExpectGet("session:hola Pau :)").SetVal(string(b))

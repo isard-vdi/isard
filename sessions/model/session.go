@@ -53,13 +53,13 @@ func (s Session) Expiration() time.Duration {
 }
 
 func (s *Session) Load(ctx context.Context, db redis.UniversalClient) error {
-	return pkgRedis.Load(ctx, db, s)
+	return pkgRedis.NewModel(s).Load(ctx, db)
 }
 
 func (s *Session) Update(ctx context.Context, db redis.UniversalClient) error {
-	return pkgRedis.Update(ctx, db, s)
+	return pkgRedis.NewModel(s).Update(ctx, db)
 }
 
 func (s *Session) Delete(ctx context.Context, db redis.UniversalClient) error {
-	return pkgRedis.Delete(ctx, db, s)
+	return pkgRedis.NewModel(s).Delete(ctx, db)
 }
