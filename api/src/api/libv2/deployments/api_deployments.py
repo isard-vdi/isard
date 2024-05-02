@@ -793,9 +793,6 @@ def get_deployment_details_hardware(deployment_id):
             .pluck("create_dict")["create_dict"]
             .merge(
                 lambda domain: {
-                    "interfaces_names": domain["hardware"]["interfaces"].map(
-                        lambda interface: r.table("interfaces").get(interface)["name"]
-                    ),
                     "video_name": domain["hardware"]["videos"].map(
                         lambda video: r.table("videos").get(video)["name"]
                     ),
@@ -815,6 +812,18 @@ def get_deployment_details_hardware(deployment_id):
             )
             .run(db.conn)
         )
+    if "interfaces" in hardware["hardware"]:
+        with app.app_context():
+            interfaces = hardware["hardware"]["interfaces"]
+            hardware["hardware"]["interfaces"] = []
+            # Loop instead of a get_all query to keep the interfaces array order
+            for interface in interfaces:
+                hardware["hardware"]["interfaces"].append(
+                    r.table("interfaces")
+                    .get(interface)
+                    .pluck("id", "name")
+                    .run(db.conn)
+                )
     if "isos" in hardware["hardware"]:
         with app.app_context():
             isos = hardware["hardware"]["isos"]

@@ -229,7 +229,11 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
             }
             let interfaces = []
             $.each(data.hardware.interfaces, function (key, value) {
-                interfaces.push(`${value.name} (${value.mac})`)
+                if (item == "domain") {
+                    interfaces.push(`${value.name} (${value.mac})`)
+                } else if (item == "deployment") {
+                    interfaces.push(value.name)
+                }
             })
             $(div_id+" #net").html(interfaces.join(', '));
             $(div_id+" #video").html(data.video_name);
