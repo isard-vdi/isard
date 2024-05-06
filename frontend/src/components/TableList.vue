@@ -64,9 +64,18 @@
               <template #cell(image)="data">
                 <!-- INFO -->
                 <b-icon
+                  v-if="data.item.desktopSize !== -1"
                   v-b-tooltip="{ title: `${data.item.description ? data.item.description : $t(`components.desktop-cards.no-info-default`)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
                   icon="info-circle-fill"
                   class="info-icon position-absolute cursor-pointer"
+                />
+                <!-- ERROR -->
+                <b-icon
+                  v-if="data.item.desktopSize === -1"
+                  v-b-tooltip="{ title: $t(`errors.desktop_storage_does_not_exist`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+                  icon="exclamation-triangle-fill"
+                  variant="danger"
+                  class="danger-icon position-absolute cursor-pointer"
                 />
                 <!-- IMAGE -->
                 <div
@@ -433,6 +442,7 @@ export default {
     const rowClass = (item, type) => {
       if (!item || type !== 'row') return
       if (item.needsBooking) return 'list-orange-bar'
+      if (item.desktopSize === -1) return 'list-red-bar'
     }
 
     const notifyWaitingIp = () => {

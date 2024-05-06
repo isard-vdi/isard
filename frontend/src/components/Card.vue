@@ -81,9 +81,22 @@
         />
       </vue-fab>
 
+      <!-- Desktop error no storage -->
+      <div
+        v-if="desktop.desktopSize === -1"
+        v-b-tooltip="{ title: $t(`errors.desktop_storage_does_not_exist`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+        class="machine-notification-bar px-3 d-flex flex-row align-content-center text-white notification-bar state-error"
+      >
+        <p
+          class="mb-0 py-2 text-white text-truncate"
+        >
+          {{ $t(`errors.desktop_storage_does_not_exist`) }}
+        </p>
+      </div>
+      <!-- Desktop error no storage -->
       <!-- Desktop next booking -->
       <div
-        v-if="desktop.needsBooking"
+        v-else-if="desktop.needsBooking"
         class="machine-notification-bar px-3 d-flex flex-row align-content-center text-white notification-bar"
         :class="notificationBarCssClass"
       >
@@ -107,7 +120,7 @@
 
       <div
         class="p-2 h-100 d-flex flex-wrap flex-column"
-        :class="`${desktop.needsBooking || desktop.shutdown ? 'notification-bar' : '' } getCardBackgroundColor` "
+        :class="`${desktop.needsBooking || desktop.shutdown || desktop.desktopSize === -1 ? 'notification-bar' : '' } getCardBackgroundColor` "
       >
         <div class="flex-grow-1">
           <!-- Title -->

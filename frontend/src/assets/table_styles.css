@@ -137,6 +137,11 @@
   fill: #b2bec3;
 }
 
+.table-list .danger-icon {
+  top: 5px;
+  left: 5px;
+}
+
 /* SPINNER */
 .spinner-loading {
   color: #eead47;

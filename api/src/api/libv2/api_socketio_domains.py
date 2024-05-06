@@ -87,7 +87,7 @@ class DomainsThread(threading.Thread):
                                 "guest_properties",
                                 {
                                     "create_dict": {
-                                        "hardware": ["interfaces", "videos"],
+                                        "hardware": ["interfaces", "videos", "disks"],
                                         "reservables": True,
                                     }
                                 },

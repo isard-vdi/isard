@@ -284,6 +284,7 @@ def _parse_desktop(desktop):
             desktop_storage = (
                 r.table("storage")
                 .get(desktop["create_dict"]["hardware"]["disks"][0]["storage_id"])
+                .default({"qemu-img-info": {"actual-size": -1}})
                 .pluck({"qemu-img-info": {"actual-size"}})
                 .run(db.conn)
             )
