@@ -189,6 +189,25 @@
                 "enable": "Habilitar acceso mediante visor directo"
             }
         },
+        "increase": {
+            "modal": {
+                "title": "Incrementa el espacio del disco",
+                "buttons": {
+                    "update": "Actualizar"
+                }
+            },
+            "errors": {
+                "too-small": "El nuevo tamaño debe ser mayor que el tamaño actual"
+            },
+            "current-size": "Tamaño actual:",
+            "new-size": "Nuevo tamaño:",
+            "priority": "Prioridad",
+            "priority-options": {
+                "low": "Baja",
+                "medium": "Media",
+                "high": "Alta"
+            }
+        },
         "filter-placeholder": "Escribe para buscar",
         "clear": "Limpia",
         "cancel": "Cancela",
@@ -991,7 +1010,13 @@
                 "quantity-domains": "№ escritorios/plantillas",
                 "actual-size": "Tamaño",
                 "percentage": "% Cuota",
-                "last": "Último acceso"
+                "last": "Último acceso",
+                "actions": "Acciones"
+            },
+            "buttons": {
+                "increase": {
+                    "title": "Incrementa el espacio del disco"
+                }
             }
         },
         "recycle-bin": {
@@ -1350,7 +1375,10 @@
         "invalid_token": "Token no válido",
         "old_passwords": "La contraseña actual no puede ser ninguna de las últimas {num} contraseñas",
         "no_storage_pool_available": "En estos momentos no está disponible la creación de recursos. Espere e inténtelo de nuevo.",
-        "bookings_max_time_reached": "El usuario ha alcanzado el tiempo máximo de escritorios reservables"
+        "bookings_max_time_reached": "El usuario ha alcanzado el tiempo máximo de escritorios reservables",
+        "desktops_not_stopped": "Los escritorios asociados a este almacenamiento deben estar parados para realizar esta acción",
+        "increase_desktops_not_stopped": "El escritorio asociado a este almacenamiento debe estar parado para incrementar el tamaño del disco",
+        "increase_storage_has_derivatives": "El almacenamiento es de una plantilla y no se puede incrementar"
     },
     "router": {
         "titles": {

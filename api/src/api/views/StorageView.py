@@ -1035,6 +1035,7 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
         raise Error(
             "precondition_required",
             "Unable to increase size of storage with derivatives",
+            description_code="storage_has_derivatives",
         )
     if not _check_domains_status(storage_id):
         raise Error(

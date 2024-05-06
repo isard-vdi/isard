@@ -780,7 +780,13 @@
                 "quantity-domains": "Nº escriptoris/plantilles",
                 "actual-size": "Mida",
                 "percentage": "% Quota",
-                "last": "Últim accés"
+                "last": "Últim accés",
+                "actions": "Accions"
+            },
+            "buttons": {
+                "increase": {
+                    "title": "Incrementa l'espai del disc"
+                }
             }
         },
         "recycle-bin": {
@@ -1119,6 +1125,25 @@
                 "enable": "Habilitar l'accés mitjançant el visor directe"
             }
         },
+        "increase": {
+            "modal": {
+                "title": "Incrementa l'espai del disc",
+                "buttons": {
+                    "update": "Actualitzar"
+                }
+            },
+            "errors": {
+                "too-small": "La nova mida ha de ser mes gran que la mida actual"
+            },
+            "current-size": "Mida actual:",
+            "new-size": "Nova mida:",
+            "priority": "Prioritat:",
+            "priority-options": {
+                "low": "Baixa",
+                "medium": "Mitjana",
+                "high": "Alta"
+            }
+        },
         "filter-placeholder": "Escriu per cercar",
         "clear": "Neteja",
         "cancel": "Cancel·la",
@@ -1253,7 +1278,10 @@
         "old_passwords": "L'última contrasenya no pot ser cap de les últimes {num} contrasenyes",
         "no_storage_pool_available": "En aquest moment no està disponible la creació de recursos. Esperi uns minuts i torni-ho a provar.",
         "unable_to_get_domain_jumperurl": "No s'ha pogut obtenir l'enllaç del visor directe perquè el domini no existeix",
-        "bookings_max_time_reached": "L'usuari ha arribat al temps màxim d'escriptoris reservables"
+        "bookings_max_time_reached": "L'usuari ha arribat al temps màxim d'escriptoris reservables",
+        "desktops_not_stopped": "Els escriptoris associats a aquest emmagatzematge han d'estar aturats per realitzar aquesta acció",
+        "increase_desktops_not_stopped": "L'escriptori associat a aquest emmagatzematge ha d'estar aturat per incrementar la mida del disc",
+        "increase_storage_has_derivatives": "L'emmagatzematge és d'una plantilla i no es pot incrementar"
     },
     "messages": {
         "title": {

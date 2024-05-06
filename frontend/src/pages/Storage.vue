@@ -18,13 +18,13 @@
       :fields="fields.filter(field => field.visible !== false)"
       class="px-5"
     >
-      <template #cell(id)="data">
-        <p class="m-0 font-weight-bold">
-          {{ data.item.id }}
-        </p>
-      </template>
       <template #cell(domains)="data">
-        <span>
+        <span
+          v-b-tooltip="{ title: data.item.id,
+                         placement: 'right',
+                         customClass: 'isard-tooltip',
+                         trigger: 'hover' }"
+        >
           {{ data.item.domains.map(entry => entry.name).join(', ') }}
         </span>
       </template>
@@ -53,7 +53,19 @@
           {{ getDate(data.item.last) }}
         </p>
       </template>
+      <template #cell(actions)="data">
+        <b-button
+          class="rounded-circle btn btn-blue px-2 mr-2"
+          :title="$t('views.storage.buttons.increase.title')"
+          @click="showIncreaseModal({ item: data.item, show: true })"
+        >
+          <b-icon
+            icon="plus"
+          />
+        </b-button>
+      </template>
     </IsardTable>
+    <IncreaseModal />
   </b-container>
 </template>
 
@@ -64,10 +76,12 @@ import { ref, reactive, computed } from '@vue/composition-api'
 import { DateUtils } from '@/utils/dateUtils'
 import i18n from '@/i18n'
 import QuotaProgressBar from '@/components/profile/QuotaProgressBar.vue'
+import IncreaseModal from '../components/storage/IncreaseModal.vue'
 
 export default {
   components: {
     IsardTable,
+    IncreaseModal,
     QuotaProgressBar
   },
   setup (props, context) {
@@ -84,11 +98,6 @@ export default {
     }
 
     const fields = [
-      {
-        key: 'id',
-        label: 'ID',
-        thStyle: { width: '30%' }
-      },
       {
         key: 'domains',
         sortable: true,
@@ -112,8 +121,17 @@ export default {
         sortable: true,
         label: i18n.t('views.storage.table-header.last'),
         thStyle: { width: '10%' }
+      },
+      {
+        key: 'actions',
+        label: i18n.t('views.storage.table-header.actions'),
+        thStyle: { width: '1%' }
       }
     ]
+
+    const showIncreaseModal = (data) => {
+      $store.dispatch('showIncreaseModal', data)
+    }
 
     return {
       perPage,
@@ -121,15 +139,15 @@ export default {
       filterOn,
       fields,
       userQuota,
-      getDate
+      getDate,
+      showIncreaseModal
     }
   },
   computed: {
-    ...mapGetters(['getStorage']),
+    ...mapGetters(['getStorage', 'getUser', 'getQuota']),
     storage_loaded () {
       return this.$store.getters.getStorageLoaded
-    },
-    ...mapGetters(['getQuota'])
+    }
   },
   created () {
     this.$store.dispatch('fetchStorage')
