@@ -132,18 +132,20 @@
 
           <!-- Scoped slot for image -->
           <template #cell(image)="data">
-            <b-icon
-              v-if="data.item.status.toLowerCase() === desktopStates.failed"
-              v-b-tooltip="{ title: $t(`errors.template_failed`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
-              icon="exclamation-triangle-fill"
-              variant="danger"
-              class="danger-icon position-absolute cursor-pointer"
-            />
-            <img
-              :src="`..${data.item.image.url}`"
-              alt=""
-              style="height: 2rem; border: 1px solid #555;"
-            >
+            <div class="position-relative">
+              <b-icon
+                v-if="data.item.status.toLowerCase() === desktopStates.failed"
+                v-b-tooltip="{ title: $t(`errors.template_failed`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+                icon="exclamation-triangle-fill"
+                variant="danger"
+                class="danger-icon position-absolute cursor-pointer"
+              />
+              <img
+                :src="`..${data.item.image.url}`"
+                alt=""
+                style="height: 2rem; border: 1px solid #555;"
+              >
+            </div>
           </template>
         </b-table>
         <b-row class="mt-4">
