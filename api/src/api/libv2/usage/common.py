@@ -104,7 +104,7 @@ def get_abs_consumptions(item_type, date):
                 ]
             )
             .coerce_to("object")
-            .run(db.conn, array_limit=200000)
+            .run(db.conn, array_limit=300000)
         )
 
 
