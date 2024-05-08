@@ -9,7 +9,7 @@ var href = location.href;
 url=href.match(/([^\/]*)\/*$/)[1];
 $('#global_actions').css('display','block');
 // Sort by Last Access in Desktops table
-order=15
+order=17
 
 loading_events=[]
 deleted_events=[]
