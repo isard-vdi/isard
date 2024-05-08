@@ -63,13 +63,28 @@ class ReservablesPlanner:
             end = datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
 
         ## An item/subitem planning should not overlap
-        return list(
-            r.table("resource_planner")
-            .get_all(item_id, index="item_id")
-            .filter(r.row["start"] <= end)
-            .filter(r.row["end"] >= start)
-            .run(db.conn)
-        )
+        with app.app_context():
+            return list(
+                r.table("resource_planner")
+                .get_all(item_id, index="item_id")
+                .filter(r.row["start"] <= end)
+                .filter(r.row["end"] >= start)
+                .run(db.conn)
+            )
+
+    def list_all_item_plans(self):
+        with app.app_context():
+            plans = list(
+                r.table("resource_planner")
+                .merge(
+                    lambda plan: {"item": r.table("gpus").get(plan["item_id"])["name"]}
+                )
+                .run(db.conn)
+            )
+        for plan in plans:
+            plan["bookings"] = len(self.get_plan_bookings(plan["id"]))
+
+        return plans
 
     def list_subitem_plans(
         self, item_id, subitem_id, start=None, end=None, getUsername=None
@@ -293,10 +308,20 @@ class ReservablesPlanner:
 
     def get_plan_bookings(self, plan_id):
         with app.app_context():
-            return (
+            return list(
                 r.table("bookings")
                 .filter(
                     r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
+                )
+                .merge(
+                    lambda booking: {
+                        "username": r.table("users").get(booking["user_id"])[
+                            "username"
+                        ],
+                        "category": r.table("categories").get(
+                            r.table("users").get(booking["user_id"])["category"]
+                        )["name"],
+                    }
                 )
                 .without("reservables", "plans")
                 .run(db.conn)

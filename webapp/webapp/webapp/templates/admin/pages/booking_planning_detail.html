@@ -1,0 +1,118 @@
+<style>
+  .clear-date {
+    position: absolute;
+    margin-left: -23px;
+    cursor: pointer;
+    opacity: 0.3;
+    padding: 5px;
+  }
+
+  .clear-date:hover {
+    opacity: 0.5;
+  }
+
+  .date-panel label {
+    margin-left: 4px;
+  }
+
+  #search-inputs .date-panel {
+    display: inline;
+    margin: 10px;
+  }
+
+  .admin-booking-planning-detail .x_panel {
+    background: #F7F7F7;
+    padding: 20px;
+  }
+
+  .admin-booking-planning-detail .x_panel>div {
+    background: white;
+    padding: 15px;
+  }
+
+  .admin-booking-planning-detail  table tbody tr:hover {
+    background: #F7F7F7;
+    cursor: pointer;
+  }
+
+</style>
+
+<div style="display:none">
+  <div class="row admin-booking-planning-detail" id="planning-detail">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel">
+        <div class="x_content">
+          <div class="x_title">
+            <h3><i class="fa fa-briefcase"></i> Bookings <small></small></h3>
+            <div class="clearfix"></div>
+          </div>
+          <div id="search-inputs">
+            <div id="table-p-detail-filters">
+              <div class="date-filters">
+                <div id="start-date-panel" class="date-panel col-md-3">
+                  <i class="fa fa-calendar"></i><label for="start-min"> From date: </label>
+                  <input placeholder="--" type="text" id="start-min" name="start-min" /><i
+                    class="fa fa-times clear-date"></i>
+                </div>
+                <div id="end-date-panel" class="date-panel col-md-3">
+                  <i class="fa fa-calendar"></i><label for="end-max"> To date: </label>
+                  <input placeholder="--" type="text" id="end-max" name="end-max" /><i
+                    class="fa fa-times clear-date"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="x_content">
+            <table id="table-p-detail" class="table">
+              <thead>
+                <tr>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Title</th>
+                  <th>User</th>
+                  <th>Category</th>
+                  <th>Type</th>
+                  <th>Units</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="display:none">
+  <div class="row admin-booking-planning-detail" id="booking-detail">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel">
+        <div class="x_content">
+          <div class="x_title">
+            <h3><i class="fa fa-calendar"></i> Plans <small></small></h3>
+            <div class="clearfix"></div>
+          </div>
+          <div class="x_content">
+            <table id="table-b-detail" class="table">
+              <thead>
+                <tr>
+                  <th>Start</th>
+                  <th>End</th>
+                  <th>Profile</th>
+                  <th>GPU</th>
+                  <th>Units</th>
+                  <th>ID</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
