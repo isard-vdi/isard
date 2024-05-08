@@ -21,6 +21,56 @@
     <div class="col-md-6 col-sm-12 col-xs-12">
         <div class="x_panel">
             <div class="x_title">
+                <h3><i class="fa fa-archive"></i> Old entries </h3><br>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+
+                <label class="control-label col-md-6 col-sm-6 col-xs-12 pull-left" for="maxtime">
+                    <h4><b>After the deleted entry has remained for:</b></h4>
+                </label>
+                <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+                    <select class="form-control" id="maxtime" name="maxtime">
+                        <option value="0">5 minutes</option>
+                        <option value="1">1 hour</option>
+                        <option value="6">6 hours</option>
+                        <option value="12">12 hours</option>
+                        <option value="24">1 day</option>
+                        <option value="48">2 days</option>
+                        <option value="120">5 days</option>
+                        <option value="240">10 days</option>
+                        <option value="336">2 weeks</option>
+                        <option value="672">4 weeks</option>
+                        <option value="1008">6 weeks</option>
+                        <option value="1344">8 weeks</option>
+                        <option value="8766">1 year</option>
+                        <option hidden value="null">Never</option>
+                    </select>
+                </div>
+
+                <span id="archive-delete_wrapper" class="x_panel">
+                    <div class="row">
+                        <!-- <div class="col-md-6 col-xs-12">
+                            <input id="archive-radio" type="radio" name="archive-delete-action" value="archive">
+                            <label for="archive-radio">Archive entry</label>
+                        </div>
+                        <div class="col-md-6 col-xs-12">
+                            <input id="delete-radio" type="radio" name="archive-delete-action" value="delete">
+                            <label for="delete-radio">Delete entry</label>
+                        </div> -->
+                        <div class="col-md-6 col-xs-12">
+                            <input id="delete-radio" type="checkbox" name="archive-delete-action" value="delete">
+                            <label for="delete-radio">Delete entry</label>
+                        </div>
+                    </div>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
                 <h3><i class="fa fa-times"></i> Enable Recycle Bin by default </h3><br>
                 <div class="clearfix"></div>
             </div>
@@ -34,7 +84,9 @@
             </div>
         </div>
     </div>
+</div>
 
+<div class="row">
     <div class="col-md-6 col-sm-12 col-xs-12">
         <div class="x_panel">
             <div class="x_title">
@@ -60,7 +112,6 @@
         </div>
     </div>
 </div>
-
 
 {% endblock %}
 
