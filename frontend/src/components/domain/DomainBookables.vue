@@ -42,6 +42,7 @@ export default {
     const $store = context.root.$store
     const availableBookables = computed(() => $store.getters.getBookables)
     const domain = computed(() => $store.getters.getDomain)
+    const defaultVideos = computed(() => domain.value.hardware.videos.includes('default'))
     const vgpus = computed({
       get: () => $store.getters.getDomain.reservables.vgpus,
       set: (value) => {
@@ -52,7 +53,7 @@ export default {
 
     // When not selecting a GPU, set the video to default
     watch(vgpus, (newVal, prevVal) => {
-      if (vgpus.value[0] === 'None') {
+      if (vgpus.value[0] === 'None' && !defaultVideos.value) {
         ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.video-default'), '', true, 5000)
         $store.dispatch('changeVideos', ['default'])
       }
