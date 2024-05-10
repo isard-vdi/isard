@@ -300,7 +300,7 @@ def new(
         "user_permissions": user_permissions,
     }
 
-    users = get_selected_users(payload, selected, desktop_name, True)
+    users = get_selected_users(payload, selected, desktop_name, False, True)
     quotas.deployment_create(users)
 
     """Create deployment"""
@@ -493,7 +493,7 @@ def edit_deployment_users(payload, deployment_id, allowed):
     recreate(payload, deployment_id)
 
 
-def edit_deployment(deployment_id, data):
+def edit_deployment(payload, deployment_id, data):
     with app.app_context():
         deployment = r.table("deployments").get(deployment_id).run(db.conn)
     if not deployment:
@@ -507,6 +507,9 @@ def edit_deployment(deployment_id, data):
     data["reservables"] = data.get("hardware").pop("reservables")
     data["hardware"]["memory"] = data["hardware"]["memory"] * 1048576
     deployment_booking = _parse_deployment_booking(deployment)
+    get_selected_users(
+        payload, deployment["create_dict"].get("allowed"), data.get("name"), False, True
+    )
     if data.get("reservables") != deployment["create_dict"].get(
         "reservables"
     ) and deployment_booking.get("next_booking_end"):
@@ -633,6 +636,7 @@ def recreate(payload, deployment_id):
         deployment["create_dict"]["allowed"],
         deployment["create_dict"]["name"],
         False,
+        True,
     )
 
     """Create desktops for each user found"""

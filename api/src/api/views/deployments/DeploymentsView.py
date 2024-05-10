@@ -184,7 +184,7 @@ def api_v3_deployment_edit(payload, deployment_id):
     checkDuplicate(
         "deployments", data["name"], user=payload["user_id"], item_id=deployment_id
     )
-    api_deployments.edit_deployment(deployment_id, data)
+    api_deployments.edit_deployment(payload, deployment_id, data)
     return (
         json.dumps({}),
         200,
