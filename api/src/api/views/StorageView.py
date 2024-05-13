@@ -22,6 +22,8 @@ from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
 
 from api import app
 
+MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024
+
 from ..libv2.api_admin import ApiAdmin
 from ..libv2.api_storage import (
     _check_domains_status,
@@ -395,9 +397,11 @@ def storage_delete(payload, storage_id):
     return jsonify(storage.task)
 
 
-@app.route("/api/v3/storage/virt-win-reg/<storage_id>", methods=["PUT"])
-@is_admin_or_manager
-def storage_virt_win_reg(payload, storage_id):
+@app.route(
+    "/api/v3/storage/virt-win-reg/<storage_id>/priority/<priority>", methods=["PUT"]
+)
+@has_token
+def storage_virt_win_reg(payload, storage_id, priority="low"):
     """
     Endpoint to apply a registry patch to a storage qcow2
 
@@ -419,9 +423,27 @@ def storage_virt_win_reg(payload, storage_id):
         raise Error(
             description="registry_patch must be specified in JSON of body request",
         )
+    if len(registry_patch.encode()) > MAX_FILE_SIZE_BYTES:
+        raise Error(
+            description="The registry file is too large, exceeding the 1MB maximum"
+        )
+    if payload["role_id"] != "admin":
+        priority = "low"
+    else:
+        if priority not in ["low", "default", "high"]:
+            raise Error(
+                error="bad_request",
+                description=f"Priority must be low, default or high",
+            )
+
     storage = Storage(storage_id)
     if not storage.user_id:
         raise Error("not_found", description_code="storage_not_found")
+    if len(get_storage_derivatives(storage_id)) > 1:
+        raise Error(
+            "precondition_required",
+            "Unable to edit Windows registry of storage with derivatives",
+        )
     if not _check_domains_status(storage_id):
         raise Error(
             "precondition_required",
@@ -436,7 +458,7 @@ def storage_virt_win_reg(payload, storage_id):
     try:
         storage.create_task(
             user_id=storage.user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=storage.directory_path).id}.low",
+            queue=f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=storage.directory_path).id}.priority",
             task="virt_win_reg",
             job_kwargs={
                 "kwargs": {
@@ -476,7 +498,7 @@ def storage_virt_win_reg(payload, storage_id):
                 {
                     "queue": "core",
                     "task": "domains_update",
-                    "job_kwargs": {"domain_list": [storage_domains]},
+                    "job_kwargs": {"kwargs": {"domain_list": storage_domains}},
                 },
             ],
         )

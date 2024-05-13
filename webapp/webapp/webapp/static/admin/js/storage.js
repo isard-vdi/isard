@@ -685,6 +685,88 @@ $("#modalCreateStorage #send").on("click", function () {
 });
 
 
+$(document).on('click', '.btn-virt_win_reg', function () {
+  element = $(this);
+  var storageId = element.data("id");
+  modal = "#modalVirtWinReg";
+  $.ajax({
+    url: `/api/v3/storage/${storageId}/check_storage_derivatives`,
+    type: 'GET',
+    contentType: "application/json",
+  }).done(function (data) {
+    if (data.derivatives > 1) {
+      new PNotify({
+        title: `ERROR`,
+        text: "This storage has derivatives",
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+    } else {
+      $(modal + " #registry_file").prop("value", "")
+      $(modal + " #id").val(storageId);
+      populatePrioritySelect(modal);
+      $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+    }
+  }).fail(function (data) {
+    new PNotify({
+      title: `ERROR trying to edit Windows registry`,
+      text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+      type: 'error',
+      hide: true,
+      icon: 'fa fa-warning',
+      delay: 5000,
+      opacity: 1
+    });
+
+  });
+});
+
+
+$("#modalVirtWinReg #send").on("click", function () {
+  var form = $('#modalVirtWinRegForm');
+  form.parsley().validate();
+  if (form.parsley().isValid()) {
+    data = form.serializeObject();
+    var file = $('#registry_file')[0].files[0];
+    if (file.type !== "text/x-ms-regedit") {
+      new PNotify({
+        title: `ERROR uploading file`,
+        text: 'File must be a regedit file',
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+    } else if (file.size > 1 * 1024 * 1024) { //1MB
+      new PNotify({
+        title: `ERROR uploading file`,
+        text: 'File size must be less than 1MB',
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+    } else {
+      filecontents = "";
+      var reader = new FileReader();
+      reader.onload = function (event) {
+        var fileContents = event.target.result;
+        data["registry_patch"] = fileContents;
+        var priority = $("#user_data").data("role") == "admin" ? data.priority : "low";
+        var url = "/api/v3/storage/virt-win-reg/" + data["storage_id"] + "/priority/" + priority;
+        performStorageOperation(data, data["storage_id"], "virt_win_reg", url);
+      }
+      reader.readAsText(file, 'UTF-8');
+    }
+  }
+});
+
+
 function socketio_on() {
   socket.on('storage', function (data) {
     var data = JSON.parse(data);
@@ -991,10 +1073,10 @@ function detailButtons(storage) {
                       data-placement="top" title="Convert to another disk format"><i class="fa fa-exchange m-right-xs"></i>
                       Convert
                     </button>-->
-                    <!--<button class="btn btn-primary btn-xs btn-virt_win_reg" data-id="${storage.id}" type="button"
+                    <button class="btn btn-primary btn-xs btn-virt_win_reg" data-id="${storage.id}" type="button"
                       data-placement="top" title="Add windows registry"><i class="fa fa-edit m-right-xs"></i>
                       Windows registry
-                    </button>-->
+                    </button>
                     <button class="btn btn-info btn-xs btn-increase" data-id="${storage.id}" type="button"
                       data-placement="top" title="Increase disk size"><i class="fa fa-external-link-square m-right-xs"></i>
                       Increase

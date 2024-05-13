@@ -6,6 +6,15 @@
     #modalIncreaseStorage .parsley-errors-list {
         position: fixed;
     }
+
+    .file-upload {
+        cursor: pointer;
+        width: 100% !important;
+        border: none;
+        padding: 0px;
+        font-size: initial;
+        box-shadow: none !important;
+    }
 </style>
 
 <div class="modal fade" id="modalConvertStorage" tabindex="-1" role="dialog" aria-labelledby="modalConvertStorage"
@@ -278,6 +287,66 @@
                 </ul>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalVirtWinReg" tabindex="-1" role="dialog" aria-labelledby="modalVirtWinReg"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel"><i class="fa fa-edit"></i> Apply Windows Registry Patch</h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalVirtWinRegForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="storage_id" />
+                    <input hidden id="kind" name="kind" />
+                    <div class="x_panel">
+                        <label for="registry_file" class="form-label">Upload registry file</label>
+                        <div class="x_panel">
+                            <input class="form-control form-control-lg file-upload" name="registry_file"
+                                id="registry_file" type="file" accept=".reg" required>
+                        </div>
+                        <div class="x_panel">
+                            <label class="control-label">Priority:</label>
+                            <select name="priority" id="priority" class="form-control tags-select roundbox"
+                                style="width:50%;">
+                            </select>
+                        </div>
+
+
+                        <div class="row">
+                            <div role="alert" class="alert alert-error">
+                                <i class="fa fa-warning"></i> Make sure you understand the risks associated with
+                                modifying the registry.
+                            </div>
+                        </div>
+
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-success"><i class="fa fa-warning"></i>
+                            Apply</button>
+                    </li>
+                </ul>
+            </div>
         </div>
     </div>
 </div>

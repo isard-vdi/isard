@@ -382,11 +382,6 @@ def virt_win_reg(storage_path, registry_patch):
     :rtype: int
     """
     try:
-        registry_patch = base64.b64decode(registry_patch).decode()
-    except Exception as e:
-        return e
-
-    try:
         with tempfile.NamedTemporaryFile() as fp:
             fp.write(registry_patch.encode())
             fp.flush()

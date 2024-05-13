@@ -506,7 +506,7 @@ class Actions:
                 )
             elif kwargs["action"] == "virt_win_reg":
                 response = api_client.put(
-                    f"/storage/virt-win-reg/{kwargs['storage_id']}"
+                    f"/storage/virt-win-reg/{kwargs['storage_id']}/priority/{kwargs['priority']}"
                 )
             elif kwargs["action"] == "convert":
                 storage_id = kwargs["storage_id"]
