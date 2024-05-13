@@ -44,14 +44,21 @@ env > /tmp/env # This is needed by the dnsmasq-hook to get the envvars
 
 echo "---> Starting libvirt daemon..."
 chown root:kvm /dev/kvm
-/usr/sbin/virtlogd &
+/usr/sbin/virtlogd -d
 sleep 2
-/usr/sbin/libvirtd &
-sleep 1
+/usr/sbin/libvirtd -d
+false
+while [ $? -ne 0 ]; do
+  sleep 1
+  echo "Waiting for libvirt to start..."
+  virsh list >/dev/null 2>&1
+done
+echo "Libvirt started!"
 
 #echo "---> Setting vlans..."
 #sh -c "/src/vlans/vlans-discover.sh"
 
+echo "---> Setting up networks..."
 FILES=/etc/libvirt/qemu/networks/*
 for f in $FILES
 do
@@ -64,13 +71,9 @@ do
   fi
 done
 
-echo "---> Securing network connections from guests to dockers..."
-# Block traffic from guests to other dockers
-iptables -I FORWARD -o eth0 -d $(ip -o -4 addr show dev eth0 | awk '{print $4}') -j REJECT
-# Block traffic from guests default isolated network to hypervisor itself
-iptables -A INPUT -s 192.168.120.0/22  -d $DOCKER_NET.17 -j REJECT --reject-with icmp-port-unreachable
-# Block traffic from guests shared network to hypervisor itself
-iptables -A INPUT -s 192.168.124.0/22  -d $DOCKER_NET.17 -j REJECT --reject-with icmp-port-unreachable
+echo "---> Checking hypervisor by creating/destroying test domain..."
+virsh create /src/checks/domain.xml
+virsh destroy domain
 
 echo "---> Applying custom BLACKLIST_IPTABLES rules"
 BLACKLIST_IPTABLES=$(echo $BLACKLIST_IPTABLES | tr "," " ")
@@ -80,9 +83,13 @@ do
    iptables -I FORWARD -d "$BLACKLIST_IPTABLES" -o eth0 -j REJECT --reject-with icmp-port-unreachable
 done
 
-echo "---> Checking hypervisor by creating/destroying test domain..."
-virsh create /src/checks/domain.xml
-virsh destroy domain
+echo "---> Securing network connections from guests to dockers..."
+# Block traffic from guests to other dockers
+iptables -I FORWARD -o eth0 -d $(ip -o -4 addr show dev eth0 | awk '{print $4}') -j REJECT
+# Block traffic from guests default isolated network to hypervisor itself
+iptables -A INPUT -s 192.168.120.0/22  -d $DOCKER_NET.17 -j REJECT --reject-with icmp-port-unreachable
+# Block traffic from guests shared network to hypervisor itself
+iptables -A INPUT -s 192.168.124.0/22  -d $DOCKER_NET.17 -j REJECT --reject-with icmp-port-unreachable
 
 python3 /src/lib/check-cert.py &
 
