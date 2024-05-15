@@ -121,7 +121,6 @@
                 "increase": "La mida del disc d'aquest escriptori s'està incrementant",
                 "virt-win-reg": "S'està editant el registre",
                 "move": "El disc d'aquest escriptori s'està movent"
-
             },
             "actions": {
                 "delete": "Esborrar",
@@ -924,7 +923,8 @@
         "inputFormat": "Els caràcters vàlids són lletres, digits, coma, punt, - i _",
         "URLFormat": "Ha de començar amb \"https://\".",
         "url": "El camp {property} ha de ser una adreça web.",
-        "undefined": "No definit"
+        "undefined": "No definit",
+        "email": "El camp {property} ha de ser una adreça de correu vàlida."
     },
     "forms": {
         "allowed": {
@@ -1254,7 +1254,7 @@
             "go-to-profile": "Veure quota",
             "go-to-bookings": "Reservar escriptori",
             "change-desktop-gpu": "Modificar el perfil de l'escriptori",
-            "reset-vpn": "Restablir les claus VPN? S'haurà de descarregar un nou fitxer VPN"   
+            "reset-vpn": "Restablir les claus VPN? S'haurà de descarregar un nou fitxer VPN"
         },
         "ok": "D'acord",
         "yes": "Sí",
