@@ -267,15 +267,20 @@ class ApiTemplates:
         )
 
     def check_children(self, payload, domain_tree):
-        domains = [
-            {
-                "id": domain_tree["id"],
-                "kind": domain_tree["kind"],
-                "name": domain_tree["title"],
-                "user": domain_tree["user"],
-            }
-        ]
-        pending = False
+        try:
+            ownsDomainId(payload, domain_tree["id"])
+            domains = [
+                {
+                    "id": domain_tree["id"],
+                    "kind": domain_tree["kind"],
+                    "name": domain_tree["title"],
+                    "user": domain_tree["user"],
+                }
+            ]
+            pending = False
+        except:
+            domains = [{}]
+            pending = True
 
         for domain in domain_tree["children"]:
             domain_result = {
@@ -289,12 +294,13 @@ class ApiTemplates:
                 child_result = self.check_children(payload, domain)
                 domains.extend(child_result["domains"])
                 pending = pending or child_result["pending"]
-            try:
-                ownsDomainId(payload, domain["id"])
-                domains.append(domain_result)
-            except:
-                pending = True
-                domains.append({})
+            else:
+                try:
+                    ownsDomainId(payload, domain["id"])
+                    domains.append(domain_result)
+                except:
+                    pending = True
+                    domains.append({})
 
         return {"domains": domains, "pending": pending}
 
