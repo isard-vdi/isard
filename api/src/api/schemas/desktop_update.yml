@@ -34,3 +34,5 @@ xml:
 ids:
   type: list
   coerce: sanitize
+server_autostart:
+  type: boolean
