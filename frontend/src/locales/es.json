@@ -5,7 +5,7 @@
         "minLengthValue": "El campo {property} es de {model} caracteres, el minimo es {min}.",
         "maxLengthValue": "El campo {property} es de {model} caracteres, el máximo es {max}.",
         "inputFormat": "Los caracteres validos son letras, numeros, coma, punto, -, _",
-        "URLFormat": "Debe comenzar con \"https://\"",
+        "URLFormat": "Debe comenzar con \"https://\".",
         "url": "El campo {property} debe ser una dirección web.",
         "undefined": "No definido",
         "email": "El campo {property} debe ser una dirección de correo electrónico válida."
