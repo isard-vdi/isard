@@ -68,10 +68,10 @@ commit-lint:
   stage: lint
   image: node:lts
   before_script:
-    - npm install -g @commitlint/config-conventional@v18.6.0
+    - npm install -g commitlint@19.2.2 @commitlint/config-conventional@19.2.2
   script:
     - git fetch https://gitlab.com/isard/isardvdi.git main
-    - npx commitlint@v18.6.0 -x "@commitlint/config-conventional" --from=$(git merge-base HEAD FETCH_HEAD)
+    - commitlint --from=$(git merge-base HEAD FETCH_HEAD)
 
 version:
   stage: lint
@@ -82,8 +82,7 @@ version:
     # https://github.com/semantic-release/semantic-release/issues/2207
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   before_script:
-    - npm install -g semantic-release @semantic-release/exec conventional-changelog-conventionalcommits@6
-    - cp releaserc.version.yml .releaserc.yml
+    - npm install -g semantic-release @semantic-release/exec @semantic-release/gitlab conventional-changelog-conventionalcommits@6
   script:
     - semantic-release --dry-run --branches $CI_COMMIT_REF_NAME
   artifacts:
@@ -144,20 +143,6 @@ gen-protobuf:
   artifacts:
     paths:
       - pkg/gen
-
-changelog-preview:
-  # This is a workarround to show changelog preview without semantic-release
-  # see comment in job "version".
-  stage: generate
-  image: node:lts
-  before_script:
-    - npm install -g conventional-changelog-cli conventional-changelog-conventionalcommits@6
-  script:
-    - conventional-changelog -p conventionalcommits -o CHANGELOG.md
-    - cat CHANGELOG.md
-  artifacts:
-    paths:
-      - CHANGELOG.md
 
 docker-compose-build:
   stage: generate
@@ -338,8 +323,7 @@ release:
   script:
     - test ! -e ".VERSION" && exit 0
     - 'sed -i "s/^\(\s*DOCKER_IMAGE_TAG: \)$CI_DEFAULT_BRANCH$/\1v$(cat .VERSION | tr "." "-")/" docker-compose*.yml'
-    - npm install -g semantic-release @semantic-release/gitlab conventional-changelog-conventionalcommits@6
-    - cp releaserc.release.yml .releaserc.yml
+    - npm install -g semantic-release @semantic-release/exec @semantic-release/gitlab conventional-changelog-conventionalcommits@6
     - semantic-release --branches $CI_DEFAULT_BRANCH
 
 container_scanning:
