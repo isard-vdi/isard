@@ -157,7 +157,7 @@
                 "memory": "Memoria (GB)",
                 "videos": "Videos",
                 "boot": "Boot",
-                "disk-bus": "Disk Bus",
+                "disk-bus": "Bus de disco",
                 "interfaces": "Redes",
                 "disk-size": "Tamaño del disco (GB)"
             },
