@@ -37,6 +37,8 @@ class ApiClient:
             subpath = "/api/v3"
         if service == "engine":
             subpath = ""
+        if service == "scheduler":
+            subpath = "/scheduler"
         api_domain = os.environ.get("API_DOMAIN", False)
         if api_domain:
             self.base_url = "https://" + api_domain + subpath

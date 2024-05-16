@@ -10,7 +10,7 @@ export class DesktopUtils {
   }
 
   static parseDesktop (item) {
-    const { description, icon, id, name, state, type, viewers, ip, template, progress, image, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, editable, scheduled, server, desktop_size: desktopSize, tag, reservables, interfaces } = item
+    const { description, icon, id, name, state, type, viewers, ip, template, progress, image, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, editable, scheduled, server, desktop_size: desktopSize, tag, reservables, interfaces, current_action: currentAction } = item
     return {
       description,
       icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
@@ -34,7 +34,8 @@ export class DesktopUtils {
       desktopSize,
       tag,
       reservables,
-      interfaces
+      interfaces,
+      currentAction
     }
   }
 
@@ -99,7 +100,7 @@ export class DesktopUtils {
   }
 
   static getState (state) {
-    return [desktopStates.downloading, desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down'], desktopStates.paused].includes(state.toLowerCase()) ? state : desktopStates.working
+    return [desktopStates.downloading, desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down'], desktopStates.paused, desktopStates.maintenance].includes(state.toLowerCase()) ? state : desktopStates.working
   }
 
   static viewerNeedsIp (viewer) {

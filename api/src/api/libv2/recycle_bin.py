@@ -959,7 +959,11 @@ class RecycleBinDomain(RecycleBin):
             with app.app_context():
                 for disk in domain["create_dict"]["hardware"]["disks"]:
                     if "storage_id" in disk:
-                        RecycleBinStorage(self.id).add(disk["storage_id"])
+                        storage = (
+                            r.table("storage").get(disk["storage_id"]).run(db.conn)
+                        )
+                        if storage:
+                            RecycleBinStorage(self.id).add(disk["storage_id"])
 
     def add_desktops(self, desktops):
         with app.app_context():
@@ -1058,14 +1062,15 @@ class RecycleBinStorage(RecycleBin):
         return self._set_data(self.id)
 
     def add_storage(self, storage):
-        with app.app_context():
-            r.table("recycle_bin").get(self.id).update(
-                {
-                    "storages": r.row["storages"].append(storage),
-                    "size": r.row["size"]
-                    + storage.get("qemu-img-info", {}).get("actual-size", 0),
-                }
-            ).run(db.conn)
+        if storage:
+            with app.app_context():
+                r.table("recycle_bin").get(self.id).update(
+                    {
+                        "storages": r.row["storages"].append(storage),
+                        "size": r.row["size"]
+                        + storage.get("qemu-img-info", {}).get("actual-size", 0),
+                    }
+                ).run(db.conn)
 
     def add_storages(self, storages):
         with app.app_context():

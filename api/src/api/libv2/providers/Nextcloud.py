@@ -27,7 +27,7 @@ import requests
 from isardvdi_common.api_exceptions import Error, RequestObj
 from rethinkdb import RethinkDB
 
-from ...libv2.log import *
+from api import app
 
 r = RethinkDB()
 

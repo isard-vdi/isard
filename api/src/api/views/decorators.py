@@ -526,7 +526,14 @@ def userNotExists(uid, category_id, provider="local"):
         )
 
 
-def checkDuplicate(item_table, item_name, category=False, user=False, item_id=None):
+def checkDuplicate(
+    item_table,
+    item_name,
+    category=False,
+    user=False,
+    item_id=None,
+    ignore_deleted=False,
+):
     query = (
         r.table(item_table)
         .get_all(item_name, index="name")
@@ -544,6 +551,10 @@ def checkDuplicate(item_table, item_name, category=False, user=False, item_id=No
     ## check duplicate in the same user
     elif user:
         query = query.filter({"user": user})
+
+    ## do not check deleted items
+    if ignore_deleted:
+        query = query.filter(lambda item: item["status"] != "deleted")
 
     with app.app_context():
         item = list(query.run(db.conn))

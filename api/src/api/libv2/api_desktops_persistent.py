@@ -632,6 +632,10 @@ class ApiDesktopsPersistent:
         desktop_updating(desktop_id)
         return desktop_id
 
+    def Failed(self, desktop_id):
+        desktop_to_failed(desktop_id)
+        return desktop_id
+
     def Reset(self, token, request):
         desktop_id = common.DesktopFromToken(token)["id"]
         logs_domain_event_directviewer(desktop_id, "reset", request)

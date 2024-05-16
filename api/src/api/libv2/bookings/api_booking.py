@@ -47,6 +47,23 @@ class Bookings:
         self.reservables_planner = ReservablesPlanner()
         self.resources_scheduler = Scheduler()
 
+    def get_all(self):
+        with app.app_context():
+            return list(
+                r.table("bookings")
+                .merge(
+                    lambda booking: {
+                        "username": r.table("users").get(booking["user_id"])[
+                            "username"
+                        ],
+                        "category": r.table("categories").get(
+                            r.table("users").get(booking["user_id"])["category"]
+                        )["name"],
+                    }
+                )
+                .run(db.conn)
+            )
+
     def get_user_priority(self, payload, item_type, item_id):
         reservables, units, item_name = _get_reservables(item_type, item_id)
         return payload_priority(payload, reservables)
@@ -451,6 +468,25 @@ class Bookings:
                 .run(db.conn)
             )
 
+    def get_booking_plans(self, booking_id):
+        with app.app_context():
+            plan_ids = [
+                plan["plan_id"]
+                for plan in list(
+                    r.table("bookings").get(booking_id)["plans"].run(db.conn)
+                )
+            ]
+            app.logger.error(plan_ids)
+            return list(
+                r.db("isard")
+                .table("resource_planner")
+                .get_all(*plan_ids)
+                .merge(
+                    lambda plan: {"item": r.table("gpus").get(plan["item_id"])["name"]}
+                )
+                .run(db.conn)
+            )
+
     """
       Orchestrator provisioning
     """
@@ -548,6 +584,11 @@ class Bookings:
             }
             profiles_forecast.append(profile)
         return profiles_forecast
+
+    def empty_planning(self, plan_id):
+        bookings = self.reservables_planner.get_plan_bookings(plan_id)
+        for b in bookings:
+            self.delete(b["id"])
 
 
 def bookings_max_units(bookings):

@@ -73,6 +73,17 @@
                               />
                               {{ $t('components.profile.change-email') }}
                             </b-button>
+                            <b-button
+                              class="rounded-pill mr-2 pl-2 pr-3 btn-green"
+                              :title="$t('components.profile.change-email')"
+                              @click="showResetVPNModalConfirmation()"
+                            >
+                              <b-icon
+                                icon="shield-fill"
+                                scale="0.75"
+                              />
+                              {{ $t('components.profile.reset-vpn') }}
+                            </b-button>
                           </template>
                           <span>
                             <b-button
@@ -219,11 +230,13 @@
                                 :max="profile.quota.volatile"
                               />
                               <QuotaProgressBar
+                                v-if="profile.role.toLowerCase() !== 'user'"
                                 :title="$t('components.profile.quota.templates')"
                                 :value="profile.used.templates"
                                 :max="profile.quota.templates"
                               />
                               <QuotaProgressBar
+                                v-if="profile.role.toLowerCase() !== 'user'"
                                 :title="$t('components.profile.quota.media')"
                                 :value="profile.used.isos"
                                 :max="profile.quota.isos"
@@ -311,6 +324,7 @@ import Language from '@/components/Language.vue'
 import PasswordModal from '@/components/profile/PasswordModal.vue'
 import QuotaProgressBar from '@/components/profile/QuotaProgressBar.vue'
 import { computed } from '@vue/composition-api'
+import i18n from '@/i18n'
 import EmailVerificationModal from '@/components/profile/EmailVerificationModal.vue'
 
 export default {
@@ -332,8 +346,22 @@ export default {
     const showEmailVerificationModal = () => {
       $store.dispatch('showEmailVerificationModal', true)
     }
+    const yesAction = () => {
+      context.root.$snotify.remove()
+      $store.dispatch('resetVPN')
+    }
+    const showResetVPNModalConfirmation = (toast) => {
+      context.root.$snotify.prompt(`${i18n.t('messages.confirmation.reset-vpn')}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+          { text: `${i18n.t('messages.no')}` }
+        ],
+        placeholder: ''
+      })
+    }
 
-    return { profile, profileLoaded, showEmailVerificationModal, config }
+    return { profile, profileLoaded, showEmailVerificationModal, config, showResetVPNModalConfirmation }
   },
   destroyed () {
     this.$store.dispatch('resetProfileState')
@@ -345,3 +373,8 @@ export default {
   }
 }
 </script>
+<style scoped>
+  .btn {
+    margin: 4px;
+  }
+</style>

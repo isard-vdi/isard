@@ -5,7 +5,7 @@ monkey.patch_all()
 import logging
 import os
 
-import api.libv2.log
+import isardvdi_common.log
 from api.libv2 import (
     api_admin_socketio,
     api_socketio_deployments,

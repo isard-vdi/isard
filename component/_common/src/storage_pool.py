@@ -21,6 +21,7 @@ from random import choice, choices
 
 from rethinkdb import r
 
+from .default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from .rethink_custom_base_factory import RethinkCustomBase
 
 
@@ -79,6 +80,34 @@ class StoragePool(RethinkCustomBase):
                 .pluck("id")
                 .run(cls._rdb_connection)
             ]
+
+    @classmethod
+    def get_by_user_kind(cls, user_id, kind):
+        """
+        Get Storage Pools based on a user's category and that has a specific kind of path
+
+        :param user: User
+        :type user: str
+        :return: StoragePool objects
+        :rtype: list
+        """
+
+        with cls._rdb_context():
+            category_id = (
+                r.table("users").get(user_id)["category"].run(cls._rdb_connection)
+            )
+        sps = list(r.table(cls._rdb_table).run(cls._rdb_connection))
+        default = {}
+
+        for sp in sps:
+            if sp["id"] == DEFAULT_STORAGE_POOL_ID:
+                default = sp
+            if (
+                category_id in sp.get("categories", [])
+                and kind in sp.get("paths", {}).keys()
+            ):
+                return cls(**sp)
+        return cls(**default)
 
     @classmethod
     def get_best_for_action(cls, action, path=None):

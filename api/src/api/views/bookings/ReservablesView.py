@@ -115,6 +115,17 @@ def api_v3_reservable_check_last(payload, reservable_type, subitem_id, item_id):
 ##########################################################################
 
 
+# Gets all plans
+@app.route("/api/v3/admin/reservables_planner", methods=["GET"])
+@is_admin
+def api_v3_reservables_planner_get(payload):
+    return json.dumps(
+        api_rp.list_all_item_plans(),
+        sort_keys=True,
+        default=str,
+    )
+
+
 # Gets actual plan for item (card) /subitem (profile) reservable resources
 @app.route("/api/v3/admin/reservables_planner/actual_plan/<item_id>", methods=["GET"])
 @is_admin
@@ -185,8 +196,7 @@ def api_v3_reservables_planner_event(payload):
 @app.route("/api/v3/admin/reservables_planner/<plan_id>/bookings", methods=["GET"])
 @is_admin
 def api_v3_reservables_planner_event_existing_bookings(payload, plan_id):
-    data = request.get_json()
-    return json.dumps(api_rp.get_plan_bookings(plan_id))
+    return json.dumps(api_rp.get_plan_bookings(plan_id), sort_keys=True, default=str)
 
 
 # Deletes a plan

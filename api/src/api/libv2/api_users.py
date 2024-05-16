@@ -780,6 +780,7 @@ class ApiUsers:
                             "booking_id",
                             "scheduled",
                             "tag",
+                            "current_action",
                         ]
                     )
                     .run(db.conn)
@@ -1811,6 +1812,12 @@ class ApiUsers:
             return users[0]
         else:
             raise Error("internal_server", "Error retrieving user data")
+
+    def reset_vpn(self, user_id):
+        with app.app_context():
+            r.table("users").get(user_id).update(
+                {"vpn": {"wireguard": {"keys": False}}}
+            ).run(db.conn)
 
 
 def validate_email_jwt(user_id, email, minutes=60):

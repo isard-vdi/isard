@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import json
 import time
 
 from rethinkdb import RethinkDB
@@ -43,6 +44,7 @@ from .exceptions import Error
 
 api_client = ApiClient("api")
 engine_client = ApiClient("engine")
+scheduler_client = ApiClient("scheduler")
 
 
 def format_lang(message_code, lang, kwargs):
@@ -490,3 +492,49 @@ class Actions:
     def recycle_bin_delete_admin(**kwargs):
         max_delete_period = int(kwargs.get("max_delete_period"))
         api_client.put("/recycle_bin/delete/", {"max_delete_period": max_delete_period})
+
+    def wait_desktops_to_do_storage_action_kwargs(**kwargs):
+        return []
+
+    def wait_desktops_to_do_storage_action(**kwargs):
+        response = {}
+        try:
+            if kwargs["action"] == "move":
+                response = api_client.put(
+                    f"/storage/{kwargs['storage_id']}/path/{kwargs['path']}"
+                    + ("/rsync" if kwargs["rsync"] else "")
+                )
+            elif kwargs["action"] == "virt_win_reg":
+                response = api_client.put(
+                    f"/storage/virt-win-reg/{kwargs['storage_id']}/priority/{kwargs['priority']}"
+                )
+            elif kwargs["action"] == "convert":
+                storage_id = kwargs["storage_id"]
+                new_storage_type = kwargs["new_storage_type"]
+                new_storage_status = (
+                    kwargs["new_storage_status"]
+                    if kwargs.get("new_storage_status")
+                    else ""
+                )
+                compress = "/compress" if kwargs.get("compress") else ""
+                priority = kwargs["priority"]
+                convert_url = f"/storage/{storage_id}/convert/{new_storage_type}/{new_storage_status}{compress}/priority/{priority}"
+
+                response = api_client.post(convert_url)
+            elif kwargs["action"] == "increase":
+                response = api_client.put(
+                    f"/storage/{kwargs['storage_id']}/priority/{kwargs['priority']}/increase/{kwargs['increment']}"
+                )
+            if response:
+                scheduler_client.delete(f"/{kwargs['storage_id']}.stg_action")
+        except Error as e:
+            description_code = json.loads(e.args[1].split(": ", 1)[1].strip()).get(
+                "description_code"
+            )
+            if description_code == "desktops_not_stopped":
+                pass
+            elif (
+                description_code in ["storage_not_ready", "storage_not_found"]
+                or e.status_code == 400
+            ):  ## storage is deleted or kwargs are not valid
+                scheduler_client.delete(f"/{kwargs['storage_id']}.stg_action")

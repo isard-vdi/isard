@@ -117,6 +117,12 @@
             },
             "no-info-default": "No hi ha cap descripció disponible",
             "open-with": "Accedir amb visor",
+            "storage-operation": {
+                "increase": "La mida del disc d'aquest escriptori s'està incrementant",
+                "virt-win-reg": "S'està editant el registre",
+                "move": "El disc d'aquest escriptori s'està movent"
+
+            },
             "actions": {
                 "delete": "Esborrar",
                 "template": "Convertir en plantilla",
@@ -276,7 +282,8 @@
                 "total-media-size": "Mida de mitjans utilitzats / Total de mida dels mitjans (GB)",
                 "total-size": "Mida utilitzada / Mida total (GB)",
                 "unit": "Mida unitat personal / Mida total unitat personal (MB)"
-            }
+            },
+            "reset-vpn": "Restablir VPN"
         },
         "start-now-modal": {
             "title": "Iniciar ara",
@@ -354,8 +361,9 @@
             "code": "Codi de registre",
             "register": "Registrar-se",
             "errors": {
-                "404": "Codi no trobat",
                 "401": "Sessió expirada",
+                "403": "El domini de correu electrònic que estàs intentant utilitzar no està autoritzat per a la teva categoria.",
+                "404": "Codi no trobat",
                 "409": "L'usuari ja existeix",
                 "500": "Error en el servidor"
             }
@@ -505,6 +513,10 @@
                 "updating": {
                     "text": "Processant",
                     "action": "Processant"
+                },
+                "maintenance": {
+                    "text": "En manteniment",
+                    "action": "En manteniment"
                 }
             }
         },
@@ -902,7 +914,6 @@
             "reject": "Rebutjar",
             "accept": "Acceptar",
             "disclaimer-accepted": "S'ha acceptat l'avís legal. Redirigint a l'inici de sessió en {seconds} segons."
-
         }
     },
     "validations": {
@@ -911,7 +922,7 @@
         "minLengthValue": "El camp {property} té {model} caràcters, però ha de tenir com a mínim una llargada de {min}.",
         "maxLengthValue": "El camp {property} te {model} caràcters, però ha de tenir una com a màxim una llargada de {max}.",
         "inputFormat": "Els caràcters vàlids són lletres, digits, coma, punt, - i _",
-        "URLFormat": "Ha de començar amb \"https://\"",
+        "URLFormat": "Ha de començar amb \"https://\".",
         "url": "El camp {property} ha de ser una adreça web.",
         "undefined": "No definit"
     },
@@ -1179,6 +1190,7 @@
         "not_enough_advanced_time": "No hi ha suficient antelació per iniciar l'escriptori",
         "one_viewer_minimum": "S'ha de seleccionar un visor com a mínim",
         "template_failed": "Degut a un error la plantilla no es pot fer servir per crear un nou escriptori, si us plau contacta amb l'administrador",
+        "desktop_storage_does_not_exist": "Degut a un error l'escriptori no es pot fer servir, si us plau contacta amb l'administrador",
         "media_invalid": "El fitxer descarregat no és un mitjà vàlid. Caldria esborrar-ho ja que no es pot fer servir",
         "desktop_storage_not_ready": "L'emmagatzematge de l'escriptori no està apunt",
         "unable_to_get_viewer_inexistent": "No s'ha pogut obtenir el visor d'un escriptori inexistent",
@@ -1241,7 +1253,8 @@
             "new-deployment": "Es crearan {quantity} escriptoris, un per cada usuari seleccionat. Continuar?",
             "go-to-profile": "Veure quota",
             "go-to-bookings": "Reservar escriptori",
-            "change-desktop-gpu": "Modificar el perfil de l'escriptori"
+            "change-desktop-gpu": "Modificar el perfil de l'escriptori",
+            "reset-vpn": "Restablir les claus VPN? S'haurà de descarregar un nou fitxer VPN"   
         },
         "ok": "D'acord",
         "yes": "Sí",
@@ -1289,7 +1302,9 @@
             "retry-desktop": "Comprovant l'estat del escriptori",
             "restoring-recycle-bin": "Restaurant entrada",
             "deleting-recycle-bin": "Eliminant entrada",
-            "warning-desktop-waiting-ip": "Encara no es pot obrir el visor actual Espereu si us plau..."
+            "warning-desktop-waiting-ip": "Encara no es pot obrir el visor actual Espereu si us plau...",
+            "reset-vpn": "Claus VPN restablertes",
+            "video-default": "S'ha canviat el paràmetre 'Videos' de l'escriptori a 'Default', atès que no hi ha cap perfil de GPU assignat"
         },
         "loading": "Carregant"
     },
@@ -1332,5 +1347,8 @@
             "desktop-time-limit": "L'escriptori '{name}' s'aturarà automàticament a les {date}.",
             "searching-resources": "Estem buscant recursos per l'escriptori. S'iniciarà en breus minuts, si us plau, esperi."
         }
+    },
+    "bookings": {
+        "max_time_reached": "S'ha arribat al temps màxim de reserva"
     }
 }

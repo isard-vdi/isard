@@ -300,3 +300,14 @@ def user_password_policy_expired(payload):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/user/reset-vpn", methods=["PUT"])
+@has_token
+def user_reset_vpn(payload):
+    users.reset_vpn(payload["user_id"])
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )

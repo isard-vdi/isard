@@ -28,7 +28,6 @@ from rethinkdb import RethinkDB
 
 from api import app
 
-from ..libv2.log import *
 from .api_viewers_config import rdp_file_viewer, rdpgw_file_viewer, spice_file_viewer
 
 r = RethinkDB()
@@ -260,7 +259,7 @@ class isardViewer:
                 "vmPort": str(domain["viewer"]["base_port"] + self.vnc),
                 "host": domain["viewer"]["proxy_video"],
                 "port": domain["viewer"].get("html5_ext_port", "443"),
-                "token": domain["viewer"]["passwd"],
+                "token": domain["viewer"].get("passwd", ""),
                 "exp": (datetime.now(pytz.utc) + timedelta(minutes=240)).timestamp(),
             }
             cookie = base64.b64encode(
@@ -283,7 +282,7 @@ class isardViewer:
                 + "&vmPort="
                 + data["vmPort"]
                 + "&passwd="
-                + domain["viewer"]["passwd"]
+                + domain["viewer"].get("passwd", "")
             )
             return {
                 "kind": "browser",

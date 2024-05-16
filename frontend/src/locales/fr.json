@@ -309,13 +309,17 @@
                 "action": "Action",
                 "description": "Description",
                 "state": "État",
-                "name": "Nom"
+                "name": "Nom",
+                "desktop-size": "Taille"
             },
             "no-info-default": "Aucune description disponible",
             "actions": {
                 "delete": "Supprimer"
             },
-            "filter-label": "Filtrer"
+            "filter-label": "Filtrer",
+            "notification-bar": {
+                "next-booking": "Prochaine réservation"
+            }
         },
         "rdp-modal": {
             "button-refresh": "Actualiser",
@@ -579,6 +583,11 @@
             "description": "Description",
             "name": "Nom du média",
             "select-type": "Sélectionnez une option s'il vous plaît"
+        },
+        "duplicate": "Dupliquer",
+        "filter-placeholder": "Tapez pour rechercher",
+        "duplicate-template": {
+            "title": "Dupliquer le modèle"
         }
     },
     "messages": {
@@ -586,8 +595,6 @@
         "no": "Non",
         "title": {
             "delete": "Supprimer"
-        },
-        "confirmation": {
         },
         "info": {
             "deleting-desktop": "Suppression du bureau",

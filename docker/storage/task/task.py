@@ -59,18 +59,6 @@ def extract_progress_from_rsync_output(process):
     )
 
 
-def extract_progress_from_resize_output(process):
-    """
-    Extract progress from rsync standard output.
-
-    :param process: Process executed
-    :type process: Popen object
-    :return: Progress percentage as decimal
-    :rtype: float
-    """
-    return float(process.stdout.read1().decode().split("%", 1))
-
-
 def run_with_progress(command, extract_progress):
     """
     Run command reporting progress to RQ job metadata.
@@ -122,22 +110,30 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
         size = [size]
     else:
         size = []
+
+    options = ""
+    if storage_type == "qcow2":
+        options = f"""cluster_size={
+            environ.get('QCOW2_CLUSTER_SIZE','4k')
+        },extended_l2={
+            environ.get('QCOW2_EXTENDED_L2','off')
+        }"""
+
+    command = [
+        "qemu-img",
+        "create",
+        "-f",
+        storage_type,
+        *backing_file,
+        storage_path,
+        *size,
+    ]
+
+    if options:
+        command.insert(6, "-o")
+        command.insert(7, options)
     return run(
-        [
-            "qemu-img",
-            "create",
-            "-f",
-            storage_type,
-            *backing_file,
-            "-o",
-            f"""cluster_size={
-                environ.get('QCOW2_CLUSTER_SIZE','4k')
-            },extended_l2={
-                environ.get('QCOW2_EXTENDED_L2','off')
-            }""",
-            storage_path,
-            *size,
-        ],
+        command,
         check=True,
     ).returncode
 
@@ -386,11 +382,6 @@ def virt_win_reg(storage_path, registry_patch):
     :rtype: int
     """
     try:
-        registry_patch = base64.b64decode(registry_patch).decode()
-    except Exception as e:
-        return e
-
-    try:
         with tempfile.NamedTemporaryFile() as fp:
             fp.write(registry_patch.encode())
             fp.flush()
@@ -419,9 +410,13 @@ def resize(storage_path, increment):
     :rtype: int
     """
     try:
-        return run_with_progress(
-            ["qemu-img", "resize", storage_path, f"+{increment}G"],
-            extract_progress_from_resize_output,
-        )
+        return run(
+            [
+                "qemu-img",
+                "resize",
+                storage_path,
+                f"+{increment}G",
+            ]
+        ).returncode
     except Exception as e:
         return e

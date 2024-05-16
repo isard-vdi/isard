@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 132
+release_version = 133
+# release 133: Add storage_id, domain_id, deployment_id, user_id, category_id, group_id index to storage
 # release 132: update gpus_profiles
 # release 131: storage permissions on existing disks
 # release 130: Remove deleted storage from storage table
@@ -4834,6 +4835,66 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
                     "owner_category",
                     r.row["owner_category_id"],
                 ).run(self.conn)
+            except Exception as e:
+                print(e)
+        if version == 133:
+            try:
+                r.table("recycle_bin").index_create(
+                    "storage",
+                    r.row["storages"].map(lambda storage: storage["id"]),
+                    multi=True,
+                ).run(self.conn)
+                r.table("recycle_bin").index_wait("storage").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table("recycle_bin").index_create(
+                    "desktop",
+                    r.row["desktops"].map(lambda desktop: desktop["id"]),
+                    multi=True,
+                ).run(self.conn)
+                r.table("recycle_bin").index_wait("desktop").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table("recycle_bin").index_create(
+                    "template",
+                    r.row["templates"].map(lambda template: template["id"]),
+                    multi=True,
+                ).run(self.conn)
+                r.table("recycle_bin").index_wait("template").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table("recycle_bin").index_create(
+                    "user",
+                    r.row["users"].map(lambda user: user["id"]),
+                    multi=True,
+                ).run(self.conn)
+                r.table("recycle_bin").index_wait("user").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table("recycle_bin").index_create(
+                    "group",
+                    r.row["groups"].map(lambda group: group["id"]),
+                    multi=True,
+                ).run(self.conn)
+                r.table("recycle_bin").index_wait("group").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table("recycle_bin").index_create(
+                    "category",
+                    r.row["categories"].concat_map(lambda category: category["id"]),
+                    multi=True,
+                ).run(self.conn)
+                r.table("recycle_bin").index_wait("category").run(self.conn)
             except Exception as e:
                 print(e)
 

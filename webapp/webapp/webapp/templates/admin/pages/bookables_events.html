@@ -1,10 +1,103 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
 {% block css %}
+<link rel="stylesheet" type="text/css" href="/isard-admin/vendors/daterangepicker/daterangepicker.css" />
 {% endblock %}
 {% block content %}
 
 <div class="row">
+    <div class="row">
+        <div class="col-md-12 col-sm-12 col-xs-12">
+            <div class="x_panel" id="planning-panel">
+                <div class="x_title">
+                    <h3><i class="fa fa-calendar"></i> Planning <small></small></h3>
+                    <div class="clearfix"></div>
+                </div>
+
+                <div class="x_content">
+                    <table id="table-planning" class="table">
+
+                        <div id="table-planning-filters">
+                            <div class="x_panel date-filters">
+                                <div id="start-date-panel" class="date-panel col-md-3">
+                                    <i class="fa fa-calendar"></i><label for="start-min"> From date: </label>
+                                    <input placeholder="--" type="text" id="start-min" name="start-min" /><i
+                                        class="fa fa-times clear-date"></i>
+                                </div>
+                                <div id="end-date-panel" class="date-panel col-md-3">
+                                    <i class="fa fa-calendar"></i><label for="end-max"> To date: </label>
+                                    <input placeholder="--" type="text" id="end-max" name="end-max" /><i
+                                        class="fa fa-times clear-date"></i>
+                                </div>
+                            </div>
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Start</th>
+                                    <th>End</th>
+                                    <th>Profile</th>
+                                    <th>GPU</th>
+                                    <th>Units</th>
+                                    <th>Bookings</th>
+                                    <th>Action</th>
+                                    <th>ID</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="clearfix"></div>
+    <div class="row">
+        <div class="col-md-12 col-sm-12 col-xs-12">
+            <div class="x_panel" id="booking-panel">
+                <div class="x_title">
+                    <h3><i class="fa fa-briefcase"></i> Bookings <small></small></h3>
+                    <div class="clearfix"></div>
+                </div>
+
+                <div class="x_content">
+                    <table id="table-booking" class="table">
+
+                        <div id="table-booking-filters">
+                            <div class="x_panel date-filters">
+                                <div id="start-date-panel" class="date-panel col-md-3">
+                                    <i class="fa fa-calendar"></i><label for="start-min"> From date: </label>
+                                    <input placeholder="--" type="text" id="start-min" name="start-min" /><i
+                                        class="fa fa-times clear-date"></i>
+                                </div>
+                                <div id="end-date-panel" class="date-panel col-md-3">
+                                    <i class="fa fa-calendar"></i><label for="end-max"> To date: </label>
+                                    <input placeholder="--" type="text" id="end-max" name="end-max" /><i
+                                        class="fa fa-times clear-date"></i>
+                                </div>
+                            </div>
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Start</th>
+                                    <th>End</th>
+                                    <th>Title</th>
+                                    <th>User</th>
+                                    <th>Category</th>
+                                    <th>Type</th>
+                                    <th>Units</th>
+                                    <th>Plans</th>
+                                    <th>Action</th>
+                                    <th>ID</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="clearfix"></div>
     <div class="row">
         <div class="col-md-12 col-sm-12 col-xs-12">
             <div class="x_panel">
@@ -29,16 +122,19 @@
                             </tbody>
                         </table>
                     </div>
+
                 </div>
             </div>
         </div>
     </div>
-
-<div class="clearfix"></div>
+</div>
+</div>
+{% include 'admin/pages/booking_planning_detail.html' %}
 </div>
 
 {% endblock %}
 {% block pagescript %}
-     	<script src="/isard-admin/static/js/restful.js""></script>
-        <script src="/isard-admin/static/admin/js/bookables_events.js"></script>  
+<script src="/isard-admin/static/js/restful.js""></script>
+<script src=" /isard-admin/static/admin/js/bookables_events.js"></script>
+<script src="/isard-admin/vendors/daterangepicker/daterangepicker.js"></script>
 {% endblock %}

@@ -31,8 +31,8 @@ $(document).ready(function () {
   storage_ready = createDatatable(tableId, 'ready', function () {
     let searchStorageId = getGroupParam()
     if (searchStorageId) {
-      storage_ready.api().column(3).search(searchStorageId).draw();
-      storage_other.column(3).footer(3).firstChild.value = searchStorageId;
+      storage_ready.column(3).search(searchStorageId).draw();
+      $(tableId + ' tfoot input').eq(2).val(searchStorageId);
     }
   })
   $(tableId + " tbody").off('click').on('click', 'button', function () {
@@ -74,7 +74,13 @@ $(document).ready(function () {
       $(tableId).empty()
     }
 
-    storagesOtherTable = createDatatable(tableId, newStatus)
+    storagesOtherTable = createDatatable(tableId, newStatus, function () {
+      let searchStorageId = getGroupParam()
+      if (searchStorageId) {
+        storagesOtherTable.column(3).search(searchStorageId).draw();
+        $(tableId + ' tfoot input').eq(2).val(searchStorageId);
+      }
+    })
 
     $(tableId + " tbody").off('click').on('click', 'button', function () {
       let tr = $(this).closest("tr")
@@ -310,16 +316,86 @@ $(document).on('click', '.btn-check-qemu-img-info', function () {
       });
     }
   });
-})
+});
+
+$(document).on('click', '.btn-delete-scheduler', function () {
+  element = $(this);
+  var id = element.data("id");
+  new PNotify({
+    title: 'Confirmation Needed',
+        text: "Are you sure you want to delete the scheduler associated with this storage, if any?",
+        hide: false,
+        opacity: 0.9,
+        confirm: {
+            confirm: true
+        },
+        buttons: {
+            closer: false,
+            sticker: false
+        },
+        history: {
+            history: false
+        },
+        addclass: 'pnotify-center'
+    }).get().on('pnotify.confirm', function() {
+  $.ajax({
+    type: 'DELETE',
+    url: `/scheduler/${id}.stg_action`,
+    contentType: 'application/json',
+    success: function (result) {
+      new PNotify({
+        title: 'Deleted',
+        text: 'Job deleted',
+        hide: true,
+        delay: 2000,
+        icon: '',
+        opacity: 1,
+        type: 'success'
+      })
+    },
+    error: function (data) {
+      new PNotify({
+        title: 'ERROR deleting scheduler',
+        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+        hide: true,
+        delay: 3000,
+        icon: 'fa fa-warning',
+        opacity: 1,
+        type: 'error'
+      });
+    }
+  });
+  });
+});
+
 
 $(document).on('click', '.btn-convert', function () {
   element = $(this);
   var storageId = element.data("id");
-  modal = "#modalConvertStorage";
-  $(modal + " select").empty();
-  $(modal + " #id").val(storageId);
-  populateDiskFormatSelects(element.data("current_type"));
-  $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+  $.ajax({
+    url: `/api/v3/storage/${storageId}/check_storage_derivatives`,
+    type: 'GET',
+    contentType: "application/json",
+  }).done(function (data) {
+    if (data.derivatives > 1) {
+      new PNotify({
+        title: `ERROR`,
+        text: "This storage has derivatives",
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+    } else {
+      populateDiskFormatSelects(element.data("current_type"));
+      modal = "#modalConvertStorage";
+      $(modal + " select").empty();
+      $(modal + " #id").val(storageId);
+      populatePrioritySelect(modal);
+      $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+    }
+  });
 });
 
 
@@ -327,23 +403,26 @@ $("#modalConvertStorage #send").on("click", function () {
   var form = $('#modalConvertStorageForm');
   form.parsley().validate();
   if (form.parsley().isValid()) {
-    data = form.serializeObject();
-    var new_storage_status = data["change_status-cb"] ? "/" + data["new_status"] : "";
-    var compress = data["compress-cb"] ? "/compress" : "";
-    url = `/api/v3/storage/${data.storage_id}/convert/${data.disk_format}${new_storage_status}${compress}`
+    formData = form.serializeObject();
+    var priority = formData.priority ? formData.priority : "low";
+    var new_storage_status = formData["change_status-cb"] ? "/" + formData["new_status"] : "";
+    var compress = formData["compress-cb"] ? "/compress" : "";
+
     $.ajax({
-      url: url,
+      url: `/api/v3/storage/${formData.storage_id}/convert/${formData.new_storage_type}${new_storage_status}${compress}/priority/${priority}`,
       type: 'POST',
+      data: JSON.stringify(formData),
+      contentType: 'application/json'
     }).done(function () {
       new PNotify({
         title: 'Task created successfully',
-        text: `Converting storage...`,
+        text: `Performing convert on storage...`,
         hide: true,
         delay: 2000,
         opacity: 1,
         type: 'success'
       });
-      $('.modal').modal('hide');
+      $('.modal').modal('hide')
     }).fail(function (data) {
       new PNotify({
         title: `ERROR trying to convert storage`,
@@ -355,6 +434,7 @@ $("#modalConvertStorage #send").on("click", function () {
         opacity: 1
       });
     });
+
   }
 });
 
@@ -364,6 +444,7 @@ $(document).on('click', '.btn-increase', function () {
   modal = "#modalIncreaseStorage";
   $(modal + " input").empty();
   $(modal + " #id").val(storageId);
+  $(modal + " select#priority").empty();
 
   if ($("#user_data").data("role") == "admin") {
     $(modal + " select#priority").append(`
@@ -383,65 +464,56 @@ $(document).on('click', '.btn-increase', function () {
     type: 'GET',
     contentType: "application/json",
   }).done(function (storage) {
-    var virtual_size = storage.virtual_size / 1024 / 1024 / 1024
-    $(modal + " #current-size").text(virtual_size.toFixed(0) + " GB");
-    $(modal + " #current_size").val(virtual_size);
-    $(modal + " #new-size").val(virtual_size.toFixed(0)).prop("min", virtual_size.toFixed(0));
-
     $.ajax({
-      url: "/api/v3/admin/user/appliedquota/" + storage["user_id"],
-      type: 'GET',
-    }).done(function (quota) {
-      if (quota.quota) {
-        $(modal + " #max-quota-div").show();
-        $(modal + " #max-quota").text(quota.quota.desktops_disk_size);
-        $(modal + " #new-size").prop("max", quota.quota.desktops_disk_size);
+      url: `/api/v3/storage/${storageId}/check_storage_derivatives`,
+    }).done(function (data) {
+      if (data.derivatives <= 1) {
+        var virtual_size = storage.virtual_size / 1024 / 1024 / 1024
+        $(modal + " #current-size").text(virtual_size.toFixed(0) + " GB");
+        $(modal + " #current_size").val(virtual_size);
+        $(modal + " #new-size").val(virtual_size.toFixed(0)).prop("min", (virtual_size + 1).toFixed(0));
+  
+        $.ajax({
+          url: "/api/v3/admin/user/appliedquota/" + storage["user_id"],
+          type: 'GET',
+        }).done(function (quota) {
+          if (quota.quota) {
+            $(modal + " #max-quota-div").show();
+            $(modal + " #max-quota").text(quota.quota.desktops_disk_size);
+            $(modal + " #new-size").prop("max", quota.quota.desktops_disk_size);
+          } else {
+            $(modal + " #max-quota-div").hide();
+            $(modal + " #new-size").removeAttr("max");
+          }
+  
+  
+          $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+        }).fail(function (data) {
+          new PNotify({
+            title: `ERROR trying to fetch storage size`,
+            text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+            type: 'error',
+            hide: true,
+            icon: 'fa fa-warning',
+            delay: 5000,
+            opacity: 1
+          });
+        });
       } else {
-        $(modal + " #max-quota-div").hide();
-        $(modal + " #new-size").removeAttr("max");
+        new PNotify({
+          title: `ERROR`,
+          text: 'Size of disks with derivatives cannot be modified',
+          type: 'error',
+          hide: true,
+          icon: 'fa fa-warning',
+          delay: 5000,
+          opacity: 1
+        });
       }
-    });
-
-    $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
-  }).fail(function (data) {
-    new PNotify({
-      title: `ERROR trying to fetch storage size`,
-      text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
-      type: 'error',
-      hide: true,
-      icon: 'fa fa-warning',
-      delay: 5000,
-      opacity: 1
-    });
-  });
-
-});
-
-
-$("#modalIncreaseStorage #send").on("click", function () {
-  var form = $('#modalIncreaseStorageForm');
-  form.parsley().validate();
-  if (form.parsley().isValid()) {
-    data = form.serializeObject();
-    var priority = data.priority ? data.priority : "low";
-    var increment = data.new_size - data.current_size;
-    $.ajax({
-      url: `/api/v3/storage/${data.storage_id}/priority/${priority}/increase/${increment.toFixed(0)}`,
-      type: 'PUT',
-    }).done(function () {
-      new PNotify({
-        title: 'Task created successfully',
-        text: `Increasing storage size...`,
-        hide: true,
-        delay: 2000,
-        opacity: 1,
-        type: 'success'
-      });
-      $('.modal').modal('hide');
     }).fail(function (data) {
       new PNotify({
-        title: `ERROR trying to increase storage size`,
-        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+        title: `ERROR`,
+        text: 'Something went wrong',
         type: 'error',
         hide: true,
         icon: 'fa fa-warning',
@@ -449,8 +521,251 @@ $("#modalIncreaseStorage #send").on("click", function () {
         opacity: 1
       });
     });
+   
+  }).fail(function (data) {
+    new PNotify({
+      title: `ERROR`,
+      text: 'Something went wrong',
+      type: 'error',
+      hide: true,
+      icon: 'fa fa-warning',
+      delay: 5000,
+      opacity: 1
+    });
+  });
+  });
+
+$("#modalIncreaseStorage #send").on("click", function () {
+  var form = $('#modalIncreaseStorageForm');
+  form.parsley().validate();
+  if (form.parsley().isValid()) {
+    formData = form.serializeObject();
+    var priority = formData.priority ? formData.priority : "low";
+    formData.increment = (formData.new_size - formData.current_size).toFixed(0);
+    delete formData.new_size;
+    var url = `/api/v3/storage/${formData.storage_id}/priority/${priority}/increase/${formData.increment}`;
+    performStorageOperation(formData, formData.storage_id, "increase", url);
   }
 });
+
+$(document).on('click', '.btn-add-storage', function () {
+  var modal = "#modalCreateStorage";
+  $(modal + " #storage_id").val(null);
+  $(modal + " #id").attr("disabled", true);
+  $(modal + " #storage_id-wrapper").hide();
+  $(modal + " #storage_pool").attr("disabled", false).empty();
+  $(modal + " #owner-wrapper").show();
+  $(modal + " .modal-body h4").text("Add new unattached storage disk");
+  resetCreateDiskForm();
+
+  $(modal + " #user").select2({
+    placeholder: "Type at least 2 letters to search.",
+    minimumInputLength: 2,
+    dropdownParent: $(modal),
+    ajax: {
+      type: "POST",
+      url: '/admin/allowed/term/users',
+      dataType: 'json',
+      contentType: "application/json",
+      delay: 250,
+      data: function (params) {
+        return JSON.stringify({
+          term: params.term,
+          pluck: ['id', 'name']
+        });
+      },
+      processResults: function (data) {
+        return {
+          results: $.map(data, function (item, i) {
+            return {
+              text: item.name + '[' + item['uid'] + '] ',
+              id: item.id
+            }
+          })
+        };
+      }
+    },
+  });
+
+  $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+});
+
+
+$(document).on('click', '.btn-create', function () {
+  element = $(this);
+  var id = element.data("id");
+  var modal = "#modalCreateStorage";
+  resetCreateDiskForm();
+
+  $.ajax({
+    url: `/api/v3/admin/storage/info/${id}`,
+    type: 'GET',
+    contentType: "application/json",
+  }).done(function (data) {
+    $.ajax({
+      url: `/api/v3/admin/storage_pool/path`,
+      type: 'PUT',
+      data: JSON.stringify({ "path": data["directory_path"] }),
+      contentType: "application/json",
+    }).done(function (pool) {
+      var subpath = data["directory_path"].split(pool.mountpoint + "/")[1];
+      $.each(pool.paths, function (key, value) {
+        $.each(value, function (_, value) {
+          if (subpath.endsWith(value.path)) {
+            $(modal + " #kind").val(key);
+          }
+        });
+      });
+      if ($(modal + " #kind").val() != "template") {
+        new PNotify({
+          title: `ERROR`,
+          text: 'Disks can only be derived from template disks',
+          type: 'error',
+          hide: true,
+          icon: 'fa fa-warning',
+          delay: 5000,
+          opacity: 1
+        });
+      } else {
+        $(modal + " #id").attr("disabled", false).val(id);
+        $(modal + " .modal-body h4").text("Create derived storage disk");
+        $(modal + " #storage_id-wrapper").show();
+        $(modal + " #owner-wrapper").hide();
+        $(modal + " #storage_pool").attr("disabled", true);
+        $(modal + " #storage_id").text(id);
+        $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+      }
+    });
+  });
+
+});
+
+
+$("#modalCreateStorage #send").on("click", function () {
+  var form = $('#modalCreateStorageForm');
+  form.parsley().validate();
+  if (form.parsley().isValid()) {
+    formData = form.serializeObject();
+    unit = formData.size_unit != undefined ? formData.size_unit : "G";
+    formData.size = formData.size + unit;
+    var priority = $("#user_data").data("role") == "admin" ? formData.priority : "low";
+    formData.storage_type = "qcow2";
+    delete formData.size_unit;
+    if (formData.parent) {
+      performStorageOperation(formData, formData.parent, "create", "/api/v3/storage/priority/" + priority);
+    } else {
+      $.ajax({
+        url: "/api/v3/storage/priority/" + priority,
+        type: 'POST',
+        data: JSON.stringify(formData),
+        contentType: 'application/json',
+      }).done(function () {
+        new PNotify({
+          title: 'Task created successfully',
+          text: `Creating storage...`,
+          hide: true,
+          delay: 2000,
+          opacity: 1,
+          type: 'success'
+        });
+        $('.modal').modal('hide');
+      }).fail(function (data) {
+        new PNotify({
+          title: "ERROR trying to create new storage",
+          text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+          type: 'error',
+          hide: true,
+          icon: 'fa fa-warning',
+          delay: 5000,
+          opacity: 1
+        });
+      });
+    }
+  }
+});
+
+
+$(document).on('click', '.btn-virt_win_reg', function () {
+  element = $(this);
+  var storageId = element.data("id");
+  modal = "#modalVirtWinReg";
+  $.ajax({
+    url: `/api/v3/storage/${storageId}/check_storage_derivatives`,
+    type: 'GET',
+    contentType: "application/json",
+  }).done(function (data) {
+    if (data.derivatives > 1) {
+      new PNotify({
+        title: `ERROR`,
+        text: "This storage has derivatives",
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+    } else {
+      $(modal + " #registry_file").prop("value", "")
+      $(modal + " #id").val(storageId);
+      populatePrioritySelect(modal);
+      $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+    }
+  }).fail(function (data) {
+    new PNotify({
+      title: `ERROR trying to edit Windows registry`,
+      text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+      type: 'error',
+      hide: true,
+      icon: 'fa fa-warning',
+      delay: 5000,
+      opacity: 1
+    });
+
+  });
+});
+
+
+$("#modalVirtWinReg #send").on("click", function () {
+  var form = $('#modalVirtWinRegForm');
+  form.parsley().validate();
+  if (form.parsley().isValid()) {
+    data = form.serializeObject();
+    var file = $('#registry_file')[0].files[0];
+    if (file.type !== "text/x-ms-regedit") {
+      new PNotify({
+        title: `ERROR uploading file`,
+        text: 'File must be a regedit file',
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+    } else if (file.size > 1 * 1024 * 1024) { //1MB
+      new PNotify({
+        title: `ERROR uploading file`,
+        text: 'File size must be less than 1MB',
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+    } else {
+      filecontents = "";
+      var reader = new FileReader();
+      reader.onload = function (event) {
+        var fileContents = event.target.result;
+        data["registry_patch"] = fileContents;
+        var priority = $("#user_data").data("role") == "admin" ? data.priority : "low";
+        var url = "/api/v3/storage/virt-win-reg/" + data["storage_id"] + "/priority/" + priority;
+        performStorageOperation(data, data["storage_id"], "virt_win_reg", url);
+      }
+      reader.readAsText(file, 'UTF-8');
+    }
+  }
+});
+
 
 function socketio_on() {
   socket.on('storage', function (data) {
@@ -668,10 +983,11 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         className: 'actions-control',
         orderable: false,
         data: null,
-        width: '60px',
+        width: '65px',
         visible: $('meta[id=user_data]').attr('data-role') === 'admin',
         render: function (data, type, row, meta) {
-          return '<button type="button" data-id="' + row.id + '" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>';
+          return `<button type="button" data-id="${row.id }" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>
+                  ${data.status == "ready" ? `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>` : ""}`;
         }
       }
     ],
@@ -748,24 +1064,29 @@ function detailButtons(storage) {
               <div class="row">
                 <div class="col-md-12 col-sm-12 col-xs-12">
                   <div class="x_panel" style="margin:3px;">
-                  
+
                     <!--<button class="btn btn-success btn-xs btn-move" data-id="${storage.id}" type="button"
                       data-placement="top" title="Move to another path"><i class="fa fa-truck m-right-xs"></i>
                       Move
                     </button>-->
-                    <button class="btn btn-success btn-xs btn-convert" data-id="${storage.id}" data-current_type=${storage.type} type="button"
+                    <!--<button class="btn btn-success btn-xs btn-convert" data-id="${storage.id}" data-current_type=${storage.type} type="button"
                       data-placement="top" title="Convert to another disk format"><i class="fa fa-exchange m-right-xs"></i>
                       Convert
-                    </button>
-                    <!--<button class="btn btn-primary btn-xs btn-virt_win_reg" data-id="${storage.id}" type="button"
+                    </button>-->
+                    <button class="btn btn-primary btn-xs btn-virt_win_reg" data-id="${storage.id}" type="button"
                       data-placement="top" title="Add windows registry"><i class="fa fa-edit m-right-xs"></i>
                       Windows registry
-                    </button>-->
+                    </button>
                     <button class="btn btn-info btn-xs btn-increase" data-id="${storage.id}" type="button"
                       data-placement="top" title="Increase disk size"><i class="fa fa-external-link-square m-right-xs"></i>
                       Increase
                     </button>
-
+		    ${(function() { return ($("#user_data").data("role") == "admin") ? `
+	              <button class="btn btn-info btn-xs btn-create" data-id="${storage.id}" type="button"
+			 data-placement="top" title="Create new disk derivated from this one"><i class="fa fa-plus m-right-xs"></i>
+		       	 Add disk
+		      </button>` : ""
+		    })()}
                   </div>
                 </div>
               </div>
@@ -809,4 +1130,153 @@ function renderProgress(perc) {
               '+ perc + '%  \
             </div> \
           </<div>';
+}
+
+function populatePrioritySelect(modal) {
+  $(modal + " select#priority").empty();
+  if ($("#user_data").data("role") == "admin") {
+    $(modal + " select#priority").append(`
+      <option selected value="low">Low</option>
+      <option value="default">Default</option>
+      <option value="high">High</option>
+    `);
+  } else {
+    $(modal + " select#priority").append(`
+    <option selected disabled value="low">Low</option>
+    `);
+  }
+}
+
+function resetCreateDiskForm() {
+  var modal = "#modalCreateStorageForm";
+  $(modal + " #user").val("");
+  $(modal + " #usage_type").val("desktop");
+  $(modal + " #storage_type").val("qcow2");
+  $(modal + " #size").val(10);
+  $(modal + " #size_unit").val("G");
+  populatePrioritySelect(modal);
+}
+
+function stopAllDesktops(storageId) {
+  $.ajax({
+    type: "PUT",
+    url: `/api/v3/storage/${storageId}/stop`
+  }).done(function (data) {
+    new PNotify({
+      title: 'Stopping desktops...',
+      hide: true,
+      delay: 2000,
+      icon: 'fa fa-' + data.icon,
+      opacity: 1,
+      type: 'success'
+    });
+  }).fail(function (data) {
+    new PNotify({
+      title: 'ERROR stopping desktops',
+      text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+      type: 'error',
+      hide: true,
+      icon: 'fa fa-warning',
+      delay: 5000,
+      opacity: 1
+    });
+  });
+}
+
+function scheduleUntilDesktopsAreStopped(storageId, action, kwargs) {
+  data = {}
+  data["kwargs"] = {
+    storage_id: storageId,
+    action: action,
+    ...kwargs
+  };
+  $.ajax({
+    url: "/scheduler/system/interval/wait_desktops_to_do_storage_action/00/05/" + storageId + ".stg_action",
+    type: "POST",
+    data: JSON.stringify(data),
+    contentType: "application/json",
+  }).done(function () {
+    new PNotify({
+      title: 'Success',
+      text: ' Storages ' + action + ' scheduled successfully',
+      hide: true,
+      delay: 2000,
+      icon: 'fa fa-' + data.icon,
+      opacity: 1,
+      type: 'success'
+    });
+    $('.modal').modal('hide');
+  }).fail(function (data) {
+    new PNotify({
+      title: 'ERROR scheduling the action ' + action,
+      text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+      type: 'error',
+      hide: true,
+      icon: 'fa fa-warning',
+      delay: 5000,
+      opacity: 1
+    });
+  });
+}
+
+function performStorageOperation(formData, storageId, action, url) {
+  $.ajax({
+    url: url,
+    type: action === "create" ? 'POST' : 'PUT',
+    data: JSON.stringify(formData),
+    contentType: 'application/json'
+  }).done(function () {
+    new PNotify({
+      title: 'Task created successfully',
+      text: `Performing ${action} on storage...`,
+      hide: true,
+      delay: 2000,
+      opacity: 1,
+      type: 'success'
+    });
+    $('.modal').modal('hide');
+  }).fail(function (data) {
+    if (data.responseJSON && data.responseJSON.description_code === "desktops_not_stopped" && $("#user_data").data("role") == "admin") {
+      new PNotify({
+        title: "All desktops must be 'Stopped' for storage operations",
+        text: "You can force stop now all desktops associated with the storage" + ($("#user_data").data("role") == "admin" ? " or schedule the action when desktops are stopped" : ""),
+        hide: false,
+        opacity: 0.9,
+        type: "error",
+        confirm: {
+          confirm: true,
+          buttons: [
+            {
+              text: "Force Stop desktops", click: function (notice) {
+                stopAllDesktops(storageId);
+                scheduleUntilDesktopsAreStopped(storageId, action, formData)
+                notice.remove();
+              }
+            },
+            {
+              text: "Schedule", click: function (notice) {
+                scheduleUntilDesktopsAreStopped(storageId, action, formData);
+                notice.remove();
+              }
+            },
+            { text: "Cancel", click: function (notice) { notice.remove(); } }
+          ]
+        },
+        buttons: { closer: false, sticker: false },
+        history: { history: false },
+        addclass: 'pnotify-center-large',
+        width: '550'
+      });
+    } else {
+      new PNotify({
+        title: `ERROR trying to ${action} storage`,
+        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+    }
+  });
 }

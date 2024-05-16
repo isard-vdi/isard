@@ -123,7 +123,7 @@ def api_v3_admin_media_insert(payload):
     data["accessed"] = int(time.time())
 
     data = _validate_item("media", data)
-    checkDuplicate("media", data["name"], user=payload["user_id"])
+    checkDuplicate("media", data["name"], user=payload["user_id"], ignore_deleted=True)
 
     urlpath = (
         data["category"]

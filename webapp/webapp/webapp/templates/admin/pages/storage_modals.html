@@ -6,6 +6,15 @@
     #modalIncreaseStorage .parsley-errors-list {
         position: fixed;
     }
+
+    .file-upload {
+        cursor: pointer;
+        width: 100% !important;
+        border: none;
+        padding: 0px;
+        font-size: initial;
+        box-shadow: none !important;
+    }
 </style>
 
 <div class="modal fade" id="modalConvertStorage" tabindex="-1" role="dialog" aria-labelledby="modalConvertStorage"
@@ -42,7 +51,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="control-label">New disk format: </label>
-                                    <select name="disk_format" style="width:100%;" id="new-disk_format"
+                                    <select name="new_storage_type" style="width:100%;" id="new-disk_format"
                                         class="roundbox form-control"></select>
                                     <label class="control-label" for="compress-enabled" style="margin:10px">
                                         <div class="icheckbox_flat-green" style="position: relative;">
@@ -80,6 +89,15 @@
                                     </select>
                                 </div>
                             </div>
+                            <div class="x_panel" id="priority-panel">
+                                <label class="col-md-2" style="margin-left:10px;">Priority: </label>
+                                <div class="col-md-4">
+                                    <select name="priority" id="priority" class="roundbox form-control" style="width:100%;">
+                                    </select>
+                                </div>
+                            </div>
+        
+                            
                         </div>
                         <div class="row">
                             <div role="alert" class="alert alert-error">
@@ -105,8 +123,6 @@
         </div>
     </div>
 </div>
-
-
 <div class="modal fade" id="modalIncreaseStorage" tabindex="-1" role="dialog" aria-labelledby="modalIncreaseStorage"
     aria-hidden="true">
     <div class="modal-dialog">
@@ -127,19 +143,14 @@
                 <form id="modalIncreaseStorageForm" class="form-inline form-label-left">
                     <input hidden id="id" name="storage_id" />
                     <input hidden id="current_size" name="current_size" />
-
                     <div class="x_panel">
                         <div class="row">
-                            <label class="col-md-3">Current size:</label>
-                            <div class="col-md-9" id="current-size">
+                            <label class="col-md-3 col-sm-6">Current size:</label>
+                            <div class="col-md-3 col-sm-6" id="current-size">
                                 GB
                             </div>
-                        </div>
-                    </div>
-                    <div class="x_panel">
-                        <div class="row">
-                            <label class="col-md-3">New size:</label>
-                            <div class="col-md-3">
+                            <label class="col-md-2 col-sm-6">New size:</label>
+                            <div class="col-md-3 col-sm-6">
                                 <input class="form-control roundbox" name="new_size" type="number" placeholder="20"
                                     style="width:80%" id="new-size" data-parsley-trigger="change"
                                     data-parsley-type="number" required /> GB
@@ -155,6 +166,13 @@
                             <div class="col-md-3">
                                 <select name="priority" id="priority" class="roundbox form-control" style="width:100%;">
                                 </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="x_panel">
+                        <div class="row">
+                            <div role="alert" class="alert alert-error"><i class="fa fa-warning"></i> WARNING: Please be
+                                mindful that this action could potentially lead to storage data corruption.
                             </div>
                         </div>
                     </div>
@@ -174,3 +192,161 @@
 
         </div>
     </div>
+</div>
+
+
+<div class="modal fade" id="modalCreateStorage" tabindex="-1" role="dialog" aria-labelledby="modalCreateStorage"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel"><i class="fa fa-plus"></i> Create disk</h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalCreateStorageForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="parent" />
+                    <input hidden id="kind" name="kind" />
+                    <div class="x_panel">
+                        <div class="row">
+                            <h4></h4>
+                            <div class="x_panel">
+                                <div class="row x_content">
+                                    <div class="col-md-12" id="owner-wrapper">
+                                        <label class="control-label">Owner: </label>
+                                        <select name="user_id" id="user" style="width:100%;"
+                                            class="roundbox form-control tags-select">
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row x_content">
+                                    <div class="col-md-12" id="storage_id-wrapper">
+                                        <label class="control-label">Parent storage ID: </label>
+                                        <span id="storage_id">
+                                    </div>
+                                </div>
+                                <div class="row x_content">
+                                    <div class="col-md-6 col-sm-12">
+                                        <label class="control-label">Type: </label>
+                                        <select name="usage_type" id="usage_type" style="width:100%;"
+                                            class="roundbox form-control">
+                                            <option selected value="desktop">Desktop</option>
+                                            <option value="media">Media</option>
+                                            <option value="template">Template</option>
+                                            <option value="volatile">Volatile</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-sm-12">
+                                        <label class="control-label">New disk format: </label>
+                                        <select disabled name="storage_type" id="storage_type" style="width:100%;"
+                                            class="roundbox form-control">
+                                            <option selected value="qcow2">.qcow2</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row x_content">
+                                    <div class="col-md-6 col-sm-12">
+                                        <label class="control-label">Priority: </label>
+                                        <select name="priority" id="priority" style="width:100%;"
+                                            class="roundbox form-control">
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-sm-12">
+                                        <label class="control-label">Size: <br></label>
+                                        <div>
+                                            <input style="width:66%;" value="10" name="size" id="size" type="number"
+                                                class="roundbox form-control" data-parsley-trigger="change">
+                                            <select disabled name="size_unit" style="width:32%;display:inline!important;"
+                                                id="size_unit" class="roundbox form-control">
+                                                <option value="M">MB</option>
+                                                <option selected value="G">GB</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Create</button></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalVirtWinReg" tabindex="-1" role="dialog" aria-labelledby="modalVirtWinReg"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel"><i class="fa fa-edit"></i> Apply Windows Registry Patch</h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalVirtWinRegForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="storage_id" />
+                    <input hidden id="kind" name="kind" />
+                    <div class="x_panel">
+                        <label for="registry_file" class="form-label">Upload registry file</label>
+                        <div class="x_panel">
+                            <input class="form-control form-control-lg file-upload" name="registry_file"
+                                id="registry_file" type="file" accept=".reg" required>
+                        </div>
+                        <div class="x_panel">
+                            <label class="control-label">Priority:</label>
+                            <select name="priority" id="priority" class="form-control tags-select roundbox"
+                                style="width:50%;">
+                            </select>
+                        </div>
+
+
+                        <div class="row">
+                            <div role="alert" class="alert alert-error">
+                                <i class="fa fa-warning"></i> Make sure you understand the risks associated with
+                                modifying the registry.
+                            </div>
+                        </div>
+
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-success"><i class="fa fa-warning"></i>
+                            Apply</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

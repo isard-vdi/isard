@@ -81,9 +81,22 @@
         />
       </vue-fab>
 
+      <!-- Desktop error no storage -->
+      <div
+        v-if="desktop.desktopSize === -1"
+        v-b-tooltip="{ title: $t(`errors.desktop_storage_does_not_exist`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+        class="machine-notification-bar px-3 d-flex flex-row align-content-center text-white notification-bar state-error"
+      >
+        <p
+          class="mb-0 py-2 text-white text-truncate"
+        >
+          {{ $t(`errors.desktop_storage_does_not_exist`) }}
+        </p>
+      </div>
+      <!-- Desktop error no storage -->
       <!-- Desktop next booking -->
       <div
-        v-if="desktop.needsBooking"
+        v-else-if="desktop.needsBooking"
         class="machine-notification-bar px-3 d-flex flex-row align-content-center text-white notification-bar"
         :class="notificationBarCssClass"
       >
@@ -107,7 +120,7 @@
 
       <div
         class="p-2 h-100 d-flex flex-wrap flex-column"
-        :class="`${desktop.needsBooking || desktop.shutdown ? 'notification-bar' : '' } getCardBackgroundColor` "
+        :class="`${desktop.needsBooking || desktop.shutdown || desktop.desktopSize === -1 ? 'notification-bar' : '' } getCardBackgroundColor` "
       >
         <div class="flex-grow-1">
           <!-- Title -->
@@ -127,9 +140,12 @@
           </p>
 
           <!-- State -->
-          <div class="ml-4 d-flex flex-row justify-left">
+          <div
+            v-b-tooltip="{title: `${desktop.currentAction ? $t('components.desktop-cards.storage-operation.'+desktop.currentAction, { action: desktop.currentAction} ) : ''}`}"
+            class="ml-4 d-flex flex-row justify-left"
+          >
             <b-spinner
-              v-if="[desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())"
+              v-if="[desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.maintenance].includes(desktopState.toLowerCase())"
               small
               variant="light"
               class="align-self-center mr-2 status-spinner"
@@ -140,6 +156,13 @@
             >
               {{ desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${desktopState}.text`) }}
             </p>
+          </div>
+          <div
+            v-if="desktop.currentAction && desktopState == desktopStates.maintenance"
+
+            class="my-4 mx-2 card-text text-warning"
+          >
+            {{ $t('components.desktop-cards.storage-operation.'+desktop.currentAction, { action: desktop.currentAction} ) }}
           </div>
 
           <div
@@ -381,7 +404,8 @@ export default {
         'shutting-down': 'status-orange',
         working: 'status-orange',
         downloading: 'status-orange',
-        paused: 'status-red'
+        paused: 'status-red',
+        maintenance: 'status-orange'
       }
       return stateColors[this.desktopState]
     },

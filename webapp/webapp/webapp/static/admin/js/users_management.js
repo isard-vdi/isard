@@ -1101,6 +1101,53 @@ function actionsUserDetail(){
             $('#modalPasswdUserForm #id').val(pk);
             $('#modalPasswdUserForm #username').val(username);
 	});
+    $('.btn-vpn').on('click', function () {
+        var closest=$(this).closest("div");
+        var pk=closest.attr("data-pk");
+        new PNotify({
+            title: 'Reset the user\'s VPN?',
+            text: "The user will have to download a new VPN file",
+            hide: false,
+            opacity: 0.9,
+            confirm: {
+                confirm: true
+            },
+            buttons: {
+                closer: false,
+                sticker: false
+            },
+            history: {
+                history: false
+            },
+            addclass: 'pnotify-center'
+        }).get().on('pnotify.confirm', function() {
+            $.ajax({
+                type: "PUT",
+                url: "/api/v3/admin/user/reset-vpn/" + pk,
+            }).done(function (data) {
+                new PNotify({
+                    title: "Success",
+                    text: "User VPN reset successfully",
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: "success"
+                });
+            }).fail(function(data) {
+                new PNotify({
+                    title: "ERROR resetting VPN",
+                    text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-cross',
+                    opacity: 1,
+                    type: 'error'
+                });
+            });
+        }).on('pnotify.cancel', function() {});
+    });
+
 
     $('.btn-delete').on('click', function () {
         var pk = $(this).closest("div").attr("data-pk");
@@ -1450,7 +1497,7 @@ function showUserExportButtons(table, buttonsRowClass) {
                 extend: 'csv',
                 text: 'CSV with import format',
                 exportOptions: {
-                    columns: [14] // ID column
+                    columns: [15] // ID column
                 },
                 title: "csv_with_import_format",
                 titleAttr: "Generate a CSV file from the current displayed data, to use in the \"Update from CSV\" feature.",

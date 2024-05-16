@@ -9,7 +9,7 @@ var href = location.href;
 url=href.match(/([^\/]*)\/*$/)[1];
 $('#global_actions').css('display','block');
 // Sort by Last Access in Desktops table
-order=15
+order=17
 
 loading_events=[]
 deleted_events=[]
@@ -898,6 +898,25 @@ $(document).ready(function() {
                     },
                 })
                 break;
+            case 'btn-update':
+                $.ajax({
+                    type: "GET",
+                    url: '/api/v3/desktop/to_failed/' + data["id"],
+                    contentType: "application/json",
+                    cache: false,
+                    error: function(data) {
+                        new PNotify({
+                            title: 'ERROR changing desktop status to Failed',
+                            text: data.responseJSON.description,
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 5000,
+                            opacity: 1
+                        })
+                    },
+                })
+                break;
         }
     });
 
@@ -1689,8 +1708,14 @@ function renderDisplay(data){
         return ''
 }
 
-function renderStatus(data){
-    return data.status;
+function renderStatus(data) {
+    if (data.status != "Maintenance") {
+        return data.status;
+    } else {
+        tooltip = 'Operations are being performed over the desktop disk: ' + data.current_action;
+        style = "color:grey; position:absolute;margin-right:2px";
+        return ' <i data-toggle="tooltip" title="' + tooltip + '" class="fa fa-info-circle fa-md" aria-hidden="true" style="' + style + '"></i><p style="margin-left:12px">' + data.status +'</p>'
+    }
     //To return the guest ip
     if('viewer' in data && 'guest_ip' in data['viewer']){
         return data['viewer']['guest_ip']
@@ -1714,6 +1739,9 @@ function renderAction(data){
     }
     if(status=='Failed'){
         return '<button type="button" id="btn-update" class="btn btn-pill btn-warning btn-xs"><i class="fa fa-refresh"></i> Retry</button>'
+    }
+    if(status=='Maintenance'){
+        return '<button type="button" id="btn-fail" class="btn btn-pill btn-warning btn-xs"><i class="fa fa-refresh"></i> Retry</button>'
     }
     if(status=='Started' || status=='Paused'){
         return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-stop"></i> Stop</button>';

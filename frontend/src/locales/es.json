@@ -315,6 +315,11 @@
             },
             "no-info-default": "No hay descripción disponible",
             "open-with": "Acceder con visor",
+            "storage-operation": {
+                "increase": "El tamaño de disco de este escritorio está siendo incrementado",
+                "virt-win-reg": "Se está editando el registro",
+                "move": "El disco de este escritorio se está moviendo"
+            },
             "filter-label": "Filtrar"
         },
         "deployment-desktop-list": {
@@ -467,7 +472,8 @@
                 "total-media-size": "Tamaño de medios utilizado / Total de tamaño de medios",
                 "total-size": "Tamaño utilizado / Total de tamaño",
                 "unit": "Tamaño unidad personal / Tamaño total unidad personal (MB)"
-            }
+            },
+            "reset-vpn": "Restaurar VPN"
         },
         "start-now-modal": {
             "title": "Iniciar ahora",
@@ -545,9 +551,10 @@
             "code": "Código de registro",
             "register": "Registrarse",
             "errors": {
-                "404": "Código no encontrado",
                 "401": "Sesión expirada",
-                "409": "L'usuari ja existeix",
+                "403": "El dominio de correo electrónico que estás intentando utilizar no está autorizado para tu categoría.",
+                "404": "Código no encontrado",
+                "409": "El usuario ya existe",
                 "500": "Error en el servidor"
             }
         },
@@ -696,6 +703,10 @@
                 "updating": {
                     "text": "Procesando",
                     "action": "Procesando"
+                },
+                "maintenance": {
+                    "text": "En mantenimiento",
+                    "action": "En mantenimiento"
                 }
             }
         },
@@ -1129,7 +1140,8 @@
             "new-deployment": "Se crearán {quantity} escritorios, uno por cada usuario seleccionado. Continuar?",
             "go-to-profile": "Ver cuota",
             "go-to-bookings": "Reservar escritorio",
-            "change-desktop-gpu": "Modificar el perfil del escritorio"
+            "change-desktop-gpu": "Modificar el perfil del escritorio",
+            "reset-vpn": "Reestablecer claves de VPN? Se tendrá que descargar un nuevo archivo VPN"        
         },
         "ok": "De acuerdo",
         "yes": "Si",
@@ -1177,8 +1189,9 @@
             "retry-desktop": "Comprobando el estado del escritorio",
             "restoring-recycle-bin": "Restaurando entrada",
             "deleting-recycle-bin": "Eliminando entrada",
-            "warning-desktop-waiting-ip": "Aún no se puede abrir el visor seleccionado. Espere por favor..."
-
+            "warning-desktop-waiting-ip": "Aún no se puede abrir el visor seleccionado. Espere por favor...",
+            "reset-vpn": "Claves VPN restauradas",
+            "video-default": "Se ha cambiado el parámetro 'Videos' del escritorio a 'Default', dado que no hay ningún perfil de GPU asignado"
         },
         "loading": "Cargando"
     },
@@ -1291,6 +1304,7 @@
         "no_wireguard_keys": "Todavía no hay claves de wireguard en la configuración de la aplicación web. Inténtelo de nuevo pasados unos segundos...",
         "one_viewer_minimum": "Se ha de seleccionar mínimo un visor",
         "template_failed": "Debido a un error la plantilla no se puede utilizar para crear un nuevo escritorio, por favor contacta con el administrador",
+        "desktop_storage_does_not_exist": "Debido a un error el escritorio no se puede utilizar, por favor contacta con el administrador",
         "media_invalid": "El archivo descargado no es un formato de medios válido. Debería ser eliminado, ya que no se puede utilizar",
         "desktop_storage_not_ready": "El almacenamiento del escritorio no está listo",
         "vpn_missing_itemid": "Falta el identificador del elemento en la VPN",
@@ -1352,5 +1366,8 @@
             "desktop-time-limit": "El escritorio '{name}' se apagará automáticamente a las {date}.",
             "searching-resources": "Estamos buscando recursos para el escritorio. Se iniciará en breves minutos, por favor espere."
         }
+    },
+    "bookings": {
+        "max_time_reached": "Se ha llegado al tiempo máximo de reservas"
     }
 }

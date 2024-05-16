@@ -64,9 +64,18 @@
               <template #cell(image)="data">
                 <!-- INFO -->
                 <b-icon
+                  v-if="data.item.desktopSize !== -1"
                   v-b-tooltip="{ title: `${data.item.description ? data.item.description : $t(`components.desktop-cards.no-info-default`)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
                   icon="info-circle-fill"
                   class="info-icon position-absolute cursor-pointer"
+                />
+                <!-- ERROR -->
+                <b-icon
+                  v-if="data.item.desktopSize === -1"
+                  v-b-tooltip="{ title: $t(`errors.desktop_storage_does_not_exist`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+                  icon="exclamation-triangle-fill"
+                  variant="danger"
+                  class="danger-icon position-absolute cursor-pointer"
                 />
                 <!-- IMAGE -->
                 <div
@@ -95,15 +104,18 @@
                 </p>
               </template>
               <template #cell(state)="data">
-                <div class="d-flex justify-content-center align-items-center">
+                <div
+                  v-b-tooltip="{title: `${data.item.currentAction && getItemState(data.item)==desktopStates.maintenance ? $t('components.desktop-cards.storage-operation.'+data.item.currentAction, { action: data.item.currentAction} ) : ''}`}"
+                  class="d-flex justify-content-center align-items-center"
+                >
                   <!-- STATE DOT -->
                   <div
-                    v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading].includes(getItemState(data.item))"
+                    v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading, desktopStates.maintenance].includes(getItemState(data.item))"
                     :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"
                   />
                   <!-- SPINNER -->
                   <b-spinner
-                    v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading].includes(getItemState(data.item))"
+                    v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading, desktopStates.maintenance].includes(getItemState(data.item))"
                     small
                     class="align-self-center mr-2 spinner-loading"
                   />
@@ -179,7 +191,7 @@
                   v-b-tooltip.hover="data.item.needsBooking ? { title: `${getTooltipTitle(data.item.nextBookingStart, data.item.nextBookingEnd)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' } : ''"
                 >
                   <DesktopButton
-                    v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading].includes(getItemState(data.item))"
+                    v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading, desktopStates.maintenance].includes(getItemState(data.item))"
                     class="table-action-button"
                     :active="true"
                     :button-class="buttCssColor(getItemState(data.item))"
@@ -433,6 +445,7 @@ export default {
     const rowClass = (item, type) => {
       if (!item || type !== 'row') return
       if (item.needsBooking) return 'list-orange-bar'
+      if (item.desktopSize === -1) return 'list-red-bar'
     }
 
     const notifyWaitingIp = () => {
@@ -545,7 +558,8 @@ export default {
         waitingip: 'state-loading',
         failed: 'state-error',
         working: 'state-loading',
-        'shutting-down': 'state-loading'
+        'shutting-down': 'state-loading',
+        maintenance: 'state-loading'
       }
       return stateColors[state]
     },

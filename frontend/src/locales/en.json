@@ -36,7 +36,7 @@
                     "label": "Confirmation password",
                     "placeholder": "Confirm password"
                 },
-                "current-password":{
+                "current-password": {
                     "label": "Enter your current password:",
                     "placeholder": "Current password"
                 },
@@ -45,7 +45,7 @@
                 }
             }
         },
-        "email":{
+        "email": {
             "modal": {
                 "title": "Email change / validation",
                 "change-validate-address": "Change or validate your email address",
@@ -314,7 +314,13 @@
             },
             "no-info-default": "No description available",
             "open-with": "Open with viewer",
-            "filter-label": "Filter"
+            "filter-label": "Filter",
+            "storage-operation": {
+                "increase": "The disk size of this desktop is being increased",
+                "virt-win-reg": "The registry is being edited",
+                "move": "This desktop's disk is being moved"
+
+            }
         },
         "deployment-desktop-list": {
             "actions": {
@@ -466,7 +472,8 @@
                 "total-media-size": "Used media size / Total media size",
                 "total-size": "Used size / Total size (GB)",
                 "unit": "Personal unit size / Total unit size (MB)"
-            }
+            },
+            "reset-vpn": "Reset VPN"
         },
         "start-now-modal": {
             "title": "Start now",
@@ -544,9 +551,10 @@
             "code": "Sign up code",
             "register": "Sign up",
             "errors": {
-                "404": "Code not found",
                 "401": "Session expired",
-                "409": "L'usuari ja existeix",
+                "403": "The email domain you are trying to use is not authorized for your category.",
+                "404": "Code not found",
+                "409": "User already exists",
                 "500": "Server error"
             }
         },
@@ -695,6 +703,10 @@
                 "updating": {
                     "text": "Processing",
                     "action": "Processing"
+                },
+                "maintenance": {
+                    "text": "In maintenance",
+                    "action": "In maintenance"
                 }
             }
         },
@@ -794,7 +806,7 @@
                     "local-client": "Use RDP client (recommended)",
                     "included": "Windows includes the required software for its use,",
                     "client-required": "but on other operating systems, it may require the installation of an external application. Consult the installation instructions:",
-                    "download-install":"Download viewer software",
+                    "download-install": "Download viewer software",
                     "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/",
                     "once-installed": "Once installed, click the 'RDP' button, that will download the virtual desktop file.",
                     "close-guide": "Close guide"
@@ -948,7 +960,7 @@
             }
         },
         "recycle-bin": {
-            "title":{
+            "title": {
                 "deployment": "Deployment '{name}' deleted at {date}",
                 "desktop": "Desktop '{name}' deleted at {date}",
                 "template": "Template '{name}' deleted at {date}",
@@ -1020,7 +1032,6 @@
                     "empty": "Empty"
                 }
             }
-
         },
         "recycle-bins": {
             "title": "Recycle bin",
@@ -1028,7 +1039,7 @@
                 "title": "There are no deleted items from this user",
                 "subtitle": "Move the items that you don't need into the recycle bin. They will be permanently deleted after {time}."
             },
-            "table-header" : {
+            "table-header": {
                 "id": "Id",
                 "accessed": "Deleted at",
                 "size": "Size",
@@ -1037,8 +1048,8 @@
                 "agent-name": "Deleted by",
                 "status": "Status",
                 "desktops": "Desktops",
-                "templates":"Templates",
-                "deployments":"Deployments",
+                "templates": "Templates",
+                "deployments": "Deployments",
                 "actions": "Actions"
             },
             "status": {
@@ -1092,7 +1103,6 @@
             "reject": "Reject",
             "accept": "Accept",
             "disclaimer-accepted": "The disclaimer has been acknowledged. Redirecting to login in {seconds} seconds"
-
         }
     },
     "messages": {
@@ -1116,7 +1126,8 @@
             "new-deployment": "{quantity} desktops will be created, one for each selected user. Continue?",
             "go-to-profile": "View quota",
             "go-to-bookings": "Book desktop",
-            "change-desktop-gpu": "Modify desktop profile"
+            "change-desktop-gpu": "Modify desktop profile",
+            "reset-vpn": "Reset VPN keys? You will have to download a new VPN file"
         },
         "ok": "Ok",
         "yes": "Yes",
@@ -1164,7 +1175,9 @@
             "retry-desktop": "Checking desktop status",
             "restoring-recycle-bin": "Restoring entry",
             "deleting-recycle-bin": "Deleting entry",
-            "warning-desktop-waiting-ip": "Viewer not available right now. Please wait.."
+            "warning-desktop-waiting-ip": "Viewer not available right now. Please wait..",
+            "reset-vpn": "VPN keys reset",
+            "video-default": "The 'Videos' parameter on the desktop was changed to 'Default', as there is no GPU profile assigned"
         },
         "loading": "Loading"
     },
@@ -1194,7 +1207,7 @@
         "media_should_not_be_downloading": "Media should not be downloading",
         "media_url_not_found": "The given url could not be found",
         "media_url_not_valid": "The given url is not valid",
-        "media_url_bad_format": "The format of the given url is not valiid",
+        "media_url_bad_format": "The format of the given url is not valid",
         "group_total_size_limit_exceeded": "Group media storage size limit has been exceeded",
         "category_total_size_limit_exceeded": "Category media storage size limit has been exceeded",
         "total_size_quota_exceeded": "You've exceeded your storage size quota. You must remove a desktop, a template or a media to free disk space.",
@@ -1280,6 +1293,7 @@
         "not_enough_advanced_time": "There's not enough advanced time to start the desktop",
         "one_viewer_minimum": "At least one viewer must be selected",
         "template_failed": "Due to an error this template can't be used to create a new desktop, please contact the administrator",
+        "desktop_storage_does_not_exist": "Due to an error this desktop can't be used, please contact the administrator",
         "media_invalid": "The downloaded file is not a valid media format. It should be deleted since it can't be used",
         "desktop_storage_not_ready": "Desktop storage is not ready",
         "cant_edit_booked_deployment": "Can't edit the reservables from a deployment with a scheduled booking",
@@ -1288,7 +1302,7 @@
         "password_uppercase": "Password must have at least {num} uppercase character(s)",
         "password_lowercase": "Password must have at least {num} lowercase character(s)",
         "password_digits": "Password must have at least {num} number(s)",
-        "password_special_characters":  "Password must have at least {num} special character(s): !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
+        "password_special_characters": "Password must have at least {num} special character(s): !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
         "password_already_used": "This password has already been used in the past",
         "password_username": "Password can not contain your own username",
         "wrong_password_entered": "Wrong password entered",
@@ -1297,7 +1311,6 @@
         "invalid_token": "Invalid token",
         "old_passwords": "Current password can't be any of the last {num} last passwords",
         "no_storage_pool_available": "The resource creation is not available at this moment. Please try again later."
-
     },
     "router": {
         "titles": {
@@ -1338,5 +1351,8 @@
             "desktop-time-limit": "The '{name}' desktop will be stopped at {date}.",
             "searching-resources": "We are looking for resources for the desktop. It will be started in a few minutes, please wait."
         }
+    },
+    "bookings": {
+        "max_time_reached": "Max booking time reached"
     }
 }

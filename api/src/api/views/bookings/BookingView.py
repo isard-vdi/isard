@@ -32,6 +32,12 @@ MIN_AUTOBOOKING_TIME = 30
 MAX_BOOKING_TIME = 12 * 60  # 12h
 
 
+@app.route("/api/v3/bookings", methods=["GET"])
+@is_admin
+def api_v3_booking_admin_events(payload):
+    return json.dumps(apib.get_all(), default=str)
+
+
 @app.route("/api/v3/bookings/priority/<item_type>/<item_id>", methods=["GET"])
 @has_token
 def api_v3_user_priority(payload, item_type, item_id):
@@ -203,15 +209,6 @@ def api_v3_booking_admin_users(payload, group_id=False):
     return json.dumps(apib.get_users(group_id))
 
 
-## Admin can get all events
-@app.route("/api/v3/booking/admin/events", methods=["GET"])
-@is_admin
-def api_v3_booking_admin_events(payload):
-    data = request.args
-
-    return json.dumps(apib.get())
-
-
 @app.route("/api/v3/booking/admin/event/<event_id>", methods=["GET", "PUT", "DELETE"])
 @is_admin
 def api_v3_admin_booking_event(payload, event_id):
@@ -313,3 +310,17 @@ def api_v3_admin_booking_reservables_available(payload):
 @is_admin
 def api_v3_profile_units(payload):
     return json.dumps(apib.get_booking_profile_count_within_one_hour())
+
+
+@app.route("/api/v3/admin/booking/empty/<plan_id>", methods=["DELETE"])
+@is_admin
+def api_v3_reservables_planner_empty(payload, plan_id):
+    apib.empty_planning(plan_id)
+    return json.dumps({})
+
+
+# Gets plans with a booking
+@app.route("/api/v3/admin/booking/<booking_id>/plans", methods=["GET"])
+@is_admin
+def api_v3_admin_booking_plans(payload, booking_id):
+    return json.dumps(apib.get_booking_plans(booking_id), sort_keys=True, default=str)
