@@ -23,6 +23,7 @@ function getGroupParam() {
 
 $(document).ready(function () {
   $template = $(".template-storage-detail");
+  storagesOtherTable=null;
   $('#status').attr('disabled', 'disabled')
   addCheckboxListeners();
 
@@ -54,10 +55,13 @@ $(document).ready(function () {
       let notShownStatus = ['ready']
       let status = data.filter((s) => !notShownStatus.includes(s.status))
       $.each(status, function (index, currentStatus) {
-        $('#status').append($('<option>', {
-          value: currentStatus.status,
-          text: `${currentStatus.status} (${currentStatus.count} items)`
-        }));
+        if (currentStatus.status) {
+          $('#status').append($('<option>', {
+            value: currentStatus.status,
+            id: currentStatus.status,
+            text: `${currentStatus.status} (${currentStatus.count} items)`
+          }));
+        }
       })
     }
   });
@@ -771,47 +775,69 @@ function socketio_on() {
   socket.on('storage', function (data) {
     var data = JSON.parse(data);
     if (data) {
-      if (typeof (storage_ready.row('#' + data.id.replaceAll("/", "_")).id()) != 'undefined') {
-        actual_data = storage_ready.row("#" + data.id.replaceAll("/", "_")).data()
-        if ("status" in data && data.status != 'ready') {
-          storage_ready.row('#' + data.id.replaceAll("/", "_")).remove().draw();
-          showNotification(data.status)
-          if (newStatus && newStatus == data.status) {
-            if (typeof (storagesOtherTable.row('#' + data.id.replaceAll("/", "_")).id()) != 'undefined') {
-              actual_data = storagesOtherTable.row("#" + data.id.replaceAll("/", "_")).data()
-              storagesOtherTable.row('#' + data.id.replaceAll("/", "_")).remove().draw();
-              storagesOtherTable.row.add({ ...actual_data, ...data }).draw()
-            } else {
-              storagesOtherTable.row.add({ ...actual_data, ...data }).draw()
+      let id = '#' + data.id.replaceAll("/", "_");
+      let actual_data;
+      let table;
+
+      if (typeof (storage_ready.row(id).id()) != 'undefined') {
+        table = storage_ready;
+      } else if (storagesOtherTable && (typeof (storagesOtherTable.row(id).id()) != 'undefined')) {
+        table = storagesOtherTable;
+      }
+
+      if (table) {
+        actual_data = table.row(id).data();
+        if ("status" in data) {
+          if (data.status != 'ready') {
+            if (!$("#status #" + data.status).length) {
+              $('#status').append($('<option>', {
+                value: data.status,
+                id: data.status,
+                text: `${data.status} (1 item)`
+              }));
+            }
+            table.row(id).remove().draw();
+            if (newStatus && newStatus == data.status) {
+              storagesOtherTable.row.add({ ...actual_data, ...data }).draw();
+              showNotification(data.status);
+            }
+          } else {
+            storagesOtherTable.row(id).remove().draw();
+            if (typeof (storage_ready.row(id).id()) == 'undefined') {
+              storage_ready.row.add({ ...actual_data, ...data }).draw();
+              showNotification(data.status);
             }
           }
         } else {
-          storage_ready.row('#' + data.id.replaceAll("/", "_")).data({ ...actual_data, ...data }).invalidate();
+          table.row(id).data({ ...actual_data, ...data }).invalidate();
         }
       } else if (newStatus) {
-        if (typeof (storagesOtherTable.row('#' + data.id.replaceAll("/", "_")).id()) != 'undefined') {
-          actual_data = storagesOtherTable.row("#" + data.id.replaceAll("/", "_")).data()
+        if (typeof (storagesOtherTable.row(id).id()) != 'undefined') {
+          actual_data = storagesOtherTable.row(id).data();
           if ("status" in data && data.status != newStatus) {
-            storagesOtherTable.row('#' + data.id.replaceAll("/", "_")).remove().draw();
-            storagesOtherTable.row.add({ ...actual_data, ...data }).draw()
-            showNotification(data.status)
+            storagesOtherTable.row(id).remove().draw();
+            storagesOtherTable.row.add({ ...actual_data, ...data }).draw();
+            showNotification(data.status);
           } else {
-            storagesOtherTable.row('#' + data.id.replaceAll("/", "_")).data({ ...actual_data, ...data }).invalidate();
+            storagesOtherTable.row(id).data({ ...actual_data, ...data }).invalidate();
           }
         } else if (newStatus == data.status) {
-          storagesOtherTable.row.add(data).draw()
+          storagesOtherTable.row.add(data).draw();
         }
       }
+
     }
   });
   socket.on('task', function (data) {
-    if (storagesOtherTable.selector) {
+    if (storagesOtherTable && storagesOtherTable.selector) {
       var data = JSON.parse(data);
       var taskRow = $(`tr[data-task="${data.id}"]`);
       if (taskRow.length > 0) {
         var rowData = storagesOtherTable.row(taskRow).data();
-        rowData.progress = data.progress;
-        storagesOtherTable.row(taskRow).data(rowData).draw();
+        if (rowData) {
+          rowData.progress = data.progress;
+          storagesOtherTable.row(taskRow).data(rowData).draw();
+        }
       }
     }
   });
