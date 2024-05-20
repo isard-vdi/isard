@@ -1,1 +1,22 @@
-{}
+{
+    "validations": {
+        "required": "{property}은(는) 필수 항목입니다."
+    },
+    "forms": {
+        "allowed": {
+            "title": "허용됨"
+        },
+        "password": {
+            "modal": {
+                "title": "비밀번호 변경",
+                "password": {
+                    "label": "비밀번호",
+                    "placeholder": "비밀번호"
+                }
+            }
+        },
+        "new-desktop": {
+            "filter": "필터"
+        }
+    }
+}
