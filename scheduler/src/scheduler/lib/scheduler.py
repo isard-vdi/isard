@@ -70,7 +70,7 @@ class Scheduler:
         # self.add_scheduler('interval','stop_shutting_down_desktops','0','1')
 
         for job in self.load_jobs():
-            if job["kind"] == "date" and job["kwargs"].get("plan_id"):
+            if job.get("kind") == "date" and job.get("kwargs", {}).get("plan_id"):
                 log.info(
                     "LOADING RESERVATION DATE JOB: -> Plan Id: {}, ITEM id: {}, Subitem id: {}".format(
                         job["kwargs"]["plan_id"],
