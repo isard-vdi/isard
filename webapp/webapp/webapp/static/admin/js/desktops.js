@@ -417,7 +417,7 @@ $(document).ready(function() {
 
     $template = $(".template-detail-domain");
 
-    const filter_list = ['category', 'favourite_hyp', 'forced_hyp', 'group', 'hyp_started', 'memory', 'name', 'status', 'user', 'vcpus'];
+    const filter_list = ['category', 'favourite_hyp', 'forced_hyp', 'group', 'hyp_started', 'memory', 'name', 'server', 'status', 'user', 'vcpus'];
     const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
     $('#filter-select').append(options.join(''));
     var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
@@ -2137,6 +2137,12 @@ function renderAction(data){
                     });
                     index = item.replace(/_/g, "").replace("hyp", "")
                     elem.attr("index", index)
+                    break;
+                case ("server"):
+                    const FIELDS = ["SERVER", "AUTO", "-"];
+                    $.each(FIELDS, function(pos, field) {
+                        elem.append(`<option value=${field}>${field}</option>`);
+                    })
                     break;
                 default:
                     $.ajax({
