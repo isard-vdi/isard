@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 133
+release_version = 134
+# release 134: add server_autostart flag in domains
 # release 133: Add storage_id, domain_id, deployment_id, user_id, category_id, group_id index to storage
 # release 132: update gpus_profiles
 # release 131: storage permissions on existing disks
@@ -2844,6 +2845,21 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
                 r.table("domains").get_all("desktop", index="kind").filter(
                     r.row.has_fields("tag").not_()
                 ).update({"tag": False}).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 134:
+            try:
+                r.table("domains").index_create(
+                    "kind_autostart_status",
+                    [r.row["kind"], r.row["server_autostart"], r.row["status"]],
+                ).run(self.conn)
+                r.table("domains").index_drop("serverstostart").run(self.conn)
+                r.table("domains").index_create("server").run(self.conn)
+                r.table("domains").index_wait("server").run(self.conn)
+                r.table("domains").get_all(True, index="server").update(
+                    {"server_autostart": True}
+                ).run(self.conn)
             except Exception as e:
                 print(e)
 

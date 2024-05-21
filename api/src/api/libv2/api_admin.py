@@ -535,6 +535,7 @@ class ApiAdmin:
                                 "role",
                                 "persistent",
                                 "current_action",
+                                "server_autostart",
                             ],
                             "left": ["group_name", "category_name"],
                         }
@@ -1159,6 +1160,21 @@ class ApiAdmin:
                         {"favourite_hyp": False}
                     ).run(db.conn)
                 return True
+
+            if action == "activate_autostart":
+                with app.app_context():
+                    r.table("domains").get_all(r.args(ids)).filter(
+                        {"server": True}
+                    ).update({"server_autostart": True}).run(db.conn)
+                return True
+
+            if action == "deactivate_autostart":
+                with app.app_context():
+                    r.table("domains").get_all(r.args(ids)).update(
+                        {"server_autostart": False}
+                    ).run(db.conn)
+                return True
+
         return False
 
     def CheckField(self, table, field, value, ids):

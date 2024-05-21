@@ -489,6 +489,17 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
                     "server": new_data.get("server"),
                 },
             }
+        if (
+            (domain.get("server") or "server" in new_data)
+            and "server_autostart" in new_data
+            and new_data.get("server_autostart") != domain.get("server_autostart")
+        ):
+            new_domain = {
+                **new_domain,
+                **{
+                    "server_autostart": new_data.get("server_autostart"),
+                },
+            }
         if "xml" in new_data and new_data.get("xml") != domain.get("xml"):
             new_domain = {
                 **new_domain,

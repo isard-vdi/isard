@@ -18,7 +18,7 @@ from engine.services.db import (
     cleanup_hypervisor_gpus,
     close_rethink_connection,
     delete_table_item,
-    get_domains_flag_server_to_starting,
+    get_domains_flag_autostart_to_starting,
     new_rethink_connection,
     update_domain_status,
     update_domains_in_deleted_hyper,
@@ -233,11 +233,11 @@ class HypervisorsOrchestratorThread(threading.Thread):
 
             except queue.Empty:
                 self.check_hyps_from_database()
-                for server_id in get_domains_flag_server_to_starting():
+                for autostart_id in get_domains_flag_autostart_to_starting():
                     logs.main.info(
-                        f"Desktop with flag server with id {server_id} go to Starting status"
+                        f"Desktop with flag autostart with id {autostart_id} go to Starting status"
                     )
-                    update_domain_status("Starting", server_id)
+                    update_domain_status("Starting", autostart_id)
                 pass
 
             except Exception as e:
