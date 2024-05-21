@@ -161,7 +161,7 @@ func TestRequestEmailVerification(t *testing.T) {
 				tc.PrepareDB(mock)
 			}
 
-			a := authentication.Init(cfg, log, mock)
+			a := authentication.Init(cfg, log, mock, nil, nil, nil)
 
 			if tc.PrepareNotifier != nil {
 				tc.PrepareNotifier(notifier)
@@ -363,7 +363,7 @@ func TestVerifyEmail(t *testing.T) {
 				tc.PrepareDB(mock)
 			}
 
-			a := authentication.Init(cfg, log, mock)
+			a := authentication.Init(cfg, log, mock, nil, nil, nil)
 
 			err := a.VerifyEmail(context.Background(), tc.PrepareToken())
 

@@ -108,13 +108,39 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 ## although the renovation will be automatic.
 #LETSENCRYPT_EMAIL=
 
+# ------ Sessions ------------------------------------------------------------
+# Maximum valid session time. If this duration is exceeded, the user won't be able to renew
+# the session. This time is counted since the user login.
+# The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
+SESSIONS_SESSIONS_MAX_TIME=8h
+# Maximum time a user will be able to renew their session. If this duration is exceeded, the user won't be able to renew
+# the session. Renewals are automatically done by the frontend every time the user performs an action.
+# This time is counted since the last session renewal
+# The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
+SESSIONS_SESSIONS_MAX_RENEW_TIME=30m
+# Maximum time a token will be valid. If this duration is exceeded, token won't be able to be used
+# for any action. This time is counted since the last session renewal
+# The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
+SESSIONS_SESSIONS_EXPIRATION_TIME=5m
+# The hostname of the Redis
+#SESSIONS_SESSIONS_REDIS_HOST=isard-redis
+# The port of the Redis
+#SESSIONS_SESSIONS_REDIS_PORT=6379
+# The username of the Redis
+#SESSIONS_SESSIONS_REDIS_USR=
+# The password of the Redis
+#SESSIONS_SESSIONS_REDIS_PWD=
+# The sessions database in the Redis
+#SESSIONS_SESSIONS_REDIS_DB=1
+# The address where the sessions service will listen to gRPC connections (empty is equivalent to 0.0.0.0)
+#SESSIONS_SESSIONS_GRPC_HOST=
+# The port where the sessions service will listen to gRPC connections
+#SESSIONS_SESSIONS_GRPC_PORT=1312
+
 # ------ Authentication ------------------------------------------------------
 
 # The address of the notifier service
 #AUTHENTICATION_NOTIFIER_ADDRESS=http://isard-notifier:5000
-
-# The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
-#AUTHENTICATION_AUTHENTICATION_TOKEN_DURATION=4h
 
 # Whether rate limiting for form authentication is enabled
 AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED=true
@@ -268,9 +294,9 @@ DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 DOCKER_IMAGE_TAG=main
 
 # Golang image used for building the Golang microservices images
-GOLANG_BUILD_IMAGE=golang:1.21-alpine3.18
+GOLANG_BUILD_IMAGE=golang:1.21-alpine3.19
 # Image used for running the images the Golang microservices images
-GOLANG_RUN_IMAGE=alpine:3.18
+GOLANG_RUN_IMAGE=alpine:3.19
 
 # Image used in haproxy.build flavour to build base for all the HAProxy's
 HAPROXY_RUN_IMAGE=haproxy:lts-alpine3.19
@@ -534,6 +560,11 @@ WG_GUESTS_RESERVED_HOSTS=20
 ##   - hypervisor-standalone
 #REDIS_HOST=isard-redis
 #REDIS_PORT=6379
+
+# Redis workers
+## Amount of workers used by the isard-storage service
+## WARNING: The increase of workers could lead to cpu overload
+#REDIS_WORKERS=1
 
 ##################################################################
 ## STATS PARAMETERS                                             ##

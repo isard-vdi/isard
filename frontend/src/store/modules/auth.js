@@ -41,6 +41,7 @@ export default {
       } else {
         removeCookie(sessionCookieName)
         removeCookie('authorization')
+        removeCookie('session')
       }
       state.session = session
     },
@@ -93,6 +94,23 @@ export default {
         } else {
           console.log(e)
         }
+      })
+    },
+    renew (context) {
+      const authentication = axios.create({
+        baseURL: authenticationSegment
+      })
+      authentication.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
+        return config
+      })
+      return authentication.post('/renew', {}).then(response => {
+        context.commit('setSession', response.data.token)
+        context.dispatch('openSocket', {})
+        context.dispatch('fetchUser')
+      }).catch(e => {
+        console.log(e)
+        context.dispatch('logout')
       })
     },
     logout (context, redirect = true) {

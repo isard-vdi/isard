@@ -18,15 +18,16 @@ const (
 // TODO: Maybe this should be configuable
 var signingMethod = jwt.SigningMethodHS256
 
-func SignLoginToken(secret string, duration time.Duration, u *model.User) (string, error) {
+func SignLoginToken(secret string, expiration time.Time, sessID string, u *model.User) (string, error) {
 	tkn := jwt.NewWithClaims(signingMethod, &LoginClaims{
 		RegisteredClaims: &jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
+			ExpiresAt: jwt.NewNumericDate(expiration),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    issuer,
 		},
-		KeyID: keyID,
+		KeyID:     keyID,
+		SessionID: sessID,
 		Data: LoginClaimsData{
 			Provider:   u.Provider,
 			ID:         u.ID,
@@ -45,11 +46,11 @@ func SignLoginToken(secret string, duration time.Duration, u *model.User) (strin
 	return ss, nil
 }
 
-func SignRegisterToken(secret string, duration time.Duration, u *model.User) (string, error) {
+func SignRegisterToken(secret string, u *model.User) (string, error) {
 	tkn := jwt.NewWithClaims(signingMethod, &RegisterClaims{
 		TypeClaims: TypeClaims{
 			RegisteredClaims: &jwt.RegisteredClaims{
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(60 * time.Minute)),
 				IssuedAt:  jwt.NewNumericDate(time.Now()),
 				NotBefore: jwt.NewNumericDate(time.Now()),
 				Issuer:    issuer,

@@ -26,3 +26,5 @@ simple-colors~=0.1
 Pillow==10.3.0
 html-sanitizer==2.2.0
 lxml==5.1.0
+grpcio==1.62.1
+protobuf==5.26.1

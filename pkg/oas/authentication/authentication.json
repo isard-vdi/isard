@@ -41,6 +41,16 @@
                                 }
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CheckError"
+                                }
+                            }
+                        }
                     }
                 },
                 "tags": [],
@@ -305,6 +315,62 @@
                         }
                     }
                 }
+            }
+        },
+        "/renew": {
+            "post": {
+                "operationId": "Renew",
+                "summary": "Renew the user session and obtain a new valid JWT",
+                "description": "",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RenewRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RenewResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Session can't be renewed. It might have exceeded the renewal time, the max session time, or it might be revoked",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RenewError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RenewError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         },
         "/acknowledge-disclaimer": {
@@ -730,7 +796,49 @@
                         "type": "string",
                         "enum": [
                             "missing_token",
-                            "invalid_token"
+                            "invalid_token",
+                            "internal_server"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "error",
+                    "msg"
+                ],
+                "type": "object"
+            },
+            "RenewRequest": {
+                "properties": {},
+                "type": "object"
+            },
+            "RenewResponse": {
+                "properties": {
+                    "token": {
+                        "title": "The renewed JWT token",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "token"
+                ],
+                "type": "object"
+            },
+            "RenewError": {
+                "properties": {
+                    "error": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_session",
+                            "internal_server"
                         ]
                     },
                     "msg": {

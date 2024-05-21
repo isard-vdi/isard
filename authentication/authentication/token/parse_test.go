@@ -24,7 +24,7 @@ func TestParseLoginToken(t *testing.T) {
 	}{
 		"should work if the token is a valid login token": {
 			PrepareToken: func() string {
-				ss, err := token.SignLoginToken("", time.Hour, &model.User{
+				ss, err := token.SignLoginToken("", time.Now().Add(time.Hour), "ThoJuroQueEsUnID", &model.User{
 					ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 					UID:                    "nefix",
 					Username:               "nefix",
@@ -56,7 +56,8 @@ func TestParseLoginToken(t *testing.T) {
 					RegisteredClaims: &jwt.RegisteredClaims{
 						Issuer: "isard-authentication",
 					},
-					KeyID: "isardvdi",
+					KeyID:     "isardvdi",
+					SessionID: "ThoJuroQueEsUnID",
 					Data: token.LoginClaimsData{
 						Provider:   "local",
 						ID:         "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
@@ -70,7 +71,7 @@ func TestParseLoginToken(t *testing.T) {
 		},
 		"should return an error if the token is invalid": {
 			PrepareToken: func() string {
-				ss, err := token.SignLoginToken("", -time.Hour, &model.User{
+				ss, err := token.SignLoginToken("", time.Now().Add(-time.Hour), "ThoJuroQueEsUnID", &model.User{
 					ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 					UID:                    "nefix",
 					Username:               "nefix",

@@ -106,6 +106,7 @@ class ApiUsers:
                 {
                     "exp": datetime.utcnow() + timedelta(minutes=minutes),
                     "kid": "isardvdi",
+                    "session_id": "isardvdi-service",  # TODO: Fix
                     "data": gen_payload_from_user(user_id),
                 },
                 os.environ.get("API_ISARDVDI_SECRET"),
@@ -113,6 +114,7 @@ class ApiUsers:
             )
         }
 
+    # TODO: Fix this!
     def Login(self, user_id, user_passwd, provider="local", category_id="default"):
         with app.app_context():
             user = (
@@ -156,6 +158,7 @@ class ApiUsers:
                 {
                     "exp": datetime.utcnow() + timedelta(hours=4),
                     "kid": "isardvdi",
+                    "session_id": "isardvdi-service",
                     "data": logged_user,
                 },
                 os.environ.get("API_ISARDVDI_SECRET"),

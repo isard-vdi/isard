@@ -11,8 +11,9 @@ const adminUsr = "local-default-admin-admin"
 
 func SignAPIJWT(secret string) (string, error) {
 	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.MapClaims{
-		"kid": "isardvdi",
-		"exp": time.Now().Add(20 * time.Second).Unix(),
+		"kid":        "isardvdi",
+		"exp":        time.Now().Add(20 * time.Second).Unix(),
+		"session_id": "isardvdi-service",
 		"data": map[string]interface{}{
 			"role_id":     "admin", // we need the role to be admin in order
 			"category_id": "default",

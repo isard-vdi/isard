@@ -14,5 +14,3 @@ services:
     command:
       - '--db.address'
       - 'isard-db:28015'
-    env_file:
-      - .env

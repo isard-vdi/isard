@@ -2,5 +2,9 @@ version: '3.5'
 services:
   isard-authentication:
     depends_on:
+      isard-db:
+        condition: service_healthy
+      isard-redis:
+        condition: service_healthy
       isard-api:
         condition: service_healthy

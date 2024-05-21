@@ -73,6 +73,13 @@ from api.libv2.helpers import InternalUsers, macs_in_use
 
 app.internal_users = InternalUsers()
 
+# # ###### GRPC client
+
+from isardvdi_common.grpc_client import create_sessions_client
+
+# TODO: Get from env
+app.sessions_client = create_sessions_client("isard-sessions", 1312)
+
 print("Starting isard api...")
 
 from api.libv2.load_config import loadConfig

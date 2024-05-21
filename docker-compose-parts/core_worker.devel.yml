@@ -16,10 +16,10 @@
 #   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
-version: '3.5'
+version: "3.5"
 services:
   isard-core_worker:
     volumes:
-    - ${BUILD_ROOT_PATH}/component/core_worker/src:/opt/isardvdi/isardvdi_core_worker
-    - ${BUILD_ROOT_PATH}/component/_common/src:/opt/isardvdi/isardvdi_common
-    - ${BUILD_ROOT_PATH}/pkg/gen/proto/python:/opt/isardvdi/isardvdi_protobuf
+      - ${BUILD_ROOT_PATH}/component/core_worker/src:/opt/isardvdi/isardvdi_core_worker
+      - ${BUILD_ROOT_PATH}/component/_common/src:/opt/isardvdi/isardvdi_common
+      - ${BUILD_ROOT_PATH}/pkg/gen/proto/python_old:/opt/isardvdi/isardvdi_protobuf_old

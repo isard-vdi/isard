@@ -12,6 +12,8 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
+	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/google/uuid"
@@ -19,6 +21,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
+	"go.nhat.io/grpcmock"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -88,7 +91,7 @@ func TestForgotPassword(t *testing.T) {
 				tc.PrepareDB(mock)
 			}
 
-			a := authentication.Init(cfg, log, mock)
+			a := authentication.Init(cfg, log, mock, nil, nil, nil)
 
 			if tc.PrepareNotifier != nil {
 				tc.PrepareNotifier(notifier)
@@ -113,11 +116,12 @@ func TestResetPassword(t *testing.T) {
 	require := require.New(t)
 
 	cases := map[string]struct {
-		PrepareAPI   func(*apiMock.Client)
-		PrepareDB    func(*r.Mock)
-		PrepareToken func() string
-		Password     string
-		ExpectedErr  string
+		PrepareAPI      func(*apiMock.Client)
+		PrepareDB       func(*r.Mock)
+		PrepareSessions func(*grpcmock.Server)
+		PrepareToken    func() string
+		Password        string
+		ExpectedErr     string
 	}{
 		"should work as expected with a login token": {
 			PrepareAPI: func(c *apiMock.Client) {
@@ -130,10 +134,15 @@ func TestResetPassword(t *testing.T) {
 					Updated: 1,
 				}, nil)
 			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/Get").WithPayload(&sessionsv1.GetRequest{
+					Id: "ThoJuroQueEsUnID",
+				}).Return(&sessionsv1.GetResponse{})
+			},
 			PrepareToken: func() string {
 				now := float64(time.Now().Unix())
 
-				ss, err := token.SignLoginToken("", time.Hour, &model.User{
+				ss, err := token.SignLoginToken("", time.Now().Add(time.Hour), "ThoJuroQueEsUnID", &model.User{
 					ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 					UID:                    "nefix",
 					Username:               "nefix",
@@ -210,6 +219,8 @@ func TestResetPassword(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
 			apiMock := &apiMock.Client{}
@@ -223,10 +234,25 @@ func TestResetPassword(t *testing.T) {
 				tc.PrepareDB(dbMock)
 			}
 
-			a := authentication.Init(cfg, log, dbMock)
-			a.Client = apiMock
+			if tc.PrepareSessions == nil {
+				tc.PrepareSessions = func(s *grpcmock.Server) {}
+			}
+			sessionsSrv := grpcmock.NewServer(
+				grpcmock.RegisterService(sessionsv1.RegisterSessionsServiceServer),
+				tc.PrepareSessions,
+			)
+			t.Cleanup(func() {
+				sessionsSrv.Close()
+			})
 
-			err := a.ResetPassword(context.Background(), tc.PrepareToken(), tc.Password)
+			sessionsCli, sessionsConn, err := grpc.NewClient(ctx, sessionsv1.NewSessionsServiceClient, sessionsSrv.Address())
+			require.NoError(err)
+			defer sessionsConn.Close()
+
+			a := authentication.Init(cfg, log, dbMock, nil, nil, sessionsCli)
+			a.API = apiMock
+
+			err = a.ResetPassword(context.Background(), tc.PrepareToken(), tc.Password)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

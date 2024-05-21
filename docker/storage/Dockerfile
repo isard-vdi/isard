@@ -30,7 +30,7 @@ RUN useradd -ms /bin/bash v2v
 #WORKDIR /home/v2v
 
 ENV PYTHONPATH /opt/isardvdi
-COPY pkg/gen/proto/python /opt/isardvdi/isardvdi_protobuf
+COPY pkg/gen/proto/python_old /opt/isardvdi/isardvdi_protobuf_old
 COPY component/_common/src /opt/isardvdi/isardvdi_common
 COPY docker/storage/task /opt/isardvdi/isardvdi_task
 COPY docker/storage/init.sh /init.sh

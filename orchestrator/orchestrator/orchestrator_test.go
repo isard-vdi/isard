@@ -13,7 +13,7 @@ import (
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
-	"google.golang.org/grpc"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -188,11 +188,9 @@ func TestStart(t *testing.T) {
 				s.Close()
 			})
 
-			operationsConn, err := grpc.DialContext(ctx, s.Address(), grpc.WithInsecure())
+			operationsCli, operationsConn, err := grpc.NewClient(ctx, operationsv1.NewOperationsServiceClient, s.Address())
 			require.NoError(err)
 			defer operationsConn.Close()
-
-			operations := operationsv1.NewOperationsServiceClient(operationsConn)
 
 			apiCli := &apiMock.Client{}
 			tc.PrepareAPI(cancel, apiCli)
@@ -215,7 +213,7 @@ func TestStart(t *testing.T) {
 				OperationsTimeout: pollingInterval,
 
 				Director:      rata,
-				OperationsCli: operations,
+				OperationsCli: operationsCli,
 
 				CheckCfg: cfg.Check{
 					Enabled: false,

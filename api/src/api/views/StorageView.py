@@ -13,12 +13,7 @@ from isardvdi_common.domain import Domain
 from isardvdi_common.storage import Storage
 from isardvdi_common.storage_pool import StoragePool
 from isardvdi_common.task import Task
-
-from ..libv2.quotas import Quotas
-
-quotas = Quotas()
-
-from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
+from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
 
 from api import app
 

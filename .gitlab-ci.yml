@@ -216,6 +216,7 @@ docker-image:
           - hypervisor
           - notifier
           - portal
+          - sessions
           - squid
           - static
           - stats-go

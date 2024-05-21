@@ -3,6 +3,10 @@ ISARDVDI_SRC := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 .PHONY: all
 all: build up test
 
+.PHONY: tidy
+tidy:
+	go mod tidy
+
 .PHONY: build
 build: build-cfg build-compose
 
@@ -34,7 +38,7 @@ test: test-go test-e2e
 
 .PHONY: test-go
 test-go:
-	go test -v -race -cover ./...
+	go test -race -cover ./...
 
 .PHONY: test-e2e
 test-e2e:
