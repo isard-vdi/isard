@@ -331,6 +331,79 @@ class ReservablesPlanner:
                 .run(db.conn)
             )
 
+    def check_subitem_current_plan(self, subitem_id, item_id):
+        plans = get_subitems_planning([subitem_id], item_id=item_id, now=True)
+        if plans and any(
+            booking["start"] >= datetime.now(pytz.utc) >= booking["end"]
+            for plan in plans
+            for booking in self.get_plan_bookings(plan["id"])
+        ):
+            raise Error(
+                "bad_request",
+                description="There's currently an ongoing booking with this GPU profile",
+            )
+
+    def check_subitem_desktops_and_plannings(
+        self, reservable_type, item_id, subitem_id
+    ):
+        data = {"last": [], "desktops": [], "plans": []}
+        data["last"].append(
+            self.reservables.check_last_subitem(reservable_type, subitem_id)
+        )
+        data["desktops"].extend(
+            self.reservables.check_desktops_with_profile(reservable_type, subitem_id)
+        )
+        data["plans"].extend(
+            self.list_subitem_plans(
+                item_id,
+                subitem_id,
+                start=datetime.fromtimestamp(0, pytz.timezone("UTC")).strftime(
+                    "%Y-%m-%dT%H:%M%z"
+                ),
+                getUsername=True,
+            )
+        )
+        return data
+
+    def delete_subitem(self, item_type, item_id, subitem_id, data=None):
+        with app.app_context():
+            if not data:
+                data = self.check_subitem_desktops_and_plannings(
+                    item_type, item_id, subitem_id
+                )
+
+        # unassign from desktops
+        desktops_ids = (
+            [desktop["id"] for desktop in data["desktops"]]
+            if data.get("desktops")
+            else None
+        )
+
+        if desktops_ids:
+            self.reservables.deassign_desktops_with_gpu(
+                item_type, subitem_id, desktops_ids
+            )
+
+        # delete plans and its bookings
+        if data.get("plans"):
+            for plan in data["plans"]:
+                self.delete_plan(plan["id"])
+
+    def delete_item(self, item_type, item_id, subitems=None, data=None):
+        if not subitems:
+            with app.app_context():
+                subitems = r.table("gpus").get(item_id)["profiles_enabled"].run(db.conn)
+
+        for subitem in subitems:
+            if not data:
+                data = self.check_subitem_desktops_and_plannings(
+                    item_type, item_id, subitem
+                )
+            self.delete_subitem(item_type, item_id, subitem, data)
+            self.reservables.enable_subitems(item_type, item_id, subitem, False)
+        with app.app_context():
+            r.table("gpus").get(item_id).delete().run(db.conn)
+
     ## Bookings functions
     #######################################################
 

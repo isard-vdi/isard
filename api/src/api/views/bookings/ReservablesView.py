@@ -53,21 +53,8 @@ def api_v3_reservable_types(payload, reservable_type):
 def api_v3_reservable_items(payload, reservable_type, item_id, subitem_id=None):
     if request.method == "PUT":
         data = request.get_json()
-        if reservable_type == "gpus":
-            if data.get("enabled") == False:
-                desktops_ids = (
-                    [desktop["id"] for desktop in data["desktops"]]
-                    if data.get("desktops")
-                    else None
-                )
-                if desktops_ids:
-                    api_ri.deassign_desktops_with_gpu(
-                        reservable_type, subitem_id, desktops_ids
-                    )
-                if data.get("plans"):
-                    for plan in data.get("plans"):
-                        api_rp.delete_plan(plan["id"])
-
+        if data.get("enabled") == False:
+            api_rp.delete_subitem(reservable_type, item_id, subitem_id)
         return (
             json.dumps(
                 api_ri.enable_subitems(
@@ -95,20 +82,47 @@ def api_v3_reservable_items_enabled(payload, reservable_type, item_id):
     methods=["GET"],
 )
 @is_admin
-def api_v3_reservable_check_last(payload, reservable_type, subitem_id, item_id):
-    data = {}
-
-    if get_subitems_planning([subitem_id], item_id=item_id, now=True):
-        raise Error(
-            "bad_request",
-            description="There's currently an ongoing plan with this GPU profile",
-        )
-
-    data["last"] = api_ri.check_last_subitem(reservable_type, subitem_id)
-    data["desktops"] = api_ri.check_desktops_with_profile(reservable_type, subitem_id)
-    data["plans"] = api_rp.list_subitem_plans(item_id, subitem_id, getUsername=True)
+def api_v3_reservable_check_last_subitem(payload, reservable_type, subitem_id, item_id):
+    api_rp.check_subitem_current_plan(subitem_id, item_id)
+    data = api_rp.check_subitem_desktops_and_plannings(
+        reservable_type, item_id, subitem_id
+    )
 
     return json.dumps(data, default=str), 200
+
+
+# Checks if last enabled gpu has just been deleted
+@app.route(
+    "/api/v3/admin/reservables/check/last/<reservable_type>/<item_id>",
+    methods=["GET"],
+)
+@is_admin
+def api_v3_reservable_check_last_item(payload, reservable_type, item_id):
+    data = {"last": [], "desktops": [], "plans": []}
+    profiles = api_ri.list_subitems_enabled(reservable_type, item_id)
+    for profile in profiles:
+        api_rp.check_subitem_current_plan(profile["id"], item_id)
+        subitem_data = api_rp.check_subitem_desktops_and_plannings(
+            reservable_type, item_id, profile["id"]
+        )
+        data["last"].extend(subitem_data.get("last", []))
+        data["desktops"].extend(subitem_data.get("desktops", []))
+        data["plans"].extend(subitem_data.get("plans", []))
+
+    return json.dumps(data, default=str), 200
+
+
+@app.route(
+    "/api/v3/admin/reservables/delete/<reservable_type>/<item_id>",
+    methods=["DELETE"],
+)
+@is_admin
+def api_v3_reservable_delete_gpu(payload, reservable_type, item_id):
+    api_rp.delete_item(
+        reservable_type,
+        item_id,
+    )
+    return json.dumps({}, default=str), 200
 
 
 #### Endpoints for planning resources

@@ -86,14 +86,14 @@ $(document).ready(function () {
       { data: "model", width: "10px" },
       { data: "architecture" },
       { data: "memory" },
-      // {
-      //   className: "actions-control",
-      //   orderable: false,
-      //   data: null,
-      //   width: "150px",
-      //   defaultContent:
-      //     '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>'
-      // },
+      {
+        className: "actions-control",
+        orderable: false,
+        data: null,
+        width: "150px",
+        defaultContent:
+          '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>'
+      },
     ],
     order: [[7, "desc"]],
     "columnDefs": [ {
@@ -225,7 +225,7 @@ $(document).ready(function () {
               error: function (data) {
                 new PNotify({
                   title: 'ERROR: Could not ' + (enabled? 'enable': 'disable') + ' GPU profile',
-                  text: data.responseJSON.description,
+                  text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
                   hide: true,
                   delay: 2000,
                   icon: 'fa fa-' + data.icon,
@@ -237,34 +237,8 @@ $(document).ready(function () {
             }).done(function(data) {
               data = JSON.parse(data)
               // check if the profile is in any domain or has plans
-              if((data['last'] == true && data['desktops'].length > 0) || data['plans'].length > 0) {
-                $('#modalDeleteProfile').modal({
-                    backdrop: 'static',
-                    keyboard: false
-                }).modal('show');
-
-                $('#modalDeleteProfileForm #subitem_id').val(subitem_id);
-                $('#modalDeleteProfileForm #item_id').val(item_id);
-                $('#modalDeleteProfileForm #reservable_type').val(reservable_type);
-                $('#modalDeleteProfileForm #desktops').val(JSON.stringify(data['desktops']));
-                $('#modalDeleteProfileForm #plans').val(JSON.stringify(data['plans']));
-
-                $('#table_modal_profile_delete tbody').empty()
-                if (data['desktops'].length > 0) {
-                $.each(data['desktops'], function(key, value) {
-                  value['user_name'] = value['username']
-                  infoDomains(value, $('#table_modal_profile_delete tbody'));
-              });      
-                }
-                if (data['plans'].length > 0) {
-                  $.each(data['plans'], function(key, value) {
-                    value['kind']='plan'
-                    start = new Date(value['start']).toLocaleString('es-ES');
-                    end = new Date(value['end']).toLocaleString('es-ES');
-                    value['name'] = "from <i>" + start + "</i> to <i>" + end + "<i>";
-                    infoDomains(value, $('#table_modal_profile_delete tbody'));
-                  });
-              }
+              if ((data['last'].includes(true) && (data['desktops'].length > 0) || data['plans'].length > 0)) {
+                showDeleteGPUModal(subitem_id, item_id, reservable_type, data);
               }
               else {
                 enableProfile(reservable_type, item_id, subitem_id, enabled, null, null) 
@@ -277,30 +251,34 @@ $(document).ready(function () {
       }
     });
 
-  $("#modalDeleteProfile #send").on('click', function(e){
-      var form = $('#modalDeleteProfileForm');
+  $("#modalDeleteGPU #send").on('click', function(e){
+      var form = $('#modalDeleteGPUForm');
       if (form.parsley().isValid()){
-        data = $('#modalDeleteProfileForm').serializeObject()
-        var item_id = $('#modalDeleteProfileForm #item_id').val()
-        var subitem_id = $('#modalDeleteProfileForm #subitem_id').val()
-        var reservable_type = $('#modalDeleteProfileForm #reservable_type').val()
-        var desktops = JSON.parse($('#modalDeleteProfileForm #desktops').val())
-        var plans = JSON.parse($('#modalDeleteProfileForm #plans').val())
-
-        enableProfile(reservable_type, item_id, subitem_id, false, desktops, plans)
+        data = $('#modalDeleteGPUForm').serializeObject()
+        var item_id = $('#modalDeleteGPUForm #item_id').val()
+        var subitem_id = $('#modalDeleteGPUForm #subitem_id').val()
+        var reservable_type = $('#modalDeleteGPUForm #reservable_type').val()
+        var desktops = JSON.parse($('#modalDeleteGPUForm #desktops').val())
+        var plans = JSON.parse($('#modalDeleteGPUForm #plans').val())
+        if (subitem_id) {
+          enableProfile(reservable_type, item_id, subitem_id, false, desktops, plans)
+        } else {
+          deleteReservable(reservable_type, item_id);
+        }
       }
   });
 
-  $("#modalDeleteProfile #cancel").on('click', function(e){
-    profile_checkbox.prop("checked", true)
+  $("#modalDeleteGPU #cancel").on('click', function (e) {
+    if (typeof profile_checkbox !== 'undefined') {
+      profile_checkbox.prop("checked", true);
+    }
   });
 
   $("#table-gpus")
     .find("tbody")
     .on("click", "button", function () {
-      let reservable_type = $(this).parents("tr").attr("data-reservableType");
-      let item_id = $(this).parents("tr").attr("data-itemId");
-      let subitem_id = $(this).parents("tr").attr("data-subitemId");
+      let reservable_type = "gpus";
+      let item_id = $(this).closest('tr').attr("id");
       if ($(this).attr("id") == "btn-delete") {
         new PNotify({
           title: "Delete GPU",
@@ -315,21 +293,35 @@ $(document).ready(function () {
           .get()
           .on("pnotify.confirm", function () {
             $.ajax({
-              type: "DELETE",
+              type: "GET",
               url:
-                "/api/v3/admin/reservables/" +
+                "/api/v3/admin/reservables/check/last/" +
                 reservable_type +
                 "/" +
-                item_id +
-                "/" +
-                subitem_id,
-              data: JSON.stringify({ enabled }),
+                item_id,
               contentType: "application/json",
+              error: function (data) {
+                new PNotify({
+                  title: 'ERROR: Could not delete GPU profile',
+                  text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+                  hide: true,
+                  delay: 2000,
+                  icon: 'fa fa-' + data.icon,
+                  opacity: 1,
+                  type: 'error'
+                });
+              }
+            }).done(function (data) {
+              data = JSON.parse(data);
+              if ((data['last'].includes(true) && (data['desktops'].length > 0) || data['plans'].length > 0)) {
+                showDeleteGPUModal(null, item_id, reservable_type, data);
+              } else {
+                deleteReservable(reservable_type, item_id);
+              }
             });
           })
-          .on("pnotify.cancel", function () {});
-      }
-      if ($(this).attr("id") == "btn-force_active_profile") {
+          .on("pnotify.cancel", function () { });
+      } else if ($(this).attr("id") == "btn-force_active_profile") {
         var data=gpus_table.row($(this).parents('tr')).data();
         $("#modalForcedProfileForm")[0].reset();
         $('#modalForcedProfileForm #id').val(data.id);
@@ -395,6 +387,42 @@ $(document).ready(function () {
         })
     });
 });
+
+function showDeleteGPUModal(subitem_id, item_id, reservable_type, data) {
+  if (subitem_id) {
+    $('#modalDeleteGPUForm #subitem_id').val(subitem_id);
+    $("#modalDeleteGPU #title").text(" Disable profile");
+    $("#modalDeleteGPU .item_type").text("profile");
+  } else {
+    $("#modalDeleteGPU #title").text(" Delete GPU");
+    $("#modalDeleteGPU .item_type").text("GPU");
+  }
+  $('#modalDeleteGPUForm #item_id').val(item_id);
+  $('#modalDeleteGPUForm #reservable_type').val(reservable_type);
+  $('#modalDeleteGPUForm #desktops').val(JSON.stringify(data['desktops']));
+  $('#modalDeleteGPUForm #plans').val(JSON.stringify(data['plans']));
+
+  $('#table_modal_profile_delete tbody').empty();
+  if (data['desktops'].length > 0) {
+    $.each(data['desktops'], function (key, value) {
+      value['user_name'] = value['username'];
+      infoDomains(value, $('#table_modal_profile_delete tbody'));
+    });
+  }
+  if (data['plans'].length > 0) {
+    $.each(data['plans'], function (key, value) {
+      value['kind'] = 'plan';
+      start = new Date(value['start']).toLocaleString('es-ES');
+      end = new Date(value['end']).toLocaleString('es-ES');
+      value['name'] = "from <i>" + start + "</i> to <i>" + end + "<i>";
+      infoDomains(value, $('#table_modal_profile_delete tbody'));
+    });
+  }
+  $('#modalDeleteGPU').modal({
+    backdrop: 'static',
+    keyboard: false
+  }).modal('show');
+}
 
 // Modals functions
 function modal_add_gpu_datatables(reservable_type) {
@@ -566,5 +594,40 @@ function GpuEnabledProfilesDropdown(gpu_id) {
     data.profiles_enabled.forEach(function(profile){
       $("#modalForcedProfileForm #forced_active_profile").append('<option value=' + profile + '>' + profile+'</option>');
     });
+  });
+}
+
+function deleteReservable(reservable_type, item_id) {
+  $.ajax({
+    type: "DELETE",
+    url:
+      "/api/v3/admin/reservables/delete/" +
+      reservable_type +
+      "/" +
+      item_id,
+    contentType: "application/json",
+    success: function (data) {
+      $('form').each(function () { this.reset() });
+      $('.modal').modal('hide');
+      new PNotify({
+        title: "Success",
+        text: 'Deleted GPU',
+        hide: true,
+        delay: 2000,
+        opacity: 1,
+        type: 'success'
+      });
+      $("#table-gpus").DataTable().row('#' + item_id).remove().draw();
+    },
+    error: function (data) {
+      new PNotify({
+        title: "ERROR deleting GPU",
+        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+        hide: true,
+        delay: 2000,
+        opacity: 1,
+        type: 'error'
+      });
+    }
   });
 }

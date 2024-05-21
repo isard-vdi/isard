@@ -480,7 +480,6 @@ class Bookings:
                     r.table("bookings").get(booking_id)["plans"].run(db.conn)
                 )
             ]
-            app.logger.error(plan_ids)
             return list(
                 r.db("isard")
                 .table("resource_planner")
