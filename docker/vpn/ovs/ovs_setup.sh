@@ -11,6 +11,12 @@ ovs-vsctl add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=interna
 ip a a 10.2.0.1/16 dev vlan-wg >> /var/log/ovs 2>&1
 ip link set vlan-wg up >> /var/log/ovs 2>&1
 
+# Monitor if vlan-wg is really up
+while ! ip a s vlan-wg; do
+  echo "$(date): INFO: Waiting for vlan-wg to be up..."
+  sleep 1
+done
+
 mkdir -p /var/run/dnsmasq
 mkdir -p /var/lib/dnsmasq
 cat <<EOT > /etc/dnsmasq.d/vlan-wg.conf
