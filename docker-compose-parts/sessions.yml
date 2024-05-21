@@ -1,0 +1,27 @@
+version: "3.5"
+services:
+  isard-sessions:
+    container_name: isard-sessions
+    image: ${DOCKER_IMAGE_PREFIX}sessions:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.99
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      SESSIONS_SESSIONS_MAX_TIME:
+      SESSIONS_SESSIONS_MAX_RENEW_TIME:
+      SESSIONS_SESSIONS_EXPIRATION_TIME:
+      SESSIONS_SESSIONS_REDIS_HOST:
+      SESSIONS_SESSIONS_REDIS_PORT:
+      SESSIONS_SESSIONS_REDIS_USR:
+      SESSIONS_SESSIONS_REDIS_PWD:
+      SESSIONS_SESSIONS_REDIS_DB:
+      SESSIONS_SESSIONS_GRPC_HOST:
+      SESSIONS_SESSIONS_GRPC_PORT:

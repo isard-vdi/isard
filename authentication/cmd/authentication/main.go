@@ -11,6 +11,9 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/transport/http"
 	"gitlab.com/isard/isardvdi/pkg/db"
+	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
+	"gitlab.com/isard/isardvdi/pkg/grpc"
+	pkgHttp "gitlab.com/isard/isardvdi/pkg/http"
 	"gitlab.com/isard/isardvdi/pkg/log"
 )
 
@@ -27,7 +30,23 @@ func main() {
 		log.Fatal().Err(err).Msg("connect to the database")
 	}
 
-	authentication := authentication.Init(cfg, log, db)
+	apiCli, err := pkgHttp.NewAPIClient(cfg.API.Address, cfg.Authentication.Secret)
+	if err != nil {
+		log.Fatal().Err(err).Msg("create the API client")
+	}
+
+	notifierCli, err := pkgHttp.NewNotifierClient(cfg.Notifier.Address, cfg.Authentication.Secret)
+	if err != nil {
+		log.Fatal().Err(err).Msg("create notifier client")
+	}
+
+	sessionsCli, sessionsConn, err := grpc.NewClient(ctx, sessionsv1.NewSessionsServiceClient, cfg.Sessions.Address)
+	if err != nil {
+		log.Fatal().Err(err).Msg("create the sessions client")
+	}
+	defer sessionsConn.Close()
+
+	authentication := authentication.Init(cfg, log, db, apiCli, notifierCli, sessionsCli)
 
 	go http.Serve(ctx, &wg, log, cfg.HTTP.Addr(), authentication)
 	wg.Add(1)

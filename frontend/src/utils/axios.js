@@ -2,6 +2,8 @@ import axios from 'axios'
 import router from '@/router'
 import { sessionCookieName } from '../shared/constants'
 import { getCookie } from 'tiny-cookie'
+import store from '@/store'
+import { jwtDecode } from 'jwt-decode'
 
 export default function axiosSetUp () {
   // point to your API endpoint
@@ -9,12 +11,20 @@ export default function axiosSetUp () {
   // Add a request interceptor
   axios.interceptors.request.use(
     // Spinning show
-    function (config) {
+    async function (config) {
       document.body.classList.add('loading-cursor')
       if (document.querySelector('[type="submit"]')) {
         document.querySelector('[type="submit"]').setAttribute('disabled', 'disabled')
       }
-      config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
+      // If the session is expired try to renew the token
+      if (getCookie(sessionCookieName)) {
+        const session = store.getters.getSession
+        const sessionData = jwtDecode(session)
+        if (new Date() > new Date(sessionData.exp * 1000)) {
+          await store.dispatch('renew')
+        }
+        config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
+      }
       return config
     },
     function (error) {
@@ -40,22 +50,6 @@ export default function axiosSetUp () {
       if (document.querySelector('[type="submit"]')) {
         document.querySelector('[type="submit"]').removeAttribute('disabled')
       }
-      // Any status codes that falls outside the range of 2xx cause this function to trigger
-      // Do something with response error
-
-      // const originalRequest = error.config
-      // if (
-      //   error.response.status === 401 &&
-      //   originalRequest.url.includes("auth/jwt/refresh/")
-      // ) {
-      //   store.commit("clearUserData");
-      //   router.push("/login");
-      //   return Promise.reject(error);
-      // } else if (error.response.status === 401 && !originalRequest._retry) {
-      //   originalRequest._retry = true;
-      //   await store.dispatch("refreshToken");
-      //   return axios(originalRequest);
-      // }
       if (!error.config.url.includes('scheduler') && error.response.status === 503) {
         router.replace({ name: 'Maintenance' })
       } else if (error.response.status === 500) {
@@ -64,7 +58,7 @@ export default function axiosSetUp () {
           params: { code: error.response && error.response.status.toString() }
         })
       } else if (error.response.status === 401) {
-        router.replace({ name: 'Login' })
+        store.dispatch('logout')
       }
       return Promise.reject(error)
     }

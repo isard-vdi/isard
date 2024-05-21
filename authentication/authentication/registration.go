@@ -15,12 +15,12 @@ type apiRegisterUserRsp struct {
 }
 
 func (a *Authentication) registerUser(u *model.User) error {
-	tkn, err := token.SignRegisterToken(a.Secret, a.Duration, u)
+	tkn, err := token.SignRegisterToken(a.Secret, u)
 	if err != nil {
 		return err
 	}
 
-	id, err := a.Client.AdminUserAutoRegister(context.Background(), tkn, string(u.Role), u.Group)
+	id, err := a.API.AdminUserAutoRegister(context.Background(), tkn, string(u.Role), u.Group)
 	if err != nil {
 		return fmt.Errorf("register the user: %w", err)
 	}
@@ -32,7 +32,7 @@ func (a *Authentication) registerUser(u *model.User) error {
 }
 
 func (a *Authentication) registerGroup(g *model.Group) error {
-	grp, err := a.Client.AdminGroupCreate(
+	grp, err := a.API.AdminGroupCreate(
 		context.Background(),
 		g.Category,
 		// TODO: When UUIDs arrive, this g.Name has to be removed and the dependency has to be updated to v0.14.1

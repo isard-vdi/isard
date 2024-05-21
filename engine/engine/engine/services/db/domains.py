@@ -1371,33 +1371,33 @@ def remove_domain(id):
     return result
 
 
-failed_servers_cache = TTLCache(maxsize=100, ttl=60)
+failed_autostarts_cache = TTLCache(maxsize=100, ttl=60)
 
 
-def get_domains_flag_server_to_starting():
+def get_domains_flag_autostart_to_starting():
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     try:
-        ids_servers_must_start = list(
-            rtable.get_all(["desktop", True, "Stopped"], index="serverstostart")
+        ids_autostarts_must_start = list(
+            rtable.get_all(["desktop", True, "Stopped"], index="kind_autostart_status")
             .pluck("id")["id"]
             .run(r_conn)
         )
-        ids_servers_failed_retries = list(
-            rtable.get_all(["desktop", True, "Failed"], index="serverstostart")
+        ids_autostarts_failed_retries = list(
+            rtable.get_all(["desktop", True, "Failed"], index="kind_autostart_status")
             .pluck("id")["id"]
             .run(r_conn)
         )
-        ids_failed_to_be_retried = ids_servers_failed_retries.copy()
-        for server_id in ids_servers_failed_retries:
+        ids_failed_to_be_retried = ids_autostarts_failed_retries.copy()
+        for autostart_id in ids_autostarts_failed_retries:
             try:
-                failed_servers_cache[server_id]
-                ids_failed_to_be_retried.remove(server_id)
+                failed_autostarts_cache[autostart_id]
+                ids_failed_to_be_retried.remove(autostart_id)
             except Exception as e:
-                failed_servers_cache[server_id] = "1"
+                failed_autostarts_cache[autostart_id] = "1"
         if len(ids_failed_to_be_retried) > 0:
             logs.main.error(
-                f"We've got {len(ids_failed_to_be_retried)} FAILED SERVERS to start"
+                f"We've got {len(ids_failed_to_be_retried)} FAILED AUTOSTART SERVERS to start"
             )
     except Exception as e:
         logs.exception_id.debug("0040")
@@ -1405,7 +1405,7 @@ def get_domains_flag_server_to_starting():
         close_rethink_connection(r_conn)
         return []
     close_rethink_connection(r_conn)
-    return ids_servers_must_start + ids_failed_to_be_retried
+    return ids_autostarts_must_start + ids_failed_to_be_retried
 
 
 def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date_now):

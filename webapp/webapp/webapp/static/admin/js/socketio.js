@@ -31,7 +31,6 @@ socket.on('connect', function () {
 })
 
 socket.on('connect_error', function (data) {
-    console.log(data)
     if(data == "Error: Connection rejected by server"){
         deleteCookie('isardvdi_session')
         window.location = '/isard-admin/logout'

@@ -85,6 +85,7 @@ class DomainsThread(threading.Thread):
                             "image",
                             "description",
                             "progress",
+                            "server_autostart",
                         )
                         .changes(include_initial=False, squash=0.5)
                         .run(db.conn)

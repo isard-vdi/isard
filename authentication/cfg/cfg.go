@@ -14,7 +14,9 @@ type Cfg struct {
 	Log            cfg.Log
 	DB             cfg.DB
 	HTTP           cfg.HTTP
+	API            API
 	Notifier       Notifier
+	Sessions       Sessions
 	Authentication Authentication
 }
 
@@ -101,7 +103,15 @@ type AuthenticationGoogle struct {
 	ClientSecret string `mapstructure:"client_secret"`
 }
 
+type API struct {
+	Address string `mapstructure:"address"`
+}
+
 type Notifier struct {
+	Address string `mapstructure:"address"`
+}
+
+type Sessions struct {
 	Address string `mapstructure:"address"`
 }
 
@@ -199,7 +209,15 @@ func setDefaults() {
 		},
 	})
 
+	viper.SetDefault("api", map[string]interface{}{
+		"address": "http://isard-api:5000",
+	})
+
 	viper.SetDefault("notifier", map[string]interface{}{
 		"address": "http://isard-notifier:5000",
+	})
+
+	viper.SetDefault("sessions", map[string]interface{}{
+		"address": "isard-sessions:1312",
 	})
 }

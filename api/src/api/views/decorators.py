@@ -13,6 +13,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from ..libv2 import api_sessions
+
 r = RethinkDB()
 import traceback
 
@@ -28,6 +30,7 @@ from isardvdi_common.tokens import (
     Error,
     get_auto_register_jwt_payload,
     get_header_jwt_payload,
+    get_jwt_payload,
 )
 
 from ..libv2.api_allowed import get_all_linked_groups
@@ -54,6 +57,8 @@ def maintenance(category_id=None):
 def password_reset(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        api_sessions.get(get_jwt_payload()["session_id"])
+
         payload = get_header_jwt_payload()
         if (
             payload.get("type") == "password-reset-required"
@@ -73,6 +78,8 @@ def password_reset(f):
 def has_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        api_sessions.get(get_jwt_payload()["session_id"])
+
         payload = get_header_jwt_payload()
         if payload.get("role_id") != "admin":
             maintenance(payload.get("category_id"))
@@ -82,7 +89,7 @@ def has_token(f):
     return decorated
 
 
-def is_register(f):
+def is_register(f):  # TODO
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
@@ -99,7 +106,7 @@ def is_register(f):
     return decorated
 
 
-def is_auto_register(f):
+def is_auto_register(f):  # TODO
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_auto_register_jwt_payload()
@@ -119,6 +126,8 @@ def is_auto_register(f):
 def is_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        api_sessions.get(get_jwt_payload()["session_id"])
+
         payload = get_header_jwt_payload()
         if payload["role_id"] == "admin":
             kwargs["payload"] = payload
@@ -135,6 +144,8 @@ def is_admin(f):
 def is_admin_or_manager(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        api_sessions.get(get_jwt_payload()["session_id"])
+
         payload = get_header_jwt_payload()
         if payload.get("role_id") != "admin":
             maintenance(payload["category_id"])
@@ -153,6 +164,8 @@ def is_admin_or_manager(f):
 def is_admin_or_manager_or_advanced(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        api_sessions.get(get_jwt_payload()["session_id"])
+
         payload = get_header_jwt_payload()
         if payload.get("role_id") != "admin":
             maintenance(payload["category_id"])
@@ -175,6 +188,8 @@ def is_admin_or_manager_or_advanced(f):
 def is_not_user(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        api_sessions.get(get_jwt_payload()["session_id"])
+
         payload = get_header_jwt_payload()
         if payload["role_id"] != "user":
             kwargs["payload"] = payload
@@ -188,7 +203,7 @@ def is_not_user(f):
     return decorated
 
 
-def is_hyper(f):
+def is_hyper(f):  # TODO
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
@@ -204,6 +219,8 @@ def is_hyper(f):
 def owns_table_item_id(fn):
     @wraps(fn)
     def decorated_view(table, *args, **kwargs):
+        api_sessions.get(get_jwt_payload()["session_id"])
+
         payload = get_header_jwt_payload()
         if payload["role_id"] == "admin":
             return fn(payload, table, *args, **kwargs)

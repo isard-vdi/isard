@@ -29,6 +29,18 @@ func (d *DB) Addr() string {
 	return fmt.Sprintf("%s:%d", d.Host, d.Port)
 }
 
+type Redis struct {
+	Host string
+	Port int
+	Usr  string
+	Pwd  string
+	DB   int
+}
+
+func (r *Redis) Addr() string {
+	return fmt.Sprintf("%s:%d", r.Host, r.Port)
+}
+
 type GRPC struct {
 	Host string
 	Port int
@@ -77,7 +89,6 @@ func New(name string, setDefaults func(), target interface{}) {
 	))); err != nil {
 		log.Fatal().Str("service", name).Err(err).Msg("unmarshal configuration")
 	}
-
 }
 
 func setCommonDefaults() {
@@ -95,6 +106,16 @@ func SetDBDefaults() {
 		"usr":  "",
 		"pwd":  "",
 		"db":   "isard",
+	})
+}
+
+func SetRedisDefaults() {
+	viper.SetDefault("redis", map[string]interface{}{
+		"host": "isard-redis",
+		"port": 6379,
+		"usr":  "",
+		"pwd":  "",
+		"db":   0,
 	})
 }
 

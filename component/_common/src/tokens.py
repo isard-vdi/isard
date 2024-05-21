@@ -89,6 +89,19 @@ def get_expired_user_data(token):
 
 
 def get_token_payload(token):
+    payload = get_jwt_payload(token)
+    if payload.get("data", False):
+        try:
+            gevent.spawn(LogsUsers, payload)
+        except Exception as e:
+            log.warning("Unable to update user logs")
+        return payload["data"]
+    return payload
+
+
+def get_jwt_payload(token=None):
+    if not token:
+        token = get_token_auth_header()
     try:
         claims = jwt.decode(token, options={"verify_signature": False})
     except:
@@ -149,10 +162,4 @@ def get_token_payload(token):
             "unauthorized",
             "Unable to parse authentication token",
         )
-    if payload.get("data", False):
-        try:
-            gevent.spawn(LogsUsers, payload)
-        except Exception as e:
-            log.warning("Unable to update user logs")
-        return payload["data"]
     return payload

@@ -23,6 +23,8 @@ import (
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/rs/zerolog"
 	"gitlab.com/isard/isardvdi-sdk-go"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var _ oasAuthentication.Handler = &AuthenticationServer{}
@@ -420,6 +422,48 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 	}, nil
 }
 
+func (a *AuthenticationServer) Renew(ctx context.Context, req *oasAuthentication.RenewRequest) (oasAuthentication.RenewRes, error) {
+	ss, ok := ctx.Value(tokenCtxKey).(string)
+	if !ok {
+		return &oasAuthentication.RenewUnauthorized{
+			Error: oasAuthentication.RenewErrorErrorMissingToken,
+			Msg:   "missing JWT token",
+		}, nil
+	}
+
+	tkn, err := a.Authentication.Renew(ctx, ss)
+	if err != nil {
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.NotFound, codes.Unauthenticated:
+				return &oasAuthentication.RenewUnauthorized{
+					Error: oasAuthentication.RenewErrorErrorInvalidSession,
+					Msg:   "session expired",
+				}, nil
+
+			default:
+				a.Log.Error().Err(err).Str("code", status.Code().String()).Msg("unknown renew sessions status code error")
+
+				return &oasAuthentication.RenewInternalServerError{
+					Error: oasAuthentication.RenewErrorErrorInternalServer,
+					Msg:   "unknown renew sessions error",
+				}, nil
+			}
+		}
+
+		a.Log.Error().Err(err).Msg("unknown renew error")
+
+		return &oasAuthentication.RenewInternalServerError{
+			Error: oasAuthentication.RenewErrorErrorInternalServer,
+			Msg:   "unknown error",
+		}, nil
+	}
+
+	return &oasAuthentication.RenewResponse{
+		Token: tkn,
+	}, nil
+}
+
 func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthentication.ProvidersResponse, error) {
 	providers := []oasAuthentication.Providers{}
 	for _, p := range a.Authentication.Providers() {
@@ -453,6 +497,24 @@ func (a *AuthenticationServer) Check(ctx context.Context) (oasAuthentication.Che
 	if err := a.Authentication.Check(ctx, tkn); err != nil {
 		if !errors.Is(err, token.ErrInvalidToken) || !errors.Is(err, token.ErrInvalidTokenType) {
 			return nil, fmt.Errorf("check JWT: %w", err)
+		}
+
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.NotFound, codes.Unauthenticated:
+				return &oasAuthentication.CheckForbidden{
+					Error: oasAuthentication.CheckErrorErrorInvalidToken,
+					Msg:   "session expired",
+				}, nil
+
+			default:
+				a.Log.Error().Err(err).Str("code", status.Code().String()).Msg("unknown check sessions status code error")
+
+				return &oasAuthentication.CheckInternalServerError{
+					Error: oasAuthentication.CheckErrorErrorInternalServer,
+					Msg:   "unknown check sessions error",
+				}, nil
+			}
 		}
 
 		return &oasAuthentication.CheckForbidden{
@@ -636,6 +698,24 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 				Error: oasAuthentication.ResetPasswordErrorErrorInvalidToken,
 				Msg:   err.Error(),
 			}, nil
+		}
+
+		if status, ok := status.FromError(err); ok {
+			switch status.Code() {
+			case codes.NotFound, codes.Unauthenticated:
+				return &oasAuthentication.ResetPasswordForbidden{
+					Error: oasAuthentication.ResetPasswordErrorErrorInvalidToken,
+					Msg:   "session expired",
+				}, nil
+
+			default:
+				a.Log.Error().Err(err).Str("code", status.Code().String()).Msg("unknown reset password sessions status code error")
+
+				return &oasAuthentication.ResetPasswordInternalServerError{
+					Error: oasAuthentication.ResetPasswordErrorErrorInternalServer,
+					Msg:   "unknown reset password sessions error",
+				}, nil
+			}
 		}
 
 		var apiErr *isardvdi.Err

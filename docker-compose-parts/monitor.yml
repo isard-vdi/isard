@@ -16,11 +16,11 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /opt/isard/monitor/grafana/custom:/custom
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      - PROMETHEUS_ADDRESS=${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}
-      - LOKI_ADDRESS=${LOKI_ADDRESS:-http://isard-loki:3100}
+      DOMAIN:
+      WEBAPP_ADMIN_PWD:
+      PROMETHEUS_ADDRESS: "${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}"
+      LOKI_ADDRESS: "${LOKI_ADDRESS:-http://isard-loki:3100}"
 
   isard-loki:
     container_name: isard-loki

@@ -32,13 +32,11 @@ $(document).ready(function () {
 
 
 function update() {
+    start_ts = new Date().getTime();
     $.ajax({
         url: "/api/v3/stats/desktops/status",
         type: "GET",
         contentType: 'application/json',
-        beforeSend: function () {
-            start_ts = new Date().getTime();
-        },
         success: function (data) {
             var end_ts = new Date().getTime();
             query_seconds = (end_ts - start_ts) / 1000

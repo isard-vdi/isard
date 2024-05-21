@@ -34,6 +34,7 @@ def header_auth(service):
         {
             "exp": datetime.utcnow() + timedelta(seconds=20),
             "kid": "isardvdi",
+            "session_id": "isardvdi-service",
             "data": {"role_id": "admin", "category_id": "*", "user_id": service},
         },
         os.environ["API_ISARDVDI_SECRET"],

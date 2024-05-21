@@ -15,11 +15,35 @@ services:
     restart: "no"
     networks:
       isard-network: {}
-    env_file:
-      - .env
     environment:
-      FLAVOUR: "${FLAVOUR:-all-in-one}"
+      LOG_LEVEL:
+      STATS_LOG_LEVEL:
+      STATS_HTTP_HOST:
+      STATS_HTTP_PORT:
+
+      DOMAIN:
+      VIDEO_DOMAIN:
       HYPER_ID:
+      STATS_DOMAIN:
+      FLAVOUR:
+      STATS_FLAVOUR:
+      STATS_LIBVIRT_URI:
+      STATS_SSH_HOST:
+      STATS_SSH_PORT:
+      STATS_SSH_USER:
+      STATS_COLLECTORS_HYPERVISOR_ENABLE:
+      STATS_COLLECTORS_DOMAIN_ENABLE:
+      STATS_COLLECTORS_SYSTEM_ENABLE:
+      STATS_COLLECTORS_SOCKET_ENABLE:
+      STATS_COLLECTORS_ISARDVDI_API_ENABLE:
+      STATS_COLLECTORS_ISARDVDI_API_ADDR:
+      API_ISARDVDI_SECRET:
+      STATS_COLLECTORS_ISARDVDI_API_SECRET:
+      STATS_COLLECTORS_ISARDVDI_AUTHENTICATION_ENABLE:
+      LOKI_ADDRESS:
+      STATS_COLLECTORS_ISARDVDI_AUTHENTICATION_LOKI_ADDRESS:
+      STATS_COLLECTORS_OCI_ENABLE:
+      STATS_COLLECTORS_CONNTRACK_ENABLE:
 
   isard-stats-node-exporter:
     image: prom/node-exporter
@@ -110,8 +134,7 @@ services:
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     restart: "no"
     entrypoint: /run.sh
-    env_file:
-      - .env
     environment:
-      - PROMETHEUS_ADDRESS=${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}
-      - LOKI_ADDRESS=${LOKI_ADDRESS:-http://isard-loki:3100}
+      DOMAIN:
+      PROMETHEUS_ADDRESS: "${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}"
+      LOKI_ADDRESS: "${LOKI_ADDRESS:-http://isard-loki:3100}"

@@ -78,7 +78,12 @@ columns = [
         "data": "server", "width": "10px", "defaultContent": "-", "render": function (data, type, full, meta) {
             if ('server' in full) {
                 if (full["server"] == true) {
-                    return 'SERVER';
+                    if (full["server_autostart"]) {
+                        return "AUTO"
+                    } else {
+                        return 'SERVER';
+                    }
+                   
                 } else {
                     return '-';
                 }
@@ -412,7 +417,7 @@ $(document).ready(function() {
 
     $template = $(".template-detail-domain");
 
-    const filter_list = ['category', 'favourite_hyp', 'forced_hyp', 'group', 'hyp_started', 'memory', 'name', 'status', 'user', 'vcpus'];
+    const filter_list = ['category', 'favourite_hyp', 'forced_hyp', 'group', 'hyp_started', 'memory', 'name', 'server', 'status', 'user', 'vcpus'];
     const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
     $('#filter-select').append(options.join(''));
     var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
@@ -637,14 +642,12 @@ $(document).ready(function() {
                             opacity: 1,
                             type: 'error'
                         })
+                        $('#mactions option[value="none"]').prop("selected", true);
                     },
                     success: function(data) {
                         notify(data)
-                    },
-                    always: function() {
                         $('#mactions option[value="none"]').prop("selected", true);
-                        $('#domains tr.active .form-check-input').prop("checked", true);
-                    }
+                    },
                 });
             }).on('pnotify.cancel', function() {
                 $('#mactions option[value="none"]').prop("selected",true);
@@ -1081,20 +1084,33 @@ function actionsDomainDetail(){
             keyboard: false
         }).modal('show');
         $('#modalServerForm #id').val(pk);
+        $('#modalServerForm #server').on("ifChecked", function () {
+            $('#modalServerForm #autostart').parent().removeClass("disabled");
+            $('#modalServerForm #autostart').closest('.checkbox').css("opacity", 1);
+        });
+        $('#modalServerForm #server').on("ifUnchecked", function () {
+            $('#modalServerForm #autostart').parent().addClass("disabled");
+            $('#modalServerForm #autostart').closest('.checkbox').css("opacity", 0.5);
+            $('#modalServerForm #server').iCheck('uncheck').iCheck('update');
+        });
         $.ajax({
             type: "POST",
             url:"/api/v3/admin/table/domains",
             data: JSON.stringify({
                 'id': pk,
-                'pluck': "server"
+                'pluck': ["server", "server_autostart"]
             }),
             contentType: 'application/json',
-            success: function(data)
-            {
-                if(data.server == true){
-                    $('#modalServerForm #server').iCheck('check').iCheck('update');
-                }else{
-                    $('#modalServerForm #server').iCheck('unckeck').iCheck('update');
+            success: function (data) {
+                if (data.server == true) {
+                    $('#modalServerForm #server').iCheck('check').iCheck('update').trigger('ifChecked');
+                    if (data.server_autostart == true) {
+                        $('#modalServerForm #autostart').iCheck('check').iCheck('update');
+                    } else {
+                        $('#modalServerForm #autostart').iCheck('uncheck').iCheck('update');
+                    }
+                } else {
+                    $('#modalServerForm #server').iCheck('uncheck').iCheck('update').trigger('ifUnchecked');
                 }
             }
         });
@@ -1558,13 +1574,14 @@ function actionsDomainDetail(){
 
     $("#modalServer #send").off('click').on('click', function(e){
         data=$('#modalServerForm').serializeObject();
-        let pk=$('#modalServerForm #id').val()
         let server=$('#modalServerForm #server').prop('checked')
+        let autostart=$('#modalServerForm #autostart').prop('checked')
         $.ajax({
             type: "PUT",
             url: `/api/v3/domain/${data["id"]}`,
             data: JSON.stringify({
-                'server': server
+                'server': server,
+                'server_autostart': server ? autostart : false
             }),
             contentType: "application/json",
             success: function(data)
@@ -2120,6 +2137,12 @@ function renderAction(data){
                     });
                     index = item.replace(/_/g, "").replace("hyp", "")
                     elem.attr("index", index)
+                    break;
+                case ("server"):
+                    const FIELDS = ["SERVER", "AUTO", "-"];
+                    $.each(FIELDS, function(pos, field) {
+                        elem.append(`<option value=${field}>${field}</option>`);
+                    })
                     break;
                 default:
                     $.ajax({

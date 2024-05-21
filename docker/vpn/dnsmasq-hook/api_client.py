@@ -81,6 +81,7 @@ class ApiClient:
             {
                 "exp": datetime.utcnow() + timedelta(seconds=20),
                 "kid": "isardvdi-hypervisors",
+                "session_id": "isardvdi-service",
                 "data": {
                     "role_id": "hypervisor",
                     "category_id": "*",

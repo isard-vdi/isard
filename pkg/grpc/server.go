@@ -7,6 +7,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func Serve(ctx context.Context, log *zerolog.Logger, wg *sync.WaitGroup, registerServer func(s *grpc.Server), addr string) {
@@ -15,10 +16,15 @@ func Serve(ctx context.Context, log *zerolog.Logger, wg *sync.WaitGroup, registe
 		log.Fatal().Err(err).Str("addr", addr).Msg("listen gRPC address")
 	}
 
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.UnaryInterceptor(newUnaryInterceptorLogger(log)),
+	)
+
 	registerServer(s)
 
-	// TODO: Reflection, healthcheck
+	reflection.Register(s)
+
+	// TODO: healthcheck
 
 	go func() {
 		if err := s.Serve(lis); err != nil {

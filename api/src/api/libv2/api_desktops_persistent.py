@@ -893,21 +893,20 @@ class ApiDesktopsPersistent:
                 "Desktops only can be edited when stopped or failed",
                 traceback.format_exc(),
             )
-
         if (
-            desktop.get("server")
-            and not "server" in data
+            desktop.get("server_autostart")
+            and ("server_autostart" not in data or "server" not in data)
             and desktop.get("status") != "Failed"
         ):
             raise Error(
                 "precondition_required",
-                "Servers can't be edited",
+                "Autostart servers can't be edited",
                 traceback.format_exc(),
             )
 
-        if desktop.get("create_dict", {}).get("reservables", {}).get(
-            "vgpus"
-        ) and data.get("server"):
+        if desktop.get("create_dict", {}).get("reservables", {}).get("vgpus") and (
+            data.get("server")
+        ):
             raise Error(
                 "precondition_required",
                 "Servers can not have a bookable item",
