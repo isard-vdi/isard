@@ -89,6 +89,7 @@ def has_token(f):
 
     return decorated
 
+
 def has_viewer_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
