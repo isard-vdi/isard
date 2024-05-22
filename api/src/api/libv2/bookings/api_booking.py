@@ -53,12 +53,16 @@ class Bookings:
                 r.table("bookings")
                 .merge(
                     lambda booking: {
-                        "username": r.table("users").get(booking["user_id"])[
-                            "username"
-                        ],
-                        "category": r.table("categories").get(
-                            r.table("users").get(booking["user_id"])["category"]
-                        )["name"],
+                        "username": r.table("users")
+                        .get(booking["user_id"])
+                        .default({"username": "[Deleted]"})["username"],
+                        "category": r.table("categories")
+                        .get(
+                            r.table("users")
+                            .get(booking["user_id"])
+                            .default({"category": "[Deleted]"})["category"]
+                        )
+                        .default({"name": "[Deleted]"})["name"],
                     }
                 )
                 .run(db.conn)
