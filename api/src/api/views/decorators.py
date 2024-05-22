@@ -93,15 +93,7 @@ def has_token(f):
 def has_viewer_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        full_payload = get_jwt_payload(get_token_auth_header())
         payload = get_header_jwt_payload()
-
-        if full_payload.get("kid") != "isardvdi-viewer":
-            raise Error(
-                "forbidden",
-                "Token not valid for this operation.",
-                traceback.format_exc(),
-            )
 
         if payload.get("role_id") != "admin":
             maintenance(payload.get("category_id"))
