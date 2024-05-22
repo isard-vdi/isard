@@ -4,3 +4,5 @@ services:
     volumes:
       - ${BUILD_ROOT_PATH}/engine/engine:/isard:rw
       - ${BUILD_ROOT_PATH}/component/_common/src:/opt/isardvdi/isardvdi_common
+    environment:
+      JETBRAINS_REMOTE_RUN:
