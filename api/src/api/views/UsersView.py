@@ -37,6 +37,7 @@ vpn = isardVpn()
 from .decorators import (
     checkDuplicateUser,
     has_token,
+    has_viewer_token,
     is_not_user,
     is_register,
     ownsDomainId,
@@ -111,7 +112,7 @@ def api_v3_user_config(payload):
 
 # Check from isard-guac if the user owns the ip
 @app.route("/api/v3/user/owns_desktop", methods=["GET"])
-@has_token
+@has_viewer_token
 def api_v3_user_owns_desktop(payload):
     # Signed jwt token. Direct viewer access.
     if payload.get("desktop_id"):

@@ -31,6 +31,7 @@ from isardvdi_common.tokens import (
     get_auto_register_jwt_payload,
     get_header_jwt_payload,
     get_jwt_payload,
+    get_token_auth_header,
 )
 
 from ..libv2.api_allowed import get_all_linked_groups
@@ -81,6 +82,26 @@ def has_token(f):
         api_sessions.get(get_jwt_payload()["session_id"])
 
         payload = get_header_jwt_payload()
+        if payload.get("role_id") != "admin":
+            maintenance(payload.get("category_id"))
+        kwargs["payload"] = payload
+        return f(*args, **kwargs)
+
+    return decorated
+
+def has_viewer_token(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        full_payload = get_jwt_payload(get_token_auth_header())
+        payload = get_header_jwt_payload()
+
+        if full_payload.get("kid") != "isardvdi-viewer":
+            raise Error(
+                "forbidden",
+                "Token not valid for this operation.",
+                traceback.format_exc(),
+            )
+
         if payload.get("role_id") != "admin":
             maintenance(payload.get("category_id"))
         kwargs["payload"] = payload
