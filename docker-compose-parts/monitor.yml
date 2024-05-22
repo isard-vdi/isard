@@ -21,6 +21,8 @@ services:
       WEBAPP_ADMIN_PWD:
       PROMETHEUS_ADDRESS: "${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}"
       LOKI_ADDRESS: "${LOKI_ADDRESS:-http://isard-loki:3100}"
+      GRAFANA_TELEGRAM_CHAT_ID: "${GRAFANA_TELEGRAM_CHAT_ID}"
+      GRAFANA_TELEGRAM_TOKEN: "${GRAFANA_TELEGRAM_TOKEN}"
 
   isard-loki:
     container_name: isard-loki
