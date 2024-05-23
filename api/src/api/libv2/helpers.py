@@ -276,6 +276,19 @@ def _parse_desktop(desktop):
         except:
             log.debug(traceback.format_exc())
             editable = False
+        try:
+            with app.app_context():
+                permissions = (
+                    r.table("deployments")
+                    .get(desktop.get("tag"))
+                    .pluck("user_permissions")
+                    .run(db.conn)
+                )
+            desktop["permissions"] = permissions.get("user_permissions", [])
+            desktop["permissions"].sort()
+        except:
+            log.debug(traceback.format_exc())
+            desktop["permissions"] = []
     # TODO: Sum all the desktop storages instead of getting only the first one, call get_domain_storage function to retrieve them
     desktop_size = 0
     if desktop.get("type") == "persistent" and desktop["create_dict"]["hardware"].get(
@@ -324,6 +337,7 @@ def _parse_desktop(desktop):
                 disk.get("storage_id")
                 for disk in desktop["create_dict"]["hardware"].get("disks", [{}])
             ],
+            "permissions": desktop.get("permissions", []),
         },
         **_parse_desktop_booking(desktop),
     }

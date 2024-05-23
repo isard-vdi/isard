@@ -269,6 +269,7 @@ def new(
     deployment_id,
     co_owners=[],
     visible=False,
+    user_permissions=[],
 ):
     # CREATE_DEPLOYMENT
     new_data["hardware"] = parse_domain_insert(new_data)["hardware"]
@@ -290,11 +291,13 @@ def new(
             "tag_visible": visible,
             "template": template_id,
             "image": new_data.get("image"),
+            "user_permissions": user_permissions,
         },
         "id": deployment_id,
         "name": name,
         "user": payload["user_id"],
         "co_owners": co_owners,
+        "user_permissions": user_permissions,
     }
 
     users = get_selected_users(payload, selected, desktop_name, True)
@@ -515,6 +518,7 @@ def edit_deployment(deployment_id, data):
         )
     if data["reservables"].get("vgpus") == ["None"]:
         data["reservables"]["vgpus"] = None
+    data["user_permissions"] = data.get("user_permissions", [])
     r.table("deployments").get(deployment_id).update(
         {
             "create_dict": {
@@ -522,6 +526,7 @@ def edit_deployment(deployment_id, data):
                 "guest_properties": r.literal(data["guest_properties"]),
             },
             "name": data["tag_name"],
+            "user_permissions": data["user_permissions"],
         }
     ).run(db.conn)
     # If the networks have changed new macs should be generated for each domain
@@ -983,3 +988,16 @@ def update_owner(deployment_id, owner_id):
             f"Unable to update owner for deployment: {deployment_id}",
             description_code="unable_to_update",
         )
+
+
+def get_deployment_permissions(deployment_id):
+    try:
+        with app.app_context():
+            deployment = r.table("deployments").get(deployment_id).run(db.conn)
+    except:
+        raise Error(
+            "not_found",
+            "Could not find deployment",
+            description_code="not_found",
+        )
+    return deployment.get("user_permissions", [])

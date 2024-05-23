@@ -73,6 +73,7 @@ def api_v3_deployments_new(payload):
         data,
         visible=data["visible"],
         deployment_id=data["id"],
+        user_permissions=data.get("user_permissions", []),
     )
     return json.dumps({"id": data["id"]}), 200, {"Content-Type": "application/json"}
 
@@ -257,3 +258,14 @@ def api_v3_deployment_change_owner(payload, deployment_id, user_id=False):
 
     api_deployments.update_owner(deployment_id, user_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/deployment/permissions/<deployment_id>", methods=["GET"])
+@is_not_user
+def api_v3_get_deployment_permissions(payload, deployment_id):
+    ownsDeploymentId(payload, deployment_id)
+    return (
+        json.dumps(api_deployments.get_deployment_permissions(deployment_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )

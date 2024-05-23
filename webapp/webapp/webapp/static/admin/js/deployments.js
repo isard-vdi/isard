@@ -36,6 +36,7 @@ $(document).ready(function() {
       { "data": "group_name" },
       { "data": "username" },
       { "data": "co_owners_usernames" },
+      { "data": "user_permissions" },
       { "data": "how_many_desktops" },
       { "data": "how_many_desktops_started" },
       { "data": "create_dict.tag_visible" },

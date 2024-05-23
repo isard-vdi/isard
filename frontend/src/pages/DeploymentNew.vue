@@ -274,6 +274,7 @@
           <DomainHardware />
           <DomainBookables />
           <DomainMedia />
+          <DeploymentUserPermissions />
           <DomainImage />
         </b-collapse>
       </div>
@@ -314,6 +315,7 @@ import DomainHardware from '@/components/domain/DomainHardware.vue'
 import DomainMedia from '@/components/domain/DomainMedia.vue'
 import DomainBookables from '@/components/domain/DomainBookables.vue'
 import DomainImage from '@/components/domain/DomainImage.vue'
+import DeploymentUserPermissions from '@/components/deployments/DeploymentUserPermissions.vue'
 import { desktopStates } from '@/shared/constants'
 
 // const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
@@ -329,7 +331,8 @@ export default {
     DomainHardware,
     DomainMedia,
     DomainBookables,
-    DomainImage
+    DomainImage,
+    DeploymentUserPermissions
   },
   setup (props, context) {
     const $store = context.root.$store
@@ -349,6 +352,7 @@ export default {
     const selectedGroups = computed(() => $store.getters.getSelectedGroups)
     const usersChecked = computed(() => $store.getters.getUsersChecked)
     const selectedUsers = computed(() => $store.getters.getSelectedUsers)
+    const userPermissions = computed(() => $store.getters.getPermissions)
     // Templates table
     const items = computed(() => $store.getters.getTemplates)
     const perPage = ref(5)
@@ -514,7 +518,8 @@ export default {
               allowed: {
                 users,
                 groups
-              }
+              },
+              user_permissions: userPermissions.value
             }
           )
         }

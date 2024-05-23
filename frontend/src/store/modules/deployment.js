@@ -30,7 +30,10 @@ const getDefaultState = () => {
     coOwners: {
       owner: {},
       coOwners: []
-    }
+    },
+    permissions: [
+      'recreate'
+    ]
   }
 }
 
@@ -56,6 +59,9 @@ export default {
     },
     getCoOwners: state => {
       return state.coOwners
+    },
+    getPermissions: state => {
+      return state.permissions
     }
   },
   mutations: {
@@ -100,6 +106,15 @@ export default {
     },
     setCoOwners: (state, show) => {
       state.coOwners = show
+    },
+    setPermissions: (state, permissions) => {
+      state.permissions = permissions
+    },
+    addPermission: (state, permission) => {
+      state.permissions.push(permission)
+    },
+    removePermission: (state, permission) => {
+      state.permissions = state.permissions.filter(p => p.id !== permission.id)
     }
   },
   actions: {
@@ -258,6 +273,13 @@ export default {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
       axios.put(`${apiV3Segment}/deployment/co-owners/${data.id}`, { co_owners: data.users }).then(response => {
         context.dispatch('fetchCoOwners', data.id)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    fetchPermissions (context, deploymentId) {
+      axios.get(`${apiV3Segment}/deployment/permissions/${deploymentId}`).then(response => {
+        context.commit('setPermissions', response.data)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })

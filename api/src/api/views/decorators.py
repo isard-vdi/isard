@@ -709,3 +709,33 @@ def allowedTemplateId(payload, template_id):
         "Not enough access rights for this template_id " + str(template_id),
         traceback.format_exc(),
     )
+
+
+def canPerformActionDeployment(payload, domain_id, action):
+    ownsDomainId(payload, domain_id)
+
+    if payload.get("role_id", "") in ["admin", "manager", "advanced"]:
+        return True
+
+    try:
+        with app.app_context():
+            domain = r.table("domains").get(domain_id).pluck("tag").run(db.conn)
+            permissions = (
+                r.table("deployments")
+                .get(domain["tag"])
+                .pluck("user_permissions")
+                .run(db.conn)
+            )
+    except:
+        permissions = []
+
+    if payload.get("role_id", "") == "user":
+        if action in permissions["user_permissions"]:
+            return True
+
+    raise Error(
+        "unauthorized",
+        f"Not enough rights to perform action {action} on domain_id {domain_id}",
+        traceback.format_exc(),
+        description_code=f"not_enough_rights_action_{action}_{domain_id}",
+    )

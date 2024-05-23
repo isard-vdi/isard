@@ -131,7 +131,8 @@
                 "template": "Convertir en plantilla",
                 "booking": "Reservar",
                 "edit": "Editar",
-                "direct-link": "Enllaç directe"
+                "direct-link": "Enllaç directe",
+                "recreate": "Recrear"
             },
             "filter-label": "Filtre"
         },
@@ -1041,6 +1042,13 @@
                 "group": "Grup",
                 "user": "Usuari"
             },
+            "user-permissions": {
+                "title": "Permisos d'usuari",
+                "recreate": {
+                    "title": "Recrear escriptori",
+                    "description": "Permet als usuaris reiniciar el seu escriptori al seu estat original."
+                }
+            },
             "error": {
                 "groups": "S'ha d'escollir com a mínim un grup",
                 "users": "S'ha d'escollir com a mínim un usuari",
@@ -1271,7 +1279,8 @@
             "go-to-bookings": "Reservar escriptori",
             "change-desktop-gpu": "Modificar el perfil de l'escriptori",
             "reset-vpn": "Restablir les claus VPN? S'haurà de descarregar un nou fitxer VPN",
-            "cancel-operation": "Cancel·lar l'operació de disc en curs? Això podria deixar el disc en un estat inconsistent"
+            "cancel-operation": "Cancel·lar l'operació de disc en curs? Això podria deixar el disc en un estat inconsistent",
+            "recreate-desktop": "'{name}' es recrearà, això eliminarà tots els canvis que hagis fet. Continuar?"
         },
         "ok": "D'acord",
         "yes": "Sí",
@@ -1322,8 +1331,8 @@
             "warning-desktop-waiting-ip": "Encara no es pot obrir el visor actual Espereu si us plau...",
             "reset-vpn": "Claus VPN restablertes",
             "video-default": "S'ha canviat el paràmetre 'Videos' de l'escriptori a 'Default', atès que no hi ha cap perfil de GPU assignat",
-            "cancelling-operation": "Cancel·lant operació de disc en curs"
-
+            "cancelling-operation": "Cancel·lant operació de disc en curs",
+            "recreate-desktop-stop": "Per recrear un escriptori, aquest ha d'estar aturat"
         },
         "loading": "Carregant"
     },

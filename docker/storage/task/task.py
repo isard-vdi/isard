@@ -420,3 +420,38 @@ def resize(storage_path, increment):
         ).returncode
     except Exception as e:
         return e
+
+
+def recreate(
+    original_path,
+    storage_path,
+    storage_type,
+    parent_path,
+    parent_type,
+    size=None,
+):
+    """
+    Create disk and delete original disk.
+
+    :param original_path: Path of the original disk to be deleted
+    :type original_path: str
+    :param storage_path: Path of new disk
+    :type storage_path: str
+    :param storage_type: Format of new disk
+    :type storage_type: str
+    :param parent_path: Path of backing file
+    :type parent_path: str
+    :param parent_type: Format of backing file
+    :type parent_type: str
+    :param size: Size of new disk as qemu-img string format
+    :type size: str
+    """
+    create(
+        storage_path,
+        storage_type,
+        size=size,
+        parent_path=parent_path,
+        parent_type=parent_type,
+    )
+
+    delete(original_path)

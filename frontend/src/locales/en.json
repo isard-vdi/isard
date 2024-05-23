@@ -112,6 +112,13 @@
                 "group": "Group",
                 "user": "User"
             },
+            "user-permissions": {
+                "title": "User permissions",
+                "recreate": {
+                    "title": "Recreate desktop",
+                    "description": "Allow users to reset their desktop to its original state."
+                }
+            },
             "error": {
                 "groups": "At least one group must be selected",
                 "users": "At least one user must be selected",
@@ -301,7 +308,8 @@
                 "template": "Template it",
                 "booking": "Schedule",
                 "edit": "Edit",
-                "direct-link": "Direct Link"
+                "direct-link": "Direct Link",
+                "recreate": "Recreate"
             },
             "table-header": {
                 "name": "Name",
@@ -1140,7 +1148,8 @@
             "go-to-bookings": "Book desktop",
             "change-desktop-gpu": "Modify desktop profile",
             "reset-vpn": "Reset VPN keys? You will have to download a new VPN file",
-            "cancel-operation": "Cancel ongoing disk operation? This could leave the disk in an inconsistent state"
+            "cancel-operation": "Cancel ongoing disk operation? This could leave the disk in an inconsistent state",
+            "recreate-desktop": "'{name}' will be recreated, this will delete all changes you made. Continue?"
         },
         "ok": "Ok",
         "yes": "Yes",
@@ -1191,7 +1200,8 @@
             "warning-desktop-waiting-ip": "Viewer not available right now. Please wait..",
             "reset-vpn": "VPN keys reset",
             "video-default": "The 'Videos' parameter on the desktop was changed to 'Default', as there is no GPU profile assigned",
-            "cancelling-operation": "Canceling ongoing disk operation"
+            "cancelling-operation": "Canceling ongoing disk operation",
+            "recreate-desktop-stop": "To recreate a desktop it must be stopped"
         },
         "loading": "Loading"
     },

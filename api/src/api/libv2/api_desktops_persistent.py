@@ -930,6 +930,39 @@ class ApiDesktopsPersistent:
                 ["desktop", current_status, category], index="kind_status_category"
             ).update({"status": target_status}).run(db.conn)
 
+    def update_storage(self, domain_id, new_storage_id, old_storage_id=None):
+        with app.app_context():
+            domain = r.table("domains").get(domain_id).run(db.conn)
+            if not domain:
+                raise Error(
+                    "not_found",
+                    "Domain not found",
+                    traceback.format_exc(),
+                    description_code="not_found",
+                )
+            if domain["status"] not in ["Stopped", "Maintenance"]:
+                raise Error(
+                    "precondition_required",
+                    "Desktop must be stopped to change storage",
+                    traceback.format_exc(),
+                )
+            if domain["kind"] == "desktop":
+                r.table("domains").get(domain_id).update(
+                    {
+                        "create_dict": {
+                            "hardware": {
+                                "disks": [
+                                    {
+                                        "storage_id": new_storage_id,
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                ).run(db.conn)
+
+        return domain_id
+
 
 def check_template_status(template_id=None, template=None):
     if template_id:

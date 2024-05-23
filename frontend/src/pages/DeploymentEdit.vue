@@ -73,6 +73,7 @@
           <DomainHardware />
           <DomainBookables />
           <DomainMedia />
+          <DeploymentUserPermissions />
           <DomainImage />
         </b-collapse>
       </div>
@@ -109,6 +110,7 @@ import DomainHardware from '@/components/domain/DomainHardware.vue'
 import DomainMedia from '@/components/domain/DomainMedia.vue'
 import DomainBookables from '@/components/domain/DomainBookables.vue'
 import DomainImage from '@/components/domain/DomainImage.vue'
+import DeploymentUserPermissions from '@/components/deployments/DeploymentUserPermissions.vue'
 
 // const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
@@ -120,7 +122,8 @@ export default {
     DomainHardware,
     DomainMedia,
     DomainBookables,
-    DomainImage
+    DomainImage,
+    DeploymentUserPermissions
   },
   setup (props, context) {
     const $store = context.root.$store
@@ -160,6 +163,7 @@ export default {
     const selectedGroups = computed(() => $store.getters.getSelectedGroups)
     const usersChecked = computed(() => $store.getters.getUsersChecked)
     const selectedUsers = computed(() => $store.getters.getSelectedUsers)
+    const userPermissions = computed(() => $store.getters.getPermissions)
 
     const v$ = useVuelidate({
       deploymentName: {
@@ -222,7 +226,8 @@ export default {
                 videos: domain.value.hardware.videos,
                 reservables: domain.value.reservables
               },
-              image: domain.value.image
+              image: domain.value.image,
+              user_permissions: userPermissions.value
             }
           )
         }
@@ -250,6 +255,7 @@ export default {
       selectedGroups,
       usersChecked,
       selectedUsers,
+      // userPermissions,
       v$,
       submitForm,
       navigate,

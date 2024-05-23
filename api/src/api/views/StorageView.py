@@ -32,6 +32,7 @@ from ..libv2.quotas import Quotas
 
 quotas = Quotas()
 from .decorators import (
+    canPerformActionDeployment,
     has_token,
     is_admin,
     is_admin_or_manager,
@@ -1210,3 +1211,177 @@ def storage_abort(payload, storage_id):
             "Error aborting storage operation",
         )
     return jsonify(storage.task)
+
+
+@app.route("/api/v3/storage/<storage_id>/recreate", methods=["POST"])
+@app.route("/api/v3/domain/<domain_id>/recreate_disk", methods=["POST"])
+@has_token
+def storage_recreate_disk(payload, storage_id=None, domain_id=None):
+    """
+    Endpoint to recreate a storage with the same specifications and parent.
+
+    Storage specifications in JSON:
+    {
+        "user_id": "User ID",
+        "priority": "low, default or high",
+    }
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :param domain_id: Domain ID
+    :type domain_id: str
+    :return: Storage ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    if domain_id:
+        canPerformActionDeployment(payload, domain_id, "recreate")
+        storage_id = admins.get_domain_storage(domain_id)[0]["id"]
+
+    ownsStorageId(payload, storage_id)
+
+    set_desktops_maintenance(payload, storage_id, "recreate")
+    storage_orig = set_storage_maintenance(payload, storage_id)
+
+    if request.is_json:
+        request_json = request.get_json()
+    else:
+        request_json = {}
+
+    priority = request_json.get("priority", "default")
+    if payload["role_id"] != "admin":
+        priority = "low"
+    else:
+        if priority not in ["low", "default", "high"]:
+            raise Error(
+                error="bad_request",
+                description=f"Priority must be low, default or high",
+            )
+
+    if storage_orig.parent:
+        if not Storage.exists(storage_orig.parent):
+            raise Error(error="not_found", description="Parent storage not found")
+        parent = Storage(storage_orig.parent)
+        if not parent.user_id:
+            raise Error("not_found", description_code="storage_not_found")
+        if parent.status != "ready":
+            raise Error(
+                error="precondition_required",
+                description="Storage not ready",
+                description_code="storage_not_ready",
+            )
+
+        parent_args = {
+            "parent_path": parent.path,
+            "parent_type": parent.type,
+        }
+
+    if parent:
+        storage_pool = StoragePool.get_best_for_action("create", parent.directory_path)
+    else:
+        if request.get_json().get("user_id"):
+            storage_pool = StoragePool.get_by_user_kind(
+                request.get_json().get("user_id"),
+                storage_orig.type,
+            )
+
+        else:
+            storage_pool = StoragePool.get_best_for_action("create")
+
+    status_logs = storage_orig.status_logs
+    status_logs.append(
+        {"time": int(time.time()), "status": f"recreated from {storage_id}"}
+    )
+
+    storage = Storage(
+        status=storage_orig.status,
+        user_id=storage_orig.user_id,
+        type=storage_orig.type,
+        parent=storage_orig.parent,
+        directory_path=storage_orig.directory_path,
+        status_logs=status_logs,
+        perms=storage_orig.perms,
+    )
+
+    try:
+        storage_orig.create_task(
+            user_id=storage.user_id,
+            queue=f"storage.{storage_pool.id}.{priority}",
+            task="recreate",
+            job_kwargs={
+                "kwargs": {
+                    "original_path": storage_orig.path,
+                    "storage_path": storage.path,
+                    "storage_type": storage.type,
+                    **parent_args,
+                },
+            },
+            dependents=[
+                {
+                    "queue": f"storage.{storage_pool.id}.default",
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": storage.id,
+                            "storage_path": storage.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "update_status",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "statuses": {
+                                                "finished": (
+                                                    {
+                                                        "ready": {
+                                                            "storage": [storage.id],
+                                                        },
+                                                        "Stopped": {
+                                                            "domain": [domain_id],
+                                                        },
+                                                    }
+                                                    if domain_id
+                                                    else {
+                                                        "ready": {
+                                                            "storage": [storage.id],
+                                                        },
+                                                    }
+                                                ),
+                                            },
+                                        },
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                },
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error creating storage",
+        )
+
+    return (
+        json.dumps(
+            {
+                "old_id": storage_id,
+                "new_id": storage.id,
+            }
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
