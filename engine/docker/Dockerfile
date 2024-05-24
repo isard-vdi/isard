@@ -10,6 +10,7 @@ RUN apk add --no-cache \
     py3-flask \
     py3-pip \
     openssh-client \
+    libvirt-client \
     curl \
     sshpass \
     pciutils-libs \
