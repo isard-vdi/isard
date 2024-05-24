@@ -31,6 +31,7 @@ services:
       STATS_SSH_HOST:
       STATS_SSH_PORT:
       STATS_SSH_USER:
+      API_HYPERVISORS_SECRET:
       STATS_COLLECTORS_HYPERVISOR_ENABLE:
       STATS_COLLECTORS_DOMAIN_ENABLE:
       STATS_COLLECTORS_SYSTEM_ENABLE:
@@ -43,6 +44,11 @@ services:
       LOKI_ADDRESS:
       STATS_COLLECTORS_ISARDVDI_AUTHENTICATION_LOKI_ADDRESS:
       STATS_COLLECTORS_OCI_ENABLE:
+      TF_VAR_tenancy_ocid:
+      TF_VAR_user_ocid:
+      TF_VAR_fingerprint:
+      TF_VAR_region:
+      TF_VAR_private_key:
       STATS_COLLECTORS_CONNTRACK_ENABLE:
 
   isard-stats-node-exporter:
@@ -135,6 +141,8 @@ services:
     restart: "no"
     entrypoint: /run.sh
     environment:
+      FLAVOUR:
+      ENABLE_STATS:
       DOMAIN:
       PROMETHEUS_ADDRESS: "${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}"
       LOKI_ADDRESS: "${LOKI_ADDRESS:-http://isard-loki:3100}"
