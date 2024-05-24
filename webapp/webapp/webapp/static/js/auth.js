@@ -88,7 +88,7 @@ function setAjaxHeader() {
         url: "/api/v3",
         beforeSend: function (jqXHR, settings) {
             let sessionData = jwtDecode(sessionCookie)
-            if (new Date() > new Date(sessionData.exp * 1000)) {
+            if (new Date() > new Date((sessionData.exp - 30) * 1000)) {
                 renewSession(sessionCookie)
                 sessionCookie = getCookie('isardvdi_session')
             }

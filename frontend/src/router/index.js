@@ -460,7 +460,7 @@ router.beforeEach(async (to, from, next) => {
     } else {
       const sessionData = jwtDecode(session)
       // TODO: The session might not be expired but it could be revoked
-      if (new Date() > new Date(sessionData.exp * 1000)) {
+      if (new Date() > new Date((sessionData.exp - 30) * 1000)) {
         await store.dispatch('renew')
         session = store.getters.getSession
         if (session) {
