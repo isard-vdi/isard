@@ -207,7 +207,7 @@ class Notifier:
             logs.workers.error(
                 f"Failed to notify desktop {desktop_id} "
                 f'with message "{message_decoded}" with '
-                f'error "{err}"'
+                f'error "{error}"'
             )
 
     def cmd_windows(domain: virDomain, desktop_id: str, message):
