@@ -38,6 +38,7 @@ def storage_usage(categories=None):
             storage["media"] = (
                 r.table("media")
                 .get_all(r.args(categories), index="category")
+                .filter(r.row["status"].ne("deleted"))
                 .pluck({"progress": "total_bytes"})
                 .sum(lambda size: size["progress"]["total_bytes"].default(0))
                 .run(db.conn)
@@ -69,6 +70,7 @@ def storage_usage(categories=None):
         with app.app_context():
             storage["media"] = (
                 r.table("media")
+                .filter(r.row["status"].ne("deleted"))
                 .pluck({"progress": "total_bytes"})
                 .sum(lambda size: size["progress"]["total_bytes"].default(0))
                 .run(db.conn)
