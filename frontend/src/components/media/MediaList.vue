@@ -173,7 +173,7 @@
                   <b-button
                     v-if="!['DownloadFailed', 'DownloadFailedInvalidFormat'].includes(data.item.status) && data.item.kind === 'iso'"
                     class="rounded-circle px-2 mr-2 btn-green"
-                    :title="$t('views.media.buttons.new-desktop')"
+                    :title="$t('views.media.buttons.new-desktop.title')"
                     @click="onClickGoToNewFromMedia(data.item)"
                   >
                     <b-icon

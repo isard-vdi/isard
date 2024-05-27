@@ -1190,7 +1190,7 @@
         "not_enough_advanced_time": "No hi ha suficient antelació per iniciar l'escriptori",
         "one_viewer_minimum": "S'ha de seleccionar un visor com a mínim",
         "template_failed": "Degut a un error la plantilla no es pot fer servir per crear un nou escriptori, si us plau contacta amb l'administrador",
-        "desktop_storage_does_not_exist": "Degut a un error l'escriptori no es pot fer servir, si us plau contacta amb l'administrador",
+        "desktop_storage_does_not_exist": "A causa d'un error l'escriptori no es pot fer servir, si us plau esborra'l o contacta amb l'administrador",
         "media_invalid": "El fitxer descarregat no és un mitjà vàlid. Caldria esborrar-ho ja que no es pot fer servir",
         "desktop_storage_not_ready": "L'emmagatzematge de l'escriptori no està apunt",
         "unable_to_get_viewer_inexistent": "No s'ha pogut obtenir el visor d'un escriptori inexistent",
