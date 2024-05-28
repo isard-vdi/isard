@@ -13,9 +13,10 @@ import (
 
 type Session struct {
 	// ID is the session ID
-	ID     string       `json:"id"`
-	UserID string       `json:"user_id"`
-	Time   *SessionTime `json:"time"`
+	ID         string       `json:"id"`
+	UserID     string       `json:"user_id"`
+	RemoteAddr string       `json:"remote_addr"`
+	Time       *SessionTime `json:"time"`
 }
 
 // SessionTime contains all the information related with the lifespan of the session
@@ -28,11 +29,12 @@ type SessionTime struct {
 	ExpirationTime time.Time `json:"expiration_time"`
 }
 
-func NewSession(ctx context.Context, db redis.UniversalClient, userID string, time *SessionTime) (*Session, error) {
+func NewSession(ctx context.Context, db redis.UniversalClient, userID, RemoteAddr string, time *SessionTime) (*Session, error) {
 	s := &Session{
-		ID:     uuid.NewString(),
-		UserID: userID,
-		Time:   time,
+		ID:         uuid.NewString(),
+		UserID:     userID,
+		RemoteAddr: RemoteAddr,
+		Time:       time,
 	}
 
 	if err := s.Update(ctx, db); err != nil {

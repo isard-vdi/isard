@@ -28,6 +28,7 @@ func TestNew(t *testing.T) {
 	cases := map[string]struct {
 		PrepareRedis func(redismock.ClientMock)
 		UserID       string
+		RemoteAddr   string
 		CheckSession func(*model.Session)
 		ExpectedErr  string
 	}{
@@ -98,7 +99,8 @@ func TestNew(t *testing.T) {
 					return nil
 				}).ExpectSet(`user:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetVal("OK")
 			},
-			UserID: "7005e5a3-6eba-4247-a771-2a2d575cf349",
+			UserID:     "7005e5a3-6eba-4247-a771-2a2d575cf349",
+			RemoteAddr: "127.0.0.1",
 			CheckSession: func(sess *model.Session) {
 				_, err := uuid.Parse(sess.ID)
 				assert.NoError(err)
@@ -152,6 +154,7 @@ func TestNew(t *testing.T) {
 
 			},
 			UserID:      "05837779-35f8-4f17-a4a9-b0540cc0fe81",
+			RemoteAddr:  "127.0.0.1",
 			ExpectedErr: "create new session: save session: update: i'm really tired :(",
 		},
 	}
@@ -170,7 +173,7 @@ func TestNew(t *testing.T) {
 
 			s := sessions.Init(ctx, &log, cfg.Sessions, redis)
 
-			sess, err := s.New(ctx, tc.UserID)
+			sess, err := s.New(ctx, tc.UserID, tc.RemoteAddr)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
@@ -198,13 +201,15 @@ func TestRenew(t *testing.T) {
 	cases := map[string]struct {
 		PrepareRedis func(redismock.ClientMock)
 		SessionID    string
+		RemoteAddr   string
 		CheckTime    func(*model.SessionTime)
 		ExpectedErr  string
 	}{
 		"should return an error if the session has reached its max time": {
 			PrepareRedis: func(m redismock.ClientMock) {
 				sess := &model.Session{
-					ID: "hola Melina :)",
+					ID:         "hola Melina :)",
+					RemoteAddr: "127.0.0.1",
 					Time: &model.SessionTime{
 						MaxTime:        now.Add(-5 * time.Minute),
 						MaxRenewTime:   now.Add(30 * time.Second),
@@ -218,12 +223,14 @@ func TestRenew(t *testing.T) {
 				m.ExpectGet("session:hola Melina :)").SetVal(string(b))
 			},
 			SessionID:   "hola Melina :)",
+			RemoteAddr:  "127.0.0.1",
 			ExpectedErr: sessions.ErrMaxSessionTime.Error(),
 		},
 		"should set the renew time as the max time if the session has reached its max renew time surpasses its max time": {
 			PrepareRedis: func(m redismock.ClientMock) {
 				sess := &model.Session{
-					ID: "hola Néfix :)",
+					ID:         "hola Néfix :)",
+					RemoteAddr: "127.0.0.1",
 					Time: &model.SessionTime{
 						MaxTime:        now.Add(8 * time.Hour),
 						MaxRenewTime:   now.Add(7*time.Hour + 45*time.Minute),
@@ -268,7 +275,8 @@ func TestRenew(t *testing.T) {
 					return nil
 				}).ExpectSet(`session:`, nil, time.Until(now.Add(8*time.Hour))).SetVal("OK")
 			},
-			SessionID: "hola Néfix :)",
+			SessionID:  "hola Néfix :)",
+			RemoteAddr: "127.0.0.1",
 			CheckTime: func(sessTime *model.SessionTime) {
 				assert.True(sessTime.MaxTime.Before(now.Add(8*time.Hour + 1*time.Minute)))
 				assert.True(sessTime.MaxTime.After(now.Add(7*time.Hour + 59*time.Minute)))
@@ -296,7 +304,7 @@ func TestRenew(t *testing.T) {
 
 			s := sessions.Init(ctx, &log, cfg.Sessions, redis)
 
-			sessTime, err := s.Renew(ctx, tc.SessionID)
+			sessTime, err := s.Renew(ctx, tc.SessionID, tc.RemoteAddr)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

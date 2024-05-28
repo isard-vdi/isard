@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	pkgRedis "gitlab.com/isard/isardvdi/pkg/redis"
@@ -15,16 +16,18 @@ import (
 )
 
 var (
-	ErrSessionExpired   = errors.New("session expired")
-	ErrRenewTimeExpired = errors.New("renew time has expired")
-	ErrMaxSessionTime   = errors.New("max session time reached")
-	ErrMissingUserID    = errors.New("missing user ID")
+	ErrSessionExpired     = errors.New("session expired")
+	ErrRenewTimeExpired   = errors.New("renew time has expired")
+	ErrMaxSessionTime     = errors.New("max session time reached")
+	ErrMissingUserID      = errors.New("missing user ID")
+	ErrInvalidRemoteAddr  = errors.New("invalid remote address")
+	ErrRemoteAddrMismatch = errors.New("remote address mismatch")
 )
 
 type Interface interface {
-	New(ctx context.Context, userID string) (*model.Session, error)
-	Get(ctx context.Context, id string) (*model.Session, error)
-	Renew(ctx context.Context, id string) (*model.SessionTime, error)
+	New(ctx context.Context, userID string, remoteAddr string) (*model.Session, error)
+	Get(ctx context.Context, id string, remoteAddr string) (*model.Session, error)
+	Renew(ctx context.Context, id string, remoteAddr string) (*model.SessionTime, error)
 	Revoke(ctx context.Context, id string) error
 }
 
@@ -42,9 +45,14 @@ func Init(ctx context.Context, log *zerolog.Logger, cfg cfg.Sessions, redis redi
 	}
 }
 
-func (s *Sessions) New(ctx context.Context, userID string) (*model.Session, error) {
+func (s *Sessions) New(ctx context.Context, userID string, remoteAddr string) (*model.Session, error) {
 	if userID == "" {
 		return nil, ErrMissingUserID
+	}
+
+	parsedRemoteAddr := net.ParseIP(remoteAddr)
+	if parsedRemoteAddr == nil {
+		return nil, ErrInvalidRemoteAddr
 	}
 
 	now := time.Now()
@@ -68,7 +76,7 @@ func (s *Sessions) New(ctx context.Context, userID string) (*model.Session, erro
 		}
 	}
 
-	sess, err := model.NewSession(ctx, s.redis, userID, time)
+	sess, err := model.NewSession(ctx, s.redis, userID, parsedRemoteAddr.String(), time)
 	if err != nil {
 		return nil, fmt.Errorf("create new session: %w", err)
 	}
@@ -80,7 +88,7 @@ func (s *Sessions) New(ctx context.Context, userID string) (*model.Session, erro
 	return sess, nil
 }
 
-func (s *Sessions) Get(ctx context.Context, id string) (*model.Session, error) {
+func (s *Sessions) Get(ctx context.Context, id, remoteAddr string) (*model.Session, error) {
 	if id == "isardvdi-service" {
 		now := time.Now()
 		return &model.Session{
@@ -93,9 +101,20 @@ func (s *Sessions) Get(ctx context.Context, id string) (*model.Session, error) {
 		}, nil
 	}
 
+	parsedRemoteAddr := net.ParseIP(remoteAddr)
+	if parsedRemoteAddr == nil {
+		return nil, ErrInvalidRemoteAddr
+	}
+
 	sess := &model.Session{ID: id}
 	if err := sess.Load(ctx, s.redis); err != nil {
 		return nil, fmt.Errorf("load session: %w", err)
+	}
+
+	if s.Cfg.RemoteAddrControl {
+		if sess.RemoteAddr != parsedRemoteAddr.String() {
+			return nil, ErrRemoteAddrMismatch
+		}
 	}
 
 	if sess.Time.ExpirationTime.Before(time.Now()) {
@@ -105,10 +124,21 @@ func (s *Sessions) Get(ctx context.Context, id string) (*model.Session, error) {
 	return sess, nil
 }
 
-func (s *Sessions) Renew(ctx context.Context, id string) (*model.SessionTime, error) {
+func (s *Sessions) Renew(ctx context.Context, id, remoteAddr string) (*model.SessionTime, error) {
+	parsedRemoteAddr := net.ParseIP(remoteAddr)
+	if parsedRemoteAddr == nil {
+		return nil, ErrInvalidRemoteAddr
+	}
+
 	sess := &model.Session{ID: id}
 	if err := sess.Load(ctx, s.redis); err != nil {
 		return nil, fmt.Errorf("load session: %w", err)
+	}
+
+	if s.Cfg.RemoteAddrControl {
+		if sess.RemoteAddr != parsedRemoteAddr.String() {
+			return nil, ErrRemoteAddrMismatch
+		}
 	}
 
 	now := time.Now()
