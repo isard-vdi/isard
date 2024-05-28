@@ -122,6 +122,7 @@ def resource_count(categories=None):
             count["media"] = (
                 r.table("media")
                 .get_all(r.args(categories), index="category")
+                .filter(r.row["status"].ne("deleted"))
                 .count()
                 .run(db.conn)
             )
@@ -159,7 +160,12 @@ def resource_count(categories=None):
                 .count()
                 .run(db.conn)
             )
-            count["media"] = r.table("media").count().run(db.conn)
+            count["media"] = (
+                r.table("media")
+                .filter(r.row["status"].ne("deleted"))
+                .count()
+                .run(db.conn)
+            )
             count["users"] = r.table("users").count().run(db.conn)
             count["groups"] = r.table("groups").count().run(db.conn)
             count["deployments"] = r.table("deployments").count().run(db.conn)
