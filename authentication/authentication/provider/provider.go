@@ -7,8 +7,8 @@ import (
 	"regexp"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
-	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
+	"gitlab.com/isard/isardvdi/authentication/token"
 )
 
 const (

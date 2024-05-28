@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication"
-	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
+	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/golang-jwt/jwt/v5"

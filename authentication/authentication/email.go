@@ -9,8 +9,8 @@ import (
 	"path"
 	"time"
 
-	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
+	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
 )
 

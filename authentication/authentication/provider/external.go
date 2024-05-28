@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
-	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
+	"gitlab.com/isard/isardvdi/authentication/token"
 
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )

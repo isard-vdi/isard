@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"gitlab.com/isard/isardvdi/authentication/authentication/token"
+	"gitlab.com/isard/isardvdi/authentication/token"
 
 	"golang.org/x/oauth2"
 )
