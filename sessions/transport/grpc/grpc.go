@@ -48,12 +48,13 @@ func (s *SessionsServer) Serve(ctx context.Context) {
 
 func (s *SessionsServer) New(ctx context.Context, req *sessionsv1.NewRequest) (*sessionsv1.NewResponse, error) {
 	userID := req.GetUserId()
-	if userID == "" {
-		return nil, status.Error(codes.InvalidArgument, "missing user ID")
-	}
 
 	sess, err := s.sessions.New(ctx, userID)
 	if err != nil {
+		if errors.Is(err, sessions.ErrMissingUserID) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+
 		return nil, status.Error(codes.Internal, fmt.Errorf("create new session: %w", err).Error())
 	}
 

@@ -18,6 +18,7 @@ var (
 	ErrSessionExpired   = errors.New("session expired")
 	ErrRenewTimeExpired = errors.New("renew time has expired")
 	ErrMaxSessionTime   = errors.New("max session time reached")
+	ErrMissingUserID    = errors.New("missing user ID")
 )
 
 type Interface interface {
@@ -42,6 +43,10 @@ func Init(ctx context.Context, log *zerolog.Logger, cfg cfg.Sessions, redis redi
 }
 
 func (s *Sessions) New(ctx context.Context, userID string) (*model.Session, error) {
+	if userID == "" {
+		return nil, ErrMissingUserID
+	}
+
 	now := time.Now()
 	time := &model.SessionTime{
 		MaxTime:        now.Add(s.Cfg.MaxTime),
