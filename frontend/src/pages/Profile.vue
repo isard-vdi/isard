@@ -73,18 +73,18 @@
                               />
                               {{ $t('components.profile.change-email') }}
                             </b-button>
-                            <b-button
-                              class="rounded-pill mr-2 pl-2 pr-3 btn-green"
-                              :title="$t('components.profile.change-email')"
-                              @click="showResetVPNModalConfirmation()"
-                            >
-                              <b-icon
-                                icon="shield-fill"
-                                scale="0.75"
-                              />
-                              {{ $t('components.profile.reset-vpn') }}
-                            </b-button>
                           </template>
+                          <b-button
+                            class="rounded-pill mr-2 pl-2 pr-3 btn-green"
+                            :title="$t('components.profile.change-email')"
+                            @click="showResetVPNModalConfirmation()"
+                          >
+                            <b-icon
+                              icon="shield-fill"
+                              scale="0.75"
+                            />
+                            {{ $t('components.profile.reset-vpn') }}
+                          </b-button>
                           <span>
                             <b-button
                               v-if="profile.userStorage.tokenWeb !== false"
