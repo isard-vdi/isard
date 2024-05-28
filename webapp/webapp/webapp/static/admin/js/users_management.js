@@ -1277,12 +1277,10 @@ function actionsUserDetail(){
                         'Authorization': 'Bearer ' + data.jwt
                     },
                     success: function () {
+                        setAjaxHeader()
                         $.ajax({
                             type: "GET",
                             url: "/isard-admin/login",
-                            headers: {
-                                'Authorization': 'Bearer ' + data.jwt
-                            },
                             success: function () {
                                 window.location = "/Desktops"
                             }
