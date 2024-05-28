@@ -33,8 +33,10 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		}
 	}
 
-	// Get the provider and log in
+	// Get the provider
 	p := a.Provider(prv)
+
+	// Log in
 	g, u, redirect, lErr := p.Login(ctx, categoryID, args)
 	if lErr != nil {
 		a.Log.Info().Str("prv", p.String()).Err(lErr).Msg("login failed")
@@ -47,13 +49,43 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		return "", redirect, nil
 	}
 
-	// Remove weird characters from the user and group names
-	normalizeIdentity(g, u)
+	// Continue with the login process, passing the redirect path that has been
+	// requested by the user
+	return a.startLogin(ctx, remoteAddr, p, g, u, args[provider.RedirectArgsKey])
+}
 
+func (a *Authentication) Callback(ctx context.Context, ss string, args map[string]string, remoteAddr string) (string, string, error) {
+	claims, err := token.ParseCallbackToken(a.Secret, ss)
+	if err != nil {
+		return "", "", fmt.Errorf("parse callback state: %w", err)
+	}
+
+	// Get the provider
+	p := a.Provider(claims.Provider)
+
+	// Callback
+	g, u, redirect, cErr := p.Callback(ctx, claims, args)
+	if cErr != nil {
+		a.Log.Info().Str("prv", p.String()).Err(cErr).Msg("callback failed")
+
+		return "", "", fmt.Errorf("callback: %w", cErr)
+	}
+
+	if redirect == "" {
+		redirect = claims.Redirect
+	}
+
+	return a.startLogin(ctx, remoteAddr, p, g, u, redirect)
+}
+
+func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p provider.Provider, g *model.Group, u *model.User, redirect string) (string, string, error) {
 	uExists, err := u.Exists(ctx, a.DB)
 	if err != nil {
 		return "", "", fmt.Errorf("check if user exists: %w", err)
 	}
+
+	// Remove weird characters from the user and group names
+	normalizeIdentity(g, u)
 
 	if !uExists {
 		// Manual registration
@@ -63,7 +95,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 			a.Log.Info().Err(err).Str("usr", u.UID).Str("tkn", ss).Msg("register token signed")
 
-			return ss, "", err
+			return ss, redirect, err
 		}
 
 		// Automatic group registration!
@@ -85,48 +117,6 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		if err := a.registerUser(u); err != nil {
 			return "", "", fmt.Errorf("auto register user: %w", err)
 		}
-	}
-
-	return a.finishLogin(ctx, remoteAddr, u, args[provider.RedirectArgsKey])
-}
-
-func (a *Authentication) Callback(ctx context.Context, ss string, args map[string]string, remoteAddr string) (string, string, error) {
-	claims, err := token.ParseCallbackToken(a.Secret, ss)
-	if err != nil {
-		return "", "", fmt.Errorf("parse callback state: %w", err)
-	}
-
-	p := a.Provider(claims.Provider)
-
-	// TODO: Add autoregister for more providers?
-	_, u, redirect, cErr := p.Callback(ctx, claims, args)
-	if cErr != nil {
-		a.Log.Info().Str("prv", p.String()).Err(cErr).Msg("callback failed")
-
-		return "", "", fmt.Errorf("callback: %w", cErr)
-	}
-
-	exists, err := u.Exists(ctx, a.DB)
-	if err != nil {
-		return "", "", fmt.Errorf("check if user exists: %w", err)
-	}
-
-	if redirect == "" {
-		redirect = claims.Redirect
-	}
-
-	// Remove weird characters from the user name
-	normalizeIdentity(nil, u)
-
-	if !exists {
-		ss, err = token.SignRegisterToken(a.Secret, u)
-		if err != nil {
-			return "", "", err
-		}
-
-		a.Log.Info().Str("usr", u.UID).Str("tkn", ss).Msg("register token signed")
-
-		return ss, redirect, nil
 	}
 
 	return a.finishLogin(ctx, remoteAddr, u, redirect)
