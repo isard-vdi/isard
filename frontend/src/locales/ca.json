@@ -73,6 +73,9 @@
                     },
                     "allowed": {
                         "title": "Editar usuaris"
+                    },
+                    "co-owners": {
+                        "title": "Editar copropietaris"
                     }
                 }
             },
@@ -558,13 +561,19 @@
                     "make-visible": "Fer visible el desplegament '{name}'",
                     "make-invisible": "Fer invisible el desplegament '{name}'",
                     "download-csv": "Descarregar el CSV de visors directes de '{name}'",
-                    "delete": "Esborrar desplegament"
+                    "delete": "Esborrar desplegament",
+                    "co-owners": "Editar copropietari de '{name}'"
                 },
                 "body": {
                     "text": "Aquesta acció és irreversible i es perdran totes les dades associades.",
                     "send-to-recycle-bin": "Enviar desplegament a la paperera de reciclatge (l'emmagatzematge continuarà comptant a la quota d'usuari fins que s'esborri definitivament).",
                     "invisible-warning": "Hi ha {visible} escriptoris visibles i {invisible} invisibles en aquest desplegament. Si continueu, els farà tots invisibles per als usuaris.",
-                    "visible-warning": "Hi ha {visible} escriptoris visibles i {invisible} invisibles en aquest desplegament. Si continueu, els farà tots visibles per als usuaris."
+                    "visible-warning": "Hi ha {visible} escriptoris visibles i {invisible} invisibles en aquest desplegament. Si continueu, els farà tots visibles per als usuaris.",
+                    "co-owner-warning-delete": "Els copropietaris no poden esborrar desplegaments. Si us plau, contacta amb el propietari per esborrar aquest desplegament.",
+                    "warning-co-owner": "Com a co-propietari no estàs autoritzat a realitzar aquesta acció. Si us plau, contacta amb el propietari d'aquest desplegament.",
+                    "co-owners-warning": "AVÍS! Els usuaris establerts com a copropietaris tindran els mateixos permisos que el propietari, excepte per a canviar els propietaris i esborrar el desplegament.",
+                    "co-owners-label": "Copropietaris:",
+                    "owner-label": "Propietari: {owner}"
                 },
                 "option": {
                     "dont-stop-desktops": "Fer invisible aquest desplegament pels usuaris i permetre l'ús dels escriptoris fins que s'aturin",
@@ -579,7 +588,8 @@
                     "make-visible": "Fer visible",
                     "keep-csv": "Mantenir URLs i descarregar CSV",
                     "reset-csv": "Reestablir URLs i descarregar CSV",
-                    "delete": "Esborrar"
+                    "delete": "Esborrar",
+                    "co-owners": "Actualitzar copropietaris"
                 }
             }
         },

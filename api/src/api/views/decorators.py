@@ -362,11 +362,8 @@ def ownsDomainId(payload, domain_id):
 
     # User is advanced and the desktop is from one of its deployments
     if payload.get("role_id", "") == "advanced" and domain.get("tag", False):
-        with app.app_context():
-            if payload["user_id"] == r.table("deployments").get(domain["tag"]).pluck(
-                "user"
-            )["user"].run(db.conn):
-                return True
+        ownsDeploymentId(payload, domain["tag"])
+        return True
 
     # User is manager and the desktop is from its categories
     if payload["role_id"] == "manager":
@@ -408,13 +405,20 @@ def ownsMediaId(payload, media_id):
     )
 
 
-def ownsDeploymentId(payload, deployment_id):
+def ownsDeploymentId(payload, deployment_id, check_co_owners=True):
     if payload["role_id"] == "admin":
         return True
     with app.app_context():
         deployment = r.table("deployments").get(deployment_id).run(db.conn)
-    if deployment and deployment["user"] == payload["user_id"]:
-        return True
+    if check_co_owners:
+        if deployment and (
+            deployment["user"] == payload["user_id"]
+            or payload["user_id"] in deployment["co_owners"]
+        ):
+            return True
+    else:
+        if deployment and deployment["user"] == payload["user_id"]:
+            return True
     if payload["role_id"] == "manager":
         with app.app_context():
             deployment_category = (
@@ -427,7 +431,7 @@ def ownsDeploymentId(payload, deployment_id):
             return True
 
     raise Error(
-        "unauthorized",
+        "forbidden",
         "Not enough access rights to access this deployment_id " + str(deployment_id),
         traceback.format_exc(),
     )

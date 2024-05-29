@@ -56,7 +56,7 @@ quotas = Quotas()
 
 def lists(user_id):
     with app.app_context():
-        deployments = list(
+        deployments_owner = list(
             r.table("deployments")
             .get_all(user_id, index="user")
             .merge(
@@ -83,6 +83,36 @@ def lists(user_id):
             .without("create_dict")
             .run(db.conn)
         )
+        deployments_coowners = list(
+            r.table("deployments")
+            .get_all(user_id, index="co_owners")
+            .merge(
+                lambda deployment: {
+                    "totalDesktops": r.table("domains")
+                    .get_all(deployment["id"], index="tag")
+                    .count(),
+                    "startedDesktops": r.table("domains")
+                    .get_all(deployment["id"], index="tag")
+                    .filter({"status": "Started"})
+                    .count(),
+                    "visibleDesktops": r.table("domains")
+                    .get_all(deployment["id"], index="tag")
+                    .filter({"tag_visible": True})
+                    .count(),
+                    "description": deployment["create_dict"]["description"],
+                    "visible": deployment["create_dict"]["tag_visible"],
+                    "template": r.table("domains")
+                    .get(deployment["create_dict"]["template"])
+                    .default({"name": False})["name"],
+                    "desktop_name": deployment["create_dict"]["name"],
+                }
+            )
+            .without("create_dict")
+            .run(db.conn)
+        )
+        deployments = deployments_owner + deployments_coowners
+        deployments.sort(key=lambda x: x["name"].lower(), reverse=True)
+
     parsed_deployments = []
     for deployment in deployments:
         if not deployment["template"]:
@@ -237,6 +267,7 @@ def new(
     selected,
     new_data,
     deployment_id,
+    co_owners=[],
     visible=False,
 ):
     # CREATE_DEPLOYMENT
@@ -263,6 +294,7 @@ def new(
         "id": deployment_id,
         "name": name,
         "user": payload["user_id"],
+        "co_owners": co_owners,
     }
 
     users = get_selected_users(payload, selected, desktop_name, True)
@@ -846,3 +878,108 @@ def get_deployment_details_hardware(deployment_id):
             )
     hardware["hardware"]["memory"] = hardware["hardware"]["memory"] / 1048576
     return hardware
+
+
+def get_co_owners(deployment_id):
+    try:
+        with app.app_context():
+            deployment = r.table("deployments").get(deployment_id).run(db.conn)
+            return {
+                "owner": alloweds.get_allowed({"users": [deployment.get("user")]})[
+                    "users"
+                ][0],
+                "co_owners": alloweds.get_allowed(
+                    {"users": deployment.get("co_owners")}
+                )["users"],
+            }
+    except:
+        raise Error(
+            "not_found",
+            f"Not found deployment id to get co-owners: {deployment_id}",
+            description_code="not_found",
+        )
+
+
+def update_co_owners(deployment_id, co_owners: list):
+    try:
+        with app.app_context():
+            deployment = r.table("deployments").get(deployment_id).run(db.conn)
+    except:
+        raise Error(
+            "not_found",
+            f"Not found deployment id to update co-owners: {deployment_id}",
+            description_code="not_found",
+        )
+
+    try:
+        with app.app_context():
+            owner = deployment.get("user")
+            if owner in co_owners:
+                co_owners.remove(owner)
+
+            co_owners = (
+                r.table("users")
+                .get_all(r.args(co_owners))
+                .filter(lambda doc: doc["role"].ne("user"))
+                .pluck("id")
+                .map(lambda doc: doc["id"])
+                .coerce_to("array")
+                .run(db.conn)
+            )
+
+            r.table("deployments").get(deployment_id).update(
+                {"co_owners": co_owners}
+            ).run(db.conn)
+    except:
+        raise Error(
+            "internal_server",
+            f"Unable to update co-owners for deployment: {deployment_id}",
+            description_code="unable_to_update",
+        )
+
+
+def update_owner(deployment_id, owner_id):
+    try:
+        with app.app_context():
+            deployment = r.table("deployments").get(deployment_id).run(db.conn)
+    except:
+        raise Error(
+            "not_found",
+            f"Not found deployment id to update owner: {deployment_id}",
+            description_code="not_found",
+        )
+
+    if deployment.get("user") == owner_id:
+        raise Error(
+            "bad_request",
+            "Owner is already the same as the new owner",
+            description_code="already_owner",
+        )
+
+    with app.app_context():
+        if r.table("users").get(owner_id).pluck("role").run(db.conn)["role"] == "user":
+            raise Error(
+                "bad_request",
+                f"New owner for deployment {deployment_id} is a user",
+                description_code="new_owner_is_user",
+            )
+
+    try:
+        co_owners = deployment.get("co_owners")
+        if owner_id in deployment.get("co_owners"):
+            co_owners.remove(owner_id)
+        co_owners.append(deployment.get("user"))
+
+        with app.app_context():
+            r.table("deployments").get(deployment_id).update(
+                {
+                    "co_owners": co_owners,
+                    "user": owner_id,
+                }
+            ).run(db.conn)
+    except:
+        raise Error(
+            "internal_server",
+            f"Unable to update owner for deployment: {deployment_id}",
+            description_code="unable_to_update",
+        )

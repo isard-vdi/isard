@@ -119,6 +119,11 @@ def admin_table_list(
                 "username": r.table("users")
                 .get(deploy["user"])["username"]
                 .default(False),
+                "co_owners_usernames": r.expr(deploy["co_owners"]).map(
+                    lambda co_owner: r.table("users")
+                    .get(co_owner)["username"]
+                    .default(False),
+                ),
                 "how_many_desktops": r.table("domains")
                 .get_all(deploy["id"], index="tag")
                 .count()

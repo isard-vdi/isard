@@ -243,7 +243,9 @@ class DomainsThread(threading.Thread):
                                     "deploymentdesktop_delete",
                                     json.dumps(data),
                                     namespace="/userspace",
-                                    room=deployment["user"],
+                                    room=(
+                                        lambda x: (x.append(deployment["user"]), x)[1]
+                                    )(deployment["co_owners"]),
                                 )
                             elif event == "add":
                                 socketio.emit(
@@ -254,7 +256,9 @@ class DomainsThread(threading.Thread):
                                         )
                                     ),
                                     namespace="/userspace",
-                                    room=deployment["user"],
+                                    room=(
+                                        lambda x: (x.append(deployment["user"]), x)[1]
+                                    )(deployment["co_owners"]),
                                 )
 
                             if event == "update" or (
@@ -270,7 +274,9 @@ class DomainsThread(threading.Thread):
                                         )
                                     ),
                                     namespace="/userspace",
-                                    room=deployment["user"],
+                                    room=(
+                                        lambda x: (x.append(deployment["user"]), x)[1]
+                                    )(deployment["co_owners"]),
                                 )
 
                             # Event to deployment view (list of desktops)
@@ -278,7 +284,9 @@ class DomainsThread(threading.Thread):
                                 "deployments_update",
                                 json.dumps(deployment),
                                 namespace="/userspace",
-                                room=deployment["user"],
+                                room=(lambda x: (x.append(deployment["user"]), x)[1])(
+                                    deployment["co_owners"]
+                                ),
                             )
 
             except ReqlDriverError:

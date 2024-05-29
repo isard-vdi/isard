@@ -263,6 +263,9 @@
                     },
                     "allowed": {
                         "title": "Editar usuarios"
+                    },
+                    "co-owners": {
+                        "title": "Editar copropietarios"
                     }
                 }
             },
@@ -749,13 +752,19 @@
                     "make-visible": "Hacer que el despliegue '{name}' sea visible",
                     "make-invisible": "Hacer que el despliegue '{name}' sea invisible",
                     "download-csv": "Descargar CSV de visores directos de '{name}'",
-                    "delete": "Eliminar despliegue"
+                    "delete": "Eliminar despliegue",
+                    "co-owners": "Editar copropietarios de '{name}'"
                 },
                 "body": {
                     "text": "Esta acción es irreversible y se perderán todos los datos asociados.",
                     "send-to-recycle-bin": "Enviar despliegue a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente).",
-                    "invisible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en esta implementación. El procedimiento los hará todos invisibles para los usuarios.",
-                    "visible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en esta implementación. El procedimiento los hará todos invisibles para los usuarios."
+                    "invisible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en este despliegue. El procedimiento los hará todos invisibles para los usuarios.",
+                    "visible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en este despliegue. El procedimiento los hará todos invisibles para los usuarios.",
+                    "co-owner-warning-delete": "Los copropietarios no pueden eliminar despliegues. Por favor, contacta con el propietario para eliminar este despliegue.",
+                    "warning-co-owner": "Como copropietario no estás autorizado para realizar esta acción. Por favor, contacta con el propietario de este despliegue.",
+                    "co-owners-warning": "AVISO! Los usuarios establecidos como copropietarios tendrán los mismos permisos que el propietario, excepto para cambiar los propietarios y borrar el despliegue.",
+                    "co-owners-label": "Copropietarios:",
+                    "owner-label": "Propietario: {owner}"
                 },
                 "option": {
                     "dont-stop-desktops": "Hacer invisible este despliegue para los usuarios y permitir el uso de los escritorios hasta que se paren",
@@ -770,7 +779,8 @@
                     "make-visible": "Hacer visible",
                     "keep-csv": "Mantener URLs y descargar CSV",
                     "reset-csv": "Reestablecer URLs y descargar CSV",
-                    "delete": "Eliminar"
+                    "delete": "Eliminar",
+                    "co-owners": "Actualizar copropietarios"
                 }
             }
         },

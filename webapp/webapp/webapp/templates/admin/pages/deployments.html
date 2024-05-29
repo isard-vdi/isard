@@ -26,6 +26,7 @@
                      <th>Category(owner)</th>
                      <th>Group(owner)</th>
                      <th>Username(owner)</th>
+                     <th>Co-owners</th>
                      <th>Desktops</th>
                      <th>Running</th>
                      <th>Visible</th>
@@ -41,6 +42,8 @@
       </div>
    </div>
 </div>
+{% include '/admin/pages/deployments_modals.html' %}
+
 {% include '/snippets/alloweds_form.html' %}
 {% include '/admin/pages/deployments_detail.html' %}
 

@@ -19,9 +19,11 @@ from api import app
 from ..decorators import (
     allowedTemplateId,
     checkDuplicate,
+    is_admin_or_manager,
     is_not_user,
     ownsDeploymentId,
     ownsDomainId,
+    ownsUserId,
 )
 
 common = ApiDesktopsCommon()
@@ -79,7 +81,7 @@ def api_v3_deployments_new(payload):
 @app.route("/api/v3/deployments/<deployment_id>/<permanent>", methods=["DELETE"])
 @is_not_user
 def api_v3_deployments_delete(payload, deployment_id, permanent=False):
-    ownsDeploymentId(payload, deployment_id)
+    ownsDeploymentId(payload, deployment_id, check_co_owners=False)
     api_deployments.checkDesktopsStarted(deployment_id)
     deployment_delete(deployment_id, payload["user_id"], permanent)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
@@ -212,3 +214,46 @@ def api_v3_deployment_edit_users(payload, deployment_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/deployment/co-owners/<deployment_id>", methods=["GET"])
+@is_not_user
+def api_v3_deployment_get_co_owners(payload, deployment_id):
+    ownsDeploymentId(payload, deployment_id)
+    co_owners = api_deployments.get_co_owners(deployment_id)
+
+    return (
+        json.dumps(co_owners),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/deployment/co-owners/<deployment_id>", methods=["PUT"])
+@is_not_user
+def api_v3_deployment_update_co_owners(payload, deployment_id):
+    ownsDeploymentId(payload, deployment_id, check_co_owners=False)
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request", "Could not decode body data", description_code="bad_request"
+        )
+    data = _validate_item("co_owners", data)
+
+    api_deployments.update_co_owners(deployment_id, data.get("co_owners"))
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/deployment/owner/<deployment_id>/<user_id>", methods=["PUT"])
+@is_admin_or_manager
+def api_v3_deployment_change_owner(payload, deployment_id, user_id=False):
+    ownsUserId(payload, user_id)
+    ownsDeploymentId(payload, deployment_id, check_co_owners=False)
+
+    api_deployments.update_owner(deployment_id, user_id)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}

@@ -5,7 +5,7 @@
     size="lg"
     :title="title"
     centered
-    :hide-footer="modal.type !== 'delete'"
+    :hide-footer="modal.type !== 'delete' && modal.type !== 'coOwners'"
     :header-class="`bg-${modal.color}
     text-white`"
     @hidden="closeModal"
@@ -182,62 +182,100 @@
     </span>
     <span v-else-if="modal.type === 'delete'">
       <b-row
-        v-if="modal.type === 'delete'"
-        class="ml-2 my-2 pr-3"
+        v-if="!isOwner"
+        class="mx-2 my-2 text-danger"
       >
-        {{ $t('views.deployment.modal.body.text') }}
-      </b-row>
-      <b-row
-        v-if="modal.type === 'delete'"
-        class="ml-2 my-2 pr-3"
-      >
-        <b-col
-          v-if="maxTime !== 0"
-          cols="12"
+        <b-alert
+          show
+          variant="danger"
+          class="w-100"
         >
-          <b-form-checkbox
-            id="sendToRecycleBin"
-            v-model="sendToRecycleBin"
-            name="sendToRecycleBin"
-            :value="true"
-            :unchecked-value="false"
-          >
-            {{ $t('views.deployment.modal.body.send-to-recycle-bin') }}
-            <span
-              v-if="maxTime !== 'null'"
-            >{{ `${$t("components.statusbar.recycle-bins.max-time", { time: maxTime })}` }}</span>
-          </b-form-checkbox>
-        </b-col>
+          <span>
+            <b-icon
+              class="mr-2"
+              icon="exclamation-triangle-fill"
+            />
+            {{ $t('views.deployment.modal.body.co-owner-warning-delete') }}
+          </span>
+        </b-alert>
       </b-row>
+      <span v-else>
+        <b-row
+          v-if="modal.type === 'delete'"
+          class="ml-2 my-2 pr-3"
+        >
+          {{ $t('views.deployment.modal.body.text') }}
+        </b-row>
+        <b-row
+          v-if="modal.type === 'delete'"
+          class="ml-2 my-2 pr-3"
+        >
+          <b-col
+            v-if="maxTime !== 0"
+            cols="12"
+          >
+            <b-form-checkbox
+              id="sendToRecycleBin"
+              v-model="sendToRecycleBin"
+              name="sendToRecycleBin"
+              :value="true"
+              :unchecked-value="false"
+            >
+              {{ $t('views.deployment.modal.body.send-to-recycle-bin') }}
+              <span
+                v-if="maxTime !== 'null'"
+              >{{ `${$t("components.statusbar.recycle-bins.max-time", { time: maxTime })}` }}</span>
+            </b-form-checkbox>
+          </b-col>
+        </b-row>
+      </span>
+    </span>
+    <span v-else-if="modal.type === 'coOwners'">
+      <DeploymentCoOwnersForm />
     </span>
     <template
-      v-if="modal.type === 'delete'"
       #modal-footer
     >
-      <b-button
-        squared
-        class="float-right"
-        size="sm"
-        @click="closeModal"
-      >
-        {{ $t('forms.cancel') }}
-      </b-button>
-      <b-button
-        squared
-        variant="outline-danger"
-        size="sm"
-        @click="deleteDeployment"
-      >
-        {{ $t(`views.deployment.modal.confirmation.delete`) }}
-      </b-button>
+      <span class="d-flex justify-content-end">
+        <b-button
+          class="mr-2"
+          squared
+          size="sm"
+          @click="closeModal"
+        >
+          {{ $t('forms.cancel') }}
+        </b-button>
+        <b-button
+          v-if="modal.type === 'delete' && isOwner"
+          squared
+          variant="outline-danger"
+          size="sm"
+          @click="deleteDeployment"
+        >
+          {{ $t(`views.deployment.modal.confirmation.delete`) }}
+        </b-button>
+        <b-button
+          v-else-if="modal.type === 'coOwners' && isOwner"
+          squared
+          variant="green"
+          size="sm"
+          @click="updateCoOwners"
+        >
+          {{ $t(`views.deployment.modal.confirmation.co-owners`) }}
+        </b-button>
+      </span>
     </template>
   </b-modal>
 </template>
 <script>
 import { computed, ref } from '@vue/composition-api'
 import i18n from '@/i18n'
+import DeploymentCoOwnersForm from './DeploymentCoOwnersForm.vue'
 
 export default {
+  components: {
+    DeploymentCoOwnersForm
+  },
   setup (_, context) {
     const $store = context.root.$store
     const deployment = computed(() => $store.getters.getDeployment)
@@ -260,6 +298,8 @@ export default {
         return i18n.t('views.deployment.modal.title.download-csv', { name: modal.value.item.name })
       } else if (modal.value.type === 'delete') {
         return i18n.t('views.deployment.modal.title.delete', { name: modal.value.item.name })
+      } else if (modal.value.type === 'coOwners') {
+        return i18n.t('views.deployment.modal.title.co-owners', { name: modal.value.item.name })
       }
 
       return ''
@@ -288,6 +328,20 @@ export default {
       })
     }
 
+    const isOwner = () => {
+      $store.dispatch('fetchCoOwners', modal.value.item.id)
+      return $store.getters.getUser.user_id === $store.getters.getCoOwners.owner.id
+    }
+
+    const updateCoOwners = () => {
+      const selectedUsers = computed(() => $store.getters.getSelectedUsers)
+      const users = selectedUsers.value.map(user => user.id)
+
+      $store.dispatch('updateCoOwners', { id: modal.value.item.id, users: users }).then(() => {
+        closeModal()
+      })
+    }
+
     const desktopsVisible = computed(() => {
       return deployment.value.desktops.filter(d => d.visible).length
     })
@@ -305,10 +359,12 @@ export default {
       toggleVisibility,
       downloadDirectViewerCSV,
       deleteDeployment,
+      updateCoOwners,
       maxTime,
       sendToRecycleBin,
       desktopsVisible,
-      desktopsInvisible
+      desktopsInvisible,
+      isOwner
     }
   }
 }

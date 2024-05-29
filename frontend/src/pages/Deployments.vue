@@ -47,6 +47,16 @@
       <template #cell(actions)="data">
         <div class="d-flex align-items-center">
           <b-button
+            class="rounded-circle px-2 mr-2 btn-green"
+            :title="$t('components.statusbar.deployment.buttons.co-owners.title')"
+            @click="showOwnersModal(data.item)"
+          >
+            <b-icon
+              icon="person-fill"
+              scale="0.75"
+            />
+          </b-button>
+          <b-button
             class="rounded-circle btn btn-blue px-2 mr-2"
             :title="$t('components.statusbar.deployment.buttons.edit.title')"
             @click="editDeployment(data.item.id)"
@@ -156,6 +166,16 @@ export default {
       $store.dispatch('goToItemBooking', data)
     }
 
+    const showOwnersModal = (deployment) => {
+      $store.dispatch('fetchCoOwners', deployment.id)
+      $store.dispatch('updateDeploymentModal', {
+        show: true,
+        type: 'coOwners',
+        color: 'green',
+        item: { id: deployment.id, name: deployment.name }
+      })
+    }
+
     const fields = [
       {
         key: 'name',
@@ -221,6 +241,7 @@ export default {
       redirectDeployment,
       deleteDeployment,
       onClickBookingDesktop,
+      showOwnersModal,
       fields
     }
   },
