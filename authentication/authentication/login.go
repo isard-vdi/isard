@@ -13,7 +13,7 @@ import (
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 )
 
-func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args map[string]string) (string, string, error) {
+func (a *Authentication) Login(ctx context.Context, remoteAddr string, prv, categoryID string, args map[string]string) (string, string, error) {
 	// Check if the user sends a token
 	if args[provider.TokenArgsKey] != "" {
 		typ, err := token.GetTokenType(args[provider.TokenArgsKey])
@@ -23,13 +23,13 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 		switch typ {
 		case token.TypeRegister:
-			return a.finishRegister(ctx, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
+			return a.finishRegister(ctx, remoteAddr, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
 
 		case token.TypeDisclaimerAcknowledgementRequired:
-			return a.finishDisclaimerAcknowledgement(ctx, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
+			return a.finishDisclaimerAcknowledgement(ctx, remoteAddr, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
 
 		case token.TypePasswordResetRequired:
-			return a.finishPasswordReset(ctx, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
+			return a.finishPasswordReset(ctx, remoteAddr, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
 		}
 	}
 
@@ -87,10 +87,10 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		}
 	}
 
-	return a.finishLogin(ctx, u, args[provider.RedirectArgsKey])
+	return a.finishLogin(ctx, remoteAddr, u, args[provider.RedirectArgsKey])
 }
 
-func (a *Authentication) Callback(ctx context.Context, ss string, args map[string]string) (string, string, error) {
+func (a *Authentication) Callback(ctx context.Context, remoteAddr string, ss string, args map[string]string) (string, string, error) {
 	claims, err := token.ParseCallbackToken(a.Secret, ss)
 	if err != nil {
 		return "", "", fmt.Errorf("parse callback state: %w", err)
@@ -129,10 +129,10 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args map[strin
 		return ss, redirect, nil
 	}
 
-	return a.finishLogin(ctx, u, redirect)
+	return a.finishLogin(ctx, remoteAddr, u, redirect)
 }
 
-func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirect string) (string, string, error) {
+func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *model.User, redirect string) (string, string, error) {
 	// Check if the user is disabled
 	if !u.Active {
 		return "", "", provider.ErrUserDisabled
@@ -199,7 +199,8 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 
 	// Create the session
 	sess, err := a.Sessions.New(ctx, &sessionsv1.NewRequest{
-		UserId: u.ID,
+		UserId:     u.ID,
+		RemoteAddr: remoteAddr,
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("create the session: %w", err)
@@ -215,7 +216,7 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 	return ss, redirect, nil
 }
 
-func (a *Authentication) finishRegister(ctx context.Context, ss, redirect string) (string, string, error) {
+func (a *Authentication) finishRegister(ctx context.Context, remoteAddr, ss, redirect string) (string, string, error) {
 	claims, err := token.ParseRegisterToken(a.Secret, ss)
 	if err != nil {
 		return "", "", err
@@ -234,7 +235,7 @@ func (a *Authentication) finishRegister(ctx context.Context, ss, redirect string
 		return "", "", fmt.Errorf("load user from db: %w", err)
 	}
 
-	ss, redirect, err = a.finishLogin(ctx, u, redirect)
+	ss, redirect, err = a.finishLogin(ctx, remoteAddr, u, redirect)
 	if err != nil {
 		return "", "", err
 	}
@@ -244,7 +245,7 @@ func (a *Authentication) finishRegister(ctx context.Context, ss, redirect string
 	return ss, redirect, nil
 }
 
-func (a *Authentication) finishDisclaimerAcknowledgement(ctx context.Context, ss, redirect string) (string, string, error) {
+func (a *Authentication) finishDisclaimerAcknowledgement(ctx context.Context, remoteAddr, ss, redirect string) (string, string, error) {
 	claims, err := token.ParseDisclaimerAcknowledgementRequiredToken(a.Secret, ss)
 	if err != nil {
 		return "", "", err
@@ -255,10 +256,10 @@ func (a *Authentication) finishDisclaimerAcknowledgement(ctx context.Context, ss
 		return "", "", fmt.Errorf("load user from db: %w", err)
 	}
 
-	return a.finishLogin(ctx, u, redirect)
+	return a.finishLogin(ctx, remoteAddr, u, redirect)
 }
 
-func (a *Authentication) finishPasswordReset(ctx context.Context, ss, redirect string) (string, string, error) {
+func (a *Authentication) finishPasswordReset(ctx context.Context, remoteAddr, ss, redirect string) (string, string, error) {
 	claims, err := token.ParsePasswordResetRequiredToken(a.Secret, ss)
 	if err != nil {
 		return "", "", err
@@ -269,5 +270,5 @@ func (a *Authentication) finishPasswordReset(ctx context.Context, ss, redirect s
 		return "", "", fmt.Errorf("load user from db: %w", err)
 	}
 
-	return a.finishLogin(ctx, u, redirect)
+	return a.finishLogin(ctx, remoteAddr, u, redirect)
 }

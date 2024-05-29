@@ -34,6 +34,7 @@ func TestLogin(t *testing.T) {
 		PrepareAPI      func(*apiMock.Client)
 		PrepareSessions func(*grpcmock.Server)
 
+		RemoteAddr  string
 		Provider    string
 		CategoryID  string
 		PrepareArgs func() map[string]string
@@ -113,7 +114,8 @@ func TestLogin(t *testing.T) {
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
-					UserId: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					UserId:     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					RemoteAddr: "127.0.0.1",
 				}).Return(&sessionsv1.NewResponse{
 					Id: "ThoJuroQueEsUnID",
 					Time: &sessionsv1.NewResponseTime{
@@ -123,6 +125,7 @@ func TestLogin(t *testing.T) {
 					},
 				})
 			},
+			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
 			PrepareArgs: func() map[string]string {
@@ -198,7 +201,8 @@ func TestLogin(t *testing.T) {
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
-					UserId: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					UserId:     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					RemoteAddr: "127.0.0.1",
 				}).Return(&sessionsv1.NewResponse{
 					Id: "ThoJuroQueEsUnID",
 					Time: &sessionsv1.NewResponseTime{
@@ -208,6 +212,7 @@ func TestLogin(t *testing.T) {
 					},
 				})
 			},
+			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
 			PrepareArgs: func() map[string]string {
@@ -285,7 +290,8 @@ func TestLogin(t *testing.T) {
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
-					UserId: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					UserId:     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					RemoteAddr: "127.0.0.1",
 				}).Return(&sessionsv1.NewResponse{
 					Id: "ThoJuroQueEsUnID",
 					Time: &sessionsv1.NewResponseTime{
@@ -295,6 +301,7 @@ func TestLogin(t *testing.T) {
 					},
 				})
 			},
+			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
 			PrepareArgs: func() map[string]string {
@@ -331,6 +338,7 @@ func TestLogin(t *testing.T) {
 					r.Eq(r.Row.Field("category"), "default"),
 				), r.FilterOpts{})).Return([]interface{}{}, nil)
 			},
+			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
 			PrepareArgs: func() map[string]string {
@@ -366,6 +374,7 @@ func TestLogin(t *testing.T) {
 					},
 				}, nil)
 			},
+			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
 			PrepareArgs: func() map[string]string {
@@ -401,6 +410,7 @@ func TestLogin(t *testing.T) {
 					},
 				}, nil)
 			},
+			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
 			PrepareArgs: func() map[string]string {
@@ -500,6 +510,7 @@ func TestLogin(t *testing.T) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
 			},
+			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
 			PrepareArgs: func() map[string]string {
@@ -564,6 +575,7 @@ func TestLogin(t *testing.T) {
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
 			},
+			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
 			PrepareArgs: func() map[string]string {
@@ -632,7 +644,7 @@ func TestLogin(t *testing.T) {
 			a := authentication.Init(cfg, log, dbMock, nil, nil, sessionsCli)
 			a.API = apiMock
 
-			tkn, redirect, err := a.Login(ctx, tc.Provider, tc.CategoryID, tc.PrepareArgs())
+			tkn, redirect, err := a.Login(ctx, tc.RemoteAddr, tc.Provider, tc.CategoryID, tc.PrepareArgs())
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

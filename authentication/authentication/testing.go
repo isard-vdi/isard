@@ -21,22 +21,22 @@ type AuthenticationMock struct {
 	AuthProvider provider.Provider
 }
 
-func (m *AuthenticationMock) Login(ctx context.Context, provider string, categoryID string, args map[string]string) (string, string, error) {
+func (m *AuthenticationMock) Login(ctx context.Context, remoteAddr string, provider string, categoryID string, args map[string]string) (string, string, error) {
 	mArgs := m.Called(ctx, provider, categoryID, args)
 	return mArgs.String(0), mArgs.String(1), mArgs.Error(2)
 }
 
-func (m *AuthenticationMock) Callback(ctx context.Context, tkn string, args map[string]string) (string, string, error) {
-	mArgs := m.Called(ctx, tkn, args)
+func (m *AuthenticationMock) Callback(ctx context.Context, remoteAddr string, tkn string, args map[string]string) (string, string, error) {
+	mArgs := m.Called(ctx, remoteAddr, tkn, args)
 	return mArgs.String(0), mArgs.String(1), mArgs.Error(2)
 }
 
-func (m *AuthenticationMock) Check(ctx context.Context, tkn string) error {
-	mArgs := m.Called(ctx, tkn)
+func (m *AuthenticationMock) Check(ctx context.Context, remoteAddr string, tkn string) error {
+	mArgs := m.Called(ctx, remoteAddr, tkn)
 	return mArgs.Error(0)
 }
 
-func (m *AuthenticationMock) Renew(ctx context.Context, ss string) (string, error) {
+func (m *AuthenticationMock) Renew(ctx context.Context, remoteAddr string, ss string) (string, error) {
 	mArgs := m.Called(ctx, ss)
 	return mArgs.String(0), mArgs.Error(1)
 }

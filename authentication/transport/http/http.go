@@ -65,7 +65,10 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	oas, err := oasAuthentication.NewServer(
 		a,
 		sec,
-		oasAuthentication.WithMiddleware(Logging(log)),
+		oasAuthentication.WithMiddleware(
+			RequestMetada,
+			Logging(log),
+		),
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("create the OpenAPI authentication server")
@@ -234,6 +237,9 @@ func (a *AuthenticationServer) logoutSAML(w http.ResponseWriter, r *http.Request
 }
 
 func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.OptLoginRequestMultipart, params oasAuthentication.LoginParams) (oasAuthentication.LoginRes, error) {
+	// Remote address is injected in the RequestMetadata middleware
+	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
+
 	args := map[string]string{}
 
 	// Token provided in the Authorization header
@@ -295,7 +301,7 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		}
 	}
 
-	tkn, redirect, err := a.Authentication.Login(ctx, p.String(), params.CategoryID, args)
+	tkn, redirect, err := a.Authentication.Login(ctx, remoteAddr, p.String(), params.CategoryID, args)
 	if err != nil {
 		if errors.Is(err, provider.ErrInvalidCredentials) {
 			return &oasAuthentication.LoginUnauthorized{
@@ -358,6 +364,9 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 }
 
 func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentication.CallbackParams) (oasAuthentication.CallbackRes, error) {
+	// Remote address is injected in the RequestMetadata middleware
+	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
+
 	args := map[string]string{}
 
 	// OAuth2
@@ -379,7 +388,7 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 		})
 	}
 
-	tkn, redirect, err := a.Authentication.Callback(ctx, params.State, args)
+	tkn, redirect, err := a.Authentication.Callback(ctx, remoteAddr, params.State, args)
 	if err != nil {
 		if errors.Is(err, provider.ErrUserDisabled) {
 			return &oasAuthentication.CallbackFound{
@@ -424,6 +433,9 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 }
 
 func (a *AuthenticationServer) Renew(ctx context.Context, req *oasAuthentication.RenewRequest) (oasAuthentication.RenewRes, error) {
+	// Remote address is injected in the RequestMetadata middleware
+	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
+
 	ss, ok := ctx.Value(tokenCtxKey).(string)
 	if !ok {
 		return &oasAuthentication.RenewUnauthorized{
@@ -432,7 +444,7 @@ func (a *AuthenticationServer) Renew(ctx context.Context, req *oasAuthentication
 		}, nil
 	}
 
-	tkn, err := a.Authentication.Renew(ctx, ss)
+	tkn, err := a.Authentication.Renew(ctx, remoteAddr, ss)
 	if err != nil {
 		if status, ok := status.FromError(err); ok {
 			switch status.Code() {
@@ -524,6 +536,9 @@ func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthenticatio
 }
 
 func (a *AuthenticationServer) Check(ctx context.Context) (oasAuthentication.CheckRes, error) {
+	// Remote address is injected in the RequestMetadata middleware
+	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
+
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
 	if !ok {
 		return &oasAuthentication.CheckUnauthorized{
@@ -532,7 +547,7 @@ func (a *AuthenticationServer) Check(ctx context.Context) (oasAuthentication.Che
 		}, nil
 	}
 
-	if err := a.Authentication.Check(ctx, tkn); err != nil {
+	if err := a.Authentication.Check(ctx, remoteAddr, tkn); err != nil {
 		if !errors.Is(err, token.ErrInvalidToken) || !errors.Is(err, token.ErrInvalidTokenType) {
 			return nil, fmt.Errorf("check JWT: %w", err)
 		}

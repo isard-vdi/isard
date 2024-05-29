@@ -22,10 +22,10 @@ type Interface interface {
 	Providers() []string
 	Provider(provider string) provider.Provider
 
-	Login(ctx context.Context, provider string, categoryID string, args map[string]string) (tkn, redirect string, err error)
-	Callback(ctx context.Context, ss string, args map[string]string) (tkn, redirect string, err error)
-	Check(ctx context.Context, tkn string) error
-	Renew(ctx context.Context, ss string) (tkn string, err error)
+	Login(ctx context.Context, remoteAddr string, provider string, categoryID string, args map[string]string) (tkn, redirect string, err error)
+	Callback(ctx context.Context, remoteAddr string, ss string, args map[string]string) (tkn, redirect string, err error)
+	Check(ctx context.Context, remoteAddr string, tkn string) error
+	Renew(ctx context.Context, remoteAddr string, ss string) (tkn string, err error)
 	Logout(ctx context.Context, tkn string) (err error)
 	// Register()
 
@@ -137,7 +137,7 @@ func (a *Authentication) check(ctx context.Context, ss string) (*token.LoginClai
 	return claims, nil
 }
 
-func (a *Authentication) Check(ctx context.Context, ss string) error {
+func (a *Authentication) Check(ctx context.Context, remoteAddr, ss string) error {
 	_, err := a.check(ctx, ss)
 	return err
 }

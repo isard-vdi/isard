@@ -31,12 +31,14 @@ func TestRenew(t *testing.T) {
 		PrepareSessions func(*grpcmock.Server)
 		PrepareToken    func() string
 		CheckToken      func(string)
+		RemoteAddr      string
 		ExpectedErr     string
 	}{
 		"should work as expected": {
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/Renew").WithPayload(&sessionsv1.RenewRequest{
-					Id: "ThoJuroQueEsUnID",
+					Id:         "ThoJuroQueEsUnID",
+					RemoteAddr: "127.0.0.1",
 				}).Return(&sessionsv1.RenewResponse{
 					Time: &sessionsv1.RenewResponseTime{
 						MaxTime:        timestamppb.New(now.Add(time.Hour)),
@@ -67,6 +69,7 @@ func TestRenew(t *testing.T) {
 
 				return ss
 			},
+			RemoteAddr: "127.0.0.1",
 			CheckToken: func(ss string) {
 				claims, err := token.ParseLoginToken("", ss)
 				assert.NoError(err)
@@ -118,7 +121,7 @@ func TestRenew(t *testing.T) {
 
 			a := authentication.Init(cfg, log, nil, nil, nil, sessionsCli)
 
-			tkn, err := a.Renew(context.Background(), tc.PrepareToken())
+			tkn, err := a.Renew(context.Background(), tc.RemoteAddr, tc.PrepareToken())
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

@@ -26,6 +26,7 @@ func TestCheck(t *testing.T) {
 	cases := map[string]struct {
 		PrepareToken    func() string
 		PrepareSessions func(*grpcmock.Server)
+		RemoteAddr      string
 		ExpectedErr     string
 	}{
 		"should work if the token is a valid login token": {
@@ -54,6 +55,7 @@ func TestCheck(t *testing.T) {
 					Id: "ThoJuroQueEsUnID",
 				}).Return(&sessionsv1.GetResponse{})
 			},
+			RemoteAddr: "127.0.0.1",
 		},
 		"should return an error if the token is invalid": {
 			PrepareToken: func() string {
@@ -76,6 +78,7 @@ func TestCheck(t *testing.T) {
 
 				return ss
 			},
+			RemoteAddr:  "127.0.0.1",
 			ExpectedErr: "error parsing the JWT token: token has invalid claims: token is expired",
 		},
 		"should return an error if the token is not of type login": {
@@ -85,6 +88,7 @@ func TestCheck(t *testing.T) {
 
 				return ss
 			},
+			RemoteAddr:  "127.0.0.1",
 			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
 		},
 	}
@@ -113,7 +117,7 @@ func TestCheck(t *testing.T) {
 
 			a := authentication.Init(cfg, log, nil, nil, nil, sessionsCli)
 
-			err = a.Check(ctx, tc.PrepareToken())
+			err = a.Check(ctx, tc.RemoteAddr, tc.PrepareToken())
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
