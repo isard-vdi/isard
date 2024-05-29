@@ -6,9 +6,9 @@ import { getCookie } from 'tiny-cookie'
 export default {
   actions: {
     openSocket (context, { jwt, room }) {
-      if (!socket.connected) {
+      if (!socket.connected || jwt) {
         const sessionCookie = getCookie(sessionCookieName)
-        socket.auth.jwt = sessionCookie || jwt
+        socket.auth.jwt = jwt || sessionCookie
         socket.io.opts.query = {
           room
         }
