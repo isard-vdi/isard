@@ -125,5 +125,6 @@ func (s *SessionsServer) Revoke(ctx context.Context, req *sessionsv1.RevokeReque
 
 		return nil, status.Error(codes.Internal, fmt.Errorf("revoke session: %w", err).Error())
 	}
+
 	return &sessionsv1.RevokeResponse{}, nil
 }
