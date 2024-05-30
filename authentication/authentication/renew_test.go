@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
 	"gitlab.com/isard/isardvdi/authentication/authentication"
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
@@ -17,6 +16,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
 	"go.nhat.io/grpcmock"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -35,7 +35,7 @@ func TestRenew(t *testing.T) {
 	}{
 		"should work as expected": {
 			PrepareSessions: func(s *grpcmock.Server) {
-				s.ExpectUnary("/sessions.v1.SessionsService/Renew").WithPayload(&sessionsv1.GetRequest{
+				s.ExpectUnary("/sessions.v1.SessionsService/Renew").WithPayload(&sessionsv1.RenewRequest{
 					Id: "ThoJuroQueEsUnID",
 				}).Return(&sessionsv1.RenewResponse{
 					Time: &sessionsv1.RenewResponseTime{
