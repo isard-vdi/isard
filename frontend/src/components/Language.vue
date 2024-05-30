@@ -34,7 +34,8 @@ export default {
         eu: 'Euskara',
         fr: 'Français',
         pl: 'Polski',
-        ru: 'Русский'
+        ru: 'Русский',
+        ko: 'Korean'
       }
     }
   },

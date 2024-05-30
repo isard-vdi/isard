@@ -132,6 +132,7 @@ class Populate(object):
             "analytics",
             "notification_tmpls",
             "system_events",
+            # "recycle_bin_archive",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -1921,3 +1922,14 @@ class Populate(object):
             ).run(self.conn)
         except Exception as e:
             log.error(e)
+
+    """
+    RECYCLE BIN ARCHIVE
+    """
+
+    # def recycle_bin_archive(self):
+    #     try:
+    #         log.info("Table recycle_bin_archive not found, creating...")
+    #         r.table_create("recycle_bin_archive", primary_key="id").run(self.conn)
+    #     except Exception as e:
+    #         log.error(e)

@@ -5,7 +5,7 @@
         "minLengthValue": "El campo {property} es de {model} caracteres, el minimo es {min}.",
         "maxLengthValue": "El campo {property} es de {model} caracteres, el máximo es {max}.",
         "inputFormat": "Los caracteres validos son letras, numeros, coma, punto, -, _",
-        "URLFormat": "Debe comenzar con \"https://\"",
+        "URLFormat": "Debe comenzar con \"https://\".",
         "url": "El campo {property} debe ser una dirección web.",
         "undefined": "No definido",
         "email": "El campo {property} debe ser una dirección de correo electrónico válida."
@@ -37,7 +37,7 @@
                     "placeholder": "Confirma la contraseña"
                 },
                 "current-password": {
-                    "label": "Introduce tu contraseña actual",
+                    "label": "Introduce tu contraseña actual:",
                     "placeholder": "Contraseña actual"
                 },
                 "buttons": {
@@ -157,7 +157,7 @@
                 "memory": "Memoria (GB)",
                 "videos": "Videos",
                 "boot": "Boot",
-                "disk-bus": "Disk Bus",
+                "disk-bus": "Bus de disco",
                 "interfaces": "Redes",
                 "disk-size": "Tamaño del disco (GB)"
             },
@@ -168,7 +168,7 @@
             "media": {
                 "title": "Media",
                 "isos": "Isos",
-                "floppies": "Floppies",
+                "floppies": "Disquetes",
                 "placeholder": "Escribe almenos 2 carácteres para buscar."
             },
             "image": {
@@ -751,7 +751,7 @@
                 },
                 "body": {
                     "text": "Esta acción es irreversible y se perderán todos los datos asociados.",
-                    "send-to-recycle-bin": "Enviar despliegue a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente)",
+                    "send-to-recycle-bin": "Enviar despliegue a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente).",
                     "invisible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en esta implementación. El procedimiento los hará todos invisibles para los usuarios.",
                     "visible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en esta implementación. El procedimiento los hará todos invisibles para los usuarios."
                 },
@@ -821,14 +821,14 @@
                     "client-required": "pero otros sistemas operativos podrían requerir la instalación de un aplicativo externo. Consulta las instrucciones de instalación:",
                     "download-install": "Descarga de software de visores",
                     "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.es/",
-                    "once-installed": "Después de la instalación,  haz clic en el botón «RDP», y se descargará el archivo del escritorio virtual.",
+                    "once-installed": "Después de la instalación, haz clic en el botón 'RDP', que descargará el archivo del escritorio virtual.",
                     "close-guide": "Cerrar la guía"
                 }
             },
             "reset-modal": {
                 "title": "Reiniciar escritorio",
                 "option": {
-                    "reset-desktop": "Forzar un reinicio del escritorio es una acción peligrosa. Es el equivalente a quitarle la corriente mientras está en marcha. Si puedes, páralo desde dentro de un visor"
+                    "reset-desktop": "Forzar un reinicio del escritorio es una acción peligrosa. Es el equivalente a quitarle la corriente mientras está en marcha. Si puedes, páralo desde dentro de un visor."
                 },
                 "confirmation": {
                     "reset-desktop": "Forzar reinicio del escritorio"
@@ -1141,7 +1141,7 @@
             "go-to-profile": "Ver cuota",
             "go-to-bookings": "Reservar escritorio",
             "change-desktop-gpu": "Modificar el perfil del escritorio",
-            "reset-vpn": "Reestablecer claves de VPN? Se tendrá que descargar un nuevo archivo VPN"        
+            "reset-vpn": "Reestablecer claves de VPN? Se tendrá que descargar un nuevo archivo VPN"
         },
         "ok": "De acuerdo",
         "yes": "Si",

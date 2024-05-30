@@ -121,7 +121,6 @@
                 "increase": "La mida del disc d'aquest escriptori s'està incrementant",
                 "virt-win-reg": "S'està editant el registre",
                 "move": "El disc d'aquest escriptori s'està movent"
-
             },
             "actions": {
                 "delete": "Esborrar",
@@ -745,7 +744,8 @@
                 "downloaded": "Descarregat",
                 "deleting": "Esborrant",
                 "maintenance": "Manteniment",
-                "downloadfailedinvalidformat": "Format no vàlid"
+                "downloadfailedinvalidformat": "Format no vàlid",
+                "downloadaborting": "Cancel·lant la descàrrega"
             },
             "delete-media": {
                 "title": "Esborrar mitjà",
@@ -924,7 +924,8 @@
         "inputFormat": "Els caràcters vàlids són lletres, digits, coma, punt, - i _",
         "URLFormat": "Ha de començar amb \"https://\".",
         "url": "El camp {property} ha de ser una adreça web.",
-        "undefined": "No definit"
+        "undefined": "No definit",
+        "email": "El camp {property} ha de ser una adreça de correu vàlida."
     },
     "forms": {
         "allowed": {
@@ -1131,7 +1132,7 @@
         "media_should_not_be_downloading": "El mitjà no s'ha d'estar descarregant",
         "media_url_not_found": "L'adreça introduïda no s'ha trobat",
         "media_url_not_valid": "L'adreça introduïda no és vàlida",
-        "media_url_bad_format": "El format de la adreça introduïda no és vàlid",
+        "media_url_bad_format": "El format de l'adreça introduïda no és vàlid",
         "group_total_size_limit_exceeded": "S'ha excedit el límit de mida del disc del grup",
         "category_total_size_limit_exceeded": "S'ha excedit el límit de mida del disc de la categoria",
         "total_size_quota_exceeded": "Has excedit la teva quota de mida de disc. Cal que elimins un escriptori, una plantilla o un mitjà per tal d'alliberar espai.",
@@ -1229,7 +1230,8 @@
         "user_not_found": "No existeix cap usuari amb el correu electrònic proporcionat",
         "invalid_token": "Token no vàlid",
         "old_passwords": "L'última contrasenya no pot ser cap de les últimes {num} contrasenyes",
-        "no_storage_pool_available": "En aquest moment no està disponible la creació de recursos. Esperi uns minuts i torni-ho a provar."
+        "no_storage_pool_available": "En aquest moment no està disponible la creació de recursos. Esperi uns minuts i torni-ho a provar.",
+        "unable_to_get_domain_jumperurl": "No s'ha pogut obtenir l'enllaç del visor directe perquè el domini no existeix"
     },
     "messages": {
         "title": {
@@ -1254,7 +1256,7 @@
             "go-to-profile": "Veure quota",
             "go-to-bookings": "Reservar escriptori",
             "change-desktop-gpu": "Modificar el perfil de l'escriptori",
-            "reset-vpn": "Restablir les claus VPN? S'haurà de descarregar un nou fitxer VPN"   
+            "reset-vpn": "Restablir les claus VPN? S'haurà de descarregar un nou fitxer VPN"
         },
         "ok": "D'acord",
         "yes": "Sí",
