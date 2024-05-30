@@ -493,6 +493,18 @@ class Actions:
         max_delete_period = int(kwargs.get("max_delete_period"))
         api_client.put("/recycle_bin/delete/", {"max_delete_period": max_delete_period})
 
+    # def recycle_bin_old_entries_action_archive(**kwargs):
+    #     return []
+
+    # def recycle_bin_old_entries_action_archive(**kwargs):
+    #     api_client.put("/recycle_bin/old_entries/archive")
+
+    def recycle_bin_old_entries_action_delete_kwargs(**kwargs):
+        return []
+
+    def recycle_bin_old_entries_action_delete(**kwargs):
+        api_client.put("/recycle_bin/old_entries/delete")
+
     def wait_desktops_to_do_storage_action_kwargs(**kwargs):
         return []
 

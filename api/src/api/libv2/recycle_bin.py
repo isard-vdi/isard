@@ -890,6 +890,62 @@ class RecycleBin(object):
             return results
 
     @classmethod
+    def set_old_entries_max_time(cls, max_time):
+        with app.app_context():
+            r.table("config").update(
+                {"recycle_bin": {"old_entries": {"max_time": max_time}}}
+            ).run(db.conn)
+            pass
+
+    @classmethod
+    def set_old_entries_action(cls, action):
+        with app.app_context():
+            if action == "none":
+                r.table("config").replace(
+                    r.row.without({"recycle_bin": "old_entries"})
+                ).run(db.conn)
+            else:
+                r.table("config").update(
+                    {"recycle_bin": {"old_entries": {"action": action}}}
+                ).run(db.conn)
+
+    @classmethod
+    def get_old_entries_config(cls):
+        with app.app_context():
+            try:
+                return r.table("config")[0]["recycle_bin"]["old_entries"].run(db.conn)
+            except r.ReqlNonExistenceError:
+                return {"max_time": None, "action": None}
+
+    @classmethod
+    def check_older_than_old_entry_max_time(cls, last):
+        max_time_config = cls.get_old_entries_config()["max_time"]
+        if max_time_config is None:
+            return False
+        else:
+            max_time_hours = int(max_time_config)
+            return last < (datetime.now() - timedelta(hours=max_time_hours)).timestamp()
+
+    @classmethod
+    def delete_old_entries(cls, rcb_list):
+        with app.app_context():
+            results = (
+                r.table("recycle_bin").get_all(r.args(rcb_list)).delete().run(db.conn)
+            )
+
+    # @classmethod
+    # def archive_old_entries(cls, rcb_list):
+    #     with app.app_context():
+    #         results = (
+    #             r.table("recycle_bin_archive")
+    #             .insert(rcb_list, conflict="update")
+    #             .run(db.conn)
+    #         )
+    #         if results["inserted"]:
+    #             ids = [rcb["id"] for rcb in rcb_list]
+    #             cls.delete_old_entries(ids)
+
+    @classmethod
     def set_default_delete(cls, set_default):
         with app.app_context():
             r.table("config")[0].update(

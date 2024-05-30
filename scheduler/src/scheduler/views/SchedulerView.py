@@ -272,3 +272,32 @@ def add_recyclebin(payload, max_time, category_id=None):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/scheduler/recycle_bin/old_entries/<action>", methods=["PUT"])
+@is_admin
+def add_recyclebin_old_entries(payload, action):
+    # if action not in ["archive", "delete"]:
+    #     raise Error("bad_request", 'Action must be "archive" or "delete"')
+    if action not in ["delete", "none"]:
+        raise Error("bad_request", 'Action must be "delete"')
+    app.scheduler.remove_job(f"recycle_bin_old_entries_action_delete")
+    # app.scheduler.remove_job(f"recycle_bin_old_entries_action_archive")
+    if action == "none":
+        return (json.dumps({}), 200, {"Content-Type": "application/json"})
+    else:
+        return (
+            json.dumps(
+                app.scheduler.add_job(
+                    "system",
+                    "interval",
+                    f"recycle_bin_old_entries_action_{action}",
+                    "00",
+                    "05",
+                    f"recycle_bin_old_entries_action_{action}",
+                    kwargs={},
+                )
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )

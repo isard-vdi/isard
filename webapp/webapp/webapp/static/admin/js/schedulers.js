@@ -147,6 +147,8 @@ function scheduler_init() {
         })
         $("#modalScheduler #action option[value='recycle_bin_delete_admin']").remove();
         $("#modalScheduler #action option[value='recycle_bin_delete']").remove();
+        $("#modalScheduler #action option[value='admin.recycle_bin_old_enties_action_archive]").remove();
+        $("#modalScheduler #action option[value='admin.recycle_bin_old_enties_action_delete]").remove();
     });
 
     $('#modalAddScheduler #kind').on('change', function (e) {

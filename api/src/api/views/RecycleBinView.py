@@ -106,6 +106,49 @@ def storage_delete_bulk(payload, recycle_bin_id=None):
     )
 
 
+@app.route("/api/v3/recycle_bin/old_entries/archive", methods=["PUT"])
+@is_admin
+def recycle_bin_old_entries_archive(payload):
+    return (
+        json.dumps({}),
+        501,
+        {"Content-Type": "application/json"},
+    )
+    # rcb_list = []
+    # rcbs = RecycleBin.get_all()
+    # for rcb in rcbs:
+    #     if rcb[
+    #         "status"
+    #     ] == "deleted" and RecycleBin.check_older_than_old_entry_max_time(
+    #         rcb["logs"][-1]["time"]
+    #     ):
+    #         rcb_list.append(rcb)
+
+    # RecycleBin.archive_old_entries(rcb_list)
+    # return (
+    #     json.dumps({}),
+    #     200,
+    #     {"Content-Type": "application/json"},
+    # )
+
+
+@app.route("/api/v3/recycle_bin/old_entries/delete", methods=["PUT"])
+@is_admin
+def recycle_bin_old_entries_delete(payload):
+    rcb_list = []
+    rcbs = RecycleBin.get_item_count(status="deleted")
+    for rcb in rcbs:
+        if RecycleBin.check_older_than_old_entry_max_time(rcb["last"]["time"]):
+            rcb_list.append(rcb["id"])
+    RecycleBin.delete_old_entries(rcb_list)
+
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/recycle_bin/update_task", methods=["PUT"])
 @is_admin_or_manager
 def recycle_bin_update_task(payload):
@@ -145,6 +188,42 @@ def api_v3_admin_recycle_bin_status(payload):
                 payload["category_id"] if payload["role_id"] == "manager" else None
             )
         ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/recycle_bin/config/old_entries/max_time/<max_time>", methods=["PUT"]
+)
+@is_admin
+def api_v3_admin_recycle_bin_config_old_entries_max_time(payload, max_time):
+    return (
+        json.dumps(RecycleBin.set_old_entries_max_time(max_time)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/config/old_entries/action/<action>", methods=["PUT"])
+@is_admin
+def api_v3_admin_recycle_bin_config_old_entries_action(payload, action):
+    # if action not in ["archive", "delete"]:
+    #     raise Error("bad_request", 'Action must be "archive" or "delete"')
+    if action not in ["delete", "none"]:
+        raise Error("bad_request", 'Action must be "delete" or "none"')
+    return (
+        json.dumps(RecycleBin.set_old_entries_action(action)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/config/old_entries", methods=["GET"])
+@is_admin
+def api_v3_admin_recycle_bin_config_old_entries(payload):
+    return (
+        json.dumps(RecycleBin.get_old_entries_config()),
         200,
         {"Content-Type": "application/json"},
     )
@@ -192,8 +271,8 @@ def api_v3_admin_recycle_bin_default_delete(payload):
 @app.route("/api/v3/recycle_bin/config/delete-action/<action>", methods=["PUT"])
 @is_admin
 def api_v3_admin_recycle_bin_delete_action_set(payload, action):
-    if action not in ["move", "delete"]:
-        raise Error("bad_request", 'Action must be "move" or "delete"')
+    if action not in ["archive", "delete"]:
+        raise Error("bad_request", 'Action must be "archive" or "delete"')
     RecycleBin.set_delete_action(action)
     return (
         {},
