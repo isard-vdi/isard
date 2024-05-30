@@ -69,7 +69,13 @@ func TestParseLoginToken(t *testing.T) {
 				}, claims)
 			},
 		},
-		"should return an error if the token is invalid": {
+		"should return an error if the token is invalid #1": {
+			PrepareToken: func() string {
+				return "HOLA MELINA :D"
+			},
+			ExpectedErr: "error parsing the JWT token: token is malformed: token contains an invalid number of segments",
+		},
+		"should return an error if the token is invalid #2": {
 			PrepareToken: func() string {
 				ss, err := token.SignLoginToken("", time.Now().Add(-time.Hour), "ThoJuroQueEsUnID", &model.User{
 					ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
