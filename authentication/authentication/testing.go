@@ -41,6 +41,11 @@ func (m *AuthenticationMock) Renew(ctx context.Context, ss string) (string, erro
 	return mArgs.String(0), mArgs.Error(1)
 }
 
+func (m *AuthenticationMock) Logout(ctx context.Context, tkn string) error {
+	mArgs := m.Called(ctx, tkn)
+	return mArgs.Error(0)
+}
+
 func (m *AuthenticationMock) Providers() []string {
 	return []string{"local", "google", "ldap", "saml"}
 }

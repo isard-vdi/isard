@@ -26,6 +26,7 @@ type Interface interface {
 	Callback(ctx context.Context, ss string, args map[string]string) (tkn, redirect string, err error)
 	Check(ctx context.Context, tkn string) error
 	Renew(ctx context.Context, ss string) (tkn string, err error)
+	Logout(ctx context.Context, tkn string) (err error)
 	// Register()
 
 	AcknowledgeDisclaimer(ctx context.Context, tkn string) error

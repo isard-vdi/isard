@@ -20,6 +20,7 @@ import (
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"
 
 	"github.com/crewjam/saml/samlsp"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/rs/zerolog"
 	"gitlab.com/isard/isardvdi-sdk-go"
@@ -462,6 +463,43 @@ func (a *AuthenticationServer) Renew(ctx context.Context, req *oasAuthentication
 	return &oasAuthentication.RenewResponse{
 		Token: tkn,
 	}, nil
+}
+
+func (a *AuthenticationServer) Logout(ctx context.Context, req *oasAuthentication.LogoutRequest) (oasAuthentication.LogoutRes, error) {
+	ss, ok := ctx.Value(tokenCtxKey).(string)
+	if !ok {
+		return &oasAuthentication.LogoutUnauthorized{
+			Error: oasAuthentication.LogoutErrorErrorMissingToken,
+			Msg:   "missing JWT token",
+		}, nil
+	}
+
+	if err := a.Authentication.Logout(ctx, ss); err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return &oasAuthentication.LogoutUnauthorized{
+				Error: oasAuthentication.LogoutErrorErrorInvalidSession,
+				Msg:   "session has expired",
+			}, nil
+		}
+
+		if status, ok := status.FromError(err); ok {
+			a.Log.Error().Err(err).Str("code", status.Code().String()).Msg("unknown logout sessions status code error")
+
+			return &oasAuthentication.LogoutInternalServerError{
+				Error: oasAuthentication.LogoutErrorErrorInternalServer,
+				Msg:   "unknown logout sessions error",
+			}, nil
+		}
+
+		a.Log.Error().Err(err).Msg("unknown logout error")
+
+		return &oasAuthentication.LogoutInternalServerError{
+			Error: oasAuthentication.LogoutErrorErrorInternalServer,
+			Msg:   "unknown error",
+		}, nil
+	}
+
+	return &oasAuthentication.LogoutResponse{}, nil
 }
 
 func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthentication.ProvidersResponse, error) {

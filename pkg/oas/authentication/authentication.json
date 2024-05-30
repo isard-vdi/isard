@@ -373,6 +373,62 @@
                 ]
             }
         },
+        "/logout": {
+            "post": {
+                "operationId": "Logout",
+                "summary": "Close the session",
+                "description": "",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogoutRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LogoutResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "The session is invalid. It the token has probably expired",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LogoutError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LogoutError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
         "/acknowledge-disclaimer": {
             "post": {
                 "operationId": "AcknowledgeDisclaimer",
@@ -830,6 +886,38 @@
                 "type": "object"
             },
             "RenewError": {
+                "properties": {
+                    "error": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_session",
+                            "internal_server"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "error",
+                    "msg"
+                ],
+                "type": "object"
+            },
+            "LogoutRequest": {
+                "properties": {},
+                "type": "object"
+            },
+            "LogoutResponse": {
+                "properties": {},
+                "type": "object"
+            },
+            "LogoutError": {
                 "properties": {
                     "error": {
                         "title": "Error type",
