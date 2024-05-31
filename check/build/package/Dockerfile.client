@@ -1,4 +1,4 @@
-FROM jlesage/baseimage-gui:alpine-3.18-v4
+FROM jlesage/baseimage-gui:alpine-3.19-v4
 
 # Install dependencies
 RUN apk -U upgrade --no-cache
