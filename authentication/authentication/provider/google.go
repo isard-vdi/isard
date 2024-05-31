@@ -17,6 +17,8 @@ import (
 	"google.golang.org/api/option"
 )
 
+var _ Provider = &Google{}
+
 type Google struct {
 	provider *oauth2Provider
 }
@@ -40,8 +42,12 @@ func InitGoogle(cfg cfg.Authentication) *Google {
 	}
 }
 
-func (g *Google) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
-	redirect := args["redirect"]
+func (g *Google) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *model.User, string, *ProviderError) {
+	redirect := ""
+	if args.Redirect != nil {
+		redirect = *args.Redirect
+	}
+
 	redirect, err := g.provider.login(categoryID, redirect)
 	if err != nil {
 		return nil, nil, "", &ProviderError{
@@ -53,7 +59,7 @@ func (g *Google) Login(ctx context.Context, categoryID string, args map[string]s
 	return nil, nil, redirect, nil
 }
 
-func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
+func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, *model.User, string, *ProviderError) {
 	oTkn, err := g.provider.callback(ctx, args)
 	if err != nil {
 		return nil, nil, "", &ProviderError{

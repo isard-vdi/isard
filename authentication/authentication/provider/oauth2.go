@@ -24,8 +24,13 @@ func (o *oauth2Provider) login(categoryID, redirect string) (string, error) {
 	return o.cfg.AuthCodeURL(ss), nil
 }
 
-func (o *oauth2Provider) callback(ctx context.Context, args map[string]string) (*oauth2.Token, error) {
-	tkn, err := o.cfg.Exchange(ctx, args["code"])
+func (o *oauth2Provider) callback(ctx context.Context, args CallbackArgs) (*oauth2.Token, error) {
+	code := ""
+	if args.Oauth2Code != nil {
+		code = *args.Oauth2Code
+	}
+
+	tkn, err := o.cfg.Exchange(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("exchange oauth2 token: %w", err)
 	}

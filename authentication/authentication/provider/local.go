@@ -14,6 +14,8 @@ import (
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
+var _ Provider = &Local{}
+
 type Local struct {
 	db r.QueryExecutor
 }
@@ -22,9 +24,9 @@ func InitLocal(db r.QueryExecutor) *Local {
 	return &Local{db}
 }
 
-func (l *Local) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
-	usr := args[FormUsernameArgsKey]
-	pwd := args[FormPasswordArgsKey]
+func (l *Local) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *model.User, string, *ProviderError) {
+	usr := *args.FormUsername
+	pwd := *args.FormPassword
 
 	u := &model.User{
 		UID:      usr,
@@ -56,7 +58,7 @@ func (l *Local) Login(ctx context.Context, categoryID string, args map[string]st
 	return nil, u, "", nil
 }
 
-func (l *Local) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, *ProviderError) {
+func (l *Local) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *model.User, string, *ProviderError) {
 	return nil, nil, "", &ProviderError{
 		User:   errInvalidIDP,
 		Detail: errors.New("the local provider doesn't support the callback operation"),

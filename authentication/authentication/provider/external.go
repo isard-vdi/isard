@@ -12,36 +12,29 @@ import (
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
+var _ Provider = &External{}
+
 type External struct {
 	db r.QueryExecutor
 }
 
-func checkRequiredArgs(args map[string]string) error {
-	var requiredArgs = []string{TokenArgsKey}
-
-request:
-	for _, rA := range requiredArgs {
-		for a := range args {
-			if a == rA && a != "" {
-				continue request
-			}
-		}
-
-		return fmt.Errorf("missing required argument: '%s'", rA)
+func externalCheckRequiredArgs(args LoginArgs) error {
+	if args.Token == nil {
+		return errors.New("token not provided")
 	}
 
 	return nil
 }
 
-func (e *External) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
-	if err := checkRequiredArgs(args); err != nil {
+func (e *External) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *model.User, string, *ProviderError) {
+	if err := externalCheckRequiredArgs(args); err != nil {
 		return nil, nil, "", &ProviderError{
 			User:   ErrInternal,
 			Detail: err,
 		}
 	}
 
-	claims, err := token.ParseExternalToken(e.db, args[TokenArgsKey])
+	claims, err := token.ParseExternalToken(e.db, *args.Token)
 	if err != nil {
 		return nil, nil, "", &ProviderError{
 			User:   err,
@@ -82,7 +75,7 @@ func (e *External) Login(ctx context.Context, categoryID string, args map[string
 	return g, u, "", nil
 }
 
-func (External) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, *ProviderError) {
+func (External) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *model.User, string, *ProviderError) {
 	return nil, nil, "", &ProviderError{
 		User:   errInvalidIDP,
 		Detail: errors.New("the external provider doesn't support the callback operation"),

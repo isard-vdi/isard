@@ -22,8 +22,8 @@ type Interface interface {
 	Providers() []string
 	Provider(provider string) provider.Provider
 
-	Login(ctx context.Context, provider string, categoryID string, args map[string]string, remoteAddr string) (tkn, redirect string, err error)
-	Callback(ctx context.Context, ss string, args map[string]string, remoteAddr string) (tkn, redirect string, err error)
+	Login(ctx context.Context, provider string, categoryID string, args provider.LoginArgs, remoteAddr string) (tkn, redirect string, err error)
+	Callback(ctx context.Context, ss string, args provider.CallbackArgs, remoteAddr string) (tkn, redirect string, err error)
 	Check(ctx context.Context, tkn string, remoteAddr string) error
 	Renew(ctx context.Context, ss string, remoteAddr string) (tkn string, err error)
 	Logout(ctx context.Context, tkn string) (err error)

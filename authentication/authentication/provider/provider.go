@@ -24,9 +24,21 @@ const (
 
 type HTTPRequestType string
 
+type LoginArgs struct {
+	Token    *string
+	Redirect *string
+
+	FormUsername *string
+	FormPassword *string
+}
+
+type CallbackArgs struct {
+	Oauth2Code *string
+}
+
 type Provider interface {
-	Login(ctx context.Context, categoryID string, args map[string]string) (g *model.Group, u *model.User, redirect string, err *ProviderError)
-	Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (g *model.Group, u *model.User, redirect string, err *ProviderError)
+	Login(ctx context.Context, categoryID string, args LoginArgs) (g *model.Group, u *model.User, redirect string, err *ProviderError)
+	Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (g *model.Group, u *model.User, redirect string, err *ProviderError)
 	AutoRegister() bool
 	String() string
 	Healthcheck() error
@@ -65,14 +77,14 @@ func (Unknown) String() string {
 	return types.Unknown
 }
 
-func (Unknown) Login(context.Context, string, map[string]string) (*model.Group, *model.User, string, *ProviderError) {
+func (Unknown) Login(context.Context, string, LoginArgs) (*model.Group, *model.User, string, *ProviderError) {
 	return nil, nil, "", &ProviderError{
 		User:   ErrUnknownIDP,
 		Detail: errors.New("unknown provider"),
 	}
 }
 
-func (Unknown) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, *ProviderError) {
+func (Unknown) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *model.User, string, *ProviderError) {
 	return nil, nil, "", &ProviderError{
 		User:   ErrUnknownIDP,
 		Detail: errors.New("unknown provider"),

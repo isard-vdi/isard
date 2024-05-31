@@ -14,6 +14,8 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/token"
 )
 
+var _ Provider = &LDAP{}
+
 type LDAP struct {
 	cfg cfg.AuthenticationLDAP
 
@@ -135,9 +137,9 @@ func (l *LDAP) listAllGroups(usr string) ([]string, error) {
 	return groups, nil
 }
 
-func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
-	usr := args[FormUsernameArgsKey]
-	pwd := args[FormPasswordArgsKey]
+func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *model.User, string, *ProviderError) {
+	usr := *args.FormUsername
+	pwd := *args.FormPassword
 
 	conn, err := l.newConn()
 	if err != nil {
@@ -303,7 +305,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 	return g, u, "", nil
 }
 
-func (l *LDAP) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, *ProviderError) {
+func (l *LDAP) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *model.User, string, *ProviderError) {
 	return nil, nil, "", &ProviderError{
 		User:   errInvalidIDP,
 		Detail: errors.New("the LDAP provider doesn't support the callback operation"),

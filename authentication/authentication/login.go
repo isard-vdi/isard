@@ -13,23 +13,28 @@ import (
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 )
 
-func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args map[string]string, remoteAddr string) (string, string, error) {
+func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args provider.LoginArgs, remoteAddr string) (string, string, error) {
+	if args.Redirect == nil {
+		redirect := ""
+		args.Redirect = &redirect
+	}
+
 	// Check if the user sends a token
-	if args[provider.TokenArgsKey] != "" {
-		typ, err := token.GetTokenType(args[provider.TokenArgsKey])
+	if args.Token != nil {
+		typ, err := token.GetTokenType(*args.Token)
 		if err != nil {
 			return "", "", fmt.Errorf("get the JWT token type: %w", err)
 		}
 
 		switch typ {
 		case token.TypeRegister:
-			return a.finishRegister(ctx, remoteAddr, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
+			return a.finishRegister(ctx, remoteAddr, *args.Token, *args.Redirect)
 
 		case token.TypeDisclaimerAcknowledgementRequired:
-			return a.finishDisclaimerAcknowledgement(ctx, remoteAddr, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
+			return a.finishDisclaimerAcknowledgement(ctx, remoteAddr, *args.Token, *args.Redirect)
 
 		case token.TypePasswordResetRequired:
-			return a.finishPasswordReset(ctx, remoteAddr, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
+			return a.finishPasswordReset(ctx, remoteAddr, *args.Token, *args.Redirect)
 		}
 	}
 
@@ -51,10 +56,10 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 	// Continue with the login process, passing the redirect path that has been
 	// requested by the user
-	return a.startLogin(ctx, remoteAddr, p, g, u, args[provider.RedirectArgsKey])
+	return a.startLogin(ctx, remoteAddr, p, g, u, *args.Redirect)
 }
 
-func (a *Authentication) Callback(ctx context.Context, ss string, args map[string]string, remoteAddr string) (string, string, error) {
+func (a *Authentication) Callback(ctx context.Context, ss string, args provider.CallbackArgs, remoteAddr string) (string, string, error) {
 	claims, err := token.ParseCallbackToken(a.Secret, ss)
 	if err != nil {
 		return "", "", fmt.Errorf("parse callback state: %w", err)

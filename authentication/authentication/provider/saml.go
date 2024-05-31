@@ -27,6 +27,8 @@ const (
 	SLORoute      = "/saml/slo"
 )
 
+var _ Provider = &SAML{}
+
 type SAML struct {
 	cfg        cfg.Authentication
 	Middleware *samlsp.Middleware
@@ -126,10 +128,10 @@ func InitSAML(cfg cfg.Authentication) *SAML {
 	return s
 }
 
-func (s *SAML) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
+func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *model.User, string, *ProviderError) {
 	redirect := ""
-	if r, ok := args["redirect"]; ok {
-		redirect = r
+	if args.Redirect != nil {
+		redirect = *args.Redirect
 	}
 
 	ss, err := token.SignCallbackToken(s.cfg.Secret, types.SAML, categoryID, redirect)
@@ -149,7 +151,7 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args map[string]str
 	return nil, nil, u.String(), nil
 }
 
-func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (*model.Group, *model.User, string, *ProviderError) {
+func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, *model.User, string, *ProviderError) {
 	r := ctx.Value(HTTPRequest).(*http.Request)
 
 	sess, err := s.Middleware.Session.GetSession(r)

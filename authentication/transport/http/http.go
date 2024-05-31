@@ -240,26 +240,26 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	// Remote address is injected in the RequestMetadata middleware
 	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
 
-	args := map[string]string{}
+	args := provider.LoginArgs{}
 
 	// Token provided in the Authorization header
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
 	if ok {
-		args[provider.TokenArgsKey] = tkn
+		args.Token = &tkn
 	}
 
 	// Redirect the user after login
 	if params.Redirect.Set {
-		args[provider.RedirectArgsKey] = params.Redirect.Value
+		args.Redirect = &params.Redirect.Value
 	}
 
 	// Form parameters (username + password)
 	if req.Set && req.Value.Username.Set {
-		args["username"] = req.Value.Username.Value
+		args.FormUsername = &req.Value.Username.Value
 	}
 
 	if req.Set && req.Value.Password.Set {
-		args["password"] = req.Value.Password.Value
+		args.FormPassword = &req.Value.Password.Value
 	}
 
 	log := a.Log.With().Str("provider", string(params.Provider)).Logger()
@@ -367,11 +367,11 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 	// Remote address is injected in the RequestMetadata middleware
 	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
 
-	args := map[string]string{}
+	args := provider.CallbackArgs{}
 
 	// OAuth2
 	if params.Code.Set {
-		args["code"] = params.Code.Value
+		args.Oauth2Code = &params.Code.Value
 	}
 
 	// SAML

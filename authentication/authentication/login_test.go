@@ -37,7 +37,7 @@ func TestLogin(t *testing.T) {
 		RemoteAddr  string
 		Provider    string
 		CategoryID  string
-		PrepareArgs func() map[string]string
+		PrepareArgs func() provider.LoginArgs
 
 		CheckToken       func(string)
 		ExpectedRedirect string
@@ -128,10 +128,13 @@ func TestLogin(t *testing.T) {
 			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
-			PrepareArgs: func() map[string]string {
-				return map[string]string{
-					"username": "nefix",
-					"password": "f0kt3Rf$",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
 				}
 			},
 			CheckToken: func(ss string) {
@@ -215,12 +218,12 @@ func TestLogin(t *testing.T) {
 			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
-			PrepareArgs: func() map[string]string {
+			PrepareArgs: func() provider.LoginArgs {
 				ss, err := token.SignDisclaimerAcknowledgementRequiredToken("", "08fff46e-cbd3-40d2-9d8e-e2de7a8da654")
 				require.NoError(err)
 
-				return map[string]string{
-					provider.TokenArgsKey: ss,
+				return provider.LoginArgs{
+					Token: &ss,
 				}
 			},
 			CheckToken: func(ss string) {
@@ -304,12 +307,12 @@ func TestLogin(t *testing.T) {
 			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
-			PrepareArgs: func() map[string]string {
+			PrepareArgs: func() provider.LoginArgs {
 				ss, err := token.SignPasswordResetRequiredToken("", "08fff46e-cbd3-40d2-9d8e-e2de7a8da654")
 				require.NoError(err)
 
-				return map[string]string{
-					provider.TokenArgsKey: ss,
+				return provider.LoginArgs{
+					Token: &ss,
 				}
 			},
 			CheckToken: func(ss string) {
@@ -341,10 +344,13 @@ func TestLogin(t *testing.T) {
 			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
-			PrepareArgs: func() map[string]string {
-				return map[string]string{
-					"username": "nefix",
-					"password": "f0kt3Rf$",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
 				}
 			},
 			ExpectedRedirect: "",
@@ -377,10 +383,13 @@ func TestLogin(t *testing.T) {
 			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
-			PrepareArgs: func() map[string]string {
-				return map[string]string{
-					"username": "nefix",
-					"password": "f0kt3Rf$",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
 				}
 			},
 			ExpectedRedirect: "",
@@ -413,10 +422,13 @@ func TestLogin(t *testing.T) {
 			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
-			PrepareArgs: func() map[string]string {
-				return map[string]string{
-					"username": "nefix",
-					"password": "f0kt3Rf$",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
 				}
 			},
 			ExpectedRedirect: "",
@@ -451,10 +463,13 @@ func TestLogin(t *testing.T) {
 			},
 			Provider:   "form",
 			CategoryID: "default",
-			PrepareArgs: func() map[string]string {
-				return map[string]string{
-					"username": "nefix",
-					"password": "f0kt3Rf$",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
 				}
 			},
 			CheckToken: func(ss string) {
@@ -513,10 +528,13 @@ func TestLogin(t *testing.T) {
 			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
-			PrepareArgs: func() map[string]string {
-				return map[string]string{
-					"username": "nefix",
-					"password": "f0kt3Rf$",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
 				}
 			},
 			CheckToken: func(ss string) {
@@ -578,10 +596,13 @@ func TestLogin(t *testing.T) {
 			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
 			CategoryID: "default",
-			PrepareArgs: func() map[string]string {
-				return map[string]string{
-					"username": "nefix",
-					"password": "f0kt3Rf$",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
 				}
 			},
 			CheckToken: func(ss string) {
