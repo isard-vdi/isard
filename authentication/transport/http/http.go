@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication"
-	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
-	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/limits"
+	"gitlab.com/isard/isardvdi/authentication/provider"
+	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"

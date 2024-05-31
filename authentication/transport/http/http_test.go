@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/limits"
+	"gitlab.com/isard/isardvdi/authentication/provider"
 
 	"github.com/stretchr/testify/assert"
 )
