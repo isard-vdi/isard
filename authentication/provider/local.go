@@ -82,7 +82,7 @@ func (l *Local) Healthcheck() error {
 	defer rsp.Close()
 
 	var res []interface{}
-	if rsp.All(&res); err != nil {
+	if err := rsp.All(&res); err != nil {
 		return fmt.Errorf("unable to connect to the DB: read DB response: %w", err)
 	}
 
