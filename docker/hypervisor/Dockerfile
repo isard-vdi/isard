@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y \
     rm -rf /var/lib/apt/lists/*
 
 # Build mdevctl
-FROM alpine:3.18 as build
+FROM alpine:3.19 as build
 
 RUN apk add --no-cache cargo uuidgen py3-docutils make git
 
