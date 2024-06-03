@@ -60,6 +60,7 @@ stages:
   - generate
   - unit-test
   - build
+  - build-no-cache
   - test
   - release
   - container-scan
@@ -168,10 +169,14 @@ docker-compose-build:
     - echo "FLAVOUR=nextcloud" >> isardvdi.nextcloud.build.cfg
     - BACKUP_DB_ENABLED=true CODEGEN=false ./build.sh
     - |-
-      for file in docker-compose*.yml; do yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file; done
+      for file in docker-compose*.yml; do
+        cp "$file" "no-cache-$file"
+        yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file
+      done
   artifacts:
     paths:
       - docker-compose*.yml
+      - no-cache-docker-compose*.yml
 
 unit-test-go:
   stage: unit-test
@@ -250,6 +255,16 @@ docker-image:
     - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f docker-compose.$DOCKER_COMPOSE.yml build
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+
+docker-image-no-cache:
+  extends: docker-image
+  stage: build-no-cache
+  script:
+    - git submodule update --init --recursive --remote
+    - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f no-cache-docker-compose.$DOCKER_COMPOSE.yml build
+    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+  when: manual
 
 # test-e2e:
 #   stage: test
