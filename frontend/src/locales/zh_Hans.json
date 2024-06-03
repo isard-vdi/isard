@@ -7,7 +7,8 @@
         "minLengthValue": "{property} 字段有 {model} 个字符，但其最小长度必须为 {min}。",
         "maxLengthValue": "{property} 字段有 {model} 个字符，但最大长度必须为 {max}。",
         "email": "{property} 字段必须是一个有效的电子邮件地址。",
-        "URLFormat": "必须以 \"https://\"开头。"
+        "URLFormat": "必须以 \"https://\"开头。",
+        "inputFormat": "有效的字符为:字母,数字,逗号(,),点(.),横线(-),下划线(_)"
     },
     "forms": {
         "allowed": {
