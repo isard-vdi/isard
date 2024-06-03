@@ -3,7 +3,11 @@
         "required": "{property} 必填",
         "sameAs": "{property}字段的值必须与{property2}相同。",
         "url": "{property} 位置必须是“统一资源定位符(网址)”",
-        "undefined": "未定义"
+        "undefined": "未定义",
+        "minLengthValue": "{property} 字段有 {model} 个字符，但其最小长度必须为 {min}。",
+        "maxLengthValue": "{property} 字段有 {model} 个字符，但最大长度必须为 {max}。",
+        "email": "{property} 字段必须是一个有效的电子邮件地址。",
+        "URLFormat": "必须以 \"https://\"开头。"
     },
     "forms": {
         "allowed": {
@@ -15,7 +19,8 @@
                 },
                 "title": "已允许更新"
             },
-            "empty": "选中的和没选的都会向所有人共享"
+            "empty": "选中的和没选的都会向所有人共享",
+            "title": "已允许"
         },
         "new-desktop": {
             "filter": "筛选",
@@ -53,11 +58,22 @@
                 "confirmation-password": {
                     "label": "确认密码",
                     "placeholder": "确认密码"
-                }
+                },
+                "current-password": {
+                    "label": "输入您当前的密码：",
+                    "placeholder": "当前密码"
+                },
+                "warning": "您的密码已过期。您必须更改密码才能继续"
             }
         },
         "duplicate-template": {
             "title": "重复模板"
+        },
+        "email": {
+            "modal": {
+                "title": "电子邮件更改/验证",
+                "change-validate-address": "更改或验证您的电子邮件地址"
+            }
         }
     }
 }
