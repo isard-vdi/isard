@@ -1002,7 +1002,7 @@ def storage_update_by_status(payload, status):
 
 
 @app.route(
-    "/api/v3/storage/<path:storage_id>/priority/<priority>/increase/<increment>",
+    "/api/v3/storage/<path:storage_id>/priority/<priority>/increase/<int:increment>",
     methods=["PUT"],
 )
 @has_token
