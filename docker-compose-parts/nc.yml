@@ -63,7 +63,7 @@ services:
 
   isard-nc-redis:
     container_name: isard-nc-redis
-    image: ${NEXTCLOUD_REDIS_IMAGE-redis:alpine3.18}
+    image: ${NEXTCLOUD_REDIS_IMAGE-redis:alpine3.19}
     logging:
       driver: "json-file"
       options:

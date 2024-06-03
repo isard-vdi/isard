@@ -2,7 +2,7 @@ version: '3.5'
 services:
   isard-postgres:
     container_name: isard-postgres
-    image: ${POSTGRESQL_IMG-postgres:15.3-alpine3.18}
+    image: ${POSTGRESQL_IMG-postgres:15.3-alpine3.19}
     logging:
       driver: "json-file"
       options:

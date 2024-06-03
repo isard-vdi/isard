@@ -306,7 +306,7 @@ HAPROXY_RUN_IMAGE=haproxy:lts-alpine3.19
 ## Image used for nextcloud nginx
 #NEXTCLOUD_NGINX_IMAGE=nginx:1.25.2-alpine-slim
 ## Image used for nextcloud redis
-#NEXTCLOUD_REDIS_IMAGE=redis:alpine3.18
+#NEXTCLOUD_REDIS_IMAGE=redis:alpine3.19
 
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO
