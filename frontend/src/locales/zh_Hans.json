@@ -21,7 +21,8 @@
                 "title": "已允许更新"
             },
             "empty": "选中的和没选的都会向所有人共享",
-            "title": "已允许"
+            "title": "已允许",
+            "placeholder": "请输入至少2个字符后搜索"
         },
         "new-desktop": {
             "filter": "筛选",
