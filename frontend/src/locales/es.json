@@ -823,7 +823,6 @@
                     "spice-client-required": "pero requiere instalar un aplicativo externo.",
                     "generic-text": "En el siguiente enlace se puede consultar enlaces de descarga e instrucciones para instalarlo:",
                     "download-install": "Descarga de software de visores",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.es/",
                     "once-installed": "Después de la instalación, haz clic en el botón «SPICE», y se descargará el archivo del escritorio virtual.",
                     "close-guide": "Cerrar la guía"
                 },
@@ -833,7 +832,6 @@
                     "included": "Windows incorpora la aplicación necesaria para utilizarlo,",
                     "client-required": "pero otros sistemas operativos podrían requerir la instalación de un aplicativo externo. Consulta las instrucciones de instalación:",
                     "download-install": "Descarga de software de visores",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.es/",
                     "once-installed": "Después de la instalación, haz clic en el botón 'RDP', que descargará el archivo del escritorio virtual.",
                     "close-guide": "Cerrar la guía"
                 }

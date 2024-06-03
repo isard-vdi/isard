@@ -167,7 +167,7 @@
                 {{ $t("components.navbar.help") }}
               </b-dropdown-item>
               <b-dropdown-item
-                :href="goToViewersGuide()"
+                :href="getConfig.viewersDocumentationUrl"
                 target="_blank"
               >
                 <b-icon
@@ -232,15 +232,6 @@ export default {
     },
     menuGoToPlanning () {
       this.$store.dispatch('navigate', 'Planning')
-    },
-    goToViewersGuide () {
-      if (localStorage.language === 'es') {
-        return 'https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.es/'
-      } else if (localStorage.language === 'ca') {
-        return 'https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.ca/'
-      } else {
-        return 'https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/'
-      }
     }
   }
 }

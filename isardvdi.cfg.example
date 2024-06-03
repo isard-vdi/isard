@@ -65,6 +65,7 @@ WEBAPP_ADMIN_PWD=IsardVDI
 # ------ Frontend Documentation URI ------------------------------------------
 ## Documentation URI where the user will be redirected.
 FRONTEND_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/
+FRONTEND_VIEWERS_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/
 
 # ------ Frontend Direct Viewer cookie ---------------------------------------
 ## Where will the direct viewer cookie be retrieved from.

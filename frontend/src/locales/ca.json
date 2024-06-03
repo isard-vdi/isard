@@ -619,7 +619,6 @@
                     "spice-client-required": "però requereix instal·lar un aplicatiu extern.",
                     "generic-text": "A l'enllaç següent pots trobar enllaços de descàrrega i instruccions d'instal·lació:",
                     "download-install": "Descarregar el programari del visor",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.ca/",
                     "once-installed": "Un cop instal·lat, fes clic al botó SPICE, que descarregarà el fitxer de l'escriptori virtual.",
                     "close-guide": "Tancar la guia"
                 },
@@ -629,7 +628,6 @@
                     "included": "Windows incorpora l'aplicació necessària pel seu ús,",
                     "client-required": "però altres sistemes operatius podrian requerir la instal·lació d'un aplicatiu extern. Consulta les instruccions d'instal·lació:",
                     "download-install": "Descarregar el programari del visor",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.ca/",
                     "once-installed": "Un cop instal·lat, fes clic al botó «RDP», que descarregarà el fitxer de l'escriptori virtual.",
                     "close-guide": "Tancar la guia"
                 }

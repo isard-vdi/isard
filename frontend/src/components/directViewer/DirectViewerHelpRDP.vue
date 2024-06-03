@@ -22,7 +22,7 @@
           <b-button
             variant="outline-primary"
             class="my-4"
-            :href="$t('views.direct-viewer.help.rdp.download-link')"
+            :href="getConfig.viewersDocumentationUrl"
           >
             {{ $t('views.direct-viewer.help.rdp.download-install') }}
           </b-button>
@@ -35,6 +35,18 @@
     </b-modal>
   </form>
 </template>
+
+<script>
+import { mapGetters } from 'vuex'
+
+export default {
+  computed: {
+    ...mapGetters([
+      'getConfig'
+    ])
+  }
+}
+</script>
 
 <style scoped>
 ul {

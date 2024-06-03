@@ -809,7 +809,6 @@
                     "spice-client-required": "but an external application is required.",
                     "generic-text": "Click the following link to find download links and instructions for installation:",
                     "download-install": "Download viewer software",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/",
                     "once-installed": "Once installed, click the 'SPICE' button, that will download the virtual desktop file.",
                     "close-guide": "Close guide"
                 },
@@ -819,7 +818,6 @@
                     "included": "Windows includes the required software for its use,",
                     "client-required": "but on other operating systems, it may require the installation of an external application. Consult the installation instructions:",
                     "download-install": "Download viewer software",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/",
                     "once-installed": "Once installed, click the 'RDP' button, that will download the virtual desktop file.",
                     "close-guide": "Close guide"
                 }

@@ -584,8 +584,7 @@
                     "local-client": "RDP bezeroa erabili (gomendatua)",
                     "once-installed": "Instalatu ondoren, egin klik 'RDP' botoian, zeinak mahaigain birtualaren fitxategia deskargatuko duen.",
                     "download-install": "Deskargatu bistaratze-softwarea",
-                    "client-required": "baina beste sistema eragile batzuetan, baliteke kanpoko aplikazio bat instalatu behar izatea. Kontsultatu instalatzeko jarraibideak:",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/"
+                    "client-required": "baina beste sistema eragile batzuetan, baliteke kanpoko aplikazio bat instalatu behar izatea. Kontsultatu instalatzeko jarraibideak:"
                 },
                 "spice": {
                     "local-client": "Tokiko bezeroa erabili (gomendatua)",
@@ -602,8 +601,7 @@
                     "once-installed": "Instalatu ondoren, egin klik \"SPICE\" botoian, zeinak mahaigain birtualeko fitxategia deskargatuko baitu.",
                     "spice-client-required": "baina kanpoko aplikazioren bat behar da.",
                     "download-install": "Deskargatu bistaratze-softwarea",
-                    "generic-text": "Egin klik esteka honetan, deskargatzeko estekak eta instalatzeko jarraibideak aurkitzeko:",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/"
+                    "generic-text": "Egin klik esteka honetan, deskargatzeko estekak eta instalatzeko jarraibideak aurkitzeko:"
                 }
             },
             "description": {

@@ -5,6 +5,7 @@ import * as cookies from 'tiny-cookie'
 import { apiV3Segment, sessionCookieName } from '../../shared/constants'
 import { DesktopUtils } from '../../utils/desktopsUtils'
 import { DirectViewerUtils } from '../../utils/directViewerUtils'
+import { ConfigUtils } from '../../utils/configUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
 import { DateUtils } from '../../utils/dateUtils'
 import { jwtDecode } from 'jwt-decode'
@@ -15,6 +16,7 @@ const getDefaultState = () => {
     desktops: [],
     currentTab: 'desktops',
     directViewer: {
+      viewersDocumentationUrl: 'https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/',
       name: '',
       description: '',
       viewers: [],
@@ -150,6 +152,7 @@ export default {
       state.directViewer.jwt = payload.jwt
       state.directViewer.desktopId = payload.desktopId
       state.directViewer.shutdown = payload.shutdown
+      state.directViewer.viewersDocumentationUrl = payload.viewersDocumentationUrl
     },
     setDirectViewerErrorState: (state) => {
       state.directViewer.state = 'error'
@@ -326,6 +329,11 @@ export default {
       router.push({ name: path })
     },
     getDirectViewers (context, payload) {
+      axios.get(`${apiV3Segment}/direct/docs`).then(response => {
+        const config = context.getters.getConfig
+        config.viewersDocumentationUrl = response.data.viewers_documentation_url
+        context.commit('setConfig', ConfigUtils.parseConfig(config.value))
+      })
       return axios.get(`/api/v3/direct/${payload.token}`).then(response => {
         context.commit('saveDirectViewer', DirectViewerUtils.parseDirectViewer(response.data))
       }).catch(e => {
