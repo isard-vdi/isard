@@ -59,7 +59,7 @@ func TestIsRateLimited(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			l := NewLimits(10, 1*time.Minute, 2)
+			l := NewLimits(10, 1*time.Minute, 2, 15*time.Minute)
 
 			if tc.PrepareCache != nil {
 				tc.PrepareCache(l.cache)
@@ -139,6 +139,27 @@ func TestRecordFailedAttempt(t *testing.T) {
 					CategoryID: "default",
 					Provider:   "form",
 				}, rateLimitedValue{
+					Attempts:   12,
+					RetryAfter: time.Now().Add(-1 * time.Hour),
+				}, ttlcache.NoTTL)
+			},
+			ExpectedErr:      "you have been rate limited, try again at '",
+			ExpectedAttempts: 13,
+			CheckRetryTime: func(t time.Time) {
+				assert.True(t.After(time.Now().Add(3 * time.Minute * 3).Add(-1 * time.Second)))
+				assert.False(t.After(time.Now().Add(3 * time.Minute * 3)))
+			},
+		},
+		"should honor the max_time configuration": {
+			Username:   "néfix",
+			CategoryID: "default",
+			Provider:   "form",
+			PrepareCache: func(cache *ttlcache.Cache[rateLimitedKey, rateLimitedValue]) {
+				cache.Set(rateLimitedKey{
+					Username:   "néfix",
+					CategoryID: "default",
+					Provider:   "form",
+				}, rateLimitedValue{
 					Attempts:   999,
 					RetryAfter: time.Now().Add(-1 * time.Hour),
 				}, ttlcache.NoTTL)
@@ -146,15 +167,15 @@ func TestRecordFailedAttempt(t *testing.T) {
 			ExpectedErr:      "you have been rate limited, try again at '",
 			ExpectedAttempts: 1000,
 			CheckRetryTime: func(t time.Time) {
-				assert.True(t.After(time.Now().Add(990 * time.Minute * 990).Add(-1 * time.Second)))
-				assert.False(t.After(time.Now().Add(990 * time.Minute * 990)))
+				assert.True(t.After(time.Now().Add(15 * time.Minute).Add(-1 * time.Second)))
+				assert.False(t.After(time.Now().Add(15 * time.Minute)))
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			l := NewLimits(10, 1*time.Minute, 2)
+			l := NewLimits(10, 1*time.Minute, 2, 15*time.Minute)
 
 			if tc.PrepareCache != nil {
 				tc.PrepareCache(l.cache)

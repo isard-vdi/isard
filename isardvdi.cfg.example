@@ -157,6 +157,8 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER=1m
 # And the user fails the authentication for 13th time in a row, the user will have to wait (13 - 10) ^ 2 * 1m -> 9 minutes
 # before being able to log in again
 AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR=2
+# The maximum time an user will be rate limited
+AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 
 ## Local
 ### Local authentication against isard database

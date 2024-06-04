@@ -14,11 +14,13 @@ type Limits struct {
 	maxAttempts     int
 	retryAfter      time.Duration
 	incrementFactor int
+	maxTime         time.Duration
 }
 
-func NewLimits(maxAttempts int, retryAfter time.Duration, incrementFactor int) *Limits {
-	// TODO: Set the cache expiration time
-	cache := ttlcache.New[rateLimitedKey, rateLimitedValue]()
+func NewLimits(maxAttempts int, retryAfter time.Duration, incrementFactor int, maxTime time.Duration) *Limits {
+	cache := ttlcache.New[rateLimitedKey, rateLimitedValue](
+		ttlcache.WithTTL[rateLimitedKey, rateLimitedValue](maxTime),
+	)
 
 	go cache.Start()
 
@@ -27,6 +29,7 @@ func NewLimits(maxAttempts int, retryAfter time.Duration, incrementFactor int) *
 		maxAttempts:     maxAttempts,
 		retryAfter:      retryAfter,
 		incrementFactor: incrementFactor,
+		maxTime:         maxTime,
 	}
 }
 
@@ -110,16 +113,23 @@ func (l *Limits) RecordFailedAttempt(username, categoryID string, provider strin
 
 	// Check if the retry time has already arrived
 	if val.RetryAfter.Before(time.Now()) {
+		// Here we calculate the exponential backoff (nth attempt after max attempts ^ increment factor)
+		duration := (time.Duration(
+			math.Round(math.Pow(
+				float64(val.Attempts-l.maxAttempts),
+				float64(l.incrementFactor),
+			)),
+
+		// And we use the backoff value against the default ban duration
+		) * l.retryAfter)
+
+		// If the duration exceeds the max time, set the max time as the rate limiting duration
+		if duration > l.maxTime {
+			duration = l.maxTime
+		}
+
 		// Set the configured timeout
-		val.RetryAfter = time.Now().Add(
-			// Here we calculate the exponential backoff (nth attempt after max attempts ^ increment factor)
-			time.Duration(
-				math.Round(math.Pow(
-					float64(val.Attempts-l.maxAttempts),
-					float64(l.incrementFactor),
-				)),
-			// And we use the backoff value against the default ban duration
-			) * l.retryAfter)
+		val.RetryAfter = time.Now().Add(duration)
 	}
 
 	return &RateLimitError{

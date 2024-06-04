@@ -36,6 +36,7 @@ type AuthenticationLimits struct {
 	MaxAttempts     int           `mapstructure:"max_attempts"`
 	RetryAfter      time.Duration `mapstructure:"retry_after"`
 	IncrementFactor int           `mapstructure:"increment_factor"`
+	MaxTime         time.Duration `mapstructure:"max_time"`
 }
 
 type AuthenticationLocal struct {
@@ -145,6 +146,7 @@ func setDefaults() {
 			"max_attempts":     10,
 			"retry_after":      "1m",
 			"increment_factor": 2,
+			"max_time":         "15m",
 		},
 		"local": map[string]interface{}{
 			"enabled": true,
