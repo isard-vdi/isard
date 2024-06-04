@@ -481,6 +481,13 @@ HAPROXY_LOGGING=.
 #VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
 #VIDEO_HYPERVISOR_PORTS=5900-7899
 
+# ------ Vide proxy settings -------------------------------------------------
+## This is the inactivity timeout when the proxy will close the RDP connection.
+## The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
+## The duration will be trucated up to minutes
+#RDPGW_IDLE_TIMEOUT=30m
+#RDPGW_API_ADDR=isard-api:5000
+
 # ------ Docker networking ---------------------------------------------------
 ## Assign a docker /24 network. The host part will be set by system
 ## You should avoid setting a network that exists in your infrastructure
