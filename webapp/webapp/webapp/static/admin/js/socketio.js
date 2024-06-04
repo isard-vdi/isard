@@ -30,9 +30,19 @@ socket.on('connect', function () {
     connection_done()
 })
 
-socket.on('connect_error', function (data) {
-    if(data == "Error: Connection rejected by server"){
+socket.on('connect_error', (err) => {
+    console.log('WS connection error:')
+    console.log(err)
+    if (err.message === 'timeout') {
+        console.log('WS connection timeout')
+    } else if (err.message === 'websocket error') {
+        console.log('WS connection error')
+    } else if (err.message === 'Connection rejected by server') {
+        console.log('WS connection not authorized')
         deleteCookie('isardvdi_session')
+        window.location = '/isard-admin/logout'
+    } else {
+        console.log('WS connection error: ' + err)
     }
     connection_lost()
 })
