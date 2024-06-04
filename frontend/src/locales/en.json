@@ -505,14 +505,17 @@
                 "403": {
                     "title": "Forbidden.",
                     "subtitle": "You don't have enough permission to access the content.",
-                    "home": "To find alternatives you can go "
+                    "home": "To find alternatives you can go ",
+                    "logout": "You can try to log out and log in again "
                 },
                 "500": {
                     "title": "Unexpected error.",
                     "subtitle": "The content couldn't be accessed.",
-                    "home": "To find alternatives you can go "
+                    "home": "To find alternatives you can go ",
+                    "logout": "You can try to log out and log in again "
                 }
             },
+
             "here": "here."
         },
         "login": {

@@ -505,12 +505,14 @@
                 "403": {
                     "title": "Acceso denegado.",
                     "subtitle": "No dispones de permisos suficientes para acceder a este contenido.",
-                    "home": "Para encontrar alternativas puedes ir "
+                    "home": "Para encontrar alternativas puedes ir ",
+                    "logout": "Puedes intentar cerrar la sesión e iniciarla de nuevo "
                 },
                 "500": {
                     "title": "Error inesperado.",
                     "subtitle": "No se ha podido acceder al contenido solicitado.",
-                    "home": "Para encontrar alternativas puedes ir "
+                    "home": "Para encontrar alternativas puedes ir ",
+                    "logout": "Puedes intentar cerrar la sesión e iniciarla de nuevo "
                 }
             },
             "here": "aquí."

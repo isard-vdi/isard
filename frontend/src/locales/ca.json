@@ -314,12 +314,14 @@
                 "403": {
                     "title": "Accés denegat.",
                     "subtitle": "No disposes de permisos suficients per accedir al contingut sol·licitat.",
-                    "home": "Per a trobar alternatives pots anar "
+                    "home": "Per a trobar alternatives pots anar ",
+                    "logout": "Pots provar de tancar la sessió i tornar-la a iniciar "
                 },
                 "500": {
                     "title": "Error inesperat.",
                     "subtitle": "No s'ha pogut accedir al contingut sol·licitat.",
-                    "home": "Per a trobar alternatives pots anar "
+                    "home": "Per a trobar alternatives pots anar ",
+                    "logout": "Pots provar de tancar la sessió i tornar-la a iniciar "
                 }
             },
             "here": "aquí."
