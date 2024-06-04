@@ -1,6 +1,8 @@
 package cfg
 
 import (
+	"time"
+
 	"github.com/spf13/viper"
 	"gitlab.com/isard/isardvdi/pkg/cfg"
 )
@@ -8,8 +10,8 @@ import (
 type Cfg struct {
 	Log         cfg.Log
 	HTTP        cfg.HTTP
-	APIAddr     string `mapstructure:"api_addr"`
-	IdleTimeout int    `mapstructure:"idle_timeout"`
+	APIAddr     string        `mapstructure:"api_addr"`
+	IdleTimeout time.Duration `mapstructure:"idle_timeout"`
 }
 
 func New() Cfg {
@@ -24,5 +26,5 @@ func setDefaults() {
 	cfg.SetHTTPDefaults()
 
 	viper.SetDefault("api_addr", "isard-api:5000")
-	viper.SetDefault("idle_timeout", 10)
+	viper.SetDefault("idle_timeout", "30m")
 }

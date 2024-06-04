@@ -17,7 +17,7 @@ var c = cache.New(5*time.Minute, 10*time.Minute)
 
 func Init(cfg cfg.Cfg) *protocol.Gateway {
 	return &protocol.Gateway{ServerConf: &protocol.ServerConf{
-		IdleTimeout: cfg.IdleTimeout,
+		IdleTimeout: int(cfg.IdleTimeout.Minutes()),
 		TokenAuth:   true,
 		RedirectFlags: protocol.RedirectFlags{
 			Clipboard: true,
