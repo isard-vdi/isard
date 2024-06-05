@@ -157,6 +157,184 @@ func TestNew(t *testing.T) {
 			RemoteAddr:  "127.0.0.1",
 			ExpectedErr: "create new session: save session: update: i'm really tired :(",
 		},
+		"should return an error if the remote address is not valid": {
+			PrepareRedis: func(m redismock.ClientMock) {},
+			UserID:       "05837779-35f8-4f17-a4a9-b0540cc0fe81",
+			RemoteAddr:   "this is an invalid address :P",
+			ExpectedErr:  sessions.ErrInvalidRemoteAddr.Error(),
+		},
+		"should return an error if the user ID is missing": {
+			PrepareRedis: func(m redismock.ClientMock) {},
+			UserID:       "",
+			RemoteAddr:   "127.0.0.1",
+			ExpectedErr:  sessions.ErrMissingUserID.Error(),
+		},
+		"should return revoke the old session and create a new one if the user already has an active session": {
+			PrepareRedis: func(m redismock.ClientMock) {
+				var sessionID string
+				usr := &model.User{
+					ID:        "75a52380-7a9f-45b9-814a-3448870ec0a9",
+					SessionID: "05837779-35f8-4f17-a4a9-b0540cc0fe81",
+				}
+
+				bUsr, err := json.Marshal(usr)
+				assert.NoError(err)
+
+				m.ExpectGet("user:" + usr.ID).SetVal(string(bUsr))
+				sess := &model.Session{
+					ID:         "05837779-35f8-4f17-a4a9-b0540cc0fe81",
+					UserID:     "75a52380-7a9f-45b9-814a-3448870ec0a9",
+					RemoteAddr: "127.0.0.1",
+					Time: &model.SessionTime{
+						MaxTime:        now.Add(-5 * time.Minute),
+						MaxRenewTime:   now.Add(30 * time.Second),
+						ExpirationTime: now.Add(-5 * time.Minute),
+					},
+				}
+
+				bSess, err := json.Marshal(sess)
+				assert.NoError(err)
+
+				m.ExpectGet("session:" + usr.SessionID).SetVal(string(bSess))
+				m.ExpectDel("session:" + usr.SessionID).SetVal(1)
+				m.ExpectGet("user:" + usr.ID).SetVal(string(bUsr))
+				m.ExpectDel("user:" + usr.ID).SetVal(1)
+
+				sess = &model.Session{
+					ID:         "89d11dea-6cf5-442f-bf8f-aebf3d0596bd",
+					UserID:     "75a52380-7a9f-45b9-814a-3448870ec0a9",
+					RemoteAddr: "127.0.0.1",
+					Time: &model.SessionTime{
+						MaxTime:        now.Add(-5 * time.Minute),
+						MaxRenewTime:   now.Add(30 * time.Second),
+						ExpirationTime: now.Add(-5 * time.Minute),
+					},
+				}
+				m.CustomMatch(func(expected, actual []interface{}) error {
+					assert.Equal(len(expected), len(actual))
+
+					// SET operation
+					assert.Equal(expected[0], actual[0])
+
+					// key -> session:XXXXX actual prefix expected
+					assert.True(strings.HasPrefix(actual[1].(string), expected[1].(string)))
+					uuid, err := uuid.Parse(strings.TrimPrefix(actual[1].(string), expected[1].(string)))
+					assert.NoError(err)
+
+					// session
+					b := actual[2].([]byte)
+					sess := &model.Session{}
+					err = json.Unmarshal(b, sess)
+					assert.NoError(err)
+
+					sessionID = sess.ID
+
+					assert.Equal(uuid.String(), sess.ID)
+
+					assert.True(sess.Time.MaxTime.Before(now.Add(8*time.Hour + 1*time.Minute)))
+					assert.True(sess.Time.MaxTime.After(now.Add(7*time.Hour + 59*time.Minute)))
+
+					assert.True(sess.Time.MaxRenewTime.Before(now.Add(31 * time.Minute)))
+					assert.True(sess.Time.MaxRenewTime.After(now.Add(29 * time.Minute)))
+
+					assert.True(sess.Time.ExpirationTime.Before(now.Add(6 * time.Minute)))
+					assert.True(sess.Time.ExpirationTime.After(now.Add(4 * time.Minute)))
+
+					// duration
+					assert.Equal(expected[4].(int64), actual[4].(int64))
+
+					return nil
+				}).ExpectSet(`session:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetVal("OK")
+				m.CustomMatch(func(expected, actual []interface{}) error {
+					assert.Equal(len(expected), len(actual))
+
+					// SET operation
+					assert.Equal(expected[0], actual[0])
+
+					// key -> user:XXXXX actual prefix expected
+					assert.True(strings.HasPrefix(actual[1].(string), expected[1].(string)))
+					usrUUID, err := uuid.Parse(strings.TrimPrefix(actual[1].(string), expected[1].(string)))
+					assert.NoError(err)
+
+					// session
+					b := actual[2].([]byte)
+					usr := &model.User{}
+					err = json.Unmarshal(b, usr)
+					assert.NoError(err)
+
+					assert.Equal(usrUUID.String(), usr.ID)
+
+					sessUUID, err := uuid.Parse(usr.SessionID)
+					assert.NoError(err)
+
+					assert.Equal(sessionID, sessUUID.String())
+
+					return nil
+				}).ExpectSet(`user:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetVal("OK")
+			},
+			UserID:     "75a52380-7a9f-45b9-814a-3448870ec0a9",
+			RemoteAddr: "127.0.0.1",
+			CheckSession: func(sess *model.Session) {
+				_, err := uuid.Parse(sess.ID)
+				assert.NoError(err)
+
+				assert.True(sess.Time.MaxTime.Before(now.Add(8*time.Hour + 1*time.Minute)))
+				assert.True(sess.Time.MaxTime.After(now.Add(7*time.Hour + 59*time.Minute)))
+
+				assert.True(sess.Time.MaxRenewTime.Before(now.Add(31 * time.Minute)))
+				assert.True(sess.Time.MaxRenewTime.After(now.Add(29 * time.Minute)))
+
+				assert.True(sess.Time.ExpirationTime.Before(now.Add(6 * time.Minute)))
+				assert.True(sess.Time.ExpirationTime.After(now.Add(4 * time.Minute)))
+			},
+		},
+		"should return an error if there's an error loading the user": {
+			PrepareRedis: func(m redismock.ClientMock) {
+				usr := &model.User{
+					ID:        "this is an ID",
+					SessionID: "05837779-35f8-4f17-a4a9-b0540cc0fe81",
+				}
+
+				_, err := json.Marshal(usr)
+				assert.NoError(err)
+
+				m.ExpectGet("user:" + usr.ID).SetErr(errors.New("random error"))
+			},
+			UserID:      "this is an ID",
+			RemoteAddr:  "127.0.0.1",
+			ExpectedErr: "load user: get: random error",
+		},
+		"should return an error if there's an error revoking the old user session": {
+			PrepareRedis: func(m redismock.ClientMock) {
+				usr := &model.User{
+					ID:        "this is an ID",
+					SessionID: "05837779-35f8-4f17-a4a9-b0540cc0fe81",
+				}
+
+				bUsr, err := json.Marshal(usr)
+				assert.NoError(err)
+
+				m.ExpectGet("user:" + usr.ID).SetVal(string(bUsr))
+				sess := &model.Session{
+					ID:         "05837779-35f8-4f17-a4a9-b0540cc0fe81",
+					UserID:     "this is an ID",
+					RemoteAddr: "127.0.0.1",
+					Time: &model.SessionTime{
+						MaxTime:        now.Add(-5 * time.Minute),
+						MaxRenewTime:   now.Add(30 * time.Second),
+						ExpirationTime: now.Add(-5 * time.Minute),
+					},
+				}
+
+				_, err = json.Marshal(sess)
+				assert.NoError(err)
+
+				m.ExpectGet("session:" + usr.SessionID).SetErr(errors.New("random error"))
+			},
+			UserID:      "this is an ID",
+			RemoteAddr:  "127.0.0.1",
+			ExpectedErr: "revoke old user session: load session: get: random error",
+		},
 	}
 
 	for name, tc := range cases {
