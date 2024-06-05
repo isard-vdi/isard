@@ -58,7 +58,9 @@ def maintenance(category_id=None):
 def password_reset(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        api_sessions.get(get_jwt_payload().get("session_id", ""))
+        api_sessions.get(
+            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+        )
 
         payload = get_header_jwt_payload()
         if (
@@ -79,7 +81,9 @@ def password_reset(f):
 def has_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        api_sessions.get(get_jwt_payload().get("session_id", ""))
+        api_sessions.get(
+            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+        )
 
         payload = get_header_jwt_payload()
         if payload.get("role_id") != "admin":
@@ -140,7 +144,9 @@ def is_auto_register(f):  # TODO
 def is_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        api_sessions.get(get_jwt_payload().get("session_id", ""))
+        api_sessions.get(
+            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+        )
 
         payload = get_header_jwt_payload()
         if payload["role_id"] == "admin":
@@ -158,7 +164,9 @@ def is_admin(f):
 def is_admin_or_manager(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        api_sessions.get(get_jwt_payload().get("session_id", ""))
+        api_sessions.get(
+            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+        )
 
         payload = get_header_jwt_payload()
         if payload.get("role_id") != "admin":
@@ -178,7 +186,9 @@ def is_admin_or_manager(f):
 def is_admin_or_manager_or_advanced(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        api_sessions.get(get_jwt_payload().get("session_id", ""))
+        api_sessions.get(
+            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+        )
 
         payload = get_header_jwt_payload()
         if payload.get("role_id") != "admin":
@@ -202,7 +212,9 @@ def is_admin_or_manager_or_advanced(f):
 def is_not_user(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        api_sessions.get(get_jwt_payload().get("session_id", ""))
+        api_sessions.get(
+            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+        )
 
         payload = get_header_jwt_payload()
         if payload["role_id"] != "user":
@@ -233,7 +245,9 @@ def is_hyper(f):  # TODO
 def owns_table_item_id(fn):
     @wraps(fn)
     def decorated_view(table, *args, **kwargs):
-        api_sessions.get(get_jwt_payload().get("session_id", ""))
+        api_sessions.get(
+            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+        )
 
         payload = get_header_jwt_payload()
         if payload["role_id"] == "admin":
@@ -264,6 +278,10 @@ def owns_table_item_id(fn):
 
 
 ### Helpers
+def get_remote_addr(request):
+    return request.headers.get("X-Forwarded-For", request.remote_addr).split(",")[0]
+
+
 def ownsUserId(payload, user_id):
     if payload["role_id"] == "admin":
         return True

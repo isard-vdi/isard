@@ -26,12 +26,14 @@ from sessions.v1 import sessions_pb2
 from api import app
 
 
-def get(session_id):
+def get(session_id, remote_addr):
     if not session_id:
         raise Error("unauthorized", "No session provided")
 
     try:
-        return app.sessions_client.Get(sessions_pb2.GetRequest(id=session_id))
+        return app.sessions_client.Get(
+            sessions_pb2.GetRequest(id=session_id, remote_addr=remote_addr)
+        )
 
     except grpc.RpcError as rpc_error:
         if rpc_error.code() in [
