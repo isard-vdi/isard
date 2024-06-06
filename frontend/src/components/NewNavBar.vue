@@ -142,7 +142,7 @@
                   class="mr-2"
                   size="1.5rem"
                 />
-                <span>{{ getUser.name }} [{{ getUser.role_id }}]</span>
+                <span>{{ getUser.name }} [{{ getUser.role_name }}]</span>
               </template>
               <b-dropdown-item
                 href="#"
