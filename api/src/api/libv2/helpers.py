@@ -790,6 +790,7 @@ def change_owner_desktop(user_id, desktop_id):
         )
     quotas.desktop_create(user_data["new_user"]["user"])
 
+    desktops_stop([desktop_data["id"]])
     change_storage_ownership(desktop_data, user_id)
     revoke_hardware_permissions(desktop_data, user_data["payload"])
 
