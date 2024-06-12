@@ -315,7 +315,7 @@
     "name": "NVIDIA L40",
     "architecture": "NVIDIA Ada Lovelace",
     "description": "The NVIDIA L4 delivers revolutionary neural graphics, virtualization, compute, and AI capabilities for GPU-accelerated data center workloads.",
-    "memory": "24 GB GDDR",
+    "memory": "48 GB GDDR",
     "model": "L40",
     "profiles": [
       {
