@@ -31,7 +31,7 @@ func (l *Local) Login(ctx context.Context, categoryID string, args LoginArgs) (*
 	u := &model.User{
 		UID:      usr,
 		Username: usr,
-		Provider: types.Local,
+		Provider: types.ProviderLocal,
 		Category: categoryID,
 	}
 	if err := u.LoadWithoutID(ctx, l.db); err != nil {
@@ -70,7 +70,7 @@ func (Local) AutoRegister() bool {
 }
 
 func (l *Local) String() string {
-	return types.Local
+	return types.ProviderLocal
 }
 
 func (l *Local) Healthcheck() error {

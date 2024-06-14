@@ -134,7 +134,7 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 		redirect = *args.Redirect
 	}
 
-	ss, err := token.SignCallbackToken(s.cfg.Secret, types.SAML, categoryID, redirect)
+	ss, err := token.SignCallbackToken(s.cfg.Secret, types.ProviderSAML, categoryID, redirect)
 	if err != nil {
 		return nil, nil, "", &ProviderError{
 			User:   ErrInternal,
@@ -187,7 +187,7 @@ func (SAML) AutoRegister() bool {
 }
 
 func (SAML) String() string {
-	return types.SAML
+	return types.ProviderSAML
 }
 
 func (s *SAML) Healthcheck() error {

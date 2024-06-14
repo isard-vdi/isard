@@ -87,7 +87,7 @@ func (External) AutoRegister() bool {
 }
 
 func (External) String() string {
-	return types.External
+	return types.ProviderExternal
 }
 
 func (External) Healthcheck() error {

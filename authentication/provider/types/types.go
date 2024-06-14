@@ -1,11 +1,11 @@
 package types
 
 const (
-	Unknown  = "unknown"
-	Local    = "local"
-	LDAP     = "ldap"
-	Form     = "form"
-	External = "external"
-	SAML     = "saml"
-	Google   = "google"
+	ProviderUnknown  = "unknown"
+	ProviderLocal    = "local"
+	ProviderLDAP     = "ldap"
+	ProviderForm     = "form"
+	ProviderExternal = "external"
+	ProviderSAML     = "saml"
+	ProviderGoogle   = "google"
 )

@@ -26,7 +26,7 @@ type Google struct {
 func InitGoogle(cfg cfg.Authentication) *Google {
 	return &Google{
 		&oauth2Provider{
-			types.Google,
+			types.ProviderGoogle,
 			cfg.Secret,
 			&oauth2.Config{
 				ClientID:     cfg.Google.ClientID,
@@ -102,7 +102,7 @@ func (Google) AutoRegister() bool {
 }
 
 func (g *Google) String() string {
-	return types.Google
+	return types.ProviderGoogle
 }
 
 func (g *Google) Healthcheck() error {

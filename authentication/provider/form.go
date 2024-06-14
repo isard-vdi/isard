@@ -81,7 +81,7 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	var invCreds *ProviderError
 
 	if f.cfg.Local.Enabled {
-		g, u, redirect, err := f.providers[types.Local].Login(ctx, categoryID, args)
+		g, u, redirect, err := f.providers[types.ProviderLocal].Login(ctx, categoryID, args)
 		if err == nil {
 			if f.limits != nil {
 				// Clean the user rate limits record because the user has logged in correctly
@@ -100,7 +100,7 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	}
 
 	if f.cfg.LDAP.Enabled {
-		g, u, redirect, err := f.providers[types.LDAP].Login(ctx, categoryID, args)
+		g, u, redirect, err := f.providers[types.ProviderLDAP].Login(ctx, categoryID, args)
 		// Clean the user rate limits record because the user has logged in correctly
 		if err == nil {
 			if f.limits != nil {
@@ -156,7 +156,7 @@ func (f *Form) AutoRegister() bool {
 }
 
 func (f *Form) String() string {
-	return types.Form
+	return types.ProviderForm
 }
 
 func (f *Form) Providers() []string {

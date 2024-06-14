@@ -74,7 +74,7 @@ var (
 type Unknown struct{}
 
 func (Unknown) String() string {
-	return types.Unknown
+	return types.ProviderUnknown
 }
 
 func (Unknown) Login(context.Context, string, LoginArgs) (*model.Group, *model.User, string, *ProviderError) {

@@ -265,7 +265,7 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	log := a.Log.With().Str("provider", string(params.Provider)).Logger()
 
 	p := a.Authentication.Provider(string(params.Provider))
-	if p.String() == types.SAML {
+	if p.String() == types.ProviderSAML {
 		c := &http.Cookie{
 			Name:  "token",
 			Value: params.Token.Value,
@@ -517,7 +517,7 @@ func (a *AuthenticationServer) Logout(ctx context.Context, req *oasAuthenticatio
 func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthentication.ProvidersResponse, error) {
 	providers := []oasAuthentication.Providers{}
 	for _, p := range a.Authentication.Providers() {
-		if p == types.Local || p == types.LDAP {
+		if p == types.ProviderLocal || p == types.ProviderLDAP {
 			continue
 		}
 

@@ -211,7 +211,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 
 	u := &model.User{
 		UID:      matchRegex(l.ReUID, entry.GetAttributeValue(l.cfg.FieldUID)),
-		Provider: types.LDAP,
+		Provider: types.ProviderLDAP,
 		Category: categoryID,
 		Username: matchRegex(l.ReUsername, entry.GetAttributeValue(l.cfg.FieldUsername)),
 		Name:     matchRegex(l.ReName, entry.GetAttributeValue(l.cfg.FieldName)),
@@ -317,7 +317,7 @@ func (l *LDAP) AutoRegister() bool {
 }
 
 func (l *LDAP) String() string {
-	return types.LDAP
+	return types.ProviderLDAP
 }
 
 func (l *LDAP) Healthcheck() error {
