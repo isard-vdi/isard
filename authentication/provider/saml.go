@@ -128,7 +128,7 @@ func InitSAML(cfg cfg.Authentication) *SAML {
 	return s
 }
 
-func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *model.User, string, *ProviderError) {
+func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
 	redirect := ""
 	if args.Redirect != nil {
 		redirect = *args.Redirect
@@ -151,7 +151,7 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	return nil, nil, u.String(), nil
 }
 
-func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, *model.User, string, *ProviderError) {
+func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
 	r := ctx.Value(HTTPRequest).(*http.Request)
 
 	sess, err := s.Middleware.Session.GetSession(r)
@@ -164,14 +164,20 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 
 	attrs := sess.(samlsp.SessionWithAttributes).GetAttributes()
 
-	u := &model.User{
-		UID:      matchRegex(s.ReUID, attrs.Get(s.cfg.SAML.FieldUID)),
+	username := matchRegex(s.ReUsername, attrs.Get(s.cfg.SAML.FieldUsername))
+	name := matchRegex(s.ReName, attrs.Get(s.cfg.SAML.FieldName))
+	email := matchRegex(s.ReEmail, attrs.Get(s.cfg.SAML.FieldEmail))
+	photo := matchRegex(s.RePhoto, attrs.Get(s.cfg.SAML.FieldPhoto))
+
+	u := &types.ProviderUserData{
 		Provider: claims.Provider,
 		Category: claims.CategoryID,
-		Username: matchRegex(s.ReUsername, attrs.Get(s.cfg.SAML.FieldUsername)),
-		Name:     matchRegex(s.ReName, attrs.Get(s.cfg.SAML.FieldName)),
-		Email:    matchRegex(s.ReEmail, attrs.Get(s.cfg.SAML.FieldEmail)),
-		Photo:    matchRegex(s.RePhoto, attrs.Get(s.cfg.SAML.FieldPhoto)),
+		UID:      matchRegex(s.ReUID, attrs.Get(s.cfg.SAML.FieldUID)),
+
+		Username: &username,
+		Name:     &name,
+		Email:    &email,
+		Photo:    &photo,
 	}
 
 	// // TODO: Autoregister

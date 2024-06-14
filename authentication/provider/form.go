@@ -59,7 +59,7 @@ func formCheckRequiredArgs(args LoginArgs) error {
 	return nil
 }
 
-func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *model.User, string, *ProviderError) {
+func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
 	if err := formCheckRequiredArgs(args); err != nil {
 		return nil, nil, "", &ProviderError{
 			User:   ErrInternal,
@@ -138,7 +138,7 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	}
 }
 
-func (f *Form) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *model.User, string, *ProviderError) {
+func (f *Form) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
 	return nil, nil, "", &ProviderError{
 		User:   errInvalidIDP,
 		Detail: errors.New("the local provider doesn't support the callback operation"),

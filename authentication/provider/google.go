@@ -42,7 +42,7 @@ func InitGoogle(cfg cfg.Authentication) *Google {
 	}
 }
 
-func (g *Google) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *model.User, string, *ProviderError) {
+func (g *Google) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
 	redirect := ""
 	if args.Redirect != nil {
 		redirect = *args.Redirect
@@ -59,7 +59,7 @@ func (g *Google) Login(ctx context.Context, categoryID string, args LoginArgs) (
 	return nil, nil, redirect, nil
 }
 
-func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, *model.User, string, *ProviderError) {
+func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
 	oTkn, err := g.provider.callback(ctx, args)
 	if err != nil {
 		return nil, nil, "", &ProviderError{
@@ -84,14 +84,15 @@ func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, arg
 		}
 	}
 
-	u := &model.User{
-		UID:      gUsr.Id,
-		Username: strings.Split(gUsr.Email, "@")[0],
+	u := &types.ProviderUserData{
 		Provider: claims.Provider,
 		Category: claims.CategoryID,
-		Name:     gUsr.Name,
-		Email:    gUsr.Email,
-		Photo:    gUsr.Picture,
+		UID:      gUsr.Id,
+
+		Username: &strings.Split(gUsr.Email, "@")[0],
+		Name:     &gUsr.Name,
+		Email:    &gUsr.Email,
+		Photo:    &gUsr.Picture,
 	}
 
 	return nil, u, "", nil

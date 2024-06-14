@@ -24,16 +24,20 @@ func InitLocal(db r.QueryExecutor) *Local {
 	return &Local{db}
 }
 
-func (l *Local) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *model.User, string, *ProviderError) {
+func (l *Local) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
 	usr := *args.FormUsername
 	pwd := *args.FormPassword
 
-	u := &model.User{
-		UID:      usr,
-		Username: usr,
+	data := &types.ProviderUserData{
 		Provider: types.ProviderLocal,
 		Category: categoryID,
+		UID:      usr,
+
+		Username: &usr,
 	}
+
+	u := data.ToUser()
+
 	if err := u.LoadWithoutID(ctx, l.db); err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			return nil, nil, "", &ProviderError{
@@ -55,10 +59,10 @@ func (l *Local) Login(ctx context.Context, categoryID string, args LoginArgs) (*
 		}
 	}
 
-	return nil, u, "", nil
+	return nil, data, "", nil
 }
 
-func (l *Local) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *model.User, string, *ProviderError) {
+func (l *Local) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
 	return nil, nil, "", &ProviderError{
 		User:   errInvalidIDP,
 		Detail: errors.New("the local provider doesn't support the callback operation"),

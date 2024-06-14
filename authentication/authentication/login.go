@@ -8,6 +8,7 @@ import (
 
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider"
+	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
@@ -83,7 +84,9 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args provider.
 	return a.startLogin(ctx, remoteAddr, p, g, u, redirect)
 }
 
-func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p provider.Provider, g *model.Group, u *model.User, redirect string) (string, string, error) {
+func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p provider.Provider, g *model.Group, data *types.ProviderUserData, redirect string) (string, string, error) {
+	u := data.ToUser()
+
 	uExists, err := u.Exists(ctx, a.DB)
 	if err != nil {
 		return "", "", fmt.Errorf("check if user exists: %w", err)

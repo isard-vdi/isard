@@ -137,7 +137,7 @@ func (l *LDAP) listAllGroups(usr string) ([]string, error) {
 	return groups, nil
 }
 
-func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *model.User, string, *ProviderError) {
+func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
 	usr := *args.FormUsername
 	pwd := *args.FormPassword
 
@@ -209,14 +209,20 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 
 	var g *model.Group
 
-	u := &model.User{
-		UID:      matchRegex(l.ReUID, entry.GetAttributeValue(l.cfg.FieldUID)),
+	username := matchRegex(l.ReUsername, entry.GetAttributeValue(l.cfg.FieldUsername))
+	name := matchRegex(l.ReName, entry.GetAttributeValue(l.cfg.FieldName))
+	email := matchRegex(l.ReEmail, entry.GetAttributeValue(l.cfg.FieldEmail))
+	photo := matchRegex(l.RePhoto, entry.GetAttributeValue(l.cfg.FieldPhoto))
+
+	u := &types.ProviderUserData{
 		Provider: types.ProviderLDAP,
 		Category: categoryID,
-		Username: matchRegex(l.ReUsername, entry.GetAttributeValue(l.cfg.FieldUsername)),
-		Name:     matchRegex(l.ReName, entry.GetAttributeValue(l.cfg.FieldName)),
-		Email:    matchRegex(l.ReEmail, entry.GetAttributeValue(l.cfg.FieldEmail)),
-		Photo:    matchRegex(l.RePhoto, entry.GetAttributeValue(l.cfg.FieldPhoto)),
+		UID:      matchRegex(l.ReUID, entry.GetAttributeValue(l.cfg.FieldUID)),
+
+		Username: &username,
+		Name:     &name,
+		Email:    &email,
+		Photo:    &photo,
 	}
 
 	if l.cfg.GuessCategory {
@@ -288,8 +294,8 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 			for _, g := range groups {
 				for _, uGrp := range allUsrGrps {
 					if uGrp == g {
-						if roles[i].HasMorePrivileges(u.Role) {
-							u.Role = roles[i]
+						if roles[i].HasMorePrivileges(*u.Role) {
+							u.Role = &roles[i]
 						}
 					}
 				}
@@ -297,15 +303,15 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 		}
 
 		// Role fallback
-		if u.Role == "" {
-			u.Role = l.cfg.RoleDefault
+		if u.Role == nil {
+			u.Role = &l.cfg.RoleDefault
 		}
 	}
 
 	return g, u, "", nil
 }
 
-func (l *LDAP) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *model.User, string, *ProviderError) {
+func (l *LDAP) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
 	return nil, nil, "", &ProviderError{
 		User:   errInvalidIDP,
 		Detail: errors.New("the LDAP provider doesn't support the callback operation"),

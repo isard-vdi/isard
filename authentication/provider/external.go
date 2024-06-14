@@ -26,7 +26,7 @@ func externalCheckRequiredArgs(args LoginArgs) error {
 	return nil
 }
 
-func (e *External) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *model.User, string, *ProviderError) {
+func (e *External) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
 	if err := externalCheckRequiredArgs(args); err != nil {
 		return nil, nil, "", &ProviderError{
 			User:   ErrInternal,
@@ -59,23 +59,24 @@ func (e *External) Login(ctx context.Context, categoryID string, args LoginArgs)
 	g.Description = "This is a auto register created by the authentication service. This group maps a group of an external app"
 	g.GenerateNameExternal(e.String())
 
-	u := &model.User{
-		UID:      claims.UserID,
-		Username: claims.Username,
+	role := model.Role(claims.Role)
+
+	u := &types.ProviderUserData{
 		Provider: fmt.Sprintf("%s_%s", e.String(), claims.KeyID),
-
 		Category: claims.CategoryID,
-		Role:     model.Role(claims.Role),
+		UID:      claims.UserID,
 
-		Name:  claims.Name,
-		Email: claims.Email,
-		Photo: claims.Photo,
+		Role:     &role,
+		Username: &claims.Username,
+		Name:     &claims.Name,
+		Email:    &claims.Email,
+		Photo:    &claims.Photo,
 	}
 
 	return g, u, "", nil
 }
 
-func (External) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *model.User, string, *ProviderError) {
+func (External) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
 	return nil, nil, "", &ProviderError{
 		User:   errInvalidIDP,
 		Detail: errors.New("the external provider doesn't support the callback operation"),
