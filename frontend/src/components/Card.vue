@@ -294,7 +294,7 @@ const MAX_TITLE_SIZE = 20
 const MAX_DESCRIPTION_SIZE = 30
 const MAX_TEMPLATE_TEXT_SIZE = 16
 const MAX_VIEWER_TEXT_SIZE = 40
-const MAX_BOOKING_TEXT_SIZE = 35
+const MAX_BOOKING_TEXT_SIZE = 30
 
 export default {
   components: { DesktopButton, IsardDropdown },
@@ -481,7 +481,7 @@ export default {
       if (DateUtils.dateIsAfter(dateEnd, new Date()) && DateUtils.dateIsBefore(dateStart, new Date())) {
         return i18n.t('components.desktop-cards.notification-bar.booking-ends') + DateUtils.formatAsTime(dateEnd) + ' ' + DateUtils.formatAsDayMonth(dateEnd)
       } else if (dateStart) {
-        return i18n.t('components.desktop-cards.notification-bar.next-booking') + ': ' + DateUtils.formatAsTime(dateStart) + ' ' + DateUtils.formatAsDayMonth(dateStart)
+        return i18n.t('components.desktop-cards.notification-bar.next-booking') + ': ' + DateUtils.formatAsTime(dateStart) + ' ' + DateUtils.formatAsDayMonth(dateStart) + ' - ' + DateUtils.formatAsTime(dateEnd) + ' ' + DateUtils.formatAsDayMonth(dateEnd)
       } else {
         return i18n.t('components.desktop-cards.notification-bar.no-next-booking')
       }

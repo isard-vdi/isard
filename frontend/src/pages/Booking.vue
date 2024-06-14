@@ -221,6 +221,7 @@ export default {
     // Click on calendar event
     const onCalendarEventClicked = (event, e) => {
       if (!eventClickActive.value) { return }
+      if (event.eventType === 'available') { return }
 
       let type = 'view'
       if (DateUtils.dateToMoment(new Date()).isBefore(event.end)) {

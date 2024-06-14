@@ -114,7 +114,7 @@
             },
             "notification-bar": {
                 "next-booking": "Propera reserva",
-                "no-next-booking": "L'escriptori no està reservat!",
+                "no-next-booking": "L'escriptori amb vGPU no està reservat!",
                 "shutdown": "Aturada automàtica a les {date}",
                 "booking-ends": "La reserva s'acaba a les "
             },
@@ -292,6 +292,7 @@
             "profile": "Perfil",
             "select-profile": "Selecciona el perfil que es farà servir",
             "end-date": "Data de finalització",
+            "end-time": "Hora de finalització",
             "select-end-date": "Selecciona fins a quan es farà servir",
             "button": "Iniciar escriptori"
         },

@@ -312,7 +312,7 @@
             },
             "notification-bar": {
                 "next-booking": "Próxima reserva",
-                "no-next-booking": "El escritorio no está reservado!",
+                "no-next-booking": "El escritorio con vGPU no está reservado!",
                 "shutdown": "Apagado automático a las {date}",
                 "booking-ends": "La reserva acaba a las "
             },
@@ -483,6 +483,7 @@
             "profile": "Perfil",
             "select-profile": "Selecciona el perfil que se utilizará",
             "end-date": "Fecha de finalización",
+            "end-time": "Hora de finalización",
             "select-end-date": "Selecciona hasta cuando se utilizará",
             "button": "Iniciar escritorio"
         },

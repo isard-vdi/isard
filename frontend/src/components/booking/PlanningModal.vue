@@ -3,7 +3,7 @@
     id="eventModal"
     v-model="modalShow"
     size="lg"
-    :title="$t(`components.bookings.item.modal.${modal.type}.modal-title`)"
+    :title="modal.type === 'edit' ? $t(`components.bookings.item.modal.view.modal-title`) : $t(`components.bookings.item.modal.${modal.type}.modal-title`)"
     centered
     @hidden="closeModal"
   >
@@ -17,7 +17,7 @@
           <b-form-datepicker
             id="startDate"
             v-model="startDate"
-            :disabled="modal.type == 'view'"
+            :disabled="['view', 'edit'].includes(modal.type)"
             type="date"
             :locale="$i18n.locale"
             :state="v$.startDate.$error ? false : null"
@@ -38,7 +38,7 @@
           <b-form-input
             id="startTime"
             v-model="startTime"
-            :disabled="modal.type == 'view'"
+            :disabled="['view', 'edit'].includes(modal.type)"
             type="time"
             :state="v$.startTime.$error ? false : null"
             @blur="v$.startTime.$touch"
@@ -58,7 +58,7 @@
           <b-form-datepicker
             id="endDate"
             v-model="endDate"
-            :disabled="modal.type == 'view'"
+            :disabled="['view', 'edit'].includes(modal.type)"
             type="date"
             :locale="$i18n.locale"
             :state="v$.endDate.$error ? false : null"
@@ -79,7 +79,7 @@
           <b-form-input
             id="endTime"
             v-model="endTime"
-            :disabled="modal.type == 'view'"
+            :disabled="['view', 'edit'].includes(modal.type)"
             type="time"
             :state="v$.endTime.$error ? false : null"
             @blur="v$.endTime.$touch"
@@ -99,7 +99,7 @@
           <b-form-select
             id="subitemId"
             v-model="subitemId"
-            :disabled="modal.type == 'view'"
+            :disabled="['view', 'edit'].includes(modal.type)"
             :options="optionSubitems"
             :state="v$.subitemId.$error ? false : null"
             @blur="v$.subitemId.$touch"

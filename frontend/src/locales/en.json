@@ -311,7 +311,7 @@
             },
             "notification-bar": {
                 "next-booking": "Next booking",
-                "no-next-booking": "The desktop isn't booked!",
+                "no-next-booking": "The desktop with vGPU isn't booked!",
                 "shutdown": "Automatic shutdown at {date}",
                 "booking-ends": "Booking ends at "
             },
@@ -482,6 +482,7 @@
             "profile": "Profile",
             "select-profile": "Select the profile that will be used",
             "end-date": "End date",
+            "end-time": "End time",
             "select-end-date": "Select until when it will be used",
             "button": "Start desktop"
         },

@@ -41,7 +41,7 @@
         :cols="modal.showProfileDropdown ? 6 : 12"
         class="mt-2"
       >
-        <label for="endDate">{{ $t(`components.start-now-modal.end-date`) }}*</label>
+        <label for="endDate">{{ $t(`components.start-now-modal.end-time`) }}</label>
         <b-form-select
           id="endDate"
           v-model="endDate"
@@ -62,7 +62,7 @@
           v-if="v$.endDate.$error"
           id="endDateError"
         >
-          {{ $t(`validations.${v$.endDate.$errors[0].$validator}`, { property: $t('components.start-now-modal.end-date') }) }}
+          {{ $t(`validations.${v$.endDate.$errors[0].$validator}`, { property: $t('components.start-now-modal.end-time') }) }}
         </b-form-invalid-feedback>
       </b-col>
     </b-row>
