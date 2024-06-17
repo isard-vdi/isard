@@ -322,7 +322,6 @@
                 "increase": "The disk size of this desktop is being increased",
                 "virt-win-reg": "The registry is being edited",
                 "move": "This desktop's disk is being moved"
-
             }
         },
         "deployment-desktop-list": {
@@ -518,7 +517,6 @@
                     "logout": "You can try to log out and log in again "
                 }
             },
-
             "here": "here."
         },
         "login": {
@@ -757,7 +755,7 @@
                     "co-owners": "Edit co-owners for '{name}'"
                 },
                 "body": {
-                    "text":  "This action cannot be undone and all its associated data will be lost.",
+                    "text": "This action cannot be undone and all its associated data will be lost.",
                     "send-to-recycle-bin": "Send deployment to recycle bin (its storage will still be considered in the user quota until permanently removed).",
                     "invisible-warning": "There are {visible} desktops visible and {invisible} invisible in this deployment. Proceeding will make them all invisible to the users.",
                     "visible-warning": "There are {visible} desktops visible and {invisible} invisible in this deployment. Proceeding will make them all visible to the users.",
@@ -1367,5 +1365,6 @@
     },
     "bookings": {
         "max_time_reached": "Max booking time reached"
-    }
+    },
+    "bookings_max_time_reached": "The user has reached the maximum time limit for reservable desktops"
 }
