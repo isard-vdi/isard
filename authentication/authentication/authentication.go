@@ -22,10 +22,10 @@ type Interface interface {
 	Providers() []string
 	Provider(provider string) provider.Provider
 
-	Login(ctx context.Context, remoteAddr string, provider string, categoryID string, args map[string]string) (tkn, redirect string, err error)
-	Callback(ctx context.Context, remoteAddr string, ss string, args map[string]string) (tkn, redirect string, err error)
-	Check(ctx context.Context, remoteAddr string, tkn string) error
-	Renew(ctx context.Context, remoteAddr string, ss string) (tkn string, err error)
+	Login(ctx context.Context, provider string, categoryID string, args map[string]string, remoteAddr string) (tkn, redirect string, err error)
+	Callback(ctx context.Context, ss string, args map[string]string, remoteAddr string) (tkn, redirect string, err error)
+	Check(ctx context.Context, tkn string, remoteAddr string) error
+	Renew(ctx context.Context, ss string, remoteAddr string) (tkn string, err error)
 	Logout(ctx context.Context, tkn string) (err error)
 	// Register()
 
@@ -33,7 +33,7 @@ type Interface interface {
 	RequestEmailVerification(ctx context.Context, tkn string, email string) error
 	VerifyEmail(ctx context.Context, tkn string) error
 	ForgotPassword(ctx context.Context, categoryID, email string) error
-	ResetPassword(ctx context.Context, tkn string, pwd string) error
+	ResetPassword(ctx context.Context, tkn string, pwd string, remoteAddr string) error
 
 	SAML() *samlsp.Middleware
 
@@ -122,14 +122,15 @@ func (a *Authentication) Provider(p string) provider.Provider {
 	return prv
 }
 
-func (a *Authentication) check(ctx context.Context, ss string) (*token.LoginClaims, error) {
+func (a *Authentication) check(ctx context.Context, ss, remoteAddr string) (*token.LoginClaims, error) {
 	claims, err := token.ParseLoginToken(a.Secret, ss)
 	if err != nil {
 		return nil, err
 	}
 
 	if _, err := a.Sessions.Get(ctx, &sessionsv1.GetRequest{
-		Id: claims.SessionID,
+		Id:         claims.SessionID,
+		RemoteAddr: remoteAddr,
 	}); err != nil {
 		return nil, fmt.Errorf("get the session: %w", err)
 	}
@@ -137,8 +138,8 @@ func (a *Authentication) check(ctx context.Context, ss string) (*token.LoginClai
 	return claims, nil
 }
 
-func (a *Authentication) Check(ctx context.Context, remoteAddr, ss string) error {
-	_, err := a.check(ctx, ss)
+func (a *Authentication) Check(ctx context.Context, ss, remoteAddr string) error {
+	_, err := a.check(ctx, ss, remoteAddr)
 	return err
 }
 

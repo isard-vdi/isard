@@ -52,7 +52,8 @@ func TestCheck(t *testing.T) {
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/Get").WithPayload(&sessionsv1.GetRequest{
-					Id: "ThoJuroQueEsUnID",
+					Id:         "ThoJuroQueEsUnID",
+					RemoteAddr: "127.0.0.1",
 				}).Return(&sessionsv1.GetResponse{})
 			},
 			RemoteAddr: "127.0.0.1",
@@ -117,7 +118,7 @@ func TestCheck(t *testing.T) {
 
 			a := authentication.Init(cfg, log, nil, nil, nil, sessionsCli)
 
-			err = a.Check(ctx, tc.RemoteAddr, tc.PrepareToken())
+			err = a.Check(ctx, tc.PrepareToken(), tc.RemoteAddr)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

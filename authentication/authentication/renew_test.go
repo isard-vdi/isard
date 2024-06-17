@@ -121,7 +121,7 @@ func TestRenew(t *testing.T) {
 
 			a := authentication.Init(cfg, log, nil, nil, nil, sessionsCli)
 
-			tkn, err := a.Renew(context.Background(), tc.RemoteAddr, tc.PrepareToken())
+			tkn, err := a.Renew(context.Background(), tc.PrepareToken(), tc.RemoteAddr)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

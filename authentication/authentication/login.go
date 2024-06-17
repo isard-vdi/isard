@@ -13,7 +13,7 @@ import (
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 )
 
-func (a *Authentication) Login(ctx context.Context, remoteAddr string, prv, categoryID string, args map[string]string) (string, string, error) {
+func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args map[string]string, remoteAddr string) (string, string, error) {
 	// Check if the user sends a token
 	if args[provider.TokenArgsKey] != "" {
 		typ, err := token.GetTokenType(args[provider.TokenArgsKey])
@@ -90,7 +90,7 @@ func (a *Authentication) Login(ctx context.Context, remoteAddr string, prv, cate
 	return a.finishLogin(ctx, remoteAddr, u, args[provider.RedirectArgsKey])
 }
 
-func (a *Authentication) Callback(ctx context.Context, remoteAddr string, ss string, args map[string]string) (string, string, error) {
+func (a *Authentication) Callback(ctx context.Context, ss string, args map[string]string, remoteAddr string) (string, string, error) {
 	claims, err := token.ParseCallbackToken(a.Secret, ss)
 	if err != nil {
 		return "", "", fmt.Errorf("parse callback state: %w", err)

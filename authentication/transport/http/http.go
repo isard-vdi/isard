@@ -66,7 +66,7 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 		a,
 		sec,
 		oasAuthentication.WithMiddleware(
-			RequestMetada,
+			RequestMetadata,
 			Logging(log),
 		),
 	)
@@ -301,7 +301,7 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		}
 	}
 
-	tkn, redirect, err := a.Authentication.Login(ctx, remoteAddr, p.String(), params.CategoryID, args)
+	tkn, redirect, err := a.Authentication.Login(ctx, p.String(), params.CategoryID, args, remoteAddr)
 	if err != nil {
 		if errors.Is(err, provider.ErrInvalidCredentials) {
 			return &oasAuthentication.LoginUnauthorized{
@@ -388,7 +388,7 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 		})
 	}
 
-	tkn, redirect, err := a.Authentication.Callback(ctx, remoteAddr, params.State, args)
+	tkn, redirect, err := a.Authentication.Callback(ctx, params.State, args, remoteAddr)
 	if err != nil {
 		if errors.Is(err, provider.ErrUserDisabled) {
 			return &oasAuthentication.CallbackFound{
@@ -444,7 +444,7 @@ func (a *AuthenticationServer) Renew(ctx context.Context, req *oasAuthentication
 		}, nil
 	}
 
-	tkn, err := a.Authentication.Renew(ctx, remoteAddr, ss)
+	tkn, err := a.Authentication.Renew(ctx, ss, remoteAddr)
 	if err != nil {
 		if status, ok := status.FromError(err); ok {
 			switch status.Code() {
@@ -547,7 +547,7 @@ func (a *AuthenticationServer) Check(ctx context.Context) (oasAuthentication.Che
 		}, nil
 	}
 
-	if err := a.Authentication.Check(ctx, remoteAddr, tkn); err != nil {
+	if err := a.Authentication.Check(ctx, tkn, remoteAddr); err != nil {
 		if !errors.Is(err, token.ErrInvalidToken) || !errors.Is(err, token.ErrInvalidTokenType) {
 			return nil, fmt.Errorf("check JWT: %w", err)
 		}
@@ -737,6 +737,9 @@ func (a *AuthenticationServer) ForgotPassword(ctx context.Context, req *oasAuthe
 }
 
 func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthentication.ResetPasswordRequest) (oasAuthentication.ResetPasswordRes, error) {
+	// Remote address is injected in the RequestMetadata middleware
+	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
+
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
 	if !ok {
 		return &oasAuthentication.ResetPasswordUnauthorized{
@@ -745,7 +748,7 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 		}, nil
 	}
 
-	if err := a.Authentication.ResetPassword(ctx, tkn, req.Password); err != nil {
+	if err := a.Authentication.ResetPassword(ctx, tkn, req.Password, remoteAddr); err != nil {
 		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
 			return &oasAuthentication.ResetPasswordForbidden{
 				Error: oasAuthentication.ResetPasswordErrorErrorInvalidToken,

@@ -644,7 +644,7 @@ func TestLogin(t *testing.T) {
 			a := authentication.Init(cfg, log, dbMock, nil, nil, sessionsCli)
 			a.API = apiMock
 
-			tkn, redirect, err := a.Login(ctx, tc.RemoteAddr, tc.Provider, tc.CategoryID, tc.PrepareArgs())
+			tkn, redirect, err := a.Login(ctx, tc.Provider, tc.CategoryID, tc.PrepareArgs(), tc.RemoteAddr)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

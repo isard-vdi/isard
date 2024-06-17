@@ -11,7 +11,7 @@ import (
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 )
 
-func (a *Authentication) Renew(ctx context.Context, remoteAddr, ss string) (string, error) {
+func (a *Authentication) Renew(ctx context.Context, ss, remoteAddr string) (string, error) {
 	claims, err := token.ParseLoginToken(a.Secret, ss)
 	if err != nil {
 		// When the token is expired, it might be able to be renewed

@@ -11,7 +11,7 @@ type requestMetadataCtxKeyType string
 
 const requestMetadataRemoteAddrCtxKey requestMetadataCtxKeyType = "request_metadata_remote_addr"
 
-func RequestMetada(
+func RequestMetadata(
 	req middleware.Request,
 	next func(req middleware.Request) (middleware.Response, error),
 ) (middleware.Response, error) {
