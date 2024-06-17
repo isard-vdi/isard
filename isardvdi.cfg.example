@@ -123,7 +123,9 @@ SESSIONS_SESSIONS_MAX_RENEW_TIME=30m
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 SESSIONS_SESSIONS_EXPIRATION_TIME=5m
 # Whether the sessions service will perform an remote addresss control. If this is enabled, the sessions service will
-# only allow one session per remote address. If the limit is reached, the sessions service will return an error to the user
+# only allow one remote_address per session. So, for example, if a user logs in with a network connection, and moves to another
+# one, it will reach the limit. If the limit is reached, the sessions service will return an error to the user
+# This is done to further prevent token replay attacks, as the attacker would need to have the same IP as the client.
 #SESSIONS_SESSIONS_REMOTE_ADDR_CONTROL=false
 # The hostname of the Redis
 #SESSIONS_SESSIONS_REDIS_HOST=isard-redis
