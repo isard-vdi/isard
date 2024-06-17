@@ -1399,7 +1399,7 @@
         "incorrect_new_plan_body_data": "Datos de nuevo plan incorrectos",
         "cant_edit_booked_deployment": "No se pueden editar los reservables un despliegue con reservas planeadas",
         "temporal_new_reservable": "No se puede crear un escritorio temporal de una plantilla con reservables",
-        "password_character_length": "La contraseña debe tener al menos {num} caracter(es) ",
+        "password_character_length": "La contraseña debe tener al menos {num} caracter(es)",
         "password_uppercase": "La contraseña debe tener al menos {num} caracter(es) en mayúscula",
         "password_lowercase": "La contraseña debe tener al menos {num} caracter(es) en minúscula",
         "password_digits": "La contraseña debe tener al menos {num} número(s)",
