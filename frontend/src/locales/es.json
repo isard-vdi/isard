@@ -1416,6 +1416,7 @@
         "desktops_not_stopped": "Los escritorios asociados a este almacenamiento deben estar parados para realizar esta acción",
         "increase_desktops_not_stopped": "El escritorio asociado a este almacenamiento debe estar parado para incrementar el tamaño del disco",
         "increase_storage_has_derivatives": "El almacenamiento es de una plantilla y no se puede incrementar"
+  
     },
     "router": {
         "titles": {
