@@ -632,10 +632,6 @@ class ApiDesktopsPersistent:
         desktop_updating(desktop_id)
         return desktop_id
 
-    def Failed(self, desktop_id):
-        desktop_to_failed(desktop_id)
-        return desktop_id
-
     def Reset(self, token, request):
         desktop_id = common.DesktopFromToken(token)["id"]
         logs_domain_event_directviewer(desktop_id, "reset", request)
@@ -1195,3 +1191,15 @@ def get_deployments_with_resource(table, item):
             "Table without deployments",
             traceback.format_exc(),
         )
+
+
+def get_domain_storage(self, domain_id):
+    with app.app_context():
+        storage = (
+            r.table("domains")
+            .get(domain_id)
+            .pluck({"create_dict": {"hardware": {"disks": [{"storage_id": True}]}}})
+            .run(db.conn)["create_dict"]["hardware"]["disks"]
+        )
+    storage_ids = [disk["storage_id"] for disk in storage]
+    return storage_ids

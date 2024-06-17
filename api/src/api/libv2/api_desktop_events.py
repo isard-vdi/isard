@@ -310,7 +310,3 @@ def desktop_updating(desktop_id):
     with app.app_context():
         r.table("domains").get(desktop_id).update({"status": "Updating"}).run(db.conn)
 
-
-def desktop_to_failed(desktop_id):
-    with app.app_context():
-        r.table("domains").get(desktop_id).update({"status": "Failed"}).run(db.conn)

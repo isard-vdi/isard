@@ -1128,3 +1128,88 @@ def storage_check_stopped_desktops(payload, storage_id):
 @is_admin_or_manager
 def storage_check_storage_derivatives(payload, storage_id):
     return jsonify({"derivatives": len(get_storage_derivatives(storage_id))}), 200
+
+
+@app.route("/api/v3/storage/<path:storage_id>/abort_operations", methods=["PUT"])
+@has_token
+def storage_abort(payload, storage_id):
+    storage = Storage(storage_id)
+    ownsStorageId(payload, storage_id)
+    if not storage.task:
+        raise Error("not_found", "No task found for the storage")
+
+    storage_domains = get_storage_derivatives(storage_id)
+    storage_pool = StoragePool.get_best_for_action("abort")
+    try:
+        storage.create_task(
+            user_id=storage.user_id,
+            queue="core",
+            task="delete_task",
+            blocking=False,
+            job_kwargs={
+                "kwargs": {
+                    "task_id": storage.task,
+                }
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "finished": {
+                                    "Failed": {
+                                        "domain": storage_domains,
+                                    },
+                                },
+                            }
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": f"storage.{storage_pool.id}.default",
+                            "task": "qemu_img_info_backing_chain",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "storage_id": storage.id,
+                                    "storage_path": storage.path,
+                                }
+                            },
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "storage_update",
+                                    "dependents": [
+                                        {
+                                            "queue": "core",
+                                            "task": "update_status",
+                                            "job_kwargs": {
+                                                "kwargs": {
+                                                    "statuses": {
+                                                        "finished": {
+                                                            "StartingPaused": {
+                                                                "domain": storage_domains,
+                                                            },
+                                                            "ready": {
+                                                                "storage": [storage.id],
+                                                            },
+                                                        },
+                                                    }
+                                                }
+                                            },
+                                        },
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                },
+            ],
+        )
+    except Exception as e:
+        raise Error(
+            "internal_server_error",
+            "Error aborting storage operation",
+        )
+    return jsonify(storage.task)

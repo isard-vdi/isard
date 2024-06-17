@@ -273,3 +273,13 @@ def domains_update(domain_list):
     if domain_list:
         for domain_id in domain_list:
             Domain(domain_id).current_status = None
+
+
+def delete_task(task_id):
+    """
+    Cancel task if task is queued.
+    :param task_id: Task ID
+    :type task_id: str
+    """
+    if Task.exists(task_id) and Task(task_id).status == "queued":
+        Task(task_id).cancel()
