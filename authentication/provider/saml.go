@@ -19,6 +19,7 @@ import (
 
 	"github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 const (
@@ -31,6 +32,7 @@ var _ Provider = &SAML{}
 
 type SAML struct {
 	cfg        cfg.Authentication
+	db         r.QueryExecutor
 	Middleware *samlsp.Middleware
 
 	ReUID      *regexp.Regexp
@@ -38,9 +40,10 @@ type SAML struct {
 	ReName     *regexp.Regexp
 	ReEmail    *regexp.Regexp
 	RePhoto    *regexp.Regexp
+	ReCategory *regexp.Regexp
 }
 
-func InitSAML(cfg cfg.Authentication) *SAML {
+func InitSAML(cfg cfg.Authentication, db r.QueryExecutor) *SAML {
 	remoteMetadataURL, err := url.Parse(cfg.SAML.MetadataURL)
 	if err != nil {
 		log.Fatalf("parse metadata URL: %v", err)
@@ -92,6 +95,7 @@ func InitSAML(cfg cfg.Authentication) *SAML {
 
 	s := &SAML{
 		cfg:        cfg,
+		db:         db,
 		Middleware: middleware,
 	}
 
@@ -125,10 +129,18 @@ func InitSAML(cfg cfg.Authentication) *SAML {
 	}
 	s.RePhoto = re
 
+	if s.cfg.SAML.GuessCategory {
+		re, err = regexp.Compile(cfg.SAML.RegexCategory)
+		if err != nil {
+			log.Fatalf("invalid category regex: %v", err)
+		}
+		s.ReCategory = re
+	}
+
 	return s
 }
 
-func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
+func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	redirect := ""
 	if args.Redirect != nil {
 		redirect = *args.Redirect
@@ -136,7 +148,7 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 
 	ss, err := token.SignCallbackToken(s.cfg.Secret, types.ProviderSAML, categoryID, redirect)
 	if err != nil {
-		return nil, nil, "", &ProviderError{
+		return nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
 			Detail: fmt.Errorf("sign the callback token: %w", err),
 		}
@@ -148,15 +160,15 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	}
 	u.RawQuery = v.Encode()
 
-	return nil, nil, u.String(), nil
+	return nil, nil, u.String(), "", nil
 }
 
-func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
+func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	r := ctx.Value(HTTPRequest).(*http.Request)
 
 	sess, err := s.Middleware.Session.GetSession(r)
 	if err != nil {
-		return nil, nil, "", &ProviderError{
+		return nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
 			Detail: fmt.Errorf("get SAML session: %w", err),
 		}
@@ -180,16 +192,74 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 		Photo:    &photo,
 	}
 
-	// // TODO: Autoregister
+	if s.cfg.SAML.GuessCategory {
+		attrCategories := attrs[s.cfg.SAML.FieldCategory]
+		if attrCategories == nil {
+			return nil, nil, "", "", &ProviderError{
+				User:   ErrInternal,
+				Detail: fmt.Errorf("missing category attribute: '%s'", s.cfg.SAML.FieldCategory),
+			}
+		}
+
+		categories := []*model.Category{}
+
+		for _, c := range attrCategories {
+			category := &model.Category{
+				// TODO: If there are multiple categories in the same attribute
+				// (for instance separted by ,) we must iterate over each match
+				// Regex example: [^,]+
+				ID: matchRegex(s.ReCategory, c),
+			}
+
+			exists, err := category.Exists(ctx, s.db)
+			if err != nil {
+				return nil, nil, "", "", &ProviderError{
+					User:   ErrInternal,
+					Detail: fmt.Errorf("check category exists: '%w'", err),
+				}
+			}
+
+			if !exists {
+				continue
+			}
+
+			// TODO: Maybe we need to add a UID field in the category table to represent the external ID of this group and make the mapping like so????
+			categories = append(categories, category)
+		}
+
+		switch len(categories) {
+		case 0:
+			return nil, nil, "", "", &ProviderError{
+				User:   ErrInvalidCredentials,
+				Detail: fmt.Errorf("user doesn't have any valid category, recieved raw argument: '%s'", attrCategories),
+			}
+
+		case 1:
+			u.Category = categories[0].ID
+
+		default:
+			tkn, err := token.SignCategorySelectToken(s.cfg.Secret, categories, u)
+			if err != nil {
+				return nil, nil, "", "", &ProviderError{
+					User:   ErrInternal,
+					Detail: fmt.Errorf("sign category select token: %w", err),
+				}
+			}
+
+			return nil, nil, "", tkn, nil
+		}
+
+	}
+
 	// if s.AutoRegister() {
 
 	// }
 
-	return nil, u, "", nil
+	return nil, u, "", "", nil
 }
 
-func (SAML) AutoRegister() bool {
-	return false
+func (s *SAML) AutoRegister() bool {
+	return s.cfg.SAML.AutoRegister
 }
 
 func (SAML) String() string {

@@ -37,8 +37,8 @@ type CallbackArgs struct {
 }
 
 type Provider interface {
-	Login(ctx context.Context, categoryID string, args LoginArgs) (g *model.Group, u *types.ProviderUserData, redirect string, err *ProviderError)
-	Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (g *model.Group, u *types.ProviderUserData, redirect string, err *ProviderError)
+	Login(ctx context.Context, categoryID string, args LoginArgs) (g *model.Group, u *types.ProviderUserData, redirect string, tkn string, err *ProviderError)
+	Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (g *model.Group, u *types.ProviderUserData, redirect string, tkn string, err *ProviderError)
 	AutoRegister() bool
 	String() string
 	Healthcheck() error
@@ -77,15 +77,15 @@ func (Unknown) String() string {
 	return types.ProviderUnknown
 }
 
-func (Unknown) Login(context.Context, string, LoginArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
-	return nil, nil, "", &ProviderError{
+func (Unknown) Login(context.Context, string, LoginArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+	return nil, nil, "", "", &ProviderError{
 		User:   ErrUnknownIDP,
 		Detail: errors.New("unknown provider"),
 	}
 }
 
-func (Unknown) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *types.ProviderUserData, string, *ProviderError) {
-	return nil, nil, "", &ProviderError{
+func (Unknown) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+	return nil, nil, "", "", &ProviderError{
 		User:   ErrUnknownIDP,
 		Detail: errors.New("unknown provider"),
 	}

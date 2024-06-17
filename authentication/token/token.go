@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"gitlab.com/isard/isardvdi/authentication/provider/types"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -22,6 +24,7 @@ const (
 	TypeEmailVerification                 Type = "email-verification"
 	TypePasswordResetRequired             Type = "password-reset-required"
 	TypePasswordReset                     Type = "password-reset"
+	TypeCategorySelect                    Type = "category-select"
 )
 
 type TypeClaims struct {
@@ -173,6 +176,26 @@ type PasswordResetClaims struct {
 
 func (c PasswordResetClaims) Validate() error {
 	if c.Type != TypePasswordReset {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
+type CategorySelectClaims struct {
+	TypeClaims
+	Categories []CategorySelectClaimsCategory `json:"categories"`
+	User       types.ProviderUserData         `json:"user"`
+}
+
+type CategorySelectClaimsCategory struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Photo string `json:"photo"`
+}
+
+func (c CategorySelectClaims) Validate() error {
+	if c.Type != TypeCategorySelect {
 		return ErrInvalidTokenType
 	}
 

@@ -44,24 +44,27 @@ type AuthenticationLocal struct {
 }
 
 type AuthenticationLDAP struct {
-	Enabled            bool       `mapstructure:"enabled"`
-	Protocol           string     `mapstructure:"protocol"`
-	Host               string     `mapstructure:"host"`
-	Port               int        `mapstructure:"port"`
-	BindDN             string     `mapstructure:"bind_dn"`
-	Password           string     `mapstructure:"password"`
-	BaseSearch         string     `mapstructure:"base_search"`
-	Filter             string     `mapstructure:"filter"`
-	FieldUID           string     `mapstructure:"field_uid"`
-	RegexUID           string     `mapstructure:"regex_uid"`
-	FieldUsername      string     `mapstructure:"field_username"`
-	RegexUsername      string     `mapstructure:"regex_username"`
-	FieldName          string     `mapstructure:"field_name"`
-	RegexName          string     `mapstructure:"regex_name"`
-	FieldEmail         string     `mapstructure:"field_email"`
-	RegexEmail         string     `mapstructure:"regex_email"`
-	FieldPhoto         string     `mapstructure:"field_photo"`
-	RegexPhoto         string     `mapstructure:"regex_photo"`
+	Enabled bool `mapstructure:"enabled"`
+
+	Protocol   string `mapstructure:"protocol"`
+	Host       string `mapstructure:"host"`
+	Port       int    `mapstructure:"port"`
+	BindDN     string `mapstructure:"bind_dn"`
+	Password   string `mapstructure:"password"`
+	BaseSearch string `mapstructure:"base_search"`
+
+	Filter        string `mapstructure:"filter"`
+	FieldUID      string `mapstructure:"field_uid"`
+	RegexUID      string `mapstructure:"regex_uid"`
+	FieldUsername string `mapstructure:"field_username"`
+	RegexUsername string `mapstructure:"regex_username"`
+	FieldName     string `mapstructure:"field_name"`
+	RegexName     string `mapstructure:"regex_name"`
+	FieldEmail    string `mapstructure:"field_email"`
+	RegexEmail    string `mapstructure:"regex_email"`
+	FieldPhoto    string `mapstructure:"field_photo"`
+	RegexPhoto    string `mapstructure:"regex_photo"`
+
 	AutoRegister       bool       `mapstructure:"auto_register"`
 	GuessCategory      bool       `mapstructure:"guess_category"`
 	FieldCategory      string     `mapstructure:"field_category"`
@@ -82,10 +85,12 @@ type AuthenticationLDAP struct {
 }
 
 type AuthenticationSAML struct {
-	Enabled       bool
-	MetadataURL   string `mapstructure:"metadata_url"`
-	KeyFile       string `mapstructure:"key_file"`
-	CertFile      string `mapstructure:"cert_file"`
+	Enabled bool
+
+	MetadataURL string `mapstructure:"metadata_url"`
+	KeyFile     string `mapstructure:"key_file"`
+	CertFile    string `mapstructure:"cert_file"`
+
 	FieldUID      string `mapstructure:"field_uid"`
 	RegexUID      string `mapstructure:"regex_uid"`
 	FieldUsername string `mapstructure:"field_username"`
@@ -96,6 +101,11 @@ type AuthenticationSAML struct {
 	RegexEmail    string `mapstructure:"regex_email"`
 	FieldPhoto    string `mapstructure:"field_photo"`
 	RegexPhoto    string `mapstructure:"regex_photo"`
+
+	AutoRegister  bool   `mapstructure:"auto_register"`
+	GuessCategory bool   `mapstructure:"guess_category"`
+	FieldCategory string `mapstructure:"field_category"`
+	RegexCategory string `mapstructure:"regex_category"`
 }
 
 type AuthenticationGoogle struct {
@@ -203,6 +213,10 @@ func setDefaults() {
 			"regex_email":    ".*",
 			"field_photo":    "",
 			"regex_photo":    ".*",
+			"auto_register":  false,
+			"guess_category": false,
+			"field_category": "",
+			"regex_category": ".*",
 		},
 		"google": map[string]interface{}{
 			"enabled":       false,

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
+	"gitlab.com/isard/isardvdi/authentication/provider/types"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -220,6 +221,40 @@ func SignPasswordResetToken(secret string, userID string) (string, error) {
 	ss, err := tkn.SignedString([]byte(secret))
 	if err != nil {
 		return "", fmt.Errorf("sign the password reset token: %w", err)
+	}
+
+	return ss, nil
+}
+
+func SignCategorySelectToken(secret string, categories []*model.Category, u *types.ProviderUserData) (string, error) {
+	categoriesClaims := []CategorySelectClaimsCategory{}
+	for _, c := range categories {
+		categoriesClaims = append(categoriesClaims, CategorySelectClaimsCategory{
+			ID:    c.ID,
+			Name:  c.Name,
+			Photo: "", // TODO: add category image
+		})
+	}
+
+	tkn := jwt.NewWithClaims(signingMethod, &CategorySelectClaims{
+		TypeClaims: TypeClaims{
+			RegisteredClaims: &jwt.RegisteredClaims{
+				// TODO: This should be maybe configurable
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Issuer:    issuer,
+			},
+			KeyID: keyID,
+			Type:  TypeCategorySelect,
+		},
+		Categories: categoriesClaims,
+		User:       *u,
+	})
+
+	ss, err := tkn.SignedString([]byte(secret))
+	if err != nil {
+		return "", fmt.Errorf("sign the category select token: %w", err)
 	}
 
 	return ss, nil

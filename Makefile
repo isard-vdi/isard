@@ -24,6 +24,7 @@ pull:
 
 .PHONY: up
 up:
+	@echo Makeup 💄💅💁✨
 	docker compose up -d
 
 .PHONY: down

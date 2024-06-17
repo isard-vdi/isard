@@ -36,6 +36,9 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 		case token.TypePasswordResetRequired:
 			return a.finishPasswordReset(ctx, remoteAddr, *args.Token, *args.Redirect)
+
+		case token.TypeCategorySelect:
+			return a.finishCategorySelect(ctx, remoteAddr, categoryID, *args.Token, *args.Redirect)
 		}
 	}
 
@@ -43,7 +46,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 	p := a.Provider(prv)
 
 	// Log in
-	g, u, redirect, lErr := p.Login(ctx, categoryID, args)
+	g, u, redirect, ss, lErr := p.Login(ctx, categoryID, args)
 	if lErr != nil {
 		a.Log.Info().Str("prv", p.String()).Err(lErr).Msg("login failed")
 
@@ -53,6 +56,11 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 	// If the provider forces us to redirect, do it
 	if redirect != "" {
 		return "", redirect, nil
+	}
+
+	// If the provider returns a token return it
+	if ss != "" {
+		return ss, "", nil
 	}
 
 	// Continue with the login process, passing the redirect path that has been
@@ -70,7 +78,7 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args provider.
 	p := a.Provider(claims.Provider)
 
 	// Callback
-	g, u, redirect, cErr := p.Callback(ctx, claims, args)
+	g, u, redirect, ss, cErr := p.Callback(ctx, claims, args)
 	if cErr != nil {
 		a.Log.Info().Str("prv", p.String()).Err(cErr).Msg("callback failed")
 
@@ -79,6 +87,11 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args provider.
 
 	if redirect == "" {
 		redirect = claims.Redirect
+	}
+
+	// If the provider returns a token return it
+	if ss != "" {
+		return ss, "", nil
 	}
 
 	return a.startLogin(ctx, remoteAddr, p, g, u, redirect)
@@ -264,6 +277,22 @@ func (a *Authentication) finishPasswordReset(ctx context.Context, remoteAddr, ss
 	}
 
 	u := &model.User{ID: claims.UserID}
+	if err := u.Load(ctx, a.DB); err != nil {
+		return "", "", fmt.Errorf("load user from db: %w", err)
+	}
+
+	return a.finishLogin(ctx, remoteAddr, u, redirect)
+}
+
+func (a *Authentication) finishCategorySelect(ctx context.Context, remoteAddr, categoryID, ss, redirect string) (string, string, error) {
+	claims, err := token.ParseCategorySelectToken(a.Secret, ss)
+	if err != nil {
+		return "", "", err
+	}
+
+	u := claims.User.ToUser()
+	u.Category = categoryID
+
 	if err := u.Load(ctx, a.DB); err != nil {
 		return "", "", fmt.Errorf("load user from db: %w", err)
 	}
