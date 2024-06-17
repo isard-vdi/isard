@@ -351,7 +351,7 @@ export default {
     const perPage = ref(10)
     const pageOptions = ref([10, 20, 30, 50, 100])
     const currentPage = ref(1)
-    const totalRows = ref(1)
+    const totalRows = ref(props.desktops.length)
 
     watch(() => props.desktops, (newVal, prevVal) => {
       totalRows.value = newVal.length
