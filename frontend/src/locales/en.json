@@ -1365,6 +1365,5 @@
     },
     "bookings": {
         "max_time_reached": "Max booking time reached"
-    },
-    "bookings_max_time_reached": "The user has reached the maximum time limit for reservable desktops"
+    }
 }
