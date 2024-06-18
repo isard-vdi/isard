@@ -28,6 +28,7 @@ variables:
   FF_NETWORK_PER_BUILD: 1
 
 default:
+  retry: 1
   cache: &global_cache
     - key:
         files:

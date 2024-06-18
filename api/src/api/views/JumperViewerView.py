@@ -5,6 +5,7 @@
 
 import json
 import logging as log
+import os
 
 from flask import request
 from isardvdi_common.api_exceptions import Error
@@ -56,6 +57,22 @@ def api_v3_viewer(token):
 def api_v3_desktop_reset(token):
     return (
         json.dumps({"id": desktops.Reset(token, request=request)}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/direct/docs", methods=["GET"])
+def api_v3_viewer_docs():
+    return (
+        json.dumps(
+            {
+                "viewers_documentation_url": os.environ.get(
+                    "FRONTEND_VIEWERS_DOCS_URI",
+                    "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/",
+                )
+            }
+        ),
         200,
         {"Content-Type": "application/json"},
     )

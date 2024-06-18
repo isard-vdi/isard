@@ -70,7 +70,7 @@ func (a *Authentication) ForgotPassword(ctx context.Context, categoryID, email s
 }
 
 // ResetPassword resets a password for a user
-func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd string) error {
+func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd, remoteAddr string) error {
 	typ, err := token.GetTokenType(tkn)
 	if err != nil {
 		return fmt.Errorf("get the JWT token type: %w", err)
@@ -81,7 +81,7 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd string) err
 	switch typ {
 	// Reset from the profile page in the frontend
 	case token.TypeLogin:
-		claims, err := a.check(ctx, tkn)
+		claims, err := a.check(ctx, tkn, remoteAddr)
 		if err != nil {
 			return err
 		}

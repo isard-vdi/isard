@@ -2040,3 +2040,69 @@
         </div>
     </div>
 </div>
+
+
+<div class="modal fade" id="modalEditRole" tabindex="-1" role="dialog" aria-labelledby="modalEditRole"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-pencil"></i> <i class="fa fa-key"></i> Edit Role
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalEditRoleForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="id" />
+                    <div class="row">
+                        <div class="x_panel">
+                            <div class="x_title">
+                                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Role name and description
+                                </h4>
+                                <div class="clearfix"></div>
+                            </div>
+                            <div class="col-md-4 col-sm-4 col-xs-12">
+                                <label class="control-label" for="name">Name <span class="required">*</span>
+                                </label>
+                                <input id="name" class="roundbox" maxlength="50"
+                                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 50]"
+                                    name="name" placeholder="Role name" data-parsley-trigger="change" required
+                                    type="text" style="width:100%">
+                            </div>
+                            <div class="col-md-8 col-sm-8 col-xs-12">
+                                <label class="control-label" for="description">Description</label>
+                                <input id="description" class="roundbox" name="description"
+                                    data-parsley-length="[0, 255]" data-parsley-trigger="change" maxlength="255"
+                                    placeholder="Role description" type="text" style="width:100%">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    </li>
+                    </li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-success">Update role</button>
+                    </li>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

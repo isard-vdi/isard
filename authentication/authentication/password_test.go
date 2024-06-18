@@ -121,6 +121,7 @@ func TestResetPassword(t *testing.T) {
 		PrepareSessions func(*grpcmock.Server)
 		PrepareToken    func() string
 		Password        string
+		RemoteAddr      string
 		ExpectedErr     string
 	}{
 		"should work as expected with a login token": {
@@ -136,7 +137,8 @@ func TestResetPassword(t *testing.T) {
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/Get").WithPayload(&sessionsv1.GetRequest{
-					Id: "ThoJuroQueEsUnID",
+					Id:         "ThoJuroQueEsUnID",
+					RemoteAddr: "127.0.0.1",
 				}).Return(&sessionsv1.GetResponse{})
 			},
 			PrepareToken: func() string {
@@ -161,7 +163,8 @@ func TestResetPassword(t *testing.T) {
 
 				return ss
 			},
-			Password: "f0kt3Rf",
+			Password:   "f0kt3Rf",
+			RemoteAddr: "127.0.0.1",
 		},
 		"should work as expected with a password reset token": {
 			PrepareAPI: func(c *apiMock.Client) {
@@ -252,7 +255,7 @@ func TestResetPassword(t *testing.T) {
 			a := authentication.Init(cfg, log, dbMock, nil, nil, sessionsCli)
 			a.API = apiMock
 
-			err = a.ResetPassword(context.Background(), tc.PrepareToken(), tc.Password)
+			err = a.ResetPassword(context.Background(), tc.PrepareToken(), tc.Password, tc.RemoteAddr)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

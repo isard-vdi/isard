@@ -175,7 +175,7 @@ export default {
     rowClass: {
       required: false,
       default: '',
-      type: String
+      type: [String, Function]
     }
   },
   setup (props, context) {

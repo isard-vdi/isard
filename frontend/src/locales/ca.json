@@ -73,6 +73,9 @@
                     },
                     "allowed": {
                         "title": "Editar usuaris"
+                    },
+                    "co-owners": {
+                        "title": "Editar copropietaris"
                     }
                 }
             },
@@ -111,7 +114,7 @@
             },
             "notification-bar": {
                 "next-booking": "Propera reserva",
-                "no-next-booking": "L'escriptori no està reservat!",
+                "no-next-booking": "L'escriptori amb vGPU no està reservat!",
                 "shutdown": "Aturada automàtica a les {date}",
                 "booking-ends": "La reserva s'acaba a les "
             },
@@ -289,6 +292,7 @@
             "profile": "Perfil",
             "select-profile": "Selecciona el perfil que es farà servir",
             "end-date": "Data de finalització",
+            "end-time": "Hora de finalització",
             "select-end-date": "Selecciona fins a quan es farà servir",
             "button": "Iniciar escriptori"
         },
@@ -314,12 +318,14 @@
                 "403": {
                     "title": "Accés denegat.",
                     "subtitle": "No disposes de permisos suficients per accedir al contingut sol·licitat.",
-                    "home": "Per a trobar alternatives pots anar "
+                    "home": "Per a trobar alternatives pots anar ",
+                    "logout": "Pots provar de tancar la sessió i tornar-la a iniciar "
                 },
                 "500": {
                     "title": "Error inesperat.",
                     "subtitle": "No s'ha pogut accedir al contingut sol·licitat.",
-                    "home": "Per a trobar alternatives pots anar "
+                    "home": "Per a trobar alternatives pots anar ",
+                    "logout": "Pots provar de tancar la sessió i tornar-la a iniciar "
                 }
             },
             "here": "aquí."
@@ -556,13 +562,19 @@
                     "make-visible": "Fer visible el desplegament '{name}'",
                     "make-invisible": "Fer invisible el desplegament '{name}'",
                     "download-csv": "Descarregar el CSV de visors directes de '{name}'",
-                    "delete": "Esborrar desplegament"
+                    "delete": "Esborrar desplegament",
+                    "co-owners": "Editar copropietari de '{name}'"
                 },
                 "body": {
                     "text": "Aquesta acció és irreversible i es perdran totes les dades associades.",
                     "send-to-recycle-bin": "Enviar desplegament a la paperera de reciclatge (l'emmagatzematge continuarà comptant a la quota d'usuari fins que s'esborri definitivament).",
                     "invisible-warning": "Hi ha {visible} escriptoris visibles i {invisible} invisibles en aquest desplegament. Si continueu, els farà tots invisibles per als usuaris.",
-                    "visible-warning": "Hi ha {visible} escriptoris visibles i {invisible} invisibles en aquest desplegament. Si continueu, els farà tots visibles per als usuaris."
+                    "visible-warning": "Hi ha {visible} escriptoris visibles i {invisible} invisibles en aquest desplegament. Si continueu, els farà tots visibles per als usuaris.",
+                    "co-owner-warning-delete": "Els copropietaris no poden esborrar desplegaments. Si us plau, contacta amb el propietari per esborrar aquest desplegament.",
+                    "warning-co-owner": "Com a co-propietari no estàs autoritzat a realitzar aquesta acció. Si us plau, contacta amb el propietari d'aquest desplegament.",
+                    "co-owners-warning": "AVÍS! Els usuaris establerts com a copropietaris tindran els mateixos permisos que el propietari, excepte per a canviar els propietaris i esborrar el desplegament.",
+                    "co-owners-label": "Copropietaris:",
+                    "owner-label": "Propietari: {owner}"
                 },
                 "option": {
                     "dont-stop-desktops": "Fer invisible aquest desplegament pels usuaris i permetre l'ús dels escriptoris fins que s'aturin",
@@ -577,7 +589,8 @@
                     "make-visible": "Fer visible",
                     "keep-csv": "Mantenir URLs i descarregar CSV",
                     "reset-csv": "Reestablir URLs i descarregar CSV",
-                    "delete": "Esborrar"
+                    "delete": "Esborrar",
+                    "co-owners": "Actualitzar copropietaris"
                 }
             }
         },
@@ -606,7 +619,6 @@
                     "spice-client-required": "però requereix instal·lar un aplicatiu extern.",
                     "generic-text": "A l'enllaç següent pots trobar enllaços de descàrrega i instruccions d'instal·lació:",
                     "download-install": "Descarregar el programari del visor",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.ca/",
                     "once-installed": "Un cop instal·lat, fes clic al botó SPICE, que descarregarà el fitxer de l'escriptori virtual.",
                     "close-guide": "Tancar la guia"
                 },
@@ -616,7 +628,6 @@
                     "included": "Windows incorpora l'aplicació necessària pel seu ús,",
                     "client-required": "però altres sistemes operatius podrian requerir la instal·lació d'un aplicatiu extern. Consulta les instruccions d'instal·lació:",
                     "download-install": "Descarregar el programari del visor",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.ca/",
                     "once-installed": "Un cop instal·lat, fes clic al botó «RDP», que descarregarà el fitxer de l'escriptori virtual.",
                     "close-guide": "Tancar la guia"
                 }
@@ -1231,7 +1242,8 @@
         "invalid_token": "Token no vàlid",
         "old_passwords": "L'última contrasenya no pot ser cap de les últimes {num} contrasenyes",
         "no_storage_pool_available": "En aquest moment no està disponible la creació de recursos. Esperi uns minuts i torni-ho a provar.",
-        "unable_to_get_domain_jumperurl": "No s'ha pogut obtenir l'enllaç del visor directe perquè el domini no existeix"
+        "unable_to_get_domain_jumperurl": "No s'ha pogut obtenir l'enllaç del visor directe perquè el domini no existeix",
+        "bookings_max_time_reached": "L'usuari ha arribat al temps màxim d'escriptoris reservables"
     },
     "messages": {
         "title": {

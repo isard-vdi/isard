@@ -1165,39 +1165,69 @@ function actionsDomainDetail(){
         if (form.parsley().isValid()) {
             data = form.serializeObject();
             let pk = $('#modalChangeOwnerDomainForm #id').val()
-            $.ajax({
-                type: "PUT",
-                url: `/api/v3/desktop/owner/${pk}/${data['new_owner']}`,
-                contentType: 'application/json',
-                success: function () {
-                    $('form').each(function () { this.reset() });
-                    $('.modal').modal('hide');
-                    new PNotify({
-                        title: "Owner changed succesfully",
-                        text: "",
-                        hide: true,
-                        delay: 4000,
-                        icon: 'fa fa-success',
-                        opacity: 1,
-                        type: "success"
-                    }); 
-                    domains_table.ajax.reload();
-                },
-                error: function ({responseJSON: {description} = {}}) {
-                    const msg = description ? description : 'Something went wrong';
-                    new PNotify({
-                      title: "ERROR",
-                      text: msg,
-                      type: 'error',
-                      icon: 'fa fa-warning',
-                      hide: true,
-                      delay: 15000,
-                      opacity: 1
-                    });
-                  }
-            });
-        };
+            if (domains_table.row('#' + pk).data().status == 'Started') {
+                new PNotify({
+                    title: 'Warning!',
+                    text: "Desktop is running, changing owner will shut it down. Continue?",
+                    hide: false,
+                    opacity: 0.9,
+                    icon: 'fa fa-warning',
+                    type: 'error',
+                    confirm: {
+                        confirm: true
+                    },
+                    buttons: {
+                        closer: false,
+                        sticker: false
+                    },
+                    history: {
+                        history: false
+                    },
+                    addclass: 'pnotify-center'
+                }).get().on('pnotify.confirm', function () {
+                    changeOwner(pk, data)
+                }).on('pnotify.cancel', function () {
+                });
+            } else {
+                changeOwner(pk, data)
+            }
+        }
     });
+
+    function changeOwner(pk, data) {
+        $.ajax({
+            type: "PUT",
+            url: `/api/v3/desktop/owner/${pk}/${data['new_owner']}`,
+            contentType: 'application/json',
+            success: function () {
+                $('form').each(function () { this.reset() });
+                $('.modal').modal('hide');
+                new PNotify({
+                    title: "Owner changed succesfully",
+                    text: "",
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: "success"
+                });
+                domains_table.ajax.reload();
+            },
+            error: function ({ responseJSON: { description } = {} }) {
+                const msg = description ? description : 'Something went wrong';
+                new PNotify({
+                    title: "ERROR",
+                    text: msg,
+                    type: 'error',
+                    icon: 'fa fa-warning',
+                    hide: true,
+                    delay: 15000,
+                    opacity: 1
+                });
+            }
+        });
+    }
+
 
     $('.btn-template').on('click', function () {
         if($('.quota-templates .perc').text() >=100){
@@ -1699,6 +1729,7 @@ function setDomainDetailButtonsStatus(id,data,old_data){
         if(disabled_status.includes(data.status)){
             $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
             $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
+            $('#actions-'+id+' .btn-owner').prop('disabled', false);
             $('#actions-'+id+' .btn-server').prop('disabled', false);
         }else{
             $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);

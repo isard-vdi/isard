@@ -27,6 +27,10 @@
             {{ $t(`views.error.codes.${$route.params.code}.home`) }} <b
               class="cursor-pointer"
               @click="navigate('Login')"
+            ><u>{{ $t('views.error.here') }}</u></b><br>
+            {{ $t(`views.error.codes.${$route.params.code}.logout`) }} <b
+              class="cursor-pointer"
+              @click="logout"
             ><u>{{ $t('views.error.here') }}</u></b>
           </p>
         </span>
@@ -56,7 +60,8 @@ export default {
   },
   methods: {
     ...mapActions([
-      'navigate'
+      'navigate',
+      'logout'
     ])
   }
 }

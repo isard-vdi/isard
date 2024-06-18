@@ -20,6 +20,8 @@ service SessionsService {
 message NewRequest {
     // user_id is the ID of the user who's session is going to be created
     string user_id = 1;
+    // remote_addr is the IP address from where the user has done the request
+    string remote_addr = 2;
 }
 
 // NewResponse is the response for the New method
@@ -44,6 +46,8 @@ message NewResponseTime {
 message GetRequest {
     // id is the session ID
     string id = 1;
+    // remote_addr is the IP address from where the user has done the request
+    string remote_addr = 2;
 }
 
 // GetResponse is the response for the Get method
@@ -66,6 +70,8 @@ message GetResponseTime {
 message RenewRequest {
     // id is the session ID
     string id = 1;
+    // remote_addr is the IP address from where the user has done the request
+    string remote_addr = 2;
 }
 
 // RenewResponse is the response for the Renew method

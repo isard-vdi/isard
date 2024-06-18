@@ -263,6 +263,9 @@
                     },
                     "allowed": {
                         "title": "Edit users"
+                    },
+                    "co-owners": {
+                        "title": "Edit co-owners"
                     }
                 }
             },
@@ -308,7 +311,7 @@
             },
             "notification-bar": {
                 "next-booking": "Next booking",
-                "no-next-booking": "The desktop isn't booked!",
+                "no-next-booking": "The desktop with vGPU isn't booked!",
                 "shutdown": "Automatic shutdown at {date}",
                 "booking-ends": "Booking ends at "
             },
@@ -319,7 +322,6 @@
                 "increase": "The disk size of this desktop is being increased",
                 "virt-win-reg": "The registry is being edited",
                 "move": "This desktop's disk is being moved"
-
             }
         },
         "deployment-desktop-list": {
@@ -480,6 +482,7 @@
             "profile": "Profile",
             "select-profile": "Select the profile that will be used",
             "end-date": "End date",
+            "end-time": "End time",
             "select-end-date": "Select until when it will be used",
             "button": "Start desktop"
         },
@@ -505,12 +508,14 @@
                 "403": {
                     "title": "Forbidden.",
                     "subtitle": "You don't have enough permission to access the content.",
-                    "home": "To find alternatives you can go "
+                    "home": "To find alternatives you can go ",
+                    "logout": "You can try to log out and log in again "
                 },
                 "500": {
                     "title": "Unexpected error.",
                     "subtitle": "The content couldn't be accessed.",
-                    "home": "To find alternatives you can go "
+                    "home": "To find alternatives you can go ",
+                    "logout": "You can try to log out and log in again "
                 }
             },
             "here": "here."
@@ -747,13 +752,19 @@
                     "make-visible": "Make deployment '{name}' visible",
                     "make-invisible": "Make deployment '{name}' invisible",
                     "download-csv": "Download '{name}' direct viewer CSV",
-                    "delete": "Delete deployment"
+                    "delete": "Delete deployment",
+                    "co-owners": "Edit co-owners for '{name}'"
                 },
                 "body": {
-                    "text":  "This action cannot be undone and all its associated data will be lost.",
+                    "text": "This action cannot be undone and all its associated data will be lost.",
                     "send-to-recycle-bin": "Send deployment to recycle bin (its storage will still be considered in the user quota until permanently removed).",
                     "invisible-warning": "There are {visible} desktops visible and {invisible} invisible in this deployment. Proceeding will make them all invisible to the users.",
-                    "visible-warning": "There are {visible} desktops visible and {invisible} invisible in this deployment. Proceeding will make them all visible to the users."
+                    "visible-warning": "There are {visible} desktops visible and {invisible} invisible in this deployment. Proceeding will make them all visible to the users.",
+                    "co-owner-warning-delete": "Co-owners cannot delete deployments. Please contact the owner to delete this deployment.",
+                    "warning-co-owner": "As a co-owner you are not authorized to perform this action. Please contact the owner of this deployment.",
+                    "co-owners-warning": "WARNING! Users set as co-owners will have the same permissions as the owner except for changing ownership and deleting the deployment.",
+                    "co-owners-label": "Co-owners:",
+                    "owner-label": "Owner: {owner}"
                 },
                 "option": {
                     "dont-stop-desktops": "Make this deployment invisible to the users and allow the use of the desktops until they're stopped",
@@ -768,7 +779,8 @@
                     "make-visible": "Make visible",
                     "keep-csv": "Keep URLs and download CSV",
                     "reset-csv": "Reset URLs and download CSV",
-                    "delete": "Delete"
+                    "delete": "Delete",
+                    "co-owners": "Update co-owners"
                 }
             }
         },
@@ -797,7 +809,6 @@
                     "spice-client-required": "but an external application is required.",
                     "generic-text": "Click the following link to find download links and instructions for installation:",
                     "download-install": "Download viewer software",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/",
                     "once-installed": "Once installed, click the 'SPICE' button, that will download the virtual desktop file.",
                     "close-guide": "Close guide"
                 },
@@ -807,7 +818,6 @@
                     "included": "Windows includes the required software for its use,",
                     "client-required": "but on other operating systems, it may require the installation of an external application. Consult the installation instructions:",
                     "download-install": "Download viewer software",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/",
                     "once-installed": "Once installed, click the 'RDP' button, that will download the virtual desktop file.",
                     "close-guide": "Close guide"
                 }
@@ -1310,7 +1320,8 @@
         "user_not_found": "There's no user with the given email",
         "invalid_token": "Invalid token",
         "old_passwords": "Current password can't be any of the last {num} last passwords",
-        "no_storage_pool_available": "The resource creation is not available at this moment. Please try again later."
+        "no_storage_pool_available": "The resource creation is not available at this moment. Please try again later.",
+        "bookings_max_time_reached": "The user has reached the maximum time limit for bookable desktops"
     },
     "router": {
         "titles": {

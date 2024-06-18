@@ -263,6 +263,9 @@
                     },
                     "allowed": {
                         "title": "Editar usuarios"
+                    },
+                    "co-owners": {
+                        "title": "Editar copropietarios"
                     }
                 }
             },
@@ -309,7 +312,7 @@
             },
             "notification-bar": {
                 "next-booking": "Próxima reserva",
-                "no-next-booking": "El escritorio no está reservado!",
+                "no-next-booking": "El escritorio con vGPU no está reservado!",
                 "shutdown": "Apagado automático a las {date}",
                 "booking-ends": "La reserva acaba a las "
             },
@@ -480,6 +483,7 @@
             "profile": "Perfil",
             "select-profile": "Selecciona el perfil que se utilizará",
             "end-date": "Fecha de finalización",
+            "end-time": "Hora de finalización",
             "select-end-date": "Selecciona hasta cuando se utilizará",
             "button": "Iniciar escritorio"
         },
@@ -505,12 +509,14 @@
                 "403": {
                     "title": "Acceso denegado.",
                     "subtitle": "No dispones de permisos suficientes para acceder a este contenido.",
-                    "home": "Para encontrar alternativas puedes ir "
+                    "home": "Para encontrar alternativas puedes ir ",
+                    "logout": "Puedes intentar cerrar la sesión e iniciarla de nuevo "
                 },
                 "500": {
                     "title": "Error inesperado.",
                     "subtitle": "No se ha podido acceder al contenido solicitado.",
-                    "home": "Para encontrar alternativas puedes ir "
+                    "home": "Para encontrar alternativas puedes ir ",
+                    "logout": "Puedes intentar cerrar la sesión e iniciarla de nuevo "
                 }
             },
             "here": "aquí."
@@ -747,13 +753,19 @@
                     "make-visible": "Hacer que el despliegue '{name}' sea visible",
                     "make-invisible": "Hacer que el despliegue '{name}' sea invisible",
                     "download-csv": "Descargar CSV de visores directos de '{name}'",
-                    "delete": "Eliminar despliegue"
+                    "delete": "Eliminar despliegue",
+                    "co-owners": "Editar copropietarios de '{name}'"
                 },
                 "body": {
                     "text": "Esta acción es irreversible y se perderán todos los datos asociados.",
                     "send-to-recycle-bin": "Enviar despliegue a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente).",
-                    "invisible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en esta implementación. El procedimiento los hará todos invisibles para los usuarios.",
-                    "visible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en esta implementación. El procedimiento los hará todos invisibles para los usuarios."
+                    "invisible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en este despliegue. El procedimiento los hará todos invisibles para los usuarios.",
+                    "visible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en este despliegue. El procedimiento los hará todos invisibles para los usuarios.",
+                    "co-owner-warning-delete": "Los copropietarios no pueden eliminar despliegues. Por favor, contacta con el propietario para eliminar este despliegue.",
+                    "warning-co-owner": "Como copropietario no estás autorizado para realizar esta acción. Por favor, contacta con el propietario de este despliegue.",
+                    "co-owners-warning": "AVISO! Los usuarios establecidos como copropietarios tendrán los mismos permisos que el propietario, excepto para cambiar los propietarios y borrar el despliegue.",
+                    "co-owners-label": "Copropietarios:",
+                    "owner-label": "Propietario: {owner}"
                 },
                 "option": {
                     "dont-stop-desktops": "Hacer invisible este despliegue para los usuarios y permitir el uso de los escritorios hasta que se paren",
@@ -768,7 +780,8 @@
                     "make-visible": "Hacer visible",
                     "keep-csv": "Mantener URLs y descargar CSV",
                     "reset-csv": "Reestablecer URLs y descargar CSV",
-                    "delete": "Eliminar"
+                    "delete": "Eliminar",
+                    "co-owners": "Actualizar copropietarios"
                 }
             }
         },
@@ -810,7 +823,6 @@
                     "spice-client-required": "pero requiere instalar un aplicativo externo.",
                     "generic-text": "En el siguiente enlace se puede consultar enlaces de descarga e instrucciones para instalarlo:",
                     "download-install": "Descarga de software de visores",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.es/",
                     "once-installed": "Después de la instalación, haz clic en el botón «SPICE», y se descargará el archivo del escritorio virtual.",
                     "close-guide": "Cerrar la guía"
                 },
@@ -820,7 +832,6 @@
                     "included": "Windows incorpora la aplicación necesaria para utilizarlo,",
                     "client-required": "pero otros sistemas operativos podrían requerir la instalación de un aplicativo externo. Consulta las instrucciones de instalación:",
                     "download-install": "Descarga de software de visores",
-                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.es/",
                     "once-installed": "Después de la instalación, haz clic en el botón 'RDP', que descargará el archivo del escritorio virtual.",
                     "close-guide": "Cerrar la guía"
                 }
@@ -1324,7 +1335,8 @@
         "user_not_found": "No existe ningún usuario con el correo electrónico proporcionado",
         "invalid_token": "Token no válido",
         "old_passwords": "La contraseña actual no puede ser ninguna de las últimas {num} contraseñas",
-        "no_storage_pool_available": "En estos momentos no está disponible la creación de recursos. Espere e inténtelo de nuevo."
+        "no_storage_pool_available": "En estos momentos no está disponible la creación de recursos. Espere e inténtelo de nuevo.",
+        "bookings_max_time_reached": "El usuario ha alcanzado el tiempo máximo de escritorios reservables"
     },
     "router": {
         "titles": {

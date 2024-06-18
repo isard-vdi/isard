@@ -53,9 +53,15 @@ def alloweds_table_term(payload, table):
                         g for g in result if g["parent_category"] == data["category"]
                     ]
         elif table == "users":
-            result = alloweds.get_table_term(
-                table, "name", data["term"], pluck=["id", "name", "uid"]
-            )
+            if data.get("roles"):
+                result = alloweds.get_table_term(
+                    table, "name", data["term"], pluck=["id", "name", "uid", "role"]
+                )
+                result = [u for u in result if u["role"] not in data.get("roles", [])]
+            else:
+                result = alloweds.get_table_term(
+                    table, "name", data["term"], pluck=["id", "name", "uid"]
+                )
         elif table == "media":
             if data["kind"] == "isos":
                 kind = "iso"
@@ -95,9 +101,18 @@ def alloweds_table_term(payload, table):
                 g for g in result if g["parent_category"] == payload["category_id"]
             ]
         if table == "users":
-            result = alloweds.get_table_term(
-                table, "name", data["term"], pluck=["id", "name", "category", "uid"]
-            )
+            if data.get("roles"):
+                result = alloweds.get_table_term(
+                    table,
+                    "name",
+                    data["term"],
+                    pluck=["id", "name", "category", "uid", "role"],
+                )
+                result = [u for u in result if u["role"] not in data.get("roles", [])]
+            else:
+                result = alloweds.get_table_term(
+                    table, "name", data["term"], pluck=["id", "name", "category", "uid"]
+                )
             result = [u for u in result if u["category"] == payload["category_id"]]
         if table == "media":
             if data["kind"] == "isos":

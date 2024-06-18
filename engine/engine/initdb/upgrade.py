@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 135
+release_version = 136
+# release 136: Add co-owners to deployments
 # release 135: update gpus_profiles
 # release 134: add server_autostart flag in domains
 # release 133: Add storage_id, domain_id, deployment_id, user_id, category_id, group_id index to storage
@@ -3093,6 +3094,25 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
                 print("Deployments ids updated: " + str(updated_deployments_ids))
             except Exception as e:
                 print(e)
+
+        if version == 136:
+            try:
+                r.table(table).index_create("co_owners", multi=True).run(self.conn)
+                r.table(table).index_wait("co_owners").run(self.conn)
+            except Exception as e:
+                pass
+
+            deployments = list(r.table(table).run(self.conn))
+
+            for deployment in deployments:
+                ##### NEW FIELDS
+                self.add_keys(
+                    table,
+                    [
+                        {"co_owners": []},
+                    ],
+                    deployment["id"],
+                )
 
         return True
 

@@ -40,7 +40,7 @@ func InitForm(cfg cfg.Authentication, db r.QueryExecutor) *Form {
 	}
 
 	if cfg.Limits.Enabled {
-		f.limits = limits.NewLimits(cfg.Limits.MaxAttempts, cfg.Limits.RetryAfter, cfg.Limits.IncrementFactor)
+		f.limits = limits.NewLimits(cfg.Limits.MaxAttempts, cfg.Limits.RetryAfter, cfg.Limits.IncrementFactor, cfg.Limits.MaxTime)
 	}
 
 	return f

@@ -26,7 +26,7 @@
           <b-button
             variant="outline-primary"
             class="my-4"
-            :href="$t('views.direct-viewer.help.spice.download-link')"
+            :href="getConfig.viewersDocumentationUrl"
           >
             {{ $t('views.direct-viewer.help.spice.download-install') }}
           </b-button>
@@ -44,12 +44,18 @@
 
 <script>
 // @ is an alias to /src
+import { mapGetters } from 'vuex'
 
 export default {
   data () {
     return {
       os: this.getOS()
     }
+  },
+  computed: {
+    ...mapGetters([
+      'getConfig'
+    ])
   },
   methods: {
     getOS () {

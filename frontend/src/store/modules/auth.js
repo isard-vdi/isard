@@ -178,10 +178,21 @@ export default {
       }
     },
     fetchUser (context) {
-      // TODO: Instead of retrieving from JWT get from API
+      // Get basic user info from token
       const tokenPayload = jwtDecode(getCookie(sessionCookieName))
       if (tokenPayload.data) {
         context.commit('setUser', tokenPayload.data)
+
+        // Update user info with additional data from API
+        axios.get(`${apiV3Segment}/user`).then(response => {
+          const data = { ...tokenPayload.data }
+
+          data.role_name = response.data.role_name
+          data.category_name = response.data.category_name
+          data.group_name = response.data.group_name
+
+          context.commit('setUser', data)
+        })
       // Email verification page
       } else {
         context.commit('setUser', { current_email: tokenPayload.current_email })

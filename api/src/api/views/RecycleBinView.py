@@ -259,7 +259,7 @@ def api_v3_admin_recycle_bin_default_delete_set(payload):
 
 
 @app.route("/api/v3/recycle_bin/config/default-delete", methods=["GET"])
-@is_admin
+@has_token
 def api_v3_admin_recycle_bin_default_delete(payload):
     return (
         json.dumps(RecycleBin.get_default_delete()),

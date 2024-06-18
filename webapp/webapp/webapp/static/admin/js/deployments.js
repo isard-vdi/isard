@@ -35,6 +35,7 @@ $(document).ready(function() {
       { "data": "category_name" },
       { "data": "group_name" },
       { "data": "username" },
+      { "data": "co_owners_usernames" },
       { "data": "how_many_desktops" },
       { "data": "how_many_desktops_started" },
       { "data": "create_dict.tag_visible" },
@@ -45,7 +46,7 @@ $(document).ready(function() {
     order: [[1, "asc"]],
     "columnDefs": [
       {
-        "targets": 8,
+        "targets": 9,
         "render": function ( data, type, full, meta ) {
           if ('tag_visible' in full.create_dict && full.create_dict.tag_visible) {
             return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="' + full.create_dict.tag_visible + '"></i>'
@@ -55,7 +56,7 @@ $(document).ready(function() {
         }
       },
       {
-        "targets": 9,
+        "targets": 10,
         "render": function ( data, type, full, meta ) {
           if ( type === 'display' || type === 'filter' ) {
             return formatTimestampUTC(full.last_access*1000)
@@ -64,9 +65,9 @@ $(document).ready(function() {
         }
       },
       {
-        "targets": 10,
+        "targets": 11,
         "render": function ( data, type, full, meta ) {
-          return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+          return `<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>`
         }
       },
     ],
@@ -243,6 +244,7 @@ $(document).ready(function() {
       tr.addClass('shown');
       setHardwareDomainDefaultsDetails(row.data().id, 'deployment');
       setAlloweds_viewer('#alloweds-' + row.data().id, row.data().id, "deployments");
+      actionsDomainDetail();
     }
   });
 });
@@ -253,4 +255,197 @@ function renderDeploymentDetailPannel ( d ) {
     return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
   });
       return $newPanel
+}
+
+function actionsDomainDetail() {
+  $('.btn-owner').on('click', function () {
+    var pk = $(this).closest("[data-pk]").attr("data-pk");
+    $("#modalChangeOwnerDomainForm")[0].reset();
+    $('#modalChangeOwnerDomain').modal({
+      backdrop: 'static',
+      keyboard: false
+    }).modal('show');
+    $('#modalChangeOwnerDomainForm #id').val(pk);
+    $("#new_owner").val("");
+    if ($("#new_owner").data('select2')) {
+      $("#new_owner").select2('destroy');
+    }
+    $('#new_owner').select2({
+      placeholder: "Type at least 2 letters to search.",
+      minimumInputLength: 2,
+      dropdownParent: $('#modalChangeOwnerDomain'),
+      ajax: {
+        type: "POST",
+        url: '/admin/users/search',
+        dataType: 'json',
+        contentType: "application/json",
+        delay: 250,
+        data: function (params) {
+          return JSON.stringify({
+            term: params.term,
+            pluck: ['id', 'name']
+          });
+        },
+        processResults: function (data) {
+          return {
+            results: $.map(data, function (item, i) {
+              return {
+                text: item.name + '[' + item['uid'] + '] ',
+                id: item.id
+              }
+            })
+          };
+        }
+      },
+    });
+  });
+  $('.btn-co-owners').on('click', function () {
+    var pk = $(this).closest("[data-pk]").attr("data-pk");
+    $("#modalChangeCoOwnersDeploymentForm")[0].reset();
+    $('#modalChangeCoOwnersDeployment').modal({
+      backdrop: 'static',
+      keyboard: false
+    }).modal('show');
+    $('#modalChangeCoOwnersDeploymentForm #id').val(pk);
+    $("#co_owners").val("");
+    if ($("#co_owners").data('select2')) {
+      $("#co_owners").select2('destroy');
+    }
+    $('#co_owners').select2({
+      placeholder: "Type at least 2 letters to search.",
+      minimumInputLength: 2,
+      multiple: true,
+      dropdownParent: $('#modalChangeCoOwnersDeployment'),
+      ajax: {
+        type: "POST",
+        url: '/admin/users/search',
+        dataType: 'json',
+        contentType: "application/json",
+        delay: 250,
+        data: function (params) {
+          return JSON.stringify({
+            term: params.term,
+            pluck: ['id', 'name']
+          });
+        },
+        processResults: function (data) {
+          return {
+            results: $.map(data, function (item, i) {
+              return {
+                text: item.name + '[' + item['uid'] + '] ',
+                id: item.id
+              }
+            })
+          };
+        }
+      },
+    });
+    $.ajax({
+      type: "GET",
+      url: `/api/v3/deployment/co-owners/${pk}`,
+      contentType: 'application/json',
+      success: function (data) {
+        $("#co_owners").empty().trigger('change');
+        $.each(data.co_owners, function (i, value) {
+          var newOption = new Option(value.name + '[' + value.uid + ']', value.id, true, true);
+          $('#co_owners').append(newOption).trigger('change');
+        });
+      },
+      error: function ({ responseJSON: { description } = {} }) {
+        const msg = description ? description : 'Something went wrong';
+        new PNotify({
+          title: "ERROR",
+          text: msg,
+          type: 'error',
+          icon: 'fa fa-warning',
+          hide: true,
+          delay: 15000,
+          opacity: 1
+        });
+      }
+    });
+  });
+
+  $("#modalChangeOwnerDomain #send").off('click').on('click', function (e) {
+    var form = $('#modalChangeOwnerDomainForm');
+    form.parsley().validate();
+
+    if (form.parsley().isValid()) {
+      data = form.serializeObject();
+      let pk = $('#modalChangeOwnerDomainForm #id').val()
+      $.ajax({
+        type: "PUT",
+        url: `/api/v3/deployment/owner/${pk}/${data['new_owner']}`,
+        contentType: 'application/json',
+        success: function () {
+          $('form').each(function () { this.reset() });
+          $('.modal').modal('hide');
+          new PNotify({
+            title: "Owner changed succesfully",
+            text: "",
+            hide: true,
+            delay: 4000,
+            icon: 'fa fa-success',
+            opacity: 1,
+            type: "success"
+          });
+          domains_table.ajax.reload();
+        },
+        error: function ({ responseJSON: { description } = {} }) {
+          const msg = description ? description : 'Something went wrong';
+          new PNotify({
+            title: "ERROR",
+            text: msg,
+            type: 'error',
+            icon: 'fa fa-warning',
+            hide: true,
+            delay: 15000,
+            opacity: 1
+          });
+        }
+      });
+    };
+  });
+
+  $("#modalChangeCoOwnersDeployment #send").off('click').on('click', function (e) {
+    var form = $('#modalChangeCoOwnersDeploymentForm');
+    form.parsley().validate();
+
+    if (form.parsley().isValid()) {
+      let pk = $('#modalChangeCoOwnersDeploymentForm #id').val()
+      coOwnersArray = $("#co_owners").val();
+      $.ajax({
+        type: "PUT",
+        url: `/api/v3/deployment/co-owners/${pk}`,
+        data: JSON.stringify({ co_owners: coOwnersArray }),
+        contentType: 'application/json',
+        success: function () {
+          $('form').each(function () { this.reset() });
+          $('.modal').modal('hide');
+          new PNotify({
+            title: "Co-owners changed succesfully",
+            text: "",
+            hide: true,
+            delay: 4000,
+            icon: 'fa fa-success',
+            opacity: 1,
+            type: "success"
+          });
+          domains_table.ajax.reload();
+        },
+        error: function ({ responseJSON: { description } = {} }) {
+          const msg = description ? description : 'Something went wrong';
+          new PNotify({
+            title: "ERROR",
+            text: msg,
+            type: 'error',
+            icon: 'fa fa-warning',
+            hide: true,
+            delay: 15000,
+            opacity: 1
+          });
+        }
+      });
+    };
+  });
 }

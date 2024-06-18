@@ -236,6 +236,16 @@
               />
             </b-button>
             <b-button
+              class="rounded-circle px-2 mr-2 btn-green"
+              :title="$t('components.statusbar.deployment.buttons.co-owners.title')"
+              @click="showOwnersModal()"
+            >
+              <b-icon
+                icon="person-fill"
+                scale="0.75"
+              />
+            </b-button>
+            <b-button
               class="rounded-circle btn btn-blue px-2 mr-2"
               :title="$t('components.statusbar.deployment.buttons.edit.title')"
               @click="editDeployment()"
@@ -538,6 +548,16 @@ export default {
       $store.dispatch('fetchAllowed', { table: 'deployments', id: deployment.value.id })
     }
 
+    const showOwnersModal = () => {
+      $store.dispatch('fetchCoOwners', deployment.value.id)
+      $store.dispatch('updateDeploymentModal', {
+        show: true,
+        type: 'coOwners',
+        color: 'green',
+        item: { id: deployment.value.id, name: deployment.value.name }
+      })
+    }
+
     const updateUsers = (allowed) => {
       $store.dispatch('editDeploymentUsers', { id: deployment.value.id, allowed: allowed })
     }
@@ -645,6 +665,7 @@ export default {
       toggleVisible,
       downloadDirectViewerCSV,
       showAllowedModal,
+      showOwnersModal,
       updateUsers,
       editDeployment,
       deleteDeployment,

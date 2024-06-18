@@ -5,6 +5,7 @@ import { DeploymentsUtils } from '../../utils/deploymentsUtils'
 import { DomainsUtils } from '../../utils/domainsUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
 import router from '@/router'
+import { AllowedUtils } from '../../utils/allowedUtils'
 
 const getDefaultState = () => {
   return {
@@ -25,6 +26,10 @@ const getDefaultState = () => {
         stopStartedDomains: false,
         reset: false
       }
+    },
+    coOwners: {
+      owner: {},
+      coOwners: []
     }
   }
 }
@@ -48,6 +53,9 @@ export default {
     },
     getDeploymentModal: state => {
       return state.deploymentModal
+    },
+    getCoOwners: state => {
+      return state.coOwners
     }
   },
   mutations: {
@@ -89,6 +97,9 @@ export default {
     },
     setDeploymentModal: (state, deploymentModal) => {
       state.deploymentModal = deploymentModal
+    },
+    setCoOwners: (state, show) => {
+      state.coOwners = show
     }
   },
   actions: {
@@ -230,6 +241,24 @@ export default {
     editDeploymentUsers (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
       axios.put(`${apiV3Segment}/deployment/users/${data.id}`, data).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    fetchCoOwners (context, deploymentId) {
+      return axios.get(`${apiV3Segment}/deployment/co-owners/${deploymentId}`).then(response => {
+        const owner = AllowedUtils.parseUser(response.data.owner)
+        const coOwners = AllowedUtils.parseAllowed('users', response.data.co_owners)
+        context.commit('setCoOwners', { owner: owner, coOwners: coOwners })
+        context.commit('setSelectedUsers', coOwners)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    updateCoOwners (context, data) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
+      axios.put(`${apiV3Segment}/deployment/co-owners/${data.id}`, { co_owners: data.users }).then(response => {
+        context.dispatch('fetchCoOwners', data.id)
+      }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     }

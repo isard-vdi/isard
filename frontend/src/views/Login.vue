@@ -184,7 +184,7 @@ import PoweredBy from '@/components/shared/PoweredBy.vue'
 import { watch, ref, computed, onBeforeMount } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
-import { getCookie } from 'tiny-cookie'
+import { getCookie, removeCookie } from 'tiny-cookie'
 
 export default {
   name: 'Login',
@@ -194,6 +194,7 @@ export default {
     PoweredBy
   },
   setup (props, context) {
+    removeCookie('authorization')
     const $store = context.root.$store
     const category = ref('')
     const loading = ref(false)

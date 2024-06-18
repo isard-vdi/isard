@@ -1082,6 +1082,29 @@ def admin_roles(payload):
     )
 
 
+@app.route("/api/v3/admin/role/<role_id>", methods=["GET"])
+@is_admin
+def admin_role(payload, role_id):
+    roles = users.RoleGet(payload["role_id"])
+    for role in roles:
+        if role["id"] == role_id:
+            return (
+                json.dumps(role),
+                200,
+                {"Content-Type": "application/json"},
+            )
+    raise Error("not_found", "Role not found")
+
+
+@app.route("/api/v3/admin/role/<role_id>", methods=["PUT"])
+@is_admin
+def admin_role_update(payload, role_id):
+    data = request.get_json()
+    data = _validate_item("role_update", data)
+    admin_table_update("roles", data)
+    return json.dumps(data), 200, {"Content-Type": "application/json"}
+
+
 @app.route("/api/v3/admin/secrets", methods=["GET"])
 @is_admin
 def admin_secrets(payload):

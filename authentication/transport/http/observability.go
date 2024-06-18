@@ -20,10 +20,8 @@ func Logging(log *zerolog.Logger) middleware.Middleware {
 			return rsp, err
 		}
 
-		remoteAddr := req.Raw.RemoteAddr
-		if addr := req.Raw.Header.Get("X-Forwarded-For"); addr != "" {
-			remoteAddr = strings.TrimSpace(strings.Split(addr, ",")[0])
-		}
+		// Remote address is injected in the RequestMetadata middleware
+		remoteAddr := req.Context.Value(requestMetadataRemoteAddrCtxKey).(string)
 
 		params := map[string]interface{}{}
 		for k, v := range req.Params {

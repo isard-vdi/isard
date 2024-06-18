@@ -20,6 +20,7 @@ import (
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"
 
 	"github.com/crewjam/saml/samlsp"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/rs/zerolog"
 	"gitlab.com/isard/isardvdi-sdk-go"
@@ -64,7 +65,10 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	oas, err := oasAuthentication.NewServer(
 		a,
 		sec,
-		oasAuthentication.WithMiddleware(Logging(log)),
+		oasAuthentication.WithMiddleware(
+			RequestMetadata,
+			Logging(log),
+		),
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("create the OpenAPI authentication server")
@@ -233,6 +237,9 @@ func (a *AuthenticationServer) logoutSAML(w http.ResponseWriter, r *http.Request
 }
 
 func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.OptLoginRequestMultipart, params oasAuthentication.LoginParams) (oasAuthentication.LoginRes, error) {
+	// Remote address is injected in the RequestMetadata middleware
+	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
+
 	args := map[string]string{}
 
 	// Token provided in the Authorization header
@@ -294,7 +301,7 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		}
 	}
 
-	tkn, redirect, err := a.Authentication.Login(ctx, p.String(), params.CategoryID, args)
+	tkn, redirect, err := a.Authentication.Login(ctx, p.String(), params.CategoryID, args, remoteAddr)
 	if err != nil {
 		if errors.Is(err, provider.ErrInvalidCredentials) {
 			return &oasAuthentication.LoginUnauthorized{
@@ -357,6 +364,9 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 }
 
 func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentication.CallbackParams) (oasAuthentication.CallbackRes, error) {
+	// Remote address is injected in the RequestMetadata middleware
+	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
+
 	args := map[string]string{}
 
 	// OAuth2
@@ -378,7 +388,7 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 		})
 	}
 
-	tkn, redirect, err := a.Authentication.Callback(ctx, params.State, args)
+	tkn, redirect, err := a.Authentication.Callback(ctx, params.State, args, remoteAddr)
 	if err != nil {
 		if errors.Is(err, provider.ErrUserDisabled) {
 			return &oasAuthentication.CallbackFound{
@@ -423,6 +433,9 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 }
 
 func (a *AuthenticationServer) Renew(ctx context.Context, req *oasAuthentication.RenewRequest) (oasAuthentication.RenewRes, error) {
+	// Remote address is injected in the RequestMetadata middleware
+	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
+
 	ss, ok := ctx.Value(tokenCtxKey).(string)
 	if !ok {
 		return &oasAuthentication.RenewUnauthorized{
@@ -431,7 +444,7 @@ func (a *AuthenticationServer) Renew(ctx context.Context, req *oasAuthentication
 		}, nil
 	}
 
-	tkn, err := a.Authentication.Renew(ctx, ss)
+	tkn, err := a.Authentication.Renew(ctx, ss, remoteAddr)
 	if err != nil {
 		if status, ok := status.FromError(err); ok {
 			switch status.Code() {
@@ -464,6 +477,43 @@ func (a *AuthenticationServer) Renew(ctx context.Context, req *oasAuthentication
 	}, nil
 }
 
+func (a *AuthenticationServer) Logout(ctx context.Context, req *oasAuthentication.LogoutRequest) (oasAuthentication.LogoutRes, error) {
+	ss, ok := ctx.Value(tokenCtxKey).(string)
+	if !ok {
+		return &oasAuthentication.LogoutUnauthorized{
+			Error: oasAuthentication.LogoutErrorErrorMissingToken,
+			Msg:   "missing JWT token",
+		}, nil
+	}
+
+	if err := a.Authentication.Logout(ctx, ss); err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return &oasAuthentication.LogoutUnauthorized{
+				Error: oasAuthentication.LogoutErrorErrorInvalidSession,
+				Msg:   "session has expired",
+			}, nil
+		}
+
+		if status, ok := status.FromError(err); ok {
+			a.Log.Error().Err(err).Str("code", status.Code().String()).Msg("unknown logout sessions status code error")
+
+			return &oasAuthentication.LogoutInternalServerError{
+				Error: oasAuthentication.LogoutErrorErrorInternalServer,
+				Msg:   "unknown logout sessions error",
+			}, nil
+		}
+
+		a.Log.Error().Err(err).Msg("unknown logout error")
+
+		return &oasAuthentication.LogoutInternalServerError{
+			Error: oasAuthentication.LogoutErrorErrorInternalServer,
+			Msg:   "unknown error",
+		}, nil
+	}
+
+	return &oasAuthentication.LogoutResponse{}, nil
+}
+
 func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthentication.ProvidersResponse, error) {
 	providers := []oasAuthentication.Providers{}
 	for _, p := range a.Authentication.Providers() {
@@ -486,6 +536,9 @@ func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthenticatio
 }
 
 func (a *AuthenticationServer) Check(ctx context.Context) (oasAuthentication.CheckRes, error) {
+	// Remote address is injected in the RequestMetadata middleware
+	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
+
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
 	if !ok {
 		return &oasAuthentication.CheckUnauthorized{
@@ -494,7 +547,7 @@ func (a *AuthenticationServer) Check(ctx context.Context) (oasAuthentication.Che
 		}, nil
 	}
 
-	if err := a.Authentication.Check(ctx, tkn); err != nil {
+	if err := a.Authentication.Check(ctx, tkn, remoteAddr); err != nil {
 		if !errors.Is(err, token.ErrInvalidToken) || !errors.Is(err, token.ErrInvalidTokenType) {
 			return nil, fmt.Errorf("check JWT: %w", err)
 		}
@@ -684,6 +737,9 @@ func (a *AuthenticationServer) ForgotPassword(ctx context.Context, req *oasAuthe
 }
 
 func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthentication.ResetPasswordRequest) (oasAuthentication.ResetPasswordRes, error) {
+	// Remote address is injected in the RequestMetadata middleware
+	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
+
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
 	if !ok {
 		return &oasAuthentication.ResetPasswordUnauthorized{
@@ -692,7 +748,7 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 		}, nil
 	}
 
-	if err := a.Authentication.ResetPassword(ctx, tkn, req.Password); err != nil {
+	if err := a.Authentication.ResetPassword(ctx, tkn, req.Password, remoteAddr); err != nil {
 		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
 			return &oasAuthentication.ResetPasswordForbidden{
 				Error: oasAuthentication.ResetPasswordErrorErrorInvalidToken,

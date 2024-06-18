@@ -1,0 +1,151 @@
+<style>
+  [id^=modal_add_] .selected {
+    background-color: #e0f1af !important;
+  }
+
+  [id^=modal_add_] tr {
+    cursor: pointer;
+  }
+
+  .my-error {
+    margin-top: 5px;
+    color: #B94A48 !important;
+    background-color: #F2DEDE !important;
+    border: 1px solid #EED3D7 !important;
+    padding: 10px;
+  }
+</style>
+
+
+<div class="modal fade" id="modalChangeOwnerDomain" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">
+          <span aria-hidden="true">&times;</span>
+          <span class="sr-only">Close</span>
+        </button>
+        <h4 class="modal-title" id="myModalLabel">
+          <i class="fa fa-exchange fa-1x"> </i> Change Owner
+        </h4>
+      </div>
+      <!-- Modal Body -->
+      <div class="modal-body" style="padding-top: 7px;">
+        <form id="modalChangeOwnerDomainForm" class="form-horizontal form-label-left">
+          <input id="id" type="hidden" required>
+          <div class="x_panel">
+            <h4><i class="fa fa-user aria-hidden=" true"></i> Change this deployment's owner</h4>
+            <div class="alert alert-danger">
+              <ul>
+                <li>
+                  The users in the deployment won't be affected by this change.
+                </li>
+                <li>
+                  {% if current_user.role == 'manager' %}
+                  If the new owner is in a different group the domain's group will be changed too!
+
+                  {% elif current_user.role == 'admin' %}
+                  If the new owner belongs to a different group or category, the domain's group or
+                  category will also be updated!
+                  {% endif %}
+                </li>
+              </ul>
+            </div>
+            <div class="x_content" style="padding: 0px;">
+              <div class="x_panel">
+                <div class="row">
+                  <div>
+                    <label class="col-md-3 col-sm-3 col-xs-6" for="name">New owner <span class="required">*</span>
+                    </label>
+                    <div class="col-md-6 col-sm-6 col-xs-12">
+                      <select id="new_owner" name="new_owner" class="tags-select roundbox" placeholder="New owner"
+                        required style="width: 100%;">
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <!-- Modal Footer -->
+      <div class="modal-footer">
+        <ul class="nav navbar-left panel_toolbox">
+          <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+        </ul>
+        <ul class="nav navbar-right panel_toolbox">
+          <button id="send" type="button" class="btn btn-success">Change owner</button>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade" id="modalChangeCoOwnersDeployment" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">
+          <span aria-hidden="true">&times;</span>
+          <span class="sr-only">Close</span>
+        </button>
+        <h4 class="modal-title" id="myModalLabel">
+          <i class="fa fa-exchange fa-1x"> </i> Change Co-owners
+        </h4>
+      </div>
+      <!-- Modal Body -->
+      <div class="modal-body" style="padding-top: 7px;">
+        <form id="modalChangeCoOwnersDeploymentForm" class="form-horizontal form-label-left">
+          <input id="id" type="hidden" required>
+          <div class="x_panel">
+            <h4><i class="fa fa-users aria-hidden=" true"></i> Change this deployment's co-owners</h4>
+            <div class="alert alert-danger">
+              <ul>
+                <li>
+                  The users in the deployment won't be affected by this change.
+                </li>
+                <li>
+                  The owner, category and group of the deployment won't be affected by this change.
+                </li>
+                <li>
+                  The new co-owners will be able to manage the deployment as if they were the owner
+                  except for deleting the deployment and changing ownership.
+                </li>
+              </ul>
+            </div>
+            <div class="x_content" style="padding: 0px;">
+              <div class="x_panel">
+                <div class="row">
+                  <div>
+                    <label class="col-md-3 col-sm-3 col-xs-6" for="name">Co-owners <span class="required">*</span>
+                    </label>
+                    <div class="col-md-9 col-sm-9 col-xs-12">
+                      <select id="co_owners" name="co_owners" class="tags-select roundbox" placeholder="Co-owners"
+                        style="width: 100%;">
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <!-- Modal Footer -->
+      <div class="modal-footer">
+        <ul class="nav navbar-left panel_toolbox">
+          <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+        </ul>
+        <ul class="nav navbar-right panel_toolbox">
+          <button id="send" type="button" class="btn btn-success">Change co-owners</button>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

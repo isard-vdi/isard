@@ -194,6 +194,10 @@ class ApiUsers:
                 "documentation_url": os.environ.get(
                     "FRONTEND_DOCS_URI", "https://isard.gitlab.io/isardvdi-docs/"
                 ),
+                "viewers_documentation_url": os.environ.get(
+                    "FRONTEND_VIEWERS_DOCS_URI",
+                    "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/",
+                ),
                 "show_change_email_button": frontend_show_change_email,
                 "show_temporal_tab": frontend_show_temporal_tab,
             },

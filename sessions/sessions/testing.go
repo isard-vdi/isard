@@ -18,17 +18,17 @@ type SessionsMock struct {
 	mock.Mock
 }
 
-func (m *SessionsMock) New(ctx context.Context, userID string) (*model.Session, error) {
+func (m *SessionsMock) New(ctx context.Context, userID string, remoteAddr string) (*model.Session, error) {
 	mArgs := m.Called(ctx, userID)
 	return mArgs.Get(0).(*model.Session), mArgs.Error(1)
 }
 
-func (m *SessionsMock) Get(ctx context.Context, id string) (*model.Session, error) {
+func (m *SessionsMock) Get(ctx context.Context, id string, remoteAddr string) (*model.Session, error) {
 	mArgs := m.Called(ctx, id)
 	return mArgs.Get(0).(*model.Session), mArgs.Error(1)
 }
 
-func (m *SessionsMock) Renew(ctx context.Context, id string) (*model.SessionTime, error) {
+func (m *SessionsMock) Renew(ctx context.Context, id string, remoteAddr string) (*model.SessionTime, error) {
 	mArgs := m.Called(ctx, id)
 	return mArgs.Get(0).(*model.SessionTime), mArgs.Error(1)
 }

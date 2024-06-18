@@ -22,6 +22,8 @@ type Sessions struct {
 	MaxRenewTime time.Duration `mapstructure:"max_renew_time"`
 	// ExpirationTime is the time when the session will expire if it's not renewed
 	ExpirationTime time.Duration `mapstructure:"expiration_time"`
+	// RemoteAddrControl is a flag to enable IP control
+	RemoteAddrControl bool `mapstructure:"remote_addr_control"`
 }
 
 func New() Cfg {
@@ -39,8 +41,9 @@ func setDefaults() {
 	viper.SetDefault("redis.db", 1)
 
 	viper.SetDefault("sessions", map[string]any{
-		"max_time":        "4h",
-		"max_renew_time":  "4h",
-		"expiration_time": "4h",
+		"max_time":            "4h",
+		"max_renew_time":      "4h",
+		"expiration_time":     "4h",
+		"remote_addr_control": false,
 	})
 }

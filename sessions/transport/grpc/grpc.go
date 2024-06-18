@@ -47,13 +47,16 @@ func (s *SessionsServer) Serve(ctx context.Context) {
 }
 
 func (s *SessionsServer) New(ctx context.Context, req *sessionsv1.NewRequest) (*sessionsv1.NewResponse, error) {
-	userID := req.GetUserId()
-	if userID == "" {
-		return nil, status.Error(codes.InvalidArgument, "missing user ID")
-	}
-
-	sess, err := s.sessions.New(ctx, userID)
+	sess, err := s.sessions.New(ctx, req.GetUserId(), req.GetRemoteAddr())
 	if err != nil {
+		if errors.Is(err, sessions.ErrMissingUserID) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+
+		if errors.Is(err, sessions.ErrInvalidRemoteAddr) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+
 		return nil, status.Error(codes.Internal, fmt.Errorf("create new session: %w", err).Error())
 	}
 
@@ -68,10 +71,18 @@ func (s *SessionsServer) New(ctx context.Context, req *sessionsv1.NewRequest) (*
 }
 
 func (s *SessionsServer) Get(ctx context.Context, req *sessionsv1.GetRequest) (*sessionsv1.GetResponse, error) {
-	sess, err := s.sessions.Get(ctx, req.GetId())
+	sess, err := s.sessions.Get(ctx, req.GetId(), req.GetRemoteAddr())
 	if err != nil {
+		if errors.Is(err, sessions.ErrInvalidRemoteAddr) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+
 		if errors.Is(err, redis.ErrNotFound) {
 			return nil, status.Error(codes.NotFound, err.Error())
+		}
+
+		if errors.Is(err, sessions.ErrRemoteAddrMismatch) {
+			return nil, status.Error(codes.Unauthenticated, err.Error())
 		}
 
 		if errors.Is(err, sessions.ErrSessionExpired) {
@@ -91,10 +102,18 @@ func (s *SessionsServer) Get(ctx context.Context, req *sessionsv1.GetRequest) (*
 }
 
 func (s *SessionsServer) Renew(ctx context.Context, req *sessionsv1.RenewRequest) (*sessionsv1.RenewResponse, error) {
-	sess, err := s.sessions.Renew(ctx, req.GetId())
+	sess, err := s.sessions.Renew(ctx, req.GetId(), req.GetRemoteAddr())
 	if err != nil {
+		if errors.Is(err, sessions.ErrInvalidRemoteAddr) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+
 		if errors.Is(err, redis.ErrNotFound) {
 			return nil, status.Error(codes.NotFound, err.Error())
+		}
+
+		if errors.Is(err, sessions.ErrRemoteAddrMismatch) {
+			return nil, status.Error(codes.Unauthenticated, err.Error())
 		}
 
 		if errors.Is(err, sessions.ErrRenewTimeExpired) {
@@ -125,5 +144,6 @@ func (s *SessionsServer) Revoke(ctx context.Context, req *sessionsv1.RevokeReque
 
 		return nil, status.Error(codes.Internal, fmt.Errorf("revoke session: %w", err).Error())
 	}
+
 	return &sessionsv1.RevokeResponse{}, nil
 }

@@ -405,8 +405,7 @@ class isardViewer:
         password=%s
         tls-port=%s
         fullscreen=%s
-        title=%s:%sd - Prem SHIFT+F12 per sortir
-        """ % (
+        title=%s:%sd - Prem SHIFT+F12 per sortir""" % (
             "spice",
             domain["viewer"]["proxy_video"],
             port,
@@ -422,6 +421,7 @@ class isardViewer:
 
         consola = (
             consola
+            + "\n"
             + """%shost-subject=%s
                 %sca=%r"""
             % (
@@ -430,6 +430,7 @@ class isardViewer:
                 "" if domain["viewer"]["tls"]["certificate"] is not False else ";",
                 domain["viewer"]["tls"]["certificate"],
             )
+            + "\n"
             + custom
         )
 

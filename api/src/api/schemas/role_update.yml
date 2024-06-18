@@ -1,0 +1,15 @@
+name:
+  maxlength: 50
+  type: string
+  coerce: sanitize
+description:
+  maxlength: 255
+  type: string
+  coerce: sanitize
+id:
+  type: string
+  allowed:
+    - user
+    - advanced
+    - manager
+    - admin
