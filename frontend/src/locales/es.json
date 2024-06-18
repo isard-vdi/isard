@@ -1336,7 +1336,8 @@
         "user_not_found": "No existe ningún usuario con el correo electrónico proporcionado",
         "invalid_token": "Token no válido",
         "old_passwords": "La contraseña actual no puede ser ninguna de las últimas {num} contraseñas",
-        "no_storage_pool_available": "En estos momentos no está disponible la creación de recursos. Espere e inténtelo de nuevo."
+        "no_storage_pool_available": "En estos momentos no está disponible la creación de recursos. Espere e inténtelo de nuevo.",
+        "bookings_max_time_reached": "El usuario ha alcanzado el tiempo máximo de escritorios reservables"
     },
     "router": {
         "titles": {

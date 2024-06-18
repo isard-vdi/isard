@@ -1243,7 +1243,8 @@
         "invalid_token": "Token no vàlid",
         "old_passwords": "L'última contrasenya no pot ser cap de les últimes {num} contrasenyes",
         "no_storage_pool_available": "En aquest moment no està disponible la creació de recursos. Esperi uns minuts i torni-ho a provar.",
-        "unable_to_get_domain_jumperurl": "No s'ha pogut obtenir l'enllaç del visor directe perquè el domini no existeix"
+        "unable_to_get_domain_jumperurl": "No s'ha pogut obtenir l'enllaç del visor directe perquè el domini no existeix",
+        "bookings_max_time_reached": "L'usuari ha arribat al temps màxim d'escriptoris reservables"
     },
     "messages": {
         "title": {
