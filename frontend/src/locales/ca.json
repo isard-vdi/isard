@@ -1314,9 +1314,11 @@
         "no_storage_pool_available": "En aquest moment no està disponible la creació de recursos. Esperi uns minuts i torni-ho a provar.",
         "unable_to_get_domain_jumperurl": "No s'ha pogut obtenir l'enllaç del visor directe perquè el domini no existeix",
         "bookings_max_time_reached": "L'usuari ha arribat al temps màxim d'escriptoris reservables",
+        "new_template_bad_body_data": "Dades incorrectes en la creació de nova plantilla",
         "desktops_not_stopped": "Els escriptoris associats a aquest emmagatzematge han d'estar aturats per realitzar aquesta acció",
         "increase_desktops_not_stopped": "L'escriptori associat a aquest emmagatzematge ha d'estar aturat per incrementar la mida del disc",
         "increase_storage_has_derivatives": "L'emmagatzematge és d'una plantilla i no es pot incrementar"
+   
     },
     "messages": {
         "title": {
@@ -1428,7 +1430,7 @@
             "storage": "Emmagatzematge",
             "edit-deployment": "Editar desplegament",
             "recycleBin": "Paperera de reciclatge",
-            "password": "Canviar contrasenya",
+            "password": "Reestablir contrasenya",
             "email": "Verificar correu electrònic",
             "forgot-password": "Reestablir contrasenya",
             "disclaimer": "Avís legal"
