@@ -453,7 +453,7 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
     try:
         storage.create_task(
             user_id=storage.user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=storage.directory_path).id}.priority",
+            queue=f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=storage.directory_path).id}.{priority}",
             task="virt_win_reg",
             job_kwargs={
                 "kwargs": {
