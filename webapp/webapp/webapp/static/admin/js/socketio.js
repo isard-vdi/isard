@@ -21,9 +21,9 @@
 socket = io.connect(`//${location.host}/administrators`, {
     'path': '/api/v3/socket.io/',
     'transports': ['websocket'],
-	auth: {
-		jwt: getCookie('isardvdi_session')
-	}
+    auth: (cb) => {
+        cb({ jwt: getCookie('isardvdi_session') })
+    }
 })
 
 socket.on('connect', function () {
