@@ -60,7 +60,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 	// If the provider returns a token return it
 	if ss != "" {
-		return ss, "", nil
+		return ss, redirect, nil
 	}
 
 	// Continue with the login process, passing the redirect path that has been
@@ -91,7 +91,7 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args provider.
 
 	// If the provider returns a token return it
 	if ss != "" {
-		return ss, "", nil
+		return ss, redirect, nil
 	}
 
 	return a.startLogin(ctx, remoteAddr, p, g, u, redirect)
@@ -290,12 +290,8 @@ func (a *Authentication) finishCategorySelect(ctx context.Context, remoteAddr, c
 		return "", "", err
 	}
 
-	u := claims.User.ToUser()
+	u := &claims.User
 	u.Category = categoryID
 
-	if err := u.Load(ctx, a.DB); err != nil {
-		return "", "", fmt.Errorf("load user from db: %w", err)
-	}
-
-	return a.finishLogin(ctx, remoteAddr, u, redirect)
+	return a.startLogin(ctx, remoteAddr, a.Provider(claims.User.Provider), nil, u, redirect)
 }

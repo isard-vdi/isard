@@ -218,7 +218,8 @@ func GetTokenType(ss string) (Type, error) {
 		TypeEmailVerificationRequired,
 		TypeEmailVerification,
 		TypePasswordResetRequired,
-		TypePasswordReset:
+		TypePasswordReset,
+		TypeCategorySelect:
 
 		return claims.Type, nil
 

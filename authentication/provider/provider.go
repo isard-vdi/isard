@@ -9,6 +9,8 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
+
+	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 const (
@@ -107,4 +109,79 @@ func matchRegex(re *regexp.Regexp, s string) string {
 	}
 
 	return re.FindString(s)
+}
+
+func matchRegexMultiple(re *regexp.Regexp, s string) []string {
+	allMatches := []string{}
+
+	// Attempt to match all the groups
+	result := re.FindAllStringSubmatch(s, -1)
+	if len(result) == 1 {
+		// If no groups are found, attempt to do a global match
+		global := re.FindString(s)
+		if global == "" {
+			return allMatches
+		}
+
+		return []string{global}
+	}
+
+	for _, r := range result {
+		// Extract the matched group
+		if len(r) > 1 {
+			allMatches = append(allMatches, r[1])
+		}
+	}
+
+	return allMatches
+}
+
+func guessCategory(ctx context.Context, db r.QueryExecutor, secret string, re *regexp.Regexp, rawCategories []string, u *types.ProviderUserData) (string, *ProviderError) {
+	categories := []*model.Category{}
+	for _, c := range rawCategories {
+		match := matchRegexMultiple(re, c)
+		for _, m := range match {
+			category := &model.Category{
+				ID: m,
+			}
+
+			exists, err := category.Exists(ctx, db)
+			if err != nil {
+				return "", &ProviderError{
+					User:   ErrInternal,
+					Detail: fmt.Errorf("check category exists: %w", err),
+				}
+			}
+
+			if !exists {
+				continue
+			}
+
+			// TODO: Maybe we need to add a UID field in the category table to represent the external ID of this group and make the mapping like so????
+			categories = append(categories, category)
+		}
+	}
+
+	switch len(categories) {
+	case 0:
+		return "", &ProviderError{
+			User:   ErrInvalidCredentials,
+			Detail: fmt.Errorf("user doesn't have any valid category, recieved raw argument: '%s'", rawCategories),
+		}
+
+	case 1:
+		u.Category = categories[0].ID
+		return "", nil
+
+	default:
+		tkn, err := token.SignCategorySelectToken(secret, categories, u)
+		if err != nil {
+			return "", &ProviderError{
+				User:   ErrInternal,
+				Detail: fmt.Errorf("sign category select token: %w", err),
+			}
+		}
+
+		return tkn, nil
+	}
 }

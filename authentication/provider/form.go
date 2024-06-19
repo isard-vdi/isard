@@ -31,7 +31,7 @@ func InitForm(cfg cfg.Authentication, db r.QueryExecutor) *Form {
 	}
 
 	if cfg.LDAP.Enabled {
-		ldap := InitLDAP(cfg.LDAP)
+		ldap := InitLDAP(cfg.LDAP, cfg.Secret, db)
 		providers[ldap.String()] = ldap
 	}
 

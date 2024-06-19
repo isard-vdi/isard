@@ -201,54 +201,14 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 			}
 		}
 
-		categories := []*model.Category{}
-
-		for _, c := range attrCategories {
-			category := &model.Category{
-				// TODO: If there are multiple categories in the same attribute
-				// (for instance separted by ,) we must iterate over each match
-				// Regex example: [^,]+
-				ID: matchRegex(s.ReCategory, c),
-			}
-
-			exists, err := category.Exists(ctx, s.db)
-			if err != nil {
-				return nil, nil, "", "", &ProviderError{
-					User:   ErrInternal,
-					Detail: fmt.Errorf("check category exists: '%w'", err),
-				}
-			}
-
-			if !exists {
-				continue
-			}
-
-			// TODO: Maybe we need to add a UID field in the category table to represent the external ID of this group and make the mapping like so????
-			categories = append(categories, category)
+		tkn, err := guessCategory(ctx, s.db, s.cfg.Secret, s.ReCategory, attrCategories, u)
+		if err != nil {
+			return nil, nil, "", "", err
 		}
 
-		switch len(categories) {
-		case 0:
-			return nil, nil, "", "", &ProviderError{
-				User:   ErrInvalidCredentials,
-				Detail: fmt.Errorf("user doesn't have any valid category, recieved raw argument: '%s'", attrCategories),
-			}
-
-		case 1:
-			u.Category = categories[0].ID
-
-		default:
-			tkn, err := token.SignCategorySelectToken(s.cfg.Secret, categories, u)
-			if err != nil {
-				return nil, nil, "", "", &ProviderError{
-					User:   ErrInternal,
-					Detail: fmt.Errorf("sign category select token: %w", err),
-				}
-			}
-
-			return nil, nil, "", tkn, nil
+		if tkn != "" {
+			return nil, nil, "/", tkn, nil
 		}
-
 	}
 
 	// if s.AutoRegister() {

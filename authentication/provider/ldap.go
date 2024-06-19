@@ -7,17 +7,21 @@ import (
 	"log"
 	"regexp"
 
-	"github.com/go-ldap/ldap/v3"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
+
+	"github.com/go-ldap/ldap/v3"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 var _ Provider = &LDAP{}
 
 type LDAP struct {
-	cfg cfg.AuthenticationLDAP
+	cfg    cfg.AuthenticationLDAP
+	secret string
+	db     r.QueryExecutor
 
 	ReUID          *regexp.Regexp
 	ReCategory     *regexp.Regexp
@@ -29,8 +33,12 @@ type LDAP struct {
 	ReGroupsSearch *regexp.Regexp
 }
 
-func InitLDAP(cfg cfg.AuthenticationLDAP) *LDAP {
-	l := &LDAP{cfg: cfg}
+func InitLDAP(cfg cfg.AuthenticationLDAP, secret string, db r.QueryExecutor) *LDAP {
+	l := &LDAP{
+		cfg:    cfg,
+		secret: secret,
+		db:     db,
+	}
 
 	re, err := regexp.Compile(cfg.RegexUID)
 	if err != nil {
@@ -226,7 +234,16 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	}
 
 	if l.cfg.GuessCategory {
-		u.Category = matchRegex(l.ReCategory, entry.GetAttributeValue(l.cfg.FieldCategory))
+		// u.Category = matchRegex(l.ReCategory, entry.GetAttributeValue(l.cfg.FieldCategory))
+		attrCategories := entry.GetAttributeValues(l.cfg.FieldCategory)
+		tkn, err := guessCategory(ctx, l.db, l.secret, l.ReCategory, attrCategories, u)
+		if err != nil {
+			return nil, nil, "", "", err
+		}
+
+		if tkn != "" {
+			return nil, nil, "", tkn, nil
+		}
 	}
 
 	if l.AutoRegister() {
