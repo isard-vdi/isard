@@ -1,14 +1,14 @@
 import { socket } from '@/utils/socket-instance'
 import store from '@/store/index.js'
-import { sessionCookieName } from '@/shared/constants'
-import { getCookie } from 'tiny-cookie'
 
 export default {
   actions: {
     openSocket (context, { jwt, room }) {
       if (!socket.connected || jwt) {
-        const sessionCookie = getCookie(sessionCookieName)
-        socket.auth.jwt = jwt || sessionCookie
+        socket.auth = (cb) => {
+          // eslint-disable-next-line node/no-callback-literal
+          cb({ jwt: jwt || store.getters.getSession })
+        }
         socket.io.opts.query = {
           room
         }

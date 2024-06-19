@@ -6,7 +6,8 @@ export function listenCookieChange (callback, cookieName, interval = 1000) {
     const cookie = getCookie(cookieName)
     if (cookie !== lastCookie) {
       try {
-        callback(null, { oldValue: lastCookie, newValue: cookie }, cookieName)
+        // eslint-disable-next-line node/no-callback-literal
+        callback({ oldValue: lastCookie, newValue: cookie }, cookieName)
       } finally {
         lastCookie = cookie
       }
