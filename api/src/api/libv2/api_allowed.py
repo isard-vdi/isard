@@ -85,6 +85,17 @@ class ApiAllowed:
                         .default({"name": "[deleted]"})["name"],
                     }
                 )
+            if table == "users":
+                query = query.merge(
+                    lambda d: {
+                        "category_name": r.table("categories")
+                        .get(d["category"])
+                        .default({"name": "[deleted]"})["name"],
+                        "group_name": r.table("groups")
+                        .get(d["group"])
+                        .default({"name": "[deleted]"})["name"],
+                    }
+                )
             return list(
                 query.filter(lambda doc: doc[field].match("(?i)" + value))
                 .pluck(pluck)
@@ -106,6 +117,24 @@ class ApiAllowed:
                             }
                         )
                         .pluck("id", "name", "uid", "parent_category", "category_name")
+                        .run(db.conn)
+                    )
+            elif k == "users" and v != False and len(v):
+                with app.app_context():
+                    allowed[k] = list(
+                        r.table(k)
+                        .get_all(r.args(v), index="id")
+                        .merge(
+                            lambda d: {
+                                "category_name": r.table("categories")
+                                .get(d["category"])
+                                .default({"name": "[deleted]"})["name"],
+                                "group_name": r.table("groups")
+                                .get(d["group"])
+                                .default({"name": "[deleted]"})["name"],
+                            }
+                        )
+                        .pluck("id", "name", "uid", "group_name", "category_name")
                         .run(db.conn)
                     )
             elif v != False and len(v):
