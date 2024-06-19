@@ -69,7 +69,7 @@ func TestRequestMetadata(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			RequestMetadata(tc.PrepareRequest(), tc.CheckRequest)
+			RequestMetadataOAS(tc.PrepareRequest(), tc.CheckRequest)
 		})
 	}
 }

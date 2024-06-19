@@ -66,7 +66,7 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 		a,
 		sec,
 		oasAuthentication.WithMiddleware(
-			RequestMetadata,
+			RequestMetadataOAS,
 			Logging(log),
 		),
 	)
@@ -77,13 +77,13 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	m := http.NewServeMux()
 
 	// Observability endpoints
-	m.HandleFunc("/healthcheck", a.healthcheck)
+	m.Handle("/healthcheck", requestMetadataHandler(http.HandlerFunc(a.healthcheck)))
 
 	// SAML authentication
-	m.HandleFunc("/authentication/saml/login", a.loginSAML)
-	m.HandleFunc("/authentication/saml/metadata", a.Authentication.SAML().ServeMetadata)
-	m.HandleFunc("/authentication/saml/acs", a.Authentication.SAML().ServeACS)
-	m.HandleFunc("/authentication/saml/slo", a.logoutSAML)
+	m.Handle("/authentication/saml/login", requestMetadataHandler(http.HandlerFunc(a.loginSAML)))
+	m.Handle("/authentication/saml/metadata", requestMetadataHandler(http.HandlerFunc(a.Authentication.SAML().ServeMetadata)))
+	m.Handle("/authentication/saml/acs", requestMetadataHandler(http.HandlerFunc(a.Authentication.SAML().ServeACS)))
+	m.Handle("/authentication/saml/slo", requestMetadataHandler(http.HandlerFunc(a.logoutSAML)))
 
 	// The OpenAPI specification server
 	m.Handle("/authentication/", http.StripPrefix("/authentication", oas))
