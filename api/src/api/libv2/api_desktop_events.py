@@ -309,4 +309,3 @@ def desktop_non_persistent_delete(desktop_id):
 def desktop_updating(desktop_id):
     with app.app_context():
         r.table("domains").get(desktop_id).update({"status": "Updating"}).run(db.conn)
-

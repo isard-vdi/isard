@@ -1135,9 +1135,6 @@ def storage_check_storage_derivatives(payload, storage_id):
 def storage_abort(payload, storage_id):
     storage = Storage(storage_id)
     ownsStorageId(payload, storage_id)
-    if not storage.task:
-        raise Error("not_found", "No task found for the storage")
-
     storage_domains = get_storage_derivatives(storage_id)
     storage_pool = StoragePool.get_best_for_action("abort")
     try:

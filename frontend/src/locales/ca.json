@@ -122,7 +122,7 @@
             "open-with": "Accedir amb visor",
             "storage-operation": {
                 "increase": "La mida del disc d'aquest escriptori s'està incrementant",
-                "virt-win-reg": "S'està editant el registre",
+                "virt_win_reg": "S'està editant el registre",
                 "move": "El disc d'aquest escriptori s'està movent"
             },
             "actions": {
@@ -521,7 +521,7 @@
                 },
                 "maintenance": {
                     "text": "En manteniment",
-                    "action": "En manteniment"
+                    "action": "Cancel·lar operació"
                 }
             }
         },
@@ -1269,7 +1269,8 @@
             "go-to-profile": "Veure quota",
             "go-to-bookings": "Reservar escriptori",
             "change-desktop-gpu": "Modificar el perfil de l'escriptori",
-            "reset-vpn": "Restablir les claus VPN? S'haurà de descarregar un nou fitxer VPN"
+            "reset-vpn": "Restablir les claus VPN? S'haurà de descarregar un nou fitxer VPN",
+            "cancel-operation": "Cancel·lar l'operació de disc en curs? Això podria deixar el disc en un estat inconsistent"
         },
         "ok": "D'acord",
         "yes": "Sí",
@@ -1319,7 +1320,9 @@
             "deleting-recycle-bin": "Eliminant entrada",
             "warning-desktop-waiting-ip": "Encara no es pot obrir el visor actual Espereu si us plau...",
             "reset-vpn": "Claus VPN restablertes",
-            "video-default": "S'ha canviat el paràmetre 'Videos' de l'escriptori a 'Default', atès que no hi ha cap perfil de GPU assignat"
+            "video-default": "S'ha canviat el paràmetre 'Videos' de l'escriptori a 'Default', atès que no hi ha cap perfil de GPU assignat",
+            "cancelling-operation": "Cancel·lant operació de disc en curs"
+
         },
         "loading": "Carregant"
     },

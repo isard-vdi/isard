@@ -321,7 +321,7 @@
             "filter-label": "Filter",
             "storage-operation": {
                 "increase": "The disk size of this desktop is being increased",
-                "virt-win-reg": "The registry is being edited",
+                "virt_win_reg": "The registry is being edited",
                 "move": "This desktop's disk is being moved"
             }
         },
@@ -712,7 +712,7 @@
                 },
                 "maintenance": {
                     "text": "In maintenance",
-                    "action": "In maintenance"
+                    "action": "Cancel operation"
                 }
             }
         },
@@ -1138,7 +1138,8 @@
             "go-to-profile": "View quota",
             "go-to-bookings": "Book desktop",
             "change-desktop-gpu": "Modify desktop profile",
-            "reset-vpn": "Reset VPN keys? You will have to download a new VPN file"
+            "reset-vpn": "Reset VPN keys? You will have to download a new VPN file",
+            "cancel-operation": "Cancel ongoing disk operation? This could leave the disk in an inconsistent state"
         },
         "ok": "Ok",
         "yes": "Yes",
@@ -1188,7 +1189,8 @@
             "deleting-recycle-bin": "Deleting entry",
             "warning-desktop-waiting-ip": "Viewer not available right now. Please wait..",
             "reset-vpn": "VPN keys reset",
-            "video-default": "The 'Videos' parameter on the desktop was changed to 'Default', as there is no GPU profile assigned"
+            "video-default": "The 'Videos' parameter on the desktop was changed to 'Default', as there is no GPU profile assigned",
+            "cancelling-operation": "Canceling ongoing disk operation"
         },
         "loading": "Loading"
     },

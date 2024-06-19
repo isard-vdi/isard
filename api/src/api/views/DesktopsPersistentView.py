@@ -141,17 +141,6 @@ def api_v3_desktop_updaing(payload, desktop_id):
     )
 
 
-@app.route("/api/v3/desktop/to_failed/<desktop_id>", methods=["GET"])
-@has_token
-def api_v3_desktop_to_failed(payload, desktop_id):
-    ownsDomainId(payload, desktop_id)
-    return (
-        json.dumps({"id": desktops.Failed(desktop_id)}),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
 @app.route("/api/v3/desktops/stop", methods=["PUT"])
 @has_token
 def api_v3_desktops_stop(payload, desktop_id):

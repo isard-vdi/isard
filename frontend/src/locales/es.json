@@ -321,7 +321,7 @@
             "open-with": "Acceder con visor",
             "storage-operation": {
                 "increase": "El tamaño de disco de este escritorio está siendo incrementado",
-                "virt-win-reg": "Se está editando el registro",
+                "virt_win_reg": "Se está editando el registro",
                 "move": "El disco de este escritorio se está moviendo"
             },
             "filter-label": "Filtrar"
@@ -713,7 +713,7 @@
                 },
                 "maintenance": {
                     "text": "En mantenimiento",
-                    "action": "En mantenimiento"
+                    "action": "Cancelar operación"
                 }
             }
         },
@@ -1153,7 +1153,8 @@
             "go-to-profile": "Ver cuota",
             "go-to-bookings": "Reservar escritorio",
             "change-desktop-gpu": "Modificar el perfil del escritorio",
-            "reset-vpn": "Reestablecer claves de VPN? Se tendrá que descargar un nuevo archivo VPN"
+            "reset-vpn": "Reestablecer claves de VPN? Se tendrá que descargar un nuevo archivo VPN",
+            "cancel-operation": "¿Cancelar la operación de disco en curso? Esto podría dejar el disco en un estado inconsistente"
         },
         "ok": "De acuerdo",
         "yes": "Si",
@@ -1203,7 +1204,8 @@
             "deleting-recycle-bin": "Eliminando entrada",
             "warning-desktop-waiting-ip": "Aún no se puede abrir el visor seleccionado. Espere por favor...",
             "reset-vpn": "Claves VPN restauradas",
-            "video-default": "Se ha cambiado el parámetro 'Videos' del escritorio a 'Default', dado que no hay ningún perfil de GPU asignado"
+            "video-default": "Se ha cambiado el parámetro 'Videos' del escritorio a 'Default', dado que no hay ningún perfil de GPU asignado",
+            "cancelling-operation": "Cancelando operación de disco en curso"
         },
         "loading": "Cargando"
     },

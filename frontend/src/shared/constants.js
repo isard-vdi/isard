@@ -83,7 +83,8 @@ export const status = {
     icon: 'arrow-repeat'
   },
   maintenance: {
-    action: '',
+    action: 'cancel',
+    icon: 'dash-circle',
     variant: 'warning'
   }
 }

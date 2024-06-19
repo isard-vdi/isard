@@ -226,6 +226,29 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
+    cancelOperation (_, data) {
+      this._vm.$snotify.prompt(`${i18n.t('messages.confirmation.cancel-operation')}`, {
+        position: 'centerTop',
+        buttons: [
+          {
+            text: `${i18n.t('messages.yes')}`,
+            action: () => {
+              this._vm.$snotify.clear()
+              data.storage.forEach((storage) => {
+                axios.put(`${apiV3Segment}/storage/${storage}/abort_operations`).then(() => {
+                  ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.cancelling-operation'))
+                }).catch(e => {
+                  ErrorUtils.handleErrors(e, this._vm.$snotify)
+                })
+              })
+            },
+            bold: true
+          },
+          { text: `${i18n.t('messages.no')}` }
+        ],
+        placeholder: ''
+      })
+    },
     resetDesktop (_, data) {
       axios.put(`${apiV3Segment}/direct/${data.token}/${data.action}`).then(response => {
       }).catch(e => {

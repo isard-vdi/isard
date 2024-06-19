@@ -320,6 +320,10 @@ def _parse_desktop(desktop):
             "reservables": desktop["create_dict"].get("reservables"),
             "interfaces": desktop["create_dict"]["hardware"]["interfaces"],
             "current_action": desktop.get("current_action"),
+            "storage": [
+                disk["storage_id"]
+                for disk in desktop["create_dict"]["hardware"].get("disks", [{}])
+            ],
         },
         **_parse_desktop_booking(desktop),
     }

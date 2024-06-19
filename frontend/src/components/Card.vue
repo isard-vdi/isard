@@ -187,7 +187,7 @@
 
           <!-- Actions -->
           <div
-            v-if="[desktopStates.started, desktopStates.waitingip, desktopStates.stopped, desktopStates.failed, desktopStates['shutting-down'], desktopStates.paused].includes(desktopState)"
+            v-if="[desktopStates.started, desktopStates.waitingip, desktopStates.stopped, desktopStates.failed, desktopStates['shutting-down'], desktopStates.paused, desktopStates.maintenance].includes(desktopState)"
             class="d-flex flex-row justify-content-start ml-3 mb-1"
           >
             <!-- Main action button nonpersistent -->
@@ -210,7 +210,7 @@
               :spinner-active="false"
               :butt-text="$t(`views.select-template.status.${desktopState}.action`)"
               :icon-name="desktop.buttonIconName"
-              @buttonClicked="changeDesktopStatus(desktop, { action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
+              @buttonClicked="changeDesktopStatus(desktop, { action: status[desktopState || 'stopped'].action, desktopId: desktop.id, storage: desktop.storage })"
             />
             <!-- Delete action button-->
             <DesktopButton
@@ -309,7 +309,9 @@ export default {
     const $store = context.root.$store
 
     const changeDesktopStatus = (desktop, data) => {
-      if (canStart(desktop)) {
+      if (data.action === 'cancel') {
+        $store.dispatch('cancelOperation', data)
+      } else if (canStart(desktop)) {
         $store.dispatch('changeDesktopStatus', data)
       } else {
         $store.dispatch('checkCanStart', { id: desktop.id, type: 'desktop', profile: desktop.reservables.vgpus[0], action: data.action })
@@ -378,7 +380,8 @@ export default {
         started: 'btn-red',
         waitingip: 'btn-red',
         failed: 'btn-orange',
-        paused: 'btn-red'
+        paused: 'btn-red',
+        maintenance: 'btn-red'
       }
       return stateColors[this.desktopState]
     },

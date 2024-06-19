@@ -191,14 +191,14 @@
                   v-b-tooltip.hover="data.item.needsBooking ? { title: `${getTooltipTitle(data.item.nextBookingStart, data.item.nextBookingEnd)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' } : ''"
                 >
                   <DesktopButton
-                    v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading, desktopStates.maintenance].includes(getItemState(data.item))"
+                    v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading].includes(getItemState(data.item))"
                     class="table-action-button"
                     :active="true"
                     :button-class="buttCssColor(getItemState(data.item))"
                     :spinner-active="false"
                     :butt-text="$t(`views.select-template.status.${getItemState(data.item)}.action`)"
                     :icon-name="data.item.buttonIconName"
-                    @buttonClicked="changeDesktopStatus(data.item, { action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
+                    @buttonClicked="changeDesktopStatus(data.item, { action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id, storage: data.item.storage })"
                   />
                   <!-- Delete action button-->
                   <DesktopButton
@@ -427,10 +427,12 @@ export default {
     const $store = context.root.$store
 
     const changeDesktopStatus = (desktop, data) => {
-      if (canStart(desktop)) {
+      if (data.action === 'cancel') {
+        $store.dispatch('cancelOperation', data)
+      } else if (canStart(desktop)) {
         $store.dispatch('changeDesktopStatus', data)
       } else {
-        $store.dispatch('checkCanStart', { id: desktop.id, type: 'desktop', profile: desktop.reservables.vgpus[0] })
+        $store.dispatch('checkCanStart', { id: desktop.id, type: 'desktop', profile: desktop.reservables.vgpus[0], action: data.action })
       }
     }
 
@@ -547,7 +549,8 @@ export default {
         started: 'btn-red',
         waitingip: 'btn-red',
         error: 'btn-red',
-        failed: 'btn-orange'
+        failed: 'btn-orange',
+        maintenance: 'btn-red'
       }
       return stateColors[state]
     },
