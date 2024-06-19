@@ -14,6 +14,20 @@
       border: 1px solid #EED3D7 !important;
       padding: 10px;
   }
+
+  .gpu-item {
+   padding: 10px;
+  }
+
+  .gpu-item .table-wrapper {
+   max-height: 340px;
+   overflow-y: scroll;
+   width: 100%;
+  }
+
+  .delete-gpu-tables {
+   margin-bottom:20px;
+  }
 </style>
 
 <div class="modal fade" id="modalAddHyper" tabindex="-1" role="dialog" 
@@ -467,57 +481,133 @@
    </div>
 </div>
 
-<div class="modal fade" id="modalDeleteGPU" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-   <div class="modal-dialog">
-       <div class="modal-content">
-           <!-- Modal Header -->
-           <div class="modal-header">
-               <h4 class="modal-title">
-                   <i class="fa fa-times fa-1x"> </i> <i class="fa fa-briefcase"> </i> <span id="title"></span>
-               </h4>
-           </div>
+<div class="modal fade" id="modalDeleteGPU" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+   aria-hidden="true">
+   <div class="modal-dialog" style="width:45%;">
+      <div class="modal-content">
 
-           <!-- Modal Body -->
-           <div class="modal-body">
+         <!-- Modal Header -->
+         <div class="modal-header">
+            <h4 class="modal-title">
+               <i class="fa fa-times fa-1x"> </i> <i class="fa fa-briefcase"> </i> <span id="title"></span>
+            </h4>
+         </div>
 
-               <form id="modalDeleteGPUForm" class="form-horizontal form-label-left">
-                   <input id="item_id" hidden/>
-                   <input id="subitem_id" hidden/>
-                   <input id="reservable_type" hidden/>
-                   <input id="desktops" name="desktops[]" hidden/>
-                   <input id="plans" name="plans[]" hidden/>
-                   <div class="x_panel">
-                       <div class="x_content">
-                           <h4 style="color: red"><i class="fa fa-warning"> </i> This <span class="item_type"></span> will be removed from these desktops.</h4>
-                           <div class="item form-profile">
-                               <table id="table_modal_profile_delete" class="table">
-                                   <thead>
-                                     <tr>
-                                       <th>kind</th>
-                                       <th>owner/id</th>
-                                       <th>name/date</th>
-                                     </tr>
-                                   </thead>
-             
-                                   <tbody>
-                                   </tbody>
+         <!-- Modal Body -->
+         <div class="modal-body">
+            <form id="modalDeleteGPUForm" class="form-horizontal form-label-left">
+               <input id="item_id" hidden />
+               <input id="subitem_id" hidden />
+               <input id="reservable_type" hidden />
+               <input id="desktops" name="desktops[]" hidden />
+               <input id="plans" name="plans[]" hidden />
+               <input id="bookings" name="bookings[]" hidden />
+               <div class="x_panel">
+                  <div class="">
+                     <div class="item form-profile row x_panel">
+                        <div class="col-md-12 delete-gpu-tables">
+                           <h4 style="color: red"><i class="fa fa-warning"> </i> These plans and bookings will be
+                              deleted.</h4>
+                           <div class="col-md-6 gpu-item">
+                              <h3><i class="fa fa-calendar"></i> Plans</h3>
+                              <div class="table-wrapper">
+                                 <table id="plans_table" class="table">
+                                    <thead>
+                                       <tr>
+                                          <th>owner</th>
+                                          <th>date</th>
+                                       </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
                                  </table>
+                              </div>
                            </div>
-                       </div>
-                   </div>
+                           <div class="col-md-6 gpu-item">
+                              <h3><i class="fa fa-calendar"></i> Bookings</h3>
+                              <div class="table-wrapper">
+                                 <table id="bookings_table" class="table">
+                                    <thead>
+                                       <tr>
+                                          <th>owner</th>
+                                          <th>date</th>
+                                       </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                 </table>
+                              </div>
+                           </div>
+                        </div>
 
-               </form>
-           </div>
-           <!-- Modal Footer -->
-           <div class="modal-footer">
-               <ul class="nav navbar-left panel_toolbox">
-                   <li><button id="cancel" type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
-               </ul>
-               <ul class="nav navbar-right panel_toolbox">
-                   <li><button id="send" type="button" class="btn btn-danger">Remove <span class="item_type"></span> </button></li>
-               </ul>
-           </div>
-       </div>
+                        <div class="col-md-12 delete-gpu-tables">
+                           <h4 style="color: red"><i class="fa fa-warning"> </i> This <span class="item_type"></span>
+                              will be removed
+                              from these desktops.</h4>
+                           <div class="col-md-6 gpu-item">
+                              <h3><i class="fa fa-desktop"></i> Desktops</h3>
+                              <div class="table-wrapper">
+                                 <table id="desktops_table" class="table">
+                                    <thead>
+                                       <tr>
+                                          <th>owner</th>
+                                          <th>name</th>
+                                          <th>category</th>
+                                       </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                 </table>
+                              </div>
+                           </div>
+                           <div class="col-md-6 gpu-item">
+                              <h3><i class="fa fa-tv"></i> Deployments</h3>
+                              <div class="table-wrapper">
+                                 <table id="deployments_table" class="table">
+                                    <thead>
+                                       <tr>
+                                          <th>owner</th>
+                                          <th>name</th>
+                                       </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                 </table>
+                              </div>
+                           </div>
+                        </div>
+
+                        <div class="col-md-12">
+                           <div class="x_content">
+                              <div class="checkbox">
+                                 <label class="">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                       <input type="checkbox" id="notify-user" name="notify-user" class="flat"
+                                          style="position: absolute; opacity: 0;">
+                                       <ins class="iCheck-helper"
+                                          style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                       </ins>
+                                    </div> <b> Notify users that their bookings will be deleted</b>
+                                 </label>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+         </div>
+            </form>
+         </div>
+
+         <!-- Modal Footer -->
+         <div class="modal-footer">
+            <ul class="nav navbar-left panel_toolbox">
+               <li><button id="cancel" type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+            </ul>
+            <ul class="nav navbar-right panel_toolbox">
+               <li><button id="send" type="button" class="btn btn-danger">Remove <span class="item_type"></span> </button>
+               </li>
+            </ul>
+         </div>
    </div>
 </div>
 

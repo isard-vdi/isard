@@ -356,14 +356,15 @@ function toggleRow(table_row, e) {
 }
 
 function infoDomains(value, tbody) {
-    var html = `<tr><th>${value['kind']}</th>`
+    var html = `<tr><td>${value['kind']}</td>`
     if (value['user_name']) {
-        html += `<th>${value['user_name']}</th>`
+        html += `<td>${value['user_name']}</td>`
     } else {
-        html += `<th>-</th>`
+        html += `<td>-</td>`
     }
-    html += `<th>${value['name']}</th>
-    </tr>`
+    html += `<td>${value['name']}</td> 
+                ${value["kind"] == "desktop" ? "<td>" + value["category"] + "</td>" : ""}
+            </tr>`
     return tbody.append(html);
 }
 

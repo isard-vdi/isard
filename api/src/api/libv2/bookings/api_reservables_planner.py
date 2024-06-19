@@ -346,7 +346,13 @@ class ReservablesPlanner:
     def check_subitem_desktops_and_plannings(
         self, reservable_type, item_id, subitem_id
     ):
-        data = {"last": [], "desktops": [], "plans": []}
+        data = {
+            "last": [],
+            "desktops": [],
+            "plans": [],
+            "bookings": [],
+            "deployments": [],
+        }
         data["last"].append(
             self.reservables.check_last_subitem(reservable_type, subitem_id)
         )
@@ -363,6 +369,12 @@ class ReservablesPlanner:
                 getUsername=True,
             )
         )
+        data["deployments"].extend(
+            self.reservables.check_deployments_with_profile(reservable_type, subitem_id)
+        )
+        for plan in data["plans"]:
+            data["bookings"].extend(self.get_plan_bookings(plan["id"]))
+
         return data
 
     def delete_subitem(self, item_type, item_id, subitem_id, data=None):
@@ -371,23 +383,21 @@ class ReservablesPlanner:
                 data = self.check_subitem_desktops_and_plannings(
                     item_type, item_id, subitem_id
                 )
-
-        # unassign from desktops
-        desktops_ids = (
-            [desktop["id"] for desktop in data["desktops"]]
-            if data.get("desktops")
-            else None
-        )
-
-        if desktops_ids:
-            self.reservables.deassign_desktops_with_gpu(
-                item_type, subitem_id, desktops_ids
+        if True in data["last"]:
+            # unassign from desktops
+            desktops_ids = (
+                [desktop["id"] for desktop in data["desktops"]]
+                if data.get("desktops")
+                else None
             )
-
-        # delete plans and its bookings
-        if data.get("plans"):
-            for plan in data["plans"]:
-                self.delete_plan(plan["id"])
+            if desktops_ids:
+                self.reservables.deassign_desktops_with_gpu(
+                    item_type, subitem_id, desktops_ids
+                )
+            # delete plans and its bookings
+            if data.get("plans"):
+                for plan in data["plans"]:
+                    self.delete_plan(plan["id"])
 
     def delete_item(self, item_type, item_id, subitems=None, data=None):
         if not subitems:
@@ -395,14 +405,38 @@ class ReservablesPlanner:
                 subitems = r.table("gpus").get(item_id)["profiles_enabled"].run(db.conn)
 
         for subitem in subitems:
-            if not data:
-                data = self.check_subitem_desktops_and_plannings(
-                    item_type, item_id, subitem
-                )
             self.delete_subitem(item_type, item_id, subitem, data)
             self.reservables.enable_subitems(item_type, item_id, subitem, False)
+
         with app.app_context():
             r.table("gpus").get(item_id).delete().run(db.conn)
+
+    def get_item_users(self, item_type, item_id, items_users_list, subitem, data=None):
+        data = (
+            data
+            if data
+            else self.check_subitem_desktops_and_plannings(item_type, item_id, subitem)
+        )
+        for key in ["plans", "bookings", "desktops", "deployments"]:
+            for item in data.get(key, []):
+                try:
+                    user_id = item["user_id"]
+                except KeyError:
+                    user_id = item["user"]
+                user_dict = next(
+                    (u for u in items_users_list if u["user_id"] == user_id), None
+                )
+                if not user_dict:
+                    user_dict = {
+                        "user_id": user_id,
+                        "bookings": [],
+                        "plans": [],
+                        "desktops": [],
+                        "deployments": [],
+                    }
+                    items_users_list.append(user_dict)
+                user_dict[key].append(item)
+        return items_users_list
 
     ## Bookings functions
     #######################################################

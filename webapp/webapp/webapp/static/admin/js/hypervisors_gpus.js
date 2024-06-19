@@ -237,35 +237,42 @@ $(document).ready(function () {
             }).done(function(data) {
               data = JSON.parse(data)
               // check if the profile is in any domain or has plans
-              if ((data['last'].includes(true) && (data['desktops'].length > 0) || data['plans'].length > 0)) {
-                showDeleteGPUModal(subitem_id, item_id, reservable_type, data);
+              if (data['last'].includes(true)) {
+                if (data['desktops'].length > 0 || data['plans'].length > 0) {
+                  showDeleteGPUModal(subitem_id, item_id, reservable_type, data);
+                } else {
+                  enableProfile(reservable_type, item_id, subitem_id, enabled, null, null, false);
+                }
+              } else {
+                enableProfile(reservable_type, item_id, subitem_id, enabled, null, null, false)
               }
-              else {
-                enableProfile(reservable_type, item_id, subitem_id, enabled, null, null) 
-              }
-            })
+            });
           } else {
-            enableProfile(reservable_type, item_id, subitem_id, enabled, null, null) 
+            enableProfile(reservable_type, item_id, subitem_id, enabled, null, null, false);
           }
-          break;
-      }
+        }
     });
 
-  $("#modalDeleteGPU #send").on('click', function(e){
-      var form = $('#modalDeleteGPUForm');
-      if (form.parsley().isValid()){
-        data = $('#modalDeleteGPUForm').serializeObject()
-        var item_id = $('#modalDeleteGPUForm #item_id').val()
-        var subitem_id = $('#modalDeleteGPUForm #subitem_id').val()
-        var reservable_type = $('#modalDeleteGPUForm #reservable_type').val()
-        var desktops = JSON.parse($('#modalDeleteGPUForm #desktops').val())
-        var plans = JSON.parse($('#modalDeleteGPUForm #plans').val())
-        if (subitem_id) {
-          enableProfile(reservable_type, item_id, subitem_id, false, desktops, plans)
-        } else {
-          deleteReservable(reservable_type, item_id);
-        }
+  $('#modalDeleteGPUForm #notify-user').on("ifUnchecked", function () {
+    $('#modalDeleteGPU #send').prop('disabled', false);
+  });
+
+  $("#modalDeleteGPU #send").on('click', function (e) {
+    $("#modalDeleteGPU #send").prop('disabled', true);
+    var form = $('#modalDeleteGPUForm');
+    if (form.parsley().isValid()) {
+      data = $('#modalDeleteGPUForm').serializeObject();
+      var item_id = $('#modalDeleteGPUForm #item_id').val();
+      var subitem_id = $('#modalDeleteGPUForm #subitem_id').val();
+      var reservable_type = $('#modalDeleteGPUForm #reservable_type').val();
+      var desktops = JSON.parse($('#modalDeleteGPUForm #desktops').val());
+      var plans = JSON.parse($('#modalDeleteGPUForm #plans').val());
+      if (subitem_id) {
+        enableProfile(reservable_type, item_id, subitem_id, false, desktops, plans, data["notify-user"] === "on")
+      } else {
+        deleteReservable(reservable_type, item_id, data["notify-user"] === "on");
       }
+    }
   });
 
   $("#modalDeleteGPU #cancel").on('click', function (e) {
@@ -313,8 +320,12 @@ $(document).ready(function () {
               }
             }).done(function (data) {
               data = JSON.parse(data);
-              if ((data['last'].includes(true) && (data['desktops'].length > 0) || data['plans'].length > 0)) {
-                showDeleteGPUModal(null, item_id, reservable_type, data);
+              if (data['last'].includes(true)) {
+                if (data['desktops'].length > 0 || data['plans'].length > 0) {
+                  showDeleteGPUModal(null, item_id, reservable_type, data);
+                } else {
+                  deleteReservable(reservable_type, item_id);
+                }
               } else {
                 deleteReservable(reservable_type, item_id);
               }
@@ -397,17 +408,23 @@ function showDeleteGPUModal(subitem_id, item_id, reservable_type, data) {
     $("#modalDeleteGPU #title").text(" Delete GPU");
     $("#modalDeleteGPU .item_type").text("GPU");
   }
+  $("#modalDeleteGPU #send").prop('disabled', false);
   $('#modalDeleteGPUForm #item_id').val(item_id);
   $('#modalDeleteGPUForm #reservable_type').val(reservable_type);
   $('#modalDeleteGPUForm #desktops').val(JSON.stringify(data['desktops']));
   $('#modalDeleteGPUForm #plans').val(JSON.stringify(data['plans']));
-
-  $('#table_modal_profile_delete tbody').empty();
+  $('#modalDeleteGPUForm #bookings').val(JSON.stringify(data['bookings']));
+  $('#modalDeleteGPUForm #deployments').val(JSON.stringify(data['deployments']));
+  $('#modalDeleteGPUForm #notify-user').iCheck('uncheck').iCheck('update');
+  $('#modalDeleteGPUForm .table tbody').empty();
   if (data['desktops'].length > 0) {
     $.each(data['desktops'], function (key, value) {
       value['user_name'] = value['username'];
-      infoDomains(value, $('#table_modal_profile_delete tbody'));
+      infoDomains(value, $('#desktops_table tbody'));
     });
+  } else {
+    console.log($('#desktops_table tbody'))
+    $('#desktops_table tbody').append(`<tr class="active"><td/><td colspan="3" style="text-align:center;">No items</td></tr>`);
   }
   if (data['plans'].length > 0) {
     $.each(data['plans'], function (key, value) {
@@ -415,9 +432,36 @@ function showDeleteGPUModal(subitem_id, item_id, reservable_type, data) {
       start = new Date(value['start']).toLocaleString('es-ES');
       end = new Date(value['end']).toLocaleString('es-ES');
       value['name'] = "from <i>" + start + "</i> to <i>" + end + "<i>";
-      infoDomains(value, $('#table_modal_profile_delete tbody'));
+      infoDomains(value, $('#plans_table tbody'));
     });
+  } else {
+    $('#plans_table tbody').append(`<tr class="active"><td/><td colspan="3" style="text-align:center;">No items</td></tr>`);
   }
+  if (data['bookings'].length > 0) {
+    $.each(data['bookings'], function (key, value) {
+      value['kind'] = 'booking';
+      start = new Date(value['start']).toLocaleString('es-ES');
+      end = new Date(value['end']).toLocaleString('es-ES');
+      value['name'] = "from <i>" + start + "</i> to <i>" + end + "<i>";
+      value['user_name'] = value['username'];
+      infoDomains(value, $('#bookings_table tbody'));
+    });
+  } else {
+    $('#bookings_table tbody').append(`<tr class="active"><td/><td colspan="3" style="text-align:center;">No items</td></tr>`);
+
+  }
+  if (data['deployments'].length > 0) {
+    $.each(data['deployments'], function (key, value) {
+      value['kind'] = 'deployment';
+      value['name'] = value["tag_name"];
+      value['user_name'] = value['username'];
+      infoDomains(value, $('#deployments_table tbody'));
+    });
+  } else {
+    $('#deployments_table tbody').append(`<tr class="active"><td/><td colspan="3" style="text-align:center;">No items</td></tr>`);
+
+  }
+  $('#modalDeleteGPUForm .table tbody tr td:first-child').remove()  
   $('#modalDeleteGPU').modal({
     backdrop: 'static',
     keyboard: false
@@ -540,7 +584,7 @@ function initalize_bookables_modal_events() {
   });
 }
 
-function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, plans) {
+function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, plans, notify_user) {
   $.ajax({
     type: "PUT",
     url:
@@ -549,7 +593,7 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, 
       "/" +
       item_id +
       "/" +
-      subitem_id,
+      subitem_id  + (notify_user ? "/notify_user" : ""),
     data: JSON.stringify({ enabled, desktops, plans }),
     contentType: "application/json",
     success: function(data)
@@ -570,7 +614,7 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, 
     {
       new PNotify({
         title: "ERROR enabling/disabling profile",
-        text: data.responseJSON.description,
+        text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
         hide: true,
         delay: 2000,
         icon: 'fa fa-' + data.icon,
@@ -597,14 +641,14 @@ function GpuEnabledProfilesDropdown(gpu_id) {
   });
 }
 
-function deleteReservable(reservable_type, item_id) {
+function deleteReservable(reservable_type, item_id, notify_user) {
   $.ajax({
     type: "DELETE",
     url:
       "/api/v3/admin/reservables/delete/" +
       reservable_type +
       "/" +
-      item_id,
+      item_id + (notify_user ? "/notify_user" : ""),
     contentType: "application/json",
     success: function (data) {
       $('form').each(function () { this.reset() });

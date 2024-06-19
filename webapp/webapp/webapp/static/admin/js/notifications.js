@@ -364,7 +364,7 @@ function renderTableNotificationTemplates() {
                 "orderable": false,
                 "data": null,
                 "render": function (data, type, row) {
-                    if (["password", "desktop", "email"].includes(data.kind)) {
+                    if (["password", "desktop", "email", "deleted_gpu"].includes(data.kind)) {
                         return `<button title="Edit notification template" class="btn btn-xs btn-info btn-edit-notification-tmpl" type="button" data-placement="top" ><i class="fa fa-pencil"></i></button>`;
 
                     } else {

@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 136
+release_version = 137
+# release 137: Add notification templates with GPU deletion warnings
 # release 136: Add co-owners to deployments
 # release 135: update gpus_profiles
 # release 134: add server_autostart flag in domains
@@ -175,6 +176,8 @@ tables = [
     "recycle_bin",
     "authentication",
     "storage_pool",
+    "notification_tmpls",
+    "system_events",
 ]
 
 
@@ -5083,6 +5086,86 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
                 r.table(table).get_all("_total_", index="item_id").delete().run(
                     self.conn
                 )
+            except Exception as e:
+                print(e)
+        return True
+
+    """
+    NOTIFICATION TEMPLATES TABLE UPGRADES
+    """
+
+    def notification_tmpls(self, version):
+        table = "notification_tmpls"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+        if version == 137:
+            try:
+                r.table(table).insert(
+                    {
+                        "default": "en",
+                        "description": "Notification about the modification of the user's elements with bookables when a GPU profile is deleted.",
+                        "kind": "deleted_gpu",
+                        "lang": {
+                            "ca": {
+                                "body": "<br> <h2>Alguns dels elements amb reserves han estat modificats</h2> <p>Hola usuari,</p> <p>A causa de la <strong>eliminació d'un perfil de GPU</strong> per part d'un administrador, us informem que</p> <strong>Aquests elements ja no porten el perfil que tenien assignat:<br></strong> <br> <h3>Escriptoris:</h3> {desktops} <br> <h3>Desplegaments:</h3> {deployments} <br> <hr><br> <strong>I aquestes reserves han estat eliminades:</strong> <br> <h3>Reserves:</h3> {bookings}<br>",
+                                "footer": "Si us plau, no respongueu a aquest correu electrònic, ja que ha estat generat automàticament.",
+                                "title": "Alguns elements teus amb reserves han estat modificats",
+                            },
+                            "en": {
+                                "body": "<br> <h2>Some of the elements with bookings you own have been modified</h2> <p>Hello user,</p> <p>Due to the <strong>elimination of a GPU profile</strong> by an administrator, we inform you that</p> <strong>The profiles assigned to these items have been deleted and they no longer have assigned the profile they had before:<br></strong> <br> <h3>Desktops:</h3> {desktops} <br> <h3>Deployments:</h3> {deployments} <br> <hr> <br> <strong>And these bookings have been deleted:</strong> <br> <h3>Bookings:</h3> {bookings} <br>",
+                                "footer": "Please do not answer since this email has been automatically generated.",
+                                "title": "Some of your elements with bookings have been modified",
+                            },
+                            "es": {
+                                "body": "<br> <h2>Algunos de tus elementos con reservas han sido modificados</h2> <p>A causa de la <strong>eliminación de un perfil de GPU</strong> por parte de un administrador, le informamos que</p> <strong>Estos elementos ya no llevan el perfil que tenían asignado:<br></strong> <br> <h3>Escritorios:</h3> {desktops} <br> <h3>Despliegues:</h3> {deployments} <br> <hr> <br> <strong>Y estas reservas han sido eliminadas:</strong> <br> <h3>Reservas:</h3> {bookings} <br>",
+                                "footer": "Por favor, no responda a este correo electrónico, ya que es un envío automático.",
+                                "title": "Se han modificado algunos de tus elementos con reservas",
+                            },
+                        },
+                        "name": "Deleted GPU profile",
+                        "system": {
+                            "body": "<br> <h2>Some of the elements with bookings you own have been modified</h2> <p>Hello user,</p> <p>Due to the <strong>elimination of a GPU profile</strong> by an administrator, we inform you that</p> <strong>The profiles assigned to these items have been deleted and they no longer have assigned the profile they had before:<br></strong> <br> <h3>Desktops:</h3> {desktops} <br> <h3>Deployments:</h3> {deployments} <br> <hr> <br> <strong>And these bookings have been deleted:</strong> <br> <h3>Bookings:</h3> {bookings} <br>",
+                            "footer": "Please do not answer since this email has been automatically generated.",
+                            "title": "Some of your elements with bookings have been modified",
+                        },
+                        "vars": {
+                            "bookings": "<ul class='list-group'><li class='list-group-item'>Windows 10 GPU | From 12 Mar 2024 13:00 to 13 Apr 2024 15:30</li><li class='list-group-item'>Ubuntu 22.04 GPU | From 12 Mar 2024 14:00 - 13 Mar 2024 15:30</li></ul>",
+                            "deployments": "<ul class='list-group'><li class='list-group-item'>Windows 11 deployment</li><li class='list-group-item'>Ubuntu 24.04 deployment</li></ul>",
+                            "desktops": "<ul class='list-group'><li class='list-group-item'>Windows 11</li><li class='list-group-item'>Windows 10</li><li class='list-group-item'>Ubuntu 22.04</li></ul>",
+                        },
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+        return True
+
+    """
+    SYSTEM EVENTS TABLE UPGRADES
+    """
+
+    def system_events(self, version):
+        table = "system_events"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+        if version == 137:
+            try:
+                templates = list(
+                    r.table("notification_tmpls").pluck("id", "kind").run(self.conn)
+                )
+                result = (
+                    r.table(table)
+                    .insert(
+                        {
+                            "channels": ["mail"],
+                            "event": "deleted-gpu",
+                            "tmpl_id": [
+                                template["id"]
+                                for template in templates
+                                if template.get("kind") == "deleted_gpu"
+                            ][0],
+                        }
+                    )
+                    .run(self.conn)
+                )
+                print(result)
             except Exception as e:
                 print(e)
         return True

@@ -96,6 +96,9 @@ class Reservables:
     def check_desktops_with_profile(self, item_type, item_id):
         return self.reservable[item_type].check_desktops_with_profile(item_id)
 
+    def check_deployments_with_profile(self, item_type, item_id):
+        return self.reservable[item_type].check_deployments_with_profile(item_id)
+
     def delete_bookings(self, item_type, item_id, data):
         return self.reservable[item_type].delete_bookings(item_id, data)
 
@@ -398,6 +401,9 @@ class ResourceItemsGpus:
                         "username": doc["left"]["username"],
                         "kind": doc["left"]["kind"],
                         "user": doc["left"]["user"],
+                        "category": r.table("categories").get(doc["right"]["category"])[
+                            "name"
+                        ],
                         "user_data": {
                             "role_id": doc["right"]["role"],
                             "category_id": doc["right"]["category"],
@@ -410,7 +416,25 @@ class ResourceItemsGpus:
             )
         return desktops
 
-    def deassign_desktops_with_gpu(self, item_id, desktops=None):
+    def check_deployments_with_profile(self, subitem_id):
+        with app.app_context():
+            deployments = list(
+                r.table("deployments")
+                .get_all(subitem_id, index="vgpus")
+                .pluck("id", "user", {"create_dict": {"tag_name": True}})
+                .map(
+                    lambda doc: {
+                        "id": doc["id"],
+                        "user": doc["user"],
+                        "username": r.table("users").get(doc["user"])["username"],
+                        "tag_name": doc["create_dict"]["tag_name"],
+                    }
+                )
+                .run(db.conn)
+            )
+            return deployments
+
+    def deassign_desktops_with_gpu(self, item_id, desktops):
         query = r.table("domains")
         if desktops is None:
             query = query.get_all(item_id, index="vgpus")

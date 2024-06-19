@@ -53,6 +53,24 @@ class NotifyPasswordResetMailResponse(BaseModel):
 
 
 #
+# NotifyDeleteGPUMail
+#
+
+
+class NotifyDeleteGPUMailRequest(BaseModel):
+    user_id: str
+    bookings: list[object]
+    desktops: list[object]
+    deployments: list[object]
+    text: str
+    payload: object
+
+
+class NotifyDeleteGPUMailResponse(BaseModel):
+    pass
+
+
+#
 # NotifyFrontend
 #
 
