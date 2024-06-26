@@ -1,7 +1,7 @@
 <template>
   <div>
     <h4 class="my-2">
-      <strong>{{ $t('forms.new-desktop.section-title-template') }}</strong>
+      <strong>{{ $t('forms.new-desktop.section-title-os-template') }}</strong>
     </h4>
 
     <!-- Table validation hidden field -->

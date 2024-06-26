@@ -992,6 +992,7 @@
         "new-desktop": {
             "title": "Crear un nou escriptori:",
             "section-title-template": "Seleccionar una plantilla:",
+            "section-title-os-template": "Perfil hardware:",
             "section-title-advanced": "Opcions avançades",
             "desktop-template": "Plantilla",
             "filter": "Filtrar",

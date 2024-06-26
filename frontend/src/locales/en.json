@@ -64,6 +64,7 @@
         "new-desktop": {
             "title": "Create new desktop:",
             "section-title-template": "Select a template:",
+            "section-title-os-template": "Hardware profile:",
             "section-title-advanced": "Advanced options",
             "desktop-template": "Template",
             "filter": "Filter",

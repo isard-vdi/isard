@@ -64,6 +64,7 @@
         "new-desktop": {
             "title": "Nuevo escritorio:",
             "section-title-template": "Selecciona una plantilla:",
+            "section-title-os-template": "Perfil hardware:",
             "section-title-advanced": "Opciones avanzadas",
             "desktop-template": "Plantilla",
             "filter": "Filtrar",
