@@ -57,6 +57,7 @@ def get_queue_jobs(queue_name):
     with _connect_redis() as r:
         queue = Queue(queue_name, connection=r)
     return {
+        "queued": queue.count,
         "started": queue.started_job_registry.count,
         "finished": queue.finished_job_registry.count,
         "failed": queue.failed_job_registry.count,

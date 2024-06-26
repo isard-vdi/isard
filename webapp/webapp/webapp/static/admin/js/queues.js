@@ -34,6 +34,9 @@ $(document).ready(function () {
                 "data": "id",
             },
             {
+                "data": "queued",
+            },
+            {
                 "data": "started",
             },
             {
