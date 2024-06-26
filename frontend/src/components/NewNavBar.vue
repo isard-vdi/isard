@@ -131,6 +131,17 @@
               />
               {{ $t("components.navbar.admin") }}
             </b-nav-item>
+            <b-nav-item
+              v-if="['admin'].includes(getUser.role_id)"
+              href="#"
+              @click="menuGoToMonitor()"
+            >
+              <font-awesome-icon
+                :icon="['fas', 'chart-line']"
+                class="mr-1 d-lg-none d-xl-inline"
+              />
+              {{ $t("components.navbar.monitor") }}
+            </b-nav-item>
           </b-navbar-nav>
 
           <!-- Right aligned nav items -->
@@ -227,6 +238,10 @@ export default {
       'fetchVpn',
       'navigate'
     ]),
+    async menuGoToMonitor () {
+      await this.$store.dispatch('renew')
+      window.location.href = '/monitor'
+    },
     menuGoToBookingSummary () {
       this.$store.dispatch('navigate', 'bookingsummary')
     },

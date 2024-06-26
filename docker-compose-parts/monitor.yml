@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
     environment:
       DOMAIN:
-      WEBAPP_ADMIN_PWD:
+      API_ISARDVDI_SECRET: "${API_ISARDVDI_SECRET}"
       PROMETHEUS_ADDRESS: "${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}"
       LOKI_ADDRESS: "${LOKI_ADDRESS:-http://isard-loki:3100}"
       GRAFANA_TELEGRAM_CHAT_ID: "${GRAFANA_TELEGRAM_CHAT_ID}"

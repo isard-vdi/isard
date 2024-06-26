@@ -25,6 +25,7 @@ func SignLoginToken(secret string, expiration time.Time, sessID string, u *model
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    issuer,
+			Subject:   u.ID,
 		},
 		KeyID:     keyID,
 		SessionID: sessID,

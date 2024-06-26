@@ -77,6 +77,7 @@ func TestRenew(t *testing.T) {
 				assert.Equal(&token.LoginClaims{
 					RegisteredClaims: &jwt.RegisteredClaims{
 						Issuer:    "isard-authentication",
+						Subject:   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 						ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour)),
 						IssuedAt:  jwt.NewNumericDate(now),
 						NotBefore: jwt.NewNumericDate(now),

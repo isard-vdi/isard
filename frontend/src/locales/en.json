@@ -220,7 +220,8 @@
             "profile": "Profile",
             "media": "Media",
             "viewers": "Viewers",
-            "storage": "Storage"
+            "storage": "Storage",
+            "monitor": "Monitor"
         },
         "statusbar": {
             "desktops-started": "Desktops started",
