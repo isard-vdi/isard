@@ -573,6 +573,12 @@
             "powered-by": "Powered by {isardvdi}",
             "isard-logo-alt": "The IsardVDI logo is a chamois head."
         },
+        "select-category": {
+            "title": "Select a category to login",
+            "maintenance": "This category is under maintenance at the moment",
+            "subtitle": "Logged in as {user}",
+            "logout": "Logout"
+        },
         "maintenance": {
             "title": "Currently, Isard service is under maintenance",
             "the-service": "The service is going to be available again in a few minutes",
@@ -1443,7 +1449,8 @@
             "password": "Reset password",
             "email": "Verify Email",
             "forgot-password": "Forgot password",
-            "disclaimer": "Disclaimer"
+            "disclaimer": "Disclaimer",
+            "select_category": "Select category"
         }
     },
     "message-modal": {

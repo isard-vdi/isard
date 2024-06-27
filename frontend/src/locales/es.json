@@ -571,6 +571,12 @@
             "powered-by": "Funciona con {isardvdi}",
             "isard-logo-alt": "El logotipo de IsardVDI es la cabeza de un rebeco."
         },
+        "select-category": {
+            "title": "Selecciona una categoría para iniciar sesión",
+            "maintenance": "Esta categoría se encuentra en mantenimiento en estos momentos",
+            "subtitle": "Sesión iniciada como {user}",
+            "logout": "Cerrar sesión"
+        },
         "maintenance": {
             "title": "Actualmente, el servicio de Isard se encuentra en mantenimiento",
             "the-service": "El servicio volverá a estar disponible en un rato",
@@ -1457,7 +1463,8 @@
             "recycleBin": "Papelera de reciclaje",
             "email": "Verificar correo electrónico",
             "forgot-password": "Reestablecer contraseña",
-            "disclaimer": "Aviso legal"
+            "disclaimer": "Aviso legal",
+            "select_category": "Selecciona una categoría"
         }
     },
     "message-modal": {
