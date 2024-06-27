@@ -15,6 +15,8 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
+      DOMAIN:
       API_ISARDVDI_SECRET:
       LOG_LEVEL:
       WEBAPP_SESSION_SECRET:
+      GRAFANA_WEBAPP_URL:
