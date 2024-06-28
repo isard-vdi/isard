@@ -9,12 +9,20 @@ export class DateUtils {
     return moment(date).format('HH:mm')
   }
 
+  static formatAsTimeWithSeconds (date) {
+    return moment(date).format('HH:mm:ss')
+  }
+
   static formatAsDayMonth (date) {
     return moment(date).format('DD/MM')
   }
 
   static formatAsFullDateTime (date) {
     return moment(date).format('YYYY-MM-DD HH:mm:ss')
+  }
+
+  static formatAsFullDateTimeWithoutYear (date) {
+    return moment(date).format('DD/MM HH:mm:ss')
   }
 
   static stringToDate (dateString) {
@@ -39,6 +47,10 @@ export class DateUtils {
 
   static dateIsAfter (date1, date2) {
     return moment(date1).isAfter(moment(date2))
+  }
+
+  static dateIsToday (date) {
+    return moment(date).isSame(moment(), 'day')
   }
 
   static pastMonday () {

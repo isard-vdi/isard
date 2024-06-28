@@ -345,7 +345,7 @@
             "isard-logo-alt": "El logotip de IsardVDI és el cap d'un isard.",
             "errors": {
                 "401": "Usuari o contrasenya incorrecta",
-                "429": "S'han produït massa intents d'inici de sessió. Esperi uns minuts i torni-ho a provar",
+                "429": "S'han produït massa intents d'inici de sessió. Torni-ho a provar a {time}",
                 "500": "Error del servidor",
                 "generic": "S'ha produït un error"
             }

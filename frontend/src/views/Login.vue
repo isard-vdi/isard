@@ -68,7 +68,7 @@
                 dismissible
                 variant="danger"
               >
-                {{ $t(errorMessage) }}
+                {{ $t(errorMessage.message, errorMessage.args) }}
               </b-alert>
               <b-overlay
                 :show="loading"

@@ -56,7 +56,7 @@
               v-model="showDismissibleAlert"
               variant="danger"
             >
-              {{ $t(errorMessage) }}
+              {{ $t(errorMessage.message, errorMessage.args) }}
             </b-alert>
           </b-row>
           <b-overlay

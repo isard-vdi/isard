@@ -534,7 +534,7 @@
             },
             "errors": {
                 "401": "Usuario o password incorrecto",
-                "429": "Se han producido demasiados intentos de inicio de sesión. Espere un rato y vuelva a intentarlo",
+                "429": "Se han producido demasiados intentos de inicio de sesión. Vuelva a intentarlo a {time}",
                 "500": "Error en el servidor",
                 "generic": "Se ha producido un error"
             },

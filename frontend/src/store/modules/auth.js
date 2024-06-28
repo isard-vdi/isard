@@ -3,6 +3,7 @@ import axios from 'axios'
 import router from '@/router'
 import { sessionCookieName, apiV3Segment, apiAdminSegment, authenticationSegment } from '@/shared/constants'
 import { getCookie, setCookie, removeCookie } from 'tiny-cookie'
+import { DateUtils } from '../../utils/dateUtils'
 
 const webapp = axios.create({
   baseURL: apiAdminSegment
@@ -18,7 +19,10 @@ export default {
     session: getCookie(sessionCookieName) || false,
     user: null,
     currentRoute: '',
-    pageErrorMessage: ''
+    pageErrorMessage: {
+      message: '',
+      args: {}
+    }
   },
   getters: {
     getSession: state => {
@@ -49,7 +53,11 @@ export default {
       state.user = user
     },
     setPageErrorMessage (state, errorMessage) {
-      state.pageErrorMessage = errorMessage
+      if (errorMessage.args) {
+        state.pageErrorMessage = { message: errorMessage.message, args: errorMessage.args }
+      } else {
+        state.pageErrorMessage = { message: errorMessage }
+      }
     },
     setCurrentRoute (state, routeName) {
       state.currentRoute = routeName
@@ -136,8 +144,14 @@ export default {
     handleLoginError ({ commit }, e) {
       if (e.response.status === 403 && e.response.data === 'disabled user') {
         commit('setPageErrorMessage', 'errors.user_disabled')
-      } else if ([401, 429, 500].includes(e.response.status)) {
+      } else if ([401, 500].includes(e.response.status)) {
         commit('setPageErrorMessage', `views.login.errors.${e.response.status}`)
+      } else if ([429].includes(e.response.status)) {
+        if (DateUtils.dateIsToday(e.response.headers['retry-after'])) {
+          commit('setPageErrorMessage', { message: `views.login.errors.${e.response.status}`, args: { time: DateUtils.formatAsTimeWithSeconds(e.response.headers['retry-after']) } })
+        } else {
+          commit('setPageErrorMessage', { message: `views.login.errors.${e.response.status}`, args: { time: DateUtils.formatAsFullDateTime(e.response.headers['retry-after']) } })
+        }
       } else {
         commit('setPageErrorMessage', 'views.login.errors.generic')
       }
