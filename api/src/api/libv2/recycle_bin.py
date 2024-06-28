@@ -1,3 +1,4 @@
+import traceback
 from datetime import datetime, timedelta
 
 from rethinkdb import RethinkDB
@@ -446,7 +447,6 @@ class RecycleBin(object):
                 description="Cannot delete entry with status " + str(self.status),
             )
         self._update_agent(user_id)
-        self.deleteTemplatesDependencies()
 
         if not self.storages:
             self._update_status("deleted")
@@ -457,133 +457,147 @@ class RecycleBin(object):
                 "update_recycle_bin", {"id": self.id, "status": "deleted"}
             )
         else:
-            with app.app_context():
-                storages_status = (
-                    r.table("storage")
-                    .get_all(r.args([storage["id"] for storage in self.storages]))
-                    .pluck("status")["status"]
-                    .run(db.conn)
-                )
-            if all(x == "deleted" for x in storages_status):
-                self._update_status("deleted")
-                self.send_socket_user(
-                    "delete_recycle_bin", {"id": self.id, "status": "deleted"}
-                )
-                self.send_socket_admin(
-                    "update_recycle_bin", {"id": self.id, "status": "deleted"}
-                )
-            else:
-                self._update_status("deleting")
-                self._add_log("deleting")
-                self.send_socket_user(
-                    "update_recycle_bin", {"id": self.id, "status": "deleting"}
-                )
-                self.send_socket_admin(
-                    "update_recycle_bin", {"id": self.id, "status": "deleting"}
-                )
-                for storage in self.storages:
-                    if not Storage.exists(storage["id"]):
-                        raise Error(
-                            error="not_found",
-                            description="Storage with id "
-                            + storage["id"]
-                            + "not found",
+            try:
+                dependent_storages = self.dependent_storages()
+                entries = [
+                    {"id": self.id, "storages": self.storages}
+                ] + dependent_storages
+                for entry in entries:
+                    rb = RecycleBin(entry["id"])
+                    with app.app_context():
+                        storages_status = list(
+                            r.table("storage")
+                            .get_all(r.args([storage["id"] for storage in rb.storages]))
+                            .pluck("status")["status"]
+                            .run(db.conn)
                         )
-                    storage = Storage(storage["id"])
-                    if storage.status == "deleted":
-                        continue
-                    if storage.status not in [
-                        "ready",
-                        "recycled",
-                        "non-existing",
-                        "orphan",
-                    ]:
-                        raise Error(
-                            error="precondition_required",
-                            description="Storage with id "
-                            + storage.id
-                            + " not ready. Status: "
-                            + storage.status,
+                    if all(x == "deleted" for x in storages_status):
+                        rb._update_status("deleted")
+                        rb.send_socket_user(
+                            "delete_recycle_bin", {"id": rb.id, "status": "deleted"}
                         )
-                    move = self.get_delete_action() == "move"
-                    task_name = "move_delete" if move else "delete"
-                    task = Task(
-                        user_id=self.owner_id,
-                        queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
-                        task=task_name,
-                        job_kwargs={
-                            "kwargs": {
-                                "path": storage.path,
-                            },
-                        },
-                        dependents=[
-                            {
-                                "queue": "core",
-                                "task": "update_status",
-                                "job_kwargs": {
+                        rb.send_socket_admin(
+                            "update_recycle_bin", {"id": rb.id, "status": "deleted"}
+                        )
+                    else:
+                        rb._update_status("deleting")
+                        rb._add_log("deleting")
+                        rb.send_socket_user(
+                            "update_recycle_bin", {"id": rb.id, "status": "deleting"}
+                        )
+                        rb.send_socket_admin(
+                            "update_recycle_bin", {"id": rb.id, "status": "deleting"}
+                        )
+                        if not entry["storages"]:
+                            rb._update_status("deleted")
+                        for storage in rb.storages:
+                            if (
+                                not Storage.exists(storage["id"])
+                                or storage["status"] == "deleted"
+                            ):
+                                continue
+                            storage = Storage(storage["id"])
+                            if storage.status != "recycled":
+                                storage.status = "recycled"
+                            move = rb.get_delete_action() == "move"
+                            task_name = "move_delete" if move else "delete"
+                            task = Task(
+                                user_id=rb.owner_id,
+                                queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
+                                task=task_name,
+                                job_kwargs={
                                     "kwargs": {
-                                        "statuses": {
-                                            "finished": {
-                                                "deleted": {"storage": [storage.id]},
-                                            },
-                                            "failed": {
-                                                "recycled": {"storage": [storage.id]},
-                                            },
-                                            "canceled": {
-                                                "recycled": {"storage": [storage.id]},
-                                            },
-                                        },
+                                        "path": storage.path,
                                     },
                                 },
-                                "dependents": [
+                                dependents=[
                                     {
                                         "queue": "core",
-                                        "task": "recycle_bin_update",
+                                        "task": "update_status",
                                         "job_kwargs": {
-                                            "kwargs": {"recycle_bin_id": self.id}
+                                            "kwargs": {
+                                                "statuses": {
+                                                    "finished": {
+                                                        "deleted": {
+                                                            "storage": [storage.id]
+                                                        },
+                                                    },
+                                                    "failed": {
+                                                        "recycled": {
+                                                            "storage": [storage.id]
+                                                        },
+                                                    },
+                                                    "canceled": {
+                                                        "recycled": {
+                                                            "storage": [storage.id]
+                                                        },
+                                                    },
+                                                },
+                                            },
                                         },
-                                    },
-                                    {
-                                        "queue": "core",
-                                        "task": "storage_delete",
-                                        "job_kwargs": {
-                                            "kwargs": {"storage_id": storage.id}
-                                        },
-                                    },
+                                        "dependents": [
+                                            {
+                                                "queue": "core",
+                                                "task": "recycle_bin_update",
+                                                "job_kwargs": {
+                                                    "kwargs": {"recycle_bin_id": rb.id}
+                                                },
+                                            },
+                                            {
+                                                "queue": "core",
+                                                "task": "storage_delete",
+                                                "job_kwargs": {
+                                                    "kwargs": {"storage_id": storage.id}
+                                                },
+                                            },
+                                        ],
+                                    }
                                 ],
-                            }
-                        ],
-                    )
-                    self._add_task(
-                        {
-                            "id": task.id,
-                            "item_id": storage.id,
-                            "item_type": "storage",
-                            "status": task.status,
-                        }
-                    )
-                    tasks.append(
-                        {"id": task.id, "storage_id": storage.id, "status": task.status}
-                    )
+                            )
+                            rb._add_task(
+                                {
+                                    "id": task.id,
+                                    "item_id": storage.id,
+                                    "item_type": "storage",
+                                    "status": task.status,
+                                }
+                            )
+                            tasks.append(
+                                {
+                                    "id": task.id,
+                                    "storage_id": storage.id,
+                                    "status": task.status,
+                                }
+                            )
+            except Exception as e:
+                raise Error(
+                    "internal_server",
+                    "Error when deleting recycle bin entry",
+                    traceback.format_exc(),
+                )
         return tasks
 
-    def deleteTemplatesDependencies(self):
-        for template in self.templates:
-            with app.app_context():
-                dependencies = list(
-                    r.table("recycle_bin")
-                    .get_all(template["id"], index="parents")
-                    .filter(
-                        lambda rb: r.expr(["recycled", "deleting"]).contains(
-                            rb["status"]
-                        )
-                    )
-                    .filter(lambda rb: rb["id"].ne(self.id))
-                    .pluck("id")["id"]
-                    .run(db.conn)
-                )
-            for dependency in dependencies:
-                RecycleBin(dependency).delete_storage(self.owner_id)
+    # Get the recycle bin entries with storages that depend on the current recycle bin entry templates
+    def dependent_storages(self):
+        templates = [template["id"] for template in self.templates]
+        dependent_rb = self.get_template_dependant_recycle_bin_entries(
+            templates, "parents"
+        ) + self.get_template_dependant_recycle_bin_entries(
+            templates, "duplicate_parent_template"
+        )
+        return dependent_rb
+
+    def get_template_dependant_recycle_bin_entries(self, templates, index):
+        with app.app_context():
+            return list(
+                r.table("recycle_bin")
+                .get_all(r.args(templates), index=index)
+                .filter(lambda rb: rb["status"] == "recycled")
+                .filter(lambda rb: rb["id"].ne(self.id))
+                .pluck({"id": True, "storages": ["id"]})
+                .distinct()
+                .run(db.conn)
+            )
 
     def get_count(self):
         with app.app_context():

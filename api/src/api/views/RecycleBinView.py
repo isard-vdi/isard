@@ -97,7 +97,8 @@ def storage_delete_bulk(payload, recycle_bin_id=None):
         try:
             rb = RecycleBin(recycle_bin_id)
             tasks = rb.delete_storage(payload["user_id"])
-        except:
+        except Exception as e:
+            app.logger.error(f"Error deleting recycle bin {recycle_bin_id}: {e}")
             continue
     return (
         json.dumps(tasks),

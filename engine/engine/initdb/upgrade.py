@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 137
+release_version = 138
+# release 138: Add duplicated_parent_template index and fixed parents index in recycle_bin
 # release 137: Add notification templates with GPU deletion warnings
 # release 136: Add co-owners to deployments
 # release 135: update gpus_profiles
@@ -4935,6 +4936,38 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
                     multi=True,
                 ).run(self.conn)
                 r.table("recycle_bin").index_wait("category").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 138:
+            try:
+                r.table(table).index_drop("parents").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_create(
+                    "parents",
+                    r.row["desktops"]
+                    .concat_map(lambda desktop: desktop["parents"])
+                    .add(
+                        r.row["templates"].concat_map(
+                            lambda template: template["parents"]
+                        )
+                    ),
+                    multi=True,
+                ).run(self.conn)
+                r.table(table).index_wait("parents").run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                r.table(table).index_create(
+                    "duplicate_parent_template",
+                    r.row["templates"].map(
+                        lambda template: template["duplicate_parent_template"]
+                    ),
+                    multi=True,
+                ).run(self.conn)
+                r.table(table).index_wait("duplicate_parent_template").run(self.conn)
             except Exception as e:
                 print(e)
 
