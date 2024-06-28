@@ -58,10 +58,6 @@ def maintenance(category_id=None):
 def password_reset(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        api_sessions.get(
-            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
-        )
-
         payload = get_header_jwt_payload()
         if (
             payload.get("type") == "password-reset-required"
