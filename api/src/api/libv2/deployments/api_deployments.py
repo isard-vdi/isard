@@ -943,16 +943,25 @@ def update_co_owners(deployment_id, co_owners: list):
         )
 
 
-def update_owner(deployment_id, owner_id):
-    try:
-        with app.app_context():
+def update_owner(payload, deployment_id, owner_id):
+    with app.app_context():
+        try:
             deployment = r.table("deployments").get(deployment_id).run(db.conn)
-    except:
-        raise Error(
-            "not_found",
-            f"Not found deployment id to update owner: {deployment_id}",
-            description_code="not_found",
-        )
+        except:
+            raise Error(
+                "not_found",
+                f"Not found deployment id to update owner: {deployment_id}",
+                description_code="not_found",
+            )
+
+        try:
+            owner = r.table("users").get(owner_id).run(db.conn)
+        except:
+            raise Error(
+                "not_found",
+                f"Not found owner id to update owner: {owner_id}",
+                description_code="not_found",
+            )
 
     if deployment.get("user") == owner_id:
         raise Error(
@@ -961,13 +970,22 @@ def update_owner(deployment_id, owner_id):
             description_code="already_owner",
         )
 
-    with app.app_context():
-        if r.table("users").get(owner_id).pluck("role").run(db.conn)["role"] == "user":
-            raise Error(
-                "bad_request",
-                f"New owner for deployment {deployment_id} is a user",
-                description_code="new_owner_is_user",
-            )
+    if owner.get("role") not in ["admin", "manager", "advanced"]:
+        raise Error(
+            "bad_request",
+            f"New owner for deployment {deployment_id} is a user",
+            description_code="new_owner_is_user",
+        )
+
+    if (
+        owner.get("category") != deployment.get("category")
+        and owner.get("role") != "admin"
+    ):
+        edit_deployment_users(
+            payload,
+            deployment_id,
+            _validate_item("allowed", {"allowed": {}})["allowed"],
+        )
 
     try:
         co_owners = deployment.get("co_owners")

@@ -256,7 +256,7 @@ def api_v3_deployment_change_owner(payload, deployment_id, user_id=False):
     ownsUserId(payload, user_id)
     ownsDeploymentId(payload, deployment_id, check_co_owners=False)
 
-    api_deployments.update_owner(deployment_id, user_id)
+    api_deployments.update_owner(payload, deployment_id, user_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
