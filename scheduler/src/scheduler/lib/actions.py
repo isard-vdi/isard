@@ -550,3 +550,15 @@ class Actions:
                 or e.status_code == 400
             ):  ## storage is deleted or kwargs are not valid
                 scheduler_client.delete(f"/{kwargs['storage_id']}.stg_action")
+
+    def logs_desktops_old_entries_action_delete_kwargs(**kwargs):
+        return []
+
+    def logs_desktops_old_entries_action_delete(**kwargs):
+        api_client.put("/logs_desktops/old_entries/delete")
+
+    def logs_users_old_entries_action_delete_kwargs(**kwargs):
+        return []
+
+    def logs_users_old_entries_action_delete(**kwargs):
+        api_client.put("/logs_users/old_entries/delete")
