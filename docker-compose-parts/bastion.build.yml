@@ -1,0 +1,9 @@
+version: "3.5"
+services:
+  isard-bastion:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: bastion/build/package/Dockerfile
+      args:
+        - "GOLANG_BUILD_IMAGE=${GOLANG_BUILD_IMAGE}"
+        - "GOLANG_RUN_IMAGE=${GOLANG_RUN_IMAGE}"

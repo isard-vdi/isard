@@ -261,6 +261,7 @@ docker-image:
           - scheduler
           - authentication
           - backupninja
+          - bastion
           - core_worker
           - db
           - engine

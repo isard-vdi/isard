@@ -136,6 +136,7 @@ class Populate(object):
             # config should be the last table to be created
             # api waits for config table to start
             "config",
+            "targets",
         ]
         tables_to_create = list(set(newtables) - set(dbtables))
         d = {k: v for v, k in enumerate(newtables)}
@@ -1920,6 +1921,17 @@ class Populate(object):
                     },
                 ]
             ).run(self.conn)
+        except Exception as e:
+            log.error(e)
+
+    """
+    TARGETS
+    """
+
+    def targets(self):
+        try:
+            log.info("Table targets not found, creating...")
+            r.table_create("targets", primary_key="id").run(self.conn)
         except Exception as e:
             log.error(e)
 

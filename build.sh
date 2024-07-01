@@ -63,6 +63,7 @@ ALLINONE_PARTS="
 	check
 	notifier
 	sessions
+	bastion
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
@@ -118,6 +119,7 @@ WEB_PARTS="
 	infrastructure
 	notifier
 	sessions
+	bastion
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="
