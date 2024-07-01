@@ -1,6 +1,6 @@
 version: "3.5"
 services:
-  isard-sessions:
+  isard-orchestrator:
     image: ${GOLANG_BUILD_IMAGE}
     command:
       - ash
@@ -12,14 +12,14 @@ services:
         CompileDaemon \
           -log-prefix=false \
           -graceful-kill=true \
-          -directory=/sessions \
-          -build="go build -o /bin/sessions ./sessions/cmd/sessions/main.go" \
-          -command="dlv exec --headless=true --listen=:4000 --api-version=2 --accept-multiclient --continue /bin/sessions"
+          -directory=/orchestrator \
+          -build="go build -o /bin/orchestrator ./orchestrator/cmd/orchestrator/main.go" \
+          -command="dlv exec --headless=true --listen=:4000 --api-version=2 --accept-multiclient --continue /bin/orchestrator"
     volumes:
-      - ${BUILD_ROOT_PATH}/go.mod:/sessions/go.mod
-      - ${BUILD_ROOT_PATH}/go.sum:/sessions/go.sum
-      - ${BUILD_ROOT_PATH}/pkg:/sessions/pkg
-      - ${BUILD_ROOT_PATH}/sessions:/sessions/sessions
+      - ${BUILD_ROOT_PATH}/go.mod:/orchestrator/go.mod
+      - ${BUILD_ROOT_PATH}/go.sum:/orchestrator/go.sum
+      - ${BUILD_ROOT_PATH}/pkg:/orchestrator/pkg
+      - ${BUILD_ROOT_PATH}/orchestrator:/orchestrator/orchestrator
       - /tmp/isardvdi-go-devel/cache:/root/.cache/go-build
       - /tmp/isardvdi-go-devel/pkg:/go/pkg
     security_opt:
