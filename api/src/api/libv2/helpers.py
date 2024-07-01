@@ -321,7 +321,7 @@ def _parse_desktop(desktop):
             "interfaces": desktop["create_dict"]["hardware"]["interfaces"],
             "current_action": desktop.get("current_action"),
             "storage": [
-                disk["storage_id"]
+                disk.get("storage_id")
                 for disk in desktop["create_dict"]["hardware"].get("disks", [{}])
             ],
         },
