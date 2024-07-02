@@ -132,11 +132,11 @@ class Populate(object):
             "analytics",
             "notification_tmpls",
             "system_events",
+            "targets",
             # "recycle_bin_archive",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
-            "targets",
         ]
         tables_to_create = list(set(newtables) - set(dbtables))
         d = {k: v for v, k in enumerate(newtables)}
