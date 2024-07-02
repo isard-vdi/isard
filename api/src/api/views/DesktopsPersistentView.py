@@ -397,7 +397,6 @@ def api_v3_desktop_delete(payload, desktop_id, permanent=False):
 @has_token
 def api_v3_desktop_update_storage_id(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
-
     try:
         data = request.get_json(force=True)
     except:
@@ -472,6 +471,39 @@ def api_v3_template_to_desktop(payload):
 
     return (
         json.dumps(desktops.convert_template_to_desktop(data)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/desktop/bastion/<desktop_id>", methods=["GET"])
+@has_token
+def api_v3_get_desktop_bastion(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    return (
+        json.dumps(desktops.get_domain_target(desktop_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/desktop/bastion/<desktop_id>", methods=["PUT"])
+@has_token
+def api_v3_update_desktop_bastion(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request",
+            "Desktop bastion update incorrect body data",
+            traceback.format_exc(),
+            description_code="desktop_bastion_incorrect_body_data",
+        )
+    data = _validate_item("bastion", data)
+    desktops.update_domain_target(desktop_id, data)
+    return (
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )

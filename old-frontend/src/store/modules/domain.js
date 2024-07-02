@@ -64,7 +64,19 @@ const getDefaultState = () => {
     isos: [], // Available isos
     floppies: [], // Available floppires
     mediaInstalls: [],
-    mediaInstallsLoaded: false
+    mediaInstallsLoaded: false,
+    bastion: {
+      enabled: false,
+      http: {
+        enabled: false,
+        port: ''
+      },
+      ssh: {
+        enabled: false,
+        port: '',
+        authorized_keys: []
+      }
+    }
   }
 }
 
@@ -105,6 +117,9 @@ export default {
     },
     getMediaInstallsLoaded: state => {
       return state.mediaInstalls
+    },
+    getBastion: state => {
+      return state.bastion
     }
   },
   mutations: {
@@ -167,6 +182,9 @@ export default {
     },
     changeVideos: (state, videos) => {
       state.domain.hardware.videos = videos
+    },
+    setBastion: (state, bastion) => {
+      state.bastion = bastion
     }
   },
   actions: {
@@ -222,6 +240,7 @@ export default {
           response.data.name = context.getters.getDomain.name
         }
         context.commit('setDomain', DomainsUtils.parseDomain(response.data))
+        context.dispatch('fetchBastion', domainId)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
@@ -244,6 +263,7 @@ export default {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
 
       axios.put(`${apiV3Segment}/domain/${data.id}`, data).then(response => {
+        context.dispatch('updateBastion', data.id)
         router.push({ name: 'desktops' })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -267,6 +287,28 @@ export default {
     },
     changeVideos (context, videos) {
       context.commit('changeVideos', videos)
+    },
+    fetchBastion (context, domainId) {
+      axios.get(`${apiV3Segment}/desktop/bastion/${domainId}`).then(response => {
+        const bastion = response.data
+        if (response.data.ssh.enabled || response.data.http.enabled) {
+          bastion.enabled = true
+        } else {
+          bastion.enabled = false
+        }
+        context.commit('setBastion', bastion)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    updateBastion (context, domainId) {
+      const bastion = context.getters.getBastion
+      bastion.http.port = bastion.http.port ? parseInt(bastion.http.port) : 80
+      bastion.ssh.port = bastion.ssh.port ? parseInt(bastion.ssh.port) : 22
+      axios.put(`${apiV3Segment}/desktop/bastion/${domainId}`, bastion).then(response => {
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
     }
   }
 }

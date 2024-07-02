@@ -156,6 +156,30 @@
           "warning": "ATENCIÓN: La contraseña se guardará como texto plano!!",
           "username": "Usuario",
           "password": "Contraseña"
+        },
+        "bastion": {
+          "disabled": "Bastión deshabilitado",
+          "enabled": "Bastión habilitado",
+          "title": "Opciones de bastión",
+          "http": {
+            "checkbox": "HTTP",
+            "ports": {
+              "label": "Puerto HTTP",
+              "placeholder": "80, 443"
+            }
+          },
+          "ssh": {
+            "checkbox": "SSH",
+            "ports": {
+              "label": "Puerto SSH",
+              "placeholder": "22"
+            },
+            "authorized_keys": {
+              "label": "Claves autorizadas (una por línea)",
+              "user": "Utiliza las claves autorizadas del usuario",
+              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+            }
+          }
         }
       },
       "hardware": {

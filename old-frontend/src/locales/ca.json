@@ -1144,6 +1144,30 @@
           "warning": "ATENCIÓ: La contrasenya es guardarà com a text pla!!",
           "username": "Usuari",
           "password": "Contrasenya"
+        },
+        "bastion": {
+          "disabled": "Bastió deshabilitat",
+          "enabled": "Basitó habilitat",
+          "title": "Opcions de bastió",
+          "http": {
+            "checkbox": "HTTP",
+            "ports": {
+              "label": "Port HTTP",
+              "placeholder": "80, 443"
+            }
+          },
+          "ssh": {
+            "checkbox": "SSH",
+            "ports": {
+              "label": "Port SSH",
+              "placeholder": "22"
+            },
+            "authorized_keys": {
+              "label": "Claus autoritzades (una per línia)",
+              "user": "Utilitza les claus autoritzades de l'usuari",
+              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+            }
+          }
         }
       },
       "hardware": {

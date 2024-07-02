@@ -156,6 +156,30 @@
                     "warning": "WARNING: Guest password will be stored in plain text!!",
                     "username": "Username",
                     "password": "Password"
+                },
+                "bastion": {
+                    "disabled": "Bastion disabled",
+                    "enabled": "Bastion enabled",
+                    "title": "Bastion options",
+                    "http": {
+                        "checkbox": "HTTP",
+                        "ports": {
+                            "label": "HTTP port",
+                            "placeholder": "80, 443"
+                        }
+                    },
+                    "ssh": {
+                        "checkbox": "SSH",
+                        "ports": {
+                            "label": "SSH port",
+                            "placeholder": "22"
+                        },
+                        "authorized_keys": {
+                            "label": "Authorized keys (one per line)",
+                            "user": "Use the user's authorized keys",
+                            "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+                        }
+                    }
                 }
             },
             "hardware": {
