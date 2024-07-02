@@ -33,6 +33,7 @@
       <h4>
         <strong>{{ $t('forms.domain.viewers.bastion.title') }}</strong>
       </h4>
+      <h5><b>ID:</b> {{ bastionId }}</h5>
       <b-row>
         <b-col
           cols="4"
@@ -55,20 +56,42 @@
             cols="4"
             xl="2"
           >
-            <label for="httpPortsField">{{ $t('forms.domain.viewers.bastion.http.ports.label') }}</label>
+            <label for="httpPortField">{{ $t('forms.domain.viewers.bastion.http.http_port') }}</label>
           </b-col>
           <b-col
             cols="6"
             xl="4"
           >
             <b-form-input
-              id="httpPortsField"
-              v-model="httpPorts"
-              type="text"
+              id="httpPortField"
+              v-model="httpPort"
+              type="number"
               size="sm"
-              :placeholder="$t('forms.domain.viewers.bastion.http.ports.placeholder')"
+              placeholder="80"
             />
-            <!-- TODO: validate ints -->
+          </b-col>
+        </b-row>
+
+        <b-row
+          class="mt-2"
+        >
+          <b-col
+            cols="4"
+            xl="2"
+          >
+            <label for="httpPortField">{{ $t('forms.domain.viewers.bastion.http.https_port') }}</label>
+          </b-col>
+          <b-col
+            cols="6"
+            xl="4"
+          >
+            <b-form-input
+              id="httpsPortField"
+              v-model="httpsPort"
+              type="number"
+              size="sm"
+              placeholder="443"
+            />
           </b-col>
         </b-row>
       </template>
@@ -96,20 +119,19 @@
             cols="4"
             xl="2"
           >
-            <label for="sshPortsField">{{ $t('forms.domain.viewers.bastion.ssh.ports.label') }}</label>
+            <label for="sshPortField">{{ $t('forms.domain.viewers.bastion.ssh.port') }}</label>
           </b-col>
           <b-col
             cols="6"
             xl="4"
           >
             <b-form-input
-              id="sshPortsField"
-              v-model="sshPorts"
-              type="text"
+              id="sshPortField"
+              v-model="sshPort"
+              type="number"
               size="sm"
-              :placeholder="$t('forms.domain.viewers.bastion.ssh.ports.placeholder')"
+              placeholder="22"
             />
-            <!-- TODO: validate int -->
           </b-col>
         </b-row>
         <b-row
@@ -122,13 +144,7 @@
             <label
               for="sshAuthorizedKeysField"
               class="mb-0"
-            >{{ $t('forms.domain.viewers.bastion.ssh.authorized_keys.label') }}</label>
-            <!-- <b-form-checkbox
-              id="checkbox-bastion-ssh-user"
-              v-model="sshUser"
-            >
-              TODO: {{ $t('forms.domain.viewers.bastion.ssh.authorized_keys.user') }}
-            </b-form-checkbox> -->
+            >{{ $t('forms.domain.viewers.bastion.ssh.authorized_keys') }}</label>
           </b-col>
           <b-col
             cols="6"
@@ -140,7 +156,7 @@
               size="sm"
               rows="3"
               no-resize
-              :placeholder="$t('forms.domain.viewers.bastion.ssh.authorized_keys.placeholder')"
+              placeholder="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
             />
           </b-col>
         </b-row>
@@ -175,6 +191,10 @@ export default {
       }
     })
 
+    const bastionId = computed({
+      get: () => $store.getters.getBastion.id
+    })
+
     const httpEnabled = computed({
       get: () => $store.getters.getBastion.http.enabled,
       set: (value) => {
@@ -189,18 +209,24 @@ export default {
         $store.commit('setBastion', bastionData.value)
       }
     })
-    const splitComma = (text) => text.split(',')
-    const httpPorts = computed({
-      get: () => $store.getters.getBastion.http.port,
+    const httpPort = computed({
+      get: () => $store.getters.getBastion.http.http_port,
       set: (value) => {
-        bastionData.value.http.port = splitComma(value)[0]
+        bastionData.value.http.port = value
         $store.commit('setBastion', bastionData.value)
       }
     })
-    const sshPorts = computed({
+    const httpsPort = computed({
+      get: () => $store.getters.getBastion.http.https_port,
+      set: (value) => {
+        bastionData.value.http.port = value
+        $store.commit('setBastion', bastionData.value)
+      }
+    })
+    const sshPort = computed({
       get: () => $store.getters.getBastion.ssh.port,
       set: (value) => {
-        bastionData.value.ssh.port = splitComma(value)[0]
+        bastionData.value.ssh.port = value
         $store.commit('setBastion', bastionData.value)
       }
     })
@@ -213,16 +239,16 @@ export default {
         $store.commit('setBastion', bastionData.value)
       }
     })
-    // const sshUser = ref(true) // TODO: user keys in db user
 
     return {
       showBastionOptions,
       bastion,
+      bastionId,
       httpEnabled,
-      httpPorts,
+      httpPort,
+      httpsPort,
       sshEnabled,
-      sshPorts,
-      // sshUser,
+      sshPort,
       sshAuthorizedKeys
     }
   }

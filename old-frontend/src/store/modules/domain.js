@@ -67,13 +67,15 @@ const getDefaultState = () => {
     mediaInstallsLoaded: false,
     bastion: {
       enabled: false,
+      id: '',
       http: {
         enabled: false,
-        port: ''
+        http_port: 80,
+        https_port: 443
       },
       ssh: {
         enabled: false,
-        port: '',
+        port: 22,
         authorized_keys: []
       }
     }
@@ -298,13 +300,20 @@ export default {
         }
         context.commit('setBastion', bastion)
       }).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
+        // We can ignore 404, since the first time the bastion
+        // won't be created
+        if (e.respponse.status !== 404) {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        }
       })
     },
     updateBastion (context, domainId) {
       const bastion = context.getters.getBastion
-      bastion.http.port = bastion.http.port ? parseInt(bastion.http.port) : 80
+
+      bastion.http.http_port = bastion.http.http_port ? parseInt(bastion.http.http_port) : 80
+      bastion.http.https_port = bastion.http.https_port ? parseInt(bastion.http.https_port) : 443
       bastion.ssh.port = bastion.ssh.port ? parseInt(bastion.ssh.port) : 22
+
       axios.put(`${apiV3Segment}/desktop/bastion/${domainId}`, bastion).then(response => {
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

@@ -163,22 +163,13 @@
           "title": "Opciones de bastión",
           "http": {
             "checkbox": "HTTP",
-            "ports": {
-              "label": "Puerto HTTP",
-              "placeholder": "80, 443"
-            }
+            "http_port": "Puerto HTTP",
+            "https_port": "Puerto HTTPS"
           },
           "ssh": {
             "checkbox": "SSH",
-            "ports": {
-              "label": "Puerto SSH",
-              "placeholder": "22"
-            },
-            "authorized_keys": {
-              "label": "Claves autorizadas (una por línea)",
-              "user": "Utiliza las claves autorizadas del usuario",
-              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
-            }
+            "port": "Puerto SSH",
+            "authorized_keys": "Claves autorizadas (una por línea)"
           }
         }
       },

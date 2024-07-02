@@ -163,22 +163,13 @@
                     "title": "Bastion options",
                     "http": {
                         "checkbox": "HTTP",
-                        "ports": {
-                            "label": "HTTP port",
-                            "placeholder": "80, 443"
-                        }
+                        "http_port": "HTTP port",
+                        "https_port": "HTTPS port"
                     },
                     "ssh": {
                         "checkbox": "SSH",
-                        "ports": {
-                            "label": "SSH port",
-                            "placeholder": "22"
-                        },
-                        "authorized_keys": {
-                            "label": "Authorized keys (one per line)",
-                            "user": "Use the user's authorized keys",
-                            "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
-                        }
+                        "port": "SSH port",
+                        "authorized_keys": "Authorized keys (one per line)"
                     }
                 }
             },

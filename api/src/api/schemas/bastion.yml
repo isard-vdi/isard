@@ -14,9 +14,13 @@ http:
     enabled:
       type: boolean
       required: true
-    port:
+    http_port:
       type: integer
-      required: false
+      required: true
+      # TODO: Set default
+    https_port:
+      type: integer
+      required: true
 ssh:
   type: dict
   required: true
@@ -26,10 +30,10 @@ ssh:
       required: true
     port:
       type: integer
-      required: false
+      required: true
     authorized_keys:
       type: list
-      required: false
+      required: true
       schema:
         type: string
         required: false

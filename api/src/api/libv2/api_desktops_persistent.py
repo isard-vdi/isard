@@ -1005,18 +1005,20 @@ class ApiDesktopsPersistent:
 
     def get_domain_target(self, domain_id, conn_type=None):
         with app.app_context():
-            # TODO: add desktop_id index to rethinkdb
             target = list(
                 r.table("targets").get_all(domain_id, index="desktop_id").run(db.conn)
             )
+
         if not target:
             raise Error(
                 "not_found",
                 "Target not found",
                 traceback.format_exc(),
             )
+
         if conn_type:
             return target[0][conn_type]
+
         return target[0]
 
     def update_domain_target(self, domain_id, data={}):
@@ -1028,7 +1030,7 @@ class ApiDesktopsPersistent:
                 "desktop_id": domain_id,
                 "user_id": self.UserDesktop(domain_id),
             }
-            target["http"] = {"enabled": False, "port": 80}
+            target["http"] = {"enabled": False, "http_port": 80, "https_port": 443}
             target["ssh"] = {"enabled": False, "port": 22, "authorized_keys": []}
 
             r.db("isard").table("targets").insert(target).run(db.conn)

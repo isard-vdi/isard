@@ -1151,22 +1151,13 @@
           "title": "Opcions de bastió",
           "http": {
             "checkbox": "HTTP",
-            "ports": {
-              "label": "Port HTTP",
-              "placeholder": "80, 443"
-            }
+            "http_port": "Port HTTP",
+            "https_port": "Port HTTPS"
           },
           "ssh": {
             "checkbox": "SSH",
-            "ports": {
-              "label": "Port SSH",
-              "placeholder": "22"
-            },
-            "authorized_keys": {
-              "label": "Claus autoritzades (una per línia)",
-              "user": "Utilitza les claus autoritzades de l'usuari",
-              "placeholder": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
-            }
+            "port": "Port SSH",
+            "authorized_keys": "Claus autoritzades (una per línia)"
           }
         }
       },
