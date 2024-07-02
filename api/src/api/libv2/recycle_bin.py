@@ -379,7 +379,8 @@ class RecycleBin(object):
                 "precondition_required",
                 "Cannot restore entry with status " + str(self.status),
             )
-        r.table("users").insert(self.users).run(db.conn)
+        with app.app_context():
+            r.table("users").insert(self.users).run(db.conn)
         try:
             itemExists("users", self.owner_id)
         except:
@@ -390,8 +391,9 @@ class RecycleBin(object):
                 + " has been deleted.",
                 description_code="user_not_found",
             )
-        r.table("groups").insert(self.groups).run(db.conn)
-        r.table("categories").insert(self.categories).run(db.conn)
+        with app.app_context():
+            r.table("groups").insert(self.groups).run(db.conn)
+            r.table("categories").insert(self.categories).run(db.conn)
         storage_ids = [storage["id"] for storage in self.storages]
         with app.app_context():
             try:
@@ -738,12 +740,13 @@ class RecycleBin(object):
         :return: IDs of the user recycle bins
         :rtype: array
         """
-        return list(
-            r.table("recycle_bin")
-            .get_all([user_id, status], index="owner_status")
-            .filter({"agent_id": user_id})["id"]
-            .run(db.conn)
-        )
+        with app.app_context():
+            return list(
+                r.table("recycle_bin")
+                .get_all([user_id, status], index="owner_status")
+                .filter({"agent_id": user_id})["id"]
+                .run(db.conn)
+            )
 
     @classmethod
     def get_recycle_bin_by_period(cls, max_delete_period, category=None):
@@ -823,12 +826,13 @@ class RecycleBin(object):
             return list(query.run(db.conn))
 
     def get_user_amount(user_id):
-        return (
-            r.table("recycle_bin")
-            .get_all([user_id, "recycled"], index="owner_status")
-            .count()
-            .run(db.conn)
-        )
+        with app.app_context():
+            return (
+                r.table("recycle_bin")
+                .get_all([user_id, "recycled"], index="owner_status")
+                .count()
+                .run(db.conn)
+            )
 
     @classmethod
     def update_task_status(cls, task):
@@ -855,28 +859,30 @@ class RecycleBin(object):
             filter(lambda t: (t["status"] == "finished"), recycle_bin.get("tasks", []))
         )
         if len(finished_tasks) == len(recycle_bin.get("storages", [])):
-            r.table("recycle_bin").get(task["recycle_bin_id"]).update(
-                {"status": "deleted"}
-            ).run(db.conn)
-            rb = RecycleBin(task["recycle_bin_id"])
-            rb._add_log("deleted")
-            rb.send_socket_user(
-                "update_recycle_bin", {"id": rb.id, "status": "deleted"}
-            )
-            rb.send_socket_admin(
-                "update_recycle_bin", {"id": rb.id, "status": "deleted"}
-            )
+            with app.app_context():
+                r.table("recycle_bin").get(task["recycle_bin_id"]).update(
+                    {"status": "deleted"}
+                ).run(db.conn)
+                rb = RecycleBin(task["recycle_bin_id"])
+                rb._add_log("deleted")
+                rb.send_socket_user(
+                    "update_recycle_bin", {"id": rb.id, "status": "deleted"}
+                )
+                rb.send_socket_admin(
+                    "update_recycle_bin", {"id": rb.id, "status": "deleted"}
+                )
 
     def get_delete_time(self):
         if not self.owner_category_id:
             try:
-                return (
-                    r.table("scheduler_jobs")
-                    .get("admin.recycle_bin_delete_admin")["kwargs"][
-                        "max_delete_period"
-                    ]
-                    .run(db.conn)
-                )
+                with app.app_context():
+                    return (
+                        r.table("scheduler_jobs")
+                        .get("admin.recycle_bin_delete_admin")["kwargs"][
+                            "max_delete_period"
+                        ]
+                        .run(db.conn)
+                    )
             except:
                 return "null"
         else:
@@ -1049,7 +1055,8 @@ class RecycleBinDomain(RecycleBin):
             for disk in desktop["create_dict"]["hardware"]["disks"]:
                 if "storage_id" in disk:
                     storages_ids.append(disk["storage_id"])
-        storages = r.table("storage").get_all(r.args(storages_ids)).run(db.conn)
+        with app.app_context():
+            storages = r.table("storage").get_all(r.args(storages_ids)).run(db.conn)
         rcb_storage.add_storages(storages)
         with app.app_context():
             r.table("storage").get_all(r.args(storages_ids)).update(
@@ -1195,12 +1202,13 @@ class RecycleBinDeployment(RecycleBin):
                 {"deployments": r.row["deployments"].add(deployments)}
             ).run(db.conn)
         deployments_ids = [deployment["id"] for deployment in deployments]
-        desktops_ids = list(
-            r.table("domains")
-            .get_all(r.args(deployments_ids), index="tag")
-            .pluck("id")["id"]
-            .run(db.conn)
-        )
+        with app.app_context():
+            desktops_ids = list(
+                r.table("domains")
+                .get_all(r.args(deployments_ids), index="tag")
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
         desktops_stop(desktops_ids, 5)
         # Move deployment desktops to recycle_bin
         with app.app_context():
@@ -1226,12 +1234,13 @@ class RecycleBinBulk(RecycleBin):
 
     def add(self, desktops_ids):
         super()._add_owner(self.agent_id)
-        desktops_ids = list(
-            r.table("domains")
-            .get_all(r.args(desktops_ids))
-            .pluck("id")["id"]
-            .run(db.conn)
-        )
+        with app.app_context():
+            desktops_ids = list(
+                r.table("domains")
+                .get_all(r.args(desktops_ids))
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
         desktops_stop(desktops_ids, 5)
         # Move desktops to recycle_bin
         with app.app_context():
@@ -1270,12 +1279,13 @@ class RecycleBinUser(RecycleBin):
         return self._set_data(self.id)
 
     def add_user(self, user, delete_user=True):
-        desktops_ids = list(
-            r.table("domains")
-            .get_all(["desktop", user["id"]], index="kind_user")
-            .pluck("id")["id"]
-            .run(db.conn)
-        )
+        with app.app_context():
+            desktops_ids = list(
+                r.table("domains")
+                .get_all(["desktop", user["id"]], index="kind_user")
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
         desktops_stop(desktops_ids, 5)
         # Delete desktops
         with app.app_context():
@@ -1341,12 +1351,13 @@ class RecycleBinGroup(RecycleBin):
         return self._set_data(self.id)
 
     def add_group(self, group):
-        desktops_ids = list(
-            r.table("domains")
-            .get_all(["desktop", group["id"]], index="kind_group")
-            .pluck("id")["id"]
-            .run(db.conn)
-        )
+        with app.app_context():
+            desktops_ids = list(
+                r.table("domains")
+                .get_all(["desktop", group["id"]], index="kind_group")
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
         desktops_stop(desktops_ids, 5)
         # Delete desktops
         with app.app_context():
@@ -1420,12 +1431,13 @@ class RecycleBinCategory(RecycleBin):
         return self._set_data(self.id)
 
     def add_category(self, category):
-        desktops_ids = list(
-            r.table("domains")
-            .get_all(["desktop", category["id"]], index="kind_category")
-            .pluck("id")["id"]
-            .run(db.conn)
-        )
+        with app.app_context():
+            desktops_ids = list(
+                r.table("domains")
+                .get_all(["desktop", category["id"]], index="kind_category")
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
         desktops_stop(desktops_ids, 5)
         # Delete desktops
         with app.app_context():
