@@ -240,9 +240,10 @@ export default {
       axios.get(`${apiV3Segment}/domain/info/${domainId}`).then(response => {
         if (!context.getters.getEditDomainId) { // Only keep the domain name when editing
           response.data.name = context.getters.getDomain.name
+        } else { // only fetch bastion when editing
+          context.dispatch('fetchBastion', domainId)
         }
         context.commit('setDomain', DomainsUtils.parseDomain(response.data))
-        context.dispatch('fetchBastion', domainId)
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
