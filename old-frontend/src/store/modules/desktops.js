@@ -312,7 +312,7 @@ export default {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-desktop'), '', true, 1000)
 
       axios.post(`${apiV3Segment}/persistent_desktop`, data).then(response => {
-        context.dispatch('updateBastion', response.id)
+        context.dispatch('updateBastion', response.data.id)
         router.push({ name: 'desktops' })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

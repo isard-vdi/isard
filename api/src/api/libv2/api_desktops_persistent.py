@@ -1042,6 +1042,8 @@ class ApiDesktopsPersistent:
 
         r.db("isard").table("targets").get(target["id"]).update(target).run(db.conn)
 
+        return target
+
     def delete_domain_target(self, domain_id):
         with app.app_context():
             r.table("targets").get_all(domain_id, index="desktop_id").delete().run(

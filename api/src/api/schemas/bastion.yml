@@ -17,7 +17,6 @@ http:
     http_port:
       type: integer
       required: true
-      # TODO: Set default
     https_port:
       type: integer
       required: true

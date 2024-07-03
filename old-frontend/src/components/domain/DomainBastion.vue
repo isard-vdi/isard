@@ -33,7 +33,19 @@
       <h4>
         <strong>{{ $t('forms.domain.viewers.bastion.title') }}</strong>
       </h4>
-      <h5><b>ID:</b> {{ bastionId }}</h5>
+      <b-row>
+        <h5
+          v-if="bastionId"
+          v-b-tooltip="{ title: `${copyTooltipText}`,
+                         placement: 'top',
+                         customClass: 'isard-tooltip',
+                         trigger: 'hover' }"
+          class="cursor-pointer"
+          @click="copyToClipboard(bastionId)"
+        >
+          <b>ID:</b> {{ bastionId }}
+        </h5>
+      </b-row>
       <b-row>
         <b-col
           cols="4"
@@ -180,6 +192,10 @@ export default {
       get: () => $store.getters.getBastion.enabled,
       set: (value) => {
         bastionData.value.enabled = value
+        if (!value) {
+          bastionData.value.http.enabled = false
+          bastionData.value.ssh.enabled = false
+        }
         $store.commit('setBastion', bastionData.value)
       }
     })
@@ -239,6 +255,15 @@ export default {
         $store.commit('setBastion', bastionData.value)
       }
     })
+    const copyTooltipText = ref('Copy to clipboard')
+    const copyToClipboard = (text) => {
+      $store.dispatch('showNotification', { message: 'copied to clipboard' })
+      navigator.clipboard.writeText(text)
+      copyTooltipText.value = 'Copied!'
+      setTimeout(() => {
+        copyTooltipText.value = 'Copy to clipboard'
+      }, 500)
+    }
 
     return {
       showBastionOptions,
@@ -249,7 +274,9 @@ export default {
       httpsPort,
       sshEnabled,
       sshPort,
-      sshAuthorizedKeys
+      sshAuthorizedKeys,
+      copyTooltipText,
+      copyToClipboard
     }
   }
 }

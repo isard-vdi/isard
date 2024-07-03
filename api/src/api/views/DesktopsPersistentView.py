@@ -480,8 +480,12 @@ def api_v3_template_to_desktop(payload):
 @has_token
 def api_v3_get_desktop_bastion(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
+    try:
+        target = desktops.get_domain_target(desktop_id)
+    except:
+        target = desktops.update_domain_target(desktop_id, {})
     return (
-        json.dumps(desktops.get_domain_target(desktop_id)),
+        json.dumps(target),
         200,
         {"Content-Type": "application/json"},
     )
