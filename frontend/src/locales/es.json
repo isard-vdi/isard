@@ -1008,7 +1008,8 @@
             "table-header": {
                 "domains": "Escritorios/plantillas",
                 "quantity-domains": "№ escritorios/plantillas",
-                "actual-size": "Tamaño",
+                "actual-size": "Tamaño ocupado",
+                "virtual-size": "Tamaño total",
                 "percentage": "% Cuota",
                 "last": "Último acceso",
                 "actions": "Acciones"
@@ -1241,7 +1242,8 @@
             "reset-vpn": "Claves VPN restauradas",
             "video-default": "Se ha cambiado el parámetro 'Videos' del escritorio a 'Default', dado que no hay ningún perfil de GPU asignado",
             "cancelling-operation": "Cancelando operación de disco en curso",
-            "recreate-desktop-stop": "Para recrear un escritorio es necesario que esté parado"
+            "recreate-desktop-stop": "Para recrear un escritorio es necesario que esté parado",
+            "increasing-storage": "Incrementando tamaño de disco. Esto podría tomar unos momentos"
         },
         "loading": "Cargando"
     },

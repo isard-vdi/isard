@@ -778,7 +778,8 @@
             "table-header": {
                 "domains": "Escriptoris/plantilles",
                 "quantity-domains": "Nº escriptoris/plantilles",
-                "actual-size": "Mida",
+                "actual-size": "Mida ocupada",
+                "virtual-size": "Mida total",
                 "percentage": "% Quota",
                 "last": "Últim accés",
                 "actions": "Accions"
@@ -1360,7 +1361,8 @@
             "reset-vpn": "Claus VPN restablertes",
             "video-default": "S'ha canviat el paràmetre 'Videos' de l'escriptori a 'Default', atès que no hi ha cap perfil de GPU assignat",
             "cancelling-operation": "Cancel·lant operació de disc en curs",
-            "recreate-desktop-stop": "Per recrear un escriptori, aquest ha d'estar aturat"
+            "recreate-desktop-stop": "Per recrear un escriptori, aquest ha d'estar aturat",
+            "increasing-storage": "Incrementant mida del disc. Això pot trigar una estona"
         },
         "loading": "Carregant"
     },

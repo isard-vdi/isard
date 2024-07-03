@@ -18,6 +18,7 @@ from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
 from api import app
 
 MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024
+from api import socketio
 
 from ..libv2.api_admin import ApiAdmin
 from ..libv2.api_storage import (
@@ -36,6 +37,7 @@ from .decorators import (
     has_token,
     is_admin,
     is_admin_or_manager,
+    is_not_user,
     ownsDomainId,
     ownsStorageId,
 )
@@ -1006,7 +1008,7 @@ def storage_update_by_status(payload, status):
     "/api/v3/storage/<path:storage_id>/priority/<priority>/increase/<int:increment>",
     methods=["PUT"],
 )
-@has_token
+@is_not_user
 def storage_increase_size(payload, storage_id, increment, priority="low"):
     storage = Storage(storage_id)
     if not storage.user_id:
@@ -1046,6 +1048,17 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
 
     set_desktops_maintenance(payload, storage_id, "increase")
     set_storage_maintenance(payload, storage_id)
+
+    socketio.emit(
+        "update_storage",
+        {
+            "id": storage.id,
+            "status": storage.status,
+            "size": getattr(storage, "qemu-img-info")["virtual-size"],
+        },
+        namespace="/userspace",
+        room=storage.user_id,
+    )
 
     try:
         storage.create_task(
@@ -1087,6 +1100,18 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
                                     }
                                 }
                             },
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "send_storage_socket_user",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "event": "update_storage",
+                                            "storage_id": storage.id,
+                                        }
+                                    },
+                                },
+                            ],
                         },
                         {
                             "queue": "core",
@@ -1197,6 +1222,26 @@ def storage_abort(payload, storage_id):
                                                     }
                                                 }
                                             },
+                                            "dependents": [
+                                                {
+                                                    "queue": f"storage.{StoragePool.get_best_for_action('resize').id}.default",
+                                                    "task": "send_socket_user",
+                                                    "job_kwargs": {
+                                                        "kwargs": {
+                                                            "event": "update_storage",
+                                                            "data": {
+                                                                "id": storage.id,
+                                                                "status": storage.status,
+                                                                "size": getattr(
+                                                                    storage,
+                                                                    "qemu-img-info",
+                                                                )["virtual-size"],
+                                                            },
+                                                            "user": storage.user_id,
+                                                        }
+                                                    },
+                                                }
+                                            ],
                                         },
                                     ],
                                 }

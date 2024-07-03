@@ -33,6 +33,11 @@
           {{ (data.item.actualSize / 1024 / 1024 / 1024).toFixed(1)+'GB' }}
         </p>
       </template>
+      <template #cell(virtualSize)="data">
+        <p class="text-dark-gray m-0">
+          {{ (data.item.virtualSize / 1024 / 1024 / 1024).toFixed(1)+'GB' }}
+        </p>
+      </template>
       <template #cell(percentage)="data">
         <small
           v-if="userQuota.totalSize"
@@ -55,6 +60,7 @@
       </template>
       <template #cell(actions)="data">
         <b-button
+          v-if="getUser.role_id != 'user'"
           class="rounded-circle btn btn-blue px-2 mr-2"
           :title="$t('views.storage.buttons.increase.title')"
           @click="showIncreaseModal({ item: data.item, show: true })"
@@ -111,6 +117,12 @@ export default {
         thStyle: { width: '10%' }
       },
       {
+        key: 'virtualSize',
+        sortable: true,
+        label: i18n.t('views.storage.table-header.virtual-size'),
+        thStyle: { width: '10%' }
+      },
+      {
         key: 'percentage',
         sortable: true,
         label: i18n.t('views.storage.table-header.percentage'),
@@ -125,7 +137,8 @@ export default {
       {
         key: 'actions',
         label: i18n.t('views.storage.table-header.actions'),
-        thStyle: { width: '1%' }
+        thStyle: { width: '1%' },
+        visible: $store.getters.getUser.role_id !== 'user'
       }
     ]
 

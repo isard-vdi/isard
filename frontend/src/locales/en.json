@@ -993,7 +993,8 @@
             "table-header": {
                 "domains": "Desktops/templates",
                 "quantity-domains": "№ desktops/templates",
-                "actual-size": "Size",
+                "actual-size": "Used size",
+                "virtual-size": "Total size",
                 "percentage": "% Quota",
                 "last": "Last access",
                 "actions": "Actions"
@@ -1226,7 +1227,8 @@
             "reset-vpn": "VPN keys reset",
             "video-default": "The 'Videos' parameter on the desktop was changed to 'Default', as there is no GPU profile assigned",
             "cancelling-operation": "Canceling ongoing disk operation",
-            "recreate-desktop-stop": "To recreate a desktop it must be stopped"
+            "recreate-desktop-stop": "To recreate a desktop it must be stopped",
+            "increasing-storage": "Increasing storage size. This may take a while"
         },
         "loading": "Loading"
     },

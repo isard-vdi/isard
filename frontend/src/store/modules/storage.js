@@ -53,6 +53,14 @@ export default {
     },
     setIncreaseItem: (state, item) => {
       state.increaseItem = item
+    },
+    updateStorage: (state, storage) => {
+      const item = state.storage.find(stg => stg.id === storage.id)
+      if (item) {
+        item.virtualSize = storage.size
+        delete item.size
+        Object.assign(item, storage)
+      }
     }
   },
   actions: {
@@ -77,9 +85,12 @@ export default {
         } else {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         }
-      }).then(response => {
-        context.dispatch('fetchStorage')
+      }).then(() => {
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.increasing-storage'))
       })
+    },
+    socket_updateStorage (context, data) {
+      context.commit('updateStorage', data)
     }
   }
 }

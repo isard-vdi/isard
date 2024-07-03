@@ -283,3 +283,28 @@ def delete_task(task_id):
     """
     if Task.exists(task_id) and Task(task_id).status == "queued":
         Task(task_id).cancel()
+
+
+def send_storage_socket_user(event, storage_id):
+    """
+    Send socket to user.
+    :param event: Event name
+    :type event: str
+    :param storage_id: ID of the storage
+    :type storage_id: str
+    """
+    storage = Storage(storage_id)
+    socketio(
+        [
+            {
+                "event": event,
+                "data": {
+                    "id": storage.id,
+                    "status": storage.status,
+                    "size": getattr(storage, "qemu-img-info")["virtual-size"],
+                },
+                "namespace": "/userspace",
+                "room": storage.user_id,
+            }
+        ]
+    )
