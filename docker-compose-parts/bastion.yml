@@ -13,7 +13,7 @@ services:
         ipv4_address: ${DOCKER_NET:-172.31.255}.117
     ports:
       - published: ${BASTION_SSH_PORT:-2222}
-        target: 1315
+        target: ${BASTION_SSH_PORT:-1315}
         mode: host
     privileged: true
     # # TODO: This!
