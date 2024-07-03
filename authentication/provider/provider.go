@@ -142,10 +142,10 @@ func guessCategory(ctx context.Context, db r.QueryExecutor, secret string, re *r
 		match := matchRegexMultiple(re, c)
 		for _, m := range match {
 			category := &model.Category{
-				ID: m,
+				UID: m,
 			}
 
-			exists, err := category.Exists(ctx, db)
+			exists, err := category.ExistsWithUID(ctx, db)
 			if err != nil {
 				return "", &ProviderError{
 					User:   ErrInternal,
@@ -157,7 +157,6 @@ func guessCategory(ctx context.Context, db r.QueryExecutor, secret string, re *r
 				continue
 			}
 
-			// TODO: Maybe we need to add a UID field in the category table to represent the external ID of this group and make the mapping like so????
 			categories = append(categories, category)
 		}
 	}

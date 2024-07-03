@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
+	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -32,6 +32,7 @@ var _ Provider = &SAML{}
 
 type SAML struct {
 	cfg        cfg.Authentication
+	log        *zerolog.Logger
 	db         r.QueryExecutor
 	Middleware *samlsp.Middleware
 
@@ -43,30 +44,30 @@ type SAML struct {
 	ReCategory *regexp.Regexp
 }
 
-func InitSAML(cfg cfg.Authentication, db r.QueryExecutor) *SAML {
+func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *SAML {
 	remoteMetadataURL, err := url.Parse(cfg.SAML.MetadataURL)
 	if err != nil {
-		log.Fatalf("parse metadata URL: %v", err)
+		log.Fatal().Err(err).Msg("parse metadata URL")
 	}
 
 	metadata, err := samlsp.FetchMetadata(context.Background(), http.DefaultClient, *remoteMetadataURL)
 	if err != nil {
-		log.Fatalf("fetch metadata: %v", err)
+		log.Fatal().Err(err).Msg("fetch metadata")
 	}
 
 	k, err := tls.LoadX509KeyPair(cfg.SAML.CertFile, cfg.SAML.KeyFile)
 	if err != nil {
-		log.Fatalf("load key pair: %v", err)
+		log.Fatal().Err(err).Msg("load key pair")
 	}
 
 	k.Leaf, err = x509.ParseCertificate(k.Certificate[0])
 	if err != nil {
-		log.Fatalf("parse certificate: %v", err)
+		log.Fatal().Err(err).Msg("parse certificate")
 	}
 
 	baseURL, err := url.Parse(fmt.Sprintf("https://%s/authentication", cfg.Host))
 	if err != nil {
-		log.Fatalf("parse root URL: %v", err)
+		log.Fatal().Err(err).Msg("parse root URL")
 	}
 
 	url := *baseURL
@@ -95,44 +96,45 @@ func InitSAML(cfg cfg.Authentication, db r.QueryExecutor) *SAML {
 
 	s := &SAML{
 		cfg:        cfg,
+		log:        log,
 		db:         db,
 		Middleware: middleware,
 	}
 
 	re, err := regexp.Compile(cfg.SAML.RegexUID)
 	if err != nil {
-		log.Fatalf("invalid UID regex: %v", err)
+		log.Fatal().Err(err).Msg("invalid UID regex")
 	}
 	s.ReUID = re
 
 	re, err = regexp.Compile(cfg.SAML.RegexUsername)
 	if err != nil {
-		log.Fatalf("invalid username regex: %v", err)
+		log.Fatal().Err(err).Msg("invalid username regex")
 	}
 	s.ReUsername = re
 
 	re, err = regexp.Compile(cfg.SAML.RegexName)
 	if err != nil {
-		log.Fatalf("invalid name regex: %v", err)
+		log.Fatal().Err(err).Msg("invalid name regex")
 	}
 	s.ReName = re
 
 	re, err = regexp.Compile(cfg.SAML.RegexEmail)
 	if err != nil {
-		log.Fatalf("invalid email regex: %v", err)
+		log.Fatal().Err(err).Msg("invalid email regex")
 	}
 	s.ReEmail = re
 
 	re, err = regexp.Compile(cfg.SAML.RegexPhoto)
 	if err != nil {
-		log.Fatalf("invalid photo regex: %v", err)
+		log.Fatal().Err(err).Msg("invalid photo regex")
 	}
 	s.RePhoto = re
 
 	if s.cfg.SAML.GuessCategory {
 		re, err = regexp.Compile(cfg.SAML.RegexCategory)
 		if err != nil {
-			log.Fatalf("invalid category regex: %v", err)
+			log.Fatal().Err(err).Msg("invalid category regex")
 		}
 		s.ReCategory = re
 	}
@@ -175,6 +177,9 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 	}
 
 	attrs := sess.(samlsp.SessionWithAttributes).GetAttributes()
+
+	var logAttrs any = attrs
+	s.log.Debug().Any("attributes", logAttrs).Msg("recieved attributes from SAML server")
 
 	username := matchRegex(s.ReUsername, attrs.Get(s.cfg.SAML.FieldUsername))
 	name := matchRegex(s.ReName, attrs.Get(s.cfg.SAML.FieldName))

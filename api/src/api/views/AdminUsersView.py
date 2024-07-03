@@ -625,6 +625,7 @@ def api_v3_admin_category_insert(payload):
         )
 
     category = _validate_item("category", data)
+    category["uid"] = category["id"]
 
     ## Create associated Main group
     group = {

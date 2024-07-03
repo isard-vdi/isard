@@ -199,9 +199,10 @@ func TestSignCategorySelectToken(t *testing.T) {
 			Categories: []*model.Category{
 				{
 					ID:          "HolaMelina:)",
+					UID:         "HolaMelina:)",
 					Name:        "Bon dia, Melina",
 					Description: "Description test",
-					// Photo: "https://clipground.com/images/potato-emoji-clipart-9.jpg",
+					Photo:       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 				},
 			},
 			User: &types.ProviderUserData{
@@ -252,8 +253,7 @@ func TestSignCategorySelectToken(t *testing.T) {
 						map[string]any{
 							"id":    "HolaMelina:)",
 							"name":  "Bon dia, Melina",
-							"photo": "",
-							// Photo: "https://clipground.com/images/potato-emoji-clipart-9.jpg",
+							"photo": "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 						},
 					},
 					"user": map[string]any{

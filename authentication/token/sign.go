@@ -232,7 +232,7 @@ func SignCategorySelectToken(secret string, categories []*model.Category, u *typ
 		categoriesClaims = append(categoriesClaims, CategorySelectClaimsCategory{
 			ID:    c.ID,
 			Name:  c.Name,
-			Photo: "", // TODO: add category image
+			Photo: c.Photo,
 		})
 	}
 

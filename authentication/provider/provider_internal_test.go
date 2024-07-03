@@ -31,25 +31,31 @@ func TestGuessCategory(t *testing.T) {
 	}{
 		"should work as expected": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Get("categoria1")).Return([]interface{}{
+				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria1"))).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "categoria1",
+						"uid":         "categoria1",
 						"name":        "Categoria 1",
 						"description": "Descripció de categoria 1",
+						"photo":       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 					},
 				}, nil)
-				m.On(r.Table("categories").Get("categoria2")).Return([]interface{}{
+				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria2"))).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "categoria2",
+						"uid":         "categoria2",
 						"name":        "Categoria 2",
 						"description": "Descripció de categoria 2",
+						"photo":       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 					},
 				}, nil)
-				m.On(r.Table("categories").Get("categoria3")).Return([]interface{}{
+				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria3"))).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "categoria3",
+						"uid":         "categoria3",
 						"name":        "Categoria 3",
 						"description": "Descripció de categoria 3",
+						"photo":       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 					},
 				}, nil)
 			},
@@ -81,15 +87,15 @@ func TestGuessCategory(t *testing.T) {
 				assert.Equal([]token.CategorySelectClaimsCategory{{
 					ID:    "categoria1",
 					Name:  "Categoria 1",
-					Photo: "", //TODO: This!
+					Photo: "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 				}, {
 					ID:    "categoria2",
 					Name:  "Categoria 2",
-					Photo: "", //TODO: This!
+					Photo: "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 				}, {
 					ID:    "categoria3",
 					Name:  "Categoria 3",
-					Photo: "", //TODO: This!
+					Photo: "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 				}}, claims.Categories)
 			},
 			CheckUserData: func(u *types.ProviderUserData) {
@@ -107,11 +113,13 @@ func TestGuessCategory(t *testing.T) {
 		},
 		"should return the category ID if the user only belongs to a single category": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Get("categoria1")).Return([]interface{}{
+				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria1"))).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "categoria1",
+						"uid":         "categoria1",
 						"name":        "Categoria 1",
 						"description": "Descripció de categoria 1",
+						"photo":       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 					},
 				}, nil)
 			},
@@ -148,14 +156,16 @@ func TestGuessCategory(t *testing.T) {
 		},
 		"should ignore categories that don't exist in the DB": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Get("categoria1")).Return([]interface{}{
+				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria1"))).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "categoria1",
+						"uid":         "categoria1",
 						"name":        "Categoria 1",
 						"description": "Descripció de categoria 1",
+						"photo":       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 					},
 				}, nil)
-				m.On(r.Table("categories").Get("categoria2")).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria2"))).Return([]interface{}{}, nil)
 			},
 			Secret: "Nodigasna",
 			PrepareRegexp: func() *regexp.Regexp {
@@ -223,15 +233,17 @@ func TestGuessCategory(t *testing.T) {
 		},
 		"should parse the categories correctly from a single field, with multiple regex matches": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Get("categoria1")).Return([]interface{}{
+				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria1"))).Return([]interface{}{
 					map[string]interface{}{
 						"id":          "categoria1",
+						"uid":         "categoria1",
 						"name":        "Categoria 1",
 						"description": "Descripció de categoria 1",
+						"photo":       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 					},
 				}, nil)
-				m.On(r.Table("categories").Get("categoria2")).Return([]interface{}{}, nil)
-				m.On(r.Table("categories").Get("categoria3")).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria2"))).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria3"))).Return([]interface{}{}, nil)
 			},
 			Secret: "Nodigasna",
 			PrepareRegexp: func() *regexp.Regexp {
@@ -266,7 +278,7 @@ func TestGuessCategory(t *testing.T) {
 		},
 		"should return an error if there's an error checking if the category exists": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Get("categoria1")).Return([]interface{}{}, errors.New("eRRoR"))
+				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "categoria1"))).Return([]interface{}{}, errors.New("eRRoR"))
 			},
 			Secret: "Nodigasna",
 			PrepareRegexp: func() *regexp.Regexp {
