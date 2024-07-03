@@ -5,6 +5,14 @@ dir: "{{.InterfaceDir}}"
 mockname: "Mock{{.InterfaceName}}"
 outpkg: "{{.PackageName}}"
 packages:
+  gitlab.com/isard/isardvdi/authentication/authentication:
+    interfaces:
+      Interface:
+        config:
+          mockname: "Mock{{ .PackageName | camelcase }}"
+  gitlab.com/isard/isardvdi/authentication/authentication/provider:
+    interfaces:
+      Provider: {}
   gitlab.com/isard/isardvdi/sessions/sessions:
     interfaces:
       Interface:
