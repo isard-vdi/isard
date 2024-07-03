@@ -1,0 +1,14 @@
+with-expecter: true
+inpackage: true
+filename: "testing_{{.InterfaceName | snakecase}}_mock.go"
+dir: "{{.InterfaceDir}}"
+mockname: "Mock{{.InterfaceName}}"
+outpkg: "{{.PackageName}}"
+packages:
+  gitlab.com/isard/isardvdi/pkg/gen/oas/notifier:
+    interfaces:
+      Invoker: {}
+  gitlab.com/isard/isardvdi/pkg/gen/oas/authentication:
+    interfaces:
+      Invoker: {}
+      Handler: {}

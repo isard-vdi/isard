@@ -145,6 +145,7 @@ gen-protobuf:
   artifacts:
     paths:
       - pkg/gen
+      - "**/testing_*_mock.go"
 
 docker-compose-build:
   stage: generate
