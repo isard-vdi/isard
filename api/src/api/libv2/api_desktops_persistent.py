@@ -1050,6 +1050,12 @@ class ApiDesktopsPersistent:
                 db.conn
             )
 
+    def get_user_targets(self, user_id):
+        with app.app_context():
+            return list(
+                r.table("targets").get_all(user_id, index="user_id").run(db.conn)
+            )
+
 
 def check_template_status(template_id=None, template=None):
     if template_id:

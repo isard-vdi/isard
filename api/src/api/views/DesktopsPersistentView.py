@@ -511,3 +511,13 @@ def api_v3_update_desktop_bastion(payload, desktop_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/bastions", methods=["GET"])
+@has_token
+def api_v3_get_bastions(payload):
+    return (
+        json.dumps(desktops.get_user_targets(payload["user_id"])),
+        200,
+        {"Content-Type": "application/json"},
+    )

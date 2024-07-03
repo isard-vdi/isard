@@ -1933,6 +1933,7 @@ class Populate(object):
             log.info("Table targets not found, creating...")
             r.table_create("targets", primary_key="id").run(self.conn)
             r.table("targets").index_create("desktop_id").run(self.conn)
+            r.table("targets").index_create("user_id").run(self.conn)
         except Exception as e:
             log.error(e)
 

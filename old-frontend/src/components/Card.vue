@@ -257,6 +257,18 @@
             {{ desktop.ip ? `IP:  ${desktop.ip}` : '' }}
           </p>
 
+          <!-- Bastion -->
+          <p
+            v-if="desktop.type === 'persistent' && bastion"
+            v-b-tooltip="{ title: `http:${bastion.http.enabled ? bastion.http.http_port : $t('components.desktop-cards.bastion.disabled') } |
+                                   https:${bastion.http.enabled ? bastion.http.https_port : $t('components.desktop-cards.bastion.disabled') } |
+                                   ssh:${bastion.ssh.enabled ? bastion.ssh.port : $t('components.desktop-cards.bastion.disabled') }`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+            class="w-100 mb-0 card-text ml-2 cursor-pointer"
+            @click="copyToClipboard(bastion.id)"
+          >
+            {{ true ? `${$t('components.desktop-cards.bastion.title', {id: "061efdd1-fb8f-43a8-89b5-e8745fdc1732"} )}` : '' | truncate(MAX_DESCRIPTION_SIZE) }}
+          </p>
+
           <!-- Template -->
           <p
             v-if="desktop.type === 'persistent' && template"
@@ -330,6 +342,10 @@ export default {
     templates: {
       required: true,
       type: Array
+    },
+    bastions: {
+      required: false,
+      type: Array
     }
   },
   setup (_, context) {
@@ -361,11 +377,16 @@ export default {
     const notifyWaitingIp = () => {
       $store.dispatch('showNotification', { message: i18n.t('messages.info.warning-desktop-waiting-ip') })
     }
+    const copyToClipboard = (text) => {
+      navigator.clipboard.writeText(text)
+      $store.dispatch('showNotification', { message: i18n.t('forms.domain.viewers.bastion.copied') })
+    }
 
     return {
       changeDesktopStatus,
       onClickBookingDesktop,
-      notifyWaitingIp
+      notifyWaitingIp,
+      copyToClipboard
     }
   },
   data () {
@@ -465,6 +486,9 @@ export default {
     },
     template () {
       return (this.desktop.template && this.templates.filter(template => template.id === this.desktop.template)[0]) || null
+    },
+    bastion () {
+      return (this.bastions.filter(bastion => bastion.desktop_id === this.desktop.id)[0]) || null
     },
     getCardTitle () {
       return this.desktop.type === 'persistent' || (!this.desktop.state && this.desktop.type === 'nonpersistent' && this.desktopState === desktopStates.stopped) ? this.desktop.name : this.template && this.template.name

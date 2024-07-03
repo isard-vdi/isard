@@ -33,19 +33,21 @@
       <h4>
         <strong>{{ $t('forms.domain.viewers.bastion.title') }}</strong>
       </h4>
-      <b-row>
+      <div
+        v-if="bastionId"
+        class="d-flex align-items-start"
+      >
         <h5
-          v-if="bastionId"
           v-b-tooltip="{ title: `${copyTooltipText}`,
                          placement: 'top',
                          customClass: 'isard-tooltip',
                          trigger: 'hover' }"
-          class="cursor-pointer"
+          class="cursor-pointer w-fit-content"
           @click="copyToClipboard(bastionId)"
         >
           <b>ID:</b> {{ bastionId }}
         </h5>
-      </b-row>
+      </div>
       <b-row>
         <b-col
           cols="4"
@@ -68,7 +70,7 @@
             cols="4"
             xl="2"
           >
-            <label for="httpPortField">{{ $t('forms.domain.viewers.bastion.http.http_port') }}</label>
+            <label for="httpPortField">{{ $t('forms.domain.viewers.bastion.http.http-port') }}</label>
           </b-col>
           <b-col
             cols="6"
@@ -91,7 +93,7 @@
             cols="4"
             xl="2"
           >
-            <label for="httpPortField">{{ $t('forms.domain.viewers.bastion.http.https_port') }}</label>
+            <label for="httpPortField">{{ $t('forms.domain.viewers.bastion.http.https-port') }}</label>
           </b-col>
           <b-col
             cols="6"
@@ -156,7 +158,7 @@
             <label
               for="sshAuthorizedKeysField"
               class="mb-0"
-            >{{ $t('forms.domain.viewers.bastion.ssh.authorized_keys') }}</label>
+            >{{ $t('forms.domain.viewers.bastion.ssh.authorized-keys') }}</label>
           </b-col>
           <b-col
             cols="6"
@@ -179,6 +181,7 @@
 
 <script>
 import { computed, watch, ref } from '@vue/composition-api'
+import i18n from '@/i18n'
 
 export default {
   setup (props, context) {
@@ -228,14 +231,14 @@ export default {
     const httpPort = computed({
       get: () => $store.getters.getBastion.http.http_port,
       set: (value) => {
-        bastionData.value.http.port = value
+        bastionData.value.http.http_port = value
         $store.commit('setBastion', bastionData.value)
       }
     })
     const httpsPort = computed({
       get: () => $store.getters.getBastion.http.https_port,
       set: (value) => {
-        bastionData.value.http.port = value
+        bastionData.value.http.https_port = value
         $store.commit('setBastion', bastionData.value)
       }
     })
@@ -255,14 +258,13 @@ export default {
         $store.commit('setBastion', bastionData.value)
       }
     })
-    const copyTooltipText = ref('Copy to clipboard')
+    const copyTooltipText = ref(i18n.t('forms.domain.viewers.bastion.copy'))
     const copyToClipboard = (text) => {
-      $store.dispatch('showNotification', { message: 'copied to clipboard' })
       navigator.clipboard.writeText(text)
-      copyTooltipText.value = 'Copied!'
+      copyTooltipText.value = i18n.t('forms.domain.viewers.bastion.copied')
       setTimeout(() => {
-        copyTooltipText.value = 'Copy to clipboard'
-      }, 500)
+        copyTooltipText.value = i18n.t('forms.domain.viewers.bastion.copy')
+      }, 750)
     }
 
     return {

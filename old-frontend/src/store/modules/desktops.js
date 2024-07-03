@@ -48,7 +48,8 @@ const getDefaultState = () => {
       item: {
         id: ''
       }
-    }
+    },
+    bastions: []
   }
 }
 
@@ -101,6 +102,9 @@ export default {
     },
     getDesktopModal: state => {
       return state.desktopModal
+    },
+    getBastions: state => {
+      return state.bastions
     }
   },
   mutations: {
@@ -180,6 +184,9 @@ export default {
     },
     setDesktopModal: (state, desktopModal) => {
       state.desktopModal = desktopModal
+    },
+    setBastions: (state, bastions) => {
+      state.bastions = bastions
     }
   },
   actions: {
@@ -462,6 +469,13 @@ export default {
     },
     recreateDesktop (context, data) {
       axios.post(`${apiV3Segment}/domain/${data.id}/recreate_disk`).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    fetchBastions (context) {
+      axios.get(`${apiV3Segment}/bastions`).then(response => {
+        context.commit('setBastions', response.data)
+      }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     }

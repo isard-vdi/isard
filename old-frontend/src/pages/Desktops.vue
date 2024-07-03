@@ -37,6 +37,7 @@
           <card-list
             :templates="getTemplates"
             :desktops="filteredPersistentDesktops"
+            :bastions="getBastions"
             :persistent="true"
             :loading="!getDesktopsLoaded"
           />
@@ -131,6 +132,7 @@ export default {
     }, { immediate: true })
 
     $store.dispatch('fetchDesktops')
+    $store.dispatch('fetchBastions')
     $store.dispatch('fetchProfile')
 
     const currentTab = computed(() => $store.getters.getCurrentTab)
@@ -161,6 +163,7 @@ export default {
     ...mapGetters([
       'getTemplates',
       'getDesktops',
+      'getBastions',
       'getTemplatesLoaded',
       'getDesktopsLoaded',
       'getViewType'

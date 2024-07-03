@@ -163,14 +163,16 @@
                     "title": "Bastion options",
                     "http": {
                         "checkbox": "HTTP",
-                        "http_port": "HTTP port",
-                        "https_port": "HTTPS port"
+                        "http-port": "HTTP port",
+                        "https-port": "HTTPS port"
                     },
                     "ssh": {
                         "checkbox": "SSH",
                         "port": "SSH port",
-                        "authorized_keys": "Authorized keys (one per line)"
-                    }
+                        "authorized-keys": "Authorized keys (one per line)"
+                    },
+                    "copy": "Copy to clipboard",
+                    "copied": "Copied!"
                 }
             },
             "hardware": {
@@ -367,7 +369,11 @@
                 "virt_win_reg": "The registry is being edited",
                 "move": "This desktop's disk is being moved"
             },
-            "queue": "Position in queue: {position}"
+            "queue": "Position in queue: {position}",
+            "bastion": {
+                "title": "Bastion: {id}",
+                "disabled": "disabled"
+            }
         },
         "deployment-desktop-list": {
             "actions": {

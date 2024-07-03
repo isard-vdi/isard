@@ -134,7 +134,11 @@
         "recreate": "Recrear"
       },
       "filter-label": "Filtre",
-      "queue": "Posició a la cua: {position}"
+      "queue": "Posició a la cua: {position}",
+      "bastion": {
+        "title": "Bastió: {id}",
+        "disabled": "desactivat"
+      }
     },
     "deployment-desktop-list": {
       "actions": {
@@ -1151,14 +1155,16 @@
           "title": "Opcions de bastió",
           "http": {
             "checkbox": "HTTP",
-            "http_port": "Port HTTP",
-            "https_port": "Port HTTPS"
+            "http-port": "Port HTTP",
+            "https-port": "Port HTTPS"
           },
           "ssh": {
             "checkbox": "SSH",
             "port": "Port SSH",
-            "authorized_keys": "Claus autoritzades (una per línia)"
-          }
+            "authorized-keys": "Claus autoritzades (una per línia)"
+          },
+          "copy": "Copiar al porta-retalls",
+          "copied": "Copiat!"
         }
       },
       "hardware": {

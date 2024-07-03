@@ -163,14 +163,16 @@
           "title": "Opciones de bastión",
           "http": {
             "checkbox": "HTTP",
-            "http_port": "Puerto HTTP",
-            "https_port": "Puerto HTTPS"
+            "http-port": "Puerto HTTP",
+            "https-port": "Puerto HTTPS"
           },
           "ssh": {
             "checkbox": "SSH",
             "port": "Puerto SSH",
-            "authorized_keys": "Claves autorizadas (una por línea)"
-          }
+            "authorized-keys": "Claves autorizadas (una por línea)"
+          },
+          "copy": "Copiar al portapapeles",
+          "copied": "Copiado!"
         }
       },
       "hardware": {
@@ -367,7 +369,11 @@
         "move": "El disco de este escritorio se está moviendo"
       },
       "filter-label": "Filtrar",
-      "queue": "Posición en la cola: {position}"
+      "queue": "Posición en la cola: {position}",
+      "bastion": {
+        "title": "Bastión: {id}",
+        "disabled": "deshabilitado"
+      }
     },
     "deployment-desktop-list": {
       "actions": {
