@@ -108,89 +108,10 @@
         }
     </style>
 
-    <script src="../spice-web-client/lib/modernizr.js"></script>
-    <script src="../spice-web-client/lib/jquery-2.0.3.js"></script>
-    <script src="../spice-web-client/lib/jquery-mousewheel.js"></script>
-    <script src="../spice-web-client/lib/jgestures.min.js"></script>
-    <script src="../spice-web-client/lib/pixastic.js"></script>
-    <script src="../spice-web-client/lib/base64.js"></script>
-    <script src="../spice-web-client/lib/biginteger.js"></script>
-    <script src="../spice-web-client/lib/virtualjoystick.js"></script>
-    <script src="../spice-web-client/lib/prettyprint.js"></script>
-    <script src="../spice-web-client/lib/jsbn.js"></script>
-    <script src="../spice-web-client/lib/jsbn2.js"></script>
-    <script src="../spice-web-client/lib/prng4.js"></script>
-    <script src="../spice-web-client/lib/rng.js"></script>
-    <script src="../spice-web-client/lib/sha1.js"></script>
-    <script src="../spice-web-client/lib/encrypt.js"></script>
-    <script src="../spice-web-client/swcanvas/swcanvas.js"></script>
-    <script src="../spice-web-client/lib/bowser.js"></script>
-    <script src="../spice-web-client/lib/utils.js"></script>
-    <script src="../spice-web-client/lib/flipper.js"></script>
-    <script src="../spice-web-client/lib/CollisionDetector.js"></script>
-    <script src="../spice-web-client/lib/GlobalPool.js"></script>
-    <script src="../spice-web-client/lib/GenericObjectPool.js"></script>
-    <script src="../spice-web-client/lib/AsyncConsumer.js"></script>
-    <script src="../spice-web-client/lib/AsyncWorker.js"></script>
-    <script src="../spice-web-client/lib/PacketWorkerIdentifier.js"></script>
-    <script src="../spice-web-client/spiceobjects/spiceobjects.js"></script>
-    <script src="../spice-web-client/spiceobjects/generated/protocol.js"></script>
-    <script src="../spice-web-client/lib/graphicdebug.js"></script>
-    <script src="../spice-web-client/lib/images/lz.js"></script>
-    <script src="../spice-web-client/lib/images/bitmap.js"></script>
-    <script src="../spice-web-client/lib/images/png.js"></script>
-    <script src="../spice-web-client/lib/runqueue.js"></script>
-    <script src="../spice-web-client/lib/graphic.js"></script>
-    <script src="../spice-web-client/lib/queue.js"></script>
-    <script src="../spice-web-client/lib/ImageUncompressor.js"></script>
-    <script src="../spice-web-client/lib/SyncAsyncHandler.js"></script>
-    <script src="../spice-web-client/lib/IntegrationBenchmark.js"></script>
-    <script src="../spice-web-client/lib/stuckkeyshandler.js"></script>
-    <script src="../spice-web-client/lib/timelapsedetector.js"></script>
-    <script src="../spice-web-client/lib/displayRouter.js"></script>
-    <script src="../spice-web-client/lib/rasterEngine.js"></script>
-    <script src="../spice-web-client/lib/DataLogger.js"></script>
-    <script src="../spice-web-client/network/socket.js"></script>
-    <script src="../spice-web-client/network/clusternodechooser.js"></script>
-    <script src="../spice-web-client/network/socketqueue.js"></script>
-    <script src="../spice-web-client/network/packetcontroller.js"></script>
-    <script src="../spice-web-client/network/packetextractor.js"></script>
-    <script src="../spice-web-client/network/packetreassembler.js"></script>
-    <script src="../spice-web-client/network/reassemblerfactory.js"></script>
-    <script src="../spice-web-client/network/sizedefiner.js"></script>
-    <script src="../spice-web-client/network/packetlinkfactory.js"></script>
-    <script src="../spice-web-client/network/spicechannel.js"></script>
-    <script src="../spice-web-client/network/busconnection.js"></script>
-    <script src="../spice-web-client/network/websocketwrapper.js"></script>
-    <script src="../spice-web-client/network/connectioncontrol.js"></script>
-    <script src="../spice-web-client/application/agent.js"></script>
-    <script src="../spice-web-client/application/spiceconnection.js"></script>
-    <script src="../spice-web-client/application/clientgui.js"></script>
-    <script src="../spice-web-client/application/packetprocess.js"></script>
-    <script src="../spice-web-client/application/packetfilter.js"></script>
-    <script src="../spice-web-client/application/packetfactory.js"></script>
-    <script src="../spice-web-client/application/application.js"></script>
-    <script src="../spice-web-client/application/virtualmouse.js"></script>
-    <script src="../spice-web-client/application/imagecache.js"></script>
-    <script src="../spice-web-client/application/rasteroperation.js"></script>
-    <script src="../spice-web-client/application/stream.js"></script>
-    <script src="../spice-web-client/application/inputmanager.js"></script>
-    <script src="../spice-web-client/process/busprocess.js"></script>
-    <script src="../spice-web-client/process/displayprocess.js"></script>
-    <script src="../spice-web-client/process/displaypreprocess.js"></script>
-    <script src="../spice-web-client/process/inputprocess.js"></script>
-    <script src="../spice-web-client/process/cursorprocess.js"></script>
-    <script src="../spice-web-client/process/playbackprocess.js"></script>
-    <script src="../spice-web-client/process/mainprocess.js"></script>
-    <script src="../spice-web-client/keymaps/keymapes.js"></script>
-    <script src="../spice-web-client/keymaps/keymapit.js"></script>
-    <script src="../spice-web-client/keymaps/keymapus.js"></script>
-    <script src="../spice-web-client/keymaps/keymap.js"></script>
-    <script src="../spice-web-client/application/WorkerProcess.js"></script>
-
     <script type="module" crossorigin="anonymous">
         // RFB holds the API to connect and communicate with a VNC server
         import RFB from './src/core/rfb.js';
+        import { Client as SpiceClient } from '../spice-ts/spice-ts.js';
 
         let rfb;
         let desktopName;
@@ -296,7 +217,7 @@
 
         const url = new URL(window.location.href)
 
-        function getCookie (cookieName) {
+        function getCookie(cookieName) {
             const cookiesArray = document.cookie.split('; ')
 
             for (let i = 0; i < cookiesArray.length; i++) {
@@ -305,7 +226,7 @@
                 const name = cookieParts[0].trim()
                 const value = cookieParts[1]
                 if (name === cookieName) {
-                return decodeURIComponent(value)
+                    return decodeURIComponent(value)
                 }
             }
 
@@ -325,10 +246,11 @@
                 }
             }
             var match = document.cookie.match(new RegExp('(^| )browser_viewer=([^;]+)'));
-            return JSON.parse(atob(decodeURIComponent(match[2])))['web_viewer'];
             if (!match) {
                 return false
             }
+
+            return JSON.parse(atob(decodeURIComponent(match[2])))['web_viewer'];
         }
 
         let webViewer = getWebViewer()
@@ -343,36 +265,11 @@
             return webViewer[name] ? webViewer[name] : false
         }
 
-        function resize() {
-            let app = new Application();
+        function resize(client) {
+            let height = document.getElementById("screen").offsetHeight
+            let width = document.getElementById("screen").offsetWidth
 
-            let f = (action, params) => {
-                if (action === 'ready') {
-                    app.sendCommand('setResolution', {
-                        'width': document.getElementById("screen").offsetWidth,
-                        'height': document.getElementById("screen").offsetHeight
-                    });
-                    app.dispose();
-                }
-            }
-
-            app.run({
-                'callback': f,
-                'protocol': 'wss',
-                'host': getParameter('host') || readQueryVariable('host', window.location.hostname),
-                'port': getParameter('port') || '443',
-                'desktopName': decodeURI(getParameter('vmName')) || decodeURI(readQueryVariable('vmName')),
-                'vmHost': getParameter('vmHost') || readQueryVariable('vmHost'),
-                'vmPort': (
-                    (getParameter('vmPort') || readQueryVariable('vmPort')) - 2 // TODO: MANUAL PORTS COUNT, -2 the spice (no TLS) port is two ports less than the vnc
-                    + '/' + securityToken // This is really ugly, but it's a simple way to pass the token without changing the spice code
-                ),
-                'token': getParameter('token') || readQueryVariable('passwd'),
-                'clientOffset': {
-                    'x': 0,
-                    'y': 0
-                },
-            });
+            client.resize(height, width)
         }
 
         // taken from https://ankitbko.github.io/blog/2022/06/websocket-latency/
@@ -456,12 +353,17 @@
 
         status("Connecting");
 
-        resize()
-
         connQuality(host, port)
 
         // Build the websocket URL used to connect
         let wsURL = 'wss://' + host + port + '/' + vmHost + '/' + vmPort + '/' + securityToken
+        let spiceWsURL = 'wss://' + host + port + '/' + vmHost + '/' + (vmPort - 2) + '/' + securityToken
+
+        // Create the spice client for resize
+        let spiceClient = new SpiceClient(spiceWsURL, password, "EMPTYCANVAS", function(client) {
+            resize(client)
+        })
+        spiceClient.run()
 
         // Creating a new RFB object will start a new connection
         rfb = new RFB(document.getElementById('screen'), wsURL,
@@ -480,7 +382,9 @@
         let resizeTimeout;
         window.addEventListener('resize', (e) => {
             clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(resize, 500);
+            resizeTimeout = setTimeout(() => {
+                resize(spiceClient)
+            }, 200);
         });
     </script>
 </head>
