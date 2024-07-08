@@ -31,9 +31,7 @@ const getDefaultState = () => {
       owner: {},
       coOwners: []
     },
-    permissions: [
-      'recreate'
-    ]
+    permissions: []
   }
 }
 
