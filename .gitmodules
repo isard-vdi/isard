@@ -5,3 +5,4 @@
 [submodule "docker/static/spice-ts"]
 	path = docker/static/spice-ts
 	url = https://gitlab.com/nefix/spice-ts
+	branch = "main"
