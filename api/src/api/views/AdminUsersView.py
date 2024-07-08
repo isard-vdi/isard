@@ -173,7 +173,7 @@ def api_v3_admin_user_csv(payload):
 
 @app.route("/api/v3/admin/user/<user_id>", methods=["PUT"])
 @app.route("/api/v3/admin/users/bulk", methods=["PUT"])
-@has_token
+@is_admin_or_manager
 def api_v3_admin_user_update(payload, user_id=None):
     try:
         data = request.get_json()
@@ -219,6 +219,28 @@ def api_v3_admin_user_update(payload, user_id=None):
 
     if "quota" in data:
         data = _validate_item("user_update_quota", data)
+        if payload["role_id"] != "admin":
+            category_quota = quotas.GetCategoryQuota(payload["category_id"])["quota"]
+            if category_quota != False:
+                for k, v in category_quota.items():
+                    if (
+                        data.get("quota")
+                        and data.get("quota").get(k)
+                        and v < data.get("quota")[k]
+                    ):
+                        raise Error(
+                            "precondition_required",
+                            "Can't update "
+                            + user["name"]
+                            + " "
+                            + k
+                            + " quota value with a higher value than its category quota,  "
+                            + k
+                            + " must be equal or lower than "
+                            + str(v),
+                            traceback.format_exc(),
+                        )
+
     else:
         data = _validate_item("user_update", data)
 
