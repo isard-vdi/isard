@@ -5,6 +5,7 @@ export HYPER_ID
 export VIEWER_BROWSER
 export VIEWER_SPICE
 export BLACKLIST_IPTABLES
+export WHITELIST_IPTABLES
 
 # Will remove hyper on docker shutdown
 remove_hyper()
@@ -90,6 +91,15 @@ iptables -I FORWARD -o eth0 -d $(ip -o -4 addr show dev eth0 | awk '{print $4}')
 iptables -A INPUT -s 192.168.120.0/22  -d $DOCKER_NET.17 -j REJECT --reject-with icmp-port-unreachable
 # Block traffic from guests shared network to hypervisor itself
 iptables -A INPUT -s 192.168.124.0/22  -d $DOCKER_NET.17 -j REJECT --reject-with icmp-port-unreachable
+
+echo "---> Applying custom WHITELIST_IPTABLES rules"
+WHITELIST_IPTABLES=$(echo $WHITELIST_IPTABLES | tr "," " ")
+for WHITELIST_IPTABLES in $WHITELIST_IPTABLES
+do
+   echo "$WHITELIST_IPTABLES"
+   iptables -I FORWARD -s "$WHITELIST_IPTABLES" -o eth0 -j ACCEPT
+   iptables -I FORWARD -d "$WHITELIST_IPTABLES" -o eth0 -j ACCEPT
+done
 
 python3 /src/lib/check-cert.py &
 
