@@ -60,7 +60,7 @@ $(document).ready(function () {
     }
     $.ajax({
         type: "GET",
-        url: "/api/v3/maintenance",
+        url: "/api/v3/maintenance/status",
         accept: "application/json",
     }).done((data) => {
         maintenance_update_checkbox(data);
