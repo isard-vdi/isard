@@ -255,7 +255,6 @@ export default {
       selectedGroups,
       usersChecked,
       selectedUsers,
-      // userPermissions,
       v$,
       submitForm,
       navigate,

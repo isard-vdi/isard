@@ -246,8 +246,7 @@
             "profile": "Perfil",
             "media": "Medios",
             "viewers": "Visores",
-            "storage": "Almacenamiento",
-            "monitor": "Monitorización"
+            "storage": "Almacenamiento"
         },
         "statusbar": {
             "desktops-started": "Escritorios arrancados",

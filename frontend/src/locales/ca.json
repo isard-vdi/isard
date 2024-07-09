@@ -29,8 +29,7 @@
             "profile": "Perfil",
             "media": "Mitjans",
             "viewers": "Visors",
-            "storage": "Emmagatzematge",
-            "monitor": "Monitoratge"
+            "storage": "Emmagatzematge"
         },
         "statusbar": {
             "desktops-started": "Escriptoris iniciats",
