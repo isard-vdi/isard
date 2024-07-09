@@ -1,4 +1,4 @@
-version: '3.5'
+version: "3.5"
 services:
   isard-hypervisor:
     container_name: isard-hypervisor
@@ -35,3 +35,4 @@ services:
       VIEWER_BROWSER:
       DOCKER_NET: ${DOCKER_NET:-172.31.255}
       BLACKLIST_IPTABLES: ${BLACKLIST_IPTABLES:-10.10.10.0/24}
+      WHITELIST_IPTABLES: ${WHITELIST_IPTABLES}
