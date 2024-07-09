@@ -16,6 +16,8 @@ cat << EOF > /etc/grafana/provisioning/jwks.json
 }
 EOF
 
+grafana-cli admin reset-admin-password $WEBAPP_ADMIN_PWD
+
 if [[ -x "/custom/entrypoint.sh" ]]; then
     /custom/entrypoint.sh
 fi
