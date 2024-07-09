@@ -79,7 +79,7 @@ elif [ "$1" == "execute-now" ]; then
         mount_nfs
         rm /dbdump/isard-db*.tar.gz
         nice -n 0 \
-        /usr/bin/rethinkdb-dump -c "isard-db:28015" -f "/dbdump/isard-db-$(date +%Y-%m-%d_%H:%M:%S).tar.gz"
+        /usr/bin/rethinkdb-dump -c "${RETHINKDB_HOST}:${RETHINKDB_PORT}" -f "/dbdump/isard-db-$(date +%Y-%m-%d_%H:%M:%S).tar.gz"
 
         nice -n 0 \
         borg create --stats --compression lz4  \
