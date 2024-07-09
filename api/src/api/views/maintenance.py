@@ -27,14 +27,27 @@ from api import app
 
 from ..libv2.maintenance import Maintenance
 from ..libv2.validators import _validate_item
-from .decorators import is_admin, maintenance
+from .decorators import get_category_maintenance, has_token, is_admin, maintenance
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=5))
+@app.route("/api/v3/maintenance/status", methods=["GET"])
+def _api_maintenance_get_status():
+    return (
+        json.dumps(Maintenance.enabled),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=5))
 @app.route("/api/v3/maintenance", methods=["GET"])
-def _api_maintenance_get():
+@has_token
+def _api_maintenance_get(payload):
+    status = Maintenance.enabled
+    category_status = get_category_maintenance(payload["category_id"])
     return (
-        json.dumps(Maintenance.enabled),
+        json.dumps(status or category_status),
         200,
         {"Content-Type": "application/json"},
     )
