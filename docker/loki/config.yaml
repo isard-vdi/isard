@@ -29,22 +29,31 @@ schema_config:
       index:
         prefix: index_
         period: 24h
+    - from: 2024-07-09
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
 
 ruler:
   alertmanager_url: http://localhost:9093
 
 compactor:
   working_directory: /data/retention
-  shared_store: filesystem
   compaction_interval: 10m
   retention_enabled: true
   retention_delete_delay: 2h
   retention_delete_worker_count: 150
+  delete_request_store: filesystem
 
 storage_config:
   boltdb_shipper:
     active_index_directory: /data/index
     cache_location: /data/boltdb-cache
-    shared_store: filesystem
+  tsdb_shipper:
+    active_index_directory: /data/index
+    cache_location: /data/index_cache
   filesystem:
     directory: /data/saved

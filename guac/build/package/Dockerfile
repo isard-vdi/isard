@@ -27,6 +27,8 @@ RUN CGO_ENABLED=0 go build -o bin/guac cmd/guac/guac.go
 #
 FROM ${GOLANG_RUN_IMAGE}
 
+RUN apk -U upgrade --no-cache
+
 COPY --from=build /build/guac/bin/guac /guac
 
 CMD [ "/guac" ]

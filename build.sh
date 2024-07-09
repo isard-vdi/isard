@@ -449,7 +449,7 @@ generate_code(){
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
 		docker pull $DOCKER_IMAGE
 		docker build -t "$DOCKER_IMAGE" -f ./docker/codegen/Dockerfile .
-		docker run -u $(id -u) -v "$(pwd):/build" "$DOCKER_IMAGE"
+		docker run --rm -u $(id -u) -v "$(pwd):/build" "$DOCKER_IMAGE"
 		echo "Generated the code successfully"
 		;;
 	*)
