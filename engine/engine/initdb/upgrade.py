@@ -4439,6 +4439,14 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
             except Exception as e:
                 print(e)
 
+        if version == 138:
+            try:
+                r.db("isard").table("storage").filter(
+                    lambda storage: storage.has_fields("status").not_()
+                ).delete().run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
