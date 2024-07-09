@@ -18,6 +18,7 @@ from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
 from api import app
 
 MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024
+from api import socketio
 
 from ..libv2.api_admin import ApiAdmin
 from ..libv2.api_storage import (
@@ -32,9 +33,11 @@ from ..libv2.quotas import Quotas
 
 quotas = Quotas()
 from .decorators import (
+    canPerformActionDeployment,
     has_token,
     is_admin,
     is_admin_or_manager,
+    is_not_user,
     ownsDomainId,
     ownsStorageId,
 )
@@ -453,7 +456,7 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
     try:
         storage.create_task(
             user_id=storage.user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=storage.directory_path).id}.priority",
+            queue=f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=storage.directory_path).id}.{priority}",
             task="virt_win_reg",
             job_kwargs={
                 "kwargs": {
@@ -1005,7 +1008,7 @@ def storage_update_by_status(payload, status):
     "/api/v3/storage/<path:storage_id>/priority/<priority>/increase/<int:increment>",
     methods=["PUT"],
 )
-@has_token
+@is_not_user
 def storage_increase_size(payload, storage_id, increment, priority="low"):
     storage = Storage(storage_id)
     if not storage.user_id:
@@ -1034,6 +1037,7 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
         raise Error(
             "precondition_required",
             "Unable to increase size of storage with derivatives",
+            description_code="storage_has_derivatives",
         )
     if not _check_domains_status(storage_id):
         raise Error(
@@ -1044,6 +1048,17 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
 
     set_desktops_maintenance(payload, storage_id, "increase")
     set_storage_maintenance(payload, storage_id)
+
+    socketio.emit(
+        "update_storage",
+        {
+            "id": storage.id,
+            "status": storage.status,
+            "size": getattr(storage, "qemu-img-info")["virtual-size"],
+        },
+        namespace="/userspace",
+        room=storage.user_id,
+    )
 
     try:
         storage.create_task(
@@ -1085,6 +1100,18 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
                                     }
                                 }
                             },
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "send_storage_socket_user",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "event": "update_storage",
+                                            "storage_id": storage.id,
+                                        }
+                                    },
+                                },
+                            ],
                         },
                         {
                             "queue": "core",
@@ -1128,3 +1155,279 @@ def storage_check_stopped_desktops(payload, storage_id):
 @is_admin_or_manager
 def storage_check_storage_derivatives(payload, storage_id):
     return jsonify({"derivatives": len(get_storage_derivatives(storage_id))}), 200
+
+
+@app.route("/api/v3/storage/<path:storage_id>/abort_operations", methods=["PUT"])
+@has_token
+def storage_abort(payload, storage_id):
+    storage = Storage(storage_id)
+    ownsStorageId(payload, storage_id)
+    storage_domains = get_storage_derivatives(storage_id)
+    storage_pool = StoragePool.get_best_for_action("abort")
+    try:
+        storage.create_task(
+            user_id=storage.user_id,
+            queue="core",
+            task="delete_task",
+            blocking=False,
+            job_kwargs={
+                "kwargs": {
+                    "task_id": storage.task,
+                }
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "finished": {
+                                    "Failed": {
+                                        "domain": storage_domains,
+                                    },
+                                },
+                            }
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": f"storage.{storage_pool.id}.default",
+                            "task": "qemu_img_info_backing_chain",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "storage_id": storage.id,
+                                    "storage_path": storage.path,
+                                }
+                            },
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "storage_update",
+                                    "dependents": [
+                                        {
+                                            "queue": "core",
+                                            "task": "update_status",
+                                            "job_kwargs": {
+                                                "kwargs": {
+                                                    "statuses": {
+                                                        "finished": {
+                                                            "StartingPaused": {
+                                                                "domain": storage_domains,
+                                                            },
+                                                            "ready": {
+                                                                "storage": [storage.id],
+                                                            },
+                                                        },
+                                                    }
+                                                }
+                                            },
+                                            "dependents": [
+                                                {
+                                                    "queue": f"storage.{StoragePool.get_best_for_action('resize').id}.default",
+                                                    "task": "send_socket_user",
+                                                    "job_kwargs": {
+                                                        "kwargs": {
+                                                            "event": "update_storage",
+                                                            "data": {
+                                                                "id": storage.id,
+                                                                "status": storage.status,
+                                                                "size": getattr(
+                                                                    storage,
+                                                                    "qemu-img-info",
+                                                                )["virtual-size"],
+                                                            },
+                                                            "user": storage.user_id,
+                                                        }
+                                                    },
+                                                }
+                                            ],
+                                        },
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                },
+            ],
+        )
+    except Exception as e:
+        raise Error(
+            "internal_server_error",
+            "Error aborting storage operation",
+        )
+    return jsonify(storage.task)
+
+
+@app.route("/api/v3/storage/<storage_id>/recreate", methods=["POST"])
+@app.route("/api/v3/domain/<domain_id>/recreate_disk", methods=["POST"])
+@has_token
+def storage_recreate_disk(payload, storage_id=None, domain_id=None):
+    """
+    Endpoint to recreate a storage with the same specifications and parent.
+
+    Storage specifications in JSON:
+    {
+        "user_id": "User ID",
+        "priority": "low, default or high",
+    }
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :param domain_id: Domain ID
+    :type domain_id: str
+    :return: Storage ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    if domain_id:
+        canPerformActionDeployment(payload, domain_id, "recreate")
+        storage_id = admins.get_domain_storage(domain_id)[0]["id"]
+
+    ownsStorageId(payload, storage_id)
+
+    set_desktops_maintenance(payload, storage_id, "recreate")
+    storage_orig = set_storage_maintenance(payload, storage_id)
+
+    if request.is_json:
+        request_json = request.get_json()
+    else:
+        request_json = {}
+
+    priority = request_json.get("priority", "default")
+    if payload["role_id"] != "admin":
+        priority = "low"
+    else:
+        if priority not in ["low", "default", "high"]:
+            raise Error(
+                error="bad_request",
+                description=f"Priority must be low, default or high",
+            )
+
+    if storage_orig.parent:
+        if not Storage.exists(storage_orig.parent):
+            raise Error(error="not_found", description="Parent storage not found")
+        parent = Storage(storage_orig.parent)
+        if not parent.user_id:
+            raise Error("not_found", description_code="storage_not_found")
+        if parent.status != "ready":
+            raise Error(
+                error="precondition_required",
+                description="Storage not ready",
+                description_code="storage_not_ready",
+            )
+
+        parent_args = {
+            "parent_path": parent.path,
+            "parent_type": parent.type,
+        }
+
+    if parent:
+        storage_pool = StoragePool.get_best_for_action("create", parent.directory_path)
+    else:
+        if request.get_json().get("user_id"):
+            storage_pool = StoragePool.get_by_user_kind(
+                request.get_json().get("user_id"),
+                storage_orig.type,
+            )
+
+        else:
+            storage_pool = StoragePool.get_best_for_action("create")
+
+    status_logs = storage_orig.status_logs
+    status_logs.append(
+        {"time": int(time.time()), "status": f"recreated from {storage_id}"}
+    )
+
+    storage = Storage(
+        status=storage_orig.status,
+        user_id=storage_orig.user_id,
+        type=storage_orig.type,
+        parent=storage_orig.parent,
+        directory_path=storage_orig.directory_path,
+        status_logs=status_logs,
+        perms=storage_orig.perms,
+    )
+
+    try:
+        storage_orig.create_task(
+            user_id=storage.user_id,
+            queue=f"storage.{storage_pool.id}.{priority}",
+            task="recreate",
+            job_kwargs={
+                "kwargs": {
+                    "original_path": storage_orig.path,
+                    "storage_path": storage.path,
+                    "storage_type": storage.type,
+                    **parent_args,
+                },
+            },
+            dependents=[
+                {
+                    "queue": f"storage.{storage_pool.id}.default",
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": storage.id,
+                            "storage_path": storage.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "update_status",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "statuses": {
+                                                "finished": (
+                                                    {
+                                                        "ready": {
+                                                            "storage": [storage.id],
+                                                        },
+                                                        "Stopped": {
+                                                            "domain": [domain_id],
+                                                        },
+                                                    }
+                                                    if domain_id
+                                                    else {
+                                                        "ready": {
+                                                            "storage": [storage.id],
+                                                        },
+                                                    }
+                                                ),
+                                            },
+                                        },
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                },
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error creating storage",
+        )
+
+    return (
+        json.dumps(
+            {
+                "old_id": storage_id,
+                "new_id": storage.id,
+            }
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )

@@ -26,3 +26,5 @@ guest_properties:
   schema: guest_properties_update
 image:
   schema: image_update
+user_permissions:
+  type: list

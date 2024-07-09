@@ -1,8 +1,10 @@
 import json
 import logging as log
 
+import requests
 from flask import request
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.api_rest import ApiRest
 
 from api import app
 
@@ -13,6 +15,8 @@ from ..decorators import checkDuplicate, has_token, is_admin
 
 api_ri = Reservables()
 api_rp = ReservablesPlanner()
+
+notifier_client = ApiRest("isard-notifier")
 
 #### Endpoints for resources that are reservable
 
@@ -46,28 +50,61 @@ def api_v3_reservable_types(payload, reservable_type):
 # Gets list of subitems available in this item_id (profiles) [{"id","profile","units"}]
 @app.route("/api/v3/admin/reservables/<reservable_type>/<item_id>", methods=["GET"])
 @app.route(
+    "/api/v3/admin/reservables/enable/<reservable_type>/<item_id>/<subitem_id>/notify_user",
+    methods=["PUT"],
+)
+@app.route(
     "/api/v3/admin/reservables/enable/<reservable_type>/<item_id>/<subitem_id>",
     methods=["PUT"],
 )
 @is_admin
-def api_v3_reservable_items(payload, reservable_type, item_id, subitem_id=None):
+def api_v3_reservable_items(
+    payload, reservable_type, item_id, subitem_id=None, notify_user=False
+):
     if request.method == "PUT":
         data = request.get_json()
-        if reservable_type == "gpus":
-            if data.get("enabled") == False:
-                desktops_ids = (
-                    [desktop["id"] for desktop in data["desktops"]]
-                    if data.get("desktops")
-                    else None
-                )
-                if desktops_ids:
-                    api_ri.deassign_desktops_with_gpu(
-                        reservable_type, subitem_id, desktops_ids
-                    )
-                if data.get("plans"):
-                    for plan in data.get("plans"):
-                        api_rp.delete_plan(plan["id"])
+        if "notify_user" in request.url:
+            notify_user = True
+        if data.get("enabled") == False:
+            api_rp.delete_subitem(reservable_type, item_id, subitem_id)
 
+            if notify_user:
+                users_items = api_rp.get_item_users(
+                    reservable_type, item_id, [], subitem_id
+                )
+                for user_items in users_items:
+                    try:
+                        data = {
+                            "text": "",
+                            "user_id": user_items["user_id"],
+                            "bookings": [
+                                {
+                                    "start": str(booking["start"]),
+                                    "end": str(booking["end"]),
+                                    "title": str(booking["title"]),
+                                }
+                                for booking in user_items["bookings"]
+                            ],
+                            "desktops": [
+                                {"name": str(desktop["name"])}
+                                for desktop in user_items["desktops"]
+                            ],
+                            "deployments": [
+                                {"name": str(deployment["tag_name"])}
+                                for deployment in user_items["deployments"]
+                            ],
+                        }
+                        notifier_client.post("/mail/deleted-gpu", data)
+                    except:
+                        raise Error(
+                            "internal_server",
+                            (
+                                "Exception when sending verification email to user "
+                                + user_items.get("user_id")
+                                if user_items
+                                else ""
+                            ),
+                        )
         return (
             json.dumps(
                 api_ri.enable_subitems(
@@ -95,20 +132,93 @@ def api_v3_reservable_items_enabled(payload, reservable_type, item_id):
     methods=["GET"],
 )
 @is_admin
-def api_v3_reservable_check_last(payload, reservable_type, subitem_id, item_id):
-    data = {}
-
-    if get_subitems_planning([subitem_id], item_id=item_id, now=True):
-        raise Error(
-            "bad_request",
-            description="There's currently an ongoing plan with this GPU profile",
-        )
-
-    data["last"] = api_ri.check_last_subitem(reservable_type, subitem_id)
-    data["desktops"] = api_ri.check_desktops_with_profile(reservable_type, subitem_id)
-    data["plans"] = api_rp.list_subitem_plans(item_id, subitem_id, getUsername=True)
+def api_v3_reservable_check_last_subitem(payload, reservable_type, subitem_id, item_id):
+    api_rp.check_subitem_current_plan(subitem_id, item_id)
+    data = api_rp.check_subitem_desktops_and_plannings(
+        reservable_type, item_id, subitem_id
+    )
 
     return json.dumps(data, default=str), 200
+
+
+# Checks if last enabled gpu has just been deleted
+@app.route(
+    "/api/v3/admin/reservables/check/last/<reservable_type>/<item_id>",
+    methods=["GET"],
+)
+@is_admin
+def api_v3_reservable_check_last_item(payload, reservable_type, item_id):
+    data = {"last": [], "desktops": [], "plans": [], "bookings": [], "deployments": []}
+    profiles = api_ri.list_subitems_enabled(reservable_type, item_id)
+    for profile in profiles:
+        api_rp.check_subitem_current_plan(profile["id"], item_id)
+        subitem_data = api_rp.check_subitem_desktops_and_plannings(
+            reservable_type, item_id, profile["id"]
+        )
+        data["last"].extend(subitem_data.get("last", []))
+        if True in subitem_data.get("last"):
+            data["desktops"].extend(subitem_data.get("desktops", []))
+            data["plans"].extend(subitem_data.get("plans", []))
+            data["bookings"].extend(subitem_data.get("bookings", []))
+            data["deployments"].extend(subitem_data.get("deployments", []))
+
+    return json.dumps(data, default=str), 200
+
+
+@app.route(
+    "/api/v3/admin/reservables/delete/<reservable_type>/<item_id>",
+    methods=["DELETE"],
+)
+@app.route(
+    "/api/v3/admin/reservables/delete/<reservable_type>/<item_id>/<notify_user>",
+    methods=["DELETE"],
+)
+@is_admin
+def api_v3_reservable_delete_gpu(payload, reservable_type, item_id, notify_user=False):
+    if notify_user:
+        subitems = [
+            subitem["id"]
+            for subitem in api_ri.list_subitems_enabled(reservable_type, item_id)
+        ]
+        users_items = []
+        for subitem in subitems:
+            api_rp.get_item_users(reservable_type, item_id, users_items, subitem)
+        for user_items in users_items:
+
+            try:
+                data = {
+                    "text": "",
+                    "user_id": user_items["user_id"],
+                    "bookings": [
+                        {
+                            "start": str(booking["start"]),
+                            "end": str(booking["end"]),
+                            "title": str(booking["title"]),
+                        }
+                        for booking in user_items["bookings"]
+                    ],
+                    "desktops": [
+                        {"name": str(desktop["name"])}
+                        for desktop in user_items["desktops"]
+                    ],
+                    "deployments": [
+                        {"name": str(deployment["tag_name"])}
+                        for deployment in user_items["deployments"]
+                    ],
+                }
+                notifier_client.post("/mail/deleted-gpu", data)
+            except:
+                raise Error(
+                    "internal_server",
+                    "Exception when sending verification email to user "
+                    + user_items["user_id"],
+                )
+
+    api_rp.delete_item(
+        reservable_type,
+        item_id,
+    )
+    return json.dumps({}, default=str), 200
 
 
 #### Endpoints for planning resources

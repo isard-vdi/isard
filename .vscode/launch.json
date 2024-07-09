@@ -1,0 +1,50 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug isard-authentication",
+            "type": "go",
+            "debugAdapter": "dlv-dap",
+            "request": "attach",
+            "mode": "remote",
+            "host": "172.31.255.11",
+            "port": 4000,
+            "substitutePath": [
+                {
+                    "from": "${workspaceFolder}",
+                    "to": "/authentication"
+                }
+            ]
+        },
+        {
+            "name": "Debug isard-orchestrator",
+            "type": "go",
+            "debugAdapter": "dlv-dap",
+            "request": "attach",
+            "mode": "remote",
+            "host": "172.31.255.30",
+            "port": 4000,
+            "substitutePath": [
+                {
+                    "from": "${workspaceFolder}",
+                    "to": "/orchestrator"
+                }
+            ]
+        },
+        {
+            "name": "Debug isard-sessions",
+            "type": "go",
+            "debugAdapter": "dlv-dap",
+            "request": "attach",
+            "mode": "remote",
+            "host": "172.31.255.99",
+            "port": 4000,
+            "substitutePath": [
+                {
+                    "from": "${workspaceFolder}",
+                    "to": "/sessions"
+                }
+            ]
+        },
+    ]
+}

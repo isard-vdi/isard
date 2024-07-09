@@ -82,3 +82,4 @@ frontend/yarn.lock
 
 # Generated code
 pkg/gen
+testing_*_mock.go

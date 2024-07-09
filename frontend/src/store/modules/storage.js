@@ -1,14 +1,18 @@
 
 import axios from 'axios'
+import i18n from '@/i18n'
 import { apiV3Segment } from '../../shared/constants'
 import { StorageUtils } from '../../utils/storageUtils'
 import { ProfileUtils } from '../../utils/profileUtils'
+import { ErrorUtils } from '../../utils/errorUtils'
 
 const getDefaultState = () => {
   return {
     storage: [],
     storage_loaded: false,
-    quota: {}
+    quota: {},
+    increaseModalShow: false,
+    increaseItem: {}
   }
 }
 
@@ -25,6 +29,12 @@ export default {
     },
     getQuota: state => {
       return state.quota
+    },
+    getShowIncreaseModal: state => {
+      return state.increaseModalShow
+    },
+    getIncreaseItem: state => {
+      return state.increaseItem
     }
   },
   mutations: {
@@ -37,6 +47,20 @@ export default {
     },
     setQuota: (state, quota) => {
       state.quota = quota
+    },
+    setShowIncreaseModal: (state, show) => {
+      state.increaseModalShow = show
+    },
+    setIncreaseItem: (state, item) => {
+      state.increaseItem = item
+    },
+    updateStorage: (state, storage) => {
+      const item = state.storage.find(stg => stg.id === storage.id)
+      if (item) {
+        item.virtualSize = storage.size
+        delete item.size
+        Object.assign(item, storage)
+      }
     }
   },
   actions: {
@@ -49,6 +73,24 @@ export default {
       axios.get(`${apiV3Segment}/user/appliedquota`).then(response => {
         context.commit('setQuota', ProfileUtils.parseQuota(response.data.quota))
       })
+    },
+    showIncreaseModal (context, data) {
+      context.commit('setIncreaseItem', data.item)
+      context.commit('setShowIncreaseModal', data.show)
+    },
+    updateIncrease (context, data) {
+      return axios.put(`${apiV3Segment}/storage/${data.id}/priority/${data.priority}/increase/${data.increment}`).catch(e => {
+        if (e.response.data.description_code) {
+          ErrorUtils.showErrorMessage(this._vm.$snotify, e, i18n.t(`errors.increase_${e.response.data.description_code}`))
+        } else {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        }
+      }).then(() => {
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.increasing-storage'))
+      })
+    },
+    socket_updateStorage (context, data) {
+      context.commit('updateStorage', data)
     }
   }
 }

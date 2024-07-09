@@ -191,6 +191,119 @@ def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
     return notifier.NotifyPasswordResetMailResponse(task_id=task_id)
 
 
+@app.route("/notifier/mail/deleted-gpu", methods=["POST"])
+@api.validate(resp=Response(HTTP_200=notifier.NotifyDeleteGPUMailResponse))
+@is_admin
+def delete_gpu(payload, json: notifier.NotifyDeleteGPUMailRequest):
+    """
+    Send an email to notify the deletion of a GPU.
+
+    Email specifications in JSON:
+    {
+        "user_id": "User ID to be used to retrieve its email address",
+        "bookings": "Booking list",
+        "desktops": "Desktop list",
+        "deployments": "Deployments list"
+    }
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    if not os.environ.get("NOTIFY_EMAIL"):
+        return
+
+    user = get_user(json.user_id)
+    if not user.get("email"):
+        app.logger.error(
+            "The given user does not have an email address: %s. Unable to send deleted GPU notification",
+            json.user_id,
+        )
+        return notifier.NotifyDeleteGPUMailResponse()
+    bookings = (
+        (
+            (
+                "<ul>"
+                + "\n".join(
+                    [
+                        f"<li><strong>{str(booking['title'])}</strong> | From {booking['start']} to {booking['end']}</li>"
+                        for booking in json.bookings
+                    ]
+                )
+                + "</ul>"
+            )
+        )
+        if json.bookings
+        else "<ul><li>--</li></ul>"
+    )
+
+    desktops = (
+        (
+            (
+                "<ul>"
+                + "\n".join(
+                    [
+                        f"<li class='list-group-item'>{str(desktops['name'])}</li>"
+                        for desktops in json.desktops
+                    ]
+                )
+                + "</ul>"
+            )
+        )
+        if json.desktops
+        else "<ul><li>--</li></ul>"
+    )
+
+    deployments = (
+        (
+            (
+                "<ul>"
+                + "\n".join(
+                    [
+                        f"<li>{str(deployment['name'])}</li>"
+                        for deployment in json.deployments
+                    ]
+                )
+                + "</ul>"
+            )
+        )
+        if json.deployments
+        else "<ul><li>--</li></ul>"
+    )
+
+    email_content = get_notification_message(
+        {
+            "user_id": json.user_id,
+            "event": "deleted-gpu",
+            "data": {
+                "bookings": bookings,
+                "desktops": desktops,
+                "deployments": deployments,
+            },
+        }
+    )
+
+    email_html = render_template(
+        "email/base.html",
+        email_content=sanitizer.sanitize(email_content["body"]),
+        email_footer=sanitizer.sanitize(email_content["footer"]),
+    )
+
+    task_id = Task(
+        queue="notifier.default",
+        task="mail",
+        job_kwargs={
+            "kwargs": {
+                "address": [user.get("email")],
+                "subject": email_content["title"],
+                "text": json.text,
+                "html": email_html,
+            },
+        },
+    ).id
+    return notifier.NotifyDeleteGPUMailResponse()
+
+
 @app.route("/frontend", methods=["POST"])
 @api.validate(resp=Response(HTTP_200=notifier.NotifyFrontendResponse))
 def notify_frontend(json: notifier.NotifyFrontendRequest):

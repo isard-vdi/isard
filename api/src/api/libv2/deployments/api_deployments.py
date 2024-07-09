@@ -269,6 +269,7 @@ def new(
     deployment_id,
     co_owners=[],
     visible=False,
+    user_permissions=[],
 ):
     # CREATE_DEPLOYMENT
     new_data["hardware"] = parse_domain_insert(new_data)["hardware"]
@@ -290,14 +291,16 @@ def new(
             "tag_visible": visible,
             "template": template_id,
             "image": new_data.get("image"),
+            "user_permissions": user_permissions,
         },
         "id": deployment_id,
         "name": name,
         "user": payload["user_id"],
         "co_owners": co_owners,
+        "user_permissions": user_permissions,
     }
 
-    users = get_selected_users(payload, selected, desktop_name, True)
+    users = get_selected_users(payload, selected, desktop_name, False, True)
     quotas.deployment_create(users)
 
     """Create deployment"""
@@ -490,7 +493,7 @@ def edit_deployment_users(payload, deployment_id, allowed):
     recreate(payload, deployment_id)
 
 
-def edit_deployment(deployment_id, data):
+def edit_deployment(payload, deployment_id, data):
     with app.app_context():
         deployment = r.table("deployments").get(deployment_id).run(db.conn)
     if not deployment:
@@ -504,6 +507,9 @@ def edit_deployment(deployment_id, data):
     data["reservables"] = data.get("hardware").pop("reservables")
     data["hardware"]["memory"] = data["hardware"]["memory"] * 1048576
     deployment_booking = _parse_deployment_booking(deployment)
+    get_selected_users(
+        payload, deployment["create_dict"].get("allowed"), data.get("name"), False, True
+    )
     if data.get("reservables") != deployment["create_dict"].get(
         "reservables"
     ) and deployment_booking.get("next_booking_end"):
@@ -515,6 +521,7 @@ def edit_deployment(deployment_id, data):
         )
     if data["reservables"].get("vgpus") == ["None"]:
         data["reservables"]["vgpus"] = None
+    data["user_permissions"] = data.get("user_permissions", [])
     r.table("deployments").get(deployment_id).update(
         {
             "create_dict": {
@@ -522,6 +529,7 @@ def edit_deployment(deployment_id, data):
                 "guest_properties": r.literal(data["guest_properties"]),
             },
             "name": data["tag_name"],
+            "user_permissions": data["user_permissions"],
         }
     ).run(db.conn)
     # If the networks have changed new macs should be generated for each domain
@@ -628,6 +636,7 @@ def recreate(payload, deployment_id):
         deployment["create_dict"]["allowed"],
         deployment["create_dict"]["name"],
         False,
+        True,
     )
 
     """Create desktops for each user found"""
@@ -938,16 +947,25 @@ def update_co_owners(deployment_id, co_owners: list):
         )
 
 
-def update_owner(deployment_id, owner_id):
-    try:
-        with app.app_context():
+def update_owner(payload, deployment_id, owner_id):
+    with app.app_context():
+        try:
             deployment = r.table("deployments").get(deployment_id).run(db.conn)
-    except:
-        raise Error(
-            "not_found",
-            f"Not found deployment id to update owner: {deployment_id}",
-            description_code="not_found",
-        )
+        except:
+            raise Error(
+                "not_found",
+                f"Not found deployment id to update owner: {deployment_id}",
+                description_code="not_found",
+            )
+
+        try:
+            owner = r.table("users").get(owner_id).run(db.conn)
+        except:
+            raise Error(
+                "not_found",
+                f"Not found owner id to update owner: {owner_id}",
+                description_code="not_found",
+            )
 
     if deployment.get("user") == owner_id:
         raise Error(
@@ -956,13 +974,22 @@ def update_owner(deployment_id, owner_id):
             description_code="already_owner",
         )
 
-    with app.app_context():
-        if r.table("users").get(owner_id).pluck("role").run(db.conn)["role"] == "user":
-            raise Error(
-                "bad_request",
-                f"New owner for deployment {deployment_id} is a user",
-                description_code="new_owner_is_user",
-            )
+    if owner.get("role") not in ["admin", "manager", "advanced"]:
+        raise Error(
+            "bad_request",
+            f"New owner for deployment {deployment_id} is a user",
+            description_code="new_owner_is_user",
+        )
+
+    if (
+        owner.get("category") != deployment.get("category")
+        and owner.get("role") != "admin"
+    ):
+        edit_deployment_users(
+            payload,
+            deployment_id,
+            _validate_item("allowed", {"allowed": {}})["allowed"],
+        )
 
     try:
         co_owners = deployment.get("co_owners")
@@ -983,3 +1010,16 @@ def update_owner(deployment_id, owner_id):
             f"Unable to update owner for deployment: {deployment_id}",
             description_code="unable_to_update",
         )
+
+
+def get_deployment_permissions(deployment_id):
+    try:
+        with app.app_context():
+            deployment = r.table("deployments").get(deployment_id).run(db.conn)
+    except:
+        raise Error(
+            "not_found",
+            "Could not find deployment",
+            description_code="not_found",
+        )
+    return deployment.get("user_permissions", [])

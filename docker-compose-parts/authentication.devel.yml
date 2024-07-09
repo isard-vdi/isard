@@ -1,0 +1,36 @@
+version: "3.5"
+services:
+  isard-authentication:
+    image: ${GOLANG_BUILD_IMAGE}
+    command:
+      - ash
+      - -c
+      - >-
+        apk add --no-cache \
+          ca-certificates \
+          openssl \
+          curl &&
+        go install github.com/githubnemo/CompileDaemon@latest &&
+        go install github.com/go-delve/delve/cmd/dlv@latest &&
+
+        set +a &&
+        cat /authentication/authentication/build/package/run.sh | head -n-1 | ash &&
+        set -a &&
+
+        CompileDaemon \
+          -log-prefix=false \
+          -graceful-kill=true \
+          -directory=/authentication \
+          -build="go build -o /bin/authentication ./authentication/cmd/authentication/main.go" \
+          -command="dlv exec --headless=true --listen=:4000 --api-version=2 --accept-multiclient --continue /bin/authentication"
+    volumes:
+      - ${BUILD_ROOT_PATH}/go.mod:/authentication/go.mod
+      - ${BUILD_ROOT_PATH}/go.sum:/authentication/go.sum
+      - ${BUILD_ROOT_PATH}/pkg:/authentication/pkg
+      - ${BUILD_ROOT_PATH}/authentication:/authentication/authentication
+      - /tmp/isardvdi-go-devel/cache:/root/.cache/go-build
+      - /tmp/isardvdi-go-devel/pkg:/go/pkg
+    security_opt:
+      - "seccomp:unconfined"
+    cap_add:
+      - SYS_PTRACE

@@ -191,14 +191,14 @@
                   v-b-tooltip.hover="data.item.needsBooking ? { title: `${getTooltipTitle(data.item.nextBookingStart, data.item.nextBookingEnd)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' } : ''"
                 >
                   <DesktopButton
-                    v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading, desktopStates.maintenance].includes(getItemState(data.item))"
+                    v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading].includes(getItemState(data.item))"
                     class="table-action-button"
                     :active="true"
                     :button-class="buttCssColor(getItemState(data.item))"
                     :spinner-active="false"
                     :butt-text="$t(`views.select-template.status.${getItemState(data.item)}.action`)"
                     :icon-name="data.item.buttonIconName"
-                    @buttonClicked="changeDesktopStatus(data.item, { action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
+                    @buttonClicked="changeDesktopStatus(data.item, { action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id, storage: data.item.storage })"
                   />
                   <!-- Delete action button-->
                   <DesktopButton
@@ -215,10 +215,11 @@
               </template>
               <template #cell(options)="data">
                 <div
-                  v-if="data.item.type === 'persistent' && data.item.editable"
+                  v-if="data.item.type === 'persistent'"
                   class="d-flex align-items-center"
                 >
                   <b-button
+                    v-if="data.item.editable"
                     :title="$t('components.desktop-cards.actions.edit')"
                     class="rounded-circle btn-blue px-2 mr-2"
                     @click="onClickGoToEditDesktop({itemId: data.item.id, returnPage: currentRouteName, server: data.item.server, state: data.item.state})"
@@ -229,6 +230,7 @@
                     />
                   </b-button>
                   <b-button
+                    v-if="data.item.editable"
                     :title="$t('components.desktop-cards.actions.delete')"
                     class="rounded-circle btn-red px-2 mr-2"
                     @click="onClickDeleteDesktop(data.item)"
@@ -239,7 +241,7 @@
                     />
                   </b-button>
                   <b-button
-                    v-if="getUser.role_id != 'user' && data.item.type === 'persistent'"
+                    v-if="data.item.editable && getUser.role_id != 'user' && data.item.type === 'persistent'"
                     :title="$t('components.desktop-cards.actions.template')"
                     class="rounded-circle btn-green px-2 mr-2"
                     style="width: 36px; height: 36px"
@@ -251,7 +253,7 @@
                     />
                   </b-button>
                   <b-button
-                    v-if="getUser.role_id != 'user'"
+                    v-if="data.item.editable && getUser.role_id != 'user'"
                     :title="$t('components.desktop-cards.actions.direct-link')"
                     class="rounded-circle btn-purple px-2 mr-2"
                     @click="onClickOpenDirectViewerModal(data.item.id)"
@@ -262,13 +264,24 @@
                     />
                   </b-button>
                   <b-button
-                    v-if="data.item.needsBooking"
+                    v-if="data.item.editable && data.item.needsBooking"
                     :title="$t('components.desktop-cards.actions.booking')"
                     class="rounded-circle btn-orange px-2 mr-2"
                     @click="onClickBookingDesktop(data.item)"
                   >
                     <b-icon
                       icon="calendar"
+                      scale="0.75"
+                    />
+                  </b-button>
+                  <b-button
+                    v-if="!data.item.editable && data.item.permissions.includes('recreate')"
+                    :title="$t('components.desktop-cards.actions.recreate')"
+                    class="rounded-circle btn-orange px-2 mr-2"
+                    @click="onClickRecreateDesktop(desktop = data.item)"
+                  >
+                    <b-icon
+                      icon="arrow-counterclockwise"
                       scale="0.75"
                     />
                   </b-button>
@@ -427,10 +440,12 @@ export default {
     const $store = context.root.$store
 
     const changeDesktopStatus = (desktop, data) => {
-      if (canStart(desktop)) {
+      if (data.action === 'cancel') {
+        $store.dispatch('cancelOperation', data)
+      } else if (canStart(desktop)) {
         $store.dispatch('changeDesktopStatus', data)
       } else {
-        $store.dispatch('checkCanStart', { id: desktop.id, type: 'desktop', profile: desktop.reservables.vgpus[0] })
+        $store.dispatch('checkCanStart', { id: desktop.id, type: 'desktop', profile: desktop.reservables.vgpus[0], action: data.action })
       }
     }
 
@@ -500,7 +515,8 @@ export default {
       'goToEditDomain',
       'fetchDirectLink',
       'goToNewTemplate',
-      'updateDesktopModal'
+      'updateDesktopModal',
+      'recreateDesktop'
     ]),
     chooseDesktop (template) {
       this.$snotify.clear()
@@ -547,7 +563,8 @@ export default {
         started: 'btn-red',
         waitingip: 'btn-red',
         error: 'btn-red',
-        failed: 'btn-orange'
+        failed: 'btn-orange',
+        maintenance: 'btn-red'
       }
       return stateColors[state]
     },
@@ -622,6 +639,32 @@ export default {
         return i18n.t('components.desktop-cards.notification-bar.next-booking') + ': ' + DateUtils.formatAsTime(dateStart) + ' ' + DateUtils.formatAsDayMonth(dateStart)
       } else {
         return i18n.t('components.desktop-cards.notification-bar.no-next-booking')
+      }
+    },
+    onClickRecreateDesktop (payload) {
+      if (this.getItemState(payload) === desktopStates.stopped) {
+        // return
+        this.$snotify.clear()
+
+        const yesAction = () => {
+          this.$snotify.clear()
+          this.recreateDesktop({ id: payload.id })
+        }
+
+        const noAction = (toast) => {
+          this.$snotify.clear()
+        }
+
+        this.$snotify.prompt(`${i18n.t('messages.confirmation.recreate-desktop', { name: payload.name })}`, {
+          position: 'centerTop',
+          buttons: [
+            { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+            { text: `${i18n.t('messages.no')}`, action: noAction }
+          ],
+          placeholder: ''
+        })
+      } else {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.recreate-desktop-stop'), '', true, 2000)
       }
     }
   }

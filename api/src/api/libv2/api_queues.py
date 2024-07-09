@@ -57,6 +57,7 @@ def get_queue_jobs(queue_name):
     with _connect_redis() as r:
         queue = Queue(queue_name, connection=r)
     return {
+        "queued": queue.count,
         "started": queue.started_job_registry.count,
         "finished": queue.finished_job_registry.count,
         "failed": queue.failed_job_registry.count,
@@ -84,12 +85,10 @@ def subscribers():
 @cached(TTLCache(maxsize=1, ttl=5))
 def workers():
     with _connect_redis() as r:
-        workers = r.keys()
+        workers = r.keys("rq:workers:*")
     w = []
     for worker in workers:
         try:
-            if str(worker).split(":")[1] != "workers":
-                continue
             if str(worker).split(":")[2].split(".")[0].split("'")[0] not in [
                 "core",
                 "storage",

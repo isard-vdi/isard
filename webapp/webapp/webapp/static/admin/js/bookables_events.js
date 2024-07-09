@@ -384,6 +384,12 @@ $(document).ready(function () {
         } )
 
 
+    $("#table-planning-filters #start-min").val(moment().format("DD-MM-YYYY HH:mm"));
+    filterDateDatatable("table-planning");
+    $("#table-booking-filters #start-min").val(moment().format("DD-MM-YYYY HH:mm"));
+    filterDateDatatable("table-booking");
+    
+
     $(".clear-date").on("click", function () {
         $(this).prev("input").val('');
         filterDateDatatable("table-planning");
@@ -443,11 +449,13 @@ function renderPlanningDetailDatatable(planId) {
                 "data": null, "orderable": false, "render": function (data, type, full, meta) {
                     return `<button class="btn btn-xs btn-danger" id="btn-delete-booking" type="button"  data-placement="top" ><i class="fa fa-trash"></i> Delete</button>`;
                 }
-            }
-
+            },
+            { "data": "id", "visible": false }
         ],
         "initComplete": function () {
+            adminShowIdCol(p_detail_table);
             addDateRangePicker($("#planning-detail .date-filters input"), "table-p-detail");
+            $("#planning-detail #start-min").val(moment().format("DD-MM-YYYY HH:mm"));
             $('#table-p-detail tr td').on("click", function (t) {
                 if ($(t.target).attr('type')!="button") {
                     var id = $(this).parents('tr').attr("id");
@@ -525,12 +533,14 @@ function renderBookingDetailDatatable(bookingId) {
 
 function addDateRangePicker(input, table) {
     input.daterangepicker({
+        timePicker: true,
+        timePicker24Hour: true,
         singleDatePicker: true,
         showDropdowns: true,
         minYear: parseInt(moment().format('YYYY')) - 2,
         maxYear: parseInt(moment().format('YYYY')) + 2,
         locale: {
-            format: 'DD-MM-YYYY'
+            format: 'DD-MM-YYYY HH:mm',
         }
     }, function (start, end, label) {
     });
@@ -541,8 +551,8 @@ function addDateRangePicker(input, table) {
 }
 
 function filterDateDatatable(table) {
-    var startMin = moment($(`#${table}-filters #start-min`).val(), "DD-MM-YYYY").startOf('day');
-    var endMax = moment($(`#${table}-filters #end-max`).val(), "DD-MM-YYYY").endOf('day');
+    var startMin = moment($(`#${table}-filters #start-min`).val(), "DD-MM-YYYY HH:mm");
+    var endMax = moment($(`#${table}-filters #end-max`).val(), "DD-MM-YYYY HH:mm");
     $.fn.dataTable.ext.search.pop();
     filter =
         function (settings, data, dataIndex) {

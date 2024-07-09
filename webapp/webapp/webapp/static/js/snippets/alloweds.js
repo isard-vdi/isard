@@ -128,9 +128,16 @@
                         processResults: function (data) {
                             return {
                                 results: $.map(data, function (item, i) {
-                                    return {
-                                        text: item.name + '['+item['uid']+'] ',
-                                        id: item.id
+                                    if ($('meta[id=user_data]').attr('data-role') == 'admin'){
+                                        return {
+                                            text: item.name + '['+item['uid']+'] ' + '('+item['category_name']+')',
+                                            id: item.id
+                                        }
+                                    } else {
+                                        return {
+                                            text: item.name + '['+item['uid']+'] ',
+                                            id: item.id
+                                        }
                                     }
                                 })
                             };

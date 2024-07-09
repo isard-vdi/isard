@@ -78,6 +78,7 @@ func TestSignLoginToken(t *testing.T) {
 				assert.Equal(map[string]any{
 					"kid":        "isardvdi",
 					"iss":        "isard-authentication",
+					"sub":        "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 					"exp":        nil,
 					"iat":        nil,
 					"nbf":        nil,

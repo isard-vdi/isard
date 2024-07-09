@@ -96,6 +96,15 @@ class Reservables:
     def check_desktops_with_profile(self, item_type, item_id):
         return self.reservable[item_type].check_desktops_with_profile(item_id)
 
+    def check_deployments_with_profile(self, item_type, item_id):
+        return self.reservable[item_type].check_deployments_with_profile(item_id)
+
+    def delete_bookings(self, item_type, item_id, data):
+        return self.reservable[item_type].delete_bookings(item_id, data)
+
+    def get_plans_bookings(self, item_type, item_id):
+        return self.reservable[item_type].get_plans_bookings(item_id)
+
 
 class ResourceItemsGpus:
     def list_items(self):
@@ -179,6 +188,7 @@ class ResourceItemsGpus:
             )
         if enabled:
             self.add_reservable_vgpu(item_id, subitem_id)
+        # if it's the last profile of this kind, delete it
         elif len(gpus_enabled_subitem) == 0:
             self.delete_reservable_vgpu(subitem_id)
         return item
@@ -303,25 +313,25 @@ class ResourceItemsGpus:
     def list_subitems_enabled(self, item_id):
         with app.app_context():
             item = r.table("gpus").get(item_id).run(db.conn)
-        if not item:
-            raise Error(
-                "not_found",
-                "Gpu id not found in gpu table",
-                description_code="not_found",
-            )
-        try:
-            with app.app_context():
-                subitems = list(
-                    r.table("gpu_profiles")
-                    .get_all([item["brand"], item["model"]], index="brand-model")
-                    .run(db.conn)
-                )[0]["profiles"]
-        except:
-            raise Error(
-                "not_found",
-                "Gpu id not found in gpu definitions table",
-                description_code="not_found",
-            )
+            if not item:
+                raise Error(
+                    "not_found",
+                    "Gpu id not found in gpu table: " + str(item_id),
+                    description_code="not_found",
+                )
+            try:
+                with app.app_context():
+                    subitems = list(
+                        r.table("gpu_profiles")
+                        .get_all([item["brand"], item["model"]], index="brand-model")
+                        .run(db.conn)
+                    )[0]["profiles"]
+            except:
+                raise Error(
+                    "not_found",
+                    "Gpu id not found in gpu definitions table",
+                    description_code="not_found",
+                )
         return [
             subitem for subitem in subitems if subitem["id"] in item["profiles_enabled"]
         ]
@@ -391,6 +401,9 @@ class ResourceItemsGpus:
                         "username": doc["left"]["username"],
                         "kind": doc["left"]["kind"],
                         "user": doc["left"]["user"],
+                        "category": r.table("categories").get(doc["right"]["category"])[
+                            "name"
+                        ],
                         "user_data": {
                             "role_id": doc["right"]["role"],
                             "category_id": doc["right"]["category"],
@@ -403,7 +416,25 @@ class ResourceItemsGpus:
             )
         return desktops
 
-    def deassign_desktops_with_gpu(self, item_id, desktops=None):
+    def check_deployments_with_profile(self, subitem_id):
+        with app.app_context():
+            deployments = list(
+                r.table("deployments")
+                .get_all(subitem_id, index="vgpus")
+                .pluck("id", "user", {"create_dict": {"tag_name": True}})
+                .map(
+                    lambda doc: {
+                        "id": doc["id"],
+                        "user": doc["user"],
+                        "username": r.table("users").get(doc["user"])["username"],
+                        "tag_name": doc["create_dict"]["tag_name"],
+                    }
+                )
+                .run(db.conn)
+            )
+            return deployments
+
+    def deassign_desktops_with_gpu(self, item_id, desktops):
         query = r.table("domains")
         if desktops is None:
             query = query.get_all(item_id, index="vgpus")
@@ -458,13 +489,7 @@ class ResourceItemsGpus:
     def add_item_cascade_actions(self, item_id):
         None
 
-    def delete_item_cascade_actions(self, item_id):
-        None
-
     def add_subitem_cascade_actions(self, subitem_id):
-        None
-
-    def delete_subitemcascade_actions(self, subitem_id):
         None
 
 
@@ -575,11 +600,5 @@ class ResourceItemsUsbs:
     def add_item_cascade_actions(self, item_id):
         None
 
-    def delete_item_cascade_actions(self, item_id):
-        None
-
     def add_subitem_cascade_actions(self, subitem_id):
-        None
-
-    def delete_subitemcascade_actions(self, subitem_id):
         None

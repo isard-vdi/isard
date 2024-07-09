@@ -73,6 +73,7 @@ def api_v3_deployments_new(payload):
         data,
         visible=data["visible"],
         deployment_id=data["id"],
+        user_permissions=data.get("user_permissions", []),
     )
     return json.dumps({"id": data["id"]}), 200, {"Content-Type": "application/json"}
 
@@ -183,7 +184,7 @@ def api_v3_deployment_edit(payload, deployment_id):
     checkDuplicate(
         "deployments", data["name"], user=payload["user_id"], item_id=deployment_id
     )
-    api_deployments.edit_deployment(deployment_id, data)
+    api_deployments.edit_deployment(payload, deployment_id, data)
     return (
         json.dumps({}),
         200,
@@ -255,5 +256,16 @@ def api_v3_deployment_change_owner(payload, deployment_id, user_id=False):
     ownsUserId(payload, user_id)
     ownsDeploymentId(payload, deployment_id, check_co_owners=False)
 
-    api_deployments.update_owner(deployment_id, user_id)
+    api_deployments.update_owner(payload, deployment_id, user_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/deployment/permissions/<deployment_id>", methods=["GET"])
+@is_not_user
+def api_v3_get_deployment_permissions(payload, deployment_id):
+    ownsDeploymentId(payload, deployment_id)
+    return (
+        json.dumps(api_deployments.get_deployment_permissions(deployment_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )

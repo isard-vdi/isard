@@ -273,3 +273,38 @@ def domains_update(domain_list):
     if domain_list:
         for domain_id in domain_list:
             Domain(domain_id).current_status = None
+
+
+def delete_task(task_id):
+    """
+    Cancel task if task is queued.
+    :param task_id: Task ID
+    :type task_id: str
+    """
+    if Task.exists(task_id) and Task(task_id).status == "queued":
+        Task(task_id).cancel()
+
+
+def send_storage_socket_user(event, storage_id):
+    """
+    Send socket to user.
+    :param event: Event name
+    :type event: str
+    :param storage_id: ID of the storage
+    :type storage_id: str
+    """
+    storage = Storage(storage_id)
+    socketio(
+        [
+            {
+                "event": event,
+                "data": {
+                    "id": storage.id,
+                    "status": storage.status,
+                    "size": getattr(storage, "qemu-img-info")["virtual-size"],
+                },
+                "namespace": "/userspace",
+                "room": storage.user_id,
+            }
+        ]
+    )

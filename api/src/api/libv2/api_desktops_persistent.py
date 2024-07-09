@@ -632,10 +632,6 @@ class ApiDesktopsPersistent:
         desktop_updating(desktop_id)
         return desktop_id
 
-    def Failed(self, desktop_id):
-        desktop_to_failed(desktop_id)
-        return desktop_id
-
     def Reset(self, token, request):
         desktop_id = common.DesktopFromToken(token)["id"]
         logs_domain_event_directviewer(desktop_id, "reset", request)
@@ -934,6 +930,39 @@ class ApiDesktopsPersistent:
                 ["desktop", current_status, category], index="kind_status_category"
             ).update({"status": target_status}).run(db.conn)
 
+    def update_storage(self, domain_id, new_storage_id, old_storage_id=None):
+        with app.app_context():
+            domain = r.table("domains").get(domain_id).run(db.conn)
+            if not domain:
+                raise Error(
+                    "not_found",
+                    "Domain not found",
+                    traceback.format_exc(),
+                    description_code="not_found",
+                )
+            if domain["status"] not in ["Stopped", "Maintenance"]:
+                raise Error(
+                    "precondition_required",
+                    "Desktop must be stopped to change storage",
+                    traceback.format_exc(),
+                )
+            if domain["kind"] == "desktop":
+                r.table("domains").get(domain_id).update(
+                    {
+                        "create_dict": {
+                            "hardware": {
+                                "disks": [
+                                    {
+                                        "storage_id": new_storage_id,
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                ).run(db.conn)
+
+        return domain_id
+
 
 def check_template_status(template_id=None, template=None):
     if template_id:
@@ -1195,3 +1224,15 @@ def get_deployments_with_resource(table, item):
             "Table without deployments",
             traceback.format_exc(),
         )
+
+
+def get_domain_storage(self, domain_id):
+    with app.app_context():
+        storage = (
+            r.table("domains")
+            .get(domain_id)
+            .pluck({"create_dict": {"hardware": {"disks": [{"storage_id": True}]}}})
+            .run(db.conn)["create_dict"]["hardware"]["disks"]
+        )
+    storage_ids = [disk["storage_id"] for disk in storage]
+    return storage_ids

@@ -64,6 +64,7 @@
         "new-desktop": {
             "title": "Nuevo escritorio:",
             "section-title-template": "Selecciona una plantilla:",
+            "section-title-os-template": "Perfil hardware:",
             "section-title-advanced": "Opciones avanzadas",
             "desktop-template": "Plantilla",
             "filter": "Filtrar",
@@ -110,6 +111,13 @@
                 "category": "Categoría",
                 "group": "Grupo",
                 "user": "Usuario"
+            },
+            "user-permissions": {
+                "title": "Permisos de usuario",
+                "recreate": {
+                    "title": "Recrear escritorio",
+                    "description": "Permite a los usuarios reiniciar su escritorio a su estado original."
+                }
             },
             "error": {
                 "groups": "Se debe escoger como mínimo un grupo",
@@ -179,6 +187,25 @@
             "modal": {
                 "title": "Enlace al visor directo",
                 "enable": "Habilitar acceso mediante visor directo"
+            }
+        },
+        "increase": {
+            "modal": {
+                "title": "Incrementa el espacio del disco",
+                "buttons": {
+                    "update": "Actualizar"
+                }
+            },
+            "errors": {
+                "too-small": "El nuevo tamaño debe ser mayor que el tamaño actual"
+            },
+            "current-size": "Tamaño actual:",
+            "new-size": "Nuevo tamaño:",
+            "priority": "Prioridad",
+            "priority-options": {
+                "low": "Baja",
+                "medium": "Media",
+                "high": "Alta"
             }
         },
         "filter-placeholder": "Escribe para buscar",
@@ -299,7 +326,8 @@
                 "template": "Convertir en plantilla",
                 "booking": "Reservar",
                 "edit": "Editar",
-                "direct-link": "Enlace directo"
+                "direct-link": "Enlace directo",
+                "recreate": "Recrear"
             },
             "table-header": {
                 "name": "Nombre",
@@ -320,7 +348,7 @@
             "open-with": "Acceder con visor",
             "storage-operation": {
                 "increase": "El tamaño de disco de este escritorio está siendo incrementado",
-                "virt-win-reg": "Se está editando el registro",
+                "virt_win_reg": "Se está editando el registro",
                 "move": "El disco de este escritorio se está moviendo"
             },
             "filter-label": "Filtrar"
@@ -532,7 +560,7 @@
             },
             "errors": {
                 "401": "Usuario o password incorrecto",
-                "429": "Se han producido demasiados intentos de inicio de sesión. Espere un rato y vuelva a intentarlo",
+                "429": "Se han producido demasiados intentos de inicio de sesión. Vuelva a intentarlo a {time}",
                 "500": "Error en el servidor",
                 "generic": "Se ha producido un error"
             },
@@ -712,7 +740,7 @@
                 },
                 "maintenance": {
                     "text": "En mantenimiento",
-                    "action": "En mantenimiento"
+                    "action": "Cancelar operación"
                 }
             }
         },
@@ -979,9 +1007,16 @@
             "table-header": {
                 "domains": "Escritorios/plantillas",
                 "quantity-domains": "№ escritorios/plantillas",
-                "actual-size": "Tamaño",
+                "actual-size": "Tamaño ocupado",
+                "virtual-size": "Tamaño total",
                 "percentage": "% Cuota",
-                "last": "Último acceso"
+                "last": "Último acceso",
+                "actions": "Acciones"
+            },
+            "buttons": {
+                "increase": {
+                    "title": "Incrementa el espacio del disco"
+                }
             }
         },
         "recycle-bin": {
@@ -1152,7 +1187,9 @@
             "go-to-profile": "Ver cuota",
             "go-to-bookings": "Reservar escritorio",
             "change-desktop-gpu": "Modificar el perfil del escritorio",
-            "reset-vpn": "Reestablecer claves de VPN? Se tendrá que descargar un nuevo archivo VPN"
+            "reset-vpn": "Reestablecer claves de VPN? Se tendrá que descargar un nuevo archivo VPN",
+            "cancel-operation": "¿Cancelar la operación de disco en curso? Esto podría dejar el disco en un estado inconsistente",
+            "recreate-desktop": "'{name}' se recreará, esto eliminará todos los cambios que hayas hecho. ¿Continuar?"
         },
         "ok": "De acuerdo",
         "yes": "Si",
@@ -1202,7 +1239,10 @@
             "deleting-recycle-bin": "Eliminando entrada",
             "warning-desktop-waiting-ip": "Aún no se puede abrir el visor seleccionado. Espere por favor...",
             "reset-vpn": "Claves VPN restauradas",
-            "video-default": "Se ha cambiado el parámetro 'Videos' del escritorio a 'Default', dado que no hay ningún perfil de GPU asignado"
+            "video-default": "Se ha cambiado el parámetro 'Videos' del escritorio a 'Default', dado que no hay ningún perfil de GPU asignado",
+            "cancelling-operation": "Cancelando operación de disco en curso",
+            "recreate-desktop-stop": "Para recrear un escritorio es necesario que esté parado",
+            "increasing-storage": "Incrementando tamaño de disco. Esto podría tomar unos momentos"
         },
         "loading": "Cargando"
     },
@@ -1336,7 +1376,10 @@
         "invalid_token": "Token no válido",
         "old_passwords": "La contraseña actual no puede ser ninguna de las últimas {num} contraseñas",
         "no_storage_pool_available": "En estos momentos no está disponible la creación de recursos. Espere e inténtelo de nuevo.",
-        "bookings_max_time_reached": "El usuario ha alcanzado el tiempo máximo de escritorios reservables"
+        "bookings_max_time_reached": "El usuario ha alcanzado el tiempo máximo de escritorios reservables",
+        "desktops_not_stopped": "Los escritorios asociados a este almacenamiento deben estar parados para realizar esta acción",
+        "increase_desktops_not_stopped": "El escritorio asociado a este almacenamiento debe estar parado para incrementar el tamaño del disco",
+        "increase_storage_has_derivatives": "El almacenamiento es de una plantilla y no se puede incrementar"
     },
     "router": {
         "titles": {

@@ -55,12 +55,18 @@ def alloweds_table_term(payload, table):
         elif table == "users":
             if data.get("roles"):
                 result = alloweds.get_table_term(
-                    table, "name", data["term"], pluck=["id", "name", "uid", "role"]
+                    table,
+                    "name",
+                    data["term"],
+                    pluck=["id", "name", "uid", "role", "category_name", "group_name"],
                 )
                 result = [u for u in result if u["role"] not in data.get("roles", [])]
             else:
                 result = alloweds.get_table_term(
-                    table, "name", data["term"], pluck=["id", "name", "uid"]
+                    table,
+                    "name",
+                    data["term"],
+                    pluck=["id", "name", "uid", "category_name", "group_name"],
                 )
         elif table == "media":
             if data["kind"] == "isos":

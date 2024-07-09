@@ -12,7 +12,7 @@
       no-body
     >
       <vue-fab
-        v-if="desktop.editable && desktop.type === 'persistent'"
+        v-if="desktop.type === 'persistent' && !(!desktop.editable && desktop.permissions.length < 1)"
         icon="more_vert"
         main-btn-color="#bcc6cc"
         class="info-icon position-absolute"
@@ -21,6 +21,18 @@
         :scroll-auto-hide="false"
         active-icon="more_horiz"
       >
+        <fab-item
+          v-if="!desktop.editable && desktop.permissions.includes('recreate')"
+          v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.recreate')}`,
+                         placement: 'right',
+                         customClass: 'isard-tooltip',
+                         trigger: 'hover' }"
+          :idx="desktop.permissions.indexOf('recreate')"
+          icon="replay"
+          color="#f3bc65"
+          @clickItem="onClickRecreateDesktop({id: desktop.id, name: desktop.name})"
+        />
+
         <fab-item
           v-if="desktop.editable && desktop.needsBooking && !desktop.tag"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.booking')}`,
@@ -33,7 +45,7 @@
           @clickItem="onClickBookingDesktop(desktop)"
         />
         <fab-item
-          v-if="getUser.role_id != 'user'"
+          v-if="desktop.editable && getUser.role_id != 'user'"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.direct-link')}`,
                          placement: 'right',
                          customClass: 'isard-tooltip',
@@ -44,7 +56,7 @@
           @clickItem="onClickOpenDirectViewerModal({itemId: desktop.id})"
         />
         <fab-item
-          v-if="getUser.role_id != 'user' && desktop.type === 'persistent'"
+          v-if="desktop.editable && getUser.role_id != 'user' && desktop.type === 'persistent'"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.template')}`,
                          placement: 'right',
                          customClass: 'isard-tooltip',
@@ -59,7 +71,7 @@
           />
         </fab-item>
         <fab-item
-          v-if="desktop.type === 'persistent'"
+          v-if="desktop.editable && desktop.type === 'persistent'"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.delete')}`,
                          placement: 'right',
                          customClass: 'isard-tooltip',
@@ -70,6 +82,7 @@
           @clickItem="onClickDeleteDesktop"
         />
         <fab-item
+          v-if="desktop.editable"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.edit')}`,
                          placement: 'right',
                          customClass: 'isard-tooltip',
@@ -187,7 +200,7 @@
 
           <!-- Actions -->
           <div
-            v-if="[desktopStates.started, desktopStates.waitingip, desktopStates.stopped, desktopStates.failed, desktopStates['shutting-down'], desktopStates.paused].includes(desktopState)"
+            v-if="[desktopStates.started, desktopStates.waitingip, desktopStates.stopped, desktopStates.failed, desktopStates['shutting-down'], desktopStates.paused, desktopStates.maintenance].includes(desktopState)"
             class="d-flex flex-row justify-content-start ml-3 mb-1"
           >
             <!-- Main action button nonpersistent -->
@@ -210,7 +223,7 @@
               :spinner-active="false"
               :butt-text="$t(`views.select-template.status.${desktopState}.action`)"
               :icon-name="desktop.buttonIconName"
-              @buttonClicked="changeDesktopStatus(desktop, { action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
+              @buttonClicked="changeDesktopStatus(desktop, { action: status[desktopState || 'stopped'].action, desktopId: desktop.id, storage: desktop.storage })"
             />
             <!-- Delete action button-->
             <DesktopButton
@@ -309,7 +322,9 @@ export default {
     const $store = context.root.$store
 
     const changeDesktopStatus = (desktop, data) => {
-      if (canStart(desktop)) {
+      if (data.action === 'cancel') {
+        $store.dispatch('cancelOperation', data)
+      } else if (canStart(desktop)) {
         $store.dispatch('changeDesktopStatus', data)
       } else {
         $store.dispatch('checkCanStart', { id: desktop.id, type: 'desktop', profile: desktop.reservables.vgpus[0], action: data.action })
@@ -378,7 +393,8 @@ export default {
         started: 'btn-red',
         waitingip: 'btn-red',
         failed: 'btn-orange',
-        paused: 'btn-red'
+        paused: 'btn-red',
+        maintenance: 'btn-red'
       }
       return stateColors[this.desktopState]
     },
@@ -475,7 +491,8 @@ export default {
       'goToEditDomain',
       'fetchDirectLink',
       'goToNewTemplate',
-      'updateDesktopModal'
+      'updateDesktopModal',
+      'recreateDesktop'
     ]),
     getBookingNotificationBar (dateStart, dateEnd) {
       if (DateUtils.dateIsAfter(dateEnd, new Date()) && DateUtils.dateIsBefore(dateStart, new Date())) {
@@ -549,6 +566,31 @@ export default {
     },
     onClickOpenDirectViewerModal () {
       this.fetchDirectLink(this.desktop.id)
+    },
+    onClickRecreateDesktop (payload) {
+      if (this.desktopState === desktopStates.stopped) {
+        this.$snotify.clear()
+
+        const yesAction = () => {
+          this.$snotify.clear()
+          this.recreateDesktop({ id: payload.id })
+        }
+
+        const noAction = (toast) => {
+          this.$snotify.clear()
+        }
+
+        this.$snotify.prompt(`${i18n.t('messages.confirmation.recreate-desktop', { name: payload.name })}`, {
+          position: 'centerTop',
+          buttons: [
+            { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+            { text: `${i18n.t('messages.no')}`, action: noAction }
+          ],
+          placeholder: ''
+        })
+      } else {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.recreate-desktop-stop'), '', true, 2000)
+      }
     }
   }
 }

@@ -141,17 +141,6 @@ def api_v3_desktop_updaing(payload, desktop_id):
     )
 
 
-@app.route("/api/v3/desktop/to_failed/<desktop_id>", methods=["GET"])
-@has_token
-def api_v3_desktop_to_failed(payload, desktop_id):
-    ownsDomainId(payload, desktop_id)
-    return (
-        json.dumps({"id": desktops.Failed(desktop_id)}),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
 @app.route("/api/v3/desktops/stop", methods=["PUT"])
 @has_token
 def api_v3_desktops_stop(payload, desktop_id):
@@ -372,6 +361,37 @@ def admin_jumperurl_reset(payload, desktop_id):
 def api_v3_desktop_delete(payload, desktop_id, permanent=False):
     ownsDomainId(payload, desktop_id)
     desktops.Delete(desktop_id, payload["user_id"], permanent)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/desktop/update_storage_id/<desktop_id>", methods=["PUT"])
+@has_token
+def api_v3_desktop_update_storage_id(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request",
+            "Desktop update storage id incorrect body data",
+            traceback.format_exc(),
+            description_code="desktop_incorrect_body_data",
+        )
+    if "storage_id" not in data:
+        raise Error(
+            "bad_request",
+            "Desktop update storage id incorrect body data storage_id not found",
+            traceback.format_exc(),
+            description_code="desktop_incorrect_body_data",
+        )
+
+    desktops.update_storage(desktop_id, data["storage_id"])
+
     return (
         json.dumps({}),
         200,

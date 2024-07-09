@@ -64,6 +64,7 @@
         "new-desktop": {
             "title": "Create new desktop:",
             "section-title-template": "Select a template:",
+            "section-title-os-template": "Hardware profile:",
             "section-title-advanced": "Advanced options",
             "desktop-template": "Template",
             "filter": "Filter",
@@ -110,6 +111,13 @@
                 "category": "Category",
                 "group": "Group",
                 "user": "User"
+            },
+            "user-permissions": {
+                "title": "User permissions",
+                "recreate": {
+                    "title": "Recreate desktop",
+                    "description": "Allow users to reset their desktop to its original state."
+                }
             },
             "error": {
                 "groups": "At least one group must be selected",
@@ -179,6 +187,25 @@
             "modal": {
                 "title": "Direct viewer link",
                 "enable": "Enable direct viewer access"
+            }
+        },
+        "increase": {
+            "modal": {
+                "title": "Increase the storage disk space",
+                "buttons": {
+                    "update": "Update"
+                }
+            },
+            "errors": {
+                "too-small": "The new size must be greater than the current size"
+            },
+            "current-size": "Current size:",
+            "new-size": "New size:",
+            "priority": "Priority:",
+            "priority-options": {
+                "low": "Low",
+                "medium": "Medium",
+                "high": "High"
             }
         },
         "filter-placeholder": "Type to search",
@@ -299,7 +326,8 @@
                 "template": "Template it",
                 "booking": "Schedule",
                 "edit": "Edit",
-                "direct-link": "Direct Link"
+                "direct-link": "Direct Link",
+                "recreate": "Recreate"
             },
             "table-header": {
                 "name": "Name",
@@ -320,7 +348,7 @@
             "filter-label": "Filter",
             "storage-operation": {
                 "increase": "The disk size of this desktop is being increased",
-                "virt-win-reg": "The registry is being edited",
+                "virt_win_reg": "The registry is being edited",
                 "move": "This desktop's disk is being moved"
             }
         },
@@ -531,7 +559,7 @@
             },
             "errors": {
                 "401": "Incorrect user or password",
-                "429": "Too many login attempts, please try again later",
+                "429": "Too many login attempts, please try again at {time}",
                 "500": "Server error",
                 "generic": "An error occurred"
             },
@@ -711,7 +739,7 @@
                 },
                 "maintenance": {
                     "text": "In maintenance",
-                    "action": "In maintenance"
+                    "action": "Cancel operation"
                 }
             }
         },
@@ -964,9 +992,16 @@
             "table-header": {
                 "domains": "Desktops/templates",
                 "quantity-domains": "№ desktops/templates",
-                "actual-size": "Size",
+                "actual-size": "Used size",
+                "virtual-size": "Total size",
                 "percentage": "% Quota",
-                "last": "Last access"
+                "last": "Last access",
+                "actions": "Actions"
+            },
+            "buttons": {
+                "increase": {
+                    "title": "Increase the storage disk space"
+                }
             }
         },
         "recycle-bin": {
@@ -1137,7 +1172,9 @@
             "go-to-profile": "View quota",
             "go-to-bookings": "Book desktop",
             "change-desktop-gpu": "Modify desktop profile",
-            "reset-vpn": "Reset VPN keys? You will have to download a new VPN file"
+            "reset-vpn": "Reset VPN keys? You will have to download a new VPN file",
+            "cancel-operation": "Cancel ongoing disk operation? This could leave the disk in an inconsistent state",
+            "recreate-desktop": "'{name}' will be recreated, this will delete all changes you made. Continue?"
         },
         "ok": "Ok",
         "yes": "Yes",
@@ -1187,7 +1224,10 @@
             "deleting-recycle-bin": "Deleting entry",
             "warning-desktop-waiting-ip": "Viewer not available right now. Please wait..",
             "reset-vpn": "VPN keys reset",
-            "video-default": "The 'Videos' parameter on the desktop was changed to 'Default', as there is no GPU profile assigned"
+            "video-default": "The 'Videos' parameter on the desktop was changed to 'Default', as there is no GPU profile assigned",
+            "cancelling-operation": "Canceling ongoing disk operation",
+            "recreate-desktop-stop": "To recreate a desktop it must be stopped",
+            "increasing-storage": "Increasing storage size. This may take a while"
         },
         "loading": "Loading"
     },
@@ -1321,7 +1361,10 @@
         "invalid_token": "Invalid token",
         "old_passwords": "Current password can't be any of the last {num} last passwords",
         "no_storage_pool_available": "The resource creation is not available at this moment. Please try again later.",
-        "bookings_max_time_reached": "The user has reached the maximum time limit for bookable desktops"
+        "bookings_max_time_reached": "The user has reached the maximum time limit for bookable desktops",
+        "desktops_not_stopped": "The desktops associated with this storage must be stopped to perform this action",
+        "increase_desktops_not_stopped": "The desktop associated with this storage must be stopped to increase the disk size",
+        "increase_storage_has_derivatives": "The storage is from a template and can't be increased"
     },
     "router": {
         "titles": {

@@ -901,24 +901,76 @@ $(document).ready(function() {
                     },
                 })
                 break;
-            case 'btn-update':
-                $.ajax({
-                    type: "GET",
-                    url: '/api/v3/desktop/to_failed/' + data["id"],
-                    contentType: "application/json",
-                    cache: false,
-                    error: function(data) {
-                        new PNotify({
-                            title: 'ERROR changing desktop status to Failed',
-                            text: data.responseJSON.description,
-                            type: 'error',
-                            hide: true,
-                            icon: 'fa fa-warning',
-                            delay: 5000,
-                            opacity: 1
-                        })
+            case 'btn-cancel':
+                new PNotify({
+                    title: 'Confirmation Needed',
+                    text: "Are you sure you want to cancel current storage operation: " + data.current_action + "?",
+                    hide: false,
+                    opacity: 0.9,
+                    confirm: {
+                        confirm: true
                     },
-                })
+                    buttons: {
+                        closer: false,
+                        sticker: false
+                    },
+                    history: {
+                        history: false
+                    },
+                    addclass: 'pnotify-center'
+                }).get().on('pnotify.confirm', function () {
+                    $.ajax({
+                        type: "GET",
+                        url: '/api/v3/admin/domain/storage/' + data["id"],
+                        contentType: "application/json",
+                        cache: false,
+                        error: function (data) {
+                            new PNotify({
+                                title: 'ERROR retrieving desktop storage',
+                                text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+                                type: 'error',
+                                hide: true,
+                                icon: 'fa fa-warning',
+                                delay: 5000,
+                                opacity: 1
+                            })
+                        },
+                        success: function (storageList) {
+                            $.each(storageList, function (index, storage) {
+                                $.ajax({
+                                    type: "PUT",
+                                    url: "/api/v3/storage/" + storage.id + "/abort_operations",
+                                    contentType: "application/json",
+                                    cache: false,
+                                    error: function (data) {
+                                        new PNotify({
+                                            title: 'ERROR aborting storage operations',
+                                            text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+                                            type: 'error',
+                                            hide: true,
+                                            icon: 'fa fa-warning',
+                                            delay: 5000,
+                                            opacity: 1
+                                        });
+                                    },
+                                    success: function (data) {
+                                        console.log(data)
+                                        new PNotify({
+                                            title: 'Cancelling current storage operation...',
+                                            text: '',
+                                            type: 'success',
+                                            hide: true,
+                                            icon: 'fa fa-info',
+                                            delay: 5000,
+                                            opacity: 1
+                                        });
+                                    }
+                                });
+                            });
+                        }
+                    });
+                }).on('pnotify.cancel', function () {
+                });
                 break;
         }
     });
@@ -1789,7 +1841,7 @@ function renderAction(data){
         return '<button type="button" id="btn-update" class="btn btn-pill btn-warning btn-xs"><i class="fa fa-refresh"></i> Retry</button>'
     }
     if(status=='Maintenance'){
-        return '<button type="button" id="btn-fail" class="btn btn-pill btn-warning btn-xs"><i class="fa fa-refresh"></i> Retry</button>'
+        return '<button type="button" id="btn-cancel" class="btn btn-pill btn-warning btn-xs"><i class="fa fa-ban"></i> Cancel task</button>'
     }
     if(status=='Started' || status=='Paused'){
         return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-stop"></i> Stop</button>';

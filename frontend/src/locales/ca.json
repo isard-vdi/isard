@@ -122,7 +122,7 @@
             "open-with": "Accedir amb visor",
             "storage-operation": {
                 "increase": "La mida del disc d'aquest escriptori s'està incrementant",
-                "virt-win-reg": "S'està editant el registre",
+                "virt_win_reg": "S'està editant el registre",
                 "move": "El disc d'aquest escriptori s'està movent"
             },
             "actions": {
@@ -130,7 +130,8 @@
                 "template": "Convertir en plantilla",
                 "booking": "Reservar",
                 "edit": "Editar",
-                "direct-link": "Enllaç directe"
+                "direct-link": "Enllaç directe",
+                "recreate": "Recrear"
             },
             "filter-label": "Filtre"
         },
@@ -344,7 +345,7 @@
             "isard-logo-alt": "El logotip de IsardVDI és el cap d'un isard.",
             "errors": {
                 "401": "Usuari o contrasenya incorrecta",
-                "429": "S'han produït massa intents d'inici de sessió. Esperi uns minuts i torni-ho a provar",
+                "429": "S'han produït massa intents d'inici de sessió. Torni-ho a provar a {time}",
                 "500": "Error del servidor",
                 "generic": "S'ha produït un error"
             }
@@ -521,7 +522,7 @@
                 },
                 "maintenance": {
                     "text": "En manteniment",
-                    "action": "En manteniment"
+                    "action": "Cancel·lar operació"
                 }
             }
         },
@@ -776,9 +777,16 @@
             "table-header": {
                 "domains": "Escriptoris/plantilles",
                 "quantity-domains": "Nº escriptoris/plantilles",
-                "actual-size": "Mida",
+                "actual-size": "Mida ocupada",
+                "virtual-size": "Mida total",
                 "percentage": "% Quota",
-                "last": "Últim accés"
+                "last": "Últim accés",
+                "actions": "Accions"
+            },
+            "buttons": {
+                "increase": {
+                    "title": "Incrementa l'espai del disc"
+                }
             }
         },
         "recycle-bin": {
@@ -992,6 +1000,7 @@
         "new-desktop": {
             "title": "Crear un nou escriptori:",
             "section-title-template": "Seleccionar una plantilla:",
+            "section-title-os-template": "Perfil hardware:",
             "section-title-advanced": "Opcions avançades",
             "desktop-template": "Plantilla",
             "filter": "Filtrar",
@@ -1038,6 +1047,13 @@
                 "category": "Categoria",
                 "group": "Grup",
                 "user": "Usuari"
+            },
+            "user-permissions": {
+                "title": "Permisos d'usuari",
+                "recreate": {
+                    "title": "Recrear escriptori",
+                    "description": "Permet als usuaris reiniciar el seu escriptori al seu estat original."
+                }
             },
             "error": {
                 "groups": "S'ha d'escollir com a mínim un grup",
@@ -1107,6 +1123,25 @@
             "modal": {
                 "title": "Enllaç al visor directe",
                 "enable": "Habilitar l'accés mitjançant el visor directe"
+            }
+        },
+        "increase": {
+            "modal": {
+                "title": "Incrementa l'espai del disc",
+                "buttons": {
+                    "update": "Actualitzar"
+                }
+            },
+            "errors": {
+                "too-small": "La nova mida ha de ser mes gran que la mida actual"
+            },
+            "current-size": "Mida actual:",
+            "new-size": "Nova mida:",
+            "priority": "Prioritat:",
+            "priority-options": {
+                "low": "Baixa",
+                "medium": "Mitjana",
+                "high": "Alta"
             }
         },
         "filter-placeholder": "Escriu per cercar",
@@ -1243,7 +1278,10 @@
         "old_passwords": "L'última contrasenya no pot ser cap de les últimes {num} contrasenyes",
         "no_storage_pool_available": "En aquest moment no està disponible la creació de recursos. Esperi uns minuts i torni-ho a provar.",
         "unable_to_get_domain_jumperurl": "No s'ha pogut obtenir l'enllaç del visor directe perquè el domini no existeix",
-        "bookings_max_time_reached": "L'usuari ha arribat al temps màxim d'escriptoris reservables"
+        "bookings_max_time_reached": "L'usuari ha arribat al temps màxim d'escriptoris reservables",
+        "desktops_not_stopped": "Els escriptoris associats a aquest emmagatzematge han d'estar aturats per realitzar aquesta acció",
+        "increase_desktops_not_stopped": "L'escriptori associat a aquest emmagatzematge ha d'estar aturat per incrementar la mida del disc",
+        "increase_storage_has_derivatives": "L'emmagatzematge és d'una plantilla i no es pot incrementar"
     },
     "messages": {
         "title": {
@@ -1268,7 +1306,9 @@
             "go-to-profile": "Veure quota",
             "go-to-bookings": "Reservar escriptori",
             "change-desktop-gpu": "Modificar el perfil de l'escriptori",
-            "reset-vpn": "Restablir les claus VPN? S'haurà de descarregar un nou fitxer VPN"
+            "reset-vpn": "Restablir les claus VPN? S'haurà de descarregar un nou fitxer VPN",
+            "cancel-operation": "Cancel·lar l'operació de disc en curs? Això podria deixar el disc en un estat inconsistent",
+            "recreate-desktop": "'{name}' es recrearà, això eliminarà tots els canvis que hagis fet. Continuar?"
         },
         "ok": "D'acord",
         "yes": "Sí",
@@ -1318,7 +1358,10 @@
             "deleting-recycle-bin": "Eliminant entrada",
             "warning-desktop-waiting-ip": "Encara no es pot obrir el visor actual Espereu si us plau...",
             "reset-vpn": "Claus VPN restablertes",
-            "video-default": "S'ha canviat el paràmetre 'Videos' de l'escriptori a 'Default', atès que no hi ha cap perfil de GPU assignat"
+            "video-default": "S'ha canviat el paràmetre 'Videos' de l'escriptori a 'Default', atès que no hi ha cap perfil de GPU assignat",
+            "cancelling-operation": "Cancel·lant operació de disc en curs",
+            "recreate-desktop-stop": "Per recrear un escriptori, aquest ha d'estar aturat",
+            "increasing-storage": "Incrementant mida del disc. Això pot trigar una estona"
         },
         "loading": "Carregant"
     },

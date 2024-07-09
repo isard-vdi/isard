@@ -54,7 +54,8 @@ func TestParseLoginToken(t *testing.T) {
 
 				assert.Equal(&token.LoginClaims{
 					RegisteredClaims: &jwt.RegisteredClaims{
-						Issuer: "isard-authentication",
+						Issuer:  "isard-authentication",
+						Subject: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 					},
 					KeyID:     "isardvdi",
 					SessionID: "ThoJuroQueEsUnID",

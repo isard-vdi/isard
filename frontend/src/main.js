@@ -16,7 +16,7 @@ import './assets/styles_small.css'
 import VueCompositionAPI from '@vue/composition-api'
 import { BootstrapVue, IconsPlugin, VBTooltip } from 'bootstrap-vue'
 import { faCentos, faFedora, faGithub, faGoogle, faLinux, faUbuntu, faWindows } from '@fortawesome/free-brands-svg-icons'
-import { faDesktop, faPlay, faStop, faTrash, faVideo, faMemory, faMicrochip, faBan, faSave, faCompactDisc, faCubes, faUserCog, faCalendar, faRecycle } from '@fortawesome/free-solid-svg-icons'
+import { faDesktop, faPlay, faStop, faTrash, faVideo, faMemory, faMicrochip, faBan, faSave, faCompactDisc, faCubes, faUserCog, faCalendar, faRecycle, faChartLine } from '@fortawesome/free-solid-svg-icons'
 
 import App from './App.vue'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
@@ -47,7 +47,7 @@ console.log(i18n.locale)
 
 axiosSetup()
 
-library.add(faDesktop, faPlay, faStop, faTrash, faWindows, faUbuntu, faFedora, faLinux, faCentos, faGithub, faGoogle, faVideo, faMemory, faMicrochip, faBan, faSave, faCompactDisc, faCubes, faUserCog, faCalendar, faRecycle)
+library.add(faDesktop, faPlay, faStop, faTrash, faWindows, faUbuntu, faFedora, faLinux, faCentos, faGithub, faGoogle, faVideo, faMemory, faMicrochip, faBan, faSave, faCompactDisc, faCubes, faUserCog, faCalendar, faRecycle, faChartLine)
 
 Vue.component('FontAwesomeIcon', FontAwesomeIcon)
 
