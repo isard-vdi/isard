@@ -47,7 +47,7 @@ services:
   # TODO: Since we're using Grafana Agent and remote_write, should we use Prometheus? Or maybe Mimir?
   isard-prometheus:
     container_name: isard-prometheus
-    image: prom/prometheus
+    image: prom/prometheus:v2.53.0
     user: root
     volumes:
       - /opt/isard/stats/prometheus:/prometheus
