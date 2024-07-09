@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/grafana/loki/pkg/logcli/client"
-	"github.com/grafana/loki/pkg/loghttp"
-	"github.com/grafana/loki/pkg/logproto"
+	"github.com/grafana/loki/v3/pkg/logcli/client"
+	"github.com/grafana/loki/v3/pkg/loghttp"
+	"github.com/grafana/loki/v3/pkg/logproto"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 )

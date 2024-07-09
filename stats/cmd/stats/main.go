@@ -14,7 +14,7 @@ import (
 	"gitlab.com/isard/isardvdi/stats/collector"
 	"gitlab.com/isard/isardvdi/stats/transport/http"
 
-	lokiCli "github.com/grafana/loki/pkg/logcli/client"
+	lokiCli "github.com/grafana/loki/v3/pkg/logcli/client"
 	"github.com/oracle/oci-go-sdk/v65/common"
 	"github.com/oracle/oci-go-sdk/v65/usageapi"
 	"github.com/rs/zerolog"
