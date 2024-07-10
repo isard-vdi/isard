@@ -11,6 +11,9 @@ if len(sys.argv) < 4:
         'Usage: python3 create_desktop.py <username> <current_password> <category_id> "<URL_BASE>"'
     )
     print('Example: python3 create_desktop.py admin 12345678 "https://localhost"')
+    print(
+        "NOTE: If running against localhost, you may need to disable SSL verification"
+    )
     exit(1)
 
 USERNAME = sys.argv[1]
@@ -29,7 +32,7 @@ def get_jwt(username, password, category):
             "password": (None, password),
         },
         timeout=10,
-        verify=False,
+        verify=True,
     )
     return resp.text
 
@@ -38,7 +41,8 @@ def get_templates(jwt):
     return requests.get(
         url=URL_BASE + "/api/v3/user/templates/allowed/all",
         headers=({"Authorization": "Bearer " + jwt}),
-        verify=False,
+        timeout=10,
+        verify=True,
     ).json()
 
 
@@ -46,7 +50,8 @@ def get_domain_info(jwt, domain_id):
     return requests.get(
         url=URL_BASE + "/api/v3/domain/info/" + domain_id,
         headers=({"Authorization": "Bearer " + jwt}),
-        verify=False,
+        timeout=10,
+        verify=True,
     ).json()
 
 
@@ -55,7 +60,8 @@ def get_groups(jwt, term):
         url=URL_BASE + "/api/v3/admin/allowed/term/groups",
         json={"term": term},
         headers=({"Authorization": "Bearer " + jwt}),
-        verify=False,
+        timeout=10,
+        verify=True,
     ).json()
 
 
@@ -83,7 +89,8 @@ def new_deployment(
             "image": image,
         },
         headers=({"Authorization": "Bearer " + jwt}),
-        verify=False,
+        timeout=10,
+        verify=True,
     ).json()
 
 
@@ -91,7 +98,8 @@ def get_deployment(jwt, deployment_id):
     return requests.get(
         url=URL_BASE + "/api/v3/deployment/" + deployment_id,
         headers=({"Authorization": "Bearer " + jwt}),
-        verify=False,
+        timeout=10,
+        verify=True,
     ).json()
 
 
@@ -104,7 +112,8 @@ def group_users_count(
         url=URL_BASE + "/api/v3/groups_users/count",
         json={"groups": groups},
         headers=({"Authorization": "Bearer " + jwt}),
-        verify=False,
+        timeout=10,
+        verify=True,
     ).json()
 
 

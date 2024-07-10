@@ -10,7 +10,8 @@ old2 = {}
 while True:
     res = json.loads(
         requests.get(
-            "http://localhost:5000/profile/gpu/isard-hypervisor-pci_0000_41_00_0"
+            "http://localhost:5000/profile/gpu/isard-hypervisor-pci_0000_41_00_0",
+            timeout=10,
         ).text
     )
     if old1 != res:
@@ -20,7 +21,8 @@ while True:
 
     res = json.loads(
         requests.get(
-            "http://localhost:5000/profile/gpu/isard-hypervisor-pci_0000_61_00_0"
+            "http://localhost:5000/profile/gpu/isard-hypervisor-pci_0000_61_00_0",
+            timeout=10,
         ).text
     )
     if old2 != res:
