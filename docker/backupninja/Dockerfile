@@ -1,4 +1,4 @@
-FROM alpine:3.19 as build
+FROM alpine:3.20 as build
 MAINTAINER isard <info@isard.com>
 RUN apk add --no-cache \
     automake \
@@ -12,7 +12,7 @@ RUN git clone https://gitlab.com/isard/backupninja.git && \
     bash ./autogen.sh && bash configure && \
     make && make install
 
-FROM alpine:3.19 as production
+FROM alpine:3.20 as production
 MAINTAINER isard <info@isard.com>
 
 RUN apk -U upgrade --no-cache
