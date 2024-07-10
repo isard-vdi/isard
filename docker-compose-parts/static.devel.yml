@@ -6,7 +6,7 @@ services:
     - ${BUILD_ROOT_PATH}/docker/static/noVNC:/usr/share/nginx/html/static/noVNC
   isard-frontend-dev:
     container_name: isard-frontend-dev
-    image: node:18.17
+    image: node:18.20
     logging:
       driver: "json-file"
       options:

@@ -1,7 +1,7 @@
 #
 # frontend
 #
-FROM node:18.17-alpine as frontend
+FROM node:18.20-alpine as frontend
 
 RUN mkdir /isard-frontend
 COPY frontend /isard-frontend
@@ -24,7 +24,7 @@ RUN rm -rf build
 #
 # spice-ts
 #
-FROM oven/bun:1.1.17 as spice-ts
+FROM oven/bun:1.1.18 as spice-ts
 
 WORKDIR /build
 
@@ -44,7 +44,7 @@ RUN bun run build
 #
 # nginx
 #
-FROM nginxinc/nginx-unprivileged:1.25-alpine-slim as production
+FROM nginxinc/nginx-unprivileged:1.27-alpine-slim as production
 
 USER root
 RUN apk -U upgrade --no-cache
