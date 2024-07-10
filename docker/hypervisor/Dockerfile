@@ -1,12 +1,12 @@
 # Use debian ovmf
-FROM debian:11-slim as ovmf
+FROM debian:12-slim as ovmf
 
 RUN apt-get update && apt-get install -y \
     ovmf && \
     rm -rf /var/lib/apt/lists/*
 
 # Build mdevctl
-FROM alpine:3.19 as build
+FROM alpine:3.20 as build
 
 RUN apk add --no-cache cargo uuidgen py3-docutils make git
 
@@ -17,7 +17,7 @@ RUN CARGO_INCREMENTAL=0 cargo build --release
 RUN make install || true
 
 # Image isard-hypervisor
-FROM alpine:3.19 as production
+FROM alpine:3.20 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
