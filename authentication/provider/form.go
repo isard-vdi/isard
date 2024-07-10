@@ -11,6 +11,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
 
+	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -22,7 +23,7 @@ type Form struct {
 	limits    *limits.Limits
 }
 
-func InitForm(cfg cfg.Authentication, db r.QueryExecutor) *Form {
+func InitForm(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *Form {
 	providers := map[string]Provider{}
 
 	if cfg.Local.Enabled {
@@ -31,7 +32,7 @@ func InitForm(cfg cfg.Authentication, db r.QueryExecutor) *Form {
 	}
 
 	if cfg.LDAP.Enabled {
-		ldap := InitLDAP(cfg.LDAP, cfg.Secret, db)
+		ldap := InitLDAP(cfg.LDAP, cfg.Secret, log, db)
 		providers[ldap.String()] = ldap
 	}
 

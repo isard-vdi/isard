@@ -8,6 +8,7 @@ import (
 
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -324,7 +325,7 @@ func TestGuessCategory(t *testing.T) {
 
 			ctx := context.Background()
 			u := tc.PrepareUserData()
-			tkn, err := guessCategory(ctx, mock, tc.Secret, tc.PrepareRegexp(), tc.RawCategories, u)
+			tkn, err := guessCategory(ctx, log.New("authentication-test", "debug"), mock, tc.Secret, tc.PrepareRegexp(), tc.RawCategories, u)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

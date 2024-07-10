@@ -10,6 +10,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
 
+	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -136,11 +137,13 @@ func matchRegexMultiple(re *regexp.Regexp, s string) []string {
 	return allMatches
 }
 
-func guessCategory(ctx context.Context, db r.QueryExecutor, secret string, re *regexp.Regexp, rawCategories []string, u *types.ProviderUserData) (string, *ProviderError) {
+func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor, secret string, re *regexp.Regexp, rawCategories []string, u *types.ProviderUserData) (string, *ProviderError) {
 	categories := []*model.Category{}
 	for _, c := range rawCategories {
 		match := matchRegexMultiple(re, c)
 		for _, m := range match {
+			log.Debug().Str("match", m).Msg("guess category match")
+
 			category := &model.Category{
 				UID: m,
 			}

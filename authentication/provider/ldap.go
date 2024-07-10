@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"regexp"
 
 	"gitlab.com/isard/isardvdi/authentication/cfg"
@@ -13,6 +12,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/token"
 
 	"github.com/go-ldap/ldap/v3"
+	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -21,6 +21,7 @@ var _ Provider = &LDAP{}
 type LDAP struct {
 	cfg    cfg.AuthenticationLDAP
 	secret string
+	log    *zerolog.Logger
 	db     r.QueryExecutor
 
 	ReUID          *regexp.Regexp
@@ -33,59 +34,60 @@ type LDAP struct {
 	ReGroupsSearch *regexp.Regexp
 }
 
-func InitLDAP(cfg cfg.AuthenticationLDAP, secret string, db r.QueryExecutor) *LDAP {
+func InitLDAP(cfg cfg.AuthenticationLDAP, secret string, log *zerolog.Logger, db r.QueryExecutor) *LDAP {
 	l := &LDAP{
 		cfg:    cfg,
 		secret: secret,
+		log:    log,
 		db:     db,
 	}
 
 	re, err := regexp.Compile(cfg.RegexUID)
 	if err != nil {
-		log.Fatalf("invalid UID regex: %v", err)
+		log.Fatal().Err(err).Msg("invalid UID regex")
 	}
 	l.ReUID = re
 
 	re, err = regexp.Compile(cfg.RegexUsername)
 	if err != nil {
-		log.Fatalf("invalid username regex: %v", err)
+		log.Fatal().Err(err).Msg("invalid username regex")
 	}
 	l.ReUsername = re
 
 	re, err = regexp.Compile(cfg.RegexName)
 	if err != nil {
-		log.Fatalf("invalid name regex: %v", err)
+		log.Fatal().Err(err).Msg("invalid name regex")
 	}
 	l.ReName = re
 
 	re, err = regexp.Compile(cfg.RegexEmail)
 	if err != nil {
-		log.Fatalf("invalid email regex: %v", err)
+		log.Fatal().Err(err).Msg("invalid email regex")
 	}
 	l.ReEmail = re
 
 	re, err = regexp.Compile(cfg.RegexPhoto)
 	if err != nil {
-		log.Fatalf("invalid photo regex: %v", err)
+		log.Fatal().Err(err).Msg("invalid photo regex")
 	}
 	l.RePhoto = re
 
 	if l.AutoRegister() {
 		re, err = regexp.Compile(cfg.RegexCategory)
 		if err != nil {
-			log.Fatalf("invalid category regex: %v", err)
+			log.Fatal().Err(err).Msg("invalid category regex")
 		}
 		l.ReCategory = re
 
 		re, err = regexp.Compile(cfg.RegexGroup)
 		if err != nil {
-			log.Fatalf("invalid group regex: %v", err)
+			log.Fatal().Err(err).Msg("invalid group regex")
 		}
 		l.ReGroup = re
 
 		re, err = regexp.Compile(cfg.GroupsSearchRegex)
 		if err != nil {
-			log.Fatalf("invalid search group regex: %v", err)
+			log.Fatal().Err(err).Msg("invalid search group regex")
 		}
 		l.ReGroupsSearch = re
 	}
@@ -236,7 +238,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	if l.cfg.GuessCategory {
 		// u.Category = matchRegex(l.ReCategory, entry.GetAttributeValue(l.cfg.FieldCategory))
 		attrCategories := entry.GetAttributeValues(l.cfg.FieldCategory)
-		tkn, err := guessCategory(ctx, l.db, l.secret, l.ReCategory, attrCategories, u)
+		tkn, err := guessCategory(ctx, l.log, l.db, l.secret, l.ReCategory, attrCategories, u)
 		if err != nil {
 			return nil, nil, "", "", err
 		}

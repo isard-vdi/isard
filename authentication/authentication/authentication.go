@@ -75,7 +75,7 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli isardvdi.
 
 	providers := map[string]provider.Provider{
 		types.ProviderUnknown:  &provider.Unknown{},
-		types.ProviderForm:     provider.InitForm(cfg.Authentication, db),
+		types.ProviderForm:     provider.InitForm(cfg.Authentication, log, db),
 		types.ProviderExternal: &provider.External{},
 	}
 

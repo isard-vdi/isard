@@ -206,7 +206,7 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 			}
 		}
 
-		tkn, err := guessCategory(ctx, s.db, s.cfg.Secret, s.ReCategory, attrCategories, u)
+		tkn, err := guessCategory(ctx, s.log, s.db, s.cfg.Secret, s.ReCategory, attrCategories, u)
 		if err != nil {
 			return nil, nil, "", "", err
 		}
