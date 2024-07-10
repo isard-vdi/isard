@@ -5,40 +5,43 @@ ARG DOCKER_IMAGE_TAG
 FROM ${DOCKER_IMAGE_PREFIX}rdpgw:$DOCKER_IMAGE_TAG as rdpgw
 
 #
-# Guacamole build
-#
-FROM alpine:3.19 as guacd-build
-RUN apk add alpine-sdk doas && \
-    adduser build -D && \
-    addgroup build wheel && \
-    addgroup build abuild && \
-    echo "permit nopass :wheel" >> /etc/doas.d/doas.conf && \
-    mkdir -p /var/cache/distfiles && \
-    chmod a+w /var/cache/distfiles && \
-    chgrp abuild /var/cache/distfiles && \
-    chmod g+w /var/cache/distfiles
-
-COPY docker/vpn/guacd /home/build/guacd
-
-WORKDIR /home/build/guacd
-USER build
-RUN abuild-keygen -a -i -n && \
-    doas chown build -R /home/build/guacd && \
-    abuild -r
-
-#
 # VPN
 #
-FROM alpine:3.18 as production
+FROM alpine:3.20 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk -U upgrade --no-cache
-RUN apk add --no-cache --update wireguard-tools openssh python3
+
+RUN apk add --no-cache \
+    wireguard-tools \
+    openssh \
+    openvswitch \
+    dnsmasq \
+    # For WireGuard and others
+    iptables \
+    # For python-iptables
+    iptables-legacy \
+    # For guacd (RDP Web)
+    guacamole-server \
+    guacamole-server-dev \
+    guacamole-server-rdp \
+    # For RDP stats
+    conntrack-tools \
+    # For the aplication itself
+    python3 \
+    py3-pip
+
+# OpenSSH
 RUN rm -rf /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_dsa_key
 
-## From isard-api
-RUN apk add python3 py3-pip
-RUN pip3 install --upgrade pip
+# OpenVSwitch
+RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
+RUN mkdir -pv /var/run/openvswitch/
+COPY docker/vpn/ovs /ovs
+
+# VPN
+RUN pip3 install --break-system-package --no-cache-dir --upgrade pip
+COPY docker/vpn/requirements.txt /requirements.txt
 RUN apk add --no-cache --virtual .build_deps \
     build-base \
     python3-dev \
@@ -49,47 +52,16 @@ RUN apk add --no-cache --virtual .build_deps \
     libtool \
     libmnl-dev \
     libnftnl-dev \
-    git
+    git && \
+    pip3 install --break-system-package --no-cache-dir  -r requirements.txt && \
+    apk del .build_deps
 
-# python-iptables
-# Avoid temporary build errors of iptables master branch by setting iptables version.
-# RUN git clone -b v1.8.7 git://git.netfilter.org/iptables
-RUN git clone https://gitlab.com/isard/iptables.git
-WORKDIR /iptables
-RUN ./autogen.sh
-RUN ./configure --prefix=/tmp/iptables
-RUN make
-RUN make install
-WORKDIR /
-RUN rm -rf iptables
+# Required for python-iptables
+ENV XTABLES_LIBDIR=/usr/lib/xtables
 
-ENV IPTABLES_LIBDIR=/tmp/iptables/lib
-ENV XTABLES_LIBDIR=/tmp/iptables/lib/xtables
-
-# python requirements
-COPY docker/vpn/requirements.txt /requirements.txt
-RUN pip3 install --no-cache-dir -r requirements.txt
-RUN apk del .build_deps
-
-# Install guacd and freerdp
-RUN echo -e "https://dl-cdn.alpinelinux.org/alpine/v3.19/main\n\
-https://dl-cdn.alpinelinux.org/alpine/v3.19/community\n\
-https://dl-cdn.alpinelinux.org/alpine/v3.19/testing" > /etc/apk/repos_3_19
-RUN apk add --repositories-file=/etc/apk/repos_3_19 freerdp freerdp-libs
-COPY --from=guacd-build /home/build/packages/build/x86_64 /tmp/guacd
-RUN apk add --allow-untrusted --no-cache /tmp/guacd/*.apk && rm -rf /tmp/guacd
-
-RUN apk add openvswitch
-RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
-RUN mkdir -pv /var/run/openvswitch/
-COPY docker/vpn/ovs /ovs
-
-RUN apk add --repositories-file=/etc/apk/repos_3_19 dnsmasq
-RUN apk add conntrack-tools
 COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
 COPY docker/vpn/src /src
 COPY docker/vpn/run.sh /
-# COPY docker/vpn/networking.py /
 
 COPY --from=rdpgw /rdpgw /rdpgw
 
