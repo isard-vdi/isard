@@ -48,7 +48,7 @@ services:
 
   isard-nc-nginx:
     container_name: isard-nc-nginx
-    image: ${NEXTCLOUD_NGINX_IMAGE-nginx:1.25.2-alpine-slim}
+    image: ${NEXTCLOUD_NGINX_IMAGE-nginx:1.27-alpine-slim}
     logging:
       driver: "json-file"
       options:
