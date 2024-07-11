@@ -180,15 +180,7 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 			w.Header().Add("Authorization", t.Authorization)
 
 			if t.SetCookie.Set {
-				c := &http.Cookie{
-					Name:    "authorization",
-					Path:    "/",
-					Value:   t.SetCookie.Value,
-					Secure:  true,
-					Expires: time.Now().Add(5 * time.Minute),
-				}
-
-				http.SetCookie(w, c)
+				w.Header().Set("Set-Cookie", t.SetCookie.Value)
 			}
 
 			http.Redirect(w, r, t.Location, http.StatusFound)
@@ -196,16 +188,7 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 
 		case *oasAuthentication.LoginOKHeaders:
 			w.Header().Add("Authorization", t.Authorization)
-
-			c := &http.Cookie{
-				Name:    "authorization",
-				Path:    "/",
-				Value:   t.SetCookie,
-				Secure:  true,
-				Expires: time.Now().Add(5 * time.Minute),
-			}
-
-			http.SetCookie(w, c)
+			w.Header().Set("Set-Cookie", t.SetCookie)
 
 			w.WriteHeader(http.StatusOK)
 			b, err := io.ReadAll(t.Response.Data)
