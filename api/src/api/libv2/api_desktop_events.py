@@ -224,13 +224,13 @@ def desktop_delete(desktop_id, agent_id, permanent=False):
         rcb.delete_storage(agent_id)
 
 
-def desktops_delete(agent_id, desktops_ids):
+def desktops_delete(agent_id, desktops_ids, permanent=False):
     rcb = RecycleBinBulk(user_id=agent_id)
     rcb.add(desktops_ids)
 
     max_time = rcb.get_delete_time()
     # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
-    if max_time == "0":
+    if max_time == "0" or permanent:
         rcb.delete_storage(agent_id)
 
 

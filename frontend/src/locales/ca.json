@@ -683,11 +683,17 @@
                 },
                 "delete": {
                     "title": "Esborrar plantilla"
+                },
+                "convert": {
+                    "title": "Convertir plantilla en escriptori"
                 }
             },
             "modal": {
                 "delete": {
-                    "title": "Avís de dependència",
+                    "title": {
+                        "warning": "Avís de dependència",
+                        "ok": "Convertir plantilla '{name}' en escriptori"
+                    },
                     "warning": {
                         "pending": "AVÍS! Algunes plantilles i escriptoris depenen d'aquesta plantilla, els quals NO són propietat teva.",
                         "delete": "AVÍS! Aquestes plantilles i escriptoris depenen d'aquesta plantilla i també seran esborrats.",
@@ -700,6 +706,35 @@
                         "kind": "Tipus",
                         "name": "Nom",
                         "user": "Usuari"
+                    }
+                },
+                "convert": {
+                    "title": "Avís de dependència",
+                    "warning": {
+                        "title": "Per poder convertir aquesta plantilla a escriptori és necessari que la plantilla no tingui elements derivats.",
+                        "pending": "La plantilla seleccionada té {ammount} escriptoris i plantilles d'altres usuaris que depenen d'ella. Contacta amb el teu administrador.",
+                        "delete": "Els següents recursos de la teva propietat s'eliminaran en cas de convertir a escriptori. Aquesta acció és irreversible.",
+                        "footer": "No pots convertir aquesta plantilla a escriptori. Contacta amb el teu administrador.",
+                        "confirm": "Entenc que tots aquests elements seran eliminats i vull continuar.",
+                        "confirm-unchecked": "Heu de marcar aquesta casella per a continuar"
+                    },
+                    "info": {
+                        "title": "Els següents canvis es faran a aquesta plantilla:",
+                        "delete": "Tots els elements que depenen de '{name}' seran eliminats",
+                        "rename": "'{oldName}' serà reanomenat a '{newName}'",
+                        "kind": "'{name}' serà convertit de plantilla a escriptori"
+                    },
+                    "button": {
+                        "apply": "Convertir plantilla"
+                    },
+                    "table-header": {
+                        "kind": "Tipus",
+                        "name": "Nom",
+                        "user": "Usuari"
+                    },
+                    "rename": {
+                        "title": "La plantilla '{name}' es convertirà en escriptori.",
+                        "label": "Pots reanomenar-la ara si vols: "
                     }
                 }
             }
@@ -1361,7 +1396,8 @@
             "video-default": "S'ha canviat el paràmetre 'Videos' de l'escriptori a 'Default', atès que no hi ha cap perfil de GPU assignat",
             "cancelling-operation": "Cancel·lant operació de disc en curs",
             "recreate-desktop-stop": "Per recrear un escriptori, aquest ha d'estar aturat",
-            "increasing-storage": "Incrementant mida del disc. Això pot trigar una estona"
+            "increasing-storage": "Incrementant mida del disc. Això pot trigar una estona",
+            "converting-template": "Convertint la plantilla a l'escriptori"
         },
         "loading": "Carregant"
     },

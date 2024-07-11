@@ -24,6 +24,7 @@ from ..libv2.quotas import Quotas
 
 quotas = Quotas()
 
+from ..libv2.api_admin import ApiAdmin
 from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent, check_template_status
 from ..libv2.api_templates import ApiTemplates
@@ -31,10 +32,16 @@ from ..libv2.api_templates import ApiTemplates
 templates = ApiTemplates()
 desktops = ApiDesktopsPersistent()
 allowed = ApiAllowed()
+admin = ApiAdmin()
 
 from ..libv2.api_scheduler import Scheduler
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
-from .decorators import has_token, is_admin_or_manager, ownsDomainId
+from .decorators import (
+    has_token,
+    is_admin_or_manager,
+    is_admin_or_manager_or_advanced,
+    ownsDomainId,
+)
 
 scheduler = Scheduler()
 
@@ -397,3 +404,65 @@ def api_v3_desktop_update_storage_id(payload, desktop_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/template/to/desktop", methods=["POST"])
+@is_admin_or_manager_or_advanced
+def api_v3_template_to_desktop(payload):
+    """
+    Endpoint to turn a template into a desktop
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: JSON response
+    """
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request",
+            "Template to desktop incorrect body data",
+            traceback.format_exc(),
+            description_code="template_to_desktop_incorrect_body_data",
+        )
+
+    data = _validate_item("template_to_desktop", data)
+
+    tree = admin.GetTemplateTreeList(data["domain_id"], payload["user_id"])[0]
+    derivates = templates.check_children(payload, tree)
+
+    if derivates["pending"]:
+        raise Error(
+            "precondition_required",
+            "Template to desktop pending derivates",
+            traceback.format_exc(),
+            description_code="template_to_desktop_pending_derivates",
+        )
+    else:
+        child_ids = []
+
+        def get_children_ids(children):
+            for child in children:
+                child_ids.append(child["id"])
+                if child.get("children"):
+                    get_children_ids(child["children"])
+
+        get_children_ids(tree["children"])
+
+        data["children"] = child_ids
+
+    if data["name"] == None or data["domain_id"] == None:
+        raise Error(
+            "bad_request",
+            "Template to desktop bad body data",
+            traceback.format_exc(),
+            description_code="template_to_desktop_bad_body_data",
+        )
+
+    ownsDomainId(payload, data["domain_id"])
+    quotas.desktop_create(payload["user_id"], 1)
+    check_storage_pool_availability(payload.get("category_id"))
+
+    desktops.convertTemplateToDesktop(payload, data)
+
+    return json.dumps({}), 200, {"Content-Type": "application/json"}

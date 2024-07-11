@@ -51,13 +51,18 @@ from ..libv2.bookings.api_booking import Bookings
 apib = Bookings()
 api_cards = ApiCards()
 common = ApiDesktopsCommon()
-from ..libv2.api_storage import get_media_domains
+from ..libv2.api_storage import get_domain_storage, get_media_domains
 from ..libv2.bookings.api_reservables import Reservables
 
 api_ri = Reservables()
 api_allowed = ApiAllowed()
 
-from .api_desktop_events import desktop_delete, desktop_reset, desktop_stop
+from .api_desktop_events import (
+    desktop_delete,
+    desktop_reset,
+    desktop_stop,
+    desktops_delete,
+)
 from .helpers import (
     _check,
     _get_reservables,
@@ -303,6 +308,78 @@ class ApiDesktopsPersistent:
                         img_uuid = api_cards.upload(domain_id, image_data)
                         card = api_cards.get_card(img_uuid, image_data["type"])
                 return new_desktop
+
+    def convertTemplateToDesktop(self, payload, data):
+        data = _validate_item("template_to_desktop", data)
+
+        try:
+            with app.app_context():
+                domain = r.table("domains").get(data["domain_id"]).run(db.conn)
+                query_prefix = r.table("domains").get(data["domain_id"])
+
+                ## Set status to maintenance
+                query_prefix.update(
+                    {
+                        "status": "Maintenance",
+                        "detail": '"Started converting template to desktop"',
+                    }
+                ).run(db.conn)
+
+                ## Delete children if any
+                if data.get("children"):
+                    try:
+                        children = data.get("children")
+                        desktops_delete(
+                            agent_id=payload["user_id"],
+                            desktops_ids=children,
+                            permanent=True,
+                        )
+                    except:
+                        raise Error(
+                            "internal_server",
+                            "Template to desktop unable to delete children from template",
+                            traceback.format_exc(),
+                            description_code="template_to_desktop_delete_children",
+                        )
+
+                ## Check that the domain doesn't have an empty parents list
+                ### Empty list or None in a desktop breaks helpers.py line 229
+                if domain.get("parents") == []:
+                    query_prefix.replace(lambda row: row.without("parents")).run(
+                        db.conn
+                    )
+
+                ## Check if the domain name is duplicated and change it
+                if domain.get("name") != data["name"]:
+                    check_user_duplicated_domain_name(
+                        data["name"], domain["user"], "desktop"
+                    )
+                    query_prefix.update({"name": data["name"]}).run(db.conn)
+                else:
+                    check_user_duplicated_domain_name(
+                        domain["name"], domain["user"], "desktop"
+                    )
+
+                ## Change kind from template to desktop
+                query_prefix.update({"kind": "desktop"}).run(db.conn)
+
+                ## Change status to stopped and change detail
+                query_prefix.update(
+                    {
+                        "status": "Stopped",
+                        "detail": '"Template converted to desktop"',
+                    }
+                ).run(db.conn)
+
+        except:
+            raise Error(
+                "internal_server",
+                "Unable to convert template to desktop",
+                traceback.format_exc(),
+                description_code="template_to_desktop_convert",
+            )
+
+        return data["domain_id"]
 
     def BulkDesktops(self, payload, data):
         selected = data["allowed"]

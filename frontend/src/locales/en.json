@@ -899,6 +899,9 @@
                 },
                 "delete": {
                     "title": "Delete template"
+                },
+                "convert": {
+                    "title": "Convert template to desktop"
                 }
             },
             "modal": {
@@ -916,6 +919,38 @@
                         "kind": "Kind",
                         "name": "Name",
                         "user": "User"
+                    }
+                },
+                "convert": {
+                    "title": {
+                        "warning": "Dependency warning",
+                        "ok": "Convert template '{name}' to desktop"
+                    },
+                    "warning": {
+                        "title": "To convert this template into a desktop, it must not have any dependent items.",
+                        "pending": "The selected template has {ammount} templates and desktops from other users that depend on this template. Please contact the administrator.",
+                        "delete": "The following resources of your property will be deleted if you convert it into a desktop. This action is irreversible.",
+                        "footer": "You cannot convert this template into a desktop. Please contact the administrator.",
+                        "confirm": "I'm aware that all this items will be deleted and I want proceed.",
+                        "confirm-unchecked": "You must check this box to proceed."
+                    },
+                    "info": {
+                        "title": "The following changes will be made to this template:",
+                        "delete": "All items that depend on '{name}' will be deleted",
+                        "rename": "'{oldName}' will be renamed to '{newName}'",
+                        "kind": "'{name}' will be converted from template to desktop"
+                    },
+                    "button": {
+                        "apply": "Convert template"
+                    },
+                    "table-header": {
+                        "kind": "Kind",
+                        "name": "Name",
+                        "user": "User"
+                    },
+                    "rename": {
+                        "title": "Your template '{name}' will be converted into a desktop",
+                        "label": "You can rename it now if you want: "
                     }
                 }
             }
@@ -1227,7 +1262,8 @@
             "video-default": "The 'Videos' parameter on the desktop was changed to 'Default', as there is no GPU profile assigned",
             "cancelling-operation": "Canceling ongoing disk operation",
             "recreate-desktop-stop": "To recreate a desktop it must be stopped",
-            "increasing-storage": "Increasing storage size. This may take a while"
+            "increasing-storage": "Increasing storage size. This may take a while",
+            "converting-template": "Converting template to desktop"
         },
         "loading": "Loading"
     },

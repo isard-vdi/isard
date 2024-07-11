@@ -85,6 +85,16 @@
                 />
               </b-button>
               <b-button
+                class="rounded-circle px-2 mr-2 btn-purple"
+                :title="$t('views.templates.buttons.convert.title')"
+                @click="showConvertToDesktopModal(data.item)"
+              >
+                <b-icon
+                  icon="tv"
+                  scale="0.75"
+                />
+              </b-button>
+              <b-button
                 class="rounded-circle px-2 mr-2"
                 :class="enabledClass(data.item)"
                 :title="data.item.enabled ? $t('views.templates.buttons.disable.title') : $t('views.templates.buttons.enable.title')"
@@ -185,6 +195,7 @@
       </b-tab>
     </b-tabs>
     <AllowedModal @updateAllowed="updateAllowed" />
+    <ConvertToDesktopModal />
     <DeleteTemplateModal />
   </b-container>
 </template>
@@ -192,6 +203,7 @@
 // @ is an alias to /src
 import IsardTable from '../components/shared/IsardTable.vue'
 import AllowedModal from '@/components/AllowedModal.vue'
+import ConvertToDesktopModal from '../components/templates/ConvertToDesktopModal.vue'
 import DeleteTemplateModal from '@/components/templates/DeleteTemplateModal.vue'
 import { desktopStates } from '@/shared/constants'
 import { mapActions, mapGetters } from 'vuex'
@@ -202,6 +214,7 @@ export default {
   components: {
     IsardTable,
     AllowedModal,
+    ConvertToDesktopModal,
     DeleteTemplateModal
   },
   setup (props, context) {
@@ -300,6 +313,10 @@ export default {
       $store.dispatch('fetchAllowed', { table: 'domains', id: template.id })
     }
 
+    const showConvertToDesktopModal = (template) => {
+      $store.dispatch('fetchConvertToDesktop', { template: template })
+    }
+
     const enabledClass = (template) => {
       return template.enabled ? 'btn-blue' : 'btn-grey'
     }
@@ -347,6 +364,7 @@ export default {
       sharedFields,
       onClickGoToEditTemplate,
       showAllowedModal,
+      showConvertToDesktopModal,
       enabledClass,
       toggleEnabled,
       toggleEnabledIcon,

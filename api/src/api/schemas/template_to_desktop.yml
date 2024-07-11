@@ -1,0 +1,16 @@
+name:
+  maxlength: 50
+  required: true
+  type: string
+  minlength: 4
+  coerce: sanitize
+domain_id:
+  type: string
+  required: true
+  coerce: sanitize
+children:
+  type: list
+  required: false
+  schema:
+    type: string
+    coerce: sanitize
