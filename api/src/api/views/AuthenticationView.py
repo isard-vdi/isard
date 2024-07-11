@@ -37,7 +37,7 @@ from ..libv2.api_authentication import (
     get_providers,
 )
 from ..libv2.validators import _validate_item
-from .decorators import has_token, is_admin
+from .decorators import disclaimer, is_admin
 
 
 @app.route("/api/v3/admin/authentication/policy", methods=["POST"])
@@ -157,7 +157,7 @@ def admin_force_password(payload, policy_id):
 
 
 @app.route("/api/v3/disclaimer", methods=["GET"])
-@has_token
+@disclaimer
 def get_disclaimer(payload):
     text = get_disclaimer_template(payload["user_id"])
     return (

@@ -74,6 +74,22 @@ def password_reset(f):
     return decorated
 
 
+def disclaimer(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        payload = get_header_jwt_payload()
+        if payload.get("type") == "disclaimer-acknowledgement-required":
+            kwargs["payload"] = payload
+            return f(*args, **kwargs)
+        raise Error(
+            "forbidden",
+            "Token not valid for this operation.",
+            traceback.format_exc(),
+        )
+
+    return decorated
+
+
 def has_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
