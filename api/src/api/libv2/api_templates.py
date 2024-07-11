@@ -304,6 +304,22 @@ class ApiTemplates:
 
         return {"domains": domains, "pending": pending}
 
+    def get_deployments_with_template(self, template_id, return_username=False):
+        query = r.table("deployments").get_all(template_id, index="template")
+        with app.app_context():
+            if return_username:
+                return list(
+                    query.merge(
+                        lambda deployment: {
+                            "username": r.table("users").get(deployment["user"])[
+                                "username"
+                            ]
+                        }
+                    ).run(db.conn)
+                )
+            else:
+                return list(query.run(db.conn))
+
 
 def delete_desktops_non_persistent(template_id):
     with app.app_context():

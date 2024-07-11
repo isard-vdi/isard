@@ -690,10 +690,7 @@
             },
             "modal": {
                 "delete": {
-                    "title": {
-                        "warning": "Avís de dependència",
-                        "ok": "Convertir plantilla '{name}' en escriptori"
-                    },
+                    "title": "Avís de dependència",
                     "warning": {
                         "pending": "AVÍS! Algunes plantilles i escriptoris depenen d'aquesta plantilla, els quals NO són propietat teva.",
                         "delete": "AVÍS! Aquestes plantilles i escriptoris depenen d'aquesta plantilla i també seran esborrats.",
@@ -709,10 +706,13 @@
                     }
                 },
                 "convert": {
-                    "title": "Avís de dependència",
+                    "title": {
+                        "warning": "Avís de dependència",
+                        "ok": "Convertir plantilla '{name}' en escriptori"
+                    },
                     "warning": {
                         "title": "Per poder convertir aquesta plantilla a escriptori és necessari que la plantilla no tingui elements derivats.",
-                        "pending": "La plantilla seleccionada té {ammount} escriptoris i plantilles d'altres usuaris que depenen d'ella. Contacta amb el teu administrador.",
+                        "pending": "La plantilla seleccionada té {ammount} escriptoris, plantilles o desplegaments d'altres usuaris que depenen d'ella. Contacta amb el teu administrador.",
                         "delete": "Els següents recursos de la teva propietat s'eliminaran en cas de convertir a escriptori. Aquesta acció és irreversible.",
                         "footer": "No pots convertir aquesta plantilla a escriptori. Contacta amb el teu administrador.",
                         "confirm": "Entenc que tots aquests elements seran eliminats i vull continuar.",

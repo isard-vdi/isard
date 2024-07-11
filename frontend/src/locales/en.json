@@ -928,10 +928,10 @@
                     },
                     "warning": {
                         "title": "To convert this template into a desktop, it must not have any dependent items.",
-                        "pending": "The selected template has {ammount} templates and desktops from other users that depend on this template. Please contact the administrator.",
+                        "pending": "The selected template has {ammount} templates, desktops or deployments from other users that depend on this template. Please contact the administrator.",
                         "delete": "The following resources of your property will be deleted if you convert it into a desktop. This action is irreversible.",
                         "footer": "You cannot convert this template into a desktop. Please contact the administrator.",
-                        "confirm": "I'm aware that all this items will be deleted and I want proceed.",
+                        "confirm": "I'm aware that all these items will be deleted and I want proceed.",
                         "confirm-unchecked": "You must check this box to proceed."
                     },
                     "info": {

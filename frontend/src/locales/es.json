@@ -920,10 +920,7 @@
             },
             "modal": {
                 "delete": {
-                    "title": {
-                        "warning": "Aviso de dependencia",
-                        "ok": "Convertir plantilla '{name}' en escritorio"
-                    },
+                    "title": "Aviso de dependencia",
                     "warning": {
                         "pending": "AVISO! Algunas plantillas y escritorios dependen de esta plantilla, los cuales NO son de tu propiedad.",
                         "delete": "AVISO! Estas plantillas y escritorios dependen de esta plantilla y también serán eliminados.",
@@ -939,10 +936,13 @@
                     }
                 },
                 "convert": {
-                    "title": "Aviso de dependencia",
+                    "title": {
+                        "warning": "Aviso de dependencia",
+                        "ok": "Convertir plantilla '{name}' en escritorio"
+                    },
                     "warning": {
                         "title": "Para poder convertir esta plantilla a escritorio es necesario que la plantilla no tenga elementos derivados.",
-                        "pending": "La plantilla seleccionada tiene {ammount} plantillas y escritorios de otros usuarios que dependen de esta plantilla. Contacta con tu administrador.",
+                        "pending": "La plantilla seleccionada tiene {ammount} plantillas, escritorios o despliegues de otros usuarios que dependen de esta plantilla. Contacta con tu administrador.",
                         "delete": "Los siguientes recursos de tu propiedad se eliminarán en caso de convertir a escritorio. Esta acción es irreversible.",
                         "footer": "No puedes convertir esta plantilla en un escritorio. Contacta con tu administrador.",
                         "confirm": "Entiendo que todos estos elementos se eliminarán y quiero continuar.",

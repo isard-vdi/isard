@@ -342,6 +342,12 @@ class ApiDesktopsPersistent:
                             description_code="template_to_desktop_delete_children",
                         )
 
+                ## Delete deployments if any
+                deployments = templates.get_deployments_with_template(data["domain_id"])
+                if deployments:
+                    for dp in deployments:
+                        r.table("deployments").get(dp["id"]).delete().run(db.conn)
+
                 ## Check that the domain doesn't have an empty parents list
                 ### Empty list or None in a desktop breaks helpers.py line 229
                 if domain.get("parents") == []:
