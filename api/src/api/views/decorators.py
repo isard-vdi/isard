@@ -55,11 +55,11 @@ def maintenance(category_id=None):
             abort(503)
 
 
-def password_reset(f):
+def has_password_reset_required_or_password_reset_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
-        if payload.get("type") in ["password-reset-required", "password-reset"]:
+        if payload.get("type", "") in ["password-reset-required", "password-reset"]:
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise Error(
@@ -71,11 +71,11 @@ def password_reset(f):
     return decorated
 
 
-def disclaimer(f):
+def has_disclaimer_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
-        if payload.get("type") == "disclaimer-acknowledgement-required":
+        if payload.get("type", "") == "disclaimer-acknowledgement-required":
             kwargs["payload"] = payload
             return f(*args, **kwargs)
         raise Error(
@@ -91,7 +91,7 @@ def has_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
-        if payload.get("type") not in ["login", ""]:
+        if payload.get("type", "") not in ["login", ""]:
             raise Error(
                 "forbidden",
                 "Token not valid for this operation.",
@@ -160,7 +160,7 @@ def is_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
-        if payload.get("type") not in ["login", ""]:
+        if payload.get("type", "") not in ["login", ""]:
             raise Error(
                 "forbidden",
                 "Token not valid for this operation.",
@@ -186,7 +186,7 @@ def is_admin_or_manager(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
-        if payload.get("type") not in ["login", ""]:
+        if payload.get("type", "") not in ["login", ""]:
             raise Error(
                 "forbidden",
                 "Token not valid for this operation.",
@@ -214,7 +214,7 @@ def is_admin_or_manager_or_advanced(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
-        if payload.get("type") not in ["login", ""]:
+        if payload.get("type", "") not in ["login", ""]:
             raise Error(
                 "forbidden",
                 "Token not valid for this operation.",
@@ -246,7 +246,7 @@ def is_not_user(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         payload = get_header_jwt_payload()
-        if payload.get("type") not in ["login", ""]:
+        if payload.get("type", "") not in ["login", ""]:
             raise Error(
                 "forbidden",
                 "Token not valid for this operation.",
