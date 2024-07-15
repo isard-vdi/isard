@@ -639,7 +639,6 @@ class ApiUsers:
                     "Not found group_id " + group_id + " for user_id " + user_id,
                     traceback.format_exc(),
                 )
-
             if password == False:
                 password = _random_password()
             else:

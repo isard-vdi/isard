@@ -120,10 +120,9 @@ $(document).ready(function() {
 
   table = $('#hypervisors').DataTable({
     "ajax": {
-      "url": "/admin/table/hypervisors",
-      "data": function(d) { return JSON.stringify({ 'order_by': 'id' }) },
+      "url": "/api/v3/hypervisors",
       "contentType": "application/json",
-      "type": 'POST'
+      "type": 'GET'
     },
     "sAjaxDataProp": "",
     "language": {
@@ -149,7 +148,15 @@ $(document).ready(function() {
       { "data": "info.cpu_cores", "defaultContent": 'NaN' },
       { "data": "status_time" },
       { "data": "desktops_started", "defaultContent": 0 },
-      { "data": "gpus", "defaultContent": 0 },
+      {
+        "data": "gpus", "defaultContent": 0, render: function (data, type, row) {
+          return data.sort().toString() == row.physical_gpus.sort().toString() ? data.length :
+            `<i title="This hypervisor is assigned to ${data.length} GPUs but there is only ${row.physical_gpus.length} physical GPUs. These GPUs do not correspond:
+             \n${data.filter(gpu => !row.physical_gpus.includes(gpu))
+              .concat(row.physical_gpus.filter(gpu => !data.includes(gpu)))}" class="fa fa-warning" style="color:red;">
+            ${row.physical_gpus.length + "/" + data.length}</i>`
+        }
+      },
       { "data": "vpn.wireguard.connected", "defaultContent": 'NaN' },
       { "data": "info.nested", "defaultContent": 'NaN' },
       { "data": "viewer.static" },
@@ -267,6 +274,17 @@ $(document).ready(function() {
             return "0"
           }
           return data
+        }
+      },
+      {
+        // GPUs
+        "targets": 13,
+        "render": function(data, type, full, meta) {
+          if (full.physical_gpus == data) {
+            return data
+          } else {
+            return `<i title="Number of GPUs doesn't match the physical GPUs" class="fa fa-warning" style="color:red;"> ${data}</i> `
+          }
         }
       },
       {

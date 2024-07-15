@@ -54,12 +54,9 @@ $(document).ready(function () {
 
   gpus_table = $("#table-gpus").DataTable({
     ajax: {
-      url: "/admin/table/gpus",
+      url: "/api/v3/admin/reservables/gpus",
       contentType: "application/json",
-      type: "POST",
-      data: function (d) {
-        return JSON.stringify({ order: "id" });
-      },
+      type: "GET",
     },
     sAjaxDataProp: "",
     language: {
@@ -80,8 +77,44 @@ $(document).ready(function () {
       },
       { data: "name", width: "300px" },
       { data: "description" },
-      { data: "physical_device" },
-      { data: null },
+      { data: "physical_device", render: function (data, type, full) {
+        return data ? data : `<i class='fa fa-exclamation-triangle' style='color:darkred' title='No physical device assigned'> None</i>`;
+      }},
+      {
+        data: null, render: function (data, type, full, meta) {
+          var text = "Err"
+          if (data.physical_device != null) {
+              if (data.changing_to_profile != false) {
+                text = data.active_profile + "->" + data.changing_to_profile
+              } else {
+                text = data.active_profile
+              }
+          } else {
+            text = "-"
+          }
+          return text + ' <button id="btn-force_active_profile" class="btn btn-xs btn-danger" type="button" style="margin-left:10px" data-toggle="tooltip" data-placement="right" title="Force active profile"><i class="fa fa-flash"></i></button>'
+        }
+      },
+      {
+        data: "plans", width: "85px", render: function (data, type, full) {
+          const color = data.active && data.current ? "darkgreen" : "darkred";
+          const hasPlans = data.current ? data.profile : "None";
+          const content = (data.active || !data.current) || full.active_profile
+            ? `${hasPlans}`
+            : `<i class='fa fa-exclamation-triangle' style='color:darkred' title='The current plan does not match this GPU&#39;s active profile: ${full.active_profile}'> ${hasPlans}</i>`;
+          return `<span style="color:${color}">${content}</span>`;
+        }
+      },
+      {
+        data: "desktops_started", render: function (data, type, full, meta) {
+          if (full["active_profile"]) {
+            return renderProgressGPU(data.length, full["available_units"])
+          } else {
+            return "0";
+          }
+
+        }
+      },
       { data: "brand", width: "10px" },
       { data: "model", width: "10px" },
       { data: "architecture" },
@@ -95,30 +128,7 @@ $(document).ready(function () {
           '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>'
       },
     ],
-    order: [[7, "desc"]],
-    "columnDefs": [ {
-        "targets": 4,
-        "render": function ( data, type, full, meta ) {
-          var text ="Err"
-          if( data.physical_device != null ){
-              $.ajax({
-                method: "GET",
-                async: false,
-                url: "/engine/profile/gpu/"+data.physical_device,
-              }).done(function (response) {
-                if( response.changing_to_profile != false ){
-                  text= response.vgpu_profile+"->"+response.changing_to_profile
-                }else{
-                  text= response.vgpu_profile
-                }
-              }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
-                console.log("Status: " + textStatus); console.log("Error: " + errorThrown);
-              })
-          }else{
-            text = "-"
-          }
-          return text + ' <button id="btn-force_active_profile" class="btn btn-xs btn-danger" type="button" style="margin-left:10px" data-toggle="tooltip" data-placement="right" title="Force active profile"><i class="fa fa-flash"></i></button>'
-        }},]
+    order: [[7, "desc"]]
   });
 
   // Add event listener for opening and closing first level childdetails
@@ -250,7 +260,7 @@ $(document).ready(function () {
           } else {
             enableProfile(reservable_type, item_id, subitem_id, enabled, null, null, false);
           }
-        }
+      }
     });
 
   $('#modalDeleteGPUForm #notify-user').on("ifUnchecked", function () {
@@ -423,7 +433,6 @@ function showDeleteGPUModal(subitem_id, item_id, reservable_type, data) {
       infoDomains(value, $('#desktops_table tbody'));
     });
   } else {
-    console.log($('#desktops_table tbody'))
     $('#desktops_table tbody').append(`<tr class="active"><td/><td colspan="3" style="text-align:center;">No items</td></tr>`);
   }
   if (data['plans'].length > 0) {
@@ -674,4 +683,12 @@ function deleteReservable(reservable_type, item_id, notify_user) {
       });
     }
   });
+}
+
+function renderProgressGPU(progress, total) {
+  return ` ${progress}/${total}  <div class="progress"> 
+            <div class="progress-bar" role="progressbar" aria-valuenow="${progress}" 
+              aria-valuemin="0" aria-valuemax="${total}" style="width:${(progress / total) * 100}%;">
+            </div> 
+          </div>`;
 }
