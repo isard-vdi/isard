@@ -42,10 +42,13 @@ def _api_maintenance_get_status():
 
 @cached(cache=TTLCache(maxsize=1, ttl=5))
 @app.route("/api/v3/maintenance", methods=["GET"])
+@app.route("/api/v3/maintenance/<category_id>", methods=["GET"])
 @has_token
-def _api_maintenance_get(payload):
+def _api_maintenance_get(payload, category_id=None):
     status = Maintenance.enabled
-    category_status = get_category_maintenance(payload["category_id"])
+    category_status = get_category_maintenance(
+        category_id if category_id else payload["category_id"]
+    )
     return (
         json.dumps(status or category_status),
         200,
