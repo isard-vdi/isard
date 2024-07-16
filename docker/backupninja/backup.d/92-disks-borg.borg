@@ -1,0 +1,21 @@
+when = $BACKUP_DISKS_WHEN
+
+[source]
+$BACKUP_DISKS_TEMPLATES_ENABLED
+$BACKUP_DISKS_GROUPS_ENABLED
+$BACKUP_DISKS_MEDIA_ENABLED
+
+## for more info see : borg prune -h
+keep = 0
+prune = yes
+prune_options = $BACKUP_DISKS_PRUNE
+
+[dest]
+directory = /backup/disks
+host = localhost
+port = 22
+user = root
+archive = {now:%Y-%m-%dT%H:%M:%S}
+compression = lz4
+encryption = none
+passphrase = 
