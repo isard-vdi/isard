@@ -25,6 +25,7 @@ mkdir -p -m700 /usr/local/etc/backup.d
 mkdir -p /usr/local/var/log
 mkdir -p /backup
 mkdir -p /dbdump
+mkdir -p /redisdump
 
 rm -f /usr/local/etc/backup.d/*
 
@@ -34,6 +35,8 @@ mount_nfs
 # Initialize backup repositories
 mkdir -p /backup/db
 borg init -e none /backup/db > /dev/null 2>&1 || true
+mkdir -p /backup/redis
+borg init -e none /backup/redis > /dev/null 2>&1 || true
 mkdir -p /backup/disks
 borg init -e none /backup/disks > /dev/null 2>&1 || true
 mkdir -p /backup/extract
@@ -45,13 +48,34 @@ umount_nfs
 # DB
 #
 if [ "$BACKUP_DB_ENABLED" = "true" ]; then
-    echo "DATABASE ENABLED: Enabled database backup $BACKUP_DB_WHEN with $BACKUP_DB_PRUNE prune policy"
-    echo "                  Logs can be found at $LOG_FILE folder"
+    if [ -z "$1" ]; then
+        echo "DATABASE ENABLED: Enabled database backup $BACKUP_DB_WHEN with $BACKUP_DB_PRUNE prune policy"
+        echo "                  Logs can be found at $LOG_FILE folder"
+    fi
 
     jobs="10-db-info.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 11-db-nfs-mount.sh"
     jobs="$jobs 12-db-dump.sh 13-db-borg.borg"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 19-db-nfs-umount.sh"
+
+    for job in $jobs; do
+        envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+    done
+fi
+
+#
+# Redis
+#
+if [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
+    if [ -z "$1" ]; then
+        echo "REDIS ENABLED: Enabled redis backup $BACKUP_REDIS_WHEN with $BACKUP_REDIS_PRUNE prune policy"
+        echo "                  Logs can be found at $LOG_FILE folder"
+    fi
+
+    jobs="20-redis-info.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 21-redis-nfs-mount.sh"
+    jobs="$jobs 22-redis-dump.sh 23-redis-borg.borg"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 29-redis-nfs-umount.sh"
 
     for job in $jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
@@ -78,12 +102,14 @@ if [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
         BACKUP_DISKS_MEDIA_ENABLED="include = /opt/isard/media"
     fi
 
-    echo "DISKS ENABLED: Enabled disks backup $BACKUP_DISKS_WHEN with $BACKUP_DISKS_PRUNE prune policy"
-    echo "               Disks backup included folders:"
-    echo "               - TEMPLATES: $BACKUP_DISKS_TEMPLATES_ENABLED"
-    echo "               -    GROUPS: $BACKUP_DISKS_GROUPS_ENABLED"
-    echo "               -     MEDIA: $BACKUP_DISKS_MEDIA_ENABLED"
-    echo "               Logs can be found at $LOG_FILE folder"
+    if [ -z "$1" ]; then
+        echo "DISKS ENABLED: Enabled disks backup $BACKUP_DISKS_WHEN with $BACKUP_DISKS_PRUNE prune policy"
+        echo "               Disks backup included folders:"
+        echo "               - TEMPLATES: $BACKUP_DISKS_TEMPLATES_ENABLED"
+        echo "               -    GROUPS: $BACKUP_DISKS_GROUPS_ENABLED"
+        echo "               -     MEDIA: $BACKUP_DISKS_MEDIA_ENABLED"
+        echo "               Logs can be found at $LOG_FILE folder"
+    fi
 
 
     jobs="90-disks-info.sh"
@@ -107,13 +133,18 @@ backup_args() {
             export BACKUP_PATH="/backup/db"
             ;;
 
+        "redis")
+            export BACKUP_SCRIPTS_PREFIX="2*"
+            export BACKUP_PATH="/backup/redis"
+            ;;
+
         "disks")
             export BACKUP_SCRIPTS_PREFIX="9*"
             export BACKUP_PATH="/backup/disks"
             ;;
 
         *)
-            echo "Invalid backup option, must be 'db' or 'disks'"
+            echo "Invalid backup option, must be 'db', 'redis' or 'disks'"
             exit 1
             ;;
     esac
@@ -192,10 +223,21 @@ case "$1" in
         umount_nfs
         ;;
 
-    *)
+    "")
         # Start the cron daemon and follow the logs
         crond
         tail -f $LOG_FILE
+        ;;
+    *)
+        echo "Available commands"
+        echo "      execute-now => run a backup"
+        echo "      list => list all the backups"
+        echo "      info => show info of a backup"
+        echo "      show-files => show all the files of a backup"
+        echo "      check-integrity => check a backup is extractable"
+        echo "      extract => extract some files"
+        echo "      check-nfs-mount => ensure the NFS can be mounted"
+        exit 1
         ;;
 esac
 

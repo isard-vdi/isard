@@ -2,4 +2,5 @@
 
 when="$BACKUP_DISKS_WHEN"
 
-echo "----------- NEW DISKS BACKUP: $(date +%Y-%m-%d_%H:%M:%S) -----------" >> $$LOG_FILE
+# https://stackoverflow.com/a/61259844
+echo "----------- NEW DISKS BACKUP: $(date +%Y-%m-%d_%H:%M:%S) -----------" >> $${my_empty_variable}LOG_FILE

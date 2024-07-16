@@ -1,0 +1,19 @@
+when = $BACKUP_REDIS_WHEN
+
+[source]
+include = /redisdump
+
+## for more info see : borg prune -h
+keep = 0
+prune = yes
+prune_options = $BACKUP_REDIS_PRUNE
+
+[dest]
+directory = /backup/redis
+host = localhost
+port = 22
+user = root
+archive = {now:%Y-%m-%dT%H:%M:%S}
+compression = lz4
+encryption = none
+passphrase = 

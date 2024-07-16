@@ -41,11 +41,11 @@ COPY --from=build /usr/local/etc/backupninja.conf /usr/local/etc/backupninja.con
 COPY --from=build /usr/local/lib/backupninja /usr/local/lib/backupninja
 COPY --from=build /usr/local/share/backupninja /usr/local/share/backupninja
 RUN sed -i '/^reportemail =/s/^/#/' /usr/local/etc/backupninja.conf
+RUN sed -i '/^reportprom =/s/^/#/' /usr/local/etc/backupninja.conf
 RUN ln -s /usr/local/sbin/backupninja /etc/periodic/hourly/backupninja
 
 # Copy scripts
 COPY docker/backupninja/run.sh /usr/local/bin/
-COPY docker/backupninja/backup.sh /usr/local/bin/
 COPY docker/backupninja/nfs_mount.sh /usr/local/bin/
 COPY docker/backupninja/nfs_umount.sh /usr/local/bin/
 COPY docker/backupninja/backup.d /usr/local/share/backup.d

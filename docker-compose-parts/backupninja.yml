@@ -1,4 +1,4 @@
-version: '3.5'
+version: "3.5"
 services:
   isard-backupninja:
     container_name: isard-backupninja
@@ -30,6 +30,9 @@ services:
       - BACKUP_REPORT_EMAIL=${BACKUP_REPORT_EMAIL-root}
       - BACKUP_DB_WHEN=${BACKUP_DB_WHEN-everyday at 04:01}
       - BACKUP_DB_PRUNE=${BACKUP_DB_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
+      - BACKUP_REDIS_ENABLED=${BACKUP_REDIS_ENABLED-false}
+      - BACKUP_REDIS_WHEN=${BACKUP_REDIS_WHEN-everyday at 04:01}
+      - BACKUP_REDIS_PRUNE=${BACKUP_REDIS_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
       - BACKUP_DISKS_ENABLED=${BACKUP_DISKS_ENABLED-false}
       - BACKUP_DISKS_WHEN=${BACKUP_DISKS_WHEN-everyday at 04:01}
       - BACKUP_DISKS_PRUNE=${BACKUP_DISKS_PRUNE---keep-weekly=4 --keep-monthly=3 --keep-within=7d --save-space}
@@ -37,4 +40,6 @@ services:
       - BACKUP_DISKS_GROUPS_ENABLED=${BACKUP_DISKS_GROUPS_ENABLED-false}
       - BACKUP_DISKS_MEDIA_ENABLED=${BACKUP_DISKS_MEDIA_ENABLED-false}
       - RETHINKDB_HOST=${RETHINKDB_HOST:-isard-db}
-      - RETHINKDB_PORT=${RETHINKDB_HOST:-28015}
+      - RETHINKDB_PORT=${RETHINKDB_PORT:-28015}
+      - REDIS_HOST=${REDIS_HOST:-isard-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
