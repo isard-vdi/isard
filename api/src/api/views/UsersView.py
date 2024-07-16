@@ -36,13 +36,13 @@ vpn = isardVpn()
 
 from .decorators import (
     checkDuplicateUser,
+    has_password_reset_required_or_password_reset_token,
     has_token,
     has_viewer_token,
     is_not_user,
     is_register,
     ownsDomainId,
     ownsUserId,
-    password_reset,
 )
 
 """
@@ -287,7 +287,7 @@ def user_password_policy(payload):
 
 
 @app.route("/api/v3/user/expired/password-policy", methods=["GET"])
-@password_reset
+@has_password_reset_required_or_password_reset_token
 def user_password_policy_expired(payload):
     return (
         json.dumps(users.get_user_password_policy(user_id=payload["user_id"])),

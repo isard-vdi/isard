@@ -52,14 +52,7 @@ export default {
         return config
       })
       disclaimerAxios.post(`${authenticationSegment}/acknowledge-disclaimer`, {}).then((response) => {
-        axios.get(`${apiV3Segment}/user`, {}).then((response) => {
-          console.log(response.data)
-          const data = new FormData()
-          data.append('category_id', response.data.category)
-          data.append('provider', ['local', 'ldap'].includes(response.data.provider) ? 'form' : response.data.provider)
-          data.append('username', response.data.username)
-          context.dispatch('login', data)
-        })
+        context.dispatch('login')
       })
     }
   }
