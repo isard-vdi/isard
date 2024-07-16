@@ -290,6 +290,9 @@ class Bookings:
                     desktop = (
                         r.table("domains").get(booking.get("item_id")).run(db.conn)
                     )
+                    r.table("domains").get(booking.get("item_id")).update(
+                        {"booking_id": False}
+                    ).run(db.conn)
                 if desktop.get("status") not in ["Stopped", "Failed"]:
                     raise Error(
                         "precondition_required",
