@@ -23,6 +23,28 @@ from os import environ
 from isardvdi_common.atexit_register import atexit_register
 from isardvdi_common.rethink_base import RethinkBase
 from rethinkdb import r
+from rethinkdb.net import Connection
+
+
+class Context:
+    """
+    Ephemeral RethinkDB connection
+    """
+
+    def __enter__(self):
+        if isinstance(RethinkCustomBase._rdb_connection, Connection):
+            if not RethinkCustomBase._rdb_connection.is_open():
+                RethinkCustomBase._rdb_connection.reconnect()
+        else:
+            RethinkCustomBase._rdb_connection = r.connect(
+                host=environ.get("RETHINKDB_HOST", "isard-db"),
+                port=environ.get("RETHINKDB_PORT", "28015"),
+                auth_key=environ.get("RETHINKDB_AUTH", ""),
+                db=environ.get("RETHINKDB_DB", "isard"),
+            )
+
+    def __exit__(self, *args):
+        RethinkCustomBase._rdb_connection.close()
 
 
 class RethinkCustomBase(RethinkBase, ABC):
@@ -34,12 +56,8 @@ class RethinkCustomBase(RethinkBase, ABC):
     argument to create an object representing an existing Rethink Document.
     """
 
-    _rdb_connection = r.connect(
-        host=environ.get("RETHINKDB_HOST", "isard-db"),
-        port=environ.get("RETHINKDB_PORT", "28015"),
-        auth_key=environ.get("RETHINKDB_AUTH", ""),
-        db=environ.get("RETHINKDB_DB", "isard"),
-    )
+    _rdb_connection = None
+    _rdb_context = Context
 
     @classmethod
     @atexit_register
