@@ -65,9 +65,13 @@ def isAdminManager(fn):
 
 
 @cached(TTLCache(maxsize=1, ttl=5))
-def _get_maintenance():
+def _get_maintenance(category_id=None):
     logging.debug("Check api maintenance mode")
-    return ApiRest().get(_MAINTENANCE_API_ENDPOINT)
+    return ApiRest().get(
+        _MAINTENANCE_API_ENDPOINT + "/" + category_id
+        if category_id
+        else _MAINTENANCE_API_ENDPOINT
+    )
 
 
 def maintenance(function):
@@ -76,7 +80,7 @@ def maintenance(function):
     @wraps(function)
     def wrapper(*args, **kargs):
         if getattr(current_user, "role", None) != "admin":
-            if _get_maintenance():
+            if _get_maintenance(getattr(current_user, "category", None)):
                 return render_template("maintenance.html"), 503
         return function(*args, **kargs)
 

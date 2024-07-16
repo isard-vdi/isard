@@ -145,6 +145,7 @@ DOMAINS PAGES
 @app.route("/isard-admin/admin/domains/render/<nav>")
 @login_required
 @isAdminManager
+@maintenance
 def admin_domains(nav="Domains"):
     icon = ""
     if nav == "Desktops":
@@ -239,6 +240,7 @@ def admin_domains(nav="Domains"):
 @app.route("/isard-admin/admin/domains/render/Recyclebin/<nav>")
 @login_required
 @isAdminManager
+@maintenance
 def admin_recyclebin(nav="Disks"):
     if nav == "Domains":
         icon = "dektop"
@@ -270,6 +272,7 @@ MEDIA
 @app.route("/isard-admin/admin/isard-admin/media", methods=["POST", "GET"])
 @login_required
 @isAdminManager
+@maintenance
 def admin_media():
     return render_template(
         "admin/pages/media.html",
@@ -287,6 +290,7 @@ USERS
 @app.route("/isard-admin/admin/users/<nav>", methods=["POST", "GET"])
 @login_required
 @isAdminManager
+@maintenance
 def admin_users(nav):
     if nav == "Management":
         return render_template(
@@ -336,6 +340,7 @@ USAGE
 @app.route("/isard-admin/admin/usage", methods=["GET"])
 @login_required
 @isAdminManager
+@maintenance
 def admin_usage():
     return render_template(
         "admin/pages/usage.html",
@@ -348,6 +353,7 @@ def admin_usage():
 @app.route("/isard-admin/admin/usage_config", methods=["GET"])
 @login_required
 @isAdminManager
+@maintenance
 def admin_usage_config():
     return render_template(
         "admin/pages/usage_config.html",
@@ -482,6 +488,7 @@ ANALYTICS
 @app.route("/isard-admin/admin/analytics", methods=["GET"])
 @login_required
 @isAdminManager
+@maintenance
 def admin_analytics():
     return render_template(
         "admin/pages/analytics.html", nav="Analytics", title="Analytics"
