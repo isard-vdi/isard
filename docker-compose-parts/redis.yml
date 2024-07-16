@@ -36,6 +36,6 @@ services:
       REDIS_PASSWORD:
       REDIS_PORT: ${REDIS_PORT:-6379}
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -p $$REDIS_PORT:-6379 ping"]
+      test: ["CMD-SHELL", "redis-cli -p $$REDIS_PORT ping | grep PONG"]
       start_period: 10s
       interval: 5s
