@@ -37,6 +37,8 @@ mkdir -p /backup/db
 borg init -e none /backup/db > /dev/null 2>&1 || true
 mkdir -p /backup/redis
 borg init -e none /backup/redis > /dev/null 2>&1 || true
+mkdir -p /backup/stats
+borg init -e none /backup/stats > /dev/null 2>&1 || true
 mkdir -p /backup/disks
 borg init -e none /backup/disks > /dev/null 2>&1 || true
 mkdir -p /backup/extract
@@ -76,6 +78,25 @@ if [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 21-redis-nfs-mount.sh"
     jobs="$jobs 22-redis-dump.sh 23-redis-borg.borg"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 29-redis-nfs-umount.sh"
+
+    for job in $jobs; do
+        envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+    done
+fi
+
+#
+# Stats
+#
+if [ "$BACKUP_STATS_ENABLED" = "true" ]; then
+    if [ -z "$1" ]; then
+        echo "STATS ENABLED: Enabled stats backup $BACKUP_STATS_WHEN with $BACKUP_STATS_PRUNE prune policy"
+        echo "                  Logs can be found at $LOG_FILE folder"
+    fi
+
+    jobs="30-stats-info.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 31-stats-nfs-mount.sh"
+    jobs="$jobs 32-stats-dump.sh 33-stats-borg.borg"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 39-stats-nfs-umount.sh"
 
     for job in $jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
@@ -138,13 +159,18 @@ backup_args() {
             export BACKUP_PATH="/backup/redis"
             ;;
 
+        "stats")
+            export BACKUP_SCRIPTS_PREFIX="3*"
+            export BACKUP_PATH="/backup/stats"
+            ;;
+
         "disks")
             export BACKUP_SCRIPTS_PREFIX="9*"
             export BACKUP_PATH="/backup/disks"
             ;;
 
         *)
-            echo "Invalid backup option, must be 'db', 'redis' or 'disks'"
+            echo "Invalid backup option, must be 'db', 'redis', 'stats' or 'disks'"
             exit 1
             ;;
     esac

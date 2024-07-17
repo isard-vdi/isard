@@ -23,6 +23,7 @@ RUN apk add --no-cache \
     nfs-utils \
     borgbackup \
     redis \
+    curl \
     coreutils \
     flock \
     py3-pip

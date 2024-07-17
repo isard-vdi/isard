@@ -283,6 +283,10 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 #BACKUP_REDIS_WHEN="everyday at 01"
 #BACKUP_REDIS_PRUNE="--keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space"
 
+#BACKUP_STATS_ENABLED=false
+#BACKUP_STATS_WHEN="everyday at 01"
+#BACKUP_STATS_PRUNE="--keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space"
+
 #BACKUP_DISKS_ENABLED=false
 #BACKUP_DISKS_WHEN="everyday at 01"
 #BACKUP_DISKS_PRUNE="--keep-weekly=4 --keep-monthly=3 --keep-within=7d --save-space"

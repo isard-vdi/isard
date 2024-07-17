@@ -21,25 +21,42 @@ services:
       - /opt/isard/templates:/opt/isard/templates:ro
       - /opt/isard/groups:/opt/isard/groups:ro
       - /opt/isard/media:/opt/isard/media:ro
+      - /opt/isard/stats:/opt/isard/stats
     environment:
+      # General backup settings
       - BACKUP_DIR=${BACKUP_DIR-/opt/isard-local/backup}
+      - BACKUP_REPORT_EMAIL=${BACKUP_REPORT_EMAIL-root}
+
+      # NFS
       - BACKUP_NFS_ENABLED=${BACKUP_NFS_ENABLED-false}
       - BACKUP_NFS_SERVER=${BACKUP_NFS_SERVER-}
       - BACKUP_NFS_FOLDER=${BACKUP_NFS_FOLDER-}
+
+      # DB
       - BACKUP_DB_ENABLED=${BACKUP_DB_ENABLED-false}
-      - BACKUP_REPORT_EMAIL=${BACKUP_REPORT_EMAIL-root}
       - BACKUP_DB_WHEN=${BACKUP_DB_WHEN-everyday at 04:01}
       - BACKUP_DB_PRUNE=${BACKUP_DB_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
+      - RETHINKDB_HOST=${RETHINKDB_HOST:-isard-db}
+      - RETHINKDB_PORT=${RETHINKDB_PORT:-28015}
+
+      # Redis
       - BACKUP_REDIS_ENABLED=${BACKUP_REDIS_ENABLED-false}
       - BACKUP_REDIS_WHEN=${BACKUP_REDIS_WHEN-everyday at 04:01}
       - BACKUP_REDIS_PRUNE=${BACKUP_REDIS_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
+      - REDIS_HOST=${REDIS_HOST:-isard-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+
+      # Stats
+      - BACKUP_STATS_ENABLED=${BACKUP_STATS_ENABLED-false}
+      - BACKUP_STATS_WHEN=${BACKUP_STATS_WHEN-everyday at 04:01}
+      - BACKUP_STATS_PRUNE=${BACKUP_STATS_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
+      - PROMETHEUS_ADDRESS=${PROMETHEUS_ADDRESS-http://isard-prometheus:9090}
+      - LOKI_ADDRESS=${LOKI_ADDRESS-http://isard-loki:3100}
+
+      # Disks
       - BACKUP_DISKS_ENABLED=${BACKUP_DISKS_ENABLED-false}
       - BACKUP_DISKS_WHEN=${BACKUP_DISKS_WHEN-everyday at 04:01}
       - BACKUP_DISKS_PRUNE=${BACKUP_DISKS_PRUNE---keep-weekly=4 --keep-monthly=3 --keep-within=7d --save-space}
       - BACKUP_DISKS_TEMPLATES_ENABLED=${BACKUP_DISKS_TEMPLATES_ENABLED-false}
       - BACKUP_DISKS_GROUPS_ENABLED=${BACKUP_DISKS_GROUPS_ENABLED-false}
       - BACKUP_DISKS_MEDIA_ENABLED=${BACKUP_DISKS_MEDIA_ENABLED-false}
-      - RETHINKDB_HOST=${RETHINKDB_HOST:-isard-db}
-      - RETHINKDB_PORT=${RETHINKDB_PORT:-28015}
-      - REDIS_HOST=${REDIS_HOST:-isard-redis}
-      - REDIS_PORT=${REDIS_PORT:-6379}

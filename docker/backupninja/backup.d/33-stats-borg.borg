@@ -1,0 +1,20 @@
+when = $BACKUP_STATS_WHEN
+
+[source]
+include = /opt/isard/stats/loki
+include = /opt/isard/stats/prometheus/snapshots
+
+## for more info see : borg prune -h
+keep = 0
+prune = yes
+prune_options = $BACKUP_STATS_PRUNE
+
+[dest]
+directory = /backup/stats
+host = localhost
+port = 22
+user = root
+archive = {now:%Y-%m-%dT%H:%M:%S}
+compression = lz4
+encryption = none
+passphrase = 
