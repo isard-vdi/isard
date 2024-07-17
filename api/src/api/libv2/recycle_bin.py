@@ -99,6 +99,134 @@ def get_user_data(user_id):
     }
 
 
+def update_task_status(task):
+    with app.app_context():
+        rb = (
+            r.table("recycle_bin")
+            .get(task["recycle_bin_id"])
+            .pluck(
+                {
+                    "owner_id": True,
+                    "agent_type": True,
+                    "agent_id": True,
+                    "agent_name": True,
+                    "agent_category_id": True,
+                    "agent_category_name": True,
+                    "agent_role": True,
+                    "tasks": True,
+                    "storages": {"id"},
+                }
+            )
+            .run(db.conn)
+        )
+
+        for t in rb["tasks"]:
+            if t["id"] == task["id"]:
+                t["status"] = task["status"]
+                break
+
+        # Check if all the recycle bin tasks are finished then update the recycle bin status to deleted
+        finished_tasks = list(
+            filter(lambda t: (t["status"] == "finished"), rb["tasks"])
+        )
+
+        if len(finished_tasks) == len(rb["storages"]):
+            r.table("recycle_bin").get(task["recycle_bin_id"]).update(
+                {
+                    "status": "deleted",
+                    "tasks": r.row["tasks"].map(
+                        lambda rb_task: r.branch(
+                            rb_task["id"] == task["id"],
+                            rb_task.merge({"status": task["status"]}),
+                            rb_task,
+                        )
+                    ),
+                }
+            ).run(db.conn)
+            send_socket_user(
+                "update_recycle_bin",
+                {"id": task["recycle_bin_id"], "status": "deleted"},
+                rb["owner_id"],
+            )
+            send_socket_admin(
+                "update_recycle_bin",
+                {"id": task["recycle_bin_id"], "status": "deleted"},
+            )
+            add_log(
+                "deleted",
+                task["recycle_bin_id"],
+                rb["agent_type"],
+                rb["agent_id"],
+                rb["agent_name"],
+                rb["agent_category_id"],
+                rb["agent_category_name"],
+                rb["agent_role"],
+            )
+        # Otherwise only update the tasks status
+        else:
+            r.table("recycle_bin").get(task["recycle_bin_id"]).update(
+                {
+                    "tasks": r.row["tasks"].map(
+                        lambda rb_task: r.branch(
+                            rb_task["id"] == task["id"],
+                            rb_task.merge({"status": task["status"]}),
+                            rb_task,
+                        )
+                    )
+                }
+            ).run(db.conn)
+
+
+def send_socket_user(kind, data, owner_id):
+    socketio.emit(
+        kind,
+        data,
+        namespace="/userspace",
+        room=owner_id,
+    )
+
+
+def send_socket_admin(kind, data):
+    socketio.emit(
+        kind,
+        data,
+        namespace="/administrators",
+        room="admins",
+    )
+
+
+def add_log(
+    status,
+    id,
+    agent_type,
+    agent_id,
+    agent_name,
+    agent_category_id,
+    agent_category_name,
+    agent_role,
+):
+    """
+    Add a log entry for a status change with agent
+
+    :param status: new status
+    :type status: str
+    """
+    logs = {
+        "time": int(time.time()),
+        "action": status,
+        "agent_type": agent_type,
+        "agent_id": agent_id,
+        "agent_name": agent_name,
+        "agent_category_id": agent_category_id,
+        "agent_category_name": agent_category_name,
+        "agent_role": agent_role,
+    }
+    with app.app_context():
+        r.table("recycle_bin").get(id).update({"logs": r.row["logs"].append(logs)}).run(
+            db.conn
+        )
+
+
 class RecycleBin(object):
     id = None
     status = None
@@ -193,7 +321,16 @@ class RecycleBin(object):
                     )
                     .run(db.conn)["changes"][0]["new_val"]["id"]
                 )
-            self._add_log("recycled")
+            add_log(
+                "recycled",
+                self.id,
+                self.agent_type,
+                self.agent_id,
+                self.agent_name,
+                self.agent_category_id,
+                self.agent_category_name,
+                self.agent_role,
+            )
 
         else:
             with app.app_context():
@@ -230,54 +367,8 @@ class RecycleBin(object):
         self.owner_group_name = user["group_name"]
         self.owner_role = user["role"]
         self.is_new = False
-        self.send_socket_user("add_recycle_bin", self.get_count())
-        self.send_socket_admin("add_recycle_bin", self.get_count())
-
-    def _add_log(self, status):
-        """
-        Add a log entry for a status change with agent
-
-        :param status: new status
-        :type status: str
-        """
-        logs = {
-            "time": int(time.time()),
-            "action": status,
-            "agent_type": self.agent_type,
-            "agent_id": self.agent_id,
-            "agent_name": self.agent_name,
-            "agent_category_id": self.agent_category_id,
-            "agent_category_name": self.agent_category_name,
-            "agent_role": self.agent_role,
-        }
-        with app.app_context():
-            r.table("recycle_bin").get(self.id).update(
-                {"logs": r.row["logs"].append(logs)}
-            ).run(db.conn)
-        # if self.logs_inserted:
-        #     return
-        # if status not in ["recycled", "restored", "deleted"]:
-        #     raise Error("bad_request", "action not allowed")
-        # if RecycleBin.status == status:
-        #     raise Error("bad_request", "action not allowed as is the current status")
-        # if not RecycleBin.status:
-        #     if action != "recycled":
-        #         raise Error("bad_request", "initial only allowed action is 'recycled'")
-        #     RecycleBin.status = "recycled"
-        # with app.app_context():
-        #     r.table("recycle_bin").get(RecycleBin.id).update(
-        #         {
-        #             "logs": r.row["logs"].append(
-        #                 {
-        #                     "time": time.time(),
-        #                     "action": action,
-        #                     "agent_type": RecycleBin.agent_type,
-        #                     "agent_id": RecycleBin.agent_id,
-        #                     "agent_name": RecycleBin.agent_name,
-        #                 }
-        #             )
-        #         }
-        #     ).run(db.conn)
+        send_socket_user("add_recycle_bin", self.get_count(), self.owner_id)
+        send_socket_admin("add_recycle_bin", self.get_count())
 
     def _update_agent(self, user_id=None):
         """
@@ -323,7 +414,6 @@ class RecycleBin(object):
             ).run(db.conn)
 
     def _add_task(self, task):
-        self.tasks.append(task)
         with app.app_context():
             r.table("recycle_bin").get(self.id).update(
                 {"tasks": r.row["tasks"].append(task)}
@@ -351,22 +441,6 @@ class RecycleBin(object):
 
         for template in self.templates:
             quotas.template_create(template["user"])
-
-    def send_socket_user(self, kind, data):
-        socketio.emit(
-            kind,
-            data,
-            namespace="/userspace",
-            room=self.owner_id,
-        )
-
-    def send_socket_admin(self, kind, data):
-        socketio.emit(
-            kind,
-            data,
-            namespace="/administrators",
-            room="admins",
-        )
 
     def restore(self):
         """
@@ -408,7 +482,16 @@ class RecycleBin(object):
             except:
                 raise Error("not found", "Invalid storage data")
             self._update_status("restored")
-            self._add_log("restored")
+            add_log(
+                "restored",
+                self.id,
+                self.agent_type,
+                self.agent_id,
+                self.agent_name,
+                self.agent_category_id,
+                self.agent_category_name,
+                self.agent_role,
+            )
             r.table("domains").insert(self.desktops + self.templates).run(db.conn)
             r.table("deployments").insert(self.deployments).run(db.conn)
         if self.categories:
@@ -417,12 +500,10 @@ class RecycleBin(object):
             isard_user_storage_enable_groups(self.groups)
         elif self.users:
             isard_user_storage_enable_users(self.users)
-        self.send_socket_user(
-            "update_recycle_bin", {"id": self.id, "status": "restored"}
+        send_socket_user(
+            "update_recycle_bin", {"id": self.id, "status": "restored"}, self.owner_id
         )
-        self.send_socket_admin(
-            "update_recycle_bin", {"id": self.id, "status": "restored"}
-        )
+        send_socket_admin("update_recycle_bin", {"id": self.id, "status": "restored"})
 
     def delete_storage(self, user_id):
         """
@@ -452,10 +533,12 @@ class RecycleBin(object):
 
         if not self.storages:
             self._update_status("deleted")
-            self.send_socket_user(
-                "delete_recycle_bin", {"id": self.id, "status": "deleted"}
+            send_socket_user(
+                "delete_recycle_bin",
+                {"id": self.id, "status": "deleted"},
+                self.owner_id,
             )
-            self.send_socket_admin(
+            send_socket_admin(
                 "update_recycle_bin", {"id": self.id, "status": "deleted"}
             )
         else:
@@ -475,19 +558,32 @@ class RecycleBin(object):
                         )
                     if all(x == "deleted" for x in storages_status):
                         rb._update_status("deleted")
-                        rb.send_socket_user(
-                            "delete_recycle_bin", {"id": rb.id, "status": "deleted"}
+                        send_socket_user(
+                            "delete_recycle_bin",
+                            {"id": rb.id, "status": "deleted"},
+                            self.owner_id,
                         )
-                        rb.send_socket_admin(
+                        send_socket_admin(
                             "update_recycle_bin", {"id": rb.id, "status": "deleted"}
                         )
                     else:
                         rb._update_status("deleting")
-                        rb._add_log("deleting")
-                        rb.send_socket_user(
-                            "update_recycle_bin", {"id": rb.id, "status": "deleting"}
+                        add_log(
+                            "deleting",
+                            entry["id"],
+                            self.agent_type,
+                            self.agent_id,
+                            self.agent_name,
+                            self.agent_category_id,
+                            self.agent_category_name,
+                            self.agent_role,
                         )
-                        rb.send_socket_admin(
+                        send_socket_user(
+                            "update_recycle_bin",
+                            {"id": rb.id, "status": "deleting"},
+                            self.owner_id,
+                        )
+                        send_socket_admin(
                             "update_recycle_bin", {"id": rb.id, "status": "deleting"}
                         )
                         if not entry["storages"]:
@@ -833,44 +929,6 @@ class RecycleBin(object):
                 .count()
                 .run(db.conn)
             )
-
-    @classmethod
-    def update_task_status(cls, task):
-        # Update task status
-        with app.app_context():
-            r.table("recycle_bin").get(task["recycle_bin_id"]).update(
-                {
-                    "tasks": r.row["tasks"].map(
-                        lambda rb_task: r.branch(
-                            rb_task["id"] == task["id"],
-                            rb_task.merge({"status": task["status"]}),
-                            rb_task,
-                        )
-                    )
-                }
-            ).run(db.conn)
-
-        # If the all of the tasks are finished update the recycle bin status to deleted
-        with app.app_context():
-            recycle_bin = (
-                r.table("recycle_bin").get(task["recycle_bin_id"]).run(db.conn)
-            )
-        finished_tasks = list(
-            filter(lambda t: (t["status"] == "finished"), recycle_bin.get("tasks", []))
-        )
-        if len(finished_tasks) == len(recycle_bin.get("storages", [])):
-            with app.app_context():
-                r.table("recycle_bin").get(task["recycle_bin_id"]).update(
-                    {"status": "deleted"}
-                ).run(db.conn)
-                rb = RecycleBin(task["recycle_bin_id"])
-                rb._add_log("deleted")
-                rb.send_socket_user(
-                    "update_recycle_bin", {"id": rb.id, "status": "deleted"}
-                )
-                rb.send_socket_admin(
-                    "update_recycle_bin", {"id": rb.id, "status": "deleted"}
-                )
 
     def get_delete_time(self):
         if not self.owner_category_id:
