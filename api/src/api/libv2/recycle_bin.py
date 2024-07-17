@@ -1055,18 +1055,20 @@ class RecycleBinDomain(RecycleBin):
             for disk in desktop["create_dict"]["hardware"]["disks"]:
                 if "storage_id" in disk:
                     storages_ids.append(disk["storage_id"])
+        storages = []
         with app.app_context():
-            storages = r.table("storage").get_all(r.args(storages_ids)).run(db.conn)
+            for i in range(0, len(storages_ids), 200):
+                batch_ids = storages_ids[i : i + 200]
+                storages += r.table("storage").get_all(r.args(batch_ids)).run(db.conn)
+                r.table("storage").get_all(r.args(batch_ids)).update(
+                    {
+                        "status": "recycled",
+                        "status_logs": r.row["status_logs"].append(
+                            {"time": int(time.time()), "status": "recycled"}
+                        ),
+                    }
+                ).run(db.conn)
         rcb_storage.add_storages(storages)
-        with app.app_context():
-            r.table("storage").get_all(r.args(storages_ids)).update(
-                {
-                    "status": "recycled",
-                    "status_logs": r.row["status_logs"].append(
-                        {"time": int(time.time()), "status": "recycled"}
-                    ),
-                }
-            ).run(db.conn)
 
 
 class RecycleBinDesktop(RecycleBinDomain):
@@ -1234,25 +1236,18 @@ class RecycleBinBulk(RecycleBin):
 
     def add(self, desktops_ids):
         super()._add_owner(self.agent_id)
-        with app.app_context():
-            desktops_ids = list(
-                r.table("domains")
-                .get_all(r.args(desktops_ids))
-                .pluck("id")["id"]
-                .run(db.conn)
-            )
-        desktops_stop(desktops_ids, 5)
-        # Move desktops to recycle_bin
-        with app.app_context():
-            desktops = list(
-                r.table("domains").get_all(r.args(desktops_ids)).run(db.conn)
-            )
         rcb_desktop = RecycleBinDesktop(id=self.id, user_id=self.agent_id)
-        rcb_desktop.add_desktops(desktops)
+        desktops = []
         with app.app_context():
-            desktops = (
-                r.table("domains").get_all(r.args(desktops_ids)).delete().run(db.conn)
-            )
+            for i in range(0, len(desktops_ids), 200):
+                batch_ids = desktops_ids[i : i + 200]
+                desktops_stop(batch_ids, 5)
+                # Move desktops to recycle_bin
+                desktops += list(
+                    r.table("domains").get_all(r.args(batch_ids)).run(db.conn)
+                )
+                r.table("domains").get_all(r.args(batch_ids)).delete().run(db.conn)
+        rcb_desktop.add_desktops(desktops)
         return self._set_data(self.id)
 
 
