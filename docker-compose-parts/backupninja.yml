@@ -18,10 +18,25 @@ services:
       - /opt/isard-local/logs/backupninja:/var/log/
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+      # Stats
+      - /opt/isard/stats:/opt/isard/stats
+      # Config
+      - /opt/isard/assets:/opt/isard/assets:ro
+      - /opt/isard/authentication:/opt/isard/authentication:ro
+      - /opt/isard/bastion:/opt/isard/bastion:ro
+      - /opt/isard/certs:/opt/isard/certs:ro
+      - /opt/isard/config:/opt/isard/config:ro
+      - /opt/isard/dnsmasq:/opt/isard/dnsmasq:ro
+      - /opt/isard/frontend:/opt/isard/frontend:ro
+      - /opt/isard/monitor:/opt/isard/monitor:ro
+      - /opt/isard/operations:/opt/isard/operations:ro
+      - /opt/isard/src:/opt/isard/src:ro
+      - /opt/isard/sshkeys:/opt/isard/sshkeys:ro
+      - /opt/isard/wireguard:/opt/isard/wireguard:ro
+      # Disks
       - /opt/isard/templates:/opt/isard/templates:ro
       - /opt/isard/groups:/opt/isard/groups:ro
       - /opt/isard/media:/opt/isard/media:ro
-      - /opt/isard/stats:/opt/isard/stats
     environment:
       # General backup settings
       - BACKUP_DIR=${BACKUP_DIR-/opt/isard-local/backup}
@@ -52,6 +67,11 @@ services:
       - BACKUP_STATS_PRUNE=${BACKUP_STATS_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
       - PROMETHEUS_ADDRESS=${PROMETHEUS_ADDRESS-http://isard-prometheus:9090}
       - LOKI_ADDRESS=${LOKI_ADDRESS-http://isard-loki:3100}
+
+      # Config
+      - BACKUP_CONFIG_ENABLED=${BACKUP_CONFIG_ENABLED-false}
+      - BACKUP_CONFIG_WHEN=${BACKUP_CONFIG_WHEN-everyday at 04:01}
+      - BACKUP_CONFIG_PRUNE=${BACKUP_CONFIG_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
 
       # Disks
       - BACKUP_DISKS_ENABLED=${BACKUP_DISKS_ENABLED-false}

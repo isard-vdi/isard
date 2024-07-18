@@ -1,0 +1,30 @@
+when = $BACKUP_CONFIG_WHEN
+
+[source]
+include = /opt/isard/assets
+include = /opt/isard/authentication
+include = /opt/isard/bastion
+include = /opt/isard/certs
+include = /opt/isard/config
+include = /opt/isard/dnsmasq
+include = /opt/isard/frontend
+include = /opt/isard/monitor
+include = /opt/isard/operations
+include = /opt/isard/src
+include = /opt/isard/sshkeys
+include = /opt/isard/wireguard
+
+## for more info see : borg prune -h
+keep = 0
+prune = yes
+prune_options = $BACKUP_CONFIG_PRUNE
+
+[dest]
+directory = /backup/config
+host = localhost
+port = 22
+user = root
+archive = {now:%Y-%m-%dT%H:%M:%S}
+compression = lz4
+encryption = none
+passphrase = 
