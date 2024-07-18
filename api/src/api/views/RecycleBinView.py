@@ -154,7 +154,7 @@ def recycle_bin_old_entries_delete(payload):
 @is_admin_or_manager
 def recycle_bin_update_task(payload):
     task = request.get_json(force=True)
-    RecycleBin.update_task_status(task)
+    update_task_status(task)
 
     return (
         json.dumps({}),
