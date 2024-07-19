@@ -321,3 +321,10 @@ def api_v3_orch_hyper_manage(payload, hypervisor_id):
 def api_v3_hypervisors_mountpoints(payload, hyper_id):
     mountpoints = api_hypervisors.get_hyper_mountpoints(hyper_id)["mountpoints"]
     return json.dumps(mountpoints), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/hypervisor/started_domains/<hyper_id>", methods=["GET"])
+@is_admin
+def api_v3_hypervisors_started_domains(payload, hyper_id):
+    mountpoints = api_hypervisors.get_hyper_started_domains(hyper_id)
+    return json.dumps(mountpoints), 200, {"Content-Type": "application/json"}
