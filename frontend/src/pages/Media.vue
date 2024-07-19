@@ -110,7 +110,7 @@
               <b-button
                 v-if="data.item.status === 'DownloadFailed'"
                 class="rounded-circle px-2 mr-2 btn-blue"
-                :title="$t('views.media.buttons.download')"
+                :title="$t('views.media.buttons.download.title')"
                 @click="onClickDownloadMedia(data.item.id)"
               >
                 <b-icon
@@ -276,7 +276,7 @@
               <b-button
                 v-if="data.item.status === 'DownloadFailed'"
                 class="rounded-circle px-2 mr-2 btn-blue"
-                :title="$t('views.media.buttons.download')"
+                :title="$t('views.media.buttons.download.title')"
                 @click="onClickDownloadMedia(data.item.id)"
               >
                 <b-icon
