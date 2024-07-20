@@ -14,6 +14,9 @@ module.exports = {
 	],
   
   theme: {
+    fontFamily: {
+      sans: ['Montserrat', 'sans-serif']
+    },
     container: {
       center: true,
       padding: "2rem",
@@ -29,8 +32,14 @@ module.exports = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
+          DEFAULT: "hsl(var(--primary-700))",
           foreground: "hsl(var(--primary-foreground))",
+          100: "hsl(var(--primary-100))",
+          200: "hsl(var(--primary-200))",
+          600: "hsl(var(--primary-600))",
+          700: "hsl(var(--primary-700))",
+          800: "hsl(var(--primary-800))",
+          900: "hsl(var(--primary-900))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -62,6 +71,16 @@ module.exports = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      borderColor: {
+        primary: "hsl(var(--primary-600))",
+      },
+      borderOpacity: {
+        primary: "24%",
+      },
+      borderWidth: {
+        xs: "2px",
+        sm: "3px",
       },
       keyframes: {
         "accordion-down": {

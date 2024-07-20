@@ -12,7 +12,9 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build --force",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.0",
@@ -26,8 +28,18 @@
     "vue-router": "^4.3.3"
   },
   "devDependencies": {
+    "@chromatic-com/storybook": "^1.6.1",
     "@playwright/test": "^1.44.1",
     "@rushstack/eslint-patch": "^1.8.0",
+    "@storybook/addon-designs": "^8.0.3",
+    "@storybook/addon-essentials": "^8.2.4",
+    "@storybook/addon-interactions": "^8.2.4",
+    "@storybook/addon-links": "^8.2.4",
+    "@storybook/addon-onboarding": "^8.2.4",
+    "@storybook/blocks": "^8.2.4",
+    "@storybook/test": "^8.2.4",
+    "@storybook/vue3": "^8.2.4",
+    "@storybook/vue3-vite": "^8.2.4",
     "@tsconfig/node20": "^20.1.4",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^20.14.5",
@@ -39,10 +51,12 @@
     "autoprefixer": "^10.4.19",
     "eslint": "^8.57.0",
     "eslint-plugin-playwright": "^1.6.2",
+    "eslint-plugin-storybook": "^0.8.0",
     "eslint-plugin-vue": "^9.23.0",
     "jsdom": "^24.1.0",
     "npm-run-all2": "^6.2.0",
     "prettier": "^3.2.5",
+    "storybook": "^8.2.4",
     "tailwindcss": "^3.4.4",
     "typescript": "~5.4.0",
     "vite": "^5.3.1",
