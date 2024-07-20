@@ -7,37 +7,175 @@
 @layer base {
   :root {
     /* Colors */
-    --white: 0, 0%, 100%, 1;
-    --black: 0, 0%, 0%, 1;
+    --base-white: 0, 0%, 100%, 1;
+    --base-black: 0, 0%, 0%, 1;
+    --base-backgdround: 43, 64%, 96%, 1;
+    --base-bg-menu: 45, 19%, 88%, 1;
+    --base-menu-hover: 46, 22%, 85%, 1;
+    --brand-100: 189, 41%, 93%, 1;
+    --brand-200: 192, 48%, 88%, 1;
+    --brand-600: 190, 29%, 36%, 1;
+    --brand-700: 190, 66%, 20%, 1;
+    --brand-800: 189, 67%, 12%, 1;
+    --brand-900: 191, 66%, 8%, 1;
+    --gray-warm-25: 59, 10%, 99%, 1;
+    --gray-warm-50: 59, 10%, 98%, 1;
+    --gray-warm-100: 59, 6%, 96%, 1;
+    --gray-warm-200: 19, 7%, 90%, 1;
+    --gray-warm-300: 23, 7%, 83%, 1;
+    --gray-warm-400: 23, 6%, 64%, 1;
+    --gray-warm-500: 24, 6%, 45%, 1;
+    --gray-warm-600: 32, 6%, 32%, 1;
+    --gray-warm-700: 29, 7%, 25%, 1;
+    --gray-warm-800: 11, 7%, 15%, 1;
+    --gray-warm-900: 23, 11%, 10%, 1;
+    --gray-warm-950: 23, 11%, 8%, 1;
+    --error-25: 0, 50%, 95%, 1;
+    --error-50: 358, 48%, 90%, 1;
+    --error-100: 358, 49%, 85%, 1;
+    --error-200: 359, 47%, 81%, 1;
+    --error-300: 359, 48%, 76%, 1;
+    --error-400: 359, 48%, 61%, 1;
+    --error-500: 359, 48%, 56%, 1;
+    --error-600: 359, 48%, 52%, 1;
+    --error-700: 359, 45%, 41%, 1;
+    --error-800: 359, 45%, 26%, 1;
+    --error-900: 358, 46%, 10%, 1;
+    --error-950: 0, 46%, 5%, 1;
+    --success-25: 144, 38%, 95%, 1;
+    --success-50: 141, 38%, 90%, 1;
+    --success-100: 141, 38%, 85%, 1;
+    --success-300: 141, 38%, 75%, 1;
+    --success-400: 141, 37%, 59%, 1;
+    --success-500: 141, 37%, 54%, 1;
+    --success-600: 141, 39%, 49%, 1;
+    --success-700: 141, 38%, 39%, 1;
+    --success-800: 142, 39%, 29%, 1;
+    --success-900: 140, 39%, 20%, 1;
+    --success-950: 141, 40%, 10%, 1;
+    --warning-25: 42, 100%, 97%, 1;
+    --warning-50: 42, 100%, 93%, 1;
+    --warning-100: 42, 96%, 90%, 1;
+    --warning-200: 44, 98%, 77%, 1;
+    --warning-300: 42, 98%, 80%, 1;
+    --warning-400: 42, 97%, 73%, 1;
+    --warning-500: 42, 97%, 70%, 1;
+    --warning-600: 42, 98%, 66%, 1;
+    --warning-700: 42, 56%, 53%, 1;
+    --warning-800: 42, 50%, 26%, 1;
+    --warning-900: 42, 50%, 20%, 1;
+    --warning-950: 42, 50%, 13%, 1;
+    --info-25: 192, 38%, 95%, 1;
+    --info-50: 195, 38%, 90%, 1;
+    --info-100: 194, 38%, 85%, 1;
+    --info-200: 194, 37%, 64%, 1;
+    --info-300: 194, 37%, 59%, 1;
+    --info-400: 194, 37%, 54%, 1;
+    --info-500: 194, 39%, 49%, 1;
+    --info-600: 194, 38%, 39%, 1;
+    --info-700: 194, 39%, 35%, 1;
+    --info-800: 193, 39%, 29%, 1;
+    --info-900: 195, 39%, 20%, 1;
+    --info-950: 194, 39%, 15%, 1;
+    --secondary-1-400: 67, 53%, 73%, 1;
+    --secondary-1-500: 67, 58%, 59%, 1;
+    --secondary-1-600: 68, 100%, 18%, 1;
+    --secondary-2-400: 16, 72%, 72%, 1;
+    --secondary-2-500: 16, 81%, 60%, 1;
+    --secondary-2-600: 21, 100%, 23%, 1;
+    --secondary-3-400: 174, 47%, 73%, 1;
+    --secondary-3-500: 173, 41%, 56%, 1;
+    --secondary-3-600: 173, 63%, 19%, 1;
+    --badges-purple-200: 245, 97%, 92%, 1;
+    --badges-purple-700: 257, 72%, 50%, 1;
+    --badges-indigo-200: 222, 98%, 89%, 1;
+    --badges-indigo-700: 239, 60%, 51%, 1;
+    --badges-violet-200: 250, 96%, 92%, 1;
+    --badges-violet-600: 261, 84%, 58%, 1;
+    --badges-violet-700: 262, 71%, 50%, 1;
+    --badges-violet-900: 262, 68%, 35%, 1;
 
-    --background: var(--black);
+    --spacing-sm: 12px;
+    --spacing-md: 14px;
+    --spacing-lg: 16px;
+    --spacing-xl: 18px;
+    --spacing-2xl: 22px;
+
+    --spacing-0: 0px;
+    --spacing-0-5: 2px;
+    --spacing-1: 4px;
+    --spacing-2: 8px;
+    --spacing-3: 12px;
+    --spacing-4: 16px;
+    --spacing-5: 20px;
+    --spacing-6: 24px;
+    --spacing-8: 32px;
+    --spacing-10: 40px;
+    --spacing-12: 48px;
+    --spacing-16: 64px;
+    --spacing-20: 80px;
+    --spacing-24: 96px;
+    --spacing-32: 128px;
+    --spacing-40: 160px;
+    --spacing-48: 192px;
+    --spacing-56: 224px;
+    --spacing-64: 256px;
+    --spacing-80: 320px;
+    --spacing-96: 384px;
+    --spacing-120: 480px;
+    --spacing-140: 560px;
+    --spacing-160: 640px;
+    --spacing-180: 720px;
+    --spacing-192: 768px;
+    --spacing-256: 1024px;
+    --spacing-320: 1280px;
+    --spacing-360: 1440px;
+    --spacing-400: 1600px;
+    --spacing-480: 1920px;
+
+    --radius-none: 0px;
+    --radius-xxs: 2px;
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 12px;
+    --radius-2xl: 16px;
+    --radius-3xl: 20px;
+    --radius-4xl: 24px;
+    --radius-full: 9999px;
+
+    --shadow-xs: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+    --shadow-sm: 0px 1px 3px 0px rgba(16, 24, 40, 0.10), 0px 1px 2px 0px rgba(16, 24, 40, 0.06);
+    --shadow-md: 0px 4px 6px -1px rgba(16, 24, 40, 0.10), 0px 2px 4px -1px rgba(16, 24, 40, 0.06);
+    --shadow-lg: 0px 12px 16px -4px rgba(16, 24, 40, 0.08), 0px 4px 6px -2px rgba(16, 24, 40, 0.03);
+    --shadow-xl: 0px 24px 48px -12px rgba(16, 24, 40, 0.18);
+    --shadow-2xl: 0px 24px 48px -12px rgba(16, 24, 40, 0.18);
+    --shadow-3xl: 0px 32px 64px -12px rgba(16, 24, 40, 0.14);
+
+    --ring-brand-shadow-xs: 0px 1px 2px 0px rgba(16, 24, 40, 0.05), 0px 0px 0px 4px rgba(32, 91, 128, 0.24);
+    --ring-brand-shadow-sm: 0px 1px 3px 0px rgba(16, 24, 40, 0.10), 0px 1px 2px 0px rgba(16, 24, 40, 0.06), 0px 0px 0px 4px rgba(32, 91, 128, 0.24);
+    
+
     /* --background: 43, 64%, 96%, 1; */
-    --foreground: 222.2 84% 4.9%;
+    /* --foreground: 222.2 84% 4.9%; */
 
     /* Branding */
-    --primary-100: 189, 41%, 93%, 1;
-    --primary-200: 192, 48%, 88%, 1;
-    --primary-600: 190, 29%, 36%, 1;
-    --primary-700: 190, 66%, 20%, 1;
-    --primary-800: 189, 67%, 12%, 1;
-    --primary-900: 191, 66%, 8%, 1;
 
-    --primary-foreground: var(--white);
-
-    --secondary: 210 40% 96.1%;
+    /* --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 359, 48%, 52%, 1;
-    --destructive-foreground: var(--white);
+    --destructive-foreground: var(--base-white); */
 
     /* Spacing */
-    --radius: 0.5rem;
+    /* --radius: 0.5rem;
 
     /* Components */
-    --muted: 210 40% 96.1%;
+    /* --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
     --popover: 0 0% 100%;
@@ -49,10 +187,10 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
 
-    --ring: 222.2 84% 4.9%;
+    --ring: 222.2 84% 4.9%; */
   }
 
-  .dark {
+  /* .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 
@@ -81,15 +219,15 @@
     --destructive-foreground: 210 40% 98%;
 
     --ring: 212.7 26.8% 83.9%;
-  }
+  } */
 }
 
 @layer base {
   * {
-    @apply border-border;
+    /* @apply border-border; */
   }
 
   body {
-    @apply bg-background text-foreground;
+    /* @apply bg-background text-foreground; */
   }
 }
