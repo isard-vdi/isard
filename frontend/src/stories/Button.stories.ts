@@ -1,8 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3';
 import { fn } from '@storybook/test';
 import Button from '../components/ui/button/Button.vue';
-import { buttonVariants } from '../components/ui/button/index';
-import { Link } from 'lucide-vue-next';
 
 const meta = {
   component: Button,
@@ -17,7 +15,7 @@ const meta = {
   argTypes: {
     label: { control: 'text' },
     // TODO: Use buttonVariants
-    variant: { control: 'select', options: ['primary', 'secondary-gray', 'secondary-color', 'tertiary-color', 'link-gray', 'link-color'] },
+    hierarchy: { control: 'select', options: ['primary', 'secondary-gray', 'secondary-color', 'tertiary-color', 'link-gray', 'link-color'] },
     // TODO: Use buttonVariants
     size: { control: 'select', options: ['sm', 'md', 'lg', 'xl', '2xl' ] },
     disabled: { control: 'boolean' },
@@ -29,7 +27,7 @@ const meta = {
         args
       }
     },
-    template: `<Button :variant="args.variant" :size="args.size" :disabled="args.disabled">{{ args.label }}</Button>`
+    template: `<Button :hierarchy="args.hierarchy" :size="args.size" :disabled="args.disabled">{{ args.label }}</Button>`
   })
 } satisfies Meta<typeof Button>;
 
@@ -39,12 +37,12 @@ type Story = StoryObj<typeof meta>;
 
 const createStory = (args: any): Story => ({ args: { ...args, label: 'Button CTA' } });
 
-export const Primary = createStory({ variant: 'primary' });
-export const SecondaryGray = createStory({ variant: 'secondary-gray' });
-export const SecondaryColor = createStory({ variant: 'secondary-color' });
-export const TertiaryColor = createStory({ variant: 'tertiary-color' }); 
-export const LinkGray = createStory({ variant: 'link-gray' });
-export const LinkColor = createStory({ variant: 'link-color' });
+export const Primary = createStory({ hierarchy: 'primary' });
+export const SecondaryGray = createStory({ hierarchy: 'secondary-gray' });
+export const SecondaryColor = createStory({ hierarchy: 'secondary-color' });
+export const TertiaryColor = createStory({ hierarchy: 'tertiary-color' }); 
+export const LinkGray = createStory({ hierarchy: 'link-gray' });
+export const LinkColor = createStory({ hierarchy: 'link-color' });
 export const Small = createStory({ size: 'sm' });
 export const Medium = createStory({ size: 'md' });
 export const Large = createStory({ size: 'lg' });
