@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3';
 import { fn } from '@storybook/test';
 import Button from '../components/ui/button/Button.vue';
 import { buttonVariants } from '../components/ui/button/index';
+import { Link } from 'lucide-vue-next';
 
 const meta = {
   component: Button,
@@ -14,6 +15,7 @@ const meta = {
     },
   },
   argTypes: {
+    label: { control: 'text' },
     // TODO: Use buttonVariants
     variant: { control: 'select', options: ['primary', 'secondary-gray', 'secondary-color', 'tertiary-color', 'link-gray', 'link-color'] },
     // TODO: Use buttonVariants
@@ -27,117 +29,31 @@ const meta = {
         args
       }
     },
-    template: `<Button :variant="args.variant" :size="args.size" :disabled="args.disabled">Button CTA</Button>`
+    template: `<Button :variant="args.variant" :size="args.size" :disabled="args.disabled">{{ args.label }}</Button>`
   })
 } satisfies Meta<typeof Button>;
 
 export default meta;
+
 type Story = StoryObj<typeof meta>;
 
-export const Primary: Story = {
-  args: {
-    variant: 'primary'
-  },
-};
+const createStory = (args: any): Story => ({ args: { ...args, label: 'Button CTA' } });
 
-export const SecondaryGray: Story = {
-  args: {
-    variant: 'secondary-gray'
-  },
-};
+export const Primary = createStory({ variant: 'primary' });
+export const SecondaryGray = createStory({ variant: 'secondary-gray' });
+export const SecondaryColor = createStory({ variant: 'secondary-color' });
+export const TertiaryColor = createStory({ variant: 'tertiary-color' }); 
+export const LinkGray = createStory({ variant: 'link-gray' });
+export const LinkColor = createStory({ variant: 'link-color' });
+export const Small = createStory({ size: 'sm' });
+export const Medium = createStory({ size: 'md' });
+export const Large = createStory({ size: 'lg' });
+export const ExtraLarge = createStory({ size: 'xl' });
+export const ExtraExtraLarge = createStory({ size: '2xl' });
 
-export const SecondaryColor: Story = {
-  args: {
-    variant: 'secondary-color'
-  },
-};
-
-export const TertiaryColor: Story = {
-  args: {
-    variant: 'tertiary-color'
-  },
-};
-
-export const LinkGray: Story = {
-  args: {
-    variant: 'link-gray'
-  },
-};
-
-export const LinkColor: Story = {
-  args: {
-    variant: 'link-color'
-  },
-};
-
-export const Small: Story = {
-  args: {
-    size: 'sm'
-  },
-};
-
-export const Medium: Story = {
-  args: {
-    size: 'md'
-  },
-};
-
-export const Large: Story = {
-  args: {
-    size: 'lg'
-  },
-};
-
-export const ExtraLarge: Story = {
-  args: {
-    size: 'xl'
-  },
-};
-
-export const ExtraExtraLarge: Story = {
-  args: {
-    size: '2xl'
-  },
-};
-
-export const PrimaryDisabled: Story = {
-  args: {
-    variant: 'primary',
-    disabled: true
-  },
-};
-
-export const SecondaryGrayDisabled: Story = {
-  args: {
-    variant: 'secondary-gray',
-    disabled: true
-  },
-};
-
-export const SecondaryColorDisabled: Story = {
-  args: {
-    variant: 'secondary-color',
-    disabled: true
-  },
-};
-
-export const TertiaryColorDisabled: Story = {
-  args: {
-    variant: 'tertiary-color',
-    disabled: true
-  },
-};
-
-export const LinkGrayDisabled: Story = {
-  args: {
-    variant: 'link-gray',
-    disabled: true
-  },
-};
-
-export const LinkColorDisabled: Story = {
-  args: {
-    variant: 'link-color',
-    disabled: true
-  },
-};
+export const PrimaryDisabled = createStory({ ...Primary.args, disabled: true });
+export const SecondaryGrayDisabled = createStory({ ...SecondaryGray.args, disabled: true });
+export const SecondaryColorDisabled = createStory({ ...SecondaryColor.args, disabled: true });
+export const TertiaryColorDisabled = createStory({ ...TertiaryColor.args, disabled: true });
+export const LinkGrayDisabled = createStory({ ...LinkGray.args, disabled: true });
+export const LinkColorDisabled = createStory({ ...LinkColor.args, disabled: true });
