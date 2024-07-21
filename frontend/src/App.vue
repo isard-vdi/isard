@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import TooltipProvider from '@/components/ui/tooltip/TooltipProvider.vue'
 </script>
 
 <template>
-  <RouterView />
+  <TooltipProvider>
+    <RouterView />
+  </TooltipProvider>
 </template>
