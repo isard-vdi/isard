@@ -9,10 +9,14 @@ const config: StorybookConfig = {
     '@chromatic-com/storybook',
     '@storybook/addon-interactions',
     '@storybook/addon-designs',
+    "storybook-addon-pseudo-states"
   ],
   framework: {
     name: '@storybook/vue3-vite',
     options: {}
-  }
+  },
+  core: {
+    disableTelemetry: true
+  },
 }
 export default config

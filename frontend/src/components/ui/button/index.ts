@@ -12,19 +12,21 @@ export const buttonVariants = cva(
     variants: {
       hierarchy: {
         primary: `
-          bg-brand-700 text-base-white border-brand-700 border
+          bg-brand-700 text-base-white
           hover:bg-brand-800 :hover:text-base-white
-          focused:ring-ring-brand-shadow-xs focused:rounded-xl
+          focus:ring focus:ring-brand
           disabled:bg-gray-warm-100 disabled:text-gray-warm-400 disabled:border-gray-warm-200
         `,
         'secondary-gray': `
           bg-base-white text-gray-warm-700 border-gray-warm-300 border
           hover:bg-gray-warm-50 :hover:text-gray-warm-800
+          focus:ring focus:ring-gray
           disabled:bg-base-white disabled:text-gray-warm-400 disabled:border-gray-warm-200
         `,
         'secondary-color': `
           bg-base-white text-brand-700 border-brand-700 border
           hover:bg-gray-warm-50 :hover:text-brand-700
+          focus:ring focus:ring-brand
           disabled:bg-base-white disabled:text-gray-warm-400 disabled:border-gray-warm-200
 
         `,
@@ -32,28 +34,29 @@ export const buttonVariants = cva(
         `
           bg-base-white text-gray-warm-600 border-warning-300 border
           hover:warning-300 :hover:text-gray-warm-50
+          focus:ring focus:ring-warning
           disabled:bg-base-white disabled:text-gray-warm-400 disabled:border-gray-warm-200
         `,
         'link-gray':
         `
           text-gray-warm-600
+          hover:underline
           disabled:text-gray-warm-400
         `,
+
         'link-color':
         `
           text-brand-700
+          hover:underline
           disabled:text-gray-warm-400
         `,
-        // default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-
-        // destructive:
-        //   'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        // outline:
-        //   'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-        // secondary:
-        //   'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        // ghost: 'hover:bg-accent hover:text-accent-foreground',
-        // link: 'text-primary underline-offset-4 hover:underline',
+        destructive:
+        `
+          bg-error-600 text-base-white border-error-600 border
+          hover:bg-error-700 :hover:text-base-white
+          focus:ring focus:ring-error
+          disabled:bg-gray-warm-100 disabled:text-gray-warm-400 disabled:border-gray-warm-200
+        `
       },
       size: {
         sm: 'px-[12px] py-[8px] text-sm',
