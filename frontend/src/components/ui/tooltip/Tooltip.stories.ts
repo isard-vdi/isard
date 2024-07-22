@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
-import { fn } from '@storybook/test'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
-import Button from '../components/ui/button/Button.vue'
+import { Button } from '@/components/ui/button'
 
 const meta = {
   component: TooltipContent,

@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3'
-import { fn } from '@storybook/test'
-import { Icon } from '../components/icon'
+import { Icon } from '@/components/icon'
 
 const meta = {
   component: Icon,
