@@ -913,6 +913,9 @@
                 },
                 "delete": {
                     "title": "Eliminar plantilla"
+                },
+                "convert": {
+                    "title": "Convertir plantilla en escritorio"
                 }
             },
             "modal": {
@@ -920,7 +923,7 @@
                     "title": "Aviso de dependencia",
                     "warning": {
                         "pending": "AVISO! Algunas plantillas y escritorios dependen de esta plantilla, los cuales NO son de tu propiedad.",
-                        "delete": "AVISO! Estes plantillas y escritorios dependen de esta plantilla y también serán eliminados.",
+                        "delete": "AVISO! Estas plantillas y escritorios dependen de esta plantilla y también serán eliminados.",
                         "footer": "No puedes eliminar esta plantilla. Contacta con tu administrador."
                     },
                     "button": {
@@ -930,6 +933,38 @@
                         "kind": "Tipo",
                         "name": "Nombre",
                         "user": "Usuario"
+                    }
+                },
+                "convert": {
+                    "title": {
+                        "warning": "Aviso de dependencia",
+                        "ok": "Convertir plantilla '{name}' en escritorio"
+                    },
+                    "warning": {
+                        "title": "Para poder convertir esta plantilla a escritorio es necesario que la plantilla no tenga elementos derivados.",
+                        "pending": "La plantilla seleccionada tiene {ammount} plantillas, escritorios o despliegues de otros usuarios que dependen de esta plantilla. Contacta con tu administrador.",
+                        "delete": "Los siguientes recursos de tu propiedad se eliminarán en caso de convertir a escritorio. Esta acción es irreversible.",
+                        "footer": "No puedes convertir esta plantilla en un escritorio. Contacta con tu administrador.",
+                        "confirm": "Entiendo que todos estos elementos se eliminarán y quiero continuar.",
+                        "confirm-unchecked": "Debes marcar esta casilla para continuar."
+                    },
+                    "info": {
+                        "title": "Los siguientes cambios se realizarán en esta plantilla:",
+                        "delete": "Todos los elementos que dependen de '{name}' serán eliminados",
+                        "rename": "'{oldName}' se renombrará a '{newName}'",
+                        "kind": "'{name}' se convertirá de plantilla a escritorio"
+                    },
+                    "button": {
+                        "apply": "Convertir plantilla"
+                    },
+                    "table-header": {
+                        "kind": "Tipo",
+                        "name": "Nombre",
+                        "user": "Usuario"
+                    },
+                    "rename": {
+                        "title": "Tu plantilla '{name}' se convertirá en un escritorio",
+                        "label": "Puedes renombrarla ahora si lo deseas: "
                     }
                 }
             }
@@ -1242,7 +1277,8 @@
             "video-default": "Se ha cambiado el parámetro 'Videos' del escritorio a 'Default', dado que no hay ningún perfil de GPU asignado",
             "cancelling-operation": "Cancelando operación de disco en curso",
             "recreate-desktop-stop": "Para recrear un escritorio es necesario que esté parado",
-            "increasing-storage": "Incrementando tamaño de disco. Esto podría tomar unos momentos"
+            "increasing-storage": "Incrementando tamaño de disco. Esto podría tomar unos momentos",
+            "converting-template": "Convertiendo la plantilla a escritorio"
         },
         "loading": "Cargando"
     },

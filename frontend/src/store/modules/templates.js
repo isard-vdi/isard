@@ -13,7 +13,12 @@ const getDefaultState = () => {
     sharedTemplates_loaded: false,
     templateDerivatives: {},
     templateId: '',
-    modalDerivativesShow: false
+    templateName: '',
+    modalDerivativesShow: {
+      delete: false,
+      convert: false
+    },
+    modalDerivativesView: 'list'
   }
 }
 
@@ -38,10 +43,19 @@ export default {
       return state.templateDerivatives
     },
     getShowDeleteTemplateModal: state => {
-      return state.modalDerivativesShow
+      return state.modalDerivativesShow.delete
+    },
+    getShowConvertToDesktopModal: state => {
+      return state.modalDerivativesShow.convert
     },
     getTemplateId: state => {
       return state.templateId
+    },
+    getTemplateName: state => {
+      return state.templateName
+    },
+    getDerivativesView: state => {
+      return state.modalDerivativesView
     }
   },
   mutations: {
@@ -69,16 +83,25 @@ export default {
       state.templateDerivatives = templateDerivatives
     },
     setShowDeleteTemplateModal: (state, modalShow) => {
-      state.modalDerivativesShow = modalShow
+      state.modalDerivativesShow.delete = modalShow
+    },
+    setShowConvertToDesktopModal: (state, modalShow) => {
+      state.modalDerivativesShow.convert = modalShow
     },
     setTemplateId: (state, templateId) => {
       state.templateId = templateId
+    },
+    setTemplateName: (state, templateName) => {
+      state.templateName = templateName
     },
     remove_template: (state, template) => {
       const templateIndex = state.templates.findIndex(d => d.id === template.id)
       if (templateIndex !== -1) {
         state.templates.splice(templateIndex, 1)
       }
+    },
+    setDerivativesView: (state, view) => {
+      state.modalDerivativesView = view
     }
   },
   actions: {
@@ -134,6 +157,25 @@ export default {
     socket_templateDelete (context, data) {
       const template = JSON.parse(data)
       context.commit('remove_template', template)
+    },
+    fetchConvertToDesktop (context, data) {
+      axios.get(`${apiV3Segment}/template/tree/${data.template.id}`).then(response => {
+        context.commit('setTemplateDerivatives', response.data)
+        context.commit('setTemplateId', data.template.id)
+        context.commit('setTemplateName', data.template.name)
+        context.commit('setShowConvertToDesktopModal', true)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+        throw e
+      })
+    },
+    ConvertToDesktop (context, data) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.converting-template'))
+      axios.post(`${apiV3Segment}/template/to/desktop`, { domain_id: data.templateId, name: data.name }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      }).then(() => {
+        context.dispatch('fetchTemplates')
+      })
     }
   }
 }

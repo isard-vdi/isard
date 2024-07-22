@@ -176,7 +176,11 @@ class isardViewer:
                 "name": "isard-rdp-vpn",
                 "ext": "rdp",
                 "mime": "application/x-rdp",
-                "content": self.get_rdp_file(domain["viewer"]["guest_ip"]),
+                "content": self.get_rdp_file(
+                    domain["viewer"]["guest_ip"],
+                    domain["guest_properties"]["credentials"]["username"],
+                    domain["guest_properties"]["credentials"]["password"],
+                ),
             }
 
         if protocol == "file-rdpgw":
@@ -364,8 +368,8 @@ class isardViewer:
             description_code="not_found",
         )
 
-    def get_rdp_file(self, ip):
-        fixed = """full address:s:%s""" % (ip)
+    def get_rdp_file(self, ip, username, password):
+        fixed = rdp_file_viewer()["fixed"] % (ip, username, password)
         custom = rdp_file_viewer()["custom"]
         consola = fixed + "\n" + custom
         consola = "\n".join([line.strip() for line in consola.splitlines()])
@@ -374,16 +378,13 @@ class isardViewer:
     def get_rdp_gw_file(
         self, ip, proxy_video, proxy_port, jwt_token, username, password
     ):
-        fixed = (
-            """full address:s:%s\ngatewayhostname:s:%s:%s\ngatewayaccesstoken:s:%s\nusername:s:%s\npassword:s:%s"""
-            % (
-                ip,
-                proxy_video,
-                proxy_port,
-                jwt_token,
-                username,
-                password,
-            )
+        fixed = rdpgw_file_viewer()["fixed"] % (
+            ip,
+            proxy_video,
+            proxy_port,
+            jwt_token,
+            username,
+            password,
         )
         custom = rdpgw_file_viewer()["custom"]
 

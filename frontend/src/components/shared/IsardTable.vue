@@ -15,6 +15,7 @@
       <!-- Filter -->
       <b-row class="mt-2">
         <b-col
+          v-if="!(hideComponents.includes('search'))"
           cols="8"
           md="6"
           lg="4"
@@ -38,6 +39,7 @@
           </b-input-group>
         </b-col>
         <b-row
+          v-if="!(hideComponents.includes('topPagination'))"
           class="ml-auto mr-2"
         >
           <b-col>
@@ -83,6 +85,7 @@
             :filter="filter"
             :filter-included-fields="filterOn"
             :tbody-tr-class="rowClass"
+            :class="tableClass"
             @filtered="onFiltered"
             @row-clicked="onClickRow"
           >
@@ -103,6 +106,7 @@
             </template>
           </b-table>
           <b-row
+            v-if="!(hideComponents.includes('bottomPagination'))"
             class="ml-auto mr-2"
           >
             <b-col>
@@ -176,6 +180,16 @@ export default {
       required: false,
       default: '',
       type: [String, Function]
+    },
+    tableClass: {
+      required: false,
+      default: '',
+      type: String
+    },
+    hideComponents: {
+      required: false,
+      type: Array,
+      default: () => []
     }
   },
   setup (props, context) {
