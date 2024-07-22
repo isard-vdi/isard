@@ -150,14 +150,9 @@
     --ring-brand-color: hsl(203, 60%, 31%, 0.24);
     --ring-gray-color: hsl(218, 15%, 65%, 0.14);
     --ring-warning-color: hsla(42, 98%, 80%, 0.42);
-    --ring-error-color: hsla(4, 86%, 58%, 0.24)
-
-    /* --background: 43, 64%, 96%, 1; */
-    /* --foreground: 222.2 84% 4.9%; */
-
-    /* Branding */
-
-    /* --secondary: 210 40% 96.1%;
+    --ring-error-color: hsla(4, 86%, 58%, 0.24) /* --background: 43, 64%, 96%, 1; */
+      /* --foreground: 222.2 84% 4.9%; */ /* Branding */
+      /* --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
     --accent: 210 40% 96.1%;
@@ -165,12 +160,10 @@
 
     --destructive: 359, 48%, 52%, 1;
     --destructive-foreground: var(--base-white); */
-
-    /* Spacing */
-    /* --radius: 0.5rem;
+      /* Spacing */ /* --radius: 0.5rem;
 
     /* Components */
-    /* --muted: 210 40% 96.1%;
+      /* --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
     --popover: 0 0% 100%;
@@ -182,7 +175,7 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
 
-    --ring: 222.2 84% 4.9%; */
+    --ring: 222.2 84% 4.9%; */;
   }
 
   /* .dark {

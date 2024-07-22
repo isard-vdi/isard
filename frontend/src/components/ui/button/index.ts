@@ -30,28 +30,24 @@ export const buttonVariants = cva(
           disabled:bg-base-white disabled:text-gray-warm-400 disabled:border-gray-warm-200
 
         `,
-        'tertiary-color': 
-        `
+        'tertiary-color': `
           bg-base-white text-gray-warm-600 border-warning-300 border
           hover:warning-300 :hover:text-gray-warm-50
           focus:ring focus:ring-warning
           disabled:bg-base-white disabled:text-gray-warm-400 disabled:border-gray-warm-200
         `,
-        'link-gray':
-        `
+        'link-gray': `
           text-gray-warm-600
           hover:underline
           disabled:text-gray-warm-400
         `,
 
-        'link-color':
-        `
+        'link-color': `
           text-brand-700
           hover:underline
           disabled:text-gray-warm-400
         `,
-        destructive:
-        `
+        destructive: `
           bg-error-600 text-base-white border-error-600 border
           hover:bg-error-700 :hover:text-base-white
           focus:ring focus:ring-error
@@ -63,14 +59,14 @@ export const buttonVariants = cva(
         md: 'px-[14px] py-[10px] text-sm',
         lg: 'px-[16px] py-[10px] text-md',
         xl: 'px-[18px] py-[12px] text-md',
-        '2xl': 'px-[22px] py-[16px] text-lg',
-      },
+        '2xl': 'px-[22px] py-[16px] text-lg'
+      }
     },
     defaultVariants: {
       hierarchy: 'primary',
-      size: 'md',
-    },
-  },
+      size: 'md'
+    }
+  }
 )
 
 export type ButtonVariants = VariantProps<typeof buttonVariants>
