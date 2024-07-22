@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 139
+release_version = 140
+# release 140: Add credentials to RDP VPN viewer
 # release 139: Add template index to deployments table
 # release 138: Add duplicated_parent_template index and fixed parents index in recycle_bin
 # release 137: Add notification templates with GPU deletion warnings
@@ -583,6 +584,31 @@ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard"""
                 )
                 log.error(e)
                 log.error("Error detail: " + str(e))
+
+        if version == 140:
+            try:
+                rdp_fixed = """full address:s:%s
+username:s:%s
+password:s:%s"""
+                r.table(table).update(
+                    {
+                        "viewers": {
+                            "file_rdpvpn": {
+                                "fixed": rdp_fixed,
+                            },
+                        }
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    "Could not update table "
+                    + table
+                    + " conversion fields for db version "
+                    + str(version)
+                    + "!"
+                )
+                log.error("Error detail: " + str(e))
+
         return True
 
     """
