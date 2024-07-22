@@ -10,8 +10,9 @@
     --base-white: hsl(0, 0%, 100%, 1);
     --base-black: hsl(0, 0%, 0%, 1);
     --base-backgdround: hsl(43, 64%, 96%, 1);
-    --base-bg-menu: hsl(45, 19%, 88%, 1);
+    --base-menu: hsl(45, 19%, 88%, 1);
     --base-menu-hover: hsl(46, 22%, 85%, 1);
+    --base-menu-current: hsl(45, 21%, 85%, 1);
     --brand-100: hsl(189, 41%, 93%, 1);
     --brand-200: hsl(192, 48%, 88%, 1);
     --brand-600: hsl(190, 29%, 36%, 1);
@@ -149,6 +150,7 @@
     --ring-brand-shadow-sm: 4px;
     --ring-brand-color: hsl(203, 60%, 31%, 0.24);
     --ring-gray-color: hsl(218, 15%, 65%, 0.14);
+    --ring-gray-secondary-color: hsl(218, 15%, 65%, 0.2);
     --ring-warning-color: hsla(42, 98%, 80%, 0.42);
     --ring-error-color: hsla(4, 86%, 58%, 0.24) /* --background: 43, 64%, 96%, 1; */
       /* --foreground: 222.2 84% 4.9%; */ /* Branding */
