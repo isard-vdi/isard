@@ -1,4 +1,4 @@
-version: '3.5'
+version: "3.5"
 services:
   isard-nc-app:
     container_name: isard-nc-app
@@ -48,7 +48,7 @@ services:
 
   isard-nc-nginx:
     container_name: isard-nc-nginx
-    image: ${NEXTCLOUD_NGINX_IMAGE-nginx:1.25.2-alpine-slim}
+    image: ${NEXTCLOUD_NGINX_IMAGE-nginx:1.27-alpine-slim}
     logging:
       driver: "json-file"
       options:
@@ -63,7 +63,7 @@ services:
 
   isard-nc-redis:
     container_name: isard-nc-redis
-    image: ${NEXTCLOUD_REDIS_IMAGE-redis:alpine3.19}
+    image: ${NEXTCLOUD_REDIS_IMAGE-redis:alpine3.20}
     logging:
       driver: "json-file"
       options:
@@ -76,6 +76,6 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /opt/isard/nextcloud/redis:/data
     healthcheck:
-      test: ["CMD", "redis-cli","ping"]
+      test: ["CMD", "redis-cli", "ping"]
       start_period: 10s
       interval: 5s

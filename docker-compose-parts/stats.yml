@@ -89,7 +89,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
 
   isard-stats-cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.45.0
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: isard-stats-cadvisor
     logging:
       driver: "json-file"
@@ -99,7 +99,7 @@ services:
     restart: "no"
     command:
       - '--docker_only=true'
-      - '--disable_metrics=accelerator,cpu_topology,percpu,sched,process,hugetlb,referenced_memory,resctrl,cpuset,advtcp,memory_numa'
+      - '--disable_metrics=cpu_topology,percpu,sched,process,hugetlb,referenced_memory,resctrl,cpuset,advtcp,memory_numa'
     privileged: true
     devices:
       - /dev/kmsg:/dev/kmsg
@@ -117,7 +117,7 @@ services:
 
   isard-grafana-agent:
     container_name: isard-grafana-agent
-    image: grafana/agent:v0.40.4
+    image: grafana/agent:v0.41.1
     volumes:
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/config.yml:/etc/agent/config.yml
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/web.yml:/etc/agent/web.yml
