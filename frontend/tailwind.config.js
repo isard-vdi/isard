@@ -27,14 +27,13 @@ module.exports = {
     },
     extend: {
       colors: {
-        'base-white': 'var(--base-white)',
-        'base-black': 'var(--base-black)',
         base: {
           white: 'var(--base-white)',
           black: 'var(--base-black)',
           background: 'var(--base-background)',
           menu: 'var(--base-menu)',
-          menuHover: 'var(--base-menu-hover)',
+          'menu-hover': 'var(--base-menu-hover)',
+          'menu-current': 'var(--base-menu-current)',
         },
         brand: {
           100: 'var(--brand-100)',
@@ -197,6 +196,7 @@ module.exports = {
       ringColor: {
         'brand': 'var(--ring-brand-color)',
         'gray': 'var(--ring-gray-color)',
+        'gray-secondary': 'var(--ring-gray-secondary-color)',
         'warning': 'var(--ring-warning-color)',
         'error': 'var(--ring-error-color)',
       }
