@@ -5,16 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "storybook": "storybook dev -p 6006",
     "build": "run-p type-check \"build-only {@}\" --",
+    "build-storybook": "storybook build",
+    "build-only": "vite build",
     "preview": "vite preview",
     "test:unit": "vitest",
     "test:e2e": "playwright test",
-    "build-only": "vite build",
+    "test:storybook": "test-storybook",
     "type-check": "vue-tsc --build --force",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "format": "prettier --write src/"
   },
   "dependencies": {
     "@vueuse/core": "^10.11.0",
@@ -39,6 +40,7 @@
     "@storybook/addon-onboarding": "^8.2.4",
     "@storybook/blocks": "^8.2.4",
     "@storybook/test": "^8.2.4",
+    "@storybook/test-runner": "^0.19.1",
     "@storybook/vue3": "^8.2.4",
     "@storybook/vue3-vite": "^8.2.4",
     "@tsconfig/node20": "^20.1.4",
@@ -50,6 +52,7 @@
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.5.1",
     "autoprefixer": "^10.4.19",
+    "axe-playwright": "^2.0.1",
     "eslint": "^8.57.0",
     "eslint-plugin-playwright": "^1.6.2",
     "eslint-plugin-storybook": "^0.8.0",
