@@ -33,6 +33,7 @@
     "@chromatic-com/storybook": "^1.6.1",
     "@playwright/test": "^1.44.1",
     "@rushstack/eslint-patch": "^1.8.0",
+    "@storybook/addon-a11y": "^8.2.5",
     "@storybook/addon-designs": "^8.0.3",
     "@storybook/addon-essentials": "^8.2.4",
     "@storybook/addon-interactions": "^8.2.4",

@@ -9,7 +9,8 @@ const config: StorybookConfig = {
     '@chromatic-com/storybook',
     '@storybook/addon-interactions',
     '@storybook/addon-designs',
-    "storybook-addon-pseudo-states"
+    '@storybook/addon-a11y',
+    "storybook-addon-pseudo-states",
   ],
   framework: {
     name: '@storybook/vue3-vite',
