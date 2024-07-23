@@ -1,19 +1,18 @@
-const { error } = require('console')
-const animate = require('tailwindcss-animate')
+import type { Config } from 'tailwindcss'
+import animate from 'tailwindcss-animate'
 
-/** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   darkMode: ['class'],
   safelist: ['dark'],
   prefix: '',
-  
+
   content: [
     './pages/**/*.{ts,tsx,vue}',
     './components/**/*.{ts,tsx,vue}',
     './app/**/*.{ts,tsx,vue}',
-    './src/**/*.{ts,tsx,vue}',
-	],
-  
+    './src/**/*.{ts,tsx,vue}'
+  ],
+
   theme: {
     fontFamily: {
       sans: ['Montserrat', 'sans-serif']
@@ -22,8 +21,8 @@ module.exports = {
       center: true,
       padding: '2rem',
       screens: {
-        '2xl': '1400px',
-      },
+        '2xl': '1400px'
+      }
     },
     extend: {
       colors: {
@@ -33,7 +32,7 @@ module.exports = {
           background: 'var(--base-background)',
           menu: 'var(--base-menu)',
           'menu-hover': 'var(--base-menu-hover)',
-          'menu-current': 'var(--base-menu-current)',
+          'menu-current': 'var(--base-menu-current)'
         },
         brand: {
           100: 'var(--brand-100)',
@@ -41,21 +40,21 @@ module.exports = {
           600: 'var(--brand-600)',
           700: 'var(--brand-700)',
           800: 'var(--brand-800)',
-          900: 'var(--brand-900)',
+          900: 'var(--brand-900)'
         },
         'gray-warm': {
           25: 'var(--gray-warm-25)',
           50: 'var(--gray-warm-50)',
           100: 'var(--gray-warm-100)',
           200: 'var(--gray-warm-200)',
-          300 : 'var(--gray-warm-300)',
+          300: 'var(--gray-warm-300)',
           400: 'var(--gray-warm-400)',
           500: 'var(--gray-warm-500)',
           600: 'var(--gray-warm-600)',
           700: 'var(--gray-warm-700)',
           800: 'var(--gray-warm-800)',
           900: 'var(--gray-warm-900)',
-          950: 'var(--gray-warm-950)',
+          950: 'var(--gray-warm-950)'
         },
         error: {
           25: 'var(--error-25)',
@@ -69,7 +68,7 @@ module.exports = {
           700: 'var(--error-700)',
           800: 'var(--error-800)',
           900: 'var(--error-900)',
-          950: 'var(--error-950)',
+          950: 'var(--error-950)'
         },
         success: {
           25: 'var(--success-25)',
@@ -83,7 +82,7 @@ module.exports = {
           700: 'var(--success-700)',
           800: 'var(--success-800)',
           900: 'var(--success-900)',
-          950: 'var(--success-950)',
+          950: 'var(--success-950)'
         },
         warning: {
           25: 'var(--warning-25)',
@@ -97,7 +96,7 @@ module.exports = {
           700: 'var(--warning-700)',
           800: 'var(--warning-800)',
           900: 'var(--warning-900)',
-          950: 'var(--warning-950)',
+          950: 'var(--warning-950)'
         },
         info: {
           25: 'var(--info-25)',
@@ -111,37 +110,37 @@ module.exports = {
           700: 'var(--info-700)',
           800: 'var(--info-800)',
           900: 'var(--info-900)',
-          950: 'var(--info-950)',
+          950: 'var(--info-950)'
         },
         'secondary-1': {
           400: 'var(--secondary1-400)',
           500: 'var(--secondary1-500)',
-          600: 'var(--secondary1-600)',
+          600: 'var(--secondary1-600)'
         },
         'secondary-2': {
           400: 'var(--secondary2-400)',
           500: 'var(--secondary2-500)',
-          600: 'var(--secondary2-600)',
+          600: 'var(--secondary2-600)'
         },
         'secondary-3': {
           400: 'var(--secondary3-400)',
           500: 'var(--secondary3-500)',
-          600: 'var(--secondary3-600)',
+          600: 'var(--secondary3-600)'
         },
         'badges-purple': {
           200: 'var(--badges-purple-200)',
-          700: 'var(--badges-purple-700)',
+          700: 'var(--badges-purple-700)'
         },
         'badges-indigo': {
           200: 'var(--badges-indigo-200)',
-          700: 'var(--badges-indigo-700)',
+          700: 'var(--badges-indigo-700)'
         },
         'badges-violet': {
           200: 'var(--badges-violet-200)',
           600: 'var(--badges-violet-600)',
           700: 'var(--badges-violet-700)',
-          900: 'var(--badges-violet-900)',
-        },
+          900: 'var(--badges-violet-900)'
+        }
       },
       spacing: {
         '0': 'var(--spacing-0)',
@@ -174,33 +173,33 @@ module.exports = {
         '320': 'var(--spacing-320)',
         '360': 'var(--spacing-360)',
         '400': 'var(--spacing-400)',
-        '480': 'var(--spacing-480)',
+        '480': 'var(--spacing-480)'
       },
       borderRadius: {
-        'none': 'var(--radius-none)',
-        'xxs': 'var(--radius-xxs)',
-        'xs': 'var(--radius-xs)',
-        'sm': 'var(--radius-sm)',
-        'md': 'var(--radius-md)',
-        'lg': 'var(--radius-lg)',
-        'xl': 'var(--radius-xl)',
+        none: 'var(--radius-none)',
+        xxs: 'var(--radius-xxs)',
+        xs: 'var(--radius-xs)',
+        sm: 'var(--radius-sm)',
+        md: 'var(--radius-md)',
+        lg: 'var(--radius-lg)',
+        xl: 'var(--radius-xl)',
         '2xl': 'var(--radius-2xl)',
         '3xl': 'var(--radius-3xl)',
         '4xl': 'var(--radius-4xl)',
-        'full': 'var(--radius-full)',
+        full: 'var(--radius-full)'
       },
       ringWidth: {
-        'xs': 'var(--ring-brand-shadow-xs)',
-        'sm': 'var(--ring-brand-shadow-sm)',
+        xs: 'var(--ring-brand-shadow-xs)',
+        sm: 'var(--ring-brand-shadow-sm)'
       },
       ringColor: {
-        'brand': 'var(--ring-brand-color)',
-        'gray': 'var(--ring-gray-color)',
+        brand: 'var(--ring-brand-color)',
+        gray: 'var(--ring-gray-color)',
         'gray-secondary': 'var(--ring-gray-secondary-color)',
-        'warning': 'var(--ring-warning-color)',
-        'error': 'var(--ring-error-color)',
+        warning: 'var(--ring-warning-color)',
+        error: 'var(--ring-error-color)'
       }
-    },
+    }
   },
-  plugins: [animate],
-}
+  plugins: [animate]
+} satisfies Config
