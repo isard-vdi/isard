@@ -12,6 +12,13 @@ const meta = {
       url: 'https://www.figma.com/design/FHPNZiT08g7iQysunKZkLm/N%C3%89FIX---ISARD-Design-system-Cliente?node-id=3531-403089'
     }
   },
+  argTypes: {
+    label: { control: 'text' },
+    placeholder: { control: 'text' },
+    size: { control: 'select', options: ['sm', 'md'] },
+    destructive: { control: 'boolean' },
+    hint: { control: 'text' }
+  },
   render: (args) => ({
     components: { Input, Label },
     setup() {
@@ -19,7 +26,10 @@ const meta = {
         args
       }
     },
-    template: `<Icon :name="args.name"/>`
+    // TODO: Add the help and type prop to the Input component
+    template: `
+      <Label v-if="args.label" for="input">{{ args.label }}</Label>
+      <Input id="input" :placeholder="args.placeholder" :size="args.size" :destructive="args.destructive" :hint="args.hint" />`
   })
 } satisfies Meta<typeof Input>
 
@@ -32,4 +42,4 @@ const createStory = (args: any, parameters?: any): Story => ({
   parameters
 })
 
-export const FaceSmile = createStory({ name: 'face-smile' })
+export const Placeholder = createStory({ placeholder: 'isard@isardvdi.com' })
