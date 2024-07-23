@@ -1,0 +1,19 @@
+when = $BACKUP_DB_WHEN
+
+[source]
+include = /dbdump
+
+## for more info see : borg prune -h
+keep = 0
+prune = yes
+prune_options = $BACKUP_DB_PRUNE
+
+[dest]
+directory = /backup/db
+host = localhost
+port = 22
+user = root
+archive = {now:%Y-%m-%dT%H:%M:%S}
+compression = lz4
+encryption = none
+passphrase = 

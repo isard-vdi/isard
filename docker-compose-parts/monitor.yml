@@ -64,4 +64,11 @@ services:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.68
     restart: unless-stopped
-    command: --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-40d} --web.console.libraries=/usr/share/prometheus/console_libraries --web.console.templates=/usr/share/prometheus/consoles --web.enable-remote-write-receiver
+    command: >-
+      --config.file=/etc/prometheus/prometheus.yml
+      --storage.tsdb.path=/prometheus
+      --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-40d}
+      --web.console.libraries=/usr/share/prometheus/console_libraries
+      --web.console.templates=/usr/share/prometheus/consoles
+      --web.enable-remote-write-receiver
+      --web.enable-admin-api

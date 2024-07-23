@@ -1,4 +1,4 @@
-# Isard main config v2.14.0
+# Isard main config v2.15.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -278,6 +278,18 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 #BACKUP_DB_ENABLED=false
 #BACKUP_DB_WHEN="everyday at 01"
 #BACKUP_DB_PRUNE="--keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space"
+
+#BACKUP_REDIS_ENABLED=false
+#BACKUP_REDIS_WHEN="everyday at 01"
+#BACKUP_REDIS_PRUNE="--keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space"
+
+#BACKUP_STATS_ENABLED=false
+#BACKUP_STATS_WHEN="everyday at 01"
+#BACKUP_STATS_PRUNE="--keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space"
+
+#BACKUP_CONFIG_ENABLED=false
+#BACKUP_CONFIG_WHEN="everyday at 01"
+#BACKUP_CONFIG_PRUNE="--keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space"
 
 #BACKUP_DISKS_ENABLED=false
 #BACKUP_DISKS_WHEN="everyday at 01"

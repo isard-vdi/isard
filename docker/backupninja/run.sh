@@ -1,204 +1,295 @@
 #!/bin/sh
 
-if [ "$BACKUP_NFS_ENABLED" = "true" ]
-then
-    echo "TESTING THAT NFS FOLDER CAN BE MOUNTED AND UNMOUNTED..."
-    mount -t nfs4 $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
-    if grep -qs '/backup ' /proc/mounts; then
-        echo "  - OK: BACKUP NFS FOLDER MOUNTED: $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup"
-    else
-        echo "  - ERROR!!! UNABLE TO MOUNT $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup!!!. Exitting!"
-        exit 1
-    fi
-fi
-mkdir -p /backup/db
-borg init -e none /backup/db > /dev/null 2>&1
-mkdir -p /backup/disks
-borg init -e none /backup/disks > /dev/null 2>&1
-mkdir -p /backup/extract
+set -e
 
-# Unmount if nfs as it will be mounted at backup cron time
-if [ "$BACKUP_NFS_ENABLED" = "true" ]
-then
-    umount -f -l /backup
-    if grep -qs '/backup ' /proc/mounts; then
-        df -h
-        echo -e "  - ERROR!!! UNABLE TO UnMOUNT /backup. Exitting!\n"
-        exit 1
-    else
-        echo -e "  - OK: BACKUP NFS UnMOUNTED\n"
+mount_nfs() {
+    if [ "$BACKUP_NFS_ENABLED" = "true" ]; then
+        /usr/local/bin/nfs_mount.sh
     fi
-fi
+}
 
+umount_nfs() {
+    if [ "$BACKUP_NFS_ENABLED" = "true" ]; then
+        /usr/local/bin/nfs_umount.sh
+    fi
+}
+
+# Prepare BackupNinja
 LOG_FILE="/var/log/backupninja.log"
 touch $LOG_FILE
-
 sed -i '/^logfile =/d' /usr/local/etc/backupninja.conf
 echo "logfile = $LOG_FILE" >> /usr/local/etc/backupninja.conf
 
+# Prepare for backups
+mkdir -p -m700 /usr/local/etc/backup.d
+mkdir -p /usr/local/var/log
+mkdir -p /backup
+mkdir -p /dbdump
+mkdir -p /redisdump
+
 rm -f /usr/local/etc/backup.d/*
 
-# BACKUP NFS MOUNT / UMOUNT
-if [ "$BACKUP_NFS_ENABLED" = "true" ]
-then
-    echo "SETTING NFS MOUNT: mount -t nfs4 $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup"
-    echo "                   Logs can be found at $LOG_FILE folder"
+# NFS
+mount_nfs
 
-    cat <<EOT >> /usr/local/etc/backup.d/15.nfs-db-mount.sh
-when = $BACKUP_DB_WHEN
+# Initialize backup repositories
+mkdir -p /backup/db
+borg init -e none /backup/db > /dev/null 2>&1 || true
+mkdir -p /backup/redis
+borg init -e none /backup/redis > /dev/null 2>&1 || true
+mkdir -p /backup/stats
+borg init -e none /backup/stats > /dev/null 2>&1 || true
+mkdir -p /backup/config
+borg init -e none /backup/config > /dev/null 2>&1 || true
+mkdir -p /backup/disks
+borg init -e none /backup/disks > /dev/null 2>&1 || true
+mkdir -p /backup/extract
 
-mount -t nfs4 $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
-if grep -qs '/backup ' /proc/mounts; then
-    echo "BACKUP NFS FOLDER MOUNTED: $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER"
-else
-    echo "ERROR!!! UNABLE TO MOUNT $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER !!!"
-    exit 1
-fi
-EOT
+# Unmount if nfs as it will be mounted at backup cron time
+umount_nfs
 
-    cat <<EOT >> /usr/local/etc/backup.d/35.nfs-db-unmount.sh
-when = $BACKUP_DB_WHEN
+#
+# DB
+#
+if [ "$BACKUP_DB_ENABLED" = "true" ]; then
+    if [ -z "$1" ]; then
+        echo "DATABASE ENABLED: Enabled database backup $BACKUP_DB_WHEN with $BACKUP_DB_PRUNE prune policy"
+        echo "                  Logs can be found at $LOG_FILE folder"
+    fi
 
-umount -f -l /backup
-if grep -qs '/backup ' /proc/mounts; then
-    echo "ERROR!!! UNABLE TO UNMOUNT /backup"
-    exit 1
-else
-    echo "BACKUP NFS UnMOUNTED"
-fi
-EOT
+    jobs="10-db-info.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 11-db-nfs-mount.sh"
+    jobs="$jobs 12-db-dump.sh 13-db-borg.borg"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 19-db-nfs-umount.sh"
 
-    cat <<EOT >> /usr/local/etc/backup.d/36.nfs-disks-mount.sh
-when = $BACKUP_DISKS_WHEN
-
-mount -t nfs4 $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
-if grep -qs '/backup ' /proc/mounts; then
-    echo "BACKUP NFS FOLDER MOUNTED: $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER"
-else
-    echo "ERROR!!! UNABLE TO MOUNT $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER !!!"
-    exit 1
-fi
-EOT
-
-    cat <<EOT >> /usr/local/etc/backup.d/95.nfs-disks-unmount.sh
-when = $BACKUP_DISKS_WHEN
-
-umount -f -l /backup
-if grep -qs '/backup ' /proc/mounts; then
-    echo "ERROR!!! UNABLE TO UNMOUNT /backup"
-    exit 1
-else
-    echo "BACKUP NFS UnMOUNTED"
-fi
-EOT
+    for job in $jobs; do
+        envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+    done
 fi
 
-# BACKUP DB SCRIPT
-if [ "$BACKUP_DB_ENABLED" = "true" ]
-then
-    echo "DATABASE ENABLED: Enabled database backup $BACKUP_DB_WHEN with $BACKUP_DB_PRUNE prune policy"
-    echo "                  Logs can be found at $LOG_FILE folder"
+#
+# Redis
+#
+if [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
+    if [ -z "$1" ]; then
+        echo "REDIS ENABLED: Enabled redis backup $BACKUP_REDIS_WHEN with $BACKUP_REDIS_PRUNE prune policy"
+        echo "                  Logs can be found at $LOG_FILE folder"
+    fi
 
-    cat <<EOT >> /usr/local/etc/backup.d/10.info.sh
-when = $BACKUP_DB_WHEN
+    jobs="20-redis-info.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 21-redis-nfs-mount.sh"
+    jobs="$jobs 22-redis-dump.sh 23-redis-borg.borg"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 29-redis-nfs-umount.sh"
 
-EOT
-
-    cat <<'EOT' >> /usr/local/etc/backup.d/10.info.sh
-echo "----------- NEW DATABASE BACKUP: $(date +%Y-%m-%d_%H:%M:%S) -----------" >> $LOG_FILE
-EOT
-
-    cat <<EOT >> /usr/local/etc/backup.d/20.dbdump.sh
-when = $BACKUP_DB_WHEN
-
-rm -f /dbdump/isard-db*.tar.gz
-EOT
-    cat <<'EOT' >> /usr/local/etc/backup.d/20.dbdump.sh
-/usr/bin/rethinkdb-dump -c "isard-db:28015" -f "/dbdump/isard-db-$(date +%Y-%m-%d_%H:%M:%S).tar.gz"
-EOT
-
-    cat <<EOT >> /usr/local/etc/backup.d/30.dbborg.borg
-when = $BACKUP_DB_WHEN
-
-[source]
-include = /dbdump
-
-## for more info see : borg prune -h
-keep = 0
-prune = yes
-prune_options = $BACKUP_DB_PRUNE
-
-[dest]
-directory = /backup/db
-host = localhost
-port = 22
-user = root
-archive = {now:%Y-%m-%dT%H:%M:%S}
-compression = lz4
-encryption = none
-passphrase = 
-EOT
+    for job in $jobs; do
+        envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+    done
 fi
 
-## BACKUP DISKS SCRIPT
-if [ "$BACKUP_DISKS_TEMPLATES_ENABLED" = "false" ]; then
-    BACKUP_DISKS_TEMPLATES_ENABLED=""
-else
-    BACKUP_DISKS_TEMPLATES_ENABLED="include = /opt/isard/templates"
-fi
-if [ "$BACKUP_DISKS_GROUPS_ENABLED" = "false" ]; then
-    BACKUP_DISKS_GROUPS_ENABLED=""
-else
-    BACKUP_DISKS_GROUPS_ENABLED="include = /opt/isard/groups"
-fi
-if [ "$BACKUP_DISKS_MEDIA_ENABLED" = "false" ]; then
-    BACKUP_DISKS_MEDIA_ENABLED=""
-else
-    BACKUP_DISKS_MEDIA_ENABLED="include = /opt/isard/media"
-fi
+#
+# Stats
+#
+if [ "$BACKUP_STATS_ENABLED" = "true" ]; then
+    if [ -z "$1" ]; then
+        echo "STATS ENABLED: Enabled stats backup $BACKUP_STATS_WHEN with $BACKUP_STATS_PRUNE prune policy"
+        echo "                  Logs can be found at $LOG_FILE folder"
+    fi
 
-if [ "$BACKUP_DISKS_ENABLED" = "true" ]
-then
-    echo "DISKS ENABLED: Enabled disks backup $BACKUP_DISKS_WHEN with $BACKUP_DISKS_PRUNE prune policy"
-    echo "               Disks backup included folders:"
-    echo "               - TEMPLATES: $BACKUP_DISKS_TEMPLATES_ENABLED"
-    echo "               -    GROUPS: $BACKUP_DISKS_GROUPS_ENABLED"
-    echo "               -     MEDIA: $BACKUP_DISKS_MEDIA_ENABLED"
-    echo "               Logs can be found at $LOG_FILE folder"
+    jobs="30-stats-info.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 31-stats-nfs-mount.sh"
+    jobs="$jobs 32-stats-dump.sh 33-stats-borg.borg"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 39-stats-nfs-umount.sh"
 
-    cat <<EOT >> /usr/local/etc/backup.d/40.info.sh
-when = $BACKUP_DISKS_WHEN
-
-EOT
-    cat <<'EOT' >> /usr/local/etc/backup.d/40.info.sh
-echo "----------- NEW DISKS BACKUP: $(date +%Y-%m-%d_%H:%M:%S) -----------" >> $LOG_FILE
-EOT
-
-    cat <<EOT >> /usr/local/etc/backup.d/50.disksborg.borg
-when = $BACKUP_DISKS_WHEN
-
-[source]
-$BACKUP_DISKS_TEMPLATES_ENABLED
-$BACKUP_DISKS_GROUPS_ENABLED
-$BACKUP_DISKS_MEDIA_ENABLED
-
-## for more info see : borg prune -h
-keep = 0
-prune = yes
-prune_options = $BACKUP_DISKS_PRUNE
-
-[dest]
-directory = /backup/disks
-host = localhost
-port = 22
-user = root
-archive = {now:%Y-%m-%dT%H:%M:%S}
-compression = lz4
-encryption = none
-passphrase = 
-EOT
+    for job in $jobs; do
+        envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+    done
 fi
 
+#
+# Config
+#
+if [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
+    if [ -z "$1" ]; then
+        echo "CONFIG ENABLED: Enabled config backup $BACKUP_CONFIG_WHEN with $BACKUP_CONFIG_PRUNE prune policy"
+        echo "                  Logs can be found at $LOG_FILE folder"
+    fi
+
+    jobs="80-config-info.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 81-config-nfs-mount.sh"
+    jobs="$jobs 82-config-borg.borg"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 89-config-nfs-umount.sh"
+
+    for job in $jobs; do
+        envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+    done
+fi
+
+#
+# Disks
+#
+if [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
+    if [ "$BACKUP_DISKS_TEMPLATES_ENABLED" = "false" ]; then
+        BACKUP_DISKS_TEMPLATES_ENABLED=""
+    else
+        BACKUP_DISKS_TEMPLATES_ENABLED="include = /opt/isard/templates"
+    fi
+    if [ "$BACKUP_DISKS_GROUPS_ENABLED" = "false" ]; then
+        BACKUP_DISKS_GROUPS_ENABLED=""
+    else
+        BACKUP_DISKS_GROUPS_ENABLED="include = /opt/isard/groups"
+    fi
+    if [ "$BACKUP_DISKS_MEDIA_ENABLED" = "false" ]; then
+        BACKUP_DISKS_MEDIA_ENABLED=""
+    else
+        BACKUP_DISKS_MEDIA_ENABLED="include = /opt/isard/media"
+    fi
+
+    if [ -z "$1" ]; then
+        echo "DISKS ENABLED: Enabled disks backup $BACKUP_DISKS_WHEN with $BACKUP_DISKS_PRUNE prune policy"
+        echo "               Disks backup included folders:"
+        echo "               - TEMPLATES: $BACKUP_DISKS_TEMPLATES_ENABLED"
+        echo "               -    GROUPS: $BACKUP_DISKS_GROUPS_ENABLED"
+        echo "               -     MEDIA: $BACKUP_DISKS_MEDIA_ENABLED"
+        echo "               Logs can be found at $LOG_FILE folder"
+    fi
+
+
+    jobs="90-disks-info.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 91-disks-nfs-mount.sh"
+    jobs="$jobs 92-disks-borg.borg"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 99-disks-nfs-umount.sh"
+
+    for job in $jobs; do
+        envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+    done
+fi
+
+# Set correct permissions to the files
 chmod 600 /usr/local/etc/backup.d/* > /dev/null 2>&1
-crond
-tail -f $LOG_FILE
+chmod 700 /usr/local/etc/backup.d/*.sh > /dev/null 2>&1
+
+backup_args() {
+    case "$1" in
+        "db")
+            export BACKUP_SCRIPTS_PREFIX="1*"
+            export BACKUP_PATH="/backup/db"
+            ;;
+
+        "redis")
+            export BACKUP_SCRIPTS_PREFIX="2*"
+            export BACKUP_PATH="/backup/redis"
+            ;;
+
+        "stats")
+            export BACKUP_SCRIPTS_PREFIX="3*"
+            export BACKUP_PATH="/backup/stats"
+            ;;
+
+        "config")
+            export BACKUP_SCRIPTS_PREFIX="8*"
+            export BACKUP_PATH="/backup/config"
+            ;;
+
+        "disks")
+            export BACKUP_SCRIPTS_PREFIX="9*"
+            export BACKUP_PATH="/backup/disks"
+            ;;
+
+        *)
+            echo "Invalid backup option, must be 'db', 'redis', 'stats', 'config' or 'disks'"
+            exit 1
+            ;;
+    esac
+}
+
+case "$1" in
+    "execute-now")
+        execute_now() {
+            find /usr/local/etc/backup.d -name "$1" | sort | xargs -I% backupninja --run % --now
+        }
+
+        backup_args "$2"
+        execute_now "$BACKUP_SCRIPTS_PREFIX"
+        ;;
+
+    "list")
+        mount_nfs
+        backup_args "$2"
+
+        borg list --short "$BACKUP_PATH"
+
+        umount_nfs
+        ;;
+
+    "info")
+        mount_nfs
+        backup_args "$2"
+
+        borg info "$BACKUP_PATH"
+
+        umount_nfs
+        ;;
+
+    "show-files")
+        mount_nfs
+        backup_args "$2"
+        if [ -z "$3" ]; then
+            echo "Missing backup as last argument"
+            exit 1
+        fi
+
+        borg list --short $BACKUP_PATH::$3
+
+        umount_nfs
+        ;;
+
+    "check-integrity")
+        mount_nfs
+        backup_args "$2"
+        if [ -z "$3" ]; then
+            echo "Missing backup as last argument"
+            exit 1
+        fi
+
+        borg extract --dry-run --list $BACKUP_PATH::$3
+
+        umount_nfs
+        ;;
+
+    "extract")
+        mount_nfs
+        backup_args "$2"
+        if [ -z "$3" ]; then
+            echo "Missing backup as last argument"
+            exit 1
+        fi
+
+        cd /backup/extract
+        borg extract --list $BACKUP_PATH::$3 $4
+
+        umount_nfs
+        ;;
+
+    "check-nfs-mount")
+        mount_nfs
+        umount_nfs
+        ;;
+
+    "")
+        # Start the cron daemon and follow the logs
+        crond
+        tail -f $LOG_FILE
+        ;;
+    *)
+        echo "Available commands"
+        echo "      execute-now => run a backup"
+        echo "      list => list all the backups"
+        echo "      info => show info of a backup"
+        echo "      show-files => show all the files of a backup"
+        echo "      check-integrity => check a backup is extractable"
+        echo "      extract => extract some files"
+        echo "      check-nfs-mount => ensure the NFS can be mounted"
+        exit 1
+        ;;
+esac
+
