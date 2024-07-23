@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
-import { Button, buttonVariants } from '@/components/ui/button'
+import type { Meta, StoryObj, ComponentPropsAndSlots } from '@storybook/vue3'
+import { Button } from '@/components/ui/button'
 
 const meta = {
   component: Button,
@@ -27,8 +27,9 @@ const meta = {
       ]
     },
     // TODO: Use buttonVariants
-    size: { control: 'select', options: ['sm', 'md', 'lg', 'xl', '2xl'] },
-    disabled: { control: 'boolean' }
+    size: { control: 'select', options: ['sm', 'md', 'lg', 'xl', '2xl'] }
+    // TODO: Implement disabled
+    // disabled: { control: 'boolean' }
   },
   render: (args) => ({
     components: { Button },
@@ -39,7 +40,7 @@ const meta = {
     },
     template: `<Button :hierarchy="args.hierarchy" :size="args.size" :disabled="args.disabled">{{ args.label }}</Button>`
   })
-} satisfies Meta<typeof Button>
+} satisfies Meta<ComponentPropsAndSlots<typeof Button> & { label: string }>
 
 export default meta
 
@@ -56,7 +57,7 @@ export const SecondaryColor = createStory({ hierarchy: 'secondary-color' })
 export const TertiaryColor = createStory({ hierarchy: 'tertiary-color' })
 export const LinkGray = createStory({ hierarchy: 'link-gray' })
 export const LinkColor = createStory({ hierarchy: 'link-color' })
-export const destructive = createStory({ hierarchy: 'destructive' })
+export const Destructive = createStory({ hierarchy: 'destructive' })
 export const Small = createStory({ size: 'sm' })
 export const Medium = createStory({ size: 'md' })
 export const Large = createStory({ size: 'lg' })
@@ -85,7 +86,7 @@ export const TertiaryColorHover = createStory(
 )
 export const LinkGrayHover = createStory({ ...LinkGray.args }, { pseudo: { hover: true } })
 export const LinkColorHover = createStory({ ...LinkColor.args }, { pseudo: { hover: true } })
-export const DestructiveHover = createStory({ ...destructive.args }, { pseudo: { hover: true } })
+export const DestructiveHover = createStory({ ...Destructive.args }, { pseudo: { hover: true } })
 
 export const PrimaryFocus = createStory({ ...Primary.args }, { pseudo: { focus: true } })
 export const SecondaryGrayFocus = createStory(
@@ -102,4 +103,4 @@ export const TertiaryColorFocus = createStory(
 )
 export const LinkGrayFocus = createStory({ ...LinkGray.args }, { pseudo: { focus: true } })
 export const LinkColorFocus = createStory({ ...LinkColor.args }, { pseudo: { focus: true } })
-export const DestructiveFocus = createStory({ ...destructive.args }, { pseudo: { focus: true } })
+export const DestructiveFocus = createStory({ ...Destructive.args }, { pseudo: { focus: true } })

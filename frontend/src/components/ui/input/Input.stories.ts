@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/vue3'
+import type { Meta, StoryObj, ComponentPropsAndSlots } from '@storybook/vue3'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 
@@ -31,7 +31,7 @@ const meta = {
       <Label v-if="args.label" for="input">{{ args.label }}</Label>
       <Input id="input" :placeholder="args.placeholder" :size="args.size" :destructive="args.destructive" :hint="args.hint" />`
   })
-} satisfies Meta<typeof Input>
+} satisfies Meta<ComponentPropsAndSlots<typeof Input> & { label: string }>
 
 export default meta
 
