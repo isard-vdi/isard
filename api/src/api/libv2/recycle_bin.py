@@ -904,7 +904,12 @@ class RecycleBin(object):
                     {"id": self.id, "storages": self.storages}
                 ] + dependent_storages
                 # Remove entries duplicated with the same id in the list)
-                entries = [dict(t) for t in {tuple(d.items()) for d in entries_raw}]
+                unique_entries = {}
+                for entry in entries_raw:
+                    unique_entries[entry["id"]] = entry
+
+                # Convert the dictionary values back to a list
+                entries = list(unique_entries.values())
                 if len(entries_raw) != len(entries):
                     log.warning(
                         "RecycleBin %s delete_storage: Found %s duplicated entries to delete",
