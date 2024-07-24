@@ -8,25 +8,19 @@ from api import app
 
 from ..libv2.recycle_bin import (
     RecycleBin,
-    get,
-    get_user_amount,
-    get_item_count,
-    get_recycle_bin_by_period,
-    get_user_recycle_bin_ids,
-    get_status,
-    update_task_status,
-    get_old_entries_config,
     check_older_than_old_entry_max_time,
+    get,
     get_default_delete,
     get_delete_action,
+    get_item_count,
+    get_old_entries_config,
+    get_recycle_bin_by_period,
+    get_status,
+    get_user_amount,
+    get_user_recycle_bin_ids,
+    update_task_status,
 )
-
-from .decorators import (
-    has_token,
-    is_admin,
-    is_admin_or_manager,
-    ownsRecycleBinId,
-)
+from .decorators import has_token, is_admin, is_admin_or_manager, ownsRecycleBinId
 
 
 @app.route("/api/v3/recycle_bin/<recycle_bin_id>", methods=["GET"])

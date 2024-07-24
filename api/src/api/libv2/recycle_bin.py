@@ -9,6 +9,7 @@ from api import app
 from ..views.decorators import itemExists
 
 r = RethinkDB()
+import logging as log
 import time
 
 from isardvdi_common.api_exceptions import Error
@@ -212,6 +213,7 @@ def get_recycle_bin_by_period(max_delete_period, category=None):
 
 
 def update_task_status(task):
+    start = absolute_start = time.time()
     with app.app_context():
         rb = (
             r.table("recycle_bin")
@@ -231,16 +233,34 @@ def update_task_status(task):
             )
             .run(db.conn)
         )
+    log.debug(
+        "RecycleBin %s update_task_status: Got recycle bin in %s seconds",
+        task["recycle_bin_id"],
+        time.time() - start,
+    )
 
+    start = time.time()
     for t in rb["tasks"]:
         if t["id"] == task["id"]:
             t["status"] = task["status"]
             break
+    log.debug(
+        "RecycleBin %s update_task_status: Updated task status in %s seconds",
+        task["recycle_bin_id"],
+        time.time() - start,
+    )
 
     # Check if all the recycle bin tasks are finished then update the recycle bin status to deleted
+    start = time.time()
     finished_tasks = list(filter(lambda t: (t["status"] == "finished"), rb["tasks"]))
+    log.debug(
+        "RecycleBin %s update_task_status: Filtered finished tasks in %s seconds",
+        task["recycle_bin_id"],
+        time.time() - start,
+    )
 
     if len(finished_tasks) == len(rb["storages"]):
+        start = time.time()
         with app.app_context():
             r.table("recycle_bin").get(task["recycle_bin_id"]).update(
                 {
@@ -254,6 +274,12 @@ def update_task_status(task):
                     ),
                 }
             ).run(db.conn)
+        log.debug(
+            "RecycleBin %s update_task_status: Updated recycle bin status to deleted in %s seconds",
+            task["recycle_bin_id"],
+            time.time() - start,
+        )
+        start = time.time()
         send_socket_user(
             "update_recycle_bin",
             {"id": task["recycle_bin_id"], "status": "deleted"},
@@ -263,6 +289,12 @@ def update_task_status(task):
             "update_recycle_bin",
             {"id": task["recycle_bin_id"], "status": "deleted"},
         )
+        log.debug(
+            "RecycleBin %s update_task_status: Sent socket events in %s seconds",
+            task["recycle_bin_id"],
+            time.time() - start,
+        )
+        start = time.time()
         add_log(
             "deleted",
             task["recycle_bin_id"],
@@ -273,8 +305,14 @@ def update_task_status(task):
             rb["agent_category_name"],
             rb["agent_role"],
         )
+        log.debug(
+            "RecycleBin %s update_task_status: Added log entry in %s seconds",
+            task["recycle_bin_id"],
+            time.time() - start,
+        )
     # Otherwise only update the tasks status
     else:
+        start = time.time()
         with app.app_context():
             r.table("recycle_bin").get(task["recycle_bin_id"]).update(
                 {
@@ -287,6 +325,16 @@ def update_task_status(task):
                     )
                 }
             ).run(db.conn)
+        log.debug(
+            "RecycleBin %s update_task_status: Updated tasks status in %s seconds",
+            task["recycle_bin_id"],
+            time.time() - start,
+        )
+    log.debug(
+        "RecycleBin %s update_task_status: Finished in %s seconds",
+        task["recycle_bin_id"],
+        time.time() - absolute_start,
+    )
 
 
 @cached(cache=TTLCache(maxsize=50, ttl=10))
@@ -816,11 +864,18 @@ class RecycleBin(object):
                 description="Cannot delete entry with status " + str(self.status),
             )
 
+        start = absolute_start = time.time()
         tasks = []
 
         self._update_agent(user_id)
+        log.debug(
+            "RecycleBin %s delete_storage: Updated agent in %s seconds",
+            self.id,
+            time.time() - start,
+        )
 
         if not self.storages:
+            start = time.time()
             self._update_status("deleted")
             send_socket_user(
                 "delete_recycle_bin",
@@ -830,14 +885,47 @@ class RecycleBin(object):
             send_socket_admin(
                 "update_recycle_bin", {"id": self.id, "status": "deleted"}
             )
+            log.debug(
+                "RecycleBin %s delete_storage: No storages. Updated status to deleted in %s seconds and sent sockets",
+                self.id,
+                time.time() - start,
+            )
         else:
             try:
+                start = time.time()
                 dependent_storages = self.dependent_storages()
-                entries = [
+                log.debug(
+                    "RecycleBin %s delete_storage: Got dependent storages in %s seconds",
+                    self.id,
+                    time.time() - start,
+                )
+
+                entries_raw = [
                     {"id": self.id, "storages": self.storages}
                 ] + dependent_storages
+                # Remove entries duplicated with the same id in the list)
+                entries = [dict(t) for t in {tuple(d.items()) for d in entries_raw}]
+                if len(entries_raw) != len(entries):
+                    log.warning(
+                        "RecycleBin %s delete_storage: Found %s duplicated entries to delete",
+                        self.id,
+                        len(entries_raw) - len(entries),
+                    )
+                else:
+                    log.debug(
+                        "RecycleBin %s delete_storage: No duplicated entries found",
+                        self.id,
+                    )
                 for entry in entries:
+                    start = time.time()
                     rb = RecycleBin(entry["id"])
+                    log.debug(
+                        "RecycleBin %s delete_storage: RecycleBin %s loaded in %s seconds",
+                        self.id,
+                        rb.id,
+                        time.time() - start,
+                    )
+                    start = time.time()
                     with app.app_context():
                         storages_status = list(
                             r.table("storage")
@@ -845,8 +933,20 @@ class RecycleBin(object):
                             .pluck("status")["status"]
                             .run(db.conn)
                         )
+                    log.debug(
+                        "RecycleBin %s delete_storage: Got storages status in %s seconds",
+                        rb.id,
+                        time.time() - start,
+                    )
                     if all(x == "deleted" for x in storages_status):
+                        start = time.time()
                         rb._update_status("deleted")
+                        log.debug(
+                            "RecycleBin %s delete_storage: All storages status deleted. Updated status to deleted in %s seconds",
+                            rb.id,
+                            time.time() - start,
+                        )
+                        start = time.time()
                         send_socket_user(
                             "delete_recycle_bin",
                             {"id": rb.id, "status": "deleted"},
@@ -855,8 +955,20 @@ class RecycleBin(object):
                         send_socket_admin(
                             "update_recycle_bin", {"id": rb.id, "status": "deleted"}
                         )
+                        log.debug(
+                            "RecycleBin %s delete_storage: All storages status deleted. Sent socket events in %s seconds",
+                            rb.id,
+                            time.time() - start,
+                        )
                     else:
+                        start = time.time()
                         rb._update_status("deleting")
+                        log.debug(
+                            "RecycleBin %s delete_storage: Not all storages status deleted. Updated status to deleting in %s seconds",
+                            rb.id,
+                            time.time() - start,
+                        )
+                        start = time.time()
                         add_log(
                             "deleting",
                             entry["id"],
@@ -867,6 +979,12 @@ class RecycleBin(object):
                             self.agent_category_name,
                             self.agent_role,
                         )
+                        log.debug(
+                            "RecycleBin %s delete_storage: Added log entry in %s seconds",
+                            rb.id,
+                            time.time() - start,
+                        )
+                        start = time.time()
                         send_socket_user(
                             "update_recycle_bin",
                             {"id": rb.id, "status": "deleting"},
@@ -875,19 +993,43 @@ class RecycleBin(object):
                         send_socket_admin(
                             "update_recycle_bin", {"id": rb.id, "status": "deleting"}
                         )
+                        log.debug(
+                            "RecycleBin %s delete_storage: Sent socket events in %s seconds",
+                            rb.id,
+                            time.time() - start,
+                        )
                         if not entry["storages"]:
+                            start = time.time()
                             rb._update_status("deleted")
+                            log.debug(
+                                "RecycleBin %s delete_storage: No storages. Updated status to deleted in %s seconds",
+                                rb.id,
+                                time.time() - start,
+                            )
                         for storage in rb.storages:
-                            if (
-                                not Storage.exists(storage["id"])
-                                or storage["status"] == "deleted"
-                            ):
+                            start = time.time()
+                            exists = Storage.exists(storage["id"])
+                            log.debug(
+                                "RecycleBin %s delete_storage: Checked if storage %s exists or status is deleted in %s seconds",
+                                rb.id,
+                                storage["id"],
+                                time.time() - start,
+                            )
+                            if not exists or storage["status"] == "deleted":
                                 continue
+                            start = time.time()
                             storage = Storage(storage["id"])
                             if storage.status != "recycled":
                                 storage.status = "recycled"
                             move = get_delete_action() == "move"
                             task_name = "move_delete" if move else "delete"
+                            log.debug(
+                                "RecycleBin %s delete_storage: Storage %s loaded in %s seconds",
+                                rb.id,
+                                storage.id,
+                                time.time() - start,
+                            )
+                            start = time.time()
                             task = Task(
                                 user_id=rb.owner_id,
                                 queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
@@ -941,6 +1083,14 @@ class RecycleBin(object):
                                     }
                                 ],
                             )
+                            log.debug(
+                                "RecycleBin %s delete_storage: Storage %s task %s created in %s seconds",
+                                rb.id,
+                                storage.id,
+                                task_name,
+                                time.time() - start,
+                            )
+                            start = time.time()
                             rb._add_task(
                                 {
                                     "id": task.id,
@@ -948,6 +1098,12 @@ class RecycleBin(object):
                                     "item_type": "storage",
                                     "status": task.status,
                                 }
+                            )
+                            log.debug(
+                                "RecycleBin %s delete_storage: Added task %s to recycle bin in %s seconds",
+                                rb.id,
+                                task.id,
+                                time.time() - start,
                             )
                             tasks.append(
                                 {
@@ -965,13 +1121,36 @@ class RecycleBin(object):
                 )
 
         if self.categories:
+            start = time.time()
             groups = [group["id"] for group in self.groups]
             isard_user_storage_remove_categories(self.categories, groups)
+            log.debug(
+                "RecycleBin %s delete_storage: Removed categories in %s seconds",
+                self.id,
+                time.time() - start,
+            )
         elif self.groups:
+            start = time.time()
             isard_user_storage_remove_groups(self.groups)
+            log.debug(
+                "RecycleBin %s delete_storage: Removed groups in %s seconds",
+                self.id,
+                time.time() - start,
+            )
         elif self.users:
+            start = time.time()
             isard_user_storage_remove_users(self.users)
+            log.debug(
+                "RecycleBin %s delete_storage: Removed users in %s seconds",
+                self.id,
+                time.time() - start,
+            )
 
+        log.debug(
+            "RecycleBin %s delete_storage: Finished in %s seconds",
+            self.id,
+            time.time() - absolute_start,
+        )
         return tasks
 
     # Get the recycle bin entries with storages that depend on the current recycle bin entry templates
