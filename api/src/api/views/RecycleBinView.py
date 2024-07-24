@@ -6,12 +6,25 @@ from isardvdi_common.api_exceptions import Error
 
 from api import app
 
-from ..libv2.recycle_bin import *
+from ..libv2.recycle_bin import (
+    RecycleBin,
+    get,
+    get_user_amount,
+    get_item_count,
+    get_recycle_bin_by_period,
+    get_user_recycle_bin_ids,
+    get_status,
+    update_task_status,
+    get_old_entries_config,
+    check_older_than_old_entry_max_time,
+    get_default_delete,
+    get_delete_action,
+)
+
 from .decorators import (
     has_token,
     is_admin,
     is_admin_or_manager,
-    ownsCategoryId,
     ownsRecycleBinId,
 )
 
@@ -21,7 +34,7 @@ from .decorators import (
 def api_v3_admin_recycle_bin_get(payload, recycle_bin_id):
     ownsRecycleBinId(payload, recycle_bin_id)
     return (
-        json.dumps(RecycleBin.get(recycle_bin_id, all_data=True)),
+        json.dumps(get(recycle_bin_id, all_data=True)),
         200,
         {"Content-Type": "application/json"},
     )
@@ -31,7 +44,7 @@ def api_v3_admin_recycle_bin_get(payload, recycle_bin_id):
 @has_token
 def api_v3_admin_recycle_bin_count(payload):
     return (
-        json.dumps(RecycleBin.get_user_amount(payload["user_id"])),
+        json.dumps(get_user_amount(payload["user_id"])),
         200,
         {"Content-Type": "application/json"},
     )
@@ -43,9 +56,9 @@ def api_v3_admin_recycle_bin_count(payload):
 @has_token
 def api_v3_admin_recycle_bin_item_count(payload, kind=None, status=None):
     if kind == "user":
-        recycle_bins = RecycleBin.get_item_count(payload["user_id"])
+        recycle_bins = get_item_count(payload["user_id"])
     elif payload["role_id"] in ["manager", "admin"]:
-        recycle_bins = RecycleBin.get_item_count(
+        recycle_bins = get_item_count(
             None,
             payload["category_id"] if payload["role_id"] == "manager" else None,
             status,
@@ -85,7 +98,7 @@ def api_v3_admin_recycle_bin_restore(payload, recycle_bin_id):
 def storage_delete_bulk(payload, recycle_bin_id=None):
     if request.method == "PUT":
         data = request.get_json(force=True)
-        recycle_bin_ids = RecycleBin.get_recycle_bin_by_period(
+        recycle_bin_ids = get_recycle_bin_by_period(
             data.get("max_delete_period"), data.get("category")
         )
     else:
@@ -137,9 +150,9 @@ def recycle_bin_old_entries_archive(payload):
 @is_admin
 def recycle_bin_old_entries_delete(payload):
     rcb_list = []
-    rcbs = RecycleBin.get_item_count(status="deleted")
+    rcbs = get_item_count(status="deleted")
     for rcb in rcbs:
-        if RecycleBin.check_older_than_old_entry_max_time(rcb["last"]["time"]):
+        if check_older_than_old_entry_max_time(rcb["last"]["time"]):
             rcb_list.append(rcb["id"])
     RecycleBin.delete_old_entries(rcb_list)
 
@@ -166,7 +179,7 @@ def recycle_bin_update_task(payload):
 @app.route("/api/v3/recycle_bin/empty", methods=["DELETE"])
 @has_token
 def recycle_bin_empty(payload):
-    rb_ids = RecycleBin.get_user_recycle_bin_ids(payload["user_id"], "recycled")
+    rb_ids = get_user_recycle_bin_ids(payload["user_id"], "recycled")
     for rb_id in rb_ids:
         try:
             rb = RecycleBin(rb_id)
@@ -224,7 +237,7 @@ def api_v3_admin_recycle_bin_config_old_entries_action(payload, action):
 @is_admin
 def api_v3_admin_recycle_bin_config_old_entries(payload):
     return (
-        json.dumps(RecycleBin.get_old_entries_config()),
+        json.dumps(get_old_entries_config()),
         200,
         {"Content-Type": "application/json"},
     )
@@ -263,7 +276,7 @@ def api_v3_admin_recycle_bin_default_delete_set(payload):
 @has_token
 def api_v3_admin_recycle_bin_default_delete(payload):
     return (
-        json.dumps(RecycleBin.get_default_delete()),
+        json.dumps(get_default_delete()),
         200,
         {"Content-Type": "application/json"},
     )
@@ -286,7 +299,7 @@ def api_v3_admin_recycle_bin_delete_action_set(payload, action):
 @is_admin
 def api_v3_admin_recycle_bin_delete_action(payload):
     return (
-        json.dumps(RecycleBin.get_delete_action()),
+        json.dumps(get_delete_action()),
         200,
         {"Content-Type": "application/json"},
     )

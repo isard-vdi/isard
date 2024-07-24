@@ -8,7 +8,16 @@ r = RethinkDB()
 import time
 import traceback
 
-from api.libv2.recycle_bin import *
+from api.libv2.recycle_bin import (
+    RecycleBinBulk,
+    RecycleBinCategory,
+    RecycleBinDeployment,
+    RecycleBinDeploymentDesktops,
+    RecycleBinDesktop,
+    RecycleBinTemplate,
+    RecycleBinUser,
+    get_recicle_delete_time,
+)
 
 from .flask_rethink import RDB
 
@@ -218,7 +227,7 @@ def desktop_delete(desktop_id, agent_id, permanent=False):
     rcb = RecycleBinDesktop(user_id=agent_id)
     rcb.add(desktop_id)
 
-    max_time = rcb.get_delete_time()
+    max_time = get_recicle_delete_time(agent_id)
     # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
     if permanent or tag or max_time == "0":
         rcb.delete_storage(agent_id)
@@ -228,7 +237,7 @@ def desktops_delete(agent_id, desktops_ids, permanent=False):
     rcb = RecycleBinBulk(user_id=agent_id)
     rcb.add(desktops_ids)
 
-    max_time = rcb.get_delete_time()
+    max_time = get_recicle_delete_time(agent_id)
     # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
     if max_time == "0" or permanent:
         rcb.delete_storage(agent_id)
@@ -238,7 +247,7 @@ def deployment_delete(deployment_id, agent_id, permanent=False):
     rcb = RecycleBinDeployment(user_id=agent_id)
     rcb.add(deployment_id)
 
-    max_time = rcb.get_delete_time()
+    max_time = get_recicle_delete_time(agent_id)
     if max_time == "0" or permanent:
         rcb.delete_storage(agent_id)
 
@@ -247,7 +256,7 @@ def deployment_delete_desktops(agent_id, desktops_ids, permanent=False):
     rcb = RecycleBinDeploymentDesktops(user_id=agent_id)
     rcb.add(desktops_ids)
 
-    max_time = rcb.get_delete_time()
+    max_time = get_recicle_delete_time(agent_id)
     if max_time == "0" or permanent:
         rcb.delete_storage(agent_id)
 
@@ -256,7 +265,7 @@ def user_delete(agent_id, user_id, delete_user=True):
     rcb = RecycleBinUser(user_id=agent_id)
     rcb.add(user_id, delete_user)
 
-    max_time = rcb.get_delete_time()
+    max_time = get_recicle_delete_time(agent_id)
     # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
     if max_time == "0":
         rcb.delete_storage(agent_id)
@@ -266,7 +275,7 @@ def group_delete(agent_id, group_id):
     rcb = RecycleBinGroup(user_id=agent_id)
     rcb.add(group_id)
 
-    max_time = rcb.get_delete_time()
+    max_time = get_recicle_delete_time(agent_id)
     # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
     if max_time == "0":
         rcb.delete_storage(agent_id)
@@ -276,7 +285,7 @@ def category_delete(agent_id, category_id):
     rcb = RecycleBinCategory(user_id=agent_id)
     rcb.add(category_id)
 
-    max_time = rcb.get_delete_time()
+    max_time = get_recicle_delete_time(agent_id)
     # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
     if max_time == "0":
         rcb.delete_storage(agent_id)
@@ -286,7 +295,7 @@ def templates_delete(template_id, agent_id):
     rcb = RecycleBinTemplate(user_id=agent_id)
     rcb.add(template_id=template_id)
 
-    max_time = rcb.get_delete_time()
+    max_time = get_recicle_delete_time(agent_id)
     # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
     if max_time == "0":
         rcb.delete_storage(agent_id)

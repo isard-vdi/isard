@@ -1,12 +1,12 @@
 import traceback
 from datetime import datetime, timedelta
 
+from cachetools import TTLCache, cached
 from rethinkdb import RethinkDB
 
 from api import app
 
-from ..views.decorators import itemExists, ownsStorageId
-from .api_storage import _add_storage_log
+from ..views.decorators import itemExists
 
 r = RethinkDB()
 import time
@@ -42,21 +42,47 @@ db = RDB(app)
 db.init_app(app)
 
 
+@cached(cache=TTLCache(maxsize=10, ttl=30))
 def get_status(category_id=None):
+
+    query = r.table("recycle_bin")
+    if category_id:
+        query = query.get_all(category_id, index="owner_category")
+    query = (
+        query.group("status")
+        .count()
+        .ungroup()
+        .map(lambda doc: {"status": doc["group"], "count": doc["reduction"]})
+    )
     with app.app_context():
-        query = r.table("recycle_bin")
-        if category_id:
-            query = query.get_all(category_id, index="owner_category")
-        query = (
-            query.group("status")
-            .count()
-            .ungroup()
-            .map(lambda doc: {"status": doc["group"], "count": doc["reduction"]})
+        return list(query.run(db.conn))
+
+
+@cached(cache=TTLCache(maxsize=50, ttl=30))
+def get_category_data(category_id):
+    with app.app_context():
+        return (
+            r.table("categories")
+            .get(category_id)
+            .pluck("id", "name")
+            .default({"id": category_id, "name": "[Deleted]"})
+            .run(db.conn)
         )
-        status = list(query.run(db.conn))
-    return status
 
 
+@cached(cache=TTLCache(maxsize=50, ttl=30))
+def get_group_data(group_id):
+    with app.app_context():
+        return (
+            r.table("groups")
+            .get(group_id)
+            .pluck("id", "name")
+            .default({"id": group_id, "name": "[Deleted]"})
+            .run(db.conn)
+        )
+
+
+@cached(cache=TTLCache(maxsize=50, ttl=30))
 def get_user_data(user_id):
     with app.app_context():
         user = (
@@ -74,20 +100,8 @@ def get_user_data(user_id):
             )
             .run(db.conn)
         )
-        category = (
-            r.table("categories")
-            .get(user["category"])
-            .pluck("name", "id")
-            .default({"name": "[Deleted]", "id": "[Deleted]"})
-            .run(db.conn)
-        )
-        group = (
-            r.table("groups")
-            .get(user["group"])
-            .pluck("name", "id")
-            .default({"name": "[Deleted]", "id": "[Deleted]"})
-            .run(db.conn)
-        )
+        category = get_category_data(user["category"])
+        group = get_group_data(user["group"])
     return {
         "user_id": user["id"],
         "user_name": user["name"],
@@ -97,6 +111,104 @@ def get_user_data(user_id):
         "group_id": group["id"],
         "role": user["role"],
     }
+
+
+@cached(cache=TTLCache(maxsize=50, ttl=10))
+def get(recycle_bin_id=None, all_data=None):
+    """
+    Get one recycle bin entry.
+
+    :param recycle_bin_id: RecycleBin ID
+    :param all_data: Get specific data about domains and storages
+    :type all_data: bool
+    :type recycle_bin_id: str
+    :return: Recycle bin entry
+    :rtype: dict
+    """
+
+    with app.app_context():
+        result = r.table("recycle_bin").get(recycle_bin_id).run(db.conn)
+
+    if all_data:
+        for domain in result["desktops"] + result["templates"]:
+            category = get_category_data(domain["category"])
+            group = get_group_data(domain["group"])
+            domain["category"] = category
+            domain["group"] = group
+
+        for storage in result["storages"]:
+            storage["domains"] = []
+            for domain in result["desktops"] + result["templates"]:
+                for disk in domain["create_dict"]["hardware"]["disks"]:
+                    if disk["storage_id"] == storage["id"]:
+                        storage["domains"].append(domain["name"])
+                        storage["category"] = domain["category"]
+                        storage["user"] = domain["username"]
+
+        for deployment in result["deployments"]:
+            user = get_user_data(deployment["user"])
+            category = get_category_data(user["category_id"])
+            group = get_group_data(user["group_id"])
+            user = (
+                r.table("users")
+                .get(deployment["user"])
+                .default({"username": "[Deleted]"})
+            )
+            deployment["user"] = user["user_name"].run(db.conn)
+            deployment["category"] = category
+            deployment["group"] = group
+
+        for user in result["users"]:
+            user["category"] = get_category_data(user["category"])["name"]
+            user["group"] = get_group_data(user["group"])["name"]
+    return result
+
+
+@cached(cache=TTLCache(maxsize=50, ttl=10))
+def get_recycle_bin_by_period(max_delete_period, category=None):
+    if category:
+        if max_delete_period == 0:
+            with app.app_context():
+                recycle_bin_list = list(
+                    r.table("recycle_bin")
+                    .get_all("recycled", index="status")
+                    .filter({"owner_category_id": category})["id"]
+                    .run(db.conn)
+                )
+        else:
+            max_delete_period = timedelta(hours=max_delete_period)
+            with app.app_context():
+                recycle_bin_list = list(
+                    r.table("recycle_bin")
+                    .get_all("recycled", index="status")
+                    .filter(
+                        r.row["accessed"]
+                        < (datetime.now() - max_delete_period).timestamp()
+                    )
+                    .filter({"owner_category_id": category})["id"]
+                    .run(db.conn)
+                )
+    else:
+        if max_delete_period == 0:
+            with app.app_context():
+                recycle_bin_list = list(
+                    r.table("recycle_bin")
+                    .get_all("recycled", index="status")["id"]
+                    .run(db.conn)
+                )
+        else:
+            max_delete_period = timedelta(hours=max_delete_period)
+            with app.app_context():
+                recycle_bin_list = list(
+                    r.table("recycle_bin")
+                    .get_all("recycled", index="status")
+                    .filter(
+                        r.row["accessed"]
+                        < (datetime.now() - max_delete_period).timestamp()
+                    )["id"]
+                    .run(db.conn)
+                )
+    return recycle_bin_list
 
 
 def update_task_status(task):
@@ -131,18 +243,19 @@ def update_task_status(task):
         )
 
         if len(finished_tasks) == len(rb["storages"]):
-            r.table("recycle_bin").get(task["recycle_bin_id"]).update(
-                {
-                    "status": "deleted",
-                    "tasks": r.row["tasks"].map(
-                        lambda rb_task: r.branch(
-                            rb_task["id"] == task["id"],
-                            rb_task.merge({"status": task["status"]}),
-                            rb_task,
-                        )
-                    ),
-                }
-            ).run(db.conn)
+            with app.app_context():
+                r.table("recycle_bin").get(task["recycle_bin_id"]).update(
+                    {
+                        "status": "deleted",
+                        "tasks": r.row["tasks"].map(
+                            lambda rb_task: r.branch(
+                                rb_task["id"] == task["id"],
+                                rb_task.merge({"status": task["status"]}),
+                                rb_task,
+                            )
+                        ),
+                    }
+                ).run(db.conn)
             send_socket_user(
                 "update_recycle_bin",
                 {"id": task["recycle_bin_id"], "status": "deleted"},
@@ -164,17 +277,175 @@ def update_task_status(task):
             )
         # Otherwise only update the tasks status
         else:
-            r.table("recycle_bin").get(task["recycle_bin_id"]).update(
-                {
-                    "tasks": r.row["tasks"].map(
-                        lambda rb_task: r.branch(
-                            rb_task["id"] == task["id"],
-                            rb_task.merge({"status": task["status"]}),
-                            rb_task,
+            with app.app_context():
+                r.table("recycle_bin").get(task["recycle_bin_id"]).update(
+                    {
+                        "tasks": r.row["tasks"].map(
+                            lambda rb_task: r.branch(
+                                rb_task["id"] == task["id"],
+                                rb_task.merge({"status": task["status"]}),
+                                rb_task,
+                            )
                         )
-                    )
+                    }
+                ).run(db.conn)
+
+
+@cached(cache=TTLCache(maxsize=50, ttl=10))
+def get_user_recycle_bin_ids(user_id, status):
+    """
+    Get all the users recycle_bins ids
+
+    :param user_id: User ID
+    :type user_id: str
+    :return: IDs of the user recycle bins
+    :rtype: array
+    """
+    with app.app_context():
+        return list(
+            r.table("recycle_bin")
+            .get_all([user_id, status], index="owner_status")
+            .filter({"agent_id": user_id})["id"]
+            .run(db.conn)
+        )
+
+
+@cached(cache=TTLCache(maxsize=50, ttl=10))
+def get_count(recycle_bin_id):
+    with app.app_context():
+        return (
+            r.table("recycle_bin")
+            .get(recycle_bin_id)
+            .merge(
+                {
+                    "desktops": r.row["desktops"].count(),
+                    "templates": r.row["templates"].count(),
+                    "storages": r.row["storages"].count(),
+                    "deployments": r.row["deployments"].count(),
+                    "categories": r.row["categories"].count(),
+                    "groups": r.row["groups"].count(),
+                    "users": r.row["users"].count(),
                 }
-            ).run(db.conn)
+            )
+            .run(db.conn)
+        )
+
+
+@cached(cache=TTLCache(maxsize=50, ttl=10))
+def get_item_count(user_id=None, category_id=None, status=None):
+    query = r.table("recycle_bin")
+    if user_id:
+        query = query.get_all([user_id, "recycled"], index="owner_status")
+    elif category_id:
+        if status:
+            query = query.get_all([category_id, status], index="owner_category_status")
+        else:
+            query = query.get_all(
+                [category_id, "recycled"], index="owner_category_status"
+            )
+    elif status:
+        query = query.get_all(status, index="status")
+    else:
+        query = query.get_all(r.args(["recycled", "deleting"]), index="status")
+    count_query = {
+        "desktops": r.row["desktops"].count(),
+        "templates": r.row["templates"].count(),
+        "storages": r.row["storages"].count(),
+        "deployments": r.row["deployments"].count(),
+        "categories": r.row["categories"].count(),
+        "groups": r.row["groups"].count(),
+        "users": r.row["users"].count(),
+        "last": r.row["logs"][-1],
+    }
+    query = query.merge(count_query).without("logs", "tasks")
+    with app.app_context():
+        return list(query.run(db.conn))
+
+
+@cached(cache=TTLCache(maxsize=50, ttl=10))
+def get_user_amount(user_id):
+    with app.app_context():
+        return (
+            r.table("recycle_bin")
+            .get_all([user_id, "recycled"], index="owner_status")
+            .count()
+            .run(db.conn)
+        )
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=10))
+def get_recicle_delete_time(owner_category_id=None):
+    if owner_category_id is None:
+        try:
+            with app.app_context():
+                return (
+                    r.table("scheduler_jobs")
+                    .get("admin.recycle_bin_delete_admin")["kwargs"][
+                        "max_delete_period"
+                    ]
+                    .run(db.conn)
+                )
+        except:
+            return "null"
+    else:
+        with app.app_context():
+            try:
+                results = (
+                    r.table("scheduler_jobs")
+                    .get(owner_category_id + ".recycle_bin_delete")["kwargs"][
+                        "max_delete_period"
+                    ]
+                    .run(db.conn)
+                )
+            except:
+                try:
+                    with app.app_context():
+                        results = (
+                            r.table("scheduler_jobs")
+                            .get("admin.recycle_bin_delete_admin")["kwargs"][
+                                "max_delete_period"
+                            ]
+                            .run(db.conn)
+                        )
+                except:
+                    results = "null"
+        return results
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=30))
+def get_old_entries_config():
+    with app.app_context():
+        try:
+            return r.table("config")[0]["recycle_bin"]["old_entries"].run(db.conn)
+        except r.ReqlNonExistenceError:
+            return {"max_time": None, "action": None}
+
+
+def check_older_than_old_entry_max_time(last):
+    max_time_config = get_old_entries_config()["max_time"]
+    if max_time_config is None:
+        return False
+    else:
+        max_time_hours = int(max_time_config)
+        return last < (datetime.now() - timedelta(hours=max_time_hours)).timestamp()
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=30))
+def get_default_delete():
+    with app.app_context():
+        try:
+            return r.table("config")[0]["recycle_bin"]["default_delete"].run(db.conn)
+        except r.ReqlNonExistenceError:
+            return False
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=30))
+def get_delete_action():
+    with app.app_context():
+        try:
+            return r.table("config")[0]["recycle_bin"]["delete_action"].run(db.conn)
+        except r.ReqlNonExistenceError:
+            return "delete"
 
 
 def send_socket_user(kind, data, owner_id):
@@ -274,14 +545,13 @@ class RecycleBin(object):
             self.item_type = item_type
             self.agent_type = "user" if user_id else "system"
             if self.agent_type == "user":
-                with app.app_context():
-                    user = get_user_data(user_id)
-                    self.agent_name = user["user_name"]
-                    self.agent_category_id = user["category_id"]
-                    self.agent_category_name = user["category_name"]
-                    self.agent_group_id = user["group_id"]
-                    self.agent_group_name = user["group_name"]
-                    self.agent_role = user["role"]
+                user = get_user_data(user_id)
+                self.agent_name = user["user_name"]
+                self.agent_category_id = user["category_id"]
+                self.agent_category_name = user["category_name"]
+                self.agent_group_id = user["group_id"]
+                self.agent_group_name = user["group_name"]
+                self.agent_role = user["role"]
             with app.app_context():
                 self.id = (
                     r.table("recycle_bin")
@@ -367,8 +637,8 @@ class RecycleBin(object):
         self.owner_group_name = user["group_name"]
         self.owner_role = user["role"]
         self.is_new = False
-        send_socket_user("add_recycle_bin", self.get_count(), self.owner_id)
-        send_socket_admin("add_recycle_bin", self.get_count())
+        send_socket_user("add_recycle_bin", get_count(self.id), self.owner_id)
+        send_socket_admin("add_recycle_bin", get_count(self.id))
 
     def _update_agent(self, user_id=None):
         """
@@ -379,19 +649,11 @@ class RecycleBin(object):
         """
 
         if user_id and (user_id != "isard-scheduler"):
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .pluck("name", "category", "role")
-                    .run(db.conn)
-                )
-                self.agent_category_name = (
-                    r.table("categories").get(user["category"])["name"].run(db.conn)
-                )
+            user = get_user_data(user_id)
             self.agent_id = user_id
-            self.agent_name = user["name"]
-            self.agent_category_id = user["category"]
+            self.agent_name = user["user_name"]
+            self.agent_category_id = user["category_id"]
+            self.agent_category_name = user["category_name"]
             self.agent_role = user["role"]
         else:
             self.agent_type = "system"
@@ -479,15 +741,11 @@ class RecycleBin(object):
         """
         Restore an entry including domains and storage. Call this function with RecycleBin object instanced with ID
         """
-        if self.item_type not in ["user", "group", "category"]:
-            self.check_can_restore()
         if self.status in ["deleted", "restored"]:
             raise Error(
                 "precondition_required",
                 "Cannot restore entry with status " + str(self.status),
             )
-        with app.app_context():
-            r.table("users").insert(self.users).run(db.conn)
         try:
             itemExists("users", self.owner_id)
         except:
@@ -498,12 +756,18 @@ class RecycleBin(object):
                 + " has been deleted.",
                 description_code="user_not_found",
             )
+
+        if self.item_type not in ["deployment", "user", "group", "category"]:
+            self.check_can_restore()
+
         with app.app_context():
+            r.table("users").insert(self.users).run(db.conn)
             r.table("groups").insert(self.groups).run(db.conn)
             r.table("categories").insert(self.categories).run(db.conn)
+
         storage_ids = [storage["id"] for storage in self.storages]
-        with app.app_context():
-            try:
+        try:
+            with app.app_context():
                 r.table("storage").get_all(*storage_ids).update(
                     {
                         "status": "ready",
@@ -512,19 +776,20 @@ class RecycleBin(object):
                         ),
                     }
                 ).run(db.conn)
-            except:
-                raise Error("not found", "Invalid storage data")
-            self._update_status("restored")
-            add_log(
-                "restored",
-                self.id,
-                self.agent_type,
-                self.agent_id,
-                self.agent_name,
-                self.agent_category_id,
-                self.agent_category_name,
-                self.agent_role,
-            )
+        except:
+            raise Error("not found", "Invalid storage data")
+        self._update_status("restored")
+        add_log(
+            "restored",
+            self.id,
+            self.agent_type,
+            self.agent_id,
+            self.agent_name,
+            self.agent_category_id,
+            self.agent_category_name,
+            self.agent_role,
+        )
+        with app.app_context():
             r.table("domains").insert(self.desktops + self.templates).run(db.conn)
             r.table("deployments").insert(self.deployments).run(db.conn)
         if self.categories:
@@ -547,21 +812,14 @@ class RecycleBin(object):
         :param move: True to move the disk file to deleted path instead of deleting it
         :type move: bool
         """
-
-        if self.categories:
-            groups = [group["id"] for group in self.groups]
-            isard_user_storage_remove_categories(self.categories, groups)
-        elif self.groups:
-            isard_user_storage_remove_groups(self.groups)
-        elif self.users:
-            isard_user_storage_remove_users(self.users)
-
-        tasks = []
         if self.status in ["restored", "deleted"]:
             raise Error(
                 error="precondition_required",
                 description="Cannot delete entry with status " + str(self.status),
             )
+
+        tasks = []
+
         self._update_agent(user_id)
 
         if not self.storages:
@@ -630,7 +888,7 @@ class RecycleBin(object):
                             storage = Storage(storage["id"])
                             if storage.status != "recycled":
                                 storage.status = "recycled"
-                            move = rb.get_delete_action() == "move"
+                            move = get_delete_action() == "move"
                             task_name = "move_delete" if move else "delete"
                             task = Task(
                                 user_id=rb.owner_id,
@@ -700,12 +958,22 @@ class RecycleBin(object):
                                     "status": task.status,
                                 }
                             )
+
             except Exception as e:
                 raise Error(
                     "internal_server",
                     "Error when deleting recycle bin entry",
                     traceback.format_exc(),
                 )
+
+        if self.categories:
+            groups = [group["id"] for group in self.groups]
+            isard_user_storage_remove_categories(self.categories, groups)
+        elif self.groups:
+            isard_user_storage_remove_groups(self.groups)
+        elif self.users:
+            isard_user_storage_remove_users(self.users)
+
         return tasks
 
     # Get the recycle bin entries with storages that depend on the current recycle bin entry templates
@@ -730,275 +998,27 @@ class RecycleBin(object):
                 .run(db.conn)
             )
 
-    def get_count(self):
-        with app.app_context():
-            return (
-                r.table("recycle_bin")
-                .get(self.id)
-                .merge(
-                    {
-                        "desktops": r.row["desktops"].count(),
-                        "templates": r.row["templates"].count(),
-                        "storages": r.row["storages"].count(),
-                        "deployments": r.row["deployments"].count(),
-                        "categories": r.row["categories"].count(),
-                        "groups": r.row["groups"].count(),
-                        "users": r.row["users"].count(),
-                    }
-                )
-                .run(db.conn)
-            )
+    # @classmethod
+    # def get_all(cls, category_id=None, user_id=None):
+    #     """
+    #     Get all recycle bin entries.
 
-    @classmethod
-    def get_all(cls, category_id=None, user_id=None):
-        """
-        Get all recycle bin entries.
+    #     :return: Recycle bin entries
+    #     :rtype: list
+    #     """
+    #     query = r.table("recycle_bin")
+    #     if user_id:
+    #         query = query.filter({"owner_id": user_id, "status": "recycled"})
+    #     elif category_id:
+    #         query = query.filter({"owner_category_id": category_id})
 
-        :return: Recycle bin entries
-        :rtype: list
-        """
-        query = r.table("recycle_bin")
-        if user_id:
-            query = query.filter({"owner_id": user_id, "status": "recycled"})
-        elif category_id:
-            query = query.filter({"owner_category_id": category_id})
+    #     with app.app_context():
+    #         query = list(query.run(db.conn))
 
-        with app.app_context():
-            query = list(query.run(db.conn))
-
-        # for storage in query
-        # new key category in storage
-        # category is category name of user_id in storage
-        return query
-
-    @classmethod
-    def get(cls, recycle_bin_id=None, all_data=None):
-        """
-        Get one recycle bin entry.
-
-        :param recycle_bin_id: RecycleBin ID
-        :param all_data: Get specific data about domains and storages
-        :type all_data: bool
-        :type recycle_bin_id: str
-        :return: Recycle bin entry
-        :rtype: dict
-        """
-        query = r.table("recycle_bin").get(recycle_bin_id)
-
-        with app.app_context():
-            result = query.run(db.conn)
-
-        if all_data:
-            for domain in result["desktops"] + result["templates"]:
-                user = r.table("users").get(domain["user"])
-                with app.app_context():
-                    category = (
-                        r.table("categories")
-                        .get(domain["category"])
-                        .default({"name": "[Deleted]"})["name"]
-                        .run(db.conn)
-                    )
-                    group = (
-                        r.table("groups")
-                        .get(domain["group"])
-                        .default({"name": "[Deleted]"})["name"]
-                        .run(db.conn)
-                    )
-                domain["category"] = category
-                domain["group"] = group
-
-            for storage in result["storages"]:
-                storage["domains"] = []
-                for domain in result["desktops"] + result["templates"]:
-                    for disk in domain["create_dict"]["hardware"]["disks"]:
-                        if disk["storage_id"] == storage["id"]:
-                            storage["domains"].append(domain["name"])
-                            storage["category"] = domain["category"]
-                            storage["user"] = domain["username"]
-
-            for deployment in result["deployments"]:
-                user = (
-                    r.table("users")
-                    .get(deployment["user"])
-                    .default({"username": "[Deleted]"})
-                )
-                with app.app_context():
-                    category = (
-                        r.table("categories")
-                        .get(user["category"])
-                        .default({"name": "[Deleted user]"})["name"]
-                        .run(db.conn)
-                    )
-                    group = (
-                        r.table("groups")
-                        .get(user["group"])
-                        .default({"name": "[Deleted user]"})["name"]
-                        .run(db.conn)
-                    )
-                    deployment["user"] = user["username"].run(db.conn)
-                    deployment["category"] = category
-                    deployment["group"] = group
-
-            with app.app_context():
-                for user in result["users"]:
-                    try:
-                        user["category"] = (
-                            r.table("categories")
-                            .get(user["category"])["name"]
-                            .run(db.conn)
-                        )
-                    except:
-                        user["category"] = "[DELETED]"
-
-                    try:
-                        user["group"] = (
-                            r.table("groups").get(user["group"])["name"].run(db.conn)
-                        )
-                    except:
-                        user["group"] = "[DELETED]"
-
-        return result
-
-    @classmethod
-    def get_user_recycle_bin_ids(cls, user_id, status):
-        """
-        Get all the users recycle_bins ids
-
-        :param user_id: User ID
-        :type user_id: str
-        :return: IDs of the user recycle bins
-        :rtype: array
-        """
-        with app.app_context():
-            return list(
-                r.table("recycle_bin")
-                .get_all([user_id, status], index="owner_status")
-                .filter({"agent_id": user_id})["id"]
-                .run(db.conn)
-            )
-
-    @classmethod
-    def get_recycle_bin_by_period(cls, max_delete_period, category=None):
-        if category:
-            if max_delete_period == 0:
-                with app.app_context():
-                    recycle_bin_list = list(
-                        r.table("recycle_bin")
-                        .get_all("recycled", index="status")
-                        .filter({"owner_category_id": category})["id"]
-                        .run(db.conn)
-                    )
-            else:
-                max_delete_period = timedelta(hours=max_delete_period)
-                with app.app_context():
-                    recycle_bin_list = list(
-                        r.table("recycle_bin")
-                        .get_all("recycled", index="status")
-                        .filter(
-                            r.row["accessed"]
-                            < (datetime.now() - max_delete_period).timestamp()
-                        )
-                        .filter({"owner_category_id": category})["id"]
-                        .run(db.conn)
-                    )
-        else:
-            if max_delete_period == 0:
-                with app.app_context():
-                    recycle_bin_list = list(
-                        r.table("recycle_bin")
-                        .get_all("recycled", index="status")["id"]
-                        .run(db.conn)
-                    )
-            else:
-                max_delete_period = timedelta(hours=max_delete_period)
-                with app.app_context():
-                    recycle_bin_list = list(
-                        r.table("recycle_bin")
-                        .get_all("recycled", index="status")
-                        .filter(
-                            r.row["accessed"]
-                            < (datetime.now() - max_delete_period).timestamp()
-                        )["id"]
-                        .run(db.conn)
-                    )
-        return recycle_bin_list
-
-    def get_item_count(user_id=None, category_id=None, status=None):
-        query = r.table("recycle_bin")
-        if user_id:
-            query = query.get_all([user_id, "recycled"], index="owner_status")
-        elif category_id:
-            if status:
-                query = query.get_all(
-                    [category_id, status], index="owner_category_status"
-                )
-            else:
-                query = query.get_all(
-                    [category_id, "recycled"], index="owner_category_status"
-                )
-        elif status:
-            query = query.get_all(status, index="status")
-        else:
-            query = query.get_all(r.args(["recycled", "deleting"]), index="status")
-        count_query = {
-            "desktops": r.row["desktops"].count(),
-            "templates": r.row["templates"].count(),
-            "storages": r.row["storages"].count(),
-            "deployments": r.row["deployments"].count(),
-            "categories": r.row["categories"].count(),
-            "groups": r.row["groups"].count(),
-            "users": r.row["users"].count(),
-            "last": r.row["logs"][-1],
-        }
-        query = query.merge(count_query).without("logs", "tasks")
-        with app.app_context():
-            return list(query.run(db.conn))
-
-    def get_user_amount(user_id):
-        with app.app_context():
-            return (
-                r.table("recycle_bin")
-                .get_all([user_id, "recycled"], index="owner_status")
-                .count()
-                .run(db.conn)
-            )
-
-    def get_delete_time(self):
-        if not self.owner_category_id:
-            try:
-                with app.app_context():
-                    return (
-                        r.table("scheduler_jobs")
-                        .get("admin.recycle_bin_delete_admin")["kwargs"][
-                            "max_delete_period"
-                        ]
-                        .run(db.conn)
-                    )
-            except:
-                return "null"
-        else:
-            with app.app_context():
-                try:
-                    results = (
-                        r.table("scheduler_jobs")
-                        .get(self.owner_category_id + ".recycle_bin_delete")["kwargs"][
-                            "max_delete_period"
-                        ]
-                        .run(db.conn)
-                    )
-                except:
-                    try:
-                        with app.app_context():
-                            results = (
-                                r.table("scheduler_jobs")
-                                .get("admin.recycle_bin_delete_admin")["kwargs"][
-                                    "max_delete_period"
-                                ]
-                                .run(db.conn)
-                            )
-                    except:
-                        results = "null"
-            return results
+    #     # for storage in query
+    #     # new key category in storage
+    #     # category is category name of user_id in storage
+    #     return query
 
     @classmethod
     def set_old_entries_max_time(cls, max_time):
@@ -1006,7 +1026,6 @@ class RecycleBin(object):
             r.table("config").update(
                 {"recycle_bin": {"old_entries": {"max_time": max_time}}}
             ).run(db.conn)
-            pass
 
     @classmethod
     def set_old_entries_action(cls, action):
@@ -1019,23 +1038,6 @@ class RecycleBin(object):
                 r.table("config").update(
                     {"recycle_bin": {"old_entries": {"action": action}}}
                 ).run(db.conn)
-
-    @classmethod
-    def get_old_entries_config(cls):
-        with app.app_context():
-            try:
-                return r.table("config")[0]["recycle_bin"]["old_entries"].run(db.conn)
-            except r.ReqlNonExistenceError:
-                return {"max_time": None, "action": None}
-
-    @classmethod
-    def check_older_than_old_entry_max_time(cls, last):
-        max_time_config = cls.get_old_entries_config()["max_time"]
-        if max_time_config is None:
-            return False
-        else:
-            max_time_hours = int(max_time_config)
-            return last < (datetime.now() - timedelta(hours=max_time_hours)).timestamp()
 
     @classmethod
     def delete_old_entries(cls, rcb_list):
@@ -1064,29 +1066,11 @@ class RecycleBin(object):
             ).run(db.conn)
 
     @classmethod
-    def get_default_delete(cls):
-        with app.app_context():
-            try:
-                return r.table("config")[0]["recycle_bin"]["default_delete"].run(
-                    db.conn
-                )
-            except r.ReqlNonExistenceError:
-                return False
-
-    @classmethod
     def set_delete_action(cls, action):
         with app.app_context():
             r.table("config")[0].update({"recycle_bin": {"delete_action": action}}).run(
                 db.conn
             )
-
-    @classmethod
-    def get_delete_action(cls):
-        with app.app_context():
-            try:
-                return r.table("config")[0]["recycle_bin"]["delete_action"].run(db.conn)
-            except r.ReqlNonExistenceError:
-                return "delete"
 
 
 class RecycleBinDomain(RecycleBin):
@@ -1123,14 +1107,15 @@ class RecycleBinDomain(RecycleBin):
         if not (
             domain["kind"] == "template" and domain.get("duplicate_parent_template")
         ):
-            with app.app_context():
-                for disk in domain["create_dict"]["hardware"]["disks"]:
-                    if "storage_id" in disk:
+
+            for disk in domain["create_dict"]["hardware"]["disks"]:
+                if "storage_id" in disk:
+                    with app.app_context():
                         storage = (
                             r.table("storage").get(disk["storage_id"]).run(db.conn)
                         )
-                        if storage:
-                            RecycleBinStorage(self.id).add(disk["storage_id"])
+                    if storage:
+                        RecycleBinStorage(self.id).add(disk["storage_id"])
 
     def add_desktops(self, desktops):
         with app.app_context():
@@ -1147,10 +1132,11 @@ class RecycleBinDomain(RecycleBin):
                 if "storage_id" in disk:
                     storages_ids.append(disk["storage_id"])
         storages = []
-        with app.app_context():
-            for i in range(0, len(storages_ids), 200):
-                batch_ids = storages_ids[i : i + 200]
+        for i in range(0, len(storages_ids), 200):
+            batch_ids = storages_ids[i : i + 200]
+            with app.app_context():
                 storages += r.table("storage").get_all(r.args(batch_ids)).run(db.conn)
+            with app.app_context():
                 r.table("storage").get_all(r.args(batch_ids)).update(
                     {
                         "status": "recycled",
@@ -1202,11 +1188,10 @@ class RecycleBinTemplate(RecycleBinDomain):
         # Move each desktop/template to recycle_bin
         rcb_desktop = RecycleBinDesktop(id=self.id, user_id=self.agent_id)
         for domain in domains:
-            with app.app_context():
-                if domain["kind"] == "template":
-                    super().add(domain["id"])
-                else:
-                    rcb_desktop.add(domain["id"])
+            if domain["kind"] == "template":
+                super().add(domain["id"])
+            else:
+                rcb_desktop.add(domain["id"])
         super()._add_owner(template["user"])
         return self._set_data(self.id)
 
@@ -1274,7 +1259,8 @@ class RecycleBinDeployment(RecycleBin):
                 .pluck("id")["id"]
                 .run(db.conn)
             )
-            desktops_stop(desktops_ids, 5)
+        desktops_stop(desktops_ids, 5)
+        with app.app_context():
             # Move deployment desktops to recycle_bin
             desktops = list(
                 r.table("domains").get_all(deployment["id"], index="tag").run(db.conn)
@@ -1332,11 +1318,12 @@ class RecycleBinBulk(RecycleBin):
         super()._add_owner(self.agent_id)
         rcb_desktop = RecycleBinDesktop(id=self.id, user_id=self.agent_id)
         desktops = []
-        with app.app_context():
-            for i in range(0, len(desktops_ids), 200):
-                batch_ids = desktops_ids[i : i + 200]
-                desktops_stop(batch_ids, 5)
-                # Move desktops to recycle_bin
+
+        for i in range(0, len(desktops_ids), 200):
+            batch_ids = desktops_ids[i : i + 200]
+            desktops_stop(batch_ids, 5)
+            # Move desktops to recycle_bin
+            with app.app_context():
                 desktops += list(
                     r.table("domains").get_all(r.args(batch_ids)).run(db.conn)
                 )
@@ -1414,13 +1401,14 @@ class RecycleBinUser(RecycleBin):
             r.table("deployments").get_all(user["id"], index="user").delete().run(
                 db.conn
             )
-            if delete_user:
+        if delete_user:
+            with app.app_context():
                 r.table("recycle_bin").get(self.id).update(
                     {
                         "users": r.row["users"].append(user),
                     }
                 ).run(db.conn)
-                isard_user_storage_disable_users([user])
+            isard_user_storage_disable_users([user])
 
 
 class RecycleBinGroup(RecycleBin):
