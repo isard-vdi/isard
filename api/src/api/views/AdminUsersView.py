@@ -38,7 +38,7 @@ from ..libv2.api_admin import (
     admin_table_update,
 )
 from ..libv2.api_allowed import ApiAllowed
-from ..libv2.api_users import ApiUsers, Password, get_user
+from ..libv2.api_users import ApiUsers, Password, get_user, user_exists
 from ..libv2.quotas import Quotas
 from ..libv2.quotas_process import QuotasProcess
 from ..libv2.users import *
@@ -52,6 +52,8 @@ from ..libv2.isardVpn import isardVpn
 
 vpn = isardVpn()
 
+from cachetools import TTLCache, cached
+
 from .decorators import (
     CategoryNameGroupNameMatch,
     checkDuplicate,
@@ -63,7 +65,6 @@ from .decorators import (
     is_auto_register,
     itemExists,
     ownsCategoryId,
-    ownsDomainId,
     ownsUserId,
 )
 
@@ -77,12 +78,29 @@ def api_v3_admin_jwt(payload, user_id):
     return jwt
 
 
-@app.route("/api/v3/admin/user/<user_id>", methods=["GET"])
+@app.route("/api/v3/admin/user/<user_id>/exists", methods=["GET"])
 @has_token
 def api_v3_admin_user_exists(payload, user_id):
     ownsUserId(payload, user_id)
     return (
-        json.dumps(users.get_user_full_data(user_id)),
+        json.dumps(user_exists(user_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+# Define a custom key function
+def user_id_key(_, user_id):
+    return user_id
+
+
+@cached(cache=TTLCache(maxsize=100, ttl=60), key=user_id_key)
+@app.route("/api/v3/admin/user/<user_id>", methods=["GET"])
+@has_token
+def api_v3_admin_user(payload, user_id):
+    ownsUserId(payload, user_id)
+    return (
+        json.dumps(get_user_full_data(user_id)),
         200,
         {"Content-Type": "application/json"},
     )
