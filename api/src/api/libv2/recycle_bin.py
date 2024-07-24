@@ -232,63 +232,61 @@ def update_task_status(task):
             .run(db.conn)
         )
 
-        for t in rb["tasks"]:
-            if t["id"] == task["id"]:
-                t["status"] = task["status"]
-                break
+    for t in rb["tasks"]:
+        if t["id"] == task["id"]:
+            t["status"] = task["status"]
+            break
 
-        # Check if all the recycle bin tasks are finished then update the recycle bin status to deleted
-        finished_tasks = list(
-            filter(lambda t: (t["status"] == "finished"), rb["tasks"])
-        )
+    # Check if all the recycle bin tasks are finished then update the recycle bin status to deleted
+    finished_tasks = list(filter(lambda t: (t["status"] == "finished"), rb["tasks"]))
 
-        if len(finished_tasks) == len(rb["storages"]):
-            with app.app_context():
-                r.table("recycle_bin").get(task["recycle_bin_id"]).update(
-                    {
-                        "status": "deleted",
-                        "tasks": r.row["tasks"].map(
-                            lambda rb_task: r.branch(
-                                rb_task["id"] == task["id"],
-                                rb_task.merge({"status": task["status"]}),
-                                rb_task,
-                            )
-                        ),
-                    }
-                ).run(db.conn)
-            send_socket_user(
-                "update_recycle_bin",
-                {"id": task["recycle_bin_id"], "status": "deleted"},
-                rb["owner_id"],
-            )
-            send_socket_admin(
-                "update_recycle_bin",
-                {"id": task["recycle_bin_id"], "status": "deleted"},
-            )
-            add_log(
-                "deleted",
-                task["recycle_bin_id"],
-                rb["agent_type"],
-                rb["agent_id"],
-                rb["agent_name"],
-                rb["agent_category_id"],
-                rb["agent_category_name"],
-                rb["agent_role"],
-            )
-        # Otherwise only update the tasks status
-        else:
-            with app.app_context():
-                r.table("recycle_bin").get(task["recycle_bin_id"]).update(
-                    {
-                        "tasks": r.row["tasks"].map(
-                            lambda rb_task: r.branch(
-                                rb_task["id"] == task["id"],
-                                rb_task.merge({"status": task["status"]}),
-                                rb_task,
-                            )
+    if len(finished_tasks) == len(rb["storages"]):
+        with app.app_context():
+            r.table("recycle_bin").get(task["recycle_bin_id"]).update(
+                {
+                    "status": "deleted",
+                    "tasks": r.row["tasks"].map(
+                        lambda rb_task: r.branch(
+                            rb_task["id"] == task["id"],
+                            rb_task.merge({"status": task["status"]}),
+                            rb_task,
                         )
-                    }
-                ).run(db.conn)
+                    ),
+                }
+            ).run(db.conn)
+        send_socket_user(
+            "update_recycle_bin",
+            {"id": task["recycle_bin_id"], "status": "deleted"},
+            rb["owner_id"],
+        )
+        send_socket_admin(
+            "update_recycle_bin",
+            {"id": task["recycle_bin_id"], "status": "deleted"},
+        )
+        add_log(
+            "deleted",
+            task["recycle_bin_id"],
+            rb["agent_type"],
+            rb["agent_id"],
+            rb["agent_name"],
+            rb["agent_category_id"],
+            rb["agent_category_name"],
+            rb["agent_role"],
+        )
+    # Otherwise only update the tasks status
+    else:
+        with app.app_context():
+            r.table("recycle_bin").get(task["recycle_bin_id"]).update(
+                {
+                    "tasks": r.row["tasks"].map(
+                        lambda rb_task: r.branch(
+                            rb_task["id"] == task["id"],
+                            rb_task.merge({"status": task["status"]}),
+                            rb_task,
+                        )
+                    )
+                }
+            ).run(db.conn)
 
 
 @cached(cache=TTLCache(maxsize=50, ttl=10))
