@@ -42,6 +42,7 @@ type SAML struct {
 	ReEmail    *regexp.Regexp
 	RePhoto    *regexp.Regexp
 	ReCategory *regexp.Regexp
+	ReRole     *regexp.Regexp
 }
 
 func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *SAML {
@@ -139,6 +140,12 @@ func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *
 		s.ReCategory = re
 	}
 
+	re, err = regexp.Compile(cfg.SAML.RegexRole)
+	if err != nil {
+		log.Fatal().Err(err).Msg("invalid role regex")
+	}
+	s.ReRole = re
+
 	return s
 }
 
@@ -216,9 +223,28 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 		}
 	}
 
-	// if s.AutoRegister() {
+	if s.cfg.SAML.GuessRole {
+		attrRole := attrs[s.cfg.SAML.FieldRole]
+		if attrRole == nil {
+			return nil, nil, "", "", &ProviderError{
+				User:   ErrInternal,
+				Detail: fmt.Errorf("missing group attribute: '%s'", s.cfg.SAML.FieldRole),
+			}
+		}
 
-	// }
+		allUsrRoles := []string{}
+		for _, g := range attrRole {
+			allUsrRoles = append(allUsrRoles, matchRegexMultiple(s.ReRole, g)...)
+		}
+
+		u.Role = guessRole(guessRoleOpts{
+			RoleAdminIDs:    s.cfg.SAML.RoleAdminIDs,
+			RoleManagerIDs:  s.cfg.SAML.RoleManagerIDs,
+			RoleAdvancedIDs: s.cfg.SAML.RoleAdvancedIDs,
+			RoleUserIDs:     s.cfg.SAML.RoleUserIDs,
+			RoleDefault:     s.cfg.SAML.RoleDefault,
+		}, allUsrRoles)
+	}
 
 	return nil, u, "", "", nil
 }

@@ -307,24 +307,13 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 			allUsrGrps = []string{l.cfg.DefaultGroup}
 		}
 
-		// Get the role that has more privileges
-		roles := []model.Role{model.RoleAdmin, model.RoleManager, model.RoleAdvanced, model.RoleUser}
-		for i, groups := range [][]string{l.cfg.RoleAdminGroups, l.cfg.RoleManagerGroups, l.cfg.RoleAdvancedGroups, l.cfg.RoleUserGroups} {
-			for _, g := range groups {
-				for _, uGrp := range allUsrGrps {
-					if uGrp == g {
-						if roles[i].HasMorePrivileges(*u.Role) {
-							u.Role = &roles[i]
-						}
-					}
-				}
-			}
-		}
-
-		// Role fallback
-		if u.Role == nil {
-			u.Role = &l.cfg.RoleDefault
-		}
+		u.Role = guessRole(guessRoleOpts{
+			RoleAdminIDs:    l.cfg.RoleAdminGroups,
+			RoleManagerIDs:  l.cfg.RoleManagerGroups,
+			RoleAdvancedIDs: l.cfg.RoleAdvancedGroups,
+			RoleUserIDs:     l.cfg.RoleUserGroups,
+			RoleDefault:     l.cfg.RoleDefault,
+		}, allUsrGrps)
 	}
 
 	return g, u, "", "", nil

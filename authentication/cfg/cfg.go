@@ -106,6 +106,15 @@ type AuthenticationSAML struct {
 	GuessCategory bool   `mapstructure:"guess_category"`
 	FieldCategory string `mapstructure:"field_category"`
 	RegexCategory string `mapstructure:"regex_category"`
+
+	GuessRole       bool       `mapstructure:"guess_role"`
+	FieldRole       string     `mapstructure:"field_role"`
+	RegexRole       string     `mapstructure:"regex_role"`
+	RoleAdminIDs    []string   `mapstructure:"role_admin_ids"`
+	RoleManagerIDs  []string   `mapstructure:"role_manager_ids"`
+	RoleAdvancedIDs []string   `mapstructure:"role_advanced_ids"`
+	RoleUserIDs     []string   `mapstructure:"role_user_ids"`
+	RoleDefault     model.Role `mapstructure:"role_default"`
 }
 
 type AuthenticationGoogle struct {
@@ -199,24 +208,32 @@ func setDefaults() {
 			"role_default":         "user",
 		},
 		"saml": map[string]interface{}{
-			"enabled":        false,
-			"metadata_url":   "",
-			"key_file":       "/keys/isardvdi.key",
-			"cert_file":      "/keys/isardvdi.cert",
-			"field_uid":      "",
-			"regex_uid":      ".*",
-			"field_username": "",
-			"regex_username": ".*",
-			"field_name":     "",
-			"regex_name":     ".*",
-			"field_email":    "",
-			"regex_email":    ".*",
-			"field_photo":    "",
-			"regex_photo":    ".*",
-			"auto_register":  false,
-			"guess_category": false,
-			"field_category": "",
-			"regex_category": ".*",
+			"enabled":           false,
+			"metadata_url":      "",
+			"key_file":          "/keys/isardvdi.key",
+			"cert_file":         "/keys/isardvdi.cert",
+			"field_uid":         "",
+			"regex_uid":         ".*",
+			"field_username":    "",
+			"regex_username":    ".*",
+			"field_name":        "",
+			"regex_name":        ".*",
+			"field_email":       "",
+			"regex_email":       ".*",
+			"field_photo":       "",
+			"regex_photo":       ".*",
+			"auto_register":     false,
+			"guess_category":    false,
+			"field_category":    "",
+			"regex_category":    ".*",
+			"guess_role":        false,
+			"field_role":        "",
+			"regex_role":        ".*",
+			"role_admin_ids":    []string{},
+			"role_manager_ids":  []string{},
+			"role_advanced_ids": []string{},
+			"role_user_ids":     []string{},
+			"role_default":      "user",
 		},
 		"google": map[string]interface{}{
 			"enabled":       false,

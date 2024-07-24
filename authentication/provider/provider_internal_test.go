@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"testing"
 
+	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/log"
@@ -346,6 +347,47 @@ func TestGuessCategory(t *testing.T) {
 			}
 
 			mock.AssertExpectations(t)
+		})
+	}
+}
+
+func TestGuessRole(t *testing.T) {
+	cases := map[string]struct {
+		Cfg          guessRoleOpts
+		AllUsrRoles  []string
+		ExpectedRole model.Role
+	}{
+		"should work as expected": {
+			Cfg: guessRoleOpts{
+				RoleAdminIDs:    []string{"other-admin", "admin"},
+				RoleManagerIDs:  []string{"manager"},
+				RoleAdvancedIDs: []string{"advanced"},
+				RoleUserIDs:     []string{"user"},
+				RoleDefault:     model.RoleUser,
+			},
+			AllUsrRoles:  []string{"aaa", "user", "advanced", "admin"},
+			ExpectedRole: model.RoleAdmin,
+		},
+		"should fallback to the default role if not found": {
+			Cfg: guessRoleOpts{
+				RoleAdminIDs:    []string{"other-admin", "admin"},
+				RoleManagerIDs:  []string{"manager"},
+				RoleAdvancedIDs: []string{"advanced"},
+				RoleUserIDs:     []string{"user"},
+				RoleDefault:     model.RoleUser,
+			},
+			AllUsrRoles:  []string{"aaa", "bbb", "ccc", "ddd"},
+			ExpectedRole: model.RoleUser,
+		},
+	}
+
+	for name, tc := range cases {
+		assert := assert.New(t)
+
+		t.Run(name, func(t *testing.T) {
+			role := guessRole(tc.Cfg, tc.AllUsrRoles)
+
+			assert.Equal(tc.ExpectedRole, *role)
 		})
 	}
 }

@@ -188,3 +188,40 @@ func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor,
 		return tkn, nil
 	}
 }
+
+type guessRoleOpts struct {
+	RoleAdminIDs    []string
+	RoleManagerIDs  []string
+	RoleAdvancedIDs []string
+	RoleUserIDs     []string
+	RoleDefault     model.Role
+}
+
+func guessRole(cfg guessRoleOpts, allUsrRoles []string) *model.Role {
+	var role *model.Role
+
+	// Get the role that has more privileges
+	roles := []model.Role{model.RoleAdmin, model.RoleManager, model.RoleAdvanced, model.RoleUser}
+	for i, ids := range [][]string{cfg.RoleAdminIDs, cfg.RoleManagerIDs, cfg.RoleAdvancedIDs, cfg.RoleUserIDs} {
+		for _, id := range ids {
+			for _, uRole := range allUsrRoles {
+				if uRole == id {
+					if role != nil {
+						if roles[i].HasMorePrivileges(*role) {
+							role = &roles[i]
+						}
+					} else {
+						role = &roles[i]
+					}
+				}
+			}
+		}
+	}
+
+	// Role fallback
+	if role == nil {
+		role = &cfg.RoleDefault
+	}
+
+	return role
+}
