@@ -30,7 +30,7 @@ services:
       - /opt/isard/frontend:/opt/isard/frontend:ro
       - /opt/isard/monitor:/opt/isard/monitor:ro
       - /opt/isard/operations:/opt/isard/operations:ro
-      - /opt/isard/src:/opt/isard/src:ro
+      # - /opt/isard/src:/opt/isard/src:ro
       - /opt/isard/sshkeys:/opt/isard/sshkeys:ro
       - /opt/isard/wireguard:/opt/isard/wireguard:ro
       # Disks
