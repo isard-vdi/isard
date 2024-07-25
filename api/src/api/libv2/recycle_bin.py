@@ -992,14 +992,16 @@ class RecycleBin(object):
                 entries = list(unique_entries.values())
                 if len(entries_raw) != len(entries):
                     log.warning(
-                        "RecycleBin %s delete_storage: Found %s duplicated entries to delete",
+                        "RecycleBin %s delete_storage: Found %s duplicated entries to delete in %s total",
                         self.id,
                         len(entries_raw) - len(entries),
+                        len(entries_raw),
                     )
                 else:
                     log.debug(
-                        "RecycleBin %s delete_storage: No duplicated entries found",
+                        "RecycleBin %s delete_storage: No duplicated entries found in %s total",
                         self.id,
+                        len(entries_raw),
                     )
                 for entry in entries:
                     start = time.time()
