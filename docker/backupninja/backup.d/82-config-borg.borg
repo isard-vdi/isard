@@ -10,7 +10,7 @@ include = /opt/isard/dnsmasq
 include = /opt/isard/frontend
 include = /opt/isard/monitor
 include = /opt/isard/operations
-include = /opt/isard/src
+# include = /opt/isard/src
 include = /opt/isard/sshkeys
 include = /opt/isard/wireguard
 
