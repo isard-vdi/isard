@@ -21,6 +21,12 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2.api_allowed import ApiAllowed
+from ..libv2.caches import (
+    get_cached_deployment_bookings,
+    get_cached_deployment_desktops,
+    get_cached_desktop_bookings,
+    get_document,
+)
 from ..libv2.isardViewer import isardViewer
 from ..libv2.quotas import Quotas
 from ..libv2.validators import check_user_duplicated_domain_name
@@ -169,13 +175,9 @@ def _parse_media_info(create_dict):
         if m in create_dict["hardware"]:
             newlist = []
             for item in create_dict["hardware"][m]:
-                with app.app_context():
-                    newlist.append(
-                        r.table("media")
-                        .get(item["id"])
-                        .pluck("id", "name", "description")
-                        .run(db.conn)
-                    )
+                newlist.append(
+                    get_document("media", item["id"], ["id", "name", "description"])
+                )
             create_dict["hardware"][m] = newlist
     return create_dict
 
@@ -264,46 +266,34 @@ def _parse_desktop(desktop):
         progress = None
     editable = True
     if desktop.get("tag"):
+        deployment_user = get_document("deployments", desktop.get("tag"), ["user"])
         try:
-            with app.app_context():
-                deployment_user = (
-                    r.table("deployments")
-                    .get(desktop.get("tag"))
-                    .pluck("user")
-                    .run(db.conn)
-                )["user"]
             editable = True if deployment_user == desktop["user"] else False
         except:
             log.debug(traceback.format_exc())
             editable = False
-        try:
-            with app.app_context():
-                permissions = (
-                    r.table("deployments")
-                    .get(desktop.get("tag"))
-                    .pluck("user_permissions")
-                    .run(db.conn)
-                )
-            desktop["permissions"] = permissions.get("user_permissions", [])
-            desktop["permissions"].sort()
-        except:
-            log.debug(traceback.format_exc())
+        permissions = get_document(
+            "deployments", desktop.get("tag"), ["user_permissions"]
+        )
+        if permissions is None:
             desktop["permissions"] = []
+        desktop["permissions"] = permissions
+        desktop["permissions"].sort()
+
     # TODO: Sum all the desktop storages instead of getting only the first one, call get_domain_storage function to retrieve them
     desktop_size = 0
     if desktop.get("type") == "persistent" and desktop["create_dict"]["hardware"].get(
         "disks", [{}]
     )[0].get("storage_id"):
-        with app.app_context():
-            desktop_storage = (
-                r.table("storage")
-                .get(desktop["create_dict"]["hardware"]["disks"][0]["storage_id"])
-                .default({"qemu-img-info": {"actual-size": -1}})
-                .pluck({"qemu-img-info": {"actual-size"}})
-                .run(db.conn)
-            )
-        if desktop_storage.get("qemu-img-info"):
-            desktop_size = desktop_storage["qemu-img-info"]["actual-size"]
+        storage = get_document(
+            "storage", desktop["create_dict"]["hardware"]["disks"][0]["storage_id"]
+        )
+        if storage is None:
+            # It could be in new creations, while engine updates this info after creation.
+            # So, no raise
+            desktop_size = -1
+        else:
+            desktop_size = storage.get("qemu-img-info", {}).get("actual-size", 0)
     return {
         **{
             "id": desktop["id"],
@@ -343,17 +333,13 @@ def _parse_desktop(desktop):
     }
 
 
-def _parse_deployment_desktop(desktop, user_id=False):
+def _parse_deployment_desktop(desktop):
     if desktop["status"] in ["Started", "WaitingIP"] and desktop.get("viewer", {}).get(
         "static"
     ):
         viewer = isardviewer.viewer_data(
             desktop["id"],
             "browser-vnc",
-            get_cookie=False,
-            get_dict=True,
-            domain=desktop,
-            user_id=user_id,
         )
     else:
         viewer = False
@@ -361,15 +347,8 @@ def _parse_deployment_desktop(desktop, user_id=False):
     desktop = _parse_desktop(desktop)
     desktop["viewer"] = viewer
     desktop["user_photo"] = user_photo
-
-    with app.app_context():
-        desktop["user_name"] = (
-            r.table("users").get(desktop["user"])["name"].run(db.conn)
-        )
-        desktop["group_name"] = (
-            r.table("groups").get(desktop["group"])["name"].run(db.conn)
-        )
-
+    desktop["user_name"] = get_document("users", desktop["user"], ["name"])
+    desktop["group_name"] = get_document("groups", desktop["group"], ["name"])
     return desktop
 
 
@@ -384,23 +363,9 @@ def _parse_desktop_booking(desktop):
             "booking_id": False,
         }
     item_id = desktop["id"]
-    item_type = "desktop"
-    with app.app_context():
-        booking = (
-            r.table("bookings")
-            .get_all([item_type, item_id], index="item_type-id")
-            .filter(lambda b: b["end"] > r.now())
-            .order_by("start")
-            .run(db.conn)
-        )
-        if not booking and desktop.get("tag"):
-            booking = (
-                r.table("bookings")
-                .get_all(["deployment", desktop.get("tag")], index="item_type-id")
-                .filter(lambda b: b["end"] > r.now())
-                .order_by("start")
-                .run(db.conn)
-            )
+    booking = get_cached_desktop_bookings(item_id)
+    if not booking and desktop.get("tag"):
+        booking = get_cached_deployment_bookings(desktop.get("tag"))
 
     if booking:
         return {
@@ -451,10 +416,7 @@ def set_current_booking(desktop):
 
 
 def _parse_deployment_booking(deployment):
-    with app.app_context():
-        deployment_domains = list(
-            r.table("domains").get_all(deployment["id"], index="tag").run(db.conn)
-        )
+    deployment_domains = get_cached_deployment_desktops(deployment["id"])
     if not len(deployment_domains):
         return {
             "needs_booking": False,
@@ -480,8 +442,7 @@ def parse_domain_insert(new_data):
 
 
 def parse_domain_update(domain_id, new_data, admin_or_manager=False):
-    with app.app_context():
-        domain = r.table("domains").get(domain_id).run(db.conn)
+    domain = get_document("domains", domain_id)
     if not domain:
         raise Error(
             "not_found",
@@ -723,20 +684,7 @@ def get_user_data(user_id="admin"):
 
 
 def gen_payload_from_user(user_id):
-    with app.app_context():
-        user = (
-            r.table("users")
-            .get(user_id)
-            .merge(
-                lambda d: {
-                    "category_name": r.table("categories").get(d["category"])["name"],
-                    "group_name": r.table("groups").get(d["group"])["name"],
-                    "role_name": r.table("roles").get(d["role"])["name"],
-                }
-            )
-            .without("password", "user_storage")
-            .run(db.conn)
-        )
+    user = get_document("users", user_id)
     return {
         "provider": user["provider"],
         "user_id": user["id"],
@@ -745,11 +693,11 @@ def gen_payload_from_user(user_id):
         "username": user["username"],
         "photo": user.get("photo", ""),
         "role_id": user["role"],
-        "role_name": user["role_name"],
+        "role_name": get_document("roles", user["role"], ["name"]),
         "category_id": user["category"],
-        "category_name": user["category_name"],
+        "category_name": get_document("categories", user["category"], ["name"]),
         "group_id": user["group"],
-        "group_name": user["group_name"],
+        "group_name": get_document("groups", user["group"], ["name"]),
     }
 
 

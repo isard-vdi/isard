@@ -36,6 +36,7 @@ import urllib
 from isardvdi_common.api_exceptions import Error
 from rethinkdb.errors import ReqlNonExistenceError
 
+from ..libv2.caches import get_document
 from ..libv2.flask_rethink import RDB
 from ..libv2.utils import parse_delta
 
@@ -93,38 +94,29 @@ class isardViewer:
 
     def viewer_data(
         self,
-        id,
+        desktop_id,
         protocol="browser-vnc",
-        default_viewer=False,
-        get_cookie=True,
-        get_dict=False,
-        domain=False,
-        user_id=False,
         admin_role=False,
     ):
-        if not domain:
-            try:
-                with app.app_context():
-                    domain = (
-                        r.table("domains")
-                        .get(id)
-                        .pluck(
-                            "id",
-                            "name",
-                            "status",
-                            "viewer",
-                            "guest_properties",
-                            "user",
-                            "category",
-                        )
-                        .run(db.conn)
-                    )
-            except ReqlNonExistenceError:
-                raise Error(
-                    "not_found",
-                    f"Unable to get viewer for inexistent desktop {id}",
-                    description_code="unable_to_get_viewer_inexistent",
-                )
+        domain = get_document(
+            "domains",
+            desktop_id,
+            [
+                "id",
+                "name",
+                "viewer",
+                "status",
+                "viewer",
+                "guest_properties",
+                "category",
+            ],
+        )
+        if domain is None:
+            raise Error(
+                "not_found",
+                f"Unable to get viewer for inexistent desktop {id}",
+                description_code="unable_to_get_viewer_inexistent",
+            )
 
         if not domain.get("viewer", {}).get("base_port"):
             raise Error(

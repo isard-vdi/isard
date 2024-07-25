@@ -14,6 +14,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .caches import get_document
 from .flask_rethink import RDB
 
 r = RethinkDB()
@@ -109,34 +110,30 @@ class ApiAllowed:
                     allowed[k] = list(
                         r.table(k)
                         .get_all(r.args(v), index="id")
-                        .merge(
-                            lambda d: {
-                                "category_name": r.table("categories")
-                                .get(d["parent_category"])
-                                .default({"name": "[deleted]"})["name"],
-                            }
-                        )
-                        .pluck("id", "name", "uid", "parent_category", "category_name")
+                        .pluck("id", "name", "uid", "parent_category")
                         .run(db.conn)
                     )
+                for group in allowed[k]:
+                    group["category_name"] = get_document(
+                        "categories", group["parent_category"], ["name"]
+                    )
+                    if group["category_name"] is None:
+                        group["category_name"] = "[deleted]"
             elif k == "users" and v != False and len(v):
                 with app.app_context():
                     allowed[k] = list(
                         r.table(k)
                         .get_all(r.args(v), index="id")
-                        .merge(
-                            lambda d: {
-                                "category_name": r.table("categories")
-                                .get(d["category"])
-                                .default({"name": "[deleted]"})["name"],
-                                "group_name": r.table("groups")
-                                .get(d["group"])
-                                .default({"name": "[deleted]"})["name"],
-                            }
-                        )
-                        .pluck("id", "name", "uid", "group_name", "category_name")
+                        .pluck("id", "name", "uid", "category", "group")
                         .run(db.conn)
                     )
+                for user in allowed[k]:
+                    user["category_name"] = get_document(
+                        "categories", user["category"], ["name"]
+                    )
+                    user["group_name"] = get_document("groups", user["group"], ["name"])
+                    del user["category"]
+                    del user["group"]
             elif v != False and len(v):
                 with app.app_context():
                     allowed[k] = list(
@@ -166,34 +163,17 @@ class ApiAllowed:
                 query = query.get_all(index_value, index=index_key)
             if query_filter:
                 query = query.filter(query_filter)
-            if query_merge:
-                query = query.merge(
-                    lambda d: {
-                        "category_name": r.table("categories")
-                        .get(d["category"])["name"]
-                        .default(None),
-                        "group_name": r.table("groups")
-                        .get(d["group"])["name"]
-                        .default(None),
-                        "user_name": r.table("users")
-                        .get(d["user"])["name"]
-                        .default(None),
-                    }
+            if len(query_pluck) > 0:
+                query = query.pluck(
+                    query_pluck
+                    + [
+                        "id",
+                        "allowed",
+                        "category",
+                        "group",
+                        "user",
+                    ]
                 )
-                if len(query_pluck) > 0:
-                    query = query.pluck(
-                        query_pluck
-                        + [
-                            "id",
-                            "allowed",
-                            "category",
-                            "category_name",
-                            "group",
-                            "group_name",
-                            "user",
-                            "user_name",
-                        ]
-                    )
             else:
                 if len(query_pluck) > 0:
                     query = query.pluck(["id", "allowed"] + query_pluck)
@@ -201,6 +181,22 @@ class ApiAllowed:
                 query = query.order_by(order)
             with app.app_context():
                 items = list(query.run(db.conn))
+            if query_merge:
+                items = [
+                    dict(
+                        item,
+                        **{
+                            "category_name": get_document(
+                                "categories", item["category"], ["name"]
+                            ),
+                            "group_name": get_document(
+                                "groups", item["group"], ["name"]
+                            ),
+                            "user_name": get_document("users", item["user"], ["name"]),
+                        }
+                    )
+                    for item in items
+                ]
 
             allowed = []
             for item in items:

@@ -24,6 +24,7 @@ from ..libv2.quotas import Quotas
 templates = ApiTemplates()
 quotas = Quotas()
 
+from cachetools import TTLCache, cached
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -51,7 +52,7 @@ from ..libv2.bookings.api_booking import Bookings
 apib = Bookings()
 api_cards = ApiCards()
 common = ApiDesktopsCommon()
-from ..libv2.api_storage import get_domain_storage, get_media_domains
+from ..libv2.api_storage import get_media_domains
 from ..libv2.bookings.api_reservables import Reservables
 
 api_ri = Reservables()
@@ -63,6 +64,7 @@ from .api_desktop_events import (
     desktop_stop,
     desktops_delete,
 )
+from .caches import get_document
 from .helpers import (
     _check,
     _get_reservables,
@@ -124,12 +126,9 @@ class ApiDesktopsPersistent:
         self,
         desktops,
     ):
-        data = []
-        jobs = []
-        for desktop in desktops:
-            jobs.append(
-                gevent.spawn(
-                    self.NewFromTemplate,
+        def process_desktops():
+            for desktop in desktops:
+                result = self.NewFromTemplate(
                     desktop["name"],
                     desktop["description"],
                     desktop["template_id"],
@@ -138,21 +137,19 @@ class ApiDesktopsPersistent:
                     desktop["deployment_tag_dict"],
                     desktop["new_data"],
                     desktop["image"],
-                    db.conn,
                 )
-            )
-        gevent.joinall(jobs)
-        desktops_json = [job.value for job in jobs]
-        for result in desktops_json:
-            if result == None:
-                continue
-            set_current_booking(
-                {
-                    "id": result["id"],
-                    "tag": result["tag"],
-                    "create_dict": result["create_dict"],
-                }
-            )
+                if result is not None:
+                    set_current_booking(
+                        {
+                            "id": result["id"],
+                            "tag": result["tag"],
+                            "create_dict": result["create_dict"],
+                        }
+                    )
+                time.sleep(0.25)
+
+        # Spawn the process_desktops greenlet and return immediately
+        gevent.spawn(process_desktops)
 
     def NewFromTemplate(
         self,
@@ -164,10 +161,8 @@ class ApiDesktopsPersistent:
         deployment_tag_dict=False,
         new_data=None,
         image=None,
-        db_conn=db.conn,
     ):
-        with app.app_context():
-            template = r.table("domains").get(template_id).run(db.conn)
+        template = get_document("domains", template_id)
         if not template:
             raise Error(
                 "not_found",
@@ -175,15 +170,8 @@ class ApiDesktopsPersistent:
                 traceback.format_exc(),
                 description_code="not_found",
             )
-        with app.app_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .default({})
-                .pluck("id", "username", "category", "group")
-                .run(db.conn)
-            )
-        if not user.get("id"):
+        user = get_document("users", user_id, ["id", "username", "category", "group"])
+        if user is None:
             raise Error(
                 "not_found",
                 f"NewFromTemplate: user id {user_id} not found.",
@@ -294,13 +282,9 @@ class ApiDesktopsPersistent:
         if image:
             image_data = image
             if not image_data.get("file"):
-                img_uuid = api_cards.update(
-                    domain_id, image_data["id"], image_data["type"]
-                )
-                card = api_cards.get_card(img_uuid, image_data["type"])
+                api_cards.update(domain_id, image_data["id"], image_data["type"])
             else:
-                img_uuid = api_cards.upload(domain_id, image_data)
-                card = api_cards.get_card(img_uuid, image_data["type"])
+                api_cards.upload(domain_id, image_data)
         return new_desktop
 
     def convertTemplateToDesktop(self, payload, data):
@@ -309,9 +293,11 @@ class ApiDesktopsPersistent:
         try:
             with app.app_context():
                 domain = r.table("domains").get(data["domain_id"]).run(db.conn)
-                query_prefix = r.table("domains").get(data["domain_id"])
 
-                ## Set status to maintenance
+            query_prefix = r.table("domains").get(data["domain_id"])
+
+            ## Set status to maintenance
+            with app.app_context():
                 query_prefix.update(
                     {
                         "status": "Maintenance",
@@ -319,51 +305,56 @@ class ApiDesktopsPersistent:
                     }
                 ).run(db.conn)
 
-                ## Delete children if any
-                if data.get("children"):
-                    try:
-                        children = data.get("children")
-                        desktops_delete(
-                            agent_id=payload["user_id"],
-                            desktops_ids=children,
-                            permanent=True,
-                        )
-                    except:
-                        raise Error(
-                            "internal_server",
-                            "Template to desktop unable to delete children from template",
-                            traceback.format_exc(),
-                            description_code="template_to_desktop_delete_children",
-                        )
+            ## Delete children if any
+            if data.get("children"):
+                try:
+                    children = data.get("children")
+                    desktops_delete(
+                        agent_id=payload["user_id"],
+                        desktops_ids=children,
+                        permanent=True,
+                    )
+                except:
+                    raise Error(
+                        "internal_server",
+                        "Template to desktop unable to delete children from template",
+                        traceback.format_exc(),
+                        description_code="template_to_desktop_delete_children",
+                    )
 
-                ## Delete deployments if any
-                deployments = templates.get_deployments_with_template(data["domain_id"])
-                if deployments:
-                    for dp in deployments:
+            ## Delete deployments if any
+            deployments = templates.get_deployments_with_template(data["domain_id"])
+            if deployments:
+                for dp in deployments:
+                    with app.app_context():
                         r.table("deployments").get(dp["id"]).delete().run(db.conn)
 
-                ## Check that the domain doesn't have an empty parents list
-                ### Empty list or None in a desktop breaks helpers.py line 229
-                if domain.get("parents") == []:
+            ## Check that the domain doesn't have an empty parents list
+            ### Empty list or None in a desktop breaks helpers.py line 229
+            if domain.get("parents") == []:
+                with app.app_context():
                     query_prefix.replace(lambda row: row.without("parents")).run(
                         db.conn
                     )
 
-                ## Check if the domain name is duplicated and change it
-                if domain.get("name") != data["name"]:
-                    check_user_duplicated_domain_name(
-                        data["name"], domain["user"], "desktop"
-                    )
+            ## Check if the domain name is duplicated and change it
+            if domain.get("name") != data["name"]:
+                check_user_duplicated_domain_name(
+                    data["name"], domain["user"], "desktop"
+                )
+                with app.app_context():
                     query_prefix.update({"name": data["name"]}).run(db.conn)
-                else:
-                    check_user_duplicated_domain_name(
-                        domain["name"], domain["user"], "desktop"
-                    )
+            else:
+                check_user_duplicated_domain_name(
+                    domain["name"], domain["user"], "desktop"
+                )
 
-                ## Change kind from template to desktop
+            ## Change kind from template to desktop
+            with app.app_context():
                 query_prefix.update({"kind": "desktop"}).run(db.conn)
 
-                ## Change status to stopped and change detail
+            ## Change status to stopped and change detail
+            with app.app_context():
                 query_prefix.update(
                     {
                         "status": "Stopped",
@@ -386,21 +377,8 @@ class ApiDesktopsPersistent:
         users = []
         desktops = []
 
-        try:
-            with app.app_context():
-                template = (
-                    r.table("domains")
-                    .get(data["template_id"])
-                    .pluck(
-                        {
-                            "create_dict": {"hardware": True},
-                            "guest_properties": True,
-                            "image": True,
-                        }
-                    )
-                    .run(db.conn)
-                )
-        except:
+        template = get_document("domains", data["template_id"])
+        if template is None:
             raise Error("not_found", "Template to create desktops not found")
 
         if all(value is False for value in selected.values()):
@@ -519,14 +497,13 @@ class ApiDesktopsPersistent:
                 .run(db.conn)
             )
 
-        with app.app_context():
-            if r.table("domains").get(data["id"]).run(db.conn):
-                raise Error(
-                    "conflict",
-                    "Already exists a desktop with this id",
-                    traceback.format_exc(),
-                    description_code="desktop_same_id",
-                )
+        if get_document("domains", data["id"]) is not None:
+            raise Error(
+                "conflict",
+                "Already exists a desktop with this id",
+                traceback.format_exc(),
+                description_code="desktop_same_id",
+            )
         with app.app_context():
             xml = r.table("virt_install").get(data["xml_id"]).run(db.conn)
         if not xml:
@@ -718,11 +695,9 @@ class ApiDesktopsPersistent:
                 image_data = desktop_data.pop("image")
 
                 if not image_data.get("file"):
-                    img_uuid = api_cards.update(d, image_data["id"], image_data["type"])
-                    api_cards.get_card(img_uuid, image_data["type"])
+                    api_cards.update(d, image_data["id"], image_data["type"])
                 else:
-                    img_uuid = api_cards.upload(d, image_data)
-                    api_cards.get_card(img_uuid, image_data["type"])
+                    api_cards.upload(d, image_data)
 
             data = copy.deepcopy(desktop_data)
             desktop = parse_domain_update(d, data, admin_or_manager)
@@ -739,7 +714,7 @@ class ApiDesktopsPersistent:
     def JumperUrl(self, id):
         with app.app_context():
             domain = r.table("domains").get(id).run(db.conn)
-        if domain == None:
+        if domain is None:
             raise Error(
                 "not_found",
                 "Could not get domain jumperurl as domain not exists",
@@ -750,11 +725,13 @@ class ApiDesktopsPersistent:
             return {"jumperurl": False}
         return {"jumperurl": domain["jumperurl"]}
 
-    def JumperUrlReset(self, id, disabled=False, length=32):
-        if disabled == True:
+    def JumperUrlReset(self, desktop_id, disabled=False):
+        if disabled is True:
             try:
                 with app.app_context():
-                    r.table("domains").get(id).update({"jumperurl": False}).run(db.conn)
+                    r.table("domains").get(desktop_id).update({"jumperurl": False}).run(
+                        db.conn
+                    )
             except:
                 raise Error(
                     "not_found",
@@ -765,7 +742,9 @@ class ApiDesktopsPersistent:
         else:
             code = api_jumperurl_gencode()
             with app.app_context():
-                r.table("domains").get(id).update({"jumperurl": code}).run(db.conn)
+                r.table("domains").get(desktop_id).update({"jumperurl": code}).run(
+                    db.conn
+                )
             return code
 
     def count(self, user_id):
@@ -797,7 +776,7 @@ class ApiDesktopsPersistent:
             else:
                 viewers_hardware["videos"] = data["hardware"]["videos"]
 
-            if data.get("hardware", {}).get("interfaces") == None:
+            if data.get("hardware", {}).get("interfaces") is None:
                 data["hardware"] = {
                     "interfaces": [
                         interface["id"]
@@ -994,7 +973,7 @@ class ApiDesktopsPersistent:
                 ["desktop", current_status, category], index="kind_status_category"
             ).update({"status": target_status}).run(db.conn)
 
-    def update_storage(self, domain_id, new_storage_id, old_storage_id=None):
+    def update_storage(self, domain_id, new_storage_id):
         with app.app_context():
             domain = r.table("domains").get(domain_id).run(db.conn)
         if not domain:
@@ -1235,28 +1214,30 @@ def unassign_resource_from_desktops_and_deployments(table, item):
             "boots": "boot_order",
             "videos": "videos",
         }
-        r.table("domains").get_all(r.args(not_allowed_desktops)).update(
-            {
-                "create_dict": {
-                    "hardware": {
-                        fields[table]: r.row["create_dict"]["hardware"][
-                            fields[table]
-                        ].difference([item["id"]])
+        with app.app_context():
+            r.table("domains").get_all(r.args(not_allowed_desktops)).update(
+                {
+                    "create_dict": {
+                        "hardware": {
+                            fields[table]: r.row["create_dict"]["hardware"][
+                                fields[table]
+                            ].difference([item["id"]])
+                        }
                     }
                 }
-            }
-        ).run(db.conn)
-        r.table("deployments").get_all(r.args(not_allowed_desktops)).update(
-            {
-                "create_dict": {
-                    "hardware": {
-                        fields[table]: r.row["create_dict"]["hardware"][
-                            fields[table]
-                        ].difference([item["id"]])
+            ).run(db.conn)
+        with app.app_context():
+            r.table("deployments").get_all(r.args(not_allowed_desktops)).update(
+                {
+                    "create_dict": {
+                        "hardware": {
+                            fields[table]: r.row["create_dict"]["hardware"][
+                                fields[table]
+                            ].difference([item["id"]])
+                        }
                     }
                 }
-            }
-        ).run(db.conn)
+            ).run(db.conn)
     return not_allowed_desktops
 
 
@@ -1304,15 +1285,3 @@ def get_deployments_with_resource(table, item):
             "Table without deployments",
             traceback.format_exc(),
         )
-
-
-def get_domain_storage(self, domain_id):
-    with app.app_context():
-        storage = (
-            r.table("domains")
-            .get(domain_id)
-            .pluck({"create_dict": {"hardware": {"disks": [{"storage_id": True}]}}})
-            .run(db.conn)["create_dict"]["hardware"]["disks"]
-        )
-    storage_ids = [disk["storage_id"] for disk in storage]
-    return storage_ids

@@ -1,8 +1,11 @@
 import copy
 import logging as log
-from time import time
+import threading
+import traceback
+from time import sleep, time
 
 from cachetools import TTLCache, cached
+from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from rethinkdb import RethinkDB
 from rethinkdb.errors import ReqlNonExistenceError
@@ -30,8 +33,13 @@ def get_document(table, item_id, keys=[], invalidate=False):
     try:
         time_start = time()
         data = get_cached(table, item_id)
-    except Exception as e:
-        raise e
+    except ReqlNonExistenceError:
+        raise Error(
+            "not_found",
+            f"Document {table} {item_id} not found",
+            traceback.format_exc(),
+            description_code="not_found",
+        )
     if data is None:
         log.debug(
             f"get_document: {table} {item_id} in {time()-time_start:.2f} seconds. Document not found. {show_cache_occupancy()}"
@@ -61,9 +69,12 @@ def get_document(table, item_id, keys=[], invalidate=False):
 
 @cached(cache=cache)
 def get_cached(table, item_id):
-    with app.app_context():
-        data = r.table(table).get(item_id).without("password").run(db.conn)
-    return data
+    try:
+        with app.app_context():
+            data = r.table(table).get(item_id).without("password").run(db.conn)
+        return data
+    except ReqlNonExistenceError:
+        return None
 
 
 def invalidate_cache(table, item_id):
@@ -88,14 +99,12 @@ def get_cached_user_with_names(user_id):
     return dict(
         user,
         **{
+            "role_name": get_document("roles", user["role"], ["name"]),
             "category_name": get_document("categories", user["category"], ["name"]),
             "group_name": get_document("groups", user["group"], ["name"]),
             "user_name": get_document("users", user_id, ["name"]),
         },
     )
-
-
-## Quotas
 
 
 @cached(cache=TTLCache(maxsize=200, ttl=5))
@@ -228,7 +237,7 @@ def get_cached_started_desktops(item_id, index):
 ## Deployment desktops
 
 
-@cached(cache=TTLCache(maxsize=10, ttl=5))
+@cached(cache=TTLCache(maxsize=10, ttl=1))
 def get_cached_deployment_desktops(deployment_id):
     with app.app_context():
         deployment_desktops = list(

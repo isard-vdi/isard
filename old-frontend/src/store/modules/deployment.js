@@ -138,6 +138,8 @@ export default {
     fetchDeployment (context, data) {
       axios.get(`${apiV3Segment}/deployment/${data.id}`).then(response => {
         context.commit('setDeployment', DeploymentsUtils.parseDeployment(response.data))
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
     setSelectedDesktop (context, selectedDesktop) {

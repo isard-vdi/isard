@@ -13,6 +13,7 @@ from api import app
 
 from ..libv2.api_logging import logs_domain_event_viewer
 from ..libv2.api_templates import ApiTemplates
+from ..libv2.caches import get_document
 from ..libv2.quotas import Quotas
 
 templates = ApiTemplates()
@@ -159,12 +160,13 @@ def user_quota_max(payload, kind, item_id=None):
 @app.route("/api/v3/domain/info/<domain_id>", methods=["GET"])
 @has_token
 def api_v3_desktop_info(payload, domain_id):
+    domain_def = get_document(
+        "domains",
+        domain_id,
+        ["id", "kind", "name", "description", "image", "guest_properties"],
+    )
     domain = {
-        **admin_table_get(
-            "domains",
-            pluck=["id", "kind", "name", "description", "image", "guest_properties"],
-            id=domain_id,
-        ),
+        **domain_def,
         **common.get_domain_hardware(domain_id),
     }
     if domain["kind"] == "template":
