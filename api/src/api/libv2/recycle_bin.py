@@ -1279,6 +1279,7 @@ class RecycleBinDeployment(RecycleBin):
             desktops = list(
                 r.table("domains").get_all(deployment["id"], index="tag").run(db.conn)
             )
+        apib.delete_item_bookings("deployment", deployment["id"])
         rcb_desktop = RecycleBinDesktop(id=self.id, user_id=self.agent_id)
         rcb_desktop.add_desktops(desktops)
         with app.app_context():
@@ -1310,6 +1311,8 @@ class RecycleBinDeployment(RecycleBin):
                 .get_all(r.args(deployments_ids), index="tag")
                 .run(db.conn)
             )
+        for deployment in deployments:
+            apib.delete_item_bookings("deployment", deployment["id"])
         rcb_desktop = RecycleBinDesktop(id=self.id, user_id=self.agent_id)
         rcb_desktop.add_desktops(desktops)
         with app.app_context():
