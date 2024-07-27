@@ -1,0 +1,70 @@
+//
+// Logs
+//
+local.file_match "containers" {
+	path_targets = [{
+		__address__ = "localhost",
+		__path__    = "/var/lib/docker/containers/*/*log",
+		job         = "containerlogs",
+	}]
+}
+
+loki.source.file "logs_varlogs_varlogs" {
+	targets    = local.file_match.containers.targets
+	forward_to = [loki.process.containers.receiver]
+
+	file_watch {
+		min_poll_frequency = "1s"
+		max_poll_frequency = "5s"
+	}
+}
+
+loki.process "containers" {
+	forward_to = [loki.write.monitor.receiver]
+
+	stage.json {
+		expressions = {
+			attrs     = "attrs",
+			output    = "log",
+			stream    = "stream",
+			tag       = "attrs.tag",
+			timestamp = "time",
+		}
+	}
+
+	stage.timestamp {
+		source = "timestamp"
+		format = "RFC3339Nano"
+	}
+
+	stage.regex {
+		expression = "(?P<image_name>(?:[^|]*[^|])).(?P<container_name>(?:[^|]*[^|])).(?P<image_id>(?:[^|]*[^|])).(?P<container_id>(?:[^|]*[^|]))"
+		source     = "tag"
+	}
+
+	stage.labels {
+		values = {
+			container_id   = "",
+			container_name = "",
+			image_id       = "",
+			image_name     = "",
+			stream         = "",
+		}
+	}
+
+	stage.output {
+		source = "output"
+	}
+
+	stage.static_labels {
+		values = {
+			domain = env("DOMAIN"),
+		}
+	}
+}
+
+loki.write "monitor" {
+	endpoint {
+		url = env("LOKI_ADDRESS") + "/loki/api/v1/push"
+	}
+}

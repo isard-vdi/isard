@@ -1,0 +1,10 @@
+prometheus.scrape "metrics_haproxy_monitor" {
+	targets = [{
+		__address__ = "isard-monitor-proxy:9090",
+		domain      = env("DOMAIN"),
+	}]
+
+	forward_to      = [prometheus.remote_write.monitor.receiver]
+	job_name        = "haproxy_monitor"
+	scrape_interval = "30s"
+}

@@ -1,0 +1,32 @@
+prometheus.scrape "metrics_rethinkdb" {
+	targets = [{
+		__address__ = "isard-stats-rethinkdb:9055",
+		domain      = env("DOMAIN"),
+	}]
+
+	forward_to      = [prometheus.relabel.rethinkdb_add_prefix.receiver]
+	job_name        = "stats_go"
+	scrape_interval = "30s"
+}
+
+prometheus.relabel "rethinkdb_add_prefix" {
+	forward_to = [prometheus.remote_write.monitor.receiver]
+
+	rule {
+		action        = "replace"
+		source_labels = ["__name__"]
+		target_label  = "__name__"
+		replacement   = "rethinkdb_$1"
+	}
+}
+
+prometheus.scrape "metrics_haproxy_portal" {
+	targets = [{
+		__address__ = "isard-portal:9090",
+		domain      = env("DOMAIN"),
+	}]
+
+	forward_to      = [prometheus.remote_write.monitor.receiver]
+	job_name        = "haproxy_portal"
+	scrape_interval = "30s"
+}
