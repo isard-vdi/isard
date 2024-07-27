@@ -1,0 +1,18 @@
+//
+// Profiling
+//
+pyroscope.ebpf "profiling" {
+	targets = discovery.docker.containers.targets
+
+	forward_to     = [pyroscope.write.monitor.receiver]
+	python_enabled = true
+}
+
+pyroscope.write "monitor" {
+	endpoint {
+		url = env("PYROSCOPE_ADDRESS")
+	}
+	external_labels = {
+		"domain" = env("DOMAIN"),
+	}
+}

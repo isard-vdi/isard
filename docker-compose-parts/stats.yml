@@ -90,3 +90,5 @@ services:
       - DOMAIN=${DOMAIN:-localhost}
       - PROMETHEUS_ADDRESS=${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}
       - LOKI_ADDRESS=${LOKI_ADDRESS:-http://isard-loki:3100}
+      - PYROSCOPE_EBPF=${PYROSCOPE_EBPF:-false}
+      - PYROSCOPE_ADDRESS=${PYROSCOPE_ADDRESS:-http://isard-pyroscope:4040}

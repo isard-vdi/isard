@@ -23,31 +23,12 @@ services:
       API_ISARDVDI_SECRET: "${API_ISARDVDI_SECRET}"
       PROMETHEUS_ADDRESS: "${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}"
       LOKI_ADDRESS: "${LOKI_ADDRESS:-http://isard-loki:3100}"
+      # This plugin is bundled with grafana, but needs to be activated separately
+      GF_INSTALL_PLUGINS: "grafana-pyroscope-app"
+      PYROSCOPE_ADDRESS: ${PYROSCOPE_ADDRESS:-http://isard-pyroscope:4040}
       GRAFANA_TELEGRAM_CHAT_ID: "${GRAFANA_TELEGRAM_CHAT_ID}"
       GRAFANA_TELEGRAM_TOKEN: "${GRAFANA_TELEGRAM_TOKEN}"
 
-  isard-loki:
-    container_name: isard-loki
-    image: grafana/loki:3.1.0
-    user: root
-    volumes:
-      - /opt/isard/stats/loki:/data
-      - ${BUILD_ROOT_PATH}/docker/loki/config.yaml:/etc/loki/local-config.yaml
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "5"
-        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    networks:
-      isard-network:
-        ipv4_address: ${DOCKER_NET:-172.31.255}.67
-    restart: unless-stopped
-    command: --config.file=/etc/loki/local-config.yaml --store.retention=${LOKI_RETENTION_TIME:-40d}
-
-  # TODO: Since we're using Grafana Agent and remote_write, should we use Prometheus? Or maybe Mimir?
   isard-prometheus:
     container_name: isard-prometheus
     image: prom/prometheus:v2.53.0
@@ -75,3 +56,44 @@ services:
       --web.console.templates=/usr/share/prometheus/consoles
       --web.enable-remote-write-receiver
       --web.enable-admin-api
+
+  isard-loki:
+    container_name: isard-loki
+    image: grafana/loki:3.1.0
+    user: root
+    volumes:
+      - /opt/isard/stats/loki:/data
+      - ${BUILD_ROOT_PATH}/docker/loki/config.yaml:/etc/loki/local-config.yaml
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.67
+    restart: unless-stopped
+    command: --config.file=/etc/loki/local-config.yaml --store.retention=${LOKI_RETENTION_TIME:-40d}
+
+  isard-pyroscope:
+    container_name: isard-pyroscope
+    image: grafana/pyroscope:1.9.0
+    user: root
+    volumes:
+      - /opt/isard/stats/pyroscope:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.71
+    restart: unless-stopped
+    command: >-
+      --pyroscopedb.data-path=/data

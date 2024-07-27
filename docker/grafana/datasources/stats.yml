@@ -20,3 +20,9 @@ datasources:
     jsonData:
       maxLines: 1000
 
+  - name: Pyroscope
+    type: grafana-pyroscope-datasource
+    access: proxy
+    url: ${PYROSCOPE_ADDRESS}
+    jsonData:
+      minStep: '15s'

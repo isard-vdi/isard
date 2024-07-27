@@ -707,6 +707,12 @@ WG_GUESTS_RESERVED_HOSTS=20
 #LOKI_ADDRESS=http://isard-loki:3100
 #LOKI_RETENTION_TIME=40d
 
+# ------ Pyroscope -----------------------------------------------------
+#
+# Extract profiling info using EBPF
+#PYROSCOPE_EBPF=false
+#PYROSCOPE_ADDRESS=http://isard-pyroscope:4040
+
 
 # ------ OCI Collector -----------------------------------------------------
 #STATS_COLLECTORS_OCI_ENABLE=false

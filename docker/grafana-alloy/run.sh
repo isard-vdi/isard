@@ -14,6 +14,10 @@ elif [ "$FLAVOUR" = "monitor" ]; then
 	cp /usr/local/etc/alloy/metrics-monitor.alloy etc/alloy/metrics-monitor.alloy
 fi
 
+if [ "$PYROSCOPE_EBPF" = "true" ]; then
+	cp /usr/local/etc/alloy/profiling.alloy /etc/alloy/profiling.alloy
+fi
+
 alloy run \
         --storage.path=/var/lib/alloy/data \
         --server.http.listen-addr=0.0.0.0:12345 \
