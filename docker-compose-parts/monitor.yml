@@ -26,6 +26,7 @@ services:
       # This plugin is bundled with grafana, but needs to be activated separately
       GF_INSTALL_PLUGINS: "grafana-pyroscope-app"
       PYROSCOPE_ADDRESS: ${PYROSCOPE_ADDRESS:-http://isard-pyroscope:4040}
+      TEMPO_ADDRESS: ${TEMPO_ADDRESS:-http://isard-tempo:3200}
       GRAFANA_TELEGRAM_CHAT_ID: "${GRAFANA_TELEGRAM_CHAT_ID}"
       GRAFANA_TELEGRAM_TOKEN: "${GRAFANA_TELEGRAM_TOKEN}"
 
@@ -97,3 +98,27 @@ services:
     restart: unless-stopped
     command: >-
       --pyroscopedb.data-path=/data
+
+  isard-tempo:
+    container_name: isard-tempo
+    image: grafana/tempo:2.5.0
+    user: root
+    volumes:
+      - /opt/isard/stats/tempo:/data
+      - ${BUILD_ROOT_PATH}/docker/tempo/config.yaml:/etc/tempo.yaml
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.72
+    restart: unless-stopped
+    command: >-
+      --config.file=/etc/tempo.yaml
+    environment:
+      DOMAIN:
+      PROMETHEUS_ADDRESS: "${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}"

@@ -11,7 +11,7 @@ datasources:
     url: ${PROMETHEUS_ADDRESS}
     isDefault: true
     jsonData:
-      mttpMethod: POST
+      httpMethod: POST
 
   - name: Loki
     type: loki
@@ -26,3 +26,11 @@ datasources:
     url: ${PYROSCOPE_ADDRESS}
     jsonData:
       minStep: '15s'
+
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: ${TEMPO_ADDRESS}
+    jsonData:
+      serviceMap:
+        datasourceUid: PBFA97CFB590B2093

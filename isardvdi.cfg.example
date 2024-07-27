@@ -713,6 +713,11 @@ WG_GUESTS_RESERVED_HOSTS=20
 #PYROSCOPE_EBPF=false
 #PYROSCOPE_ADDRESS=http://isard-pyroscope:4040
 
+# ------ Tempo -----------------------------------------------------
+#
+#TEMPO_ADDRESS=http://isard-tempo:3200
+#TEMPO_ADDRESS_OTEL_GRPC=isard-tempo:4317
+
 
 # ------ OCI Collector -----------------------------------------------------
 #STATS_COLLECTORS_OCI_ENABLE=false
