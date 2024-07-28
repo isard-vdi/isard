@@ -28,6 +28,7 @@ from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from rethinkdb.errors import ReqlNonExistenceError
 
+from ..libv2.caches import get_category_storage_pools, get_default_storage_pool
 from ..libv2.isardVpn import isardVpn
 from .api_desktop_events import desktops_stop
 
@@ -930,7 +931,7 @@ class ApiHypervisors:
         return domains
 
 
-@cached(cache=TTLCache(maxsize=200, ttl=10))
+@cached(cache=TTLCache(maxsize=50, ttl=10))
 def check_storage_pool_availability(category_id=None):
     # Hypervisors online
     with app.app_context():
@@ -948,16 +949,7 @@ def check_storage_pool_availability(category_id=None):
         )
 
     # Check category storage pools for category
-    with app.app_context():
-        storage_pools = list(
-            r.table("storage_pool")
-            .filter(
-                lambda pool: pool["enabled"]
-                and pool["categories"].contains(category_id)
-            )
-            .pluck("id")["id"]
-            .run(db.conn)
-        )
+    storage_pools = get_category_storage_pools(category_id)
     ## As only one category per pool is allowed. This should not happen.
     if len(storage_pools) > 1:
         raise Error(
@@ -967,10 +959,7 @@ def check_storage_pool_availability(category_id=None):
         )
     if not len(storage_pools) or category_id is None:
         # Check if default storage pool is available
-        with app.app_context():
-            default_storage_pool = (
-                r.table("storage_pool").get(DEFAULT_STORAGE_POOL_ID).run(db.conn)
-            )
+        default_storage_pool = get_default_storage_pool()
         if not default_storage_pool.get("enabled"):
             raise Error(
                 "precondition_required",
