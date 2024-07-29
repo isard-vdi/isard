@@ -218,6 +218,16 @@ case "$1" in
         execute_now "$BACKUP_SCRIPTS_PREFIX"
         ;;
 
+    "execute-now-all")
+        execute_now() {
+            find /usr/local/etc/backup.d -name "$1" | sort | xargs -I% backupninja --run % --now
+        }
+        for backup_type in "db" "redis" "stats" "config" "disks"; do
+            backup_args "$backup_type"
+            execute_now "$BACKUP_SCRIPTS_PREFIX"
+        done
+        ;;
+
     "list")
         mount_nfs
         backup_args "$2"
