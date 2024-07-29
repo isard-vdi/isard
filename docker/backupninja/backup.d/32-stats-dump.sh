@@ -1,6 +1,6 @@
 #!/bin/sh
 
-when="$BACKUP_STATS_WHEN"
+when = $BACKUP_STATS_WHEN
 
 #
 # Prometheus
