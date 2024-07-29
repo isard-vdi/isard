@@ -144,6 +144,12 @@ if [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
         BACKUP_DISKS_MEDIA_ENABLED="include = /opt/isard/media"
     fi
 
+    if [ -z "$BACKUP_DISKS_TEMPLATES_ENABLED" ] && [ -z "$BACKUP_DISKS_GROUPS_ENABLED" ] && [ -z "$BACKUP_DISKS_MEDIA_ENABLED" ]; then
+        echo "Error: All backup disk paths are disabled. Review your config. Exiting."
+        exit 1
+    fi
+
+
     if [ -z "$1" ]; then
         echo "DISKS ENABLED: Enabled disks backup $BACKUP_DISKS_WHEN with $BACKUP_DISKS_PRUNE prune policy"
         echo "               Disks backup included folders:"
