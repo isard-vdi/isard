@@ -144,6 +144,12 @@ if [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
         BACKUP_DISKS_MEDIA_ENABLED="include = /opt/isard/media"
     fi
 
+    if [ -z "$BACKUP_DISKS_TEMPLATES_ENABLED" ] && [ -z "$BACKUP_DISKS_GROUPS_ENABLED" ] && [ -z "$BACKUP_DISKS_MEDIA_ENABLED" ]; then
+        echo "Error: All backup disk paths are disabled. Review your config. Exiting."
+        exit 1
+    fi
+
+
     if [ -z "$1" ]; then
         echo "DISKS ENABLED: Enabled disks backup $BACKUP_DISKS_WHEN with $BACKUP_DISKS_PRUNE prune policy"
         echo "               Disks backup included folders:"
@@ -210,6 +216,16 @@ case "$1" in
 
         backup_args "$2"
         execute_now "$BACKUP_SCRIPTS_PREFIX"
+        ;;
+
+    "execute-now-all")
+        execute_now() {
+            find /usr/local/etc/backup.d -name "$1" | sort | xargs -I% backupninja --run % --now
+        }
+        for backup_type in "db" "redis" "stats" "config" "disks"; do
+            backup_args "$backup_type"
+            execute_now "$BACKUP_SCRIPTS_PREFIX"
+        done
         ;;
 
     "list")

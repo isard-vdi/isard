@@ -6,5 +6,11 @@ services:
       source: ${BUILD_ROOT_PATH}/docker/backupninja/run.sh
       target: /usr/local/bin/run.sh
     - type: bind
-      source: ${BUILD_ROOT_PATH}/docker/backupninja/backup.sh
-      target: /usr/local/bin/backup.sh
+      source: ${BUILD_ROOT_PATH}/docker/backupninja/nfs_mount.sh
+      target: /usr/local/bin/nfs_mount.sh
+    - type: bind
+      source: ${BUILD_ROOT_PATH}/docker/backupninja/nfs_umount.sh
+      target: /usr/local/bin/nfs_umount.sh
+    - type: bind
+      source: ${BUILD_ROOT_PATH}/docker/backupninja/backup.d
+      target: /usr/local/share/backup.d

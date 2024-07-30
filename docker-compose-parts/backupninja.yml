@@ -49,33 +49,33 @@ services:
 
       # DB
       - BACKUP_DB_ENABLED=${BACKUP_DB_ENABLED-false}
-      - BACKUP_DB_WHEN=${BACKUP_DB_WHEN-everyday at 04:01}
+      - BACKUP_DB_WHEN=${BACKUP_DB_WHEN-everyday at 01:00}
       - BACKUP_DB_PRUNE=${BACKUP_DB_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
       - RETHINKDB_HOST=${RETHINKDB_HOST:-isard-db}
       - RETHINKDB_PORT=${RETHINKDB_PORT:-28015}
 
       # Redis
       - BACKUP_REDIS_ENABLED=${BACKUP_REDIS_ENABLED-false}
-      - BACKUP_REDIS_WHEN=${BACKUP_REDIS_WHEN-everyday at 04:01}
+      - BACKUP_REDIS_WHEN=${BACKUP_REDIS_WHEN-everyday at 01:00}
       - BACKUP_REDIS_PRUNE=${BACKUP_REDIS_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
       - REDIS_HOST=${REDIS_HOST:-isard-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
 
       # Stats
       - BACKUP_STATS_ENABLED=${BACKUP_STATS_ENABLED-false}
-      - BACKUP_STATS_WHEN=${BACKUP_STATS_WHEN-everyday at 04:01}
+      - BACKUP_STATS_WHEN=${BACKUP_STATS_WHEN-everyday at 01:00}
       - BACKUP_STATS_PRUNE=${BACKUP_STATS_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
       - PROMETHEUS_ADDRESS=${PROMETHEUS_ADDRESS-http://isard-prometheus:9090}
       - LOKI_ADDRESS=${LOKI_ADDRESS-http://isard-loki:3100}
 
       # Config
       - BACKUP_CONFIG_ENABLED=${BACKUP_CONFIG_ENABLED-false}
-      - BACKUP_CONFIG_WHEN=${BACKUP_CONFIG_WHEN-everyday at 04:01}
+      - BACKUP_CONFIG_WHEN=${BACKUP_CONFIG_WHEN-everyday at 01:00}
       - BACKUP_CONFIG_PRUNE=${BACKUP_CONFIG_PRUNE---keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space}
 
       # Disks
       - BACKUP_DISKS_ENABLED=${BACKUP_DISKS_ENABLED-false}
-      - BACKUP_DISKS_WHEN=${BACKUP_DISKS_WHEN-everyday at 04:01}
+      - BACKUP_DISKS_WHEN=${BACKUP_DISKS_WHEN-everyday at 01:00}
       - BACKUP_DISKS_PRUNE=${BACKUP_DISKS_PRUNE---keep-weekly=4 --keep-monthly=3 --keep-within=7d --save-space}
       - BACKUP_DISKS_TEMPLATES_ENABLED=${BACKUP_DISKS_TEMPLATES_ENABLED-false}
       - BACKUP_DISKS_GROUPS_ENABLED=${BACKUP_DISKS_GROUPS_ENABLED-false}
