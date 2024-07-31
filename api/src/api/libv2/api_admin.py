@@ -988,7 +988,11 @@ class ApiAdmin:
                         "expanded": True,
                         "unselectable": False if user["id"] == d["user"] else True,
                         "selected": True if user["id"] == d["user"] else False,
-                        "parent": d["parents"][-1],
+                        "parent": (
+                            d["parents"][-1]
+                            if d.get("parents")
+                            else d["duplicate_parent_template"]
+                        ),
                         "user": d["username"],
                         "category": d["category_name"],
                         "group": d["group_name"],
