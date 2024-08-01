@@ -102,7 +102,7 @@ class Bookings:
                                     )
                                     .run(db.conn)
                                 )
-                                users.append(user)
+                            users.append(user)
                             if len(users) == 2:
                                 return compute_user_priority(users, rule_id)
                     if key == "categories":
@@ -136,9 +136,10 @@ class Bookings:
             r.table("bookings_priority").get(priority_id).delete().run(db.conn)
 
     def list_priority_rules(self):
-        return list(
-            r.table("bookings_priority").pluck("rule_id").distinct().run(db.conn)
-        )
+        with app.app_context():
+            return list(
+                r.table("bookings_priority").pluck("rule_id").distinct().run(db.conn)
+            )
 
     def get_minumum_forbid_time(self):
         return list(r.table("bookings_priority")["forbid_time"].min())
@@ -216,9 +217,10 @@ class Bookings:
                 )
         if now:
             if item_type == "desktop":
-                r.table("domains").get(item_id).update(
-                    {"booking_id": booking["id"]}
-                ).run(db.conn)
+                with app.app_context():
+                    r.table("domains").get(item_id).update(
+                        {"booking_id": booking["id"]}
+                    ).run(db.conn)
             else:
                 raise Error(
                     "bad_request", "Can't set a booking starting now in a deployment"
@@ -247,24 +249,25 @@ class Bookings:
                 description_code="booking_does_not_fit_date",
             )
 
-        if not _check(
-            r.table("bookings")
-            .get(booking_id)
-            .update(
-                {
-                    "title": title,
-                    "start": datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(
-                        pytz.UTC
-                    ),
-                    "end": datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(
-                        pytz.UTC
-                    ),
-                }
-            )
-            .run(db.conn),
-            "replaced",
-        ):
-            raise UpdateFailed
+        with app.app_context():
+            if not _check(
+                r.table("bookings")
+                .get(booking_id)
+                .update(
+                    {
+                        "title": title,
+                        "start": datetime.strptime(
+                            start, "%Y-%m-%dT%H:%M%z"
+                        ).astimezone(pytz.UTC),
+                        "end": datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(
+                            pytz.UTC
+                        ),
+                    }
+                )
+                .run(db.conn),
+                "replaced",
+            ):
+                raise UpdateFailed
 
     def delete(
         self,
@@ -283,7 +286,10 @@ class Bookings:
             "end"
         ) >= datetime.now(pytz.utc):
             if booking.get("item_type") == "desktop":
-                desktop = r.table("domains").get(booking.get("item_id")).run(db.conn)
+                with app.app_context():
+                    desktop = (
+                        r.table("domains").get(booking.get("item_id")).run(db.conn)
+                    )
                 if desktop.get("status") not in ["Stopped", "Failed"]:
                     raise Error(
                         "precondition_required",
@@ -294,17 +300,20 @@ class Bookings:
                 else:
                     scheduler.remove_desktop_timeouts(booking.get("item_id"))
             elif booking.get("item_type") == "deployment":
-                desktops = (
-                    r.table("domains")
-                    .get_all(booking.get("item_id"), index="tag")
-                    .filter(
-                        lambda desktop: r.not_(
-                            r.expr(["Stopped", "Failed"]).contains(desktop["status"])
+                with app.app_context():
+                    desktops = (
+                        r.table("domains")
+                        .get_all(booking.get("item_id"), index="tag")
+                        .filter(
+                            lambda desktop: r.not_(
+                                r.expr(["Stopped", "Failed"]).contains(
+                                    desktop["status"]
+                                )
+                            )
                         )
+                        .count()
+                        .run(db.conn)
                     )
-                    .count()
-                    .run(db.conn)
-                )
                 if desktops:
                     raise Error(
                         "precondition_required",
@@ -313,12 +322,15 @@ class Bookings:
                         description_code="booking_deployment_delete_stop",
                     )
 
-        if not _check(
-            r.table("bookings").get(booking_id).delete().run(db.conn), "deleted"
-        ):
-            raise Error(
-                "internal_server", "Unable to delete booking", traceback.format_stack()
-            )
+        with app.app_context():
+            if not _check(
+                r.table("bookings").get(booking_id).delete().run(db.conn), "deleted"
+            ):
+                raise Error(
+                    "internal_server",
+                    "Unable to delete booking",
+                    traceback.format_stack(),
+                )
 
         self.resources_scheduler.remove_scheduler_startswith_id(booking_id)
 
@@ -480,6 +492,7 @@ class Bookings:
                     r.table("bookings").get(booking_id)["plans"].run(db.conn)
                 )
             ]
+        with app.app_context():
             return list(
                 r.db("isard")
                 .table("resource_planner")
@@ -513,6 +526,7 @@ class Bookings:
                 .run(db.conn)
             )
 
+        with app.app_context():
             forecast_30 = list(
                 r.table("bookings")
                 .filter(r.row["start"] <= r.now().add(60 * 30))
@@ -530,6 +544,7 @@ class Bookings:
                 .run(db.conn)
             )
 
+        with app.app_context():
             forecast_60 = list(
                 r.table("bookings")
                 .filter(r.row["start"] <= r.now().add(60 * 60))

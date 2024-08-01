@@ -720,8 +720,8 @@ class ApiUsers:
         email="",
     ):
         # password=False generates a random password
+        user_id = str(uuid.uuid4())
         with app.app_context():
-            user_id = str(uuid.uuid4())
             if r.table("users").get(user_id).run(db.conn) != None:
                 raise Error(
                     "conflict",
@@ -759,27 +759,28 @@ class ApiUsers:
             if encrypted_password != False:
                 password = encrypted_password
 
-            user = {
-                "id": user_id,
-                "name": name,
-                "uid": user_uid,
-                "provider": provider,
-                "active": True,
-                "accessed": int(time.time()),
-                "username": user_username,
-                "password": password,
-                "role": role_id,
-                "category": category_id,
-                "group": group_id,
-                "email": email,
-                "photo": photo,
-                "default_templates": [],
-                "quota": group["quota"],  # 10GB
-                "secondary_groups": [],
-                "password_history": [password],
-                "email_verification_token": None,
-                "email_verified": None,
-            }
+        user = {
+            "id": user_id,
+            "name": name,
+            "uid": user_uid,
+            "provider": provider,
+            "active": True,
+            "accessed": int(time.time()),
+            "username": user_username,
+            "password": password,
+            "role": role_id,
+            "category": category_id,
+            "group": group_id,
+            "email": email,
+            "photo": photo,
+            "default_templates": [],
+            "quota": group["quota"],  # 10GB
+            "secondary_groups": [],
+            "password_history": [password],
+            "email_verification_token": None,
+            "email_verified": None,
+        }
+        with app.app_context():
             if not _check(r.table("users").insert(user).run(db.conn), "inserted"):
                 raise Error(
                     "internal_server",
@@ -996,7 +997,6 @@ class ApiUsers:
         deployments = []
         media = []
         tags = []
-
         if table == "user":
             with app.app_context():
                 users = list(
@@ -1084,7 +1084,6 @@ class ApiUsers:
                         .pluck("id", "name")
                         .run(db.conn)
                     )
-
         with app.app_context():
             desktops = desktops + list(
                 r.table("domains")
@@ -1113,7 +1112,6 @@ class ApiUsers:
                 )
                 .run(db.conn)
             )
-
         domains_derivated = []
         for template in templates:
             domains_derivated = domains_derivated + GetAllTemplateDerivates(
@@ -1231,7 +1229,8 @@ class ApiUsers:
                     .get(domains[0].get("tag"))
                     .pluck("user")
                     .run(db.conn)
-                ).get("user", None)
+                )
+            deployment_user_owner = deployment_user_owner.get("user", None)
             if deployment_user_owner == user_id:
                 return True
 
@@ -1575,8 +1574,8 @@ class ApiUsers:
         return False
 
     def RoleGet(self, role=None):
-        with app.app_context():
-            if role == "manager":
+        if role == "manager":
+            with app.app_context():
                 return list(
                     r.table("roles")
                     .order_by("sortorder")
@@ -1584,13 +1583,13 @@ class ApiUsers:
                     .filter(lambda doc: doc["id"] != "admin")
                     .run(db.conn)
                 )
-            else:
-                return list(
-                    r.table("roles")
-                    .order_by("sortorder")
-                    .pluck("id", "name", "description")
-                    .run(db.conn)
-                )
+        else:
+            return list(
+                r.table("roles")
+                .order_by("sortorder")
+                .pluck("id", "name", "description")
+                .run(db.conn)
+            )
 
     def Secrets(self):
         with app.app_context():
@@ -1648,12 +1647,12 @@ class ApiUsers:
                 )
         if propagate or role:
             with app.app_context():
-                groups_list = list(
+                groups = list(
                     r.table("groups")
                     .get_all(category_id, index="parent_category")
                     .run(db.conn)
                 )
-            for group in groups_list:
+            for group in groups:
                 self.UpdateGroupQuota(group, quota, propagate, role, "admin")
 
     def UpdateGroupLimits(self, group, limits):

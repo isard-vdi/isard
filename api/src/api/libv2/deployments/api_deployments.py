@@ -83,6 +83,7 @@ def lists(user_id):
             .without("create_dict")
             .run(db.conn)
         )
+    with app.app_context():
         deployments_coowners = list(
             r.table("deployments")
             .get_all(user_id, index="co_owners")
@@ -110,8 +111,8 @@ def lists(user_id):
             .without("create_dict")
             .run(db.conn)
         )
-        deployments = deployments_owner + deployments_coowners
-        deployments.sort(key=lambda x: x["name"].lower(), reverse=True)
+    deployments = deployments_owner + deployments_coowners
+    deployments.sort(key=lambda x: x["name"].lower(), reverse=True)
 
     parsed_deployments = []
     for deployment in deployments:
@@ -163,44 +164,45 @@ def get(deployment_id, desktops=True):
 
     if desktops:
         parsed_desktops = []
-        desktops = list(
-            r.table("domains")
-            .get_all(deployment_id, index="tag")
-            .pluck(
-                "id",
-                "user",
-                "group",
-                "category",
-                "name",
-                "description",
-                "status",
-                "icon",
-                "os",
-                "image",
-                "persistent",
-                "parents",
-                "create_dict",
-                "viewer",
-                "guest_properties",
-                "accessed",
-                "tag",
-                "booking_id",
-                "tag_visible",
+        with app.app_context():
+            desktops = list(
+                r.table("domains")
+                .get_all(deployment_id, index="tag")
+                .pluck(
+                    "id",
+                    "user",
+                    "group",
+                    "category",
+                    "name",
+                    "description",
+                    "status",
+                    "icon",
+                    "os",
+                    "image",
+                    "persistent",
+                    "parents",
+                    "create_dict",
+                    "viewer",
+                    "guest_properties",
+                    "accessed",
+                    "tag",
+                    "booking_id",
+                    "tag_visible",
+                )
+                .merge(
+                    lambda domain: {
+                        "user_name": r.table("users").get(domain["user"])["name"],
+                        "user_photo": r.table("users")
+                        .get(domain["user"])["photo"]
+                        .default(None),
+                        "category_name": r.table("categories").get(domain["category"])[
+                            "name"
+                        ],
+                        "group_name": r.table("groups").get(domain["group"])["name"],
+                    }
+                )
+                .run(db.conn)
             )
-            .merge(
-                lambda domain: {
-                    "user_name": r.table("users").get(domain["user"])["name"],
-                    "user_photo": r.table("users")
-                    .get(domain["user"])["photo"]
-                    .default(None),
-                    "category_name": r.table("categories").get(domain["category"])[
-                        "name"
-                    ],
-                    "group_name": r.table("groups").get(domain["group"])["name"],
-                }
-            )
-            .run(db.conn)
-        )
         for desktop in desktops:
             tmp_desktop = _parse_deployment_desktop(desktop, deployment["user"])
             parsed_desktops.append(tmp_desktop)
@@ -217,23 +219,24 @@ def get_deployment_info(deployment_id):
             .pluck({"create_dict": True})
             .run(db.conn)["create_dict"]
         )
+    with app.app_context():
         template = (
             r.table("domains")
             .get(create_dict["template"])
             .pluck({"create_dict": True, "guest_properties": True, "image": True})
             .run(db.conn)
         )
-        template["hardware"] = template["create_dict"].pop("hardware")
-        template.pop("create_dict")
-        template["guest_properties"] = template.pop("guest_properties")
-        template["image"] = template.pop("image")
+    template["hardware"] = template["create_dict"].pop("hardware")
+    template.pop("create_dict")
+    template["guest_properties"] = template.pop("guest_properties")
+    template["image"] = template.pop("image")
     template.update(create_dict)
     if "isos" in create_dict["hardware"]:
-        with app.app_context():
-            isos = create_dict["hardware"]["isos"]
-            create_dict["hardware"]["isos"] = []
-            # Loop instead of a get_all query to keep the isos array order
-            for iso in isos:
+        isos = create_dict["hardware"]["isos"]
+        create_dict["hardware"]["isos"] = []
+        # Loop instead of a get_all query to keep the isos array order
+        for iso in isos:
+            with app.app_context():
                 create_dict["hardware"]["isos"].append(
                     r.table("media").get(iso["id"]).pluck("id", "name").run(db.conn)
                 )
@@ -306,12 +309,12 @@ def new(
     """Create deployment"""
     with app.app_context():
         query = r.table("deployments").insert(deployment).run(db.conn)
-        if not _check(query, "inserted"):
-            raise Error(
-                "internal_server",
-                "Unable to create deployment",
-                description_code="unable_to_insert",
-            )
+    if not _check(query, "inserted"):
+        raise Error(
+            "internal_server",
+            "Unable to create deployment",
+            description_code="unable_to_insert",
+        )
 
     """Create desktops for each user found"""
     deployment_tag = {
@@ -351,16 +354,17 @@ def get_selected_users(
 
     secondary_groups_users = []
     if selected["groups"] is not False:
+        query_group_users = (
+            r.table("users")
+            .get_all(r.args(selected["groups"]), index="group")
+            .pluck("id", "username", "category", "group")
+        )
+        if payload["role_id"] != "admin":
+            query_group_users.filter({"category": payload["category_id"]})
         with app.app_context():
-            query_group_users = (
-                r.table("users")
-                .get_all(r.args(selected["groups"]), index="group")
-                .pluck("id", "username", "category", "group")
-            )
-            if payload["role_id"] != "admin":
-                query_group_users.filter({"category": payload["category_id"]})
             group_users = list(query_group_users.run(db.conn))
 
+        with app.app_context():
             secondary_groups_users = list(
                 r.table("users")
                 .get_all(r.args(selected["groups"]), index="secondary_groups")
@@ -380,8 +384,9 @@ def get_selected_users(
             .get_all(r.args(selected["users"]), index="id")
             .pluck("id", "username", "category", "group")
         )
-        if payload["role_id"] != "admin":
-            query_user_users.filter({"category": payload["category_id"]})
+    if payload["role_id"] != "admin":
+        query_user_users.filter({"category": payload["category_id"]})
+    with app.app_context():
         user_users = list(query_user_users.run(db.conn))
 
     users = group_users + user_users + secondary_groups_users
@@ -390,8 +395,8 @@ def get_selected_users(
 
     """ DOES THE USERS ALREADY HAVE A DESKTOP WITH THIS NAME? """
     users_ids = [u["id"] for u in users]
-    with app.app_context():
-        try:
+    try:
+        with app.app_context():
             existing_desktops = [
                 u["user"]
                 for u in list(
@@ -402,12 +407,12 @@ def get_selected_users(
                     .run(db.conn)
                 )
             ]
-        except:
-            raise Error(
-                "internal_server",
-                "Unable to get deployment desktops",
-                description_code="unable_to_get_deployment_desktops",
-            )
+    except:
+        raise Error(
+            "internal_server",
+            "Unable to get deployment desktops",
+            description_code="unable_to_get_deployment_desktops",
+        )
     if len(existing_desktops):
         if existing_desktops_error:
             raise Error(
@@ -462,9 +467,10 @@ def edit_deployment_users(payload, deployment_id, allowed):
             traceback.format_exc(),
             "cant_edit_booked_deployment",
         )
-    r.table("deployments").get(deployment_id).update(
-        {"create_dict": {"allowed": allowed}}
-    ).run(db.conn)
+    with app.app_context():
+        r.table("deployments").get(deployment_id).update(
+            {"create_dict": {"allowed": allowed}}
+        ).run(db.conn)
     old_users = get_selected_users(
         payload,
         deployment.get("create_dict").get("allowed"),
@@ -483,14 +489,17 @@ def edit_deployment_users(payload, deployment_id, allowed):
     desktops_ids = []
     for user in old_users:
         if user not in new_users:
-            domain_id = (
-                r.table("domains")
-                .get_all(["desktop", user["id"], deployment_id], index="kind_user_tag")
-                .pluck("id")["id"]
-                .nth(0)
-                .default(None)
-                .run(db.conn)
-            )
+            with app.app_context():
+                domain_id = (
+                    r.table("domains")
+                    .get_all(
+                        ["desktop", user["id"], deployment_id], index="kind_user_tag"
+                    )
+                    .pluck("id")["id"]
+                    .nth(0)
+                    .default(None)
+                    .run(db.conn)
+                )
             if domain_id:
                 desktops_ids.append(domain_id)
     if len(desktops_ids):
@@ -531,63 +540,67 @@ def edit_deployment(payload, deployment_id, data):
     if data["reservables"].get("vgpus") == ["None"]:
         data["reservables"]["vgpus"] = None
     data["user_permissions"] = data.get("user_permissions", [])
-    r.table("deployments").get(deployment_id).update(
-        {
-            "create_dict": {
-                **data,
-                "guest_properties": r.literal(data["guest_properties"]),
-            },
-            "name": data["tag_name"],
-            "user_permissions": data["user_permissions"],
-        }
-    ).run(db.conn)
+    with app.app_context():
+        r.table("deployments").get(deployment_id).update(
+            {
+                "create_dict": {
+                    **data,
+                    "guest_properties": r.literal(data["guest_properties"]),
+                },
+                "name": data["tag_name"],
+                "user_permissions": data["user_permissions"],
+            }
+        ).run(db.conn)
     # If the networks have changed new macs should be generated for each domain
     if (
         deployment["create_dict"]["hardware"]["interfaces"]
         != data["hardware"]["interfaces"]
     ):
-        domains = (
-            r.table("domains")
-            .get_all(deployment_id, index="tag")
-            .pluck("id")["id"]
-            .run(db.conn)
-        )
+        with app.app_context():
+            domains = (
+                r.table("domains")
+                .get_all(deployment_id, index="tag")
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
         deployment_interfaces = data["hardware"]["interfaces"]
         data["hardware"]["memory"] = data["hardware"]["memory"] / 1048576
         for domain in domains:
             domain_data = copy.deepcopy(data)
             domain_update = parse_domain_update(domain, domain_data)
-            r.table("domains").get(domain).update(
-                {
-                    "status": "Updating",
-                    "create_dict": {
-                        "hardware": domain_update["create_dict"]["hardware"],
-                        "reservables": r.literal(data.get("reservables")),
-                    },
-                    "name": data["name"],
-                    "description": data["description"],
-                    "guest_properties": data.get("guest_properties"),
-                    "image": data["image"],
-                }
-            ).run(db.conn)
+            with app.app_context():
+                r.table("domains").get(domain).update(
+                    {
+                        "status": "Updating",
+                        "create_dict": {
+                            "hardware": domain_update["create_dict"]["hardware"],
+                            "reservables": r.literal(data.get("reservables")),
+                        },
+                        "name": data["name"],
+                        "description": data["description"],
+                        "guest_properties": data.get("guest_properties"),
+                        "image": data["image"],
+                    }
+                ).run(db.conn)
             data["hardware"]["interfaces"] = deployment_interfaces
 
     # Otherwise the rest of the hardware can be update at once
     else:
         data["hardware"].pop("interfaces")
-        r.table("domains").get_all(deployment_id, index="tag").update(
-            {
-                "status": "Updating",
-                "create_dict": {
-                    "hardware": data["hardware"],
-                    "reservables": r.literal(data.get("reservables")),
-                },
-                "name": data["name"],
-                "description": data["description"],
-                "guest_properties": r.literal(data["guest_properties"]),
-                "image": data["image"],
-            }
-        ).run(db.conn)
+        with app.app_context():
+            r.table("domains").get_all(deployment_id, index="tag").update(
+                {
+                    "status": "Updating",
+                    "create_dict": {
+                        "hardware": data["hardware"],
+                        "reservables": r.literal(data.get("reservables")),
+                    },
+                    "name": data["name"],
+                    "description": data["description"],
+                    "guest_properties": r.literal(data["guest_properties"]),
+                    "image": data["image"],
+                }
+            ).run(db.conn)
 
 
 def checkDesktopsStarted(deployment_id):
@@ -616,15 +629,16 @@ def delete(deployment_id):
         r.table("domains").get_all(deployment_id, index="tag").update(
             {"status": "ForceDeleting"}
         ).run(db.conn)
-        apib.delete_item_bookings("deployment", deployment_id)
-        if (
-            not r.table("domains")
-            .get_all(deployment_id, index="tag")
-            .count()
-            .run(db.conn)
-        ):
+    apib.delete_item_bookings("deployment", deployment_id)
+    with app.app_context():
+        domains = (
+            r.table("domains").get_all(deployment_id, index="tag").count().run(db.conn)
+        )
+    if not domains:
+        with app.app_context():
             r.table("deployments").get(deployment_id).delete().run(db.conn)
-        else:
+    else:
+        with app.app_context():
             r.table("deployments").get(deployment_id).update(
                 {"status": "deleting"}
             ).run(db.conn)
@@ -734,6 +748,7 @@ def visible(deployment_id, stop_started_domains=True):
             r.table("domains").get_all(deployment_id, index="tag").update(
                 {"tag_visible": visible}
             ).run(db.conn)
+        with app.app_context():
             r.table("deployments").get(deployment_id).update(
                 {"create_dict": {"tag_visible": visible}}
             ).run(db.conn)
@@ -751,7 +766,7 @@ def visible(deployment_id, stop_started_domains=True):
                 .get_all(deployment_id, index="tag")["id"]
                 .run(db.conn)
             )
-            desktops_stop(desktops_ids, force=True, wait_seconds=5)
+        desktops_stop(desktops_ids, force=True, wait_seconds=5)
 
 
 def user_visible(id):
@@ -759,12 +774,10 @@ def user_visible(id):
         query = r.table("domains").get(id).pluck("user", "tag_visible").run(db.conn)
     result = dict(query)
 
+    update_query = (
+        r.table("domains").get(id).update({"tag_visible": not result["tag_visible"]})
+    )
     with app.app_context():
-        update_query = (
-            r.table("domains")
-            .get(id)
-            .update({"tag_visible": not result["tag_visible"]})
-        )
         update_query.run(db.conn)
 
 
@@ -781,10 +794,11 @@ def direct_viewer_csv(deployment_id):
             )
             if not d.get("jumperurl")
         ]
-        for domain_id in domains_wo_token_ids:
-            ApiDesktopsCommon().gen_jumpertoken(domain_id)
+    for domain_id in domains_wo_token_ids:
+        ApiDesktopsCommon().gen_jumpertoken(domain_id)
 
-        ## Get data to generate csv
+    ## Get data to generate csv
+    with app.app_context():
         domains = list(
             r.table("domains")
             .get_all(deployment_id, index="tag")
@@ -796,12 +810,13 @@ def direct_viewer_csv(deployment_id):
     if not len(domains):
         return "username,name,email,url"
 
-    users = list(
-        r.table("users")
-        .get_all(r.args([u["user"] for u in domains]))
-        .pluck("id", "username", "name", "email")
-        .run(db.conn)
-    )
+    with app.app_context():
+        users = list(
+            r.table("users")
+            .get_all(r.args([u["user"] for u in domains]))
+            .pluck("id", "username", "name", "email")
+            .run(db.conn)
+        )
     result = []
     for d in domains:
         u = [u for u in users if u["id"] == d["user"]][0]
@@ -832,8 +847,8 @@ def jumper_url_reset(deployment_id):
             .run(db.conn)
         )
 
-        for deployment_desktop in deployment_desktops:
-            ApiDesktopsCommon().gen_jumpertoken(deployment_desktop["id"])
+    for deployment_desktop in deployment_desktops:
+        ApiDesktopsCommon().gen_jumpertoken(deployment_desktop["id"])
 
 
 def get_deployment_details_hardware(deployment_id):
@@ -864,11 +879,11 @@ def get_deployment_details_hardware(deployment_id):
             .run(db.conn)
         )
     if "interfaces" in hardware["hardware"]:
-        with app.app_context():
-            interfaces = hardware["hardware"]["interfaces"]
-            hardware["hardware"]["interfaces"] = []
-            # Loop instead of a get_all query to keep the interfaces array order
-            for interface in interfaces:
+        interfaces = hardware["hardware"]["interfaces"]
+        hardware["hardware"]["interfaces"] = []
+        # Loop instead of a get_all query to keep the interfaces array order
+        for interface in interfaces:
+            with app.app_context():
                 hardware["hardware"]["interfaces"].append(
                     r.table("interfaces")
                     .get(interface)
@@ -876,10 +891,10 @@ def get_deployment_details_hardware(deployment_id):
                     .run(db.conn)
                 )
     if "isos" in hardware["hardware"]:
+        isos = hardware["hardware"]["isos"]
+        hardware["hardware"]["isos"] = []
+        # Loop instead of a get_all query to keep the isos array order
         with app.app_context():
-            isos = hardware["hardware"]["isos"]
-            hardware["hardware"]["isos"] = []
-            # Loop instead of a get_all query to keep the isos array order
             for iso in isos:
                 hardware["hardware"]["isos"].append(
                     r.table("media").get(iso["id"]).pluck("id", "name").run(db.conn)
@@ -903,14 +918,14 @@ def get_co_owners(deployment_id):
     try:
         with app.app_context():
             deployment = r.table("deployments").get(deployment_id).run(db.conn)
-            return {
-                "owner": alloweds.get_allowed({"users": [deployment.get("user")]})[
-                    "users"
-                ][0],
-                "co_owners": alloweds.get_allowed(
-                    {"users": deployment.get("co_owners")}
-                )["users"],
-            }
+        return {
+            "owner": alloweds.get_allowed({"users": [deployment.get("user")]})["users"][
+                0
+            ],
+            "co_owners": alloweds.get_allowed({"users": deployment.get("co_owners")})[
+                "users"
+            ],
+        }
     except:
         raise Error(
             "not_found",
@@ -931,11 +946,11 @@ def update_co_owners(deployment_id, co_owners: list):
         )
 
     try:
-        with app.app_context():
-            owner = deployment.get("user")
-            if owner in co_owners:
-                co_owners.remove(owner)
+        owner = deployment.get("user")
+        if owner in co_owners:
+            co_owners.remove(owner)
 
+        with app.app_context():
             co_owners = (
                 r.table("users")
                 .get_all(r.args(co_owners))
@@ -946,6 +961,7 @@ def update_co_owners(deployment_id, co_owners: list):
                 .run(db.conn)
             )
 
+        with app.app_context():
             r.table("deployments").get(deployment_id).update(
                 {"co_owners": co_owners}
             ).run(db.conn)
@@ -958,24 +974,25 @@ def update_co_owners(deployment_id, co_owners: list):
 
 
 def update_owner(payload, deployment_id, owner_id):
-    with app.app_context():
-        try:
+    try:
+        with app.app_context():
             deployment = r.table("deployments").get(deployment_id).run(db.conn)
-        except:
-            raise Error(
-                "not_found",
-                f"Not found deployment id to update owner: {deployment_id}",
-                description_code="not_found",
-            )
+    except:
+        raise Error(
+            "not_found",
+            f"Not found deployment id to update owner: {deployment_id}",
+            description_code="not_found",
+        )
 
-        try:
+    try:
+        with app.app_context():
             owner = r.table("users").get(owner_id).run(db.conn)
-        except:
-            raise Error(
-                "not_found",
-                f"Not found owner id to update owner: {owner_id}",
-                description_code="not_found",
-            )
+    except:
+        raise Error(
+            "not_found",
+            f"Not found owner id to update owner: {owner_id}",
+            description_code="not_found",
+        )
 
     if deployment.get("user") == owner_id:
         raise Error(

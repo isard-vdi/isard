@@ -36,21 +36,21 @@ def wait_status(
     while status == current_status and seconds <= wait_seconds:
         time.sleep(interval_seconds)
         seconds += interval_seconds
-        with app.app_context():
-            try:
+        try:
+            with app.app_context():
                 status = (
                     r.table("domains")
                     .get(desktop_id)
                     .pluck("status")["status"]
                     .run(db.conn)
                 )
-            except:
-                raise Error(
-                    "not_found",
-                    "Desktop not found",
-                    traceback.format_exc(),
-                    description_code="not_found",
-                )
+        except:
+            raise Error(
+                "not_found",
+                "Desktop not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
     if status == current_status:
         if raise_exc:
             raise Error(
@@ -70,20 +70,20 @@ def wait_status(
 
 
 def get_desktop_status(desktop_id):
-    with app.app_context():
-        try:
+    try:
+        with app.app_context():
             status = (
                 r.table("domains")
                 .get(desktop_id)
                 .pluck("status")["status"]
                 .run(db.conn)
             )
-        except:
-            raise Error(
-                "not_found",
-                "Desktop not found",
-                description_code="not_found",
-            )
+    except:
+        raise Error(
+            "not_found",
+            "Desktop not found",
+            description_code="not_found",
+        )
     return status
 
 
@@ -114,8 +114,8 @@ def desktop_start(desktop_id, wait_seconds=0, paused=False):
             )
             .run(db.conn)
         )
-        if not len(domain.get("changes", [])):
-            return "Starting"
+    if not len(domain.get("changes", [])):
+        return "Starting"
 
     return wait_status(desktop_id, "Starting", wait_seconds=wait_seconds)
 
@@ -128,16 +128,16 @@ def desktops_start(desktops_ids, wait_seconds=0, paused=False):
             .pluck("id", "status")
             .run(db.conn)
         )
-        desktops_ok = [
-            desktop["id"]
-            for desktop in desktops
-            if desktop["status"] in ["Stopped", "Failed"]
-        ]
-        with app.app_context():
-            new_status = "Starting" if not paused else "StartingPaused"
-            r.table("domains").get_all(r.args(desktops_ok)).update(
-                {"status": new_status, "viewer": {}, "accessed": int(time.time())}
-            ).run(db.conn)
+    desktops_ok = [
+        desktop["id"]
+        for desktop in desktops
+        if desktop["status"] in ["Stopped", "Failed"]
+    ]
+    new_status = "Starting" if not paused else "StartingPaused"
+    with app.app_context():
+        r.table("domains").get_all(r.args(desktops_ok)).update(
+            {"status": new_status, "viewer": {}, "accessed": int(time.time())}
+        ).run(db.conn)
 
 
 def desktop_stop(desktop_id, force=False, wait_seconds=0):
@@ -183,6 +183,7 @@ def desktops_stop(desktops_ids, force=False, wait_seconds=30):
             r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
                 {"status": "Shutting-down"}
             ).update({"status": "Stopping", "accessed": int(time.time())}).run(db.conn)
+        with app.app_context():
             r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
                 {"status": "Started"}
             ).update({"status": "Stopping", "accessed": int(time.time())}).run(db.conn)
@@ -191,6 +192,7 @@ def desktops_stop(desktops_ids, force=False, wait_seconds=30):
             r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
                 {"status": "Shutting-down"}
             ).update({"status": "Stopping", "accessed": int(time.time())}).run(db.conn)
+        with app.app_context():
             r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
                 {"status": "Started"}
             ).update({"status": "Shutting-down", "accessed": int(time.time())}).run(
@@ -203,6 +205,7 @@ def desktops_stop_all():
         r.table("domains").get_all("Shutting-down", index="status").update(
             {"status": "Stopping", "accessed": int(time.time())}
         ).run(db.conn)
+    with app.app_context():
         r.table("domains").get_all("Started", index="status").update(
             {"status": "Stopping", "accessed": int(time.time())}
         ).run(db.conn)
@@ -224,7 +227,8 @@ def desktop_reset(desktop_id):
 
 
 def desktop_delete(desktop_id, agent_id, permanent=False):
-    tag = r.table("domains").get(desktop_id)["tag"].default(False).run(db.conn)
+    with app.app_context():
+        tag = r.table("domains").get(desktop_id)["tag"].default(False).run(db.conn)
     rcb = RecycleBinDesktop(user_id=agent_id)
     rcb.add(desktop_id)
 

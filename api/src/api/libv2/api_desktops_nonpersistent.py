@@ -84,14 +84,16 @@ class ApiDesktopsNonPersistent:
     def _nonpersistent_desktop_from_tmpl(self, user_id, template_id):
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
-            if not template:
-                raise Error("not_found", "Template not found", traceback.format_exc())
+        if not template:
+            raise Error("not_found", "Template not found", traceback.format_exc())
+        with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
-            if not user:
-                raise Error("not_found", "NewNonPersistent: user id not found.")
+        if not user:
+            raise Error("not_found", "NewNonPersistent: user id not found.")
+        with app.app_context():
             group = r.table("groups").get(user["group"]).run(db.conn)
-            if not group:
-                raise Error("not_found", "NewNonPersistent: group id not found.")
+        if not group:
+            raise Error("not_found", "NewNonPersistent: group id not found.")
 
         parent_disk = template["hardware"]["disks"][0]["file"]
 

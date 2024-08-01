@@ -14,9 +14,11 @@ stable_status = ["Started", "Stopped", "Failed"]
 def Users():
     with app.app_context():
         users_count = r.table("users").count().run(db.conn)
+    with app.app_context():
         users_active = (
             r.table("users").get_all(True, index="active").count().run(db.conn)
         )
+    with app.app_context():
         roles = r.table("users").group("role").count().run(db.conn)
     return {
         "total": users_count,
@@ -31,6 +33,7 @@ def Users():
 def Desktops():
     with app.app_context():
         total = r.table("domains").get_all("desktop", index="kind").count().run(db.conn)
+    with app.app_context():
         group_by_status = (
             r.table("domains")
             .get_all("desktop", index="kind")
@@ -81,6 +84,7 @@ def OtherStatus():
             .count()
             .run(db.conn)
         )
+    with app.app_context():
         templates = (
             r.table("domains")
             .get_all("template", index="kind")
@@ -132,43 +136,45 @@ def Kind(kind):
 
 
 def GroupByCategories():
+    query = {}
     with app.app_context():
-        query = {}
         categories = r.table("categories").pluck("id")["id"].run(db.conn)
-        user_role = ["admin", "manager", "advanced", "user"]
-        for category in categories:
-            query[category] = {
-                "users": {
-                    "total": "",
-                    "status": {"enabled": "", "disabled": ""},
-                    "roles": {
-                        "admin": "",
-                        "manager": "",
-                        "advanced": "",
-                        "user": "",
-                    },
+    user_role = ["admin", "manager", "advanced", "user"]
+    for category in categories:
+        query[category] = {
+            "users": {
+                "total": "",
+                "status": {"enabled": "", "disabled": ""},
+                "roles": {
+                    "admin": "",
+                    "manager": "",
+                    "advanced": "",
+                    "user": "",
                 },
-                "desktops": {
-                    "total": "",
-                    "status": {
-                        "Started": "",
-                        "Stopped": "",
-                        "Failed": "",
-                        "Unknown": "",
-                        "Other": "",
-                    },
+            },
+            "desktops": {
+                "total": "",
+                "status": {
+                    "Started": "",
+                    "Stopped": "",
+                    "Failed": "",
+                    "Unknown": "",
+                    "Other": "",
                 },
-                "templates": {
-                    "total": "",
-                    "status": {"enabled": "", "disabled": ""},
-                },
-            }
+            },
+            "templates": {
+                "total": "",
+                "status": {"enabled": "", "disabled": ""},
+            },
+        }
+        with app.app_context():
             query[category]["users"]["total"] = (
                 r.table("users")
                 .get_all(category, index="category")
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             query[category]["users"]["status"]["enabled"] = (
                 r.table("users")
                 .get_all(category, index="category")
@@ -176,11 +182,12 @@ def GroupByCategories():
                 .count()
                 .run(db.conn)
             )
-            query[category]["users"]["status"]["disabled"] = (
-                query[category]["users"]["total"]
-                - query[category]["users"]["status"]["enabled"]
-            )
+        query[category]["users"]["status"]["disabled"] = (
+            query[category]["users"]["total"]
+            - query[category]["users"]["status"]["enabled"]
+        )
 
+        with app.app_context():
             query[category]["users"]["roles"] = (
                 r.table("users")
                 .get_all(category, index="category")
@@ -189,13 +196,15 @@ def GroupByCategories():
                 .run(db.conn)
             )
 
+        with app.app_context():
             query[category]["desktops"]["total"] = (
                 r.table("domains")
                 .get_all(["desktop", category], index="kind_category")
                 .count()
                 .run(db.conn)
             )
-            for status in stable_status:
+        for status in stable_status:
+            with app.app_context():
                 query[category]["desktops"]["status"][status] = (
                     r.table("domains")
                     .get_all(
@@ -204,6 +213,7 @@ def GroupByCategories():
                     .count()
                     .run(db.conn)
                 )
+        with app.app_context():
             query[category]["desktops"]["status"]["Other"] = (
                 r.table("domains")
                 .get_all(["desktop", category], index="kind_category")
@@ -216,12 +226,14 @@ def GroupByCategories():
                 .run(db.conn)
             )
 
+        with app.app_context():
             query[category]["templates"]["total"] = (
                 r.table("domains")
                 .get_all(["template", category], index="kind_category")
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             query[category]["templates"]["status"]["enabled"] = (
                 r.table("domains")
                 .get_all(
@@ -230,6 +242,7 @@ def GroupByCategories():
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             query[category]["templates"]["status"]["disabled"] = (
                 r.table("domains")
                 .get_all(
@@ -242,22 +255,25 @@ def GroupByCategories():
 
 
 def CategoriesKindState(kind, state=False):
+    query = {}
     with app.app_context():
-        query = {}
         categories = r.table("categories").pluck("id")["id"].run(db.conn)
-        for category in categories:
-            if kind == "desktop":
-                if state:
-                    query[category] = {"desktops": {"status": {state: ""}}}
+    for category in categories:
+        if kind == "desktop":
+            if state:
+                query[category] = {"desktops": {"status": {state: ""}}}
+                with app.app_context():
                     query[category]["desktops"]["status"][state] = (
                         r.table("domains")
                         .get_all(
-                            ["desktop", state, category], index="kind_status_category"
+                            ["desktop", state, category],
+                            index="kind_status_category",
                         )
                         .count()
                         .run(db.conn)
                     )
-                    if state == "Other":
+                if state == "Other":
+                    with app.app_context():
                         query[category]["desktops"]["status"]["Other"] = (
                             r.table("domains")
                             .get_all(["desktop", category], index="kind_category")
@@ -269,20 +285,21 @@ def CategoriesKindState(kind, state=False):
                             .count()
                             .run(db.conn)
                         )
-                    return query
-                else:
-                    query[category] = {
-                        "desktops": {
-                            "total": "",
-                            "status": {
-                                "Started": "",
-                                "Stopped": "",
-                                "Failed": "",
-                                "Unknown": "",
-                                "Other": "",
-                            },
-                        }
+                return query
+            else:
+                query[category] = {
+                    "desktops": {
+                        "total": "",
+                        "status": {
+                            "Started": "",
+                            "Stopped": "",
+                            "Failed": "",
+                            "Unknown": "",
+                            "Other": "",
+                        },
                     }
+                }
+                with app.app_context():
                     query[category]["desktops"]["total"] = (
                         r.table("domains")
                         .get_all(["desktop", category], index="kind_category")
@@ -290,15 +307,18 @@ def CategoriesKindState(kind, state=False):
                         .run(db.conn)
                     )
 
-                    for ds in stable_status:
+                for ds in stable_status:
+                    with app.app_context():
                         query[category]["desktops"]["status"][ds] = (
                             r.table("domains")
                             .get_all(
-                                ["desktop", ds, category], index="kind_status_category"
+                                ["desktop", ds, category],
+                                index="kind_status_category",
                             )
                             .count()
                             .run(db.conn)
                         )
+                with app.app_context():
                     query[category]["desktops"]["status"]["Other"] = (
                         r.table("domains")
                         .get_all(["desktop", category], index="kind_category")
@@ -310,11 +330,12 @@ def CategoriesKindState(kind, state=False):
                         .count()
                         .run(db.conn)
                     )
-                    return query
+                return query
 
-            elif kind == "template":
-                if state == "enabled":
-                    query[category] = {"templates": {"status": {"enabled": ""}}}
+        elif kind == "template":
+            if state == "enabled":
+                query[category] = {"templates": {"status": {"enabled": ""}}}
+                with app.app_context():
                     query[category]["templates"]["status"]["enabled"] = (
                         r.table("domains")
                         .get_all(
@@ -324,10 +345,11 @@ def CategoriesKindState(kind, state=False):
                         .count()
                         .run(db.conn)
                     )
-                    return query
+                return query
 
-                elif state == "disabled":
-                    query[category] = {"templates": {"status": {"disabled": ""}}}
+            elif state == "disabled":
+                query[category] = {"templates": {"status": {"disabled": ""}}}
+                with app.app_context():
                     query[category]["templates"]["status"]["disabled"] = (
                         r.table("domains")
                         .get_all(
@@ -337,21 +359,23 @@ def CategoriesKindState(kind, state=False):
                         .count()
                         .run(db.conn)
                     )
-                    return query
+                return query
 
-                else:
-                    query[category] = {
-                        "templates": {
-                            "total": "",
-                            "status": {"enabled": "", "disabled": ""},
-                        }
+            else:
+                query[category] = {
+                    "templates": {
+                        "total": "",
+                        "status": {"enabled": "", "disabled": ""},
                     }
+                }
+                with app.app_context():
                     query[category]["templates"]["total"] = (
                         r.table("domains")
                         .get_all(["template", category], index="kind_category")
                         .count()
                         .run(db.conn)
                     )
+                with app.app_context():
                     query[category]["templates"]["status"]["enabled"] = (
                         r.table("domains")
                         .get_all(
@@ -361,6 +385,7 @@ def CategoriesKindState(kind, state=False):
                         .count()
                         .run(db.conn)
                     )
+                with app.app_context():
                     query[category]["templates"]["status"]["disabled"] = (
                         r.table("domains")
                         .get_all(
@@ -370,20 +395,21 @@ def CategoriesKindState(kind, state=False):
                         .count()
                         .run(db.conn)
                     )
-                    return query
+                return query
 
 
 def CategoriesLimitsHardware():
+    query = {}
     with app.app_context():
-        query = {}
         categories = r.table("categories").pluck("id", "limits").run(db.conn)
 
-        for category in categories:
-            query[category["id"]] = {
-                "Started desktops": "",
-                "vCPUs": {"Limit": "", "Running": ""},
-                "Memory": {"Limit": "", "Running": ""},
-            }
+    for category in categories:
+        query[category["id"]] = {
+            "Started desktops": "",
+            "vCPUs": {"Limit": "", "Running": ""},
+            "Memory": {"Limit": "", "Running": ""},
+        }
+        with app.app_context():
             query[category["id"]]["Started desktops"] = (
                 r.table("domains")
                 .get_all(
@@ -393,14 +419,15 @@ def CategoriesLimitsHardware():
                 .run(db.conn)
             )
 
-            # If unlimited
-            if category["limits"] == False:
-                query[category["id"]]["vCPUs"]["Limit"] = 0
-                query[category["id"]]["Memory"]["Limit"] = 0
-            else:
-                query[category["id"]]["vCPUs"]["Limit"] = category["limits"]["vcpus"]
-                query[category["id"]]["Memory"]["Limit"] = category["limits"]["memory"]
+        # If unlimited
+        if category["limits"] == False:
+            query[category["id"]]["vCPUs"]["Limit"] = 0
+            query[category["id"]]["Memory"]["Limit"] = 0
+        else:
+            query[category["id"]]["vCPUs"]["Limit"] = category["limits"]["vcpus"]
+            query[category["id"]]["Memory"]["Limit"] = category["limits"]["memory"]
 
+        with app.app_context():
             query[category["id"]]["vCPUs"]["Running"] = (
                 r.table("domains")
                 .get_all(
@@ -409,6 +436,7 @@ def CategoriesLimitsHardware():
                 .sum()
                 .run(db.conn)
             )
+        with app.app_context():
             query[category["id"]]["Memory"]["Running"] = (
                 r.table("domains")
                 .get_all(
@@ -439,7 +467,7 @@ def CategoriesDeploys():
 
 def DomainsByCategoryCount():
     with app.app_context():
-        result = (
+        return (
             r.table("domains")
             .get_all("desktop", index="kind")
             .pluck("category", "status")
@@ -464,4 +492,3 @@ def DomainsByCategoryCount():
             )
             .run(db.conn)
         )
-        return result

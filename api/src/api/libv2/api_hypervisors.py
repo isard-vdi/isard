@@ -236,8 +236,8 @@ class ApiHypervisors:
         if not bookings_ids:
             data["bookings_end_time"] = None
         else:
-            with app.app_context():
-                try:
+            try:
+                with app.app_context():
                     data["bookings_end_time"] = (
                         r.table("bookings")
                         .get_all(r.args(bookings_ids))
@@ -247,14 +247,14 @@ class ApiHypervisors:
                         .nth(0)
                         .run(db.conn)
                     ).isoformat()
-                except:
-                    app.logger.error(
-                        "GPU CHECKS: Traceback in getting bookings end time for hypervisor "
-                        + hyp_id
-                        + ": "
-                        + traceback.format_exc(),
-                    )
-                    data["bookings_end_time"] = None
+            except:
+                app.logger.error(
+                    "GPU CHECKS: Traceback in getting bookings end time for hypervisor "
+                    + hyp_id
+                    + ": "
+                    + traceback.format_exc(),
+                )
+                data["bookings_end_time"] = None
         return data
 
     def get_orchestrator_managed_hypervisors(self):
@@ -483,11 +483,15 @@ class ApiHypervisors:
                     db.conn
                 )
             self.stop_hyper_domains(hyper_id)
-            r.table("hypervisors").get(hyper_id).update({"enabled": False}).run(db.conn)
+            with app.app_context():
+                r.table("hypervisors").get(hyper_id).update({"enabled": False}).run(
+                    db.conn
+                )
             time.sleep(1)
-            r.table("hypervisors").get(hyper_id).update({"status": "Deleting"}).run(
-                db.conn
-            )
+            with app.app_context():
+                r.table("hypervisors").get(hyper_id).update({"status": "Deleting"}).run(
+                    db.conn
+                )
         except:
             return {"status": False, "msg": "Hypervisor not found", "data": {}}
 
@@ -697,8 +701,8 @@ class ApiHypervisors:
                             .insert(generate_db_media(m[0], m[1]))
                             .run(db.conn)
                         )
-                        log.info("Added new media from hypervisor: " + m[0])
-                        print("Added new media from hypervisor: " + m[0])
+                    log.info("Added new media from hypervisor: " + m[0])
+                    print("Added new media from hypervisor: " + m[0])
 
     def update_disks_found(self, disks):
         with app.app_context():
@@ -730,8 +734,8 @@ class ApiHypervisors:
                             .insert(generate_db_media(m[0], m[1]))
                             .run(db.conn)
                         )
-                        log.info("Added new disk from hypervisor: " + m[0])
-                        print("Added new disk from hypervisor: " + m[0])
+                    log.info("Added new disk from hypervisor: " + m[0])
+                    print("Added new disk from hypervisor: " + m[0])
 
     def delete_media(self, medias_paths):
         for mp in medias_paths:
@@ -762,24 +766,28 @@ class ApiHypervisors:
                 .filter({"status": "Online"})
                 .run(db.conn)
             ]
+        with app.app_context():
             r.table("gpus").update({"physical_device": None}).run(db.conn)
+        with app.app_context():
             physical_devices = list(
                 r.table("vgpus")
                 .pluck("id", "brand", "hyp_id", {"info": "model"})
                 .run(db.conn)
             )
-            physical_devices = [pd for pd in physical_devices if pd["hyp_id"] in hypers]
-            log.debug(
-                "Matching hypers with cards found by engine: " + str(physical_devices)
-            )
-            for pd in physical_devices:
+        physical_devices = [pd for pd in physical_devices if pd["hyp_id"] in hypers]
+        log.debug(
+            "Matching hypers with cards found by engine: " + str(physical_devices)
+        )
+        for pd in physical_devices:
+            with app.app_context():
                 gpus = list(
                     r.table("gpus")
                     .get_all([pd["brand"], pd["info"]["model"]], index="brand-model")
                     .filter({"physical_device": None})
                     .run(db.conn)
                 )
-                if len(gpus):
+            if len(gpus):
+                with app.app_context():
                     r.table("gpus").get(gpus[0]["id"]).update(
                         {"physical_device": pd["id"]}
                     ).run(db.conn)
@@ -874,11 +882,11 @@ class ApiHypervisors:
             status = (
                 r.table("hypervisors").get(hyper_id).pluck("mountpoints").run(db.conn)
             )
-            if not status:
-                raise Error(
-                    "not_found",
-                    "Mountpoints information still not available",
-                )
+        if not status:
+            raise Error(
+                "not_found",
+                "Mountpoints information still not available",
+            )
         return status
 
 

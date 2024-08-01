@@ -199,10 +199,11 @@ def admin_table_list(
     if without:
         query = query.without(without)
 
-    with app.app_context():
-        if id and not index:
+    if id and not index:
+        with app.app_context():
             return query.run(db.conn)
-        else:
+    else:
+        with app.app_context():
             return list(query.run(db.conn))
 
 
@@ -395,9 +396,9 @@ def admin_table_delete(table, item_id):
 
 def admin_table_delete_list(table, ids_list, batch_size=50000):
     _validate_table(table)
-    with app.app_context():
-        for i in range(0, len(ids_list), batch_size):
-            batch_ids = ids_list[i : i + batch_size]
+    for i in range(0, len(ids_list), batch_size):
+        batch_ids = ids_list[i : i + batch_size]
+        with app.app_context():
             if not _check(
                 r.table(table).get_all(r.args(batch_ids)).delete().run(db.conn),
                 "deleted",
@@ -507,66 +508,60 @@ class ApiAdmin:
 
     def ListDesktops(self, categories=None):
         try:
-            with app.app_context():
-                query = r.table("categories")
-                if categories:
-                    query = query.get_all(r.args(categories))
-                query = query.eq_join("id", r.table("groups"), index="parent_category")
-                query = query.map(
-                    lambda doc: {
-                        "group_id": doc["right"]["id"],
-                        "group_name": doc["right"]["name"],
-                        "category_id": doc["left"]["id"],
-                        "category_name": doc["left"]["name"],
-                    }
-                )
-                query = query.eq_join(
-                    "group_id", r.table("domains"), index="group"
-                ).filter({"right": {"kind": "desktop"}})
-                query = query.merge(
-                    lambda doc: {
-                        "right": r.table("users")
-                        .get(doc["right"]["user"])
-                        .pluck("role")
-                    }
-                )
-                if categories:
-                    query.filter(r.row["right"]["category"] in categories)
+            query = r.table("categories")
+            if categories:
+                query = query.get_all(r.args(categories))
+            query = query.eq_join("id", r.table("groups"), index="parent_category")
+            query = query.map(
+                lambda doc: {
+                    "group_id": doc["right"]["id"],
+                    "group_name": doc["right"]["name"],
+                    "category_id": doc["left"]["id"],
+                    "category_name": doc["left"]["name"],
+                }
+            )
+            query = query.eq_join("group_id", r.table("domains"), index="group").filter(
+                {"right": {"kind": "desktop"}}
+            )
+            query = query.merge(
+                lambda doc: {
+                    "right": r.table("users").get(doc["right"]["user"]).pluck("role")
+                }
+            )
+            if categories:
+                query.filter(r.row["right"]["category"] in categories)
 
-                query = list(
-                    query.pluck(
+            query = query.pluck(
+                {
+                    "right": [
+                        "id",
                         {
-                            "right": [
-                                "id",
-                                {
-                                    "create_dict": {
-                                        "reservables": True,
-                                        "hardware": {"vcpus": True, "memory": True},
-                                    }
-                                },
-                                {"image": {"url": True}},
-                                "kind",
-                                "server",
-                                "hyp_started",
-                                "name",
-                                "status",
-                                "username",
-                                "accessed",
-                                "forced_hyp",
-                                "favourite_hyp",
-                                "booking_id",
-                                "role",
-                                "persistent",
-                                "current_action",
-                                "server_autostart",
-                            ],
-                            "left": ["group_name", "category_name"],
-                        }
-                    )
-                    .zip()
-                    .run(db.conn)
-                )
-            return query
+                            "create_dict": {
+                                "reservables": True,
+                                "hardware": {"vcpus": True, "memory": True},
+                            }
+                        },
+                        {"image": {"url": True}},
+                        "kind",
+                        "server",
+                        "hyp_started",
+                        "name",
+                        "status",
+                        "username",
+                        "accessed",
+                        "forced_hyp",
+                        "favourite_hyp",
+                        "booking_id",
+                        "role",
+                        "persistent",
+                        "current_action",
+                        "server_autostart",
+                    ],
+                    "left": ["group_name", "category_name"],
+                }
+            ).zip()
+            with app.app_context():
+                return list(query.run(db.conn))
         except Exception:
             raise Error(
                 "internal_server",
@@ -742,11 +737,13 @@ class ApiAdmin:
                 .run(db.conn)
             )
 
-            storage_ids = []
-            for storage in desktop_disks:
-                if storage.get("storage_id"):
-                    storage_ids.append(storage.get("storage_id"))
-            desktop_storage = list(
+        storage_ids = []
+        for storage in desktop_disks:
+            if storage.get("storage_id"):
+                storage_ids.append(storage.get("storage_id"))
+
+        with app.app_context():
+            return list(
                 r.table("storage")
                 .get_all(r.args(storage_ids))
                 .merge(
@@ -763,7 +760,6 @@ class ApiAdmin:
                 )
                 .run(db.conn)
             )
-        return desktop_storage
 
     # This is the function to be called
     def GetTemplateTreeList(self, template_id, user_id):
@@ -1032,47 +1028,50 @@ class ApiAdmin:
         return data
 
     def MultipleActions(self, table, action, ids, agent_id):
-        with app.app_context():
-            if action == "soft_toggle":
-                domains_stopped = self.CheckField(
-                    table, "status", "Stopped", ids
-                ) + self.CheckField(table, "status", "Failed", ids)
-                desktops_start(domains_stopped)
-                domains_started = self.CheckField(table, "status", "Started", ids)
+        if action == "soft_toggle":
+            domains_stopped = self.CheckField(
+                table, "status", "Stopped", ids
+            ) + self.CheckField(table, "status", "Failed", ids)
+            desktops_start(domains_stopped)
+            domains_started = self.CheckField(table, "status", "Started", ids)
+            with app.app_context():
                 res_started = (
                     r.table(table)
                     .get_all(r.args(domains_started))
                     .update({"status": "Shutting-down"})
                     .run(db.conn)
                 )
-                return True
+            return True
 
-            if action == "toggle":
-                domains_stopped = self.CheckField(
-                    table, "status", "Stopped", ids
-                ) + self.CheckField(table, "status", "Failed", ids)
-                desktops_start(domains_stopped)
-                domains_started = self.CheckField(table, "status", "Started", ids)
-                desktops_stop(domains_started, force=True)
-                return True
+        if action == "toggle":
+            domains_stopped = self.CheckField(
+                table, "status", "Stopped", ids
+            ) + self.CheckField(table, "status", "Failed", ids)
+            desktops_start(domains_stopped)
+            domains_started = self.CheckField(table, "status", "Started", ids)
+            desktops_stop(domains_started, force=True)
+            return True
 
-            if action == "toggle_visible":
-                domains_shown = self.CheckField(table, "tag_visible", True, ids)
-                domains_hidden = self.CheckField(table, "tag_visible", False, ids)
-                for domain_id in domains_hidden:
+        if action == "toggle_visible":
+            domains_shown = self.CheckField(table, "tag_visible", True, ids)
+            domains_hidden = self.CheckField(table, "tag_visible", False, ids)
+            for domain_id in domains_hidden:
+                with app.app_context():
                     r.table(table).get(domain_id).update(
                         {"tag_visible": True, "jumperurl": self.api_jumperurl_gencode()}
                     ).run(db.conn)
-                desktops_stop(domains_shown, force=True)
+            desktops_stop(domains_shown, force=True)
+            with app.app_context():
                 res_hidden = (
                     r.table(table)
                     .get_all(r.args(domains_shown))
                     .update({"tag_visible": False, "viewer": False, "jumperurl": False})
                     .run(db.conn)
                 )
-                return True
+            return True
 
-            if action == "download_jumperurls":
+        if action == "download_jumperurls":
+            with app.app_context():
                 data = list(
                     r.table(table)
                     .get_all(r.args(ids))
@@ -1080,142 +1079,142 @@ class ApiAdmin:
                     .has_fields("jumperurl")
                     .run(db.conn)
                 )
-                data = [d for d in data if d["jumperurl"]]
-                if not len(data):
-                    return "username,name,email,url"
+            data = [d for d in data if d["jumperurl"]]
+            if not len(data):
+                return "username,name,email,url"
+            with app.app_context():
                 users = list(
                     r.table("users")
                     .get_all(r.args([u["user"] for u in data]))
                     .pluck("id", "username", "name", "email")
                     .run(db.conn)
                 )
-                result = []
-                for d in data:
-                    u = [u for u in users if u["id"] == d["user"]][0]
-                    result.append(
-                        {
-                            "username": u["username"],
-                            "name": u["name"],
-                            "email": u["email"],
-                            "url": "https://"
-                            + os.environ["DOMAIN"]
-                            + "/vw/"
-                            + d["jumperurl"],
-                        }
-                    )
+            result = []
+            for d in data:
+                u = [u for u in users if u["id"] == d["user"]][0]
+                result.append(
+                    {
+                        "username": u["username"],
+                        "name": u["name"],
+                        "email": u["email"],
+                        "url": "https://"
+                        + os.environ["DOMAIN"]
+                        + "/vw/"
+                        + d["jumperurl"],
+                    }
+                )
 
-                fieldnames = ["username", "name", "email", "url"]
-                with io.StringIO() as csvfile:
-                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                    writer.writeheader()
-                    for row in result:
-                        writer.writerow(row)
-                    return csvfile.getvalue()
-                return data
+            fieldnames = ["username", "name", "email", "url"]
+            with io.StringIO() as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                for row in result:
+                    writer.writerow(row)
+                return csvfile.getvalue()
+            return data
 
-            if action == "delete":
-                desktops_delete(agent_id, ids)
-                return True
+        if action == "delete":
+            desktops_delete(agent_id, ids)
+            return True
 
-            if action == "force_failed":
-                res = r.table(table).get_all(r.args(ids)).pluck("status").run(db.conn)
-                for item in res:
-                    if item.get("status") in [
-                        "Stopped",
-                        "Started",
-                        "Downloading",
-                    ]:
-                        return "Cannot change to Failed status desktops from Stopped, Started or Downloading status"
+        if action == "force_failed":
+            res = r.table(table).get_all(r.args(ids)).pluck("status").run(db.conn)
+            for item in res:
+                if item.get("status") in [
+                    "Stopped",
+                    "Started",
+                    "Downloading",
+                ]:
+                    return "Cannot change to Failed status desktops from Stopped, Started or Downloading status"
+            with app.app_context():
                 res_deleted = (
                     r.table(table)
                     .get_all(r.args(ids))
                     .update({"status": "Failed", "hyp_started": False})
                     .run(db.conn)
                 )
-                return True
+            return True
 
-            if action == "shutting_down":
-                domains_started = self.CheckField(table, "status", "Started", ids)
+        if action == "shutting_down":
+            domains_started = self.CheckField(table, "status", "Started", ids)
+            with app.app_context():
                 res_deleted = (
                     r.table(table)
                     .get_all(r.args(domains_started))
                     .update({"status": "Shutting-down"})
                     .run(db.conn)
                 )
-                return True
+            return True
 
-            if action == "stopping":
-                domains_shutting_down = self.CheckField(
-                    table, "status", "Shutting-down", ids
-                )
-                domains_started = self.CheckField(table, "status", "Started", ids)
-                domains = domains_shutting_down + domains_started
-                desktops_stop(domains, force=True)
-                return True
+        if action == "stopping":
+            domains_shutting_down = self.CheckField(
+                table, "status", "Shutting-down", ids
+            )
+            domains_started = self.CheckField(table, "status", "Started", ids)
+            domains = domains_shutting_down + domains_started
+            desktops_stop(domains, force=True)
+            return True
 
-                ## TODO: Pending Stats
-            # if action == "stop_noviewer":
-            #     domains_tostop = self.CheckField(
-            #         table, "status", "Started", ids
-            #     )
-            #     res = (
-            #         r.table(table)
-            #         .get_all(r.args(domains_tostop))
-            #         .filter(~r.row.has_fields({"viewer": "client_since"}))
-            #         .update({"status": "Stopping","accessed":int(time.time())})
-            #         .run(db.conn)
-            #     )
-            #     return True
+            ## TODO: Pending Stats
+        # if action == "stop_noviewer":
+        #     domains_tostop = self.CheckField(
+        #         table, "status", "Started", ids
+        #     )
+        #     res = (
+        #         r.table(table)
+        #         .get_all(r.args(domains_tostop))
+        #         .filter(~r.row.has_fields({"viewer": "client_since"}))
+        #         .update({"status": "Stopping","accessed":int(time.time())})
+        #         .run(db.conn)
+        #     )
+        #     return True
 
-            if action == "starting_paused":
-                domains_stopped = self.CheckField(table, "status", "Stopped", ids)
-                domains_failed = self.CheckField(table, "status", "Failed", ids)
-                domains = domains_stopped + domains_failed
-                desktops_start(domains, paused=True)
-                return True
+        if action == "starting_paused":
+            domains_stopped = self.CheckField(table, "status", "Stopped", ids)
+            domains_failed = self.CheckField(table, "status", "Failed", ids)
+            domains = domains_stopped + domains_failed
+            desktops_start(domains, paused=True)
+            return True
 
-            if action == "remove_forced_hyper":
-                with app.app_context():
-                    r.table("domains").get_all(r.args(ids)).update(
-                        {"forced_hyp": False}
-                    ).run(db.conn)
-                return True
+        if action == "remove_forced_hyper":
+            with app.app_context():
+                r.table("domains").get_all(r.args(ids)).update(
+                    {"forced_hyp": False}
+                ).run(db.conn)
+            return True
 
-            if action == "remove_favourite_hyper":
-                with app.app_context():
-                    r.table("domains").get_all(r.args(ids)).update(
-                        {"favourite_hyp": False}
-                    ).run(db.conn)
-                return True
+        if action == "remove_favourite_hyper":
+            with app.app_context():
+                r.table("domains").get_all(r.args(ids)).update(
+                    {"favourite_hyp": False}
+                ).run(db.conn)
+            return True
 
-            if action == "activate_autostart":
-                with app.app_context():
-                    r.table("domains").get_all(r.args(ids)).filter(
-                        {"server": True}
-                    ).update({"server_autostart": True}).run(db.conn)
-                return True
+        if action == "activate_autostart":
+            with app.app_context():
+                r.table("domains").get_all(r.args(ids)).filter({"server": True}).update(
+                    {"server_autostart": True}
+                ).run(db.conn)
+            return True
 
-            if action == "deactivate_autostart":
-                with app.app_context():
-                    r.table("domains").get_all(r.args(ids)).update(
-                        {"server_autostart": False}
-                    ).run(db.conn)
-                return True
+        if action == "deactivate_autostart":
+            with app.app_context():
+                r.table("domains").get_all(r.args(ids)).update(
+                    {"server_autostart": False}
+                ).run(db.conn)
+            return True
 
         return False
 
     def CheckField(self, table, field, value, ids):
         with app.app_context():
-            return [
-                d["id"]
-                for d in list(
-                    r.table(table)
-                    .get_all(r.args(ids))
-                    .filter({field: value})
-                    .pluck("id")
-                    .run(db.conn)
-                )
-            ]
+            return list(
+                r.table(table)
+                .get_all(r.args(ids))
+                .filter({field: value})
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
 
     def get_domains_field(self, field, kind, payload):
         query = r.table("domains")
@@ -1253,22 +1252,23 @@ class ApiAdmin:
             ).run(db.conn)
 
     def set_logs_desktops_old_entries_action(self, action):
-        with app.app_context():
-            if action == "none":
+        if action == "none":
+            with app.app_context():
                 r.table("config").replace(
                     r.row.without({"logs_desktops": "old_entries"})
                 ).run(db.conn)
-            else:
+        else:
+            with app.app_context():
                 r.table("config").update(
                     {"logs_desktops": {"old_entries": {"action": action}}}
                 ).run(db.conn)
 
     def get_logs_desktops_old_entries_config(self):
-        with app.app_context():
-            try:
+        try:
+            with app.app_context():
                 return r.table("config")[0]["logs_desktops"]["old_entries"].run(db.conn)
-            except r.ReqlNonExistenceError:
-                return {"max_time": None, "action": None}
+        except r.ReqlNonExistenceError:
+            return {"max_time": None, "action": None}
 
     def set_logs_users_old_entries_max_time(self, max_time):
         with app.app_context():
@@ -1277,22 +1277,23 @@ class ApiAdmin:
             ).run(db.conn)
 
     def set_logs_users_old_entries_action(self, action):
-        with app.app_context():
-            if action == "none":
+        if action == "none":
+            with app.app_context():
                 r.table("config").replace(
                     r.row.without({"logs_users": "old_entries"})
                 ).run(db.conn)
-            else:
+        else:
+            with app.app_context():
                 r.table("config").update(
                     {"logs_users": {"old_entries": {"action": action}}}
                 ).run(db.conn)
 
     def get_logs_users_old_entries_config(self):
-        with app.app_context():
-            try:
+        try:
+            with app.app_context():
                 return r.table("config")[0]["logs_users"]["old_entries"].run(db.conn)
-            except r.ReqlNonExistenceError:
-                return {"max_time": None, "action": None}
+        except r.ReqlNonExistenceError:
+            return {"max_time": None, "action": None}
 
     def get_older_than_old_entry_max_time(self, table):
         if table == "logs_desktops":
@@ -1380,8 +1381,9 @@ def prrint(*args):
 def admin_table_update_book(table, id, data):
     _validate_table(table)
 
-    if not _check(
-        r.table(table).get(id).update(data).run(db.conn),
-        "replaced",
-    ):
-        raise UpdateFailed
+    with app.app_context():
+        if not _check(
+            r.table(table).get(id).update(data).run(db.conn),
+            "replaced",
+        ):
+            raise UpdateFailed

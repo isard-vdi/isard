@@ -172,7 +172,8 @@ def force_policy_at_login(policy_id, policy_field):
 
 
 def get_disclaimer_template(user_id):
-    user = r.table("users").get(user_id).pluck("role", "lang").run(db.conn)
+    with app.app_context():
+        user = r.table("users").get(user_id).pluck("role", "lang").run(db.conn)
     template_id = users.get_user_policy("disclaimer", "all", user["role"], user_id).get(
         "template"
     )

@@ -72,6 +72,7 @@ class ApiCards:
                 .distinct()
                 .run(db.conn)
             )
+        with app.app_context():
             proposed_img_exists = (
                 r.table("domains")
                 .get_all(domain_id + ".jpg", index="image_id")
@@ -207,7 +208,8 @@ class ApiCards:
     def set_default_stock_cards(self):
         with app.app_context():
             ids = [d["id"] for d in r.table("domains").pluck("id").run(db.conn)]
-            for domain_id in ids:
+        for domain_id in ids:
+            with app.app_context():
                 r.table("domains").get(domain_id).update(
                     {"image": self.get_domain_stock_card(domain_id)}
                 ).run(db.conn)

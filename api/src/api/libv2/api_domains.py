@@ -72,19 +72,20 @@ class ApiDomains:
             )
 
         for index, interface in enumerate(hardware["hardware"]["interfaces"]):
-            hardware["hardware"]["interfaces"][index]["name"] = (
-                r.table("interfaces")
-                .get(interface["id"])
-                .pluck("name")["name"]
-                .run(db.conn)
-            )
+            with app.app_context():
+                hardware["hardware"]["interfaces"][index]["name"] = (
+                    r.table("interfaces")
+                    .get(interface["id"])
+                    .pluck("name")["name"]
+                    .run(db.conn)
+                )
 
         if "isos" in hardware["hardware"]:
-            with app.app_context():
-                isos = hardware["hardware"]["isos"]
-                hardware["hardware"]["isos"] = []
-                # Loop instead of a get_all query to keep the isos array order
-                for iso in isos:
+            isos = hardware["hardware"]["isos"]
+            hardware["hardware"]["isos"] = []
+            # Loop instead of a get_all query to keep the isos array order
+            for iso in isos:
+                with app.app_context():
                     hardware["hardware"]["isos"].append(
                         r.table("media").get(iso["id"]).pluck("id", "name").run(db.conn)
                     )
