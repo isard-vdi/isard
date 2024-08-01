@@ -367,26 +367,25 @@ $(document).ready(function () {
     }
 
     function deleteDesktops(ids) {
-        $.each(ids, function (index, id) {
-            $.ajax({
-                type: "DELETE",
-                url:"/api/v3/desktop/" + id,
-                success: function() {
-                    location.reload()
-                },
-                error: function (data) {
-                    new PNotify({
-                        title: 'ERROR deleting desktop',
-                        text: data.responseJSON.description,
-                        type: 'error',
-                        hide: true,
-                        icon: 'fa fa-warning',
-                        delay: 5000,
-                        opacity: 1
-                    })
-                },
-            });
-        })
+        $.ajax({
+            type: "POST",
+            url: "/api/v3/admin/multiple_actions",
+            data: JSON.stringify({ 'ids': ids, 'action': 'delete' }),
+            success: function () {
+                location.reload()
+            },
+            error: function (data) {
+                new PNotify({
+                    title: 'ERROR deleting desktop',
+                    text: data.responseJSON.description,
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            },
+        });
     }
 
     function loadDatatable(collapseId, tableId, data, columns) {
