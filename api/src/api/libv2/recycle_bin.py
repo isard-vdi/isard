@@ -233,7 +233,7 @@ def get(recycle_bin_id=None, all_data=None):
                 .get(deployment["user"])
                 .default({"username": "[Deleted]"})
             )
-            deployment["user"] = user["user_name"].run(db.conn)
+            deployment["user"] = user["username"].run(db.conn)
             deployment["category"] = category
             deployment["group"] = group
 

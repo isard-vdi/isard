@@ -19,11 +19,11 @@ var desktopsTableCols = [
     title: 'User'
   },
   {
-    data: 'category',
+    data: 'category.name',
     title: 'Category'
   },
   {
-    data: 'group',
+    data: 'group.name',
     title: 'Group'
   },
   {
@@ -49,11 +49,11 @@ var templatesTableCols = [
     title: 'User'
   },
   {
-    data: 'category',
+    data: 'category.name',
     title: 'Category'
   },
   {
-    data: 'group',
+    data: 'group.name',
     title: 'Group'
   },
   {
@@ -86,11 +86,11 @@ var deploymentsTableCols = [
     title: 'User'
   },
   {
-    data: 'category',
+    data: 'category.name',
     title: 'Category'
   },
   {
-    data: 'group',
+    data: 'group.name',
     title: 'Group'
   }
 ]
@@ -143,7 +143,7 @@ var storageTableCols = [
     title: 'User',
   },
   {
-    data: 'category',
+    data: 'category.name',
     title: 'Category',
   },
   {

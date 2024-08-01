@@ -86,8 +86,8 @@ export class RecycleBinUtils {
       id,
       name,
       accessed,
-      category,
-      group,
+      category: category.name,
+      group: group.name,
       username
     }
   }
@@ -111,8 +111,8 @@ export class RecycleBinUtils {
       id,
       name,
       accessed,
-      category,
-      group,
+      category: category.name,
+      group: group.name,
       username
     }
   }
@@ -136,8 +136,8 @@ export class RecycleBinUtils {
       id,
       name,
       desktopName,
-      category,
-      group,
+      category: category.name,
+      group: group.name,
       user
     }
   }
@@ -170,7 +170,7 @@ export class RecycleBinUtils {
       used,
       parent,
       user,
-      category,
+      category: category.name,
       domains
     }
   }
