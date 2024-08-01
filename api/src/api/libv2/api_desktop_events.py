@@ -14,6 +14,7 @@ from api.libv2.recycle_bin import (
     RecycleBinDeployment,
     RecycleBinDeploymentDesktops,
     RecycleBinDesktop,
+    RecycleBinGroup,
     RecycleBinTemplate,
     RecycleBinUser,
     get_recicle_delete_time,

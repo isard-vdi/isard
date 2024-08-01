@@ -330,11 +330,13 @@ $(document).ready(function () {
         "data": null,
         "width": "60px",
         render: function (data, type, row, meta) {
-          if (!['deleted', 'restored', 'deleting'].includes(row.status)) {
-            return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button> \
-                    <button id="btn-restore" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-undo" style="color:darkgreen"></i></button>'
+          if (!['deleted', 'restored', 'deleting', 'queued'].includes(row.status)) {
+            return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" title="Delete this recycle bin entry"><i class="fa fa-times" style="color:darkred"></i></button> \
+                    <button id="btn-restore" class="btn btn-xs" type="button"  data-placement="top" title="Restore this recycle bin entry"><i class="fa fa-undo" style="color:darkgreen"></i></button>'
           } else if (row.status === 'deleting') {
-            return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+            return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" title="Delete this recycle bin entry"><i class="fa fa-times" style="color:darkred"></i></button>'
+          } else if (row.status === 'queued') {
+            return ''
           }
         }
       },
@@ -592,39 +594,37 @@ $(document).ready(function () {
         addclass: 'pnotify-center-large',
         width: '550'
       }).get().on('pnotify.confirm', function () {
-        var method = (action == "delete") ? "DELETE" : (action == "restore") ? "GET" : "";
-        ids.forEach(function (id) {
-          $.ajax({
-            type: method,
-            url: '/api/v3/recycle_bin/' + action + '/' + id,
-            success: function (data) {
-              $('#mactions option[value="none"]').prop("selected", true);
-              $('#recyclebin_domains tr.active .form-check-input').prop("checked", false);
-              $('#recyclebin_domains tr.active').removeClass('active')
-              $('thead #select-all').prop("checked", false);
-              new PNotify({
-                title: 'Success',
-                text: 'Recycle bin entries ' + action + ' performed successfully',
-                hide: true,
-                delay: 2000,
-                icon: 'fa fa-' + data.icon,
-                opacity: 1,
-                type: 'success'
-              });
-            },
-            error: function (xhr) {
-              new PNotify({
-                title: 'Error',
-                text: 'Couldn\'t ' + action + ' recycle bin entries ',
-                type: 'error',
-                hide: true,
-                icon: 'fa fa-warning',
-                delay: 5000,
-                opacity: 1
-              })
-            }
-          })
-        });
+        $.ajax({
+          type: "PUT",
+          url: '/api/v3/recycle_bin/' + action + '/',
+          data: JSON.stringify({'recycle_bin_ids':ids}),
+          success: function (data) {
+            $('#mactions option[value="none"]').prop("selected", true);
+            $('#recyclebin_domains tr.active .form-check-input').prop("checked", false);
+            $('#recyclebin_domains tr.active').removeClass('active')
+            $('thead #select-all').prop("checked", false);
+            new PNotify({
+              title: 'Success',
+              text: 'Recycle bin entries ' + action + ' performed successfully',
+              hide: true,
+              delay: 2000,
+              icon: 'fa fa-' + data.icon,
+              opacity: 1,
+              type: 'success'
+            });
+          },
+          error: function (xhr) {
+            new PNotify({
+              title: 'Error',
+              text: 'Couldn\'t ' + action + ' recycle bin entries ',
+              type: 'error',
+              hide: true,
+              icon: 'fa fa-warning',
+              delay: 5000,
+              opacity: 1
+            })
+          }
+        })
       }).on('pnotify.cancel', function () {
         $('#mactions option[value="none"]').prop("selected", true);
       })

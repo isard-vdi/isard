@@ -10,7 +10,9 @@ from ..views.decorators import itemExists
 
 r = RethinkDB()
 import logging as log
+import threading
 import time
+from queue import Empty, Queue
 
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.storage import Storage
@@ -41,6 +43,82 @@ apib = Bookings()
 
 db = RDB(app)
 db.init_app(app)
+
+
+class RecycleBinDeleteQueue:
+    _instance = None
+    _lock = threading.Lock()
+
+    def __new__(cls, *args, **kwargs):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if not hasattr(self, "initialized"):
+            self.queue = Queue()
+            self.recycle_bin_ids = set()
+            self.stop_event = threading.Event()
+            self.worker_thread = threading.Thread(target=self._background_worker)
+            self.worker_thread.daemon = (
+                True  # Allows the thread to exit when the main program exits
+            )
+            self.worker_thread.start()
+            self.initialized = True
+
+    def enqueue(self, item):
+        recycle_bin_id = item.get("recycle_bin_id")
+        if recycle_bin_id not in self.recycle_bin_ids:
+            update_status(recycle_bin_id, item.get("user_id"), "queued")
+            self.queue.put(item)
+            self.recycle_bin_ids.add(recycle_bin_id)
+            app.logger.debug(
+                f"Item with recycle_bin_id {recycle_bin_id} added to the queue."
+            )
+        else:
+            app.logger.debug(
+                f"Item with recycle_bin_id {recycle_bin_id} is already in the queue."
+            )
+
+    def dequeue(self):
+        try:
+            item = self.queue.get(
+                timeout=1
+            )  # Timeout to allow thread to check for stop_event
+            self.recycle_bin_ids.remove(item.get("recycle_bin_id"))
+            return item
+        except Empty:
+            return None
+
+    def perform_operation(self, recycle_bin_id, user_id):
+        # Example operation using user_id
+        app.logger.debug(f"Performing operation with user_id {user_id}")
+        rb = RecycleBin(id=recycle_bin_id)
+        rb.delete_storage(user_id)
+
+    def process_next_item(self):
+        item = self.dequeue()
+        if item:
+            user_id = item.get("user_id")
+            recycle_bin_id = item.get("recycle_bin_id")
+            self.perform_operation(recycle_bin_id, user_id)
+            self.queue.task_done()
+        else:
+            app.logger.debug("No items to process.")
+
+    def _background_worker(self):
+        while not self.stop_event.is_set():
+            self.process_next_item()
+            time.sleep(0.1)  # Add a small sleep to prevent a tight loop
+
+    def stop(self):
+        self.stop_event.set()
+        self.worker_thread.join()
+
+
+# Recycle bin queue
+custom_queue = RecycleBinDeleteQueue()
 
 
 @cached(cache=TTLCache(maxsize=10, ttl=30))
@@ -210,6 +288,24 @@ def get_recycle_bin_by_period(max_delete_period, category=None):
                     .run(db.conn)
                 )
     return recycle_bin_list
+
+
+def update_status(rb_id, owner_id, status):
+    with app.app_context():
+        r.table("recycle_bin").get(rb_id).update({"status": status}).run(db.conn)
+    kind = "update_recycle_bin" if status != "deleted" else "delete_recycle_bin"
+    start = time.time()
+    send_socket_user(
+        kind,
+        {"id": rb_id, "status": status},
+        owner_id,
+    )
+    send_socket_admin(kind, {"id": rb_id, "status": status})
+    log.debug(
+        "RecycleBin %s update_status: Sent socket events in %s seconds",
+        rb_id,
+        time.time() - start,
+    )
 
 
 def update_task_status(task):
@@ -727,11 +823,6 @@ class RecycleBin(object):
                 {"tasks": r.row["tasks"].append(task)}
             ).run(db.conn)
 
-    def _update_status(self, status):
-        self.status = status
-        with app.app_context():
-            r.table("recycle_bin").get(self.id).update({"status": status}).run(db.conn)
-
     def _update_size(self):
         size = 0
         for s in self.storages:
@@ -824,7 +915,7 @@ class RecycleBin(object):
                 ).run(db.conn)
         except:
             raise Error("not found", "Invalid storage data")
-        self._update_status("restored")
+        update_status(self.id, self.owner_id, "restored")
         add_log(
             "restored",
             self.id,
@@ -837,6 +928,7 @@ class RecycleBin(object):
         )
         with app.app_context():
             r.table("domains").insert(self.desktops + self.templates).run(db.conn)
+        with app.app_context():
             r.table("deployments").insert(self.deployments).run(db.conn)
         if self.categories:
             isard_user_storage_enable_categories(self.categories)
@@ -844,10 +936,6 @@ class RecycleBin(object):
             isard_user_storage_enable_groups(self.groups)
         elif self.users:
             isard_user_storage_enable_users(self.users)
-        send_socket_user(
-            "update_recycle_bin", {"id": self.id, "status": "restored"}, self.owner_id
-        )
-        send_socket_admin("update_recycle_bin", {"id": self.id, "status": "restored"})
 
     def delete_storage(self, user_id):
         """
@@ -876,15 +964,7 @@ class RecycleBin(object):
 
         if not self.storages:
             start = time.time()
-            self._update_status("deleted")
-            send_socket_user(
-                "delete_recycle_bin",
-                {"id": self.id, "status": "deleted"},
-                self.owner_id,
-            )
-            send_socket_admin(
-                "update_recycle_bin", {"id": self.id, "status": "deleted"}
-            )
+            update_status(self.id, self.owner_id, "deleted")
             log.debug(
                 "RecycleBin %s delete_storage: No storages. Updated status to deleted in %s seconds and sent sockets",
                 self.id,
@@ -945,29 +1025,15 @@ class RecycleBin(object):
                     )
                     if all(x == "deleted" for x in storages_status):
                         start = time.time()
-                        rb._update_status("deleted")
+                        update_status(rb.id, self.owner_id, "deleted")
                         log.debug(
                             "RecycleBin %s delete_storage: All storages status deleted. Updated status to deleted in %s seconds",
                             rb.id,
                             time.time() - start,
                         )
-                        start = time.time()
-                        send_socket_user(
-                            "delete_recycle_bin",
-                            {"id": rb.id, "status": "deleted"},
-                            self.owner_id,
-                        )
-                        send_socket_admin(
-                            "update_recycle_bin", {"id": rb.id, "status": "deleted"}
-                        )
-                        log.debug(
-                            "RecycleBin %s delete_storage: All storages status deleted. Sent socket events in %s seconds",
-                            rb.id,
-                            time.time() - start,
-                        )
                     else:
                         start = time.time()
-                        rb._update_status("deleting")
+                        update_status(rb.id, self.owner_id, "deleting")
                         log.debug(
                             "RecycleBin %s delete_storage: Not all storages status deleted. Updated status to deleting in %s seconds",
                             rb.id,
@@ -989,23 +1055,9 @@ class RecycleBin(object):
                             rb.id,
                             time.time() - start,
                         )
-                        start = time.time()
-                        send_socket_user(
-                            "update_recycle_bin",
-                            {"id": rb.id, "status": "deleting"},
-                            self.owner_id,
-                        )
-                        send_socket_admin(
-                            "update_recycle_bin", {"id": rb.id, "status": "deleting"}
-                        )
-                        log.debug(
-                            "RecycleBin %s delete_storage: Sent socket events in %s seconds",
-                            rb.id,
-                            time.time() - start,
-                        )
                         if not entry["storages"]:
                             start = time.time()
-                            rb._update_status("deleted")
+                            update_status(rb.id, "deleted")
                             log.debug(
                                 "RecycleBin %s delete_storage: No storages. Updated status to deleted in %s seconds",
                                 rb.id,
@@ -1509,6 +1561,7 @@ class RecycleBinBulk(RecycleBin):
                 desktops += list(
                     r.table("domains").get_all(r.args(batch_ids)).run(db.conn)
                 )
+            with app.app_context():
                 r.table("domains").get_all(r.args(batch_ids)).delete().run(db.conn)
         rcb_desktop.add_desktops(desktops)
         return self._set_data(self.id)

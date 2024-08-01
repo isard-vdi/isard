@@ -8,6 +8,7 @@ from api import app
 
 from ..libv2.recycle_bin import (
     RecycleBin,
+    RecycleBinDeleteQueue,
     check_older_than_old_entry_max_time,
     get,
     get_default_delete,
@@ -21,6 +22,8 @@ from ..libv2.recycle_bin import (
     update_task_status,
 )
 from .decorators import has_token, is_admin, is_admin_or_manager, ownsRecycleBinId
+
+rb_delete_queue = RecycleBinDeleteQueue()
 
 
 @app.route("/api/v3/recycle_bin/<recycle_bin_id>", methods=["GET"])
@@ -71,16 +74,27 @@ def api_v3_admin_recycle_bin_item_count(payload, kind=None, status=None):
     )
 
 
+@app.route("/api/v3/recycle_bin/restore/", methods=["PUT"])
 @app.route("/api/v3/recycle_bin/restore/<recycle_bin_id>", methods=["GET"])
 @has_token
-def api_v3_admin_recycle_bin_restore(payload, recycle_bin_id):
-    ownsRecycleBinId(payload, recycle_bin_id)
-    rb = RecycleBin(id=recycle_bin_id)
-    rb._update_agent(payload["user_id"])
-    rb.restore()
+def api_v3_admin_recycle_bin_restore(payload, recycle_bin_id=None):
+    if request.method == "PUT":
+        data = request.get_json(force=True)
+        recycle_bin_ids = data.get("recycle_bin_ids")
+    else:
+        recycle_bin_ids = [recycle_bin_id]
+    for recycle_bin_id in recycle_bin_ids:
+        ownsRecycleBinId(payload, recycle_bin_id)
+        try:
+            rb = RecycleBin(id=recycle_bin_id)
+            rb._update_agent(payload["user_id"])
+            rb.restore()
+        except Exception as e:
+            app.logger.error(f"Error deleting recycle bin {recycle_bin_id}: {e}")
+            continue
 
     return (
-        json.dumps({"recycle_bin_id": recycle_bin_id}),
+        json.dumps({"recycle_bin_ids": recycle_bin_ids}),
         200,
         {"Content-Type": "application/json"},
     )
@@ -92,23 +106,21 @@ def api_v3_admin_recycle_bin_restore(payload, recycle_bin_id):
 def storage_delete_bulk(payload, recycle_bin_id=None):
     if request.method == "PUT":
         data = request.get_json(force=True)
-        recycle_bin_ids = get_recycle_bin_by_period(
-            data.get("max_delete_period"), data.get("category")
-        )
+        if data.get("recycle_bin_ids"):
+            recycle_bin_ids = data["recycle_bin_ids"]
+        else:
+            recycle_bin_ids = get_recycle_bin_by_period(
+                data.get("max_delete_period"), data.get("category")
+            )
     else:
         recycle_bin_ids = [recycle_bin_id]
 
-    tasks = {}
-    for recycle_bin_id in recycle_bin_ids:
-        ownsRecycleBinId(payload, recycle_bin_id)
-        try:
-            rb = RecycleBin(recycle_bin_id)
-            tasks = rb.delete_storage(payload["user_id"])
-        except Exception as e:
-            app.logger.error(f"Error deleting recycle bin {recycle_bin_id}: {e}")
-            continue
+    for rb_id in recycle_bin_ids:
+        rb_delete_queue.enqueue(
+            {"action": "delete", "recycle_bin_id": rb_id, "user_id": payload["user_id"]}
+        )
     return (
-        json.dumps(tasks),
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )
@@ -175,11 +187,9 @@ def recycle_bin_update_task(payload):
 def recycle_bin_empty(payload):
     rb_ids = get_user_recycle_bin_ids(payload["user_id"], "recycled")
     for rb_id in rb_ids:
-        try:
-            rb = RecycleBin(rb_id)
-            rb.delete_storage(payload["user_id"])
-        except:
-            continue
+        rb_delete_queue.enqueue(
+            {"recycle_bin_id": rb_id, "user_id": payload["user_id"]}
+        )
     return (
         json.dumps({}),
         200,
