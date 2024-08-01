@@ -694,6 +694,7 @@ $(document).ready(function() {
                                         },
                                         success: function(data) {
                                             notify(data)
+                                            $('#mactions option[value="none"]').prop("selected",true);
                                         },
                                         always: function() {
                                             $('#mactions option[value="none"]').prop("selected", true);
