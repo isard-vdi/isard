@@ -146,9 +146,10 @@ class Actions:
                 .pluck("id", "accessed")
                 .run(db.conn)
             )
-            t = int(time.time())
-            for d in domains:
-                if d["accessed"] + 1.9 * 60 < t:  # 2 minutes * 60 seconds
+        t = int(time.time())
+        for d in domains:
+            if d["accessed"] + 1.9 * 60 < t:  # 2 minutes * 60 seconds
+                with app.app_context():
                     r.table("domains").get(d["id"]).update(
                         {"status": "Stopping", "accessed": int(time.time())}
                     ).run(db.conn)
@@ -165,12 +166,10 @@ class Actions:
                 .pluck("id", "ephimeral", "history_domain")
                 .run(db.conn)
             )
-            t = int(time.time())
-            for d in domains:
-                if (
-                    d["history_domain"][0]["when"] + int(d["ephimeral"]["minutes"]) * 60
-                    < t
-                ):
+        t = int(time.time())
+        for d in domains:
+            if d["history_domain"][0]["when"] + int(d["ephimeral"]["minutes"]) * 60 < t:
+                with app.app_context():
                     r.table("domains").get(d["id"]).update(
                         {"status": d["ephimeral"]["action"]}
                     ).run(db.conn)
