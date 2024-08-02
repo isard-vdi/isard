@@ -174,13 +174,6 @@ def get_storage_domains(storage_id):
         )
 
 
-def get_domain_storage(domain_id):
-    with app.app_context():
-        r.table("domains").get(domain_id).pluck(
-            {"create_dict": {"hardware": {"disks": {"storage_id": True}}}}
-        ).eq_join().run(db.conn)
-
-
 def get_media_domains(media_ids):
     with app.app_context():
         return list(

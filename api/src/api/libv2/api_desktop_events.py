@@ -218,7 +218,7 @@ def desktop_stop(desktop_id, force=False, wait_seconds=0):
     )
 
 
-def desktops_stop(desktops_ids, force=False, wait_seconds=30):
+def desktops_stop(desktops_ids, force=False):
     if force:
         with app.app_context():
             r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
@@ -239,17 +239,6 @@ def desktops_stop(desktops_ids, force=False, wait_seconds=30):
             ).update({"status": "Shutting-down", "accessed": int(time.time())}).run(
                 db.conn
             )
-
-
-def desktops_stop_all():
-    with app.app_context():
-        r.table("domains").get_all("Shutting-down", index="status").update(
-            {"status": "Stopping", "accessed": int(time.time())}
-        ).run(db.conn)
-    with app.app_context():
-        r.table("domains").get_all("Started", index="status").update(
-            {"status": "Stopping", "accessed": int(time.time())}
-        ).run(db.conn)
 
 
 def desktop_reset(desktop_id):

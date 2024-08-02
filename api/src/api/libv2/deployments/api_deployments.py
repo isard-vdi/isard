@@ -727,7 +727,7 @@ def stop(deployment_id):
             description_code="not_found" + str(deployment_id),
         )
 
-    desktops_stop(domains_ids, force=True, wait_seconds=30)
+    desktops_stop(domains_ids, force=True)
 
 
 def visible(deployment_id, stop_started_domains=True):
@@ -764,7 +764,7 @@ def visible(deployment_id, stop_started_domains=True):
                 .get_all(deployment_id, index="tag")["id"]
                 .run(db.conn)
             )
-        desktops_stop(desktops_ids, force=True, wait_seconds=5)
+            desktops_stop(desktops_ids, force=True)
 
 
 def user_visible(id):
