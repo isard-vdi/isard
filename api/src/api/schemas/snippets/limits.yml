@@ -38,3 +38,7 @@ total_soft_size:
   type: integer
   required: true
   min: 0
+deployments_total:
+  type: integer
+  required: true
+  min: 0

@@ -523,6 +523,18 @@ def admin_logs_desktops():
     )
 
 
+@app.route("/isard-admin/admin/logs_desktops_config", methods=["GET"])
+@login_required
+@isAdmin
+def admin_logs_desktops_config():
+    return render_template(
+        "admin/pages/logs_desktops_config.html",
+        title="Logs desktops config",
+        nav="Logs desktops config",
+        monitor_host=monitor_host,
+    )
+
+
 @app.route("/isard-admin/admin/logs_users", methods=["GET"])
 @login_required
 @isAdmin
@@ -531,5 +543,17 @@ def admin_logs_users():
         "admin/pages/logs_users.html",
         title="Logs users",
         nav="Logs users",
+        monitor_host=monitor_host,
+    )
+
+
+@app.route("/isard-admin/admin/logs_users_config", methods=["GET"])
+@login_required
+@isAdmin
+def admin_logs_users_config():
+    return render_template(
+        "admin/pages/logs_users_config.html",
+        title="Logs users config",
+        nav="Logs users config",
         monitor_host=monitor_host,
     )

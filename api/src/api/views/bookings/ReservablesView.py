@@ -44,7 +44,21 @@ def api_v3_reservable_types(payload, reservable_type):
         checkDuplicate("gpus", data["name"])
         return json.dumps(api_ri.add_item(reservable_type, data)), 200
     else:
-        return json.dumps(api_ri.list_items(reservable_type)), 200
+        items = api_ri.list_items(reservable_type)
+        for item in items:
+            total_plans = api_rp.list_item_plans(item["id"])
+            profile = total_plans[0]["subitem_id"] if total_plans else None
+            profile = (
+                api_ri.get_subitem("gpus", item["id"], profile)["profile"]
+                if profile
+                else None
+            )
+            item["plans"] = {
+                "current": len(total_plans),
+                "active": profile == item["active_profile"],
+                "profile": profile,
+            }
+        return json.dumps(items), 200
 
 
 # Gets list of subitems available in this item_id (profiles) [{"id","profile","units"}]

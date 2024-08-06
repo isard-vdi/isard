@@ -502,7 +502,10 @@
                 "total-disk-size": "Tamaño de disco utilizado / Total de tamaño de disco",
                 "total-media-size": "Tamaño de medios utilizado / Total de tamaño de medios",
                 "total-size": "Tamaño utilizado / Total de tamaño",
-                "unit": "Tamaño unidad personal / Tamaño total unidad personal (MB)"
+                "unit": "Tamaño unidad personal / Tamaño total unidad personal (MB)",
+                "deployments_total": "Despliegues creados / Total de despliegues",
+                "deployment_desktops": "Maximo de escritorios por despliegue",
+                "started_deployment_desktops": "Escritorios de despliegue arrancados"
             },
             "reset-vpn": "Restaurar VPN"
         },
@@ -1311,6 +1314,11 @@
         "media_url_not_found": "No se ha encontrado la dirección proporcionada",
         "media_url_not_valid": "La dirección proporcionada no es válida",
         "media_url_bad_format": "El formato de la dirección proporcionada no es válido",
+        "deployment_new_user_quota_exceeded": "Has excedido tu cuota de creación de despliegues. Es necesario que elimines algún despliegue para poder crear más.",
+        "deployments_new_group_limit_exceeded": "Se ha excedido el límite de creación de despliegues del grupo",
+        "deployments_new_category_limit_exceeded": "Se ha excedido el límite de creación de despliegues de la categoría",
+        "deployment_desktop_new_user_quota_exceeded": "Has excedido la cuota de escritorios para este despliegue. Es necesario que reduzcas la cantidad de escritorios en ese despliegue para poder crearlo.",
+        "deployment_start_user_quota_exceeded": "Has excedido tu cuota de cuota de escritorios arrancados de despliegues. Es necesario que pares otros escritorios de despliegues para poder arrancar más.",
         "total_size_quota_exceeded": "Has excedido tu cuota de tamaño de disco. Es necesario que elimines un escritorio, una plantilla o un medio para liberar espacio.",
         "quota_general_exception": "Se ha producido un error relacionado con las cuotas de usuario",
         "desktop_new_template_forbidden": "Error de permisos creando el escritorio",
@@ -1399,7 +1407,7 @@
         "incorrect_new_plan_body_data": "Datos de nuevo plan incorrectos",
         "cant_edit_booked_deployment": "No se pueden editar los reservables un despliegue con reservas planeadas",
         "temporal_new_reservable": "No se puede crear un escritorio temporal de una plantilla con reservables",
-        "password_character_length": "La contraseña debe tener al menos {num} caracter(es) ",
+        "password_character_length": "La contraseña debe tener al menos {num} caracter(es)",
         "password_uppercase": "La contraseña debe tener al menos {num} caracter(es) en mayúscula",
         "password_lowercase": "La contraseña debe tener al menos {num} caracter(es) en minúscula",
         "password_digits": "La contraseña debe tener al menos {num} número(s)",
@@ -1416,6 +1424,7 @@
         "desktops_not_stopped": "Los escritorios asociados a este almacenamiento deben estar parados para realizar esta acción",
         "increase_desktops_not_stopped": "El escritorio asociado a este almacenamiento debe estar parado para incrementar el tamaño del disco",
         "increase_storage_has_derivatives": "El almacenamiento es de una plantilla y no se puede incrementar"
+  
     },
     "router": {
         "titles": {

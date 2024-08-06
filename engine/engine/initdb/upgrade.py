@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 140
+release_version = 141
+# release 141: Add deployment quotas
 # release 140: Add credentials to RDP VPN viewer
 # release 139: Add template index to deployments table
 # release 138: Add duplicated_parent_template index and fixed parents index in recycle_bin
@@ -3456,6 +3457,45 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 141:
+            groups_quota = list(
+                r.table(table)
+                .filter(lambda group: r.not_(group["quota"] == False))
+                .run(self.conn)
+            )
+            for group in groups_quota:
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "quota": {
+                                "deployments_total": 999,
+                                "deployment_desktops": 999,
+                                "started_deployment_desktops": 999,
+                            }
+                        },
+                    ],
+                    group["id"],
+                )
+
+            groups_limits = list(
+                r.table(table)
+                .filter(lambda group: r.not_(group["limits"] == False))
+                .run(self.conn)
+            )
+            for group in groups_limits:
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "limits": {
+                                "deployments_total": 999,
+                            }
+                        },
+                    ],
+                    group["id"],
+                )
+
         return True
 
     """
@@ -4001,6 +4041,28 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 141:
+            users_qota = list(
+                r.table(table)
+                .filter(lambda user: r.not_(user["quota"] == False))
+                .run(self.conn)
+            )
+
+            for user in users_qota:
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "quota": {
+                                "deployments_total": 999,
+                                "deployment_desktops": 999,
+                                "started_deployment_desktops": 999,
+                            }
+                        },
+                    ],
+                    user["id"],
+                )
 
         return True
 
@@ -4772,6 +4834,45 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 141:
+            categories_quota = list(
+                r.table(table)
+                .filter(lambda category: r.not_(category["quota"] == False))
+                .run(self.conn)
+            )
+            for category in categories_quota:
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "quota": {
+                                "deployments_total": 999,
+                                "deployment_desktops": 999,
+                                "started_deployment_desktops": 999,
+                            }
+                        },
+                    ],
+                    category["id"],
+                )
+
+            categories_limits = list(
+                r.table(table)
+                .filter(lambda category: r.not_(category["limits"] == False))
+                .run(self.conn)
+            )
+            for category in categories_limits:
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "limits": {
+                                "deployments_total": 999,
+                            }
+                        },
+                    ],
+                    category["id"],
+                )
 
         return True
 

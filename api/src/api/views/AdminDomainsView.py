@@ -15,7 +15,12 @@ from isardvdi_common.api_exceptions import Error
 # coding=utf-8
 from api import app
 
-from ..libv2.api_admin import ApiAdmin, admin_table_get, admin_table_update
+from ..libv2.api_admin import (
+    ApiAdmin,
+    admin_table_delete_list,
+    admin_table_get,
+    admin_table_update,
+)
 from ..libv2.api_desktop_events import templates_delete
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent, domain_template_tree
 from ..libv2.api_domains import ApiDomains
@@ -266,6 +271,56 @@ def api_v3_logs_desktops(payload, view="raw"):
         )
 
 
+@app.route(
+    "/api/v3/logs_desktops/config/old_entries/max_time/<max_time>", methods=["PUT"]
+)
+@is_admin
+def api_v3_admin_logs_desktops_config_old_entries_max_time(payload, max_time):
+    max_time = 24 if int(max_time) < 24 else int(max_time)
+    return (
+        json.dumps(admins.set_logs_desktops_old_entries_max_time(max_time)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/logs_desktops/config/old_entries/action/<action>", methods=["PUT"])
+@is_admin
+def api_v3_admin_logs_desktops_config_old_entries_action(payload, action):
+    # if action not in ["archive", "delete"]:
+    #     raise Error("bad_request", 'Action must be "archive" or "delete"')
+    if action not in ["delete", "none"]:
+        raise Error("bad_request", 'Action must be "delete" or "none"')
+    return (
+        json.dumps(admins.set_logs_desktops_old_entries_action(action)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/logs_desktops/config/old_entries", methods=["GET"])
+@is_admin
+def api_v3_admin_logs_desktops_config_old_entries(payload):
+    return (
+        json.dumps(admins.get_logs_desktops_old_entries_config()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/logs_desktops/old_entries/delete", methods=["PUT"])
+@is_admin
+def logs_desktops_old_entries_delete(payload):
+    old_logs = admins.get_older_than_old_entry_max_time("logs_desktops")
+    admin_table_delete_list("logs_desktops", old_logs)
+
+    return (
+        json.dumps(len(old_logs)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @cached(TTLCache(maxsize=10, ttl=60))
 @app.route("/api/v3/admin/logs_users", methods=["POST"])
 @app.route("/api/v3/admin/logs_users/<view>", methods=["POST"])
@@ -310,6 +365,54 @@ def api_v3_logs_users(payload, view="raw"):
 
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/logs_users/config/old_entries/max_time/<max_time>", methods=["PUT"])
+@is_admin
+def api_v3_admin_logs_users_config_old_entries_max_time(payload, max_time):
+    max_time = 24 if int(max_time) < 24 else int(max_time)
+    return (
+        json.dumps(admins.set_logs_users_old_entries_max_time(max_time)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/logs_users/config/old_entries/action/<action>", methods=["PUT"])
+@is_admin
+def api_v3_admin_logs_users_config_old_entries_action(payload, action):
+    # if action not in ["archive", "delete"]:
+    #     raise Error("bad_request", 'Action must be "archive" or "delete"')
+    if action not in ["delete", "none"]:
+        raise Error("bad_request", 'Action must be "delete" or "none"')
+    return (
+        json.dumps(admins.set_logs_users_old_entries_action(action)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/logs_users/config/old_entries", methods=["GET"])
+@is_admin
+def api_v3_admin_logs_users_config_old_entries(payload):
+    return (
+        json.dumps(admins.get_logs_users_old_entries_config()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/logs_users/old_entries/delete", methods=["PUT"])
+@is_admin
+def logs_users_old_entries_delete(payload):
+    old_logs = admins.get_older_than_old_entry_max_time("logs_users")
+    admin_table_delete_list("logs_users", old_logs)
+
+    return (
+        json.dumps(len(old_logs)),
         200,
         {"Content-Type": "application/json"},
     )

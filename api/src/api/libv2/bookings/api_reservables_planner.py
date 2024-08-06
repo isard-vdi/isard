@@ -89,29 +89,28 @@ class ReservablesPlanner:
     def list_subitem_plans(
         self, item_id, subitem_id, start=None, end=None, getUsername=None
     ):
-        if not start:
-            start = datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M%z")
         query = r.table("resource_planner").get_all(
             [item_id, subitem_id], index="item-subitem"
         )
-        if end:
-            query = query.filter(
-                r.row["start"].during(
-                    datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC),
-                    datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC),
-                )
-            )
+        if not start:
+            start = datetime.now(pytz.utc)
         else:
-            query = query.filter(
-                lambda plan: plan["start"]
-                > datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-            )
+            start = datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+        if not end:
+            end = start
+        else:
+            end = datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+
         if getUsername:
             query = query.merge(
                 lambda p: {"user_name": r.table("users").get(p["user_id"])["username"]}
             )
         with app.app_context():
-            data = list(query.run(db.conn))
+            data = list(
+                query.filter(r.row["start"] <= end)
+                .filter(r.row["end"] >= start)
+                .run(db.conn)
+            )
         ## An item/subitem planning should not overlap
         return data
 

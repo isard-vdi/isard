@@ -120,6 +120,13 @@ class Quotas:
                 .count()
                 .run(db.conn)
             )
+            user_deployments = (
+                r.table("deployments")
+                .get_all(user_id, index="user")
+                .count()
+                .run(db.conn)
+            )
+            user_deployment_desktops = 0
 
             user_total_storage_size = (
                 (
@@ -153,10 +160,17 @@ class Quotas:
             "total_size": user_total_size,
             "media_size": user_total_media_size,
             "storage_size": user_total_storage_size,
+            "deployments_total": user_deployments,
+            "deployment_desktops": user_deployment_desktops,
+            "started_deployment_desktops": self.get_started_deployment_desktops(
+                user_id
+            ),
         }
 
         if started_info:
-            started_desktops = self.get_started_desktops(user_id, "kind_user")
+            started_desktops = self.get_started_desktops(
+                user_id, "kind_user", owner_only=True
+            )
             used["running"] = started_desktops["count"]
             used["memory"] = started_desktops["memory"]
             used["vcpus"] = started_desktops["vcpus"]
@@ -566,16 +580,7 @@ class Quotas:
                 limits_error,
             )
 
-    def check_field_quotas_and_limits(
-        self,
-        user,
-        quota_key,
-        quantity,
-        quota_error,
-        group_quantity,
-        category_quantity,
-        limits_error,
-    ):
+    def check_field_quotas(self, user, quota_key, quantity, quota_error):
         # We get the user applied quota and currently used info to check the quota
         user_quota_data = self.Get(user_id=user["id"], started_info=False)
         if user_quota_data["quota"]:
@@ -584,6 +589,15 @@ class Quotas:
             )  # Sum to field to check if creating it would exceed the quota
             self.check_quota(user_quota_data, quota_key, quota_error)
 
+    def check_field_limits(
+        self,
+        user,
+        quota_key,
+        quantity,
+        group_quantity,
+        category_quantity,
+        limits_error,
+    ):
         try:
             with app.app_context():
                 group = (
@@ -622,6 +636,31 @@ class Quotas:
                 limits_error=limits_error["category"],
             )
 
+    def check_field_quotas_and_limits(
+        self,
+        user,
+        quota_key,
+        quantity,
+        quota_error,
+        group_quantity,
+        category_quantity,
+        limits_error,
+        check_quota=True,
+        check_limits=True,
+    ):
+        if check_quota:
+            self.check_field_quotas(user, quota_key, quantity, quota_error)
+
+        if check_limits:
+            self.check_field_limits(
+                user,
+                quota_key,
+                quantity,
+                group_quantity,
+                category_quantity,
+                limits_error,
+            )
+
     def check_quota(self, user, quota_key, quota_error):
         if user["used"][quota_key] > user["quota"][quota_key]:
             raise Error(
@@ -641,7 +680,88 @@ class Quotas:
                 description_code=limits_error["error_description_code"],
             )
 
-    def get_started_desktops(self, query_id, query_index):
+    def get_started_deployment_desktops(self, user_id):
+        # Status that are considered in the running quota
+        started_status = [
+            "Started",
+            "Starting",
+            "StartingPaused",
+            "CreatingAndStarting",
+            "Shutting-down",
+        ]
+
+        started_deployment_desktops = 0
+
+        with app.app_context():
+            try:
+                started_deployment_desktops += (
+                    r.table("domains")
+                    .get_all(
+                        r.args(
+                            list(
+                                r.table("deployments")
+                                .get_all(user_id, index="user")
+                                .pluck("id")["id"]
+                                .run(db.conn)
+                            )
+                        ),
+                        index="tag",
+                    )
+                    .filter(
+                        lambda desktop: r.expr(started_status).contains(
+                            desktop["status"]
+                        )
+                    )
+                    .eq_join("start_logs_id", r.table("logs_desktops"))
+                    .pluck({"right": ["starting_by"]}, "left")
+                    .zip()
+                    .filter(
+                        lambda desktop: desktop.get_field("starting_by").eq(
+                            "deployment-owner"
+                        )
+                    )
+                    .count()
+                    .run(db.conn)
+                )
+            except ReqlNonExistenceError:
+                pass
+
+            try:
+                started_deployment_desktops += (
+                    r.table("domains")
+                    .get_all(
+                        r.args(
+                            list(
+                                r.table("deployments")
+                                .get_all(user_id, index="co_owners")
+                                .pluck("id")["id"]
+                                .run(db.conn)
+                            )
+                        ),
+                        index="tag",
+                    )
+                    .filter(
+                        lambda desktop: r.expr(started_status).contains(
+                            desktop["status"]
+                        )
+                    )
+                    .eq_join("start_logs_id", r.table("logs_desktops"))
+                    .pluck({"right": ["starting_by"]}, "left")
+                    .zip()
+                    .filter(
+                        lambda desktop: desktop.get_field("starting_by").eq(
+                            "deployment-co-owner"
+                        )
+                    )
+                    .count()
+                    .run(db.conn)
+                )
+            except ReqlNonExistenceError:
+                pass
+
+        return started_deployment_desktops
+
+    def get_started_desktops(self, query_id, query_index, owner_only=False):
         # Status that are considered in the running quota
         started_status = [
             "Started",
@@ -671,6 +791,16 @@ class Quotas:
                     .filter(
                         lambda desktop: r.expr(started_status).contains(
                             desktop["status"]
+                        )
+                    )
+                    .eq_join("start_logs_id", r.table("logs_desktops"))
+                    .pluck({"right": ["starting_by"]}, "left")
+                    .zip()
+                    .filter(
+                        lambda desktop: (
+                            desktop.get_field("starting_by").eq("desktop-owner")
+                            if owner_only
+                            else True
                         )
                     )
                     .map(
@@ -978,7 +1108,327 @@ class Quotas:
 
         return desktop
 
-    def deployment_create(self, users):
+    def deployment_desktop_start(self, user_id, desktop_id):
+        with app.app_context():
+            desktop = r.table("domains").get(desktop_id).run(db.conn)
+        if not desktop:
+            raise Error("not_found", "Desktop not found")
+        elif not desktop["tag"]:
+            raise Error("precondition_required", "Desktop is not part of a deployment")
+        try:
+            with app.app_context():
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                            "role_name": r.table("roles").get(d["role"])["name"],
+                        }
+                    )
+                    .pluck(
+                        "id",
+                        "name",
+                        "category",
+                        "group",
+                        "role",
+                        "quota",
+                        "category_name",
+                        "group_name",
+                        "role_name",
+                    )
+                    .run(db.conn)
+                )
+                if user["role"] == "admin":
+                    return desktop
+        except:
+            raise Error("not_found", "User not found")
+
+        self.check_field_quotas(
+            user,
+            "started_deployment_desktops",
+            1,
+            {
+                "error_description": user["name"]
+                + " quota exceeded for starting deployment desktops",
+                "error_description_code": "deployment_start_user_quota_exceeded",
+            },
+        )
+
+        ## Limits
+        user_quota_data = self.Get(user_id=user["id"], started_info=True)
+
+        # Group limits
+        try:
+            with app.app_context():
+                group = (
+                    r.table("groups")
+                    .get(user["group"])
+                    .pluck("name", "quota", "limits")
+                    .run(db.conn)
+                )
+        except:
+            raise Error("not_found", "Group not found")
+
+        if group["limits"]:
+            started_desktops = self.get_started_desktops(user["group"], "kind_group")
+            desktops = {
+                "running": started_desktops["count"] + 1,  # Add the current desktop
+                "vcpus": started_desktops["vcpus"]
+                + desktop["create_dict"]["hardware"]["vcpus"],
+                "memory": started_desktops["memory"]
+                + desktop["create_dict"]["hardware"]["memory"] / 1048576,
+            }
+            # Check running limits
+            self.check_limits(
+                item=group,
+                quota_key="running",
+                quantity=desktops["running"],
+                limits_error={
+                    "error_description": user["group_name"]
+                    + " group limits exceeded for starting desktop",
+                    "error_description_code": "desktop_start_group_limit_exceeded",
+                },
+            )
+            # Check memory limits
+            self.check_limits(
+                item=group,
+                quota_key="memory",
+                quantity=desktops["memory"],
+                limits_error={
+                    "error_description": user["group_name"]
+                    + " group memory limits exceeded for starting desktop",
+                    "error_description_code": "desktop_start_group_memory_limit_exceeded",
+                },
+            )
+            # Check vcpus limits
+            self.check_limits(
+                item=group,
+                quota_key="vcpus",
+                quantity=desktops["vcpus"],
+                limits_error={
+                    "error_description": user["group_name"]
+                    + " group vcpu limits exceeded for starting desktop",
+                    "error_description_code": "desktop_start_group_vcpu_limit_exceeded",
+                },
+            )
+
+            # Get the group used disk size
+            total_size = (
+                r.table("users")
+                .get_all(user["group"], index="group")
+                .eq_join(
+                    [r.row["id"], "ready"], r.table("storage"), index="user_status"
+                )
+                .sum(
+                    lambda right: right["right"]["qemu-img-info"][
+                        "actual-size"
+                    ].default(0)
+                )
+                .run(db.conn)
+            )
+            total_media_size = (
+                r.table("media")
+                .get_all(user["group"], index="group")
+                .sum(lambda size: size["progress"]["total_bytes"].default(0))
+                .run(db.conn)
+            )
+            # Add 1GB to the desktop and parsing to GB to check if starting it would exceed the group quota
+            user_quota_data["used"]["total_size"] = (
+                total_size + total_media_size
+            ) / 1073741824 + 1
+
+            self.check_limits(
+                item=group,
+                quota_key="total_size",
+                quantity=user_quota_data["used"]["total_size"],
+                limits_error={
+                    "error_description": user["group_name"]
+                    + " group disk size limits exceeded for starting desktop",
+                    "error_description_code": "group_total_size_limit_exceeded",
+                },
+            )
+
+        # Category limits
+        try:
+            with app.app_context():
+                category = (
+                    r.table("categories")
+                    .get(user["category"])
+                    .pluck("name", "quota", "limits")
+                    .run(db.conn)
+                )
+        except:
+            raise Error("not_found", "Category not found")
+
+        # Category limit
+        if not category["limits"]:
+            return desktop
+
+        started_desktops = self.get_started_desktops(user["category"], "kind_category")
+        desktops = {
+            "running": started_desktops["count"] + 1,  # Add the current desktop
+            "vcpus": started_desktops["vcpus"]
+            + desktop["create_dict"]["hardware"]["vcpus"],
+            "memory": started_desktops["memory"]
+            + desktop["create_dict"]["hardware"]["memory"] / 1048576,
+        }
+        # Check running limits
+        self.check_limits(
+            item=category,
+            quota_key="running",
+            quantity=desktops["running"],
+            limits_error={
+                "error_description": user["category_name"]
+                + " category limits exceeded for starting desktop",
+                "error_description_code": "desktop_start_category_limit_exceeded",
+            },
+        )
+        # Check memory limits
+        self.check_limits(
+            item=category,
+            quota_key="memory",
+            quantity=desktops["memory"],
+            limits_error={
+                "error_description": user["category_name"]
+                + " category memory limits exceeded for starting desktop",
+                "error_description_code": "desktop_start_category_memory_limit_exceeded",
+            },
+        )
+        # Check vcpus limits
+        self.check_limits(
+            item=category,
+            quota_key="vcpus",
+            quantity=desktops["vcpus"],
+            limits_error={
+                "error_description": user["category_name"]
+                + " group vcpu limits exceeded for starting desktop",
+                "error_description_code": "desktop_start_category_vcpu_limit_exceeded",
+            },
+        )
+
+        # Get the category used disk size
+        total_size = (
+            r.table("users")
+            .get_all(user["category"], index="category")
+            .eq_join([r.row["id"], "ready"], r.table("storage"), index="user_status")
+            .sum(
+                lambda right: right["right"]["qemu-img-info"]["actual-size"].default(0)
+            )
+            .run(db.conn)
+        )
+        total_media_size = (
+            r.table("media")
+            .get_all(user["category"], index="category")
+            .sum(lambda size: size["progress"]["total_bytes"].default(0))
+            .run(db.conn)
+        )
+        # Add 1GB to the desktop and parsing to GB to check if starting it would exceed the category quota
+        user_quota_data["used"]["total_size"] = (
+            total_size + total_media_size
+        ) / 1073741824 + 1
+
+        self.check_limits(
+            item=category,
+            quota_key="total_size",
+            quantity=user_quota_data["used"]["total_size"],
+            limits_error={
+                "error_description": user["category_name"]
+                + " category disk size limits exceeded for starting desktop",
+                "error_description_code": "category_total_size_limit_exceeded",
+            },
+        )
+
+        return desktop
+
+    def deployment_create(self, users, owner_id):
+        try:
+            with app.app_context():
+                user = (
+                    r.table("users")
+                    .get(owner_id)
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                            "role_name": r.table("roles").get(d["role"])["name"],
+                        }
+                    )
+                    .pluck(
+                        "id",
+                        "name",
+                        "category",
+                        "group",
+                        "quota",
+                        "category_name",
+                        "group_name",
+                        "role_name",
+                    )
+                    .run(db.conn)
+                )
+        except:
+            raise Error("not_found", "User not found")
+
+        with app.app_context():
+            group_quantity = (
+                r.table("deployments")
+                .eq_join("user", r.table("users"))
+                .filter({"right": {"group": user["group"]}})
+                .count()
+                .run(db.conn)
+            )
+            category_quantity = (
+                r.table("deployments")
+                .eq_join("user", r.table("users"))
+                .filter({"right": {"category": user["category"]}})
+                .count()
+                .run(db.conn)
+            )
+        quota_error = {
+            "error_description": user["name"]
+            + " quota exceeded for creating new deployments",
+            "error_description_code": "deployment_new_user_quota_exceeded",
+        }
+        limits_error = {
+            "group": {
+                "error_description": user["group_name"]
+                + " group limits exceeded for creating new deployments",
+                "error_description_code": "deployments_new_group_limit_exceeded",
+            },
+            "category": {
+                "error_description": user["name"]
+                + " category limits exceeded for creating new deployments",
+                "error_description_code": "deployments_new_category_limit_exceeded",
+            },
+        }
+        self.check_field_quotas_and_limits(
+            user,
+            "deployments_total",
+            1,
+            quota_error,
+            group_quantity,
+            category_quantity,
+            limits_error,
+        )
+
+        # Check the amount of desktops in the deployment
+        quota_error = {
+            "error_description": user["name"]
+            + " quota exceeded for desktops in deployment",
+            "error_description_code": "deployment_desktop_new_user_quota_exceeded",
+        }
+        self.check_field_quotas(
+            user,
+            "deployment_desktops",
+            len(users),
+            quota_error,
+        )
+
         # Group the users considering its groups and categories
         groups_users = {}
         categories_users = {}
@@ -1052,6 +1502,49 @@ class Quotas:
                         description_code="deployment_desktop_new_category_limit_exceeded",
                         params={"category": category["name"]},
                     )
+
+    def deployment_update(self, users, owner_id):
+        try:
+            with app.app_context():
+                user = (
+                    r.table("users")
+                    .get(owner_id)
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                            "role_name": r.table("roles").get(d["role"])["name"],
+                        }
+                    )
+                    .pluck(
+                        "id",
+                        "name",
+                        "category",
+                        "group",
+                        "quota",
+                        "category_name",
+                        "group_name",
+                        "role_name",
+                    )
+                    .run(db.conn)
+                )
+        except:
+            raise Error("not_found", "User not found")
+
+        # Check the amount of desktops in the deployment
+        quota_error = {
+            "error_description": user["name"]
+            + " quota exceeded for desktops in deployment",
+            "error_description_code": "deployment_desktop_new_user_quota_exceeded",
+        }
+        self.check_field_quotas(
+            user,
+            "deployment_desktops",
+            len(users),
+            quota_error,
+        )
 
     def get_hardware_allowed(self, payload, domain_id=None):
         return self.user_hardware_allowed(payload, kind=None, domain_id=domain_id)

@@ -501,7 +501,13 @@
                 "total-disk-size": "Used disk size / Total disk size",
                 "total-media-size": "Used media size / Total media size",
                 "total-size": "Used size / Total size (GB)",
-                "unit": "Personal unit size / Total unit size (MB)"
+                "unit": "Personal unit size / Total unit size (MB)",
+                "deployments_total": "Created deployments / Total deployments",
+                "deployment_desktops": "Max desktops per deployment",
+                "started_deployment_desktops": {
+                    "title": "Running deployment desktops / Total running deployment desktops", 
+                    "description": "Ammount of desktops running started by the owner of a deployment"
+                }
             },
             "reset-vpn": "Reset VPN"
         },
@@ -1294,6 +1300,11 @@
         "media_url_not_found": "The given url could not be found",
         "media_url_not_valid": "The given url is not valid",
         "media_url_bad_format": "The format of the given url is not valid",
+        "deployment_new_user_quota_exceeded": "You've exceeded your deployment creation quota. You must delete a deployment in order to create a new one.",
+        "deployments_new_group_limit_exceeded": "Group deployment creation limit has been exceeded",
+        "deployments_new_category_limit_exceeded": "Category deployment creation limit has been exceeded",
+        "deployment_desktop_new_user_quota_exceeded": "You've exceeded your desktops quota for this deployment. You must reduce the amount of desktops from this deployment in order to create it.",
+        "deployment_start_user_quota_exceeded": "You've exceeded your started desktops from deployments quota. You must stop a desktop from a deployment in order to start another one.",
         "group_total_size_limit_exceeded": "Group media storage size limit has been exceeded",
         "category_total_size_limit_exceeded": "Category media storage size limit has been exceeded",
         "total_size_quota_exceeded": "You've exceeded your storage size quota. You must remove a desktop, a template or a media to free disk space.",

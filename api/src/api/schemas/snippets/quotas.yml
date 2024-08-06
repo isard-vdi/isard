@@ -38,3 +38,15 @@ total_soft_size:
   type: integer
   required: true
   min: 0
+deployments_total:
+  type: integer
+  required: true
+  min: 0
+deployment_desktops:
+  type: integer
+  required: true
+  min: 0
+started_deployment_desktops:
+  type: integer
+  required: true
+  min: 0

@@ -20,5 +20,14 @@ if not user:
 if len(user) > 1:
     print("Multiple users found.")
     exit(1)
-r.db("isard").table("users").get(UID).update({"password": enc_pwd}).run()
-print("Password updated successfully.")
+result = (
+    r.db("isard")
+    .table("users")
+    .get(user[0].get("id"))
+    .update({"password": enc_pwd})
+    .run()
+)
+if result.get("replaced") == 1:
+    print("Password updated successfully.")
+else:
+    print(f"Error: {result}")

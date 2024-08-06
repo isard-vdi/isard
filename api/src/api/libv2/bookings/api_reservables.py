@@ -108,8 +108,48 @@ class Reservables:
 
 class ResourceItemsGpus:
     def list_items(self):
+        query = r.table("gpus").merge(
+            lambda gpu: r.branch(
+                gpu["physical_device"].eq(None),
+                {"active_profile": None, "changing_to_profile": None},
+                r.table("vgpus")
+                .get(gpu["physical_device"])
+                .pluck("vgpu_profile", "changing_to_profile")
+                .do(
+                    lambda vgpu: {
+                        "active_profile": vgpu["vgpu_profile"],
+                        "changing_to_profile": vgpu["changing_to_profile"],
+                        "desktops_started": r.table("vgpus")
+                        .filter(lambda row: row["id"] == gpu["physical_device"])
+                        .concat_map(lambda row: row["mdevs"].values())
+                        .concat_map(lambda mdev_group: mdev_group.values())
+                        .filter(lambda mdev: mdev["domain_started"] != False)
+                        .map(lambda mdev: mdev["domain_started"])
+                        .default([])
+                        .coerce_to("array"),
+                    }
+                ),
+            )
+        )
         with app.app_context():
-            return list(r.table("gpus").run(db.conn))
+            items = list(query.run(db.conn))
+        for item in items:
+            if item.get("active_profile"):
+                available_units = list(
+                    r.table("gpu_profiles")
+                    .get_all(
+                        [item["brand"], item["model"]],
+                        index="brand-model",
+                    )
+                    .concat_map(lambda doc: doc["profiles"])
+                    .filter(lambda p: p["profile"] == item["active_profile"])
+                    .run(db.conn)
+                )[0]
+                item["available_units"] = available_units["units"]
+                item["active_profile"] = self.get_subitem(
+                    item["id"], available_units["id"]
+                )["profile"]
+        return list(items)
 
     def add_item(self, data):
         with app.app_context():
@@ -350,8 +390,8 @@ class ResourceItemsGpus:
                         index="brand-model",
                     )
                     .run(db.conn)
-                )[0]["profiles"]
-            subitem = [s for s in subitems if s["id"] == subitem_id][0]
+                )[0].get("profiles")
+            subitem = [s for s in subitems if s.get("id") == subitem_id][0]
         except:
             log.debug(traceback.format_exc())
             raise Error(

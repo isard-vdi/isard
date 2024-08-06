@@ -54,6 +54,8 @@ def action_owner_deploy(action_owner, item_owner, tag=None, direct_viewer=False)
         return "desktop-directviewer", None
     if not action_owner:
         return "isard-engine", None
+    if action_owner == item_owner:
+        return "desktop-owner", action_owner
     if tag:
         with app.app_context():
             try:
@@ -61,7 +63,7 @@ def action_owner_deploy(action_owner, item_owner, tag=None, direct_viewer=False)
                     r.table("deployments")
                     .get(tag)
                     .default({"user": None, "name": ""})
-                    .pluck("user", "name")
+                    .pluck("user", "name", "co_owners")
                     .run(db.conn)
                 )
             except:
@@ -70,8 +72,8 @@ def action_owner_deploy(action_owner, item_owner, tag=None, direct_viewer=False)
                 return None, None
         if deploy["user"] == action_owner:
             return "deployment-owner", deploy["name"]
-    if str(action_owner) == str(item_owner):
-        return "desktop-owner", action_owner
+        elif action_owner in deploy["co_owners"]:
+            return "deployment-co-owner", deploy["name"]
     return "system-admins", action_owner
 
 
@@ -118,7 +120,7 @@ def _logs_domain_start(
     server_hyp_started=False,
 ):
     # Who can start a desktop:
-    # - User: desktop-owner|deployment-owner|system-admins
+    # - User: desktop-owner|deployment-owner|deployment-co-owner|system-admins
     # - Desktop direct viewer access: desktop-directviewer
     start_logs_id = str(uuid4())
     try:

@@ -301,3 +301,61 @@ def add_recyclebin_old_entries(payload, action):
             200,
             {"Content-Type": "application/json"},
         )
+
+
+@app.route("/scheduler/logs_desktops/old_entries/<action>", methods=["PUT"])
+@is_admin
+def add_logs_desktops_entries(payload, action):
+    # if action not in ["archive", "delete"]:
+    #     raise Error("bad_request", 'Action must be "archive" or "delete"')
+    if action not in ["delete", "none"]:
+        raise Error("bad_request", 'Action must be "delete"')
+    # app.scheduler.remove_job(f"logs_desktops_old_entries_action_archive")
+    app.scheduler.remove_job(f"logs_desktops_old_entries_action_delete")
+    if action == "none":
+        return (json.dumps({}), 200, {"Content-Type": "application/json"})
+    else:
+        return (
+            json.dumps(
+                app.scheduler.add_job(
+                    "system",
+                    "cron",
+                    f"logs_desktops_old_entries_action_{action}",
+                    "00",
+                    "30",
+                    f"logs_desktops_old_entries_action_{action}",
+                    kwargs={},
+                )
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )
+
+
+@app.route("/scheduler/logs_users/old_entries/<action>", methods=["PUT"])
+@is_admin
+def add_logs_users_entries(payload, action):
+    # if action not in ["archive", "delete"]:
+    #     raise Error("bad_request", 'Action must be "archive" or "delete"')
+    if action not in ["delete", "none"]:
+        raise Error("bad_request", 'Action must be "delete"')
+    # app.scheduler.remove_job(f"logs_users_old_entries_action_archive")
+    app.scheduler.remove_job(f"logs_users_old_entries_action_delete")
+    if action == "none":
+        return (json.dumps({}), 200, {"Content-Type": "application/json"})
+    else:
+        return (
+            json.dumps(
+                app.scheduler.add_job(
+                    "system",
+                    "cron",
+                    f"logs_users_old_entries_action_{action}",
+                    "00",
+                    "30",
+                    f"logs_users_old_entries_action_{action}",
+                    kwargs={},
+                )
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )

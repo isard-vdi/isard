@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -390,6 +391,23 @@ def admin_table_delete(table, item_id):
                 "Item " + str(item_id) + " not found",
                 description_code="not_found",
             )
+
+
+def admin_table_delete_list(table, ids_list, batch_size=50000):
+    _validate_table(table)
+    with app.app_context():
+        for i in range(0, len(ids_list), batch_size):
+            batch_ids = ids_list[i : i + batch_size]
+            if not _check(
+                r.table(table).get_all(r.args(batch_ids)).delete().run(db.conn),
+                "deleted",
+            ):
+                raise Error(
+                    "internal_server",
+                    "Internal server error",
+                    traceback.format_exc(),
+                    description_code="generic_error",
+                )
 
 
 ## CHANGE ITEMS OWNER
@@ -970,7 +988,11 @@ class ApiAdmin:
                         "expanded": True,
                         "unselectable": False if user["id"] == d["user"] else True,
                         "selected": True if user["id"] == d["user"] else False,
-                        "parent": d["parents"][-1],
+                        "parent": (
+                            d["parents"][-1]
+                            if d.get("parents")
+                            else d["duplicate_parent_template"]
+                        ),
                         "user": d["username"],
                         "category": d["category_name"],
                         "group": d["group_name"],
@@ -1223,6 +1245,136 @@ class ApiAdmin:
         with app.app_context():
             result = query.distinct().run(db.conn)
         return result
+
+    def set_logs_desktops_old_entries_max_time(self, max_time):
+        with app.app_context():
+            r.table("config").update(
+                {"logs_desktops": {"old_entries": {"max_time": max_time}}}
+            ).run(db.conn)
+
+    def set_logs_desktops_old_entries_action(self, action):
+        with app.app_context():
+            if action == "none":
+                r.table("config").replace(
+                    r.row.without({"logs_desktops": "old_entries"})
+                ).run(db.conn)
+            else:
+                r.table("config").update(
+                    {"logs_desktops": {"old_entries": {"action": action}}}
+                ).run(db.conn)
+
+    def get_logs_desktops_old_entries_config(self):
+        with app.app_context():
+            try:
+                return r.table("config")[0]["logs_desktops"]["old_entries"].run(db.conn)
+            except r.ReqlNonExistenceError:
+                return {"max_time": None, "action": None}
+
+    def set_logs_users_old_entries_max_time(self, max_time):
+        with app.app_context():
+            r.table("config").update(
+                {"logs_users": {"old_entries": {"max_time": max_time}}}
+            ).run(db.conn)
+
+    def set_logs_users_old_entries_action(self, action):
+        with app.app_context():
+            if action == "none":
+                r.table("config").replace(
+                    r.row.without({"logs_users": "old_entries"})
+                ).run(db.conn)
+            else:
+                r.table("config").update(
+                    {"logs_users": {"old_entries": {"action": action}}}
+                ).run(db.conn)
+
+    def get_logs_users_old_entries_config(self):
+        with app.app_context():
+            try:
+                return r.table("config")[0]["logs_users"]["old_entries"].run(db.conn)
+            except r.ReqlNonExistenceError:
+                return {"max_time": None, "action": None}
+
+    def get_older_than_old_entry_max_time(self, table):
+        if table == "logs_desktops":
+            max_time_config = self.get_logs_desktops_old_entries_config()["max_time"]
+        elif table == "logs_users":
+            max_time_config = self.get_logs_users_old_entries_config()["max_time"]
+        else:
+            raise Error(
+                "forbidden",
+                "Table not allowed to delete old entries",
+                traceback.format_exc(),
+            )
+
+        if max_time_config is None:
+            raise Error(
+                "precondition_required",
+                "Max time is not set",
+                traceback.format_exc(),
+            )
+
+        max_time_hours = int(max_time_config)
+
+        query = r.table(table)
+
+        if table == "logs_desktops":
+            query = query.filter(
+                (
+                    (r.row.has_fields("stopped_time"))
+                    & (
+                        r.row["stopped_time"]
+                        < r.now().sub(r.expr(max_time_hours * 3600))
+                    )
+                )
+                | (
+                    (r.row.has_fields("stopping_time"))
+                    & (
+                        r.row["stopping_time"]
+                        < r.now().sub(r.expr(max_time_hours * 3600))
+                    )
+                )
+                | (
+                    (r.row.has_fields("started_time"))
+                    & (
+                        r.row["started_time"]
+                        < r.now().sub(r.expr(max_time_hours * 3600))
+                    )
+                )
+                | (
+                    (r.row.has_fields("starting_time"))
+                    & (
+                        r.row["starting_time"]
+                        < r.now().sub(r.expr(max_time_hours * 3600))
+                    )
+                )
+            )
+        elif table == "logs_users":
+            query = query.filter(
+                (
+                    (r.row.has_fields("stopped_time"))
+                    & (
+                        r.row["stopped_time"]
+                        < r.now().sub(r.expr(max_time_hours * 3600))
+                    )
+                )
+                | (
+                    (r.row.has_fields("started_time"))
+                    & (
+                        r.row["started_time"]
+                        < r.now().sub(r.expr(max_time_hours * 3600))
+                    )
+                )
+            )
+
+        query = query.pluck("id")["id"]
+
+        with app.app_context():
+            return list(query.run(db.conn))
+
+
+def prrint(*args):
+    print(args)
+    return args
 
 
 def admin_table_update_book(table, id, data):

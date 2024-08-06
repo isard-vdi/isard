@@ -7,7 +7,7 @@
         <div class="x_panel">
             <div class="page-title">
                 <div class="title_left" style="width:100%">
-                    <h3><i class="fa fa-gears"></i> Recycle Bin config <small></small></h3>
+                    <h3><i class="fa fa-gears"></i> Logs Users config <small></small></h3>
                 </div>
                 <div class="clearfix"></div>
             </div>
@@ -21,20 +21,15 @@
     <div class="col-md-6 col-sm-12 col-xs-12">
         <div class="x_panel">
             <div class="x_title">
-                <h3><i class="fa fa-archive"></i> Old entries </h3><br>
+                <h3><i class="fa fa-archive"></i> Old logs</h3><br>
                 <div class="clearfix"></div>
             </div>
             <div class="x_content">
-
                 <label class="control-label col-md-6 col-sm-6 col-xs-12 pull-left" for="maxtime">
-                    <h4><b>After the deleted entry has remained for:</b></h4>
+                    <h4><b>After the log has remained for:</b></h4>
                 </label>
                 <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
                     <select class="form-control" id="maxtime" name="maxtime">
-                        <option value="0">5 minutes</option>
-                        <option value="1">1 hour</option>
-                        <option value="6">6 hours</option>
-                        <option value="12">12 hours</option>
                         <option value="24">1 day</option>
                         <option value="48">2 days</option>
                         <option value="120">5 days</option>
@@ -69,54 +64,10 @@
             </div>
         </div>
     </div>
-
-    <div class="col-md-6 col-sm-12 col-xs-12">
-        <div class="x_panel">
-            <div class="x_title">
-                <h3><i class="fa fa-times"></i> Enable Recycle Bin by default </h3><br>
-                <div class="clearfix"></div>
-            </div>
-            <div class="x_content">
-                <h4><b> By default send items to recycle bin instead of deleting them permanently</b></h4>
-
-                <span id="default-delete_wrapper" class="x_panel">
-                    <input id="default-delete-checkbox" type="checkbox">
-                    <label for="default-delete-checkbox">Send to recycle bin by default</label>
-                </span>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-6 col-sm-12 col-xs-12">
-        <div class="x_panel">
-            <div class="x_title">
-                <h3><i class="fa fa-folder"></i> Actions after deleting storage </h3><br>
-                <div class="clearfix"></div>
-            </div>
-            <div class="x_content">
-                <h4><b> After the storage is automatically deleted from the recycle bin:</b></h4>
-
-                <span id="default-action_wrapper" class="x_panel">
-                    <div class="row">
-                        <div class="col-md-6 col-xs-12">
-                            <input id="delete-action-radio" type="radio" name="deleted-action" value="delete">
-                            <label for="delete-action-radio">Delete disk files permanently</label>
-                        </div>
-                        <div class="col-md-6 col-xs-12">
-                            <input id="move-action-radio" type="radio" name="deleted-action" value="move">
-                            <label for="move-action-radio">Keep files as a back up in a subfolder</label>
-                        </div>
-                    </div>
-                </span>
-            </div>
-        </div>
-    </div>
 </div>
 
 {% endblock %}
 
 {% block pagescript %}
-<script src="/isard-admin/static/admin/js/recycle_bin_config.js"></script>
+<script src="/isard-admin/static/admin/js/logs_users_config.js"></script>
 {% endblock %}

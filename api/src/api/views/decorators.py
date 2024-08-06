@@ -494,6 +494,29 @@ def ownsDeploymentId(payload, deployment_id, check_co_owners=True):
     )
 
 
+def ownsDeploymentDesktopId(payload, desktop_id, check_co_owners=True):
+    try:
+        with app.app_context():
+            desktop = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck("user", "category", "tag")
+                .run(db.conn)
+            )
+    except:
+        raise Error(
+            "not_found", "Desktop not found", traceback.format_exc(), "not_found"
+        )
+
+    if payload.get("role_id", "user") != "user" and desktop.get("tag"):
+        try:
+            ownsDeploymentId(payload, desktop["tag"], check_co_owners=check_co_owners)
+        except:
+            return False
+        return True
+    return False
+
+
 def ownsStorageId(payload, storage_id):
     if payload["role_id"] == "admin":
         return True

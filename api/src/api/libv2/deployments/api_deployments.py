@@ -301,7 +301,7 @@ def new(
     }
 
     users = get_selected_users(payload, selected, desktop_name, False, True)
-    quotas.deployment_create(users)
+    quotas.deployment_create(users, payload["user_id"])
 
     """Create deployment"""
     with app.app_context():
@@ -340,7 +340,8 @@ def get_selected_users(
     payload,
     selected,
     desktop_name,
-    existing_desktops_error,
+    deployment_id=None,
+    existing_desktops_error=False,
     include_existing_desktops=False,
 ):
     """Check who has to be created"""
@@ -396,7 +397,7 @@ def get_selected_users(
                 for u in list(
                     r.table("domains")
                     .get_all(r.args(users_ids), index="user")
-                    .filter({"name": desktop_name})
+                    .filter({"name": desktop_name, "tag": deployment_id})
                     .pluck("id", "user", "username")
                     .run(db.conn)
                 )
@@ -472,7 +473,11 @@ def edit_deployment_users(payload, deployment_id, allowed):
         True,
     )
     new_users = get_selected_users(
-        payload, allowed, deployment.get("create_dict").get("name"), False, True
+        payload,
+        allowed,
+        deployment.get("create_dict").get("name"),
+        existing_desktops_error=False,
+        include_existing_desktops=True,
     )
 
     desktops_ids = []
@@ -508,7 +513,11 @@ def edit_deployment(payload, deployment_id, data):
     data["hardware"]["memory"] = data["hardware"]["memory"] * 1048576
     deployment_booking = _parse_deployment_booking(deployment)
     get_selected_users(
-        payload, deployment["create_dict"].get("allowed"), data.get("name"), False, True
+        payload,
+        deployment["create_dict"].get("allowed"),
+        data.get("name"),
+        existing_desktops_error=False,
+        include_existing_desktops=True,
     )
     if data.get("reservables") != deployment["create_dict"].get(
         "reservables"
@@ -635,8 +644,9 @@ def recreate(payload, deployment_id):
         payload,
         deployment["create_dict"]["allowed"],
         deployment["create_dict"]["name"],
-        False,
-        True,
+        deployment["id"],
+        existing_desktops_error=False,
+        include_existing_desktops=False,
     )
 
     """Create desktops for each user found"""
