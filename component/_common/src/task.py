@@ -273,27 +273,11 @@ class Task(RedisBase):
             todo += timeout
         return done / todo
 
-    @property
-    def last_activity(self):
-        times = []
-        for task in self._chain:
-            if task.job_status == JobStatus.CANCELED:
-                times.append(task.job.enqueued_at)
-            else:
-                times.append(task.job.ended_at)
-        return max(times)
-
     def cancel(self):
         """Cancel this Task and the dependencies of this Task."""
         for dependency in self.dependencies:
             dependency.cancel()
         self.job.cancel(enqueue_dependents=True)
-
-    def delete(self):
-        """Delete this Task and the dependencies of this Task."""
-        for dependency in self.dependencies:
-            dependency.delete()
-        self.job.delete(delete_dependents=True)
 
     def to_dict(self, filter=None):
         """
@@ -376,25 +360,3 @@ class Task(RedisBase):
         :rtype: list
         """
         return [task for task in cls.get_all() if task.user_id == user_id]
-
-    @classmethod
-    def delete_before_time(cls, expiration_utc_time):
-        """
-        Delete tasks that last acctivity was before specified UTC time.
-
-        :param expiration_utc_time: UTC time before it the tasks should be deleted
-        :type expiration_utc_time: datetime.datetime
-        """
-        for queue in Queue.all(connection=cls._redis):
-            for status in [JobStatus.CANCELED, JobStatus.FAILED, JobStatus.FINISHED]:
-                registry = getattr(queue, f"{status.value}_job_registry")
-                for job_id in registry.get_job_ids():
-                    if cls.exists(job_id):
-                        task = cls(id=job_id)
-                        if (
-                            task.status == status
-                            and task.last_activity <= expiration_utc_time
-                        ):
-                            task.delete()
-                    else:
-                        registry.remove(job_id)
