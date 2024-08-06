@@ -27,6 +27,7 @@ from datetime import datetime, timedelta
 import bcrypt
 import pytz
 from cachetools import TTLCache, cached
+from cachetools.keys import hashkey
 from isardvdi_common.api_exceptions import Error
 
 from api import app
@@ -98,7 +99,7 @@ def get_group(group_id):
         return r.table("groups").get(group_id).run(db.conn)
 
 
-@cached(cache=TTLCache(maxsize=100, ttl=10))
+@cached(cache=TTLCache(maxsize=100, ttl=10), key=lambda groups: hashkey(str(groups)))
 def get_secondary_groups_data(secondary_groups):
     with app.app_context():
         return (

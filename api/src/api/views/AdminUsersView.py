@@ -38,7 +38,13 @@ from ..libv2.api_admin import (
     admin_table_update,
 )
 from ..libv2.api_allowed import ApiAllowed
-from ..libv2.api_users import ApiUsers, Password, get_user, user_exists
+from ..libv2.api_users import (
+    ApiUsers,
+    Password,
+    get_user,
+    get_user_full_data,
+    user_exists,
+)
 from ..libv2.quotas import Quotas
 from ..libv2.quotas_process import QuotasProcess
 from ..libv2.users import *
