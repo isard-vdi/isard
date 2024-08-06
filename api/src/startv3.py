@@ -14,6 +14,7 @@ from api.libv2 import (
 )
 from api.libv2.bookings import api_socketio_bookings, api_socketio_plannings
 from api.libv2.maintenance import Maintenance
+from api.libv2.recycle_bin import RecycleBinDeleteQueue
 
 from api import app, socketio
 

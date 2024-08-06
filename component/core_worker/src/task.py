@@ -43,7 +43,7 @@ def user_info(user_id):
     :rtype: dict
     """
     try:
-        return ApiRest().get(f"/admin/user/{user_id}")
+        return ApiRest().get(f"/admin/user/{user_id}/exists")
     except HTTPError as http_err:
         if http_err.response.status_code == 404:
             return None

@@ -75,21 +75,72 @@ from .helpers import (
 )
 
 
-@cached(cache=TTLCache(maxsize=100, ttl=60))
+@cached(cache=TTLCache(maxsize=300, ttl=10))
+def user_exists(user_id):
+    with app.app_context():
+        return (
+            r.table("users")
+            .get(user_id)
+            .pluck("id", "username", "name", "category", "group", "active")
+            .run(db.conn)
+        )
+
+
+@cached(cache=TTLCache(maxsize=100, ttl=10))
 def get_user(user_id):
     with app.app_context():
         return r.table("users").get(user_id).without("password").run(db.conn)
 
 
-def check_category_domain(category_id, domain):
+@cached(cache=TTLCache(maxsize=100, ttl=10))
+def get_group(group_id):
     with app.app_context():
-        allowed_domain = (
-            r.table("categories")
-            .get(category_id)
-            .pluck("allowed_domain")
+        return r.table("groups").get(group_id).run(db.conn)
+
+
+@cached(cache=TTLCache(maxsize=100, ttl=10))
+def get_secondary_groups_data(secondary_groups):
+    with app.app_context():
+        return (
+            r.table("groups")
+            .get_all(r.args(secondary_groups))
+            .pluck("id", "name")
+            .coerce_to("array")
             .run(db.conn)
-            .get("allowed_domain")
         )
+
+
+@cached(cache=TTLCache(maxsize=100, ttl=10))
+def get_category(category_id):
+    with app.app_context():
+        return r.table("categories").get(category_id).run(db.conn)
+
+
+@cached(cache=TTLCache(maxsize=100, ttl=10))
+def get_role(role_id):
+    with app.app_context():
+        return r.table("roles").get(role_id).run(db.conn)
+
+
+def get_user_full_data(user_id):
+    try:
+        user = get_user(user_id)
+        user["category_name"] = get_category(user["category"])["name"]
+        user["group_name"] = get_group(user["group"])["name"]
+        user["secondary_groups_data"] = get_secondary_groups_data(
+            user["secondary_groups"]
+        )
+    except:
+        raise Error(
+            "not_found",
+            "Not found user_id " + user_id,
+            traceback.format_exc(),
+        )
+    return user
+
+
+def check_category_domain(category_id, domain):
+    allowed_domain = get_category(category_id).get("allowed_domain")
     allowed = not allowed_domain or domain == allowed_domain
     if not allowed:
         raise Error(
@@ -204,61 +255,19 @@ class ApiUsers:
         }
 
     def Get(self, user_id, get_quota=False):
-        with app.app_context():
-            try:
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .merge(
-                        lambda d: {
-                            "category_name": r.table("categories").get(d["category"])[
-                                "name"
-                            ],
-                            "group_name": r.table("groups").get(d["group"])["name"],
-                            "role_name": r.table("roles").get(d["role"])["name"],
-                        }
-                    )
-                    .without("password")
-                    .run(db.conn)
-                )
-            except:
-                raise Error(
-                    "not_found",
-                    "Not found user_id " + user_id,
-                    traceback.format_exc(),
-                )
+        try:
+            user = get_user(user_id)
+            user["category_name"] = get_category(user["category"])["name"]
+            user["group_name"] = get_group(user["group"])["name"]
+            user["role_name"] = get_role(user["role"])["name"]
+        except:
+            raise Error(
+                "not_found",
+                "Not found user_id " + user_id,
+                traceback.format_exc(),
+            )
         if get_quota:
             user = {**user, **quotas.Get(user_id)}
-        return user
-
-    def get_user_full_data(self, user_id):
-        with app.app_context():
-            try:
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .merge(
-                        lambda d: {
-                            "category_name": r.table("categories").get(d["category"])[
-                                "name"
-                            ],
-                            "group_name": r.table("groups").get(d["group"])["name"],
-                            "role_name": r.table("roles").get(d["role"])["name"],
-                            "secondary_groups_data": r.table("groups")
-                            .get_all(r.args(d["secondary_groups"]))
-                            .pluck("id", "name")
-                            .coerce_to("array"),
-                        }
-                    )
-                    .without("password")
-                    .run(db.conn)
-                )
-            except:
-                raise Error(
-                    "not_found",
-                    "Not found user_id " + user_id,
-                    traceback.format_exc(),
-                )
         return user
 
     def GetByProviderCategoryUID(self, provider, category, uid):
@@ -361,67 +370,25 @@ class ApiUsers:
     def list_categories(self, nav, category_id=False):
         query = []
         if nav == "management":
-            with app.app_context():
-                if category_id:
-                    query = (
-                        r.table("categories")
-                        .get_all(category_id)
-                        .without("quota", "limits")
-                    )
-                else:
-                    query = r.table("categories").without("quota", "limits")
+            if category_id:
+                query = (
+                    r.table("categories")
+                    .get_all(category_id)
+                    .without("quota", "limits")
+                )
+            else:
+                query = r.table("categories").without("quota", "limits")
 
         elif nav == "quotas_limits":
-            with app.app_context():
-                if category_id:
-                    query = (
-                        r.table("categories")
-                        .get_all(category_id)
-                        .merge(
-                            {
-                                "media_size": (
-                                    r.table("media")
-                                    .get_all(category_id, index="category")
-                                    .pluck({"progress": "total_bytes"})
-                                    .sum(
-                                        lambda size: size["progress"][
-                                            "total_bytes"
-                                        ].default(0)
-                                    )
-                                )
-                                / 1073741824,
-                                "domains_size": (
-                                    r.table("users")
-                                    .get_all(category_id, index="category")
-                                    .pluck("id")
-                                    .merge(
-                                        lambda user: {
-                                            "storage": r.table("storage")
-                                            .get_all(
-                                                [user["id"], "ready"],
-                                                index="user_status",
-                                            )
-                                            .pluck({"qemu-img-info": "actual-size"})
-                                            .sum(
-                                                lambda right: right["qemu-img-info"][
-                                                    "actual-size"
-                                                ].default(0)
-                                            ),
-                                        }
-                                    )
-                                    .sum("storage")
-                                )
-                                / 1073741824,
-                            }
-                        )
-                    )
-
-                else:
-                    query = r.table("categories").merge(
-                        lambda category: {
+            if category_id:
+                query = (
+                    r.table("categories")
+                    .get_all(category_id)
+                    .merge(
+                        {
                             "media_size": (
                                 r.table("media")
-                                .get_all(category["id"], index="category")
+                                .get_all(category_id, index="category")
                                 .pluck({"progress": "total_bytes"})
                                 .sum(
                                     lambda size: size["progress"][
@@ -432,7 +399,7 @@ class ApiUsers:
                             / 1073741824,
                             "domains_size": (
                                 r.table("users")
-                                .get_all(category["id"], index="category")
+                                .get_all(category_id, index="category")
                                 .pluck("id")
                                 .merge(
                                     lambda user: {
@@ -454,8 +421,47 @@ class ApiUsers:
                             / 1073741824,
                         }
                     )
+                )
 
-        return list(query.run(db.conn))
+            else:
+                query = r.table("categories").merge(
+                    lambda category: {
+                        "media_size": (
+                            r.table("media")
+                            .get_all(category["id"], index="category")
+                            .pluck({"progress": "total_bytes"})
+                            .sum(
+                                lambda size: size["progress"]["total_bytes"].default(0)
+                            )
+                        )
+                        / 1073741824,
+                        "domains_size": (
+                            r.table("users")
+                            .get_all(category["id"], index="category")
+                            .pluck("id")
+                            .merge(
+                                lambda user: {
+                                    "storage": r.table("storage")
+                                    .get_all(
+                                        [user["id"], "ready"],
+                                        index="user_status",
+                                    )
+                                    .pluck({"qemu-img-info": "actual-size"})
+                                    .sum(
+                                        lambda right: right["qemu-img-info"][
+                                            "actual-size"
+                                        ].default(0)
+                                    ),
+                                }
+                            )
+                            .sum("storage")
+                        )
+                        / 1073741824,
+                    }
+                )
+
+        with app.app_context():
+            return list(query.run(db.conn))
 
     def list_groups(self, nav, category_id=False):
         query = []
@@ -611,28 +617,28 @@ class ApiUsers:
         # password=False generates a random password
         with app.app_context():
             user_id = str(uuid.uuid4())
-            if r.table("users").get(user_id).run(db.conn) != None:
+            if get_user(user_id) is not None:
                 raise Error(
                     "conflict",
                     "Already exists user_id " + user_id,
                     traceback.format_exc(),
                 )
 
-            if r.table("roles").get(role_id).run(db.conn) is None:
+            if get_role(role_id) is None:
                 raise Error(
                     "not_found",
                     "Not found role_id " + role_id + " for user_id " + user_id,
                     traceback.format_exc(),
                 )
 
-            if r.table("categories").get(category_id).run(db.conn) is None:
+            if get_category(category_id) is None:
                 raise Error(
                     "not_found",
                     "Not found category_id " + category_id + " for user_id " + user_id,
                     traceback.format_exc(),
                 )
 
-            group = r.table("groups").get(group_id).run(db.conn)
+            group = get_group(group_id)
             if group is None:
                 raise Error(
                     "not_found",
@@ -688,23 +694,32 @@ class ApiUsers:
 
         if os.environ.get("NOTIFY_EMAIL") and data.get("email"):
             for user_id in user_ids:
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .pluck("email", "category", "role", "email_verified")
-                    .run(db.conn)
-                )
+                with app.app_context():
+                    user = (
+                        r.table("users")
+                        .get(user_id)
+                        .pluck("email", "category", "role", "email_verified")
+                        .run(db.conn)
+                    )
                 if data.get("email") != user["email"]:
                     if self.get_email_policy(user["category"], user["role"]):
                         token = validate_email_jwt(user_id, data["email"])["jwt"]
-                        r.table("users").get(user_id).update(
-                            {"email_verification_token": token, "email_verified": None}
-                        ).run(db.conn)
+                        with app.app_context():
+                            r.table("users").get(user_id).update(
+                                {
+                                    "email_verification_token": token,
+                                    "email_verified": None,
+                                }
+                            ).run(db.conn)
                         send_verification_email(data.get("email"), user_id, token)
                     else:
-                        r.table("users").get(user_id).update(
-                            {"email_verification_token": None, "email_verified": None}
-                        ).run(db.conn)
+                        with app.app_context():
+                            r.table("users").get(user_id).update(
+                                {
+                                    "email_verification_token": None,
+                                    "email_verified": None,
+                                }
+                            ).run(db.conn)
 
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
@@ -875,14 +890,16 @@ class ApiUsers:
         deployments = []
         media = []
         tags = []
-        with app.app_context():
-            if table == "user":
+
+        if table == "user":
+            with app.app_context():
                 users = list(
                     r.table("users")
                     .get_all(r.args(item_ids))
                     .pluck("id", "name", "username")
                     .run(db.conn)
                 )
+            with app.app_context():
                 deployments = list(
                     r.table("deployments")
                     .get_all(r.args(item_ids), index="user")
@@ -895,7 +912,8 @@ class ApiUsers:
                     )
                     .run(db.conn)
                 )
-                tags = [deployment["id"] for deployment in deployments]
+            tags = [deployment["id"] for deployment in deployments]
+            with app.app_context():
                 desktops = desktops + list(
                     r.table("domains")
                     .get_all(r.args(tags), index="tag")
@@ -908,14 +926,16 @@ class ApiUsers:
                     )
                     .run(db.conn)
                 )
-            elif table in ["category", "group"]:
+        elif table in ["category", "group"]:
+            with app.app_context():
                 users = list(
                     r.table("users")
                     .get_all(r.args(item_ids), index=table)
                     .pluck("id", "name", "username")
                     .run(db.conn)
                 )
-                users_ids = [user["id"] for user in users]
+            users_ids = [user["id"] for user in users]
+            with app.app_context():
                 deployments = list(
                     r.table("deployments")
                     .get_all(r.args(users_ids), index="user")
@@ -928,7 +948,8 @@ class ApiUsers:
                     )
                     .run(db.conn)
                 )
-                tags = [deployment["id"] for deployment in deployments]
+            tags = [deployment["id"] for deployment in deployments]
+            with app.app_context():
                 desktops = desktops + list(
                     r.table("domains")
                     .get_all(r.args(tags), index="tag")
@@ -941,14 +962,16 @@ class ApiUsers:
                     )
                     .run(db.conn)
                 )
-                if table == "category":
+            if table == "category":
+                with app.app_context():
                     groups = list(
                         r.table("groups")
                         .get_all(r.args(item_ids), index="parent_category")
                         .pluck("id", "name")
                         .run(db.conn)
                     )
-                else:
+            else:
+                with app.app_context():
                     groups = list(
                         r.table("groups")
                         .get_all(r.args(item_ids))
@@ -956,6 +979,7 @@ class ApiUsers:
                         .run(db.conn)
                     )
 
+        with app.app_context():
             desktops = desktops + list(
                 r.table("domains")
                 .get_all(r.args(item_ids), index=table)
@@ -969,6 +993,7 @@ class ApiUsers:
                 )
                 .run(db.conn)
             )
+        with app.app_context():
             templates = list(
                 r.table("domains")
                 .get_all(r.args(item_ids), index=table)
@@ -982,6 +1007,7 @@ class ApiUsers:
                 )
                 .run(db.conn)
             )
+
         domains_derivated = []
         for template in templates:
             domains_derivated = domains_derivated + GetAllTemplateDerivates(
@@ -1009,7 +1035,8 @@ class ApiUsers:
                 )
                 .run(db.conn)
             )
-            if table == "category":
+        if table == "category":
+            with app.app_context():
                 storage_pools = (
                     r.table("storage_pool")["categories"]
                     .filter(lambda pool: pool.contains(r.args(item_ids)))
@@ -1017,15 +1044,15 @@ class ApiUsers:
                     .run(db.conn)
                 )
 
-                return {
-                    "desktops": desktops,
-                    "templates": templates,
-                    "deployments": deployments,
-                    "media": media,
-                    "users": users,
-                    "groups": groups,
-                    "storage_pools": storage_pools,
-                }
+            return {
+                "desktops": desktops,
+                "templates": templates,
+                "deployments": deployments,
+                "media": media,
+                "users": users,
+                "groups": groups,
+                "storage_pools": storage_pools,
+            }
 
         return {
             "desktops": desktops,
@@ -1041,13 +1068,13 @@ class ApiUsers:
             user_storage = (
                 r.table("users").get(user_id).pluck("name", "user_storage").run(db.conn)
             )
-            if user_storage.get("user_storage"):
-                return {
-                    "id": None,
-                    "kind": "user_storage",
-                    "user_name": user_storage.get("name"),
-                    "name": str(user_storage_quota(user_id).get("used", 0)) + " MB",
-                }
+        if user_storage.get("user_storage"):
+            return {
+                "id": None,
+                "kind": "user_storage",
+                "user_name": user_storage.get("name"),
+                "name": str(user_storage_quota(user_id).get("used", 0)) + " MB",
+            }
 
     @cached(TTLCache(maxsize=10, ttl=5))
     def OwnsDesktopViewerIP(self, user_id, category_id, role_id, guess_ip):
@@ -1182,31 +1209,33 @@ class ApiUsers:
             found = list(
                 r.table("groups").filter({"enrollment": {"manager": code}}).run(db.conn)
             )
-            if len(found) > 0:
-                category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
-                return {
-                    "role": "manager",
-                    "category": category,
-                    "group": found[0]["id"],
-                }
+        if len(found) > 0:
+            category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
+            return {
+                "role": "manager",
+                "category": category,
+                "group": found[0]["id"],
+            }
+        with app.app_context():
             found = list(
                 r.table("groups")
                 .filter({"enrollment": {"advanced": code}})
                 .run(db.conn)
             )
-            if len(found) > 0:
-                category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
-                return {
-                    "role": "advanced",
-                    "category": category,
-                    "group": found[0]["id"],
-                }
+        if len(found) > 0:
+            category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
+            return {
+                "role": "advanced",
+                "category": category,
+                "group": found[0]["id"],
+            }
+        with app.app_context():
             found = list(
                 r.table("groups").filter({"enrollment": {"user": code}}).run(db.conn)
             )
-            if len(found) > 0:
-                category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
-                return {"role": "user", "category": category, "group": found[0]["id"]}
+        if len(found) > 0:
+            category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
+            return {"role": "user", "category": category, "group": found[0]["id"]}
         raise Error(
             "not_found",
             "Code not found code:" + code,
@@ -1302,9 +1331,8 @@ class ApiUsers:
         remove_category_from_storage_pool(category_id)
 
     def GroupGet(self, group_id):
-        with app.app_context():
-            group = r.table("groups").get(group_id).run(db.conn)
-        if not group:
+        group = get_group(group_id)
+        if group is None:
             raise Error(
                 "not_found",
                 "Not found group_id " + group_id,
@@ -1405,38 +1433,40 @@ class ApiUsers:
             found = list(
                 r.table("groups").filter({"enrollment": {"manager": code}}).run(db.conn)
             )
-            if len(found) > 0:
-                category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
-                return {
-                    "code": code,
-                    "role": "manager",
-                    "category": category,
-                    "group": found[0]["id"],
-                }
+        if len(found) > 0:
+            category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
+            return {
+                "code": code,
+                "role": "manager",
+                "category": category,
+                "group": found[0]["id"],
+            }
+        with app.app_context():
             found = list(
                 r.table("groups")
                 .filter({"enrollment": {"advanced": code}})
                 .run(db.conn)
             )
-            if len(found) > 0:
-                category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
-                return {
-                    "code": code,
-                    "role": "advanced",
-                    "category": category,
-                    "group": found[0]["id"],
-                }
+        if len(found) > 0:
+            category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
+            return {
+                "code": code,
+                "role": "advanced",
+                "category": category,
+                "group": found[0]["id"],
+            }
+        with app.app_context():
             found = list(
                 r.table("groups").filter({"enrollment": {"user": code}}).run(db.conn)
             )
-            if len(found) > 0:
-                category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
-                return {
-                    "code": code,
-                    "role": "user",
-                    "category": category,
-                    "group": found[0]["id"],
-                }
+        if len(found) > 0:
+            category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
+            return {
+                "code": code,
+                "role": "user",
+                "category": category,
+                "group": found[0]["id"],
+            }
         return False
 
     def RoleGet(self, role=None):
@@ -1513,12 +1543,13 @@ class ApiUsers:
                 )
         if propagate or role:
             with app.app_context():
-                for group in list(
+                groups_list = list(
                     r.table("groups")
                     .get_all(category_id, index="parent_category")
                     .run(db.conn)
-                ):
-                    self.UpdateGroupQuota(group, quota, propagate, role, "admin")
+                )
+            for group in groups_list:
+                self.UpdateGroupQuota(group, quota, propagate, role, "admin")
 
     def UpdateGroupLimits(self, group, limits):
         category = self.CategoryGet(group["parent_category"], True)
@@ -1613,14 +1644,14 @@ class ApiUsers:
             .pluck("id")["id"]
         )
 
-        total_groups = (
-            list(query_groups.run(db.conn))
-            + list(query_secondary_groups.run(db.conn))
-            + [user_id]
-        )
-
         with app.app_context():
-            return len(list(set(total_groups)))
+            total_groups = (
+                list(query_groups.run(db.conn))
+                + list(query_secondary_groups.run(db.conn))
+                + [user_id]
+            )
+
+        return len(list(set(total_groups)))
 
     def check_secondary_groups_category(self, category, secondary_groups):
         for group in secondary_groups:
@@ -1651,10 +1682,7 @@ class ApiUsers:
 
     def get_user_policy(self, subtype, category, role, user_id=None):
         if user_id:
-            with app.app_context():
-                user = (
-                    r.table("users").get(user_id).pluck("category", "role").run(db.conn)
-                )
+            user = get_user(user_id)
             category = user["category"]
             role = user["role"]
 
@@ -1691,13 +1719,7 @@ class ApiUsers:
         return self.get_user_policy("email_verification", category, role, user_id)
 
     def change_password(self, password, user_id):
-        with app.app_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .pluck("category", "role", "password_history")
-                .run(db.conn)
-            )
+        user = get_user(user_id)
 
         p = Password()
         policy = self.get_user_password_policy(user["category"], user["role"])
@@ -1722,13 +1744,7 @@ class ApiUsers:
             ).run(db.conn)
 
     def check_password_expiration(self, user_id):
-        with app.app_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .pluck("category", "role", "password_last_updated", "provider")
-                .run(db.conn)
-            )
+        user = get_user(user_id)
         if user["provider"] != "local":
             return False
         policy = self.get_user_password_policy(
@@ -1765,13 +1781,7 @@ class ApiUsers:
     def check_verified_email(self, user_id):
         if not os.environ.get("NOTIFY_EMAIL"):
             return False
-        with app.app_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .pluck("email_verified", "category", "role", "provider")
-                .run(db.conn)
-            )
+        user = get_user(user_id)
         if user["provider"] != "local":
             return False
         policy = self.get_email_policy(user["category"], user["role"])
@@ -1781,13 +1791,7 @@ class ApiUsers:
             return user["email_verified"]
 
     def check_acknowledged_disclaimer(self, user_id):
-        with app.app_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .pluck("role", "category", "lang", "disclaimer_acknowledged")
-                .run(db.conn)
-            )
+        user = get_user(user_id)
         if user.get("disclaimer_acknowledged"):
             return False
 
@@ -1923,27 +1927,20 @@ class Password(object):
             )
 
         if user_id:  # new users do not have user_id
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .pluck("username", "password_history")
-                    .run(db.conn)
-                )
-                username = user["username"]
+            user = get_user(user_id)
+            username = user["username"]
 
-                if policy["old_passwords"]:
-                    user_id = user_id
-                    old_passwords = user["password_history"][
-                        -min(policy["old_passwords"], len(user["password_history"])) :
-                    ]
-                    for pw in old_passwords:
-                        if self.valid(password, pw):
-                            raise Error(
-                                "bad_request",
-                                "This password has already been used in the past",
-                                description_code="password_already_used",
-                            )
+            if policy["old_passwords"]:
+                old_passwords = user["password_history"][
+                    -min(policy["old_passwords"], len(user["password_history"])) :
+                ]
+                for pw in old_passwords:
+                    if self.valid(password, pw):
+                        raise Error(
+                            "bad_request",
+                            "This password has already been used in the past",
+                            description_code="password_already_used",
+                        )
         if policy["not_username"] and username.lower() in password.lower():
             raise Error(
                 "bad_request",
