@@ -644,85 +644,36 @@ function socketio_on(){
                     });
                     return true
                 }
-
-                if(user["exists"] && $('#bulk-allow-update').prop("checked")){
-                    user['secondary_groups'] = data['secondary_groups']
-                    user['quota'] = data['quota']
-                    $.ajax({
-                        type: 'POST',
-                        url: "/api/v3/admin/users/check/by/provider",
-                        data: JSON.stringify({
-                            "provider":data['provider'],
-                            "category":user['category'],
-                            "uid":user['username']
-                        }),
-                        contentType: "application/json",
-                        success: function(data){
-                            $.ajax({
-                                type: 'PUT',
-                                url: "/api/v3/admin/user/"+data,
-                                data: JSON.stringify(user) ,
-                                contentType: "application/json",
-                                success: function(data)
-                                {
-                                    $('form').each(function() { this.reset() });
-                                    $('.modal').modal('hide');
-                                notice.update({
-                                        title: "Updating",
-                                        text: "Updating user (" + ( usersAdded ) + "/" + users.length + "): ",
-                                        hide: true,
-                                        delay: 4000,
-                                        opacity: 1
-                                    });
-                                usersAdded ++;
-                                 },
-                                 error: function(data){
-                                    new PNotify({
-                                        title: "ERROR updating user",
-                                        text: data.responseJSON.description,
-                                        type: 'error',
-                                        hide: true,
-                                        icon: 'fa fa-warning',
-                                        delay: 15000,
-                                        opacity: 1
-                                    });
-                                 }
-                            });
-                        }
-                    })
-                }else{
-                    delete user["exists"]
-                    $.ajax({
-                        type: 'POST',
-                        url: "/api/v3/admin/user",
-                        data: JSON.stringify(Object.assign({},data,user)) ,
-                        contentType: "application/json",
-                        success: function(data)
-                        {
-                            $('form').each(function() { this.reset() });
-                            $('.modal').modal('hide');
-                        notice.update({
-                                title: "Adding users",
-                                text: "Added user (" + ( usersAdded ) + "/" + users.length + "): ",
-                                hide: true,
-                                delay: 4000,
-                                opacity: 1
-                            });
-                        usersAdded ++;
-                        },
-                        error: function(data){
-                            new PNotify({
-                                title: "ERROR adding user",
-                                text: data.responseJSON.description,
-                                type: 'error',
-                                hide: true,
-                                icon: 'fa fa-warning',
-                                delay: 15000,
-                                opacity: 1
-                            });
-                        }
-                    });
-                }
+                $.ajax({
+                    type: 'POST',
+                    url: "/api/v3/admin/user",
+                    data: JSON.stringify(Object.assign({},data,user)) ,
+                    contentType: "application/json",
+                    success: function(data)
+                    {
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');
+                    notice.update({
+                            title: "Adding users",
+                            text: "Added user (" + ( usersAdded ) + "/" + users.length + "): ",
+                            hide: true,
+                            delay: 4000,
+                            opacity: 1
+                        });
+                    usersAdded ++;
+                    },
+                    error: function(data){
+                        new PNotify({
+                            title: "ERROR adding user",
+                            text: data.responseJSON.description,
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 15000,
+                            opacity: 1
+                        });
+                    }
+                });
             });
         }
     });
@@ -1335,10 +1286,8 @@ function csv2datatables(csv, modal){
         $(modal + ' #bulk-allow-update').iCheck('uncheck').iCheck('update');
     }
     $.ajax({
-        type: "POST",
-        url: modal == "#modalUpdateFromCSV" ?
-            "/api/v3/admin/users/csv/validate" :
-            "/api/v3/admin/users/validate/allow_update",
+        type: modal == "#modalUpdateFromCSV" ? "PUT" : "POST",
+        url:  "/api/v3/admin/users/csv/validate",
         data: JSON.stringify(csv_data),
         contentType: "application/json",
         async: false,
@@ -1352,18 +1301,22 @@ function csv2datatables(csv, modal){
             });
             csv_preview.clear().rows.add(data).draw()
         }else{
-            csv_preview = $(modal + " #csv_preview").DataTable( {
+            csv_preview = $(modal + " #csv_preview").DataTable({
                 data: data,
                 rowId: 'username',
                 columns: modal == "#modalUpdateFromCSV" ? [
-                    { "data": "active", "width": "50px", "render": function (data, type, full, meta) {
-                        if (full.active) {
-                            active = true
-                            return '<i class="fa fa-check" style="color:lightgreen"></i>';
-                        } else if (full.active===false) {
-                            return '<i class="fa fa-close" style="color:darkgray"></i>';
+                    {
+                        "data": "active",
+                        "width": "50px",
+                        "render": function (data, type, full, meta) {
+                            if (full.active) {
+                                active = true
+                                return '<i class="fa fa-check" style="color:lightgreen"></i>';
+                            } else if (full.active === false) {
+                                return '<i class="fa fa-close" style="color:darkgray"></i>';
+                            }
                         }
-                    } },
+                    },
                     { "data": "name", "width": "88px", },
                     { "data": "provider", "width": "50px", "className": "no-update" },
                     { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update" },
@@ -1372,24 +1325,16 @@ function csv2datatables(csv, modal){
                     { "data": "secondary_groups_names", "width": "88px", "defaultContent": "", },
                     { "data": "password", "width": "88px" },
                 ] : [
-                    { "data": "exists", "width": "88px", "render": function (data, type, full, meta) {
-                        if (full.exists) {
-                            exists = true
-                            return '<i class="fa fa-check" style="color:lightgreen"></i>';
-                        } else {
-                            return '<i class="fa fa-close" style="color:darkgray"></i>';
-                        }
-                    } },
-                    { "data": "username", "width": "88px", "className": "no-update" },
+                    { "data": "username", "width": "88px" },
                     { "data": "name", "width": "88px" },
                     { "data": "email", "width": "88px" },
                     { "data": "password", "width": "88px" },
-                    { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update" },
-                    { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update" },
+                    { "data": "group", "width": "88px", "defaultContent": "" },
+                    { "data": "category", "width": "88px", "defaultContent": "" },
                     { "data": "role", "width": "88px", "defaultContent": "" },
-                ] ,
+                ],
                 "order": [[0, 'asc']],
-            } );
+            });
         }
     }).fail(function (data) {
         $(modal + " #csv_correct").hide()

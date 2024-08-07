@@ -898,69 +898,59 @@ def admin_userschema(payload):
     return json.dumps(dict), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/admin/users/validate", methods=["POST"])
-@app.route("/api/v3/admin/users/validate/allow_update", methods=["POST"])
+@app.route("/api/v3/admin/users/csv/validate", methods=["POST"])
 @is_admin_or_manager
 def admin_users_validate(payload):
     user_list = request.get_json()
-    for i, user in enumerate(user_list):
-        for field in user:
-            user[field] = html.escape(str(user[field]))
+
+    processed_list = []
+    for user in user_list:
+        # Validate each user
+        user = {field: html.escape(str(value)) for field, value in user.items()}
         user = _validate_item("user_from_csv", user)
 
+        # Check if the category exists
+        category_data = users.CategoryGetByName(user["category"])
+        user["category_id"] = category_data["id"]
+        # Check if the group exists
+        cg_data = CategoryNameGroupNameMatch(user["category"], user["group"])
+        user["group_id"] = cg_data["group_id"]
+
+        # If the user already exists skip it
+        user_id = users.GetByProviderCategoryUID(
+            "local", user["category_id"], user["username"].replace(" ", "")
+        )
+        if user_id:
+            continue
+
+        # Check password policy
         if user.get("password"):
             p = Password()
             policy = users.get_user_password_policy(user["category"], user["role"])
             p.check_policy(user["password"], policy, username=user["username"])
 
+        # Check if the role is valid
         if payload["role_id"] == "manager":
             if user["role"] not in ["manager", "advanced", "user"]:
                 raise Error(
                     "bad_request",
-                    "Role " + user["role"] + " not in manager, advanced or user",
+                    f"Role {user['role']} not in manager, advanced or user",
                     traceback.format_exc(),
                 )
-            payload["category_id"] = users.CategoryGetByName(user["category"])["name"]
-
         else:
             if user["role"] not in ["admin", "manager", "advanced", "user"]:
                 raise Error(
                     "bad_request",
-                    "Role " + user["role"] + " not in admin, manager, advanced or user",
+                    f"Role {user['role']} not in admin, manager, advanced or user",
                     traceback.format_exc(),
                 )
 
-        category_id = users.CategoryGetByName(user["category"])["id"]
-        cg_data = CategoryNameGroupNameMatch(user["category"], user["group"])
-        user_list[i]["category_id"] = cg_data["category_id"]
-        user_list[i]["group_id"] = cg_data["group_id"]
+        processed_list.append(user)
 
-        user_id = users.GetByProviderCategoryUID(
-            "local", category_id, user["username"].replace(" ", "")
-        )
-        user_old_group = user_list[i]["group_id"]
-
-        if len(user_id) > 0:
-            if request.path.split("?")[0].endswith("/allow_update"):
-                user_list[i]["exists"] = True
-
-                if not (user_old_group == user_id[0]["group"]):
-                    raise Error(
-                        "bad_request",
-                        "Cannot change user "
-                        + user["name"]
-                        + "'s group from "
-                        + user_list[i]["group"],
-                    )
-            else:
-                raise
-        else:
-            user_list[i]["exists"] = False
-
-    return json.dumps(user_list), 200, {"Content-Type": "application/json"}
+    return json.dumps(processed_list), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/admin/users/csv/validate", methods=["POST"])
+@app.route("/api/v3/admin/users/csv/validate", methods=["PUT"])
 @is_admin_or_manager
 def admin_users_validate_edit(payload):
     user_list = request.get_json()
@@ -1013,23 +1003,6 @@ def check_group_category(payload):
         200,
         {"Content-Type": "application/json"},
     )
-
-
-@app.route("/api/v3/admin/users/check/by/provider", methods=["POST"])
-@is_admin_or_manager
-def admin_users_getby_provider_category_uid(payload):
-    data = request.get_json()
-    category_id = users.CategoryGetByName(data["category"])["id"]
-
-    user_id = users.GetByProviderCategoryUID(
-        data["provider"],
-        category_id,
-        data["uid"].replace(" ", "_"),
-    )
-    if len(user_id) > 0:
-        return json.dumps(user_id[0]["id"]), 200, {"Content-Type": "application/json"}
-    else:
-        raise Error("not_found", "User not found")
 
 
 @app.route("/api/v3/admin/category/get/<category_name>", methods=["GET"])

@@ -1263,12 +1263,11 @@ class ApiUsers:
         else:
             return category
 
+    @cached(TTLCache(maxsize=100, ttl=10))
     def CategoryGetByName(self, category_name):
         with app.app_context():
             category = list(
-                r.table("categories")
-                .filter({"name": category_name.strip()})
-                .run(db.conn)
+                r.table("categories").get_all(category_name, index="name").run(db.conn)
             )
         if not category:
             raise Error(
