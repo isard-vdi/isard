@@ -580,49 +580,12 @@ function socketio_on(){
         };
     });
 
-    document.getElementById('csv').addEventListener('change', readFile, false);
-    var filecontents=''
-    function readFile(evt) {
+    $('#csv, #csv-edit').on('change', function (evt) {
         var files = evt.target.files;
         var file = files[0];
+        var filecontents=''
         var fileExtension = file.name.split('.').pop().toLowerCase();
-        if (fileExtension!=="csv" || (file.type !== 'text/csv' && file.type !== 'application/vnd.ms-excel')) {
-            new PNotify({
-                title: 'ERROR uploading file',
-                text: 'File must be a CSV file',
-                type: 'error',
-                hide: true,
-                icon: 'fa fa-warning',
-                delay: 5000,
-                opacity: 1
-            });
-        } else if (file.size > 25000) { //25kB
-            new PNotify({
-                title: 'ERROR uploading CSV',
-                text: 'File size must be less than 25kB',
-                type: 'error',
-                hide: true,
-                icon: 'fa fa-warning',
-                delay: 5000,
-                opacity: 1
-            });
-        } else {
-            var reader = new FileReader();
-            var modal = '#modalAddBulkUsers';
-            reader.onload = function (event) {
-                filecontents = event.target.result;
-                csv2datatables(filecontents, modal)
-            }
-            reader.readAsText(file, 'UTF-8')
-        }
-    }
 
-    document.getElementById('csv-edit').addEventListener('change', readFileEdit, false);
-    var filecontents = ''
-    function readFileEdit(evt) {
-        var files = evt.target.files;
-        var file = files[0];
-        var fileExtension = file.name.split('.').pop().toLowerCase();
         if (fileExtension!=="csv" || (file.type !== 'text/csv' && file.type !== 'application/vnd.ms-excel')) {
             new PNotify({
                 title: 'ERROR uploading file',
@@ -645,14 +608,14 @@ function socketio_on(){
             });
         } else {
             var reader = new FileReader();
-            var modal = '#modalUpdateFromCSV';
+            var modal = this.id === 'csv' ? '#modalAddBulkUsers' : '#modalUpdateFromCSV';
             reader.onload = function (event) {
                 filecontents = event.target.result;
                 csv2datatables(filecontents, modal)
             }
             reader.readAsText(file, 'UTF-8')
         }
-    }
+    })
 
     $("#modalAddBulkUsers #send").on('click', function(e){
         var form = $('#modalAddBulkUsersForm');
