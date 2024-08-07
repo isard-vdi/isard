@@ -87,7 +87,10 @@ def user_exists(user_id):
         )
 
 
-@cached(cache=TTLCache(maxsize=100, ttl=10))
+cache_user = TTLCache(maxsize=100, ttl=10)
+
+
+@cached(cache_user)
 def get_user(user_id):
     with app.app_context():
         return r.table("users").get(user_id).without("password").run(db.conn)
@@ -721,6 +724,7 @@ class ApiUsers:
                                     "email_verified": None,
                                 }
                             ).run(db.conn)
+        cache_user.clear()
 
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
