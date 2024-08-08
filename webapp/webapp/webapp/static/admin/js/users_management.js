@@ -623,57 +623,38 @@ function socketio_on(){
         formdata = form.serializeObject()
         form.parsley().validate();
         if (form.parsley().isValid()){
-            data=formdata;
-            delete data['unlimited']
-            data['provider']='local';
             users=csv_preview.data().toArray()
             var notice = new PNotify({
                 title: "Adding users",
-            });
-            var usersAdded = 1;
-            users.forEach(function (user) {
-                data['uid'] = user['username'];
-                user['bulk'] = true
-                if(user["exists"] && !$('#bulk-allow-update').prop("checked")){
-                    notice.update({
-                        title: "Adding users",
-                        text: "Skipping user "+user["username"]+" as already exists",
+            })
+            $.ajax({
+                type: 'POST',
+                url: "/api/v3/admin/bulk/user",
+                data: JSON.stringify({ users: users }),
+                contentType: "application/json",
+                success: function(data)
+                {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                notice.update({
+                        title: `Adding ${ users.length } users`,
+                        text: "This process may take a while, please wait",
                         hide: true,
                         delay: 4000,
                         opacity: 1
                     });
-                    return true
+                },
+                error: function(data){
+                    new PNotify({
+                        title: "ERROR adding users",
+                        text: data.responseJSON.description,
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 15000,
+                        opacity: 1
+                    });
                 }
-                $.ajax({
-                    type: 'POST',
-                    url: "/api/v3/admin/user",
-                    data: JSON.stringify(Object.assign({},data,user)) ,
-                    contentType: "application/json",
-                    success: function(data)
-                    {
-                        $('form').each(function() { this.reset() });
-                        $('.modal').modal('hide');
-                    notice.update({
-                            title: "Adding users",
-                            text: "Added user (" + ( usersAdded ) + "/" + users.length + "): ",
-                            hide: true,
-                            delay: 4000,
-                            opacity: 1
-                        });
-                    usersAdded ++;
-                    },
-                    error: function(data){
-                        new PNotify({
-                            title: "ERROR adding user",
-                            text: data.responseJSON.description,
-                            type: 'error',
-                            hide: true,
-                            icon: 'fa fa-warning',
-                            delay: 15000,
-                            opacity: 1
-                        });
-                    }
-                });
             });
         }
     });
@@ -1258,13 +1239,13 @@ function setModalUser(){
 }
 
 
-function csv2datatables(csv, modal){
+function csv2datatables(csv, modal) {
     csv = csv.replace(/</g, '&lt;').replace(/>/g, '&gt;')
     var csv_data = parseCSV(csv)
-    if (modal=="#modalUpdateFromCSV") {
-        $.each(csv_data, function(key, user) {
+    if (modal == "#modalUpdateFromCSV") {
+        $.each(csv_data, function (key, user) {
             if (user.active !== undefined) {
-                switch(user['active'].toLowerCase()) {
+                switch (user['active'].toLowerCase()) {
                     case "true":
                         user["active"] = true
                         break;
@@ -1274,7 +1255,7 @@ function csv2datatables(csv, modal){
                     case "":
                         delete user["active"]
                         break;
-                    }
+                }
             }
             if (user.name == "") { delete user.name; }
             if (user.password == "") { delete user.password; }
@@ -1282,60 +1263,59 @@ function csv2datatables(csv, modal){
                 delete user.secondary_groups
             }
         });
-    } else {
-        $(modal + ' #bulk-allow-update').iCheck('uncheck').iCheck('update');
     }
     $.ajax({
         type: modal == "#modalUpdateFromCSV" ? "PUT" : "POST",
-        url:  "/api/v3/admin/users/csv/validate",
+        url: "/api/v3/admin/users/csv/validate",
         data: JSON.stringify(csv_data),
         contentType: "application/json",
         async: false,
     }).done(function (data) {
         $(modal + " #csv_correct").show()
-        $(modal + " #csv_error").hide()
         $(modal + " #send").attr("disabled", false);
-        if ( $.fn.dataTable.isDataTable(modal +  ' #csv_preview' ) ) {
-            $.each( data, function( index, value ){
-                if(value.exists){exists=true; return false}
-            });
-            csv_preview.clear().rows.add(data).draw()
-        }else{
-            csv_preview = $(modal + " #csv_preview").DataTable({
-                data: data,
-                rowId: 'username',
-                columns: modal == "#modalUpdateFromCSV" ? [
-                    {
-                        "data": "active",
-                        "width": "50px",
-                        "render": function (data, type, full, meta) {
-                            if (full.active) {
-                                active = true
-                                return '<i class="fa fa-check" style="color:lightgreen"></i>';
-                            } else if (full.active === false) {
-                                return '<i class="fa fa-close" style="color:darkgray"></i>';
-                            }
-                        }
-                    },
-                    { "data": "name", "width": "88px", },
-                    { "data": "provider", "width": "50px", "className": "no-update" },
-                    { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update" },
-                    { "data": "uid", "width": "88px", "className": "no-update" },
-                    { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update" },
-                    { "data": "secondary_groups_names", "width": "88px", "defaultContent": "", },
-                    { "data": "password", "width": "88px" },
-                ] : [
-                    { "data": "username", "width": "88px" },
-                    { "data": "name", "width": "88px" },
-                    { "data": "email", "width": "88px" },
-                    { "data": "password", "width": "88px" },
-                    { "data": "group", "width": "88px", "defaultContent": "" },
-                    { "data": "category", "width": "88px", "defaultContent": "" },
-                    { "data": "role", "width": "88px", "defaultContent": "" },
-                ],
-                "order": [[0, 'asc']],
-            });
+        if (data.errors.length > 0) {
+            $(modal + " #csv_error").show()
+            let errorsHtml = '<ul>'
+            data.errors.forEach(function (error) {
+                errorsHtml += '<li>' + error + '</li>'
+            })
+            errorsHtml += '</ul>'
+            $(modal + " #csv_error #csv_error_html").html(errorsHtml)
         }
+        csv_preview = $(modal + " #csv_preview").DataTable({
+            data: modal == "#modalUpdateFromCSV" ? data : data.users,
+            rowId: modal == "#modalUpdateFromCSV" ? "id": "username",
+            columns: modal == "#modalUpdateFromCSV" ? [
+                {
+                    "data": "active",
+                    "width": "50px",
+                    "render": function (data, type, full, meta) {
+                        if (full.active) {
+                            active = true
+                            return '<i class="fa fa-check" style="color:lightgreen"></i>';
+                        } else if (full.active === false) {
+                            return '<i class="fa fa-close" style="color:darkgray"></i>';
+                        }
+                    }
+                },
+                { "data": "name", "width": "88px", },
+                { "data": "provider", "width": "50px", "className": "no-update" },
+                { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update" },
+                { "data": "uid", "width": "88px", "className": "no-update" },
+                { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update" },
+                { "data": "secondary_groups_names", "width": "88px", "defaultContent": "", },
+                { "data": "password", "width": "88px" },
+            ] : [
+                { "data": "username", "width": "88px" },
+                { "data": "name", "width": "88px" },
+                { "data": "email", "width": "88px" },
+                { "data": "password", "width": "88px" },
+                { "data": "group", "width": "88px", "defaultContent": "" },
+                { "data": "category", "width": "88px", "defaultContent": "" },
+                { "data": "role", "width": "88px", "defaultContent": "" },
+            ],
+            "order": [[0, 'asc']],
+        });
     }).fail(function (data) {
         $(modal + " #csv_correct").hide()
         $(modal + " #send").attr("disabled", true);
