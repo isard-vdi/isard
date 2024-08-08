@@ -153,6 +153,11 @@ def check_category_domain(category_id, domain):
             traceback.format_exc(),
         )
 
+def bulk_create(users):
+    with app.app_context():
+        r.table("users").insert(users).run(db.conn)
+    for user in users:
+            isard_user_storage_add_user(user["id"])
 
 class ApiUsers:
     def Jwt(self, user_id, minutes=240):
