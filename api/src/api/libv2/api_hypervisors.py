@@ -701,8 +701,8 @@ class ApiHypervisors:
                             .insert(generate_db_media(m[0], m[1]))
                             .run(db.conn)
                         )
-                    log.info("Added new media from hypervisor: " + m[0])
-                    print("Added new media from hypervisor: " + m[0])
+                log.info("Added new media from hypervisor: " + m[0])
+                print("Added new media from hypervisor: " + m[0])
 
     def update_disks_found(self, disks):
         with app.app_context():
@@ -735,7 +735,6 @@ class ApiHypervisors:
                             .run(db.conn)
                         )
                     log.info("Added new disk from hypervisor: " + m[0])
-                    print("Added new disk from hypervisor: " + m[0])
 
     def delete_media(self, medias_paths):
         for mp in medias_paths:

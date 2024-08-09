@@ -263,48 +263,6 @@ def parse_disks(disks):
             parsed_disks.append(disk)
     return parsed_disks
 
-
-def get_disk_tree():
-    root = {"id": None}
-    with app.app_context():
-        query = (
-            r.table("storage")
-            .merge(
-                lambda disk: {
-                    "user_name": r.table("users")
-                    .get(disk["user_id"])["name"]
-                    .default("[DELETED]"),
-                    "category_name": r.table("categories")
-                    .get(r.table("users").get(disk["user_id"])["category"])["name"]
-                    .default("[DELETED]"),
-                    "title": disk["id"],
-                    "icon": "fa fa-folder-open",
-                    "domains": r.table("domains")
-                    .get_all(disk["id"], index="storage_ids")
-                    .count(),
-                }
-            )
-            .pluck(
-                "id",
-                "parent",
-                "status",
-                "directory_path",
-                "user_name",
-                "category_name",
-                "domains",
-                "title",
-                "icon",
-            )
-            .run(db.conn)
-        )
-
-    def recursive(query, parent):
-        parent["children"] = []
-        for item in query:
-            if item.get("parent") == parent["id"]:
-                parent["children"].append(item)
-                recursive(query, item)
-
     recursive(list(query), root)
     return root["children"]
 
@@ -409,7 +367,8 @@ def add_storage_pool(data):
                 + str(set(categories).intersection(set(data["categories"]))),
             )
     else:
-        r.table("storage_pool").insert(data).run(db.conn)
+        with app.app_context():
+            r.table("storage_pool").insert(data).run(db.conn)
 
 
 def get_storage_pools():

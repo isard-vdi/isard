@@ -290,25 +290,18 @@ class ApiDesktopsPersistent:
             }
 
         with app.app_context():
-            query = r.table("domains").insert(new_desktop).run(db.conn)
-        if not _check(query, "inserted"):
-            raise Error(
-                "internal_server",
-                "NewFromTemplate: unable to insert new desktop in database",
-                description_code="unable_to_insert",
-            )
-        else:
-            if image:
-                image_data = image
-                if not image_data.get("file"):
-                    img_uuid = api_cards.update(
-                        domain_id, image_data["id"], image_data["type"]
-                    )
-                    card = api_cards.get_card(img_uuid, image_data["type"])
-                else:
-                    img_uuid = api_cards.upload(domain_id, image_data)
-                    card = api_cards.get_card(img_uuid, image_data["type"])
-            return new_desktop
+            r.table("domains").insert(new_desktop).run(db.conn)
+        if image:
+            image_data = image
+            if not image_data.get("file"):
+                img_uuid = api_cards.update(
+                    domain_id, image_data["id"], image_data["type"]
+                )
+                card = api_cards.get_card(img_uuid, image_data["type"])
+            else:
+                img_uuid = api_cards.upload(domain_id, image_data)
+                card = api_cards.get_card(img_uuid, image_data["type"])
+        return new_desktop
 
     def convertTemplateToDesktop(self, payload, data):
         data = _validate_item("template_to_desktop", data)
@@ -738,19 +731,9 @@ class ApiDesktopsPersistent:
 
     def UpdateReservables(self, desktop_id, reservables):
         with app.app_context():
-            if not _check(
-                r.table("domains")
-                .get(desktop_id)
-                .update({"create_dict": {"reservables": reservables}})
-                .run(db.conn),
-                "replaced",
-            ):
-                raise Error(
-                    "internal_server",
-                    "Unable to update desktop reservables in database",
-                    traceback.format_exc(),
-                    description_code="unable_to_update",
-                )
+            r.table("domains").get(desktop_id).update(
+                {"create_dict": {"reservables": reservables}}
+            ).run(db.conn)
 
     def JumperUrl(self, id):
         with app.app_context():

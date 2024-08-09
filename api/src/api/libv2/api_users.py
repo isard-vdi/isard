@@ -781,12 +781,7 @@ class ApiUsers:
             "email_verified": None,
         }
         with app.app_context():
-            if not _check(r.table("users").insert(user).run(db.conn), "inserted"):
-                raise Error(
-                    "internal_server",
-                    "Unable to insert in database user_id " + user_id,
-                    traceback.format_exc(),
-                )
+            r.table("users").insert(user).run(db.conn)
         isard_user_storage_add_user(user_id)
         return user_id
 
@@ -1229,8 +1224,7 @@ class ApiUsers:
                     .get(domains[0].get("tag"))
                     .pluck("user")
                     .run(db.conn)
-                )
-            deployment_user_owner = deployment_user_owner.get("user", None)
+                ).get("user", None)
             if deployment_user_owner == user_id:
                 return True
 
@@ -1584,12 +1578,13 @@ class ApiUsers:
                     .run(db.conn)
                 )
         else:
-            return list(
-                r.table("roles")
-                .order_by("sortorder")
-                .pluck("id", "name", "description")
-                .run(db.conn)
-            )
+            with app.app_context():
+                return list(
+                    r.table("roles")
+                    .order_by("sortorder")
+                    .pluck("id", "name", "description")
+                    .run(db.conn)
+                )
 
     def Secrets(self):
         with app.app_context():

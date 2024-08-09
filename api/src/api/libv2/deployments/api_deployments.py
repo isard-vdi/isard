@@ -395,24 +395,17 @@ def get_selected_users(
 
     """ DOES THE USERS ALREADY HAVE A DESKTOP WITH THIS NAME? """
     users_ids = [u["id"] for u in users]
-    try:
-        with app.app_context():
-            existing_desktops = [
-                u["user"]
-                for u in list(
-                    r.table("domains")
-                    .get_all(r.args(users_ids), index="user")
-                    .filter({"name": desktop_name, "tag": deployment_id})
-                    .pluck("id", "user", "username")
-                    .run(db.conn)
-                )
-            ]
-    except:
-        raise Error(
-            "internal_server",
-            "Unable to get deployment desktops",
-            description_code="unable_to_get_deployment_desktops",
-        )
+    with app.app_context():
+        existing_desktops = [
+            u["user"]
+            for u in list(
+                r.table("domains")
+                .get_all(r.args(users_ids), index="user")
+                .filter({"name": desktop_name, "tag": deployment_id})
+                .pluck("id", "user", "username")
+                .run(db.conn)
+            )
+        ]
     if len(existing_desktops):
         if existing_desktops_error:
             raise Error(
@@ -894,8 +887,8 @@ def get_deployment_details_hardware(deployment_id):
         isos = hardware["hardware"]["isos"]
         hardware["hardware"]["isos"] = []
         # Loop instead of a get_all query to keep the isos array order
-        with app.app_context():
-            for iso in isos:
+        for iso in isos:
+            with app.app_context():
                 hardware["hardware"]["isos"].append(
                     r.table("media").get(iso["id"]).pluck("id", "name").run(db.conn)
                 )

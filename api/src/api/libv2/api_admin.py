@@ -123,7 +123,7 @@ def admin_table_list(
                 "co_owners_usernames": r.expr(deploy["co_owners"]).map(
                     lambda co_owner: r.table("users")
                     .get(co_owner)["username"]
-                    .default(False),
+                    .default(False)
                 ),
                 "how_many_desktops": r.table("domains")
                 .get_all(deploy["id"], index="tag")
@@ -340,15 +340,7 @@ def admin_table_update(table, data, payload=False):
                 "forbidden", "Default priorities' allowed users cannot be modified"
             )
     with app.app_context():
-        if not _check(
-            r.table(table).get(data["id"]).update(data).run(db.conn),
-            "replaced",
-        ):
-            raise Error(
-                "internal_server",
-                "Internal server error",
-                traceback.format_exc(),
-            )
+        r.table(table).get(data["id"]).update(data).run(db.conn)
 
 
 def admin_table_get(table, id, pluck=None):
@@ -507,67 +499,60 @@ class ApiAdmin:
         return desktop_viewer
 
     def ListDesktops(self, categories=None):
-        try:
-            query = r.table("categories")
-            if categories:
-                query = query.get_all(r.args(categories))
-            query = query.eq_join("id", r.table("groups"), index="parent_category")
-            query = query.map(
-                lambda doc: {
-                    "group_id": doc["right"]["id"],
-                    "group_name": doc["right"]["name"],
-                    "category_id": doc["left"]["id"],
-                    "category_name": doc["left"]["name"],
-                }
-            )
-            query = query.eq_join("group_id", r.table("domains"), index="group").filter(
-                {"right": {"kind": "desktop"}}
-            )
-            query = query.merge(
-                lambda doc: {
-                    "right": r.table("users").get(doc["right"]["user"]).pluck("role")
-                }
-            )
-            if categories:
-                query.filter(r.row["right"]["category"] in categories)
+        query = r.table("categories")
+        if categories:
+            query = query.get_all(r.args(categories))
+        query = query.eq_join("id", r.table("groups"), index="parent_category")
+        query = query.map(
+            lambda doc: {
+                "group_id": doc["right"]["id"],
+                "group_name": doc["right"]["name"],
+                "category_id": doc["left"]["id"],
+                "category_name": doc["left"]["name"],
+            }
+        )
+        query = query.eq_join("group_id", r.table("domains"), index="group").filter(
+            {"right": {"kind": "desktop"}}
+        )
+        query = query.merge(
+            lambda doc: {
+                "right": r.table("users").get(doc["right"]["user"]).pluck("role")
+            }
+        )
+        if categories:
+            query.filter(r.row["right"]["category"] in categories)
 
-            query = query.pluck(
-                {
-                    "right": [
-                        "id",
-                        {
-                            "create_dict": {
-                                "reservables": True,
-                                "hardware": {"vcpus": True, "memory": True},
-                            }
-                        },
-                        {"image": {"url": True}},
-                        "kind",
-                        "server",
-                        "hyp_started",
-                        "name",
-                        "status",
-                        "username",
-                        "accessed",
-                        "forced_hyp",
-                        "favourite_hyp",
-                        "booking_id",
-                        "role",
-                        "persistent",
-                        "current_action",
-                        "server_autostart",
-                    ],
-                    "left": ["group_name", "category_name"],
-                }
-            ).zip()
-            with app.app_context():
-                return list(query.run(db.conn))
-        except Exception:
-            raise Error(
-                "internal_server",
-                "Internal server error ",
-                traceback.format_exc(),
-            )
+        query = query.pluck(
+            {
+                "right": [
+                    "id",
+                    {
+                        "create_dict": {
+                            "reservables": True,
+                            "hardware": {"vcpus": True, "memory": True},
+                        }
+                    },
+                    {"image": {"url": True}},
+                    "kind",
+                    "server",
+                    "hyp_started",
+                    "name",
+                    "status",
+                    "username",
+                    "accessed",
+                    "forced_hyp",
+                    "favourite_hyp",
+                    "booking_id",
+                    "role",
+                    "persistent",
+                    "current_action",
+                    "server_autostart",
+                ],
+                "left": ["group_name", "category_name"],
+            }
+        ).zip()
+        with app.app_context():
+            return list(query.run(db.conn))
 
     def GetTemplate(self, template_id):
         try:
@@ -1118,7 +1103,8 @@ class ApiAdmin:
             return True
 
         if action == "force_failed":
-            res = r.table(table).get_all(r.args(ids)).pluck("status").run(db.conn)
+            with app.app_context():
+                res = r.table(table).get_all(r.args(ids)).pluck("status").run(db.conn)
             for item in res:
                 if item.get("status") in [
                     "Stopped",
@@ -1382,8 +1368,4 @@ def admin_table_update_book(table, id, data):
     _validate_table(table)
 
     with app.app_context():
-        if not _check(
-            r.table(table).get(id).update(data).run(db.conn),
-            "replaced",
-        ):
-            raise UpdateFailed
+        r.table(table).get(id).update(data).run(db.conn)
