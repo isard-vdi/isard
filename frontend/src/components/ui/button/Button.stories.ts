@@ -38,7 +38,7 @@ const meta = {
         args
       }
     },
-    template: `<Button :hierarchy="args.hierarchy" :size="args.size" :disabled="args.disabled">{{ args.label }}</Button>`
+    template: `<Button :hierarchy="args.hierarchy" :size="args.size" :icon="args.icon">{{ args.label }}</Button>`
   })
 } satisfies Meta<ComponentPropsAndSlots<typeof Button> & { label: string }>
 
@@ -52,6 +52,7 @@ const createStory = (args: any, parameters?: any): Story => ({
 })
 
 export const Primary = createStory({ hierarchy: 'primary' })
+export const PrimaryWithIcon = createStory({ hierarchy: 'primary', icon: 'google' })
 export const SecondaryGray = createStory({ hierarchy: 'secondary-gray' })
 export const SecondaryColor = createStory({ hierarchy: 'secondary-color' })
 export const TertiaryColor = createStory({ hierarchy: 'tertiary-color' })
