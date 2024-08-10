@@ -17,6 +17,92 @@ export default {
     fontFamily: {
       sans: ['Montserrat', 'sans-serif']
     },
+    fontSize: {
+      base: [
+        'var(--font-size-text-md)',
+        {
+          lineHeight: 'var(--font-line-height-text-md)',
+          letterSpacing: 'var(--font-letter-spacing-text-md)'
+        }
+      ],
+      xs: [
+        'var(--font-size-text-xs)',
+        {
+          lineHeight: 'var(--font-line-height-text-xs)',
+          letterSpacing: 'var(--font-letter-spacing-text-xs)'
+        }
+      ],
+      sm: [
+        'var(--font-size-text-sm)',
+        {
+          lineHeight: 'var(--font-line-height-text-sm)',
+          letterSpacing: 'var(--font-letter-spacing-text-sm)'
+        }
+      ],
+      md: [
+        'var(--font-size-text-md)',
+        {
+          lineHeight: 'var(--font-line-height-text-md)',
+          letterSpacing: 'var(--font-letter-spacing-text-md)'
+        }
+      ],
+      lg: [
+        'var(--font-size-text-lg)',
+        {
+          lineHeight: 'var(--font-line-height-text-lg)',
+          letterSpacing: 'var(--font-letter-spacing-text-lg)'
+        }
+      ],
+      xl: [
+        'var(--font-size-text-xl)',
+        {
+          lineHeight: 'var(--font-line-height-text-xl)',
+          letterSpacing: 'var(--font-letter-spacing-text-xl)'
+        }
+      ],
+      'display-xs': [
+        'var(--font-size-display-xs)',
+        {
+          lineHeight: 'var(--font-line-height-display-xs)',
+          letterSpacing: 'var(--font-letter-spacing-display-xs)'
+        }
+      ],
+      'display-sm': [
+        'var(--font-size-display-sm)',
+        {
+          lineHeight: 'var(--font-line-height-display-sm)',
+          letterSpacing: 'var(--font-letter-spacing-display-sm)'
+        }
+      ],
+      'display-md': [
+        'var(--font-size-display-md)',
+        {
+          lineHeight: 'var(--font-line-height-display-md)',
+          letterSpacing: 'var(--font-letter-spacing-display-md)'
+        }
+      ],
+      'display-lg': [
+        'var(--font-size-display-lg)',
+        {
+          lineHeight: 'var(--font-line-height-display-lg)',
+          letterSpacing: 'var(--font-letter-spacing-display-lg)'
+        }
+      ],
+      'display-xl': [
+        'var(--font-size-display-xl)',
+        {
+          lineHeight: 'var(--font-line-height-display-xl)',
+          letterSpacing: 'var(--font-letter-spacing-display-xl)'
+        }
+      ],
+      'display-2xl': [
+        'var(--font-size-display-2xl)',
+        {
+          lineHeight: 'var(--font-line-height-display-2xl)',
+          letterSpacing: 'var(--font-letter-spacing-display-2xl)'
+        }
+      ]
+    },
     container: {
       center: true,
       padding: '2rem',

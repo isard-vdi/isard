@@ -3,15 +3,20 @@ require('@rushstack/eslint-patch/modern-module-resolution')
 
 module.exports = {
   root: true,
-  'extends': ['plugin:vue/vue3-essential', 'eslint:recommended', '@vue/eslint-config-typescript', '@vue/eslint-config-prettier/skip-formatting', 'plugin:storybook/recommended'],
+  extends: [
+    'plugin:vue/vue3-recommended',
+    'eslint:recommended',
+    '@vue/eslint-config-typescript',
+    '@vue/eslint-config-prettier/skip-formatting',
+    'plugin:storybook/recommended'
+  ],
+  rules: {
+    'vue/multi-word-component-names': ['off']
+  },
   overrides: [
     {
-      files: [
-        'e2e/**/*.{test,spec}.{js,ts,jsx,tsx}'
-      ],
-      'extends': [
-        'plugin:playwright/recommended'
-      ]
+      files: ['e2e/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+      extends: ['plugin:playwright/recommended']
     }
   ],
   parserOptions: {

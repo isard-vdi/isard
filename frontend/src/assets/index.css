@@ -96,6 +96,52 @@
     --badges-violet-700: hsl(262, 71%, 50%, 1);
     --badges-violet-900: hsl(262, 68%, 35%, 1);
 
+    /* Fonts */
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    --font-size-text-xl: 20px;
+    --font-size-text-lg: 18px;
+    --font-size-text-md: 16px;
+    --font-size-text-sm: 14px;
+    --font-size-text-xs: 12px;
+
+    --font-size-display-2xl: 72px;
+    --font-size-display-xl: 60px;
+    --font-size-display-lg: 48px;
+    --font-size-display-md: 36px;
+    --font-size-display-sm: 30px;
+    --font-size-display-xs: 20px;
+
+    --font-line-height-text-xl: 30px;
+    --font-line-height-text-lg: 28px;
+    --font-line-height-text-md: 24px;
+    --font-line-height-text-sm: 20px;
+    --font-line-height-text-xs: 18px;
+
+    --font-line-height-display-2xl: 90px;
+    --font-line-height-display-xl: 72px;
+    --font-line-height-display-lg: 60px;
+    --font-line-height-display-md: 44px;
+    --font-line-height-display-sm: 38px;
+    --font-line-height-display-xs: 32px;
+
+    --font-letter-spacing-text-xl: -0%;
+    --font-letter-spacing-text-lg: -0%;
+    --font-letter-spacing-text-md: -0%;
+    --font-letter-spacing-text-sm: -0%;
+    --font-letter-spacing-text-xs: -0%;
+
+    --font-letter-spacing-display-2xl: -2%;
+    --font-letter-spacing-display-xl: -2%;
+    --font-letter-spacing-display-lg: -2%;
+    --font-letter-spacing-display-md: -2%;
+    --font-letter-spacing-display-sm: -0%;
+    --font-letter-spacing-display-xs: -0%;
+
+    /* Spacing */
     --spacing-sm: 12px;
     --spacing-md: 14px;
     --spacing-lg: 16px;
@@ -219,5 +265,7 @@
 
   body {
     /* @apply bg-background text-foreground; */
+    @apply text-sm;
+    color: var(--gray-warm-600);
   }
 }
