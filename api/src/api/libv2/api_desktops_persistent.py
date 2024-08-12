@@ -54,12 +54,17 @@ from ..libv2.bookings.api_booking import Bookings
 apib = Bookings()
 api_cards = ApiCards()
 common = ApiDesktopsCommon()
-from ..libv2.api_storage import get_media_domains
+from ..libv2.api_storage import (
+    get_domain_storage,
+    get_media_domains,
+    get_storage_derivatives,
+)
 from ..libv2.bookings.api_reservables import Reservables
 
 api_ri = Reservables()
 api_allowed = ApiAllowed()
 
+from ..views.decorators import ownsDomainId
 from .api_desktop_events import (
     desktop_delete,
     desktop_reset,
@@ -1019,6 +1024,18 @@ class ApiDesktopsPersistent:
                 ).run(db.conn)
 
         return domain_id
+
+    def set_desktops_maintenance(payload, storage_id, action, batch_size=50000):
+        domains = get_storage_derivatives(storage_id)
+
+        for domain_id in domains:
+            ownsDomainId(payload, domain_id)
+        for i in range(0, len(domains), batch_size):
+            batch_ids = domains[i : i + batch_size]
+            with app.app_context():
+                r.table("domains").get_all(r.args(batch_ids)).update(
+                    {"status": "maintenance", "current_action": action}
+                ).run(db.conn)
 
 
 def check_template_status(template_id=None, template=None):
