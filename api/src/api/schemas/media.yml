@@ -107,6 +107,7 @@ url-isard:
   type:
     - string
     - boolean
+  coerce: sanitize
 url-web:
   type: string
   coerce: sanitize

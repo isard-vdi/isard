@@ -41,3 +41,7 @@ image:
   schema: image_update
 user_permissions:
   type: list
+  schema:
+    type: string
+    allowed:
+      - recreate

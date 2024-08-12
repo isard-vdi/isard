@@ -3,14 +3,17 @@ allowed:
   schema: allowed
 description:
   type: string
+  coerce: sanitize
 enabled:
   type: boolean
   required: false
 name:
   type: string
   empty: false
+  coerce: sanitize
 mountpoint:
   type: string
+  coerce: sanitize
 categories:
   type: list
 paths:
@@ -24,6 +27,7 @@ paths:
           path:
             type: string
             required: true
+            coerce: sanitize
           weight:
             type: integer
             required: true
@@ -35,6 +39,7 @@ paths:
           path:
             type: string
             required: true
+            coerce: sanitize
           weight:
             type: integer
             required: true
@@ -46,6 +51,7 @@ paths:
           path:
             type: string
             required: true
+            coerce: sanitize
           weight:
             type: integer
             required: true
@@ -57,6 +63,7 @@ paths:
           path:
             type: string
             required: true
+            coerce: sanitize
           weight:
             type: integer
             required: true

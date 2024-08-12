@@ -37,6 +37,7 @@ category:
   type: string
   required: true
   default: "all"
+  coerce: sanitize
 role:
   type: string
   required: true
@@ -48,8 +49,10 @@ role:
     - all
   default: "all"
 id:
+  type: string
   default_setter: genuuid
   required: true
+  coerce: sanitize
 type:
   allowed:
     - local

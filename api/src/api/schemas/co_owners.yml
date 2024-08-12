@@ -4,3 +4,4 @@ co_owners:
   schema:
     required: false
     type: string
+    coerce: sanitize

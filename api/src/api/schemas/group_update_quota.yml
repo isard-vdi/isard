@@ -8,3 +8,4 @@ quota:
   schema: quotas
 role:
   type: string
+  coerce: sanitize

@@ -1,8 +1,10 @@
 id:
+  type: string
   empty: false
   coerce: sanitize
 default:
   type: string
+  coerce: sanitize
 description:
   maxlength: 255
   required: false
