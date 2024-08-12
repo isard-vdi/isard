@@ -19,7 +19,9 @@ detail:
   coerce: sanitize
 disks_info:
   type: list
-  coerce: sanitize
+  schema:
+    type: dict
+    coerce: sanitize
 group:
   required: true
   type: string
@@ -46,7 +48,9 @@ hardware_from_xml:
   coerce: sanitize
 history_domain:
   type: list
-  coerce: sanitize
+  schema:
+    type: dict
+    coerce: sanitize
 hw_stats:
   type: dict
   coerce: sanitize
@@ -55,7 +59,9 @@ hyp_started:
   coerce: sanitize
 hypervisors_pools:
   type: list
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 icon:
   type: string
 image:
@@ -87,7 +93,10 @@ os:
   coerce: sanitize
 parents:
   type: list
-  coerce: sanitize
+  schema:
+    type: string
+    default_setter: genuuid
+    coerce: sanitize
 persistent:
   type: boolean
   required: false

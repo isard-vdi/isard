@@ -18,11 +18,15 @@ role:
 secondary_groups:
   required: false
   type: list
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 password:
   type: string
 active:
   type: boolean
 ids:
   type: list
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize

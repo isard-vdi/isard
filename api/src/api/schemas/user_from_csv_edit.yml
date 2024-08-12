@@ -20,7 +20,9 @@ category:
   coerce: sanitize
 secondary_groups:
   type: list
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 active:
   type: boolean
 uid:

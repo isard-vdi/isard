@@ -16,6 +16,9 @@ mountpoint:
   coerce: sanitize
 categories:
   type: list
+  schema:
+    type: string
+    coerce: sanitize
 paths:
   type: dict
   schema:

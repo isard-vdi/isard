@@ -33,6 +33,8 @@ xml:
   type: string
 ids:
   type: list
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 server_autostart:
   type: boolean

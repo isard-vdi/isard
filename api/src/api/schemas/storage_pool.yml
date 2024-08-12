@@ -26,6 +26,9 @@ categories:
   empty: false
   type: list
   required: true
+  schema:
+    type: string
+    coerce: sanitize
 paths:
   type: dict
   schema:

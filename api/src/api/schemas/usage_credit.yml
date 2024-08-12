@@ -9,7 +9,9 @@ item_ids:
   required: true
   empty: false
   nullable: false
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 grouping_id:
   type: string
   required: true

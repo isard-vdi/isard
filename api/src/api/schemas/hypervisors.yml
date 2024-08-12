@@ -24,7 +24,9 @@ isard_hyper_vpn_host:
   coerce: sanitize
 hypervisors_pools:
   type: list
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 id:
   required: true
   empty: false
@@ -76,7 +78,9 @@ min_free_gpu_mem_gb:
 storage_pools:
   type: list
   default_setter: storagepools
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 buffering_hyper:
   type: boolean
 gpu_only:

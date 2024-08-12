@@ -14,7 +14,9 @@ description:
   coerce: sanitize
 linked_groups:
   type: list
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 enrollment:
   type: dict
   coerce: sanitize

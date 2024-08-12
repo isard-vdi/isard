@@ -21,7 +21,9 @@ secondary_groups:
   required: false
   type: list
   default: []
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 name:
   maxlength: 50
   required: true
@@ -80,4 +82,6 @@ active:
 default_templates:
   type: list
   required: false
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
