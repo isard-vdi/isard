@@ -18,7 +18,8 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "@vueuse/core": "^10.11.0",
+    "@vee-validate/zod": "^4.13.2",
+    "@vueuse/core": "^10.11.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "lucide-vue-next": "^0.408.0",
@@ -26,8 +27,10 @@
     "radix-vue": "^1.9.1",
     "tailwind-merge": "^2.4.0",
     "tailwindcss-animate": "^1.0.7",
+    "vee-validate": "^4.13.2",
     "vue": "^3.4.29",
-    "vue-router": "^4.3.3"
+    "vue-router": "^4.3.3",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^1.6.1",
