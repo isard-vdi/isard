@@ -1,0 +1,8 @@
+{
+  "layouts": {
+    "login": {
+      "title": "Iniciar sessió",
+      "works-with": "Funciona amb"
+    }
+  }
+}

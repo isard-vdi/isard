@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { LocaleSwitch } from '@/components/locale-switch'
 import logoUrl from '@/assets/logo.svg'
+
+const { t } = useI18n()
 
 interface Props {
   version?: string
@@ -22,14 +26,14 @@ const versionUrl = computed(() =>
     <div class="h-full p-[32px] flex flex-col justify-between">
       <!-- Language selector -->
       <div class="self-end">
-        <p>IDIOMA</p>
+        <LocaleSwitch />
       </div>
 
       <!-- Login form -->
       <div class="self-center flex flex-col w-[360px]">
         <img class="self-start" :src="logoUrl" alt="IsardVDI logo" />
         <h1 class="mt-[46px] mb-[32px] text-display-sm font-semibold text-gray-warm-900">
-          Iniciar sesión
+          {{ t('layouts.login.title') }}
         </h1>
         <div>
           <slot />
@@ -39,7 +43,10 @@ const versionUrl = computed(() =>
       <!-- Extra info -->
       <div class="flex justify-between">
         <div>
-          <p>Funciona amb <a class="font-bold hover:underline" :href="isardVdiUrl">IsardVDI</a></p>
+          <p>
+            {{ t('layouts.login.works-with') }}
+            <a class="font-bold hover:underline" :href="isardVdiUrl">IsardVDI</a>
+          </p>
         </div>
 
         <div>

@@ -1,0 +1,8 @@
+{
+  "layouts": {
+    "login": {
+      "title": "Login",
+      "works-with": "Works with"
+    }
+  }
+}
