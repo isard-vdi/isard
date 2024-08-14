@@ -788,9 +788,18 @@ function socketio_on(){
             {
                 "data": "email_verified", "defaultContent": 'NaN', "render": function (data, type, full, meta) {
                     if ('email_verified' in full && full['email_verified']) {
-                        return `<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="Verified ${new Date(full["email_verified"]).toLocaleString()}"</i>`
+                        return `<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="Verified ${new Date(full["email_verified"]).toLocaleString()}"></i>`
                     } else {
-                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                        return `<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>`
+                    }
+                }
+            },
+            {
+                "data": "email", "defaultContent": 'NaN', "render": function (data, type, full, meta) {
+                    if ('email_verified' in full && full['email_verified']) {
+                        return `<p style="color:green" title="Verified ${new Date(full["email_verified"]).toLocaleString()}">${full['email'] ? full['email'] : ''}</p>`
+                    } else {
+                        return `<p>${full['email'] ? full['email'] : ''}</p>`
                     }
                 }
             },
@@ -1450,11 +1459,11 @@ function showUserExportButtons(table, buttonsRowClass) {
             'print',
             {
                 extend: 'csv',
-                text: 'CSV with import format',
+                text: 'CSV for update',
                 exportOptions: {
-                    columns: [15] // ID column
+                    columns: [16] // ID column
                 },
-                title: "csv_with_import_format",
+                title: "update-from-csv-export",
                 titleAttr: "Generate a CSV file from the current displayed data, to use in the \"Update from CSV\" feature.",
                 customize: function (csv) {
                     var csv_data = ['active,name,provider,category,uid,username,group,secondary_groups,password\n']
@@ -1464,6 +1473,26 @@ function showUserExportButtons(table, buttonsRowClass) {
                         csv_cell_array[0] = csv_cell_array[0].replace(/"/g, '');
                         var rowData = table.row('#' + csv_cell_array[0]).data();
                         csv_data = csv_data + (`${rowData.active},\"${rowData.name}\",${rowData.provider},${rowData.category_name},${rowData.uid},${rowData.username},${rowData.group_name},${rowData.secondary_groups_names.join("/")},\n`);
+                    });
+                    return csv_data
+                }
+            },
+            {
+                extend: 'csv',
+                text: 'CSV for create',
+                exportOptions: {
+                    columns: [16] // ID column
+                },
+                title: "bulk-users-export",
+                titleAttr: `Generate a CSV file from the current displayed data, to use in the \"Bulk create\" feature.`,
+                customize: function (csv) {
+                    var csv_data = ['username,name,email,group,category,role\n']
+                    var split_csv = csv.split("\n");
+                    $.each(split_csv.slice(1), function (index, csv_row) {
+                        var csv_cell_array = csv_row.split('","');
+                        csv_cell_array[0] = csv_cell_array[0].replace(/"/g, '');
+                        var rowData = table.row('#' + csv_cell_array[0]).data();
+                        csv_data = csv_data + (`${rowData.uid},${rowData.name},${rowData.email},${rowData.group_name},${rowData.category_name},${rowData.role}\n`);
                     });
                     return csv_data
                 }
