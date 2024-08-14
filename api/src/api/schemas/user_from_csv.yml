@@ -12,9 +12,6 @@ name:
 email:
   type: string
   coerce: sanitize
-password:
-  required: true
-  empty: false
 group:
   required: true
   empty: false

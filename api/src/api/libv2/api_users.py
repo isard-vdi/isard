@@ -25,6 +25,7 @@ import uuid
 from datetime import datetime, timedelta
 
 import bcrypt
+import gevent
 import pytz
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
@@ -62,11 +63,13 @@ from ..libv2.api_user_storage import (
     isard_user_storage_update_user_quota,
     user_storage_quota,
 )
+from ..views.decorators import CategoryNameGroupNameMatch, ownsCategoryId
 from .api_admin import (
     change_category_items_owner,
     change_group_items_owner,
     change_user_items_owner,
 )
+from .api_notify import notify_admin
 from .helpers import (
     GetAllTemplateDerivates,
     _check,
@@ -74,6 +77,7 @@ from .helpers import (
     _random_password,
     gen_payload_from_user,
 )
+from .validators import _validate_item
 
 
 @cached(cache=TTLCache(maxsize=300, ttl=10))
@@ -153,11 +157,15 @@ def check_category_domain(category_id, domain):
             traceback.format_exc(),
         )
 
+
 def bulk_create(users):
-    with app.app_context():
-        r.table("users").insert(users).run(db.conn)
+    for i in range(0, len(users), 5000):
+        batch_users = users[i : i + 5000]
+        with app.app_context():
+            r.table("users").insert(batch_users).run(db.conn)
     for user in users:
-            isard_user_storage_add_user(user["id"])
+        isard_user_storage_add_user(user["id"])
+
 
 class ApiUsers:
     def Jwt(self, user_id, minutes=240):
@@ -173,6 +181,125 @@ class ApiUsers:
                 algorithm="HS256",
             )
         }
+
+    def generate_users(self, payload, data):
+        # "batch_id": uuid.uuid4(),
+
+        new_users = []
+        errors = []
+
+        # TODO: Check in quotas whether can create users
+        p = Password()
+
+        ammount, total = 0, len(data["users"])
+        for user in data["users"]:
+            new_user = {}
+            username = user["username"].replace(" ", "")
+            # Check whether the user has permissions to create users in the category
+            try:
+                ownsCategoryId(payload, user["category_id"])
+            except Error as e:
+                errors.append(
+                    f"Couldn't create user {username}: { e.error.get('description') }"
+                )
+                continue
+            # Check if the category exists and the group is from the category
+            try:
+                match = CategoryNameGroupNameMatch(user["category"], user["group"])
+            except Error as e:
+                errors.append(
+                    f"Couldn't create user {username}: {e.error.get('description')}"
+                )
+                continue
+            # If the user already exists skip it
+            user_id = self.GetByProviderCategoryUID(
+                "local", match["category_id"], username
+            )
+            if user_id:
+                errors.append(
+                    f"Couldn't create user {username}: The user already exists"
+                )
+                continue
+
+            # Check if the password meets the policy
+            policy = self.get_user_password_policy(match["category_id"], user["role"])
+            try:
+                p.check_policy(user["password"], policy, username=username)
+            except Error as e:
+                errors.append(
+                    f"Couldn't create user {username}: {e.error.get('description')}"
+                )
+                continue
+
+            # Check if the secondary groups exist and belong to the category
+            if user.get("secondary_groups") and len(user["secondary_groups"]) > 0:
+                try:
+                    self.check_secondary_groups_category(
+                        match["category_id"], user["secondary_groups"]
+                    )
+                except Error as e:
+                    errors.append(
+                        f"Couldn't create user {username}: {e.error.get('description')}"
+                    )
+                    continue
+
+            new_user["uid"] = username
+            new_user["provider"] = "local"
+            new_user["category"] = match["category_id"]
+            new_user["group"] = match["group_id"]
+            new_user["username"] = username
+            new_user["password"] = p.encrypt(user["password"])
+            new_user["name"] = user["name"]
+            new_user["role"] = user["role"]
+            new_user["accessed"] = int(time.time())
+            new_user["quota"] = False
+            new_user["password_history"] = [user["password"]]
+            new_user["password_last_updated"] = int(time.time())
+            new_user["email"] = user.get("email", "")
+            new_user["email_verification_token"] = None
+            new_user["email_verified"] = None
+            new_user = _validate_item("user", new_user)
+            new_users.append(new_user)
+
+            ammount += 1
+
+            notify_admin(
+                payload["user_id"],
+                "User created",
+                f"user '{username}' created \n{ammount}/{total}",
+                type="info",
+                params={
+                    "delay": 1000,
+                    "icon": "user-plus",
+                },
+            )
+
+        bulk_create(new_users)
+
+        if not errors:
+            notify_admin(
+                payload["user_id"],
+                title="Bulk user creation",
+                description=f"{len(new_users)} users created",
+                type="success",
+            )
+        else:
+            notify_admin(
+                payload["user_id"],
+                title=f"There were {len(errors)} errors",
+                description=f"{len(new_users)} users created, {len(errors)} errors",
+                type="error",
+            )
+            for err in errors:
+                notify_admin(
+                    payload["user_id"],
+                    title=("Error creating user"),
+                    description=err,
+                    type="error",
+                    params={"hide": False, "icon": "user-times"},
+                )
+
+        return {"users": new_users, "errors": errors}
 
     # TODO: Fix this!
     def Login(self, user_id, user_passwd, provider="local", category_id="default"):
@@ -1882,6 +2009,43 @@ class Password(object):
         chars = string.ascii_letters + string.digits + "!@#$*"
         rnd = random.SystemRandom()
         return "".join(rnd.choice(chars) for i in range(length))
+
+    def generate_password(self, policy):
+        if not policy:
+            raise ValueError("No policy provided")
+
+        length = policy.get("length")
+        min_uppercase = policy.get("uppercase")
+        min_lowercase = policy.get("lowercase")
+        min_digits = policy.get("digits")
+        min_special = policy.get("special_characters")
+
+        password_characters = []
+        if min_uppercase:
+            password_characters.extend(
+                random.choices(string.ascii_uppercase, k=min_uppercase)
+            )
+        if min_lowercase:
+            password_characters.extend(
+                random.choices(string.ascii_lowercase, k=min_lowercase)
+            )
+        if min_digits:
+            password_characters.extend(random.choices(string.digits, k=min_digits))
+        if min_special:
+            password_characters.extend(
+                random.choices("!@#$%^&*()-_=+[]{}|;:'\",.<>/?", k=min_special)
+            )
+
+        remaining_length = length - len(password_characters)
+        if remaining_length > 0:
+            all_characters = string.ascii_letters + string.digits + string.punctuation
+            password_characters.extend(
+                random.choices(all_characters, k=remaining_length)
+            )
+
+        random.shuffle(password_characters)
+
+        return "".join(password_characters)
 
     def check_policy(self, password, policy, user_id=None, username=None):
         if len(password) < policy["length"]:

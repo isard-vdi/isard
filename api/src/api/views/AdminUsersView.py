@@ -24,6 +24,7 @@ import logging as log
 import time
 import traceback
 
+import gevent
 from flask import request
 from flask_login import logout_user
 from isardvdi_common.api_exceptions import Error
@@ -41,7 +42,6 @@ from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_users import (
     ApiUsers,
     Password,
-    bulk_create,
     get_user,
     get_user_full_data,
     user_exists,
@@ -421,84 +421,10 @@ def api_v3_admin_create_users_bulk(payload):
             traceback.format_exc(),
         )
 
-    new_users = []
-    errors = []
-
-    # TODO: Check in quotas whether can create users
-    p = Password()
-
-    for user in data["users"]:
-        new_user = {}
-        username = user["username"].replace(" ", "")
-        # Check whether the user has permissions to create users in the category
-        try:
-            ownsCategoryId(payload, user["category_id"])
-        except Error as e:
-            errors.append(
-                "Couldn't create user {}: {}".format(username, e.get("description"))
-            )
-            continue
-        # Check if the category exists and the group is from the category
-        try:
-            match = CategoryNameGroupNameMatch(user["category"], user["group"])
-        except Error as e:
-            errors.append(
-                "Couldn't create user {}: {}".format(username, e.get("description"))
-            )
-            continue
-        # If the user already exists skip it
-        user_id = users.GetByProviderCategoryUID(
-            "local", match["category_id"], username
-        )
-        if user_id:
-            errors.append(
-                "Couldn't create user {}: The user already exists".format(username)
-            )
-            continue
-
-        # Check if the password meets the policy
-        policy = users.get_user_password_policy(match["category_id"], user["role"])
-        try:
-            p.check_policy(user["password"], policy, username=username)
-        except Error as e:
-            errors.append(
-                "Couldn't create user {}: {}".format(username, e.get("description"))
-            )
-            continue
-
-        # Check if the secondary groups exist and belong to the category
-        if user.get("secondary_groups") and len(user["secondary_groups"]) > 0:
-            try:
-                users.check_secondary_groups_category(
-                    match["category_id"], user["secondary_groups"]
-                )
-            except Error as e:
-                errors.append(
-                    "Couldn't create user {}: {}".format(username, e.get("description"))
-                )
-                continue
-
-        new_user["uid"] = username
-        new_user["provider"] = "local"
-        new_user["category"] = match["category_id"]
-        new_user["group"] = match["group_id"]
-        new_user["username"] = username
-        new_user["password"] = p.encrypt(user["password"])
-        new_user["name"] = user["name"]
-        new_user["role"] = user["role"]
-        new_user["accessed"] = int(time.time())
-        new_user["quota"] = False
-        new_user["password_history"] = [user["password"]]
-        new_user["password_last_updated"] = int(time.time())
-        new_user["email_verification_token"] = None
-        new_user["email_verified"] = None
-        new_user = _validate_item("user", new_user)
-        new_users.append(new_user)
-
-    bulk_create(new_users)
+    gevent.spawn(users.generate_users, payload, data)
 
     return (
-        json.dumps(errors),
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )
@@ -1002,6 +928,9 @@ def admin_users_validate(payload):
 
     processed_list = []
     errors = []
+
+    p = Password()
+
     for user in user_list:
         # Validate each user
         user = {field: html.escape(str(value)) for field, value in user.items()}
@@ -1022,21 +951,8 @@ def admin_users_validate(payload):
             )
             continue
 
-        # Check password policy
-        if user.get("password"):
-            try:
-                p = Password()
-                policy = users.get_user_password_policy(
-                    user["category_id"], user["role"]
-                )
-                p.check_policy(user["password"], policy, username=user["username"])
-            except Error as e:
-                errors.append(
-                    "Skipping user {}: {}".format(
-                        user["username"], e.error["description"]
-                    )
-                )
-                continue
+        policy = users.get_user_password_policy(user["category_id"], user["role"])
+        user["password"] = p.generate_password(policy)
 
         # Check if the role is valid
         if payload["role_id"] == "manager":
@@ -1046,7 +962,7 @@ def admin_users_validate(payload):
                         user["username"]
                     )
                 )
-            continue
+                continue
         else:
             if user["role"] not in ["admin", "manager", "advanced", "user"]:
                 errors.append(

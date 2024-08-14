@@ -367,11 +367,52 @@ function socketio_on(){
 
         } else if (kind === 'download-create') {
             viewerFile = new Blob(
-                [`username,name,email,password,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,7j5*0Z/g,Default,Default,advanced\nauser,Another User,auser@domain.com,kE1)n4E1,Default,Default,user`
+                [`username,name,email,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,Default,Default,advanced\nauser,Another User,auser@domain.com,Default,Default,user`
                 ], { type: "text/csv" });
+        } else if (kind === 'download-generated') {
+            var notice = new PNotify({
+                title: "Creating CSV file...",
+                icon: 'fa fa-spinner fa-spin',
+            })
+            var form = $('#modalAddBulkUsersForm');
+            $("#modalAddBulkUserForm #bulk_secondary_groups").empty().trigger('change')
+            formdata = form.serializeObject()
+            form.parsley().validate();
+            if (form.parsley().isValid()) {
+                users = csv_preview.data().toArray()
+                filecontents = users.map(user => {
+                    return `${user.username}\t${user.name}\t${user.email}\t${user.password}\t${user.group}\t${user.category}\t${user.role}`
+                }
+                ).join('\n')
+                viewerFile = new Blob([`username\tname\temail\tpassword\tgroup\tcategory\trole\n` + filecontents], { type: "text/csv" });
+                notice.update({
+                    title: "CSV file created",
+                    text: "CSV file created with Tab separator",
+                    hide: true,
+                    delay: 5000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: 'success'
+                });
+            } else {
+                notice.update({
+                    title: "ERROR creating CSV file",
+                    text: 'Please fill all the required fields',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                });
+                return;
+            }
         }
         var a = document.createElement('a');
-            a.download = 'bulk-users-template.csv';
+            if (kind === 'download-generated') {
+                a.download = 'bulk-users.csv';
+            } else {
+                a.download = 'bulk-users-template.csv';
+            }
             a.href = window.URL.createObjectURL(viewerFile);
         var ev = document.createEvent("MouseEvents");
             ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
@@ -856,6 +897,19 @@ function socketio_on(){
 }
 
 function initUsersSockets () {
+    socket.on('msg', function (data) {
+        var data = JSON.parse(data);
+        new PNotify({
+            title: data.title,
+            text: data.description,
+            hide: (data.params.hide != undefined ? data.params.hide : true),
+            delay: (data.params.delay != undefined ? data.params.delay : 4000),
+            icon: 'fa fa-' + (data.params.icon != undefined ? data.params.icon : 'info'),
+            opacity: 1,
+            type: data.type
+        });
+    });
+
     socket.on('users_data', function(data) {
         var data = JSON.parse(data);
         data['secondary_groups_names'] = data['secondary_groups_data'].map(group => group['name']);
@@ -1273,7 +1327,7 @@ function csv2datatables(csv, modal) {
     }).done(function (data) {
         $(modal + " #csv_correct").show()
         $(modal + " #send").attr("disabled", false);
-        if (data.errors.length > 0) {
+        if (data.errors && data.errors.length > 0) {
             $(modal + " #csv_error").show()
             let errorsHtml = '<ul>'
             data.errors.forEach(function (error) {
@@ -1282,6 +1336,7 @@ function csv2datatables(csv, modal) {
             errorsHtml += '</ul>'
             $(modal + " #csv_error #csv_error_html").html(errorsHtml)
         }
+        $(modal + " #csv_preview").DataTable().destroy();
         csv_preview = $(modal + " #csv_preview").DataTable({
             data: modal == "#modalUpdateFromCSV" ? data : data.users,
             rowId: modal == "#modalUpdateFromCSV" ? "id": "username",
@@ -1304,12 +1359,26 @@ function csv2datatables(csv, modal) {
                 { "data": "uid", "width": "88px", "className": "no-update" },
                 { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update" },
                 { "data": "secondary_groups_names", "width": "88px", "defaultContent": "", },
-                { "data": "password", "width": "88px" },
+                {
+                    "data": "password",
+                    "width": "88px",
+                    "render": function (data, type, full, meta) {
+                        // Otherwise passwords starting with '<' will not be displayed
+                        return $('<div>').text(data).html();
+                    }
+                },
             ] : [
                 { "data": "username", "width": "88px" },
                 { "data": "name", "width": "88px" },
                 { "data": "email", "width": "88px" },
-                { "data": "password", "width": "88px" },
+                {
+                    "data": "password",
+                    "width": "88px",
+                    "render": function (data, type, full, meta) {
+                        // Otherwise passwords starting with '<' will not be displayed
+                        return $('<div>').text(data).html();
+                    }
+                },
                 { "data": "group", "width": "88px", "defaultContent": "" },
                 { "data": "category", "width": "88px", "defaultContent": "" },
                 { "data": "role", "width": "88px", "defaultContent": "" },

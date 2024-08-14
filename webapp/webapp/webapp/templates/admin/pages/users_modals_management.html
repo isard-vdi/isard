@@ -348,11 +348,13 @@
                                 <div class="col-md-9 col-sm-9 col-xs-12">
                                     <input type="file" id="csv" name="csv" enctype="multipart/form-data" />
                                     <br>
+                                    <small>Passwords will be auto generated</small>
+                                    <br>
                                     <small>Existing users will ignored, new users will be created.</small>
                                     <br>
                                     <small>CSV file should have this columns:
                                         <ul>
-                                            <li>username / name / email / password / group / category / role</li>
+                                            <li>username / name / email / group / category / role</li>
                                             <li>Where <b>category</b> and <b>group</b> are their <i>names</i></li>
                                             <li>Where <b>role</b> must be <i>manager, advanced</i> or <i>user</i></li>
                                         </ul>
@@ -390,6 +392,8 @@
                                     <tbody>
                                     </tbody>
                                 </table>
+                                <button type="button" class="btn btn-success btn-download-bulkusers" id="download-generated"
+                                    >Download CSV with generated passwords</button>
                                 <hr>
                                 <div class="x_title">
                                     <h4></i> Set other extra fields</h4>
