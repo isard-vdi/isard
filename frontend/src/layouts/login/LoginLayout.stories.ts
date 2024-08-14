@@ -1,11 +1,11 @@
-import type { StoryObj } from '@storybook/vue3'
+import type { Meta, StoryObj } from '@storybook/vue3'
 import { LoginLayout } from '@/layouts/login'
 
 const meta = {
   component: LoginLayout,
   title: 'Layouts/Login',
   tags: ['autodocs']
-}
+} satisfies Meta<typeof LoginLayout>
 
 export default meta
 

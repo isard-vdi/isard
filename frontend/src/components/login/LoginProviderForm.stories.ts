@@ -1,11 +1,11 @@
-import type { StoryObj } from '@storybook/vue3'
+import type { Meta, StoryObj } from '@storybook/vue3'
 import { LoginProviderForm } from '@/components/login'
 
 const meta = {
   component: LoginProviderForm,
   title: 'LoginProviderForm',
   tags: ['autodocs']
-}
+} satisfies Meta<typeof LoginProviderForm>
 
 export default meta
 

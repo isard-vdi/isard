@@ -1,4 +1,4 @@
-import type { StoryObj } from '@storybook/vue3'
+import type { Meta, StoryObj } from '@storybook/vue3'
 import { LoginProviderExternal, Provider } from '@/components/login'
 
 const meta = {
@@ -8,7 +8,7 @@ const meta = {
   argTypes: {
     provider: { control: 'select', options: Provider }
   }
-}
+} satisfies Meta<typeof LoginProviderExternal>
 
 export default meta
 
