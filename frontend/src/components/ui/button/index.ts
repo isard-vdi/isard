@@ -69,4 +69,26 @@ export const buttonVariants = cva(
   }
 )
 
+export const buttonIconVariants = cva(
+  // Common classes applied to all buttons
+  `
+    pr-3
+  `,
+  {
+    variants: {
+      size: {
+        sm: 'px-[12px] py-[8px] text-sm',
+        md: 'px-[14px] py-[10px] text-sm',
+        lg: 'px-[16px] py-[10px] text-md',
+        xl: 'px-[18px] py-[12px] text-md',
+        '2xl': 'px-[22px] py-[16px] text-lg'
+      }
+    },
+    defaultVariants: {
+      size: 'md'
+    }
+  }
+)
+
 export type ButtonVariants = VariantProps<typeof buttonVariants>
+export type ButtonIconVariants = VariantProps<typeof buttonIconVariants>
