@@ -15,7 +15,10 @@ RUN python3 -m venv /venv && \
     pip3 install \
     	"betterproto[compiler]==2.0.0-beta6" \
 	"grpcio-tools==1.64.1"
-RUN npm install --global @bufbuild/protoc-gen-es@1.10.0
+RUN npm install --global \
+  @bufbuild/protoc-gen-es@1.10.0 \
+  @hey-api/openapi-ts@0.52.8 \
+  @hey-api/client-fetch@0.2.4
 
 COPY docker/codegen/gen.sh /gen.sh
 

@@ -1,6 +1,9 @@
 #!/bin/sh
 
+set -e
+
 rm -rf pkg/gen
+rm -rf frontend/src/gen
 
 # Protobuf
 source /venv/bin/activate
@@ -14,6 +17,9 @@ ogen --target ./pkg/gen/oas/notifier -package notifier --clean pkg/oas/notifier/
 # Authentication OAS
 mkdir -p pkg/gen/oas/authentication
 ogen --target ./pkg/gen/oas/authentication -package authentication --clean pkg/oas/authentication/authentication.json
+cd frontend
+CODEGEN=authentication openapi-ts
+cd -
 
 # Go mocks
 mockery
