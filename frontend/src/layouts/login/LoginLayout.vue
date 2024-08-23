@@ -6,14 +6,12 @@ import logoUrl from '@/assets/logo.svg'
 const { t } = useI18n()
 
 const isardVdiUrl = 'https://isardvdi.com'
-
 </script>
 
 <template>
   <div class="flex h-screen overflow-y-auto">
     <!-- Left panel (cover image) -->
-    <div class="hidden md:block w-1/2 h-full bg-cover bg-center bg-cover-img">
-    </div>
+    <div class="hidden md:block w-1/2 h-full bg-cover bg-center bg-cover-img"></div>
 
     <!-- Right panel (login form) -->
     <div class="w-full md:w-1/2 h-full p-[32px] flex flex-col justify-between">
