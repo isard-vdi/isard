@@ -17,21 +17,38 @@ const delegatedProps = computed(() => {
     v-bind="delegatedProps"
     :class="
       cn(
-        'shrink-0 bg-gray-warm-200 relative',
-        props.orientation === 'vertical' ? 'w-px h-full' : 'h-px w-full',
+        'relative flex items-center',
+        props.orientation === 'vertical' ? 'flex-col' : 'flex-row',
         props.class
       )
     "
   >
+    <div
+      :class="
+        cn(
+          'bg-gray-warm-200 flex-grow',
+          props.orientation === 'vertical' ? 'w-px h-full' : 'h-px w-full'
+        )
+      "
+    ></div>
     <span
       v-if="props.label"
       :class="
         cn(
-          'text-xs text-muted-foreground bg-background absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex justify-center items-center',
-          props.orientation === 'vertical' ? 'w-[1px] px-1 py-2' : 'h-[1px] py-1 px-2'
+          'text-xs text-muted-foreground bg-background px-2 z-10 whitespace-nowrap',
+          props.orientation === 'vertical' ? 'py-1' : 'px-2'
         )
       "
-      >{{ props.label }}</span
     >
+      {{ props.label }}
+    </span>
+    <div
+      :class="
+        cn(
+          'bg-gray-warm-200 flex-grow',
+          props.orientation === 'vertical' ? 'w-px h-full' : 'h-px w-full'
+        )
+      "
+    ></div>
   </Separator>
 </template>

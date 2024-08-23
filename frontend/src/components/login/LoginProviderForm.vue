@@ -4,27 +4,42 @@ import { toTypedSchema } from '@vee-validate/zod'
 import * as z from 'zod'
 import { AutoForm } from '@/components/ui/auto-form'
 import { Button } from '@/components/ui/button'
+import { useI18n } from 'vue-i18n'
+import { computed } from 'vue'
+
+const { t } = useI18n()
 
 const schema = z.object({
   username: z.string(),
   password: z.string()
 })
 
-const fieldConfig = {
-  password: {
-    inputProps: {
-      type: 'password'
+const fieldConfig = computed(() => {
+  return {
+    username: {
+      label: t('components.login.login-provider-form.username'),
+    },
+    password: {
+      label: t('components.login.login-provider-form.password'),
+      inputProps: {
+        type: 'password'
+      }
     }
   }
-}
+})
 
 const form = useForm({
   validationSchema: toTypedSchema(schema)
 })
 
 const onSubmit = form.handleSubmit((values) => {
+  emit('submit', values)
   console.log('Form submitted!', values)
 })
+
+const emit = defineEmits<{
+  submit: [data: typeof schema._output]
+}>()
 </script>
 <template>
   <AutoForm
@@ -37,9 +52,9 @@ const onSubmit = form.handleSubmit((values) => {
     <a
       href="/forgot-password"
       class="block m-y-1 font-semibold text-center text-brand-500 hover:underline"
-      >Has oblidat la contrasenya?</a
+      >{{ t('components.login.login-provider-form.forgot-password') }}</a
     >
 
-    <Button type="submit" size="lg" class="w-full">Iniciar sessió</Button>
+    <Button type="submit" size="lg" class="w-full">{{ t('components.login.login-provider-form.login') }}</Button>
   </AutoForm>
 </template>

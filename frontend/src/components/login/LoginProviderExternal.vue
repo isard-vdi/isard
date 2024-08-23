@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, type ComputedRef } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Provider } from '@/components/login'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface Props {
   provider: Provider
@@ -9,9 +12,9 @@ interface Props {
   text?: string
 }
 
-const defaultText: Record<Provider, string> = {
-  [Provider.SAML]: 'Iniciar sessió amb SAML',
-  [Provider.Google]: 'Iniciar sessió amb Google'
+const defaultText: Record<Provider, ComputedRef<String>> = {
+  [Provider.SAML]: computed(() => t('components.login.login-provider-external.default-text.saml')),
+  [Provider.Google]: computed(() => t('components.login.login-provider-external.default-text.google'))
 }
 
 const defaultIcon: Record<Provider, string | undefined> = {

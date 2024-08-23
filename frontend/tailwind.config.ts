@@ -14,6 +14,9 @@ export default {
   ],
 
   theme: {
+    backgroundImage: {
+      'cover-img': "url('@/assets/img/cover-img.svg')"
+    },
     fontFamily: {
       sans: ['Montserrat', 'sans-serif']
     },

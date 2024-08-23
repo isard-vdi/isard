@@ -4,5 +4,23 @@
       "title": "Iniciar sessió",
       "works-with": "Funciona amb"
     }
+  },
+  "components": {
+    "login": {
+      "login-provider-form": {
+        "category": "Categoria",
+        "username": "Nom d'usuari",
+        "password": "Contrasenya",
+        "forgot-password": "Has oblidat la contrasenya?",
+        "login": "Iniciar sessió"
+      },
+      "separator": "Altres accessos",
+      "login-provider-external": {
+        "default-text": {
+          "saml": "Iniciar sessió amb SAML",
+          "google": "Iniciar sessió amb Google"
+        }
+      }
+    }
   }
 }

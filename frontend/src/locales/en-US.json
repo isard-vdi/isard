@@ -4,5 +4,23 @@
       "title": "Login",
       "works-with": "Works with"
     }
+  },
+  "components": {
+    "login": {
+      "login-provider-form": {
+        "category": "Category",
+        "username": "Username",
+        "password": "Password",
+        "forgot-password": "Forgot password?",
+        "login": "Login"
+      },
+      "separator": "Other logins",
+      "login-provider-external": {
+        "default-text": {
+          "saml": "Login with SAML",
+          "google": "Login with Google"
+        }
+      }
+    }
   }
 }
