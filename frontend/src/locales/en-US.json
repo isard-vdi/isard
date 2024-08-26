@@ -1,4 +1,9 @@
 {
+  "views": {
+    "login": {
+      "separator": "Other logins"
+    }
+  },
   "layouts": {
     "login": {
       "title": "Login",
@@ -14,7 +19,6 @@
         "forgot-password": "Forgot password?",
         "login": "Login"
       },
-      "separator": "Other logins",
       "login-provider-external": {
         "default-text": {
           "saml": "Login with SAML",

@@ -1,4 +1,9 @@
 {
+  "views": {
+    "login": {
+      "separator": "Altres accessos"
+    }
+  },
   "layouts": {
     "login": {
       "title": "Iniciar sessió",
@@ -14,7 +19,6 @@
         "forgot-password": "Has oblidat la contrasenya?",
         "login": "Iniciar sessió"
       },
-      "separator": "Altres accessos",
       "login-provider-external": {
         "default-text": {
           "saml": "Iniciar sessió amb SAML",
