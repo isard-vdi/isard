@@ -9,7 +9,7 @@ import autoprefixer from 'autoprefixer'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/frontend',
+  base: process.env.NODE_ENV === 'production' ? '/frontend' : '/',
   css: {
     postcss: {
       plugins: [tailwind(), autoprefixer()]
@@ -19,6 +19,14 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
+  },
+  server: {
+    proxy: {
+      '^/(authentication|api).*': {
+        target: 'https://localhost',
+        secure: false
+      }
     }
   }
 })
