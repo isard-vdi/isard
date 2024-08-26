@@ -17,7 +17,7 @@ const schema = z.object({
 const fieldConfig = computed(() => {
   return {
     username: {
-      label: t('components.login.login-provider-form.username'),
+      label: t('components.login.login-provider-form.username')
     },
     password: {
       label: t('components.login.login-provider-form.password'),
@@ -34,7 +34,6 @@ const form = useForm({
 
 const onSubmit = form.handleSubmit((values) => {
   emit('submit', values)
-  console.log('Form submitted!', values)
 })
 
 const emit = defineEmits<{
@@ -55,6 +54,8 @@ const emit = defineEmits<{
       >{{ t('components.login.login-provider-form.forgot-password') }}</a
     >
 
-    <Button type="submit" size="lg" class="w-full">{{ t('components.login.login-provider-form.login') }}</Button>
+    <Button type="submit" size="lg" class="w-full">{{
+      t('components.login.login-provider-form.login')
+    }}</Button>
   </AutoForm>
 </template>

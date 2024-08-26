@@ -2,10 +2,16 @@ import './assets/index.css'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import { i18n } from './i18n'
 
+import { client } from './gen/oas/authentication'
 import App from './App.vue'
 import router from './router'
+import { i18n } from './i18n'
+
+// Configure Authentication OAS client
+client.setConfig({
+  baseUrl: '/authentication'
+})
 
 const app = createApp(App)
 

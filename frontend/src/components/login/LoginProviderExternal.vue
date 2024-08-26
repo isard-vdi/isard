@@ -14,7 +14,9 @@ interface Props {
 
 const defaultText: Record<Provider, ComputedRef<String>> = {
   [Provider.SAML]: computed(() => t('components.login.login-provider-external.default-text.saml')),
-  [Provider.Google]: computed(() => t('components.login.login-provider-external.default-text.google'))
+  [Provider.Google]: computed(() =>
+    t('components.login.login-provider-external.default-text.google')
+  )
 }
 
 const defaultIcon: Record<Provider, string | undefined> = {
