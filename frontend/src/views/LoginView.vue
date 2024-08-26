@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { jwtDecode } from 'jwt-decode'
 import { set as setCookie } from 'tiny-cookie'
-import { login } from '@/gen/oas/authentication'
+import { login, LoginData } from '@/gen/oas/authentication'
 import { LoginLayout } from '@/layouts/login'
 import { LoginProviderForm, LoginProviderExternal, Provider } from '@/components/login'
 import { Separator } from '@/components/ui/separator'
@@ -18,7 +18,7 @@ const isProviderValid = computed(() => {
 })
 
 const onFormSubmit = async (values) => {
-  const { data, error, response } = await login({
+  const { error, response } = await login({
     body: values,
     query: {
       // TODO: Softcode this
@@ -63,6 +63,32 @@ const onFormSubmit = async (values) => {
     }
   }
 }
+
+const onExternalSubmit = async (provider: Provider) => {
+  const data: LoginData = {
+    query: {
+      // TODO: Change this when category dropdown is done!
+      category_id: 'default',
+      provider: provider,
+      redirect: '/'
+    }
+  }
+
+  const url = new URL('/authentication/login', window.location.origin)
+  for (const [k, v] of Object.entries(data.query)) {
+    url.searchParams.set(k, v)
+  }
+
+  // We need to create a form in order to do a POST
+  // request, with multipart/form-data in the window
+  // of the browser instead of a threaded request
+  const form = document.createElement('form')
+  document.body.appendChild(form)
+  form.method = 'POST'
+  form.enctype = 'multipart/form-data'
+  form.action = url.toString()
+  form.submit()
+}
 </script>
 
 <template>
@@ -76,6 +102,7 @@ const onFormSubmit = async (values) => {
         <LoginProviderExternal
           v-if="!isProviderValid || $route.params.provider === provider"
           :provider="provider"
+          @submit="onExternalSubmit"
         />
       </template>
     </div>

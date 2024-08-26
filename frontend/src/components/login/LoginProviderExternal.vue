@@ -24,11 +24,21 @@ const defaultIcon: Record<Provider, string | undefined> = {
   [Provider.Google]: 'google'
 }
 
+const onClick = () => {
+  emit('submit', props.provider)
+}
+
 const props = defineProps<Props>()
+const emit = defineEmits<{
+  submit: [provider: Provider]
+}>()
+
 const text = computed(() => props.text || defaultText[props.provider])
 const icon = computed(() => props.icon || defaultIcon[props.provider])
 </script>
 
 <template>
-  <Button class="w-full" hierarchy="secondary-gray" size="lg" :icon="icon">{{ text }}</Button>
+  <Button class="w-full" hierarchy="secondary-gray" size="lg" :icon="icon" @click="onClick">{{
+    text
+  }}</Button>
 </template>
