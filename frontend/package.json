@@ -38,7 +38,7 @@
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^1.6.1",
-    "@hey-api/openapi-ts": "^0.52.8",
+    "@hey-api/openapi-ts": "^0.52.10",
     "@playwright/test": "^1.44.1",
     "@rushstack/eslint-patch": "^1.8.0",
     "@storybook/addon-a11y": "^8.2.5",
