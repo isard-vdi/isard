@@ -21,5 +21,11 @@ cd frontend
 CODEGEN=authentication openapi-ts
 cd -
 
+# API OAS
+mkdir -p pkg/gen/oas/api
+ogen --target ./pkg/gen/oas/api -package api --clean pkg/oas/api/api.json
+cd frontend
+CODEGEN=api openapi-ts
+
 # Go mocks
 mockery

@@ -1,0 +1,70 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "IsardVDI API",
+    "version": "3.1"
+  },
+  "paths": {
+    "/api/v3/categories": {
+      "get": {
+        "operationId": "GetCategories",
+        "summary": "List all the available categories for the user to login",
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCategoriesResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [],
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "GetCategoriesResponse": {
+        "title": "List of the categories",
+        "type": "array",
+        "items": {
+          "properties": {
+            "id": {
+              "title": "The ID of the category",
+              "type": "string"
+            },
+            "name": {
+              "title": "The name of the category",
+              "type": "string"
+            },
+            "frontend": {
+              "title": "Whether to show this on the frontend dropdown",
+              "type": "boolean"
+            },
+            "custom_url_name": {
+              "title": "An URL friendly name for the category",
+              "type": "string"
+            }
+          },
+          "required": ["id", "name", "frontend"],
+          "type": "object"
+        }
+      }
+    }
+  },
+  "security": [],
+  "tags": []
+}
