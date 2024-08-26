@@ -20,7 +20,7 @@ export default {
   components: { MessageModal },
   setup (_, context) {
     const $store = context.root.$store
-    const viewsNotRedirected = ['Login', 'VerifyEmail', 'ResetPassword', 'ForgotPassword']
+    const viewsNotRedirected = ['VerifyEmail', 'ResetPassword', 'ForgotPassword']
     onBeforeMount(() => {
       listenCookieChange((_, { oldValue, newValue }) => {
         if (!getCookie(sessionCookieName)) {

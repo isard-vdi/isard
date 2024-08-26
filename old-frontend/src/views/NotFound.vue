@@ -26,8 +26,8 @@
             {{ $t('views.not-found.subtitle') }}<br>
             {{ $t('views.not-found.home') }} <b
               class="cursor-pointer"
-              @click="navigate('Login')"
-            ><u>{{ $t('views.not-found.here') }}</u></b>
+              @click="window.location = '/login'"
+            ><u>{{ $t("views.not-found.here") }}</u></b>
           </p>
         </span>
       </b-col>
@@ -37,15 +37,3 @@
     </b-row>
   </b-container>
 </template>
-
-<script>
-import { mapActions } from 'vuex'
-
-export default {
-  methods: {
-    ...mapActions([
-      'navigate'
-    ])
-  }
-}
-</script>

@@ -8,8 +8,6 @@ COPY old-frontend /isard-frontend
 
 ARG SRC_VERSION_ID
 ARG SRC_VERSION_LINK
-RUN sed -i "s*isard_display_version*${SRC_VERSION_ID}*g" /isard-frontend/src/views/Login.vue
-RUN sed -i "s,isard_changelog_link,${SRC_VERSION_LINK},g"  /isard-frontend/src/views/Login.vue
 
 WORKDIR /isard-frontend
 

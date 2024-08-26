@@ -38,9 +38,6 @@ import { jwtDecode } from 'jwt-decode'
 import store from '@/store'
 import { getCookie } from 'tiny-cookie'
 import { isEmpty } from 'lodash'
-import LoginLayout from '../views/LoginLayout.vue'
-import SelectCategory from '../components/login/SelectCategory.vue'
-import LoginForm from '../components/login/LoginForm.vue'
 
 Vue.use(VueRouter)
 
@@ -379,35 +376,6 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/login/:customUrlName?',
-      component: LoginLayout,
-      children: [
-        {
-          path: '',
-          name: 'Login',
-          component: LoginForm,
-          meta: {
-            title: i18n.t('router.titles.login')
-          }
-        }
-      ]
-    },
-    {
-      path: '/select-category',
-      component: LoginLayout,
-      children: [
-        {
-          path: '',
-          name: 'SelectCategory',
-          component: SelectCategory,
-          meta: {
-            title: i18n.t('router.titles.select_category'),
-            requiresAuth: true
-          }
-        }
-      ]
-    },
-    {
       path: '/register',
       name: 'Register',
       component: Register,
@@ -456,7 +424,7 @@ router.beforeEach(async (to, from, next) => {
   moment.locale(localStorage.language)
   document.title = to.meta.title ? `${appTitle} - ${to.meta.title}` : appTitle
   let session = store.getters.getSession
-  if (to.matched.some(record => record.meta.requiresAuth)) {
+  if (to.matched.some((record) => record.meta.requiresAuth)) {
     // No session yet
     if (!session) {
       const authorizationCookie = getCookie('authorization')
@@ -470,30 +438,24 @@ router.beforeEach(async (to, from, next) => {
           } else {
             store.dispatch('loginSuccess', authorizationCookie)
           }
-        // If user has multiple categories redirect to select category
+          // If user has multiple categories redirect to select category
         } else if (token.type === 'category-select') {
-          if (to.name !== 'SelectCategory' && token.type === 'category-select') {
-            router.push({ name: 'SelectCategory' })
-          } else if (to.name === 'SelectCategory') {
-            next()
-          } else {
-            router.push({ name: 'Login' })
-          }
+          window.location = '/login'
         } else {
           store.dispatch('loginSuccess', authorizationCookie)
         }
-      // Routes to verify email and reset password require a token (sent by email)
-      } else if (['VerifyEmail', 'ResetPassword', 'SelectCategory'].includes(to.name)) {
+        // Routes to verify email and reset password require a token (sent by email)
+      } else if (['VerifyEmail', 'ResetPassword'].includes(to.name)) {
         if (to.query.token) {
           next()
         } else {
-          router.push({ name: 'Login' })
+          window.location = '/login'
         }
-      // If trying to access any route redirect to login
+        // If trying to access any route redirect to login
       } else {
-        router.push({ name: 'Login' })
+        window.location = '/login'
       }
-    // Local login
+      // Local login
     } else {
       const sessionData = jwtDecode(session)
       // TODO: The session might not be expired but it could be revoked
@@ -511,7 +473,10 @@ router.beforeEach(async (to, from, next) => {
         store.dispatch('fetchUser')
         // Logged in without requirements
         if (!to.query.token && !sessionData.type) {
-          if (to.meta.allowedRoles && to.meta.allowedRoles.includes(store.getters.getUser.role_id)) {
+          if (
+            to.meta.allowedRoles &&
+            to.meta.allowedRoles.includes(store.getters.getUser.role_id)
+          ) {
             store.dispatch('openSocket', {})
             if (isEmpty(store.getters.getConfig)) {
               store.dispatch('fetchConfig')
@@ -524,14 +489,27 @@ router.beforeEach(async (to, from, next) => {
             store.dispatch('saveNavigation', { url: from })
             next({ name: 'desktops' })
           }
-        // Requires disclaimer acceptance, will be redirected
-        } else if (to.name !== 'Disclaimer' && ['disclaimer-acknowledgement-required'].includes(sessionData.type)) {
+          // Requires disclaimer acceptance, will be redirected
+        } else if (
+          to.name !== 'Disclaimer' &&
+          ['disclaimer-acknowledgement-required'].includes(sessionData.type)
+        ) {
           router.push({ name: 'Disclaimer' })
-        // Requires email verification, will be redirected
-        } else if (to.name !== 'VerifyEmail' && ['email-verification-required', 'email-verification'].includes(sessionData.type)) {
+          // Requires email verification, will be redirected
+        } else if (
+          to.name !== 'VerifyEmail' &&
+          ['email-verification-required', 'email-verification'].includes(
+            sessionData.type
+          )
+        ) {
           router.push({ name: 'VerifyEmail' })
-        // Requires password reset, will be redirected
-        } else if (to.name !== 'ResetPassword' && ['password-reset-required', 'password-reset'].includes(sessionData.type)) {
+          // Requires password reset, will be redirected
+        } else if (
+          to.name !== 'ResetPassword' &&
+          ['password-reset-required', 'password-reset'].includes(
+            sessionData.type
+          )
+        ) {
           router.push({ name: 'ResetPassword' })
         } else {
           next()
@@ -539,8 +517,12 @@ router.beforeEach(async (to, from, next) => {
       }
     }
   } else {
-    if (to.name === 'Login' && getCookie('authorization') && jwtDecode(getCookie('authorization')).type === 'category-select') {
-      router.push({ name: 'SelectCategory' })
+    if (
+      to.name === 'Login' &&
+      getCookie('authorization') &&
+      jwtDecode(getCookie('authorization')).type === 'category-select'
+    ) {
+      window.location = '/'
     } else {
       store.dispatch('saveNavigation', { url: to })
       next()

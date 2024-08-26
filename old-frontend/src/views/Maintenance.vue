@@ -105,7 +105,7 @@ export default {
       if (user) {
         $store.dispatch('logout')
       } else {
-        $store.dispatch('navigate', 'Login')
+        window.location = '/login'
       }
     }
 

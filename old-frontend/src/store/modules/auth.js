@@ -1,7 +1,12 @@
 import { jwtDecode } from 'jwt-decode'
 import axios from 'axios'
 import router from '@/router'
-import { sessionCookieName, apiV3Segment, apiAdminSegment, authenticationSegment } from '@/shared/constants'
+import {
+  sessionCookieName,
+  apiV3Segment,
+  apiAdminSegment,
+  authenticationSegment
+} from '@/shared/constants'
 import { getCookie, setCookie, removeCookie } from 'tiny-cookie'
 import { DateUtils } from '../../utils/dateUtils'
 
@@ -26,19 +31,19 @@ export default {
     userCategories: []
   },
   getters: {
-    getSession: state => {
+    getSession: (state) => {
       return state.session
     },
-    getUser: state => {
+    getUser: (state) => {
       return state.user
     },
-    getCurrentRoute: state => {
+    getCurrentRoute: (state) => {
       return state.currentRoute
     },
-    getPageErrorMessage: state => {
+    getPageErrorMessage: (state) => {
       return state.pageErrorMessage
     },
-    getUserCategories: state => {
+    getUserCategories: (state) => {
       return state.userCategories
     }
   },
@@ -58,7 +63,10 @@ export default {
     },
     setPageErrorMessage (state, errorMessage) {
       if (errorMessage.args) {
-        state.pageErrorMessage = { message: errorMessage.message, args: errorMessage.args }
+        state.pageErrorMessage = {
+          message: errorMessage.message,
+          args: errorMessage.args
+        }
       } else {
         state.pageErrorMessage = { message: errorMessage }
       }
@@ -82,16 +90,22 @@ export default {
         }
         return config
       })
-      await authentication.post(`/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}`, data, { timeout: 25000 }).then(response => {
-        const token = jwtDecode(response.data)
-        if (token.type === 'register') {
-          router.push({ name: 'Register' })
-        } else if (token.type === 'category-select') {
-          router.push({ name: 'SelectCategory' })
-        } else {
-          context.dispatch('loginSuccess', response.data)
-        }
-      })
+      await authentication
+        .post(
+          `/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}`,
+          data,
+          { timeout: 25000 }
+        )
+        .then((response) => {
+          const token = jwtDecode(response.data)
+          if (token.type === 'register') {
+            router.push({ name: 'Register' })
+          } else if (token.type === 'category-select') {
+            window.location = '/'
+          } else {
+            context.dispatch('loginSuccess', response.data)
+          }
+        })
     },
     fetchUserCategories (context) {
       const token = jwtDecode(getCookie('authorization'))
@@ -111,7 +125,7 @@ export default {
       router.push({ name: 'desktops' })
     },
     loginWebapp (context) {
-      webapp.get('/login', {}, { timeout: 25000 }).catch(e => {
+      webapp.get('/login', {}, { timeout: 25000 }).catch((e) => {
         if (e.response.status === 503) {
           router.push({ name: 'Maintenance' })
         } else {
@@ -123,24 +137,30 @@ export default {
       const authentication = axios.create({
         baseURL: authenticationSegment
       })
-      authentication.interceptors.request.use(config => {
+      authentication.interceptors.request.use((config) => {
         config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
         return config
       })
-      return authentication.post('/renew', {}).then(response => {
-        context.commit('setSession', response.data.token)
-        context.dispatch('openSocket', {})
-        context.dispatch('fetchUser')
-      }).catch(e => {
-        console.log(e)
-        context.dispatch('logout')
-      })
+      return authentication
+        .post('/renew', {})
+        .then((response) => {
+          context.commit('setSession', response.data.token)
+          context.dispatch('openSocket', {})
+          context.dispatch('fetchUser')
+        })
+        .catch((e) => {
+          console.log(e)
+          context.dispatch('logout')
+        })
     },
     logout (context, redirect = true) {
       if (getCookie(sessionCookieName)) {
         const session = jwtDecode(context.getters.getSession)
         if (!session.type) {
-          if (context.getters.getUser && ['admin', 'manager'].includes(context.getters.getUser.role_id)) {
+          if (
+            context.getters.getUser &&
+            ['admin', 'manager'].includes(context.getters.getUser.role_id)
+          ) {
             webapp.get('/logout/remote')
           }
         }
@@ -149,7 +169,7 @@ export default {
       context.commit('resetStore')
       context.dispatch('closeSocket')
       if (redirect) {
-        router.push({ name: 'Login' })
+        window.location = '/login'
       }
     },
     saveNavigation (context, payload) {
@@ -160,12 +180,29 @@ export default {
       if (e.response.status === 403 && e.response.data === 'disabled user') {
         commit('setPageErrorMessage', 'errors.user_disabled')
       } else if ([401, 500].includes(e.response.status)) {
-        commit('setPageErrorMessage', `views.login.errors.${e.response.status}`)
+        commit(
+          'setPageErrorMessage',
+          `views.login.errors.${e.response.status}`
+        )
       } else if ([429].includes(e.response.status)) {
         if (DateUtils.dateIsToday(e.response.headers['retry-after'])) {
-          commit('setPageErrorMessage', { message: `views.login.errors.${e.response.status}`, args: { time: DateUtils.formatAsTimeWithSeconds(e.response.headers['retry-after']) } })
+          commit('setPageErrorMessage', {
+            message: `views.login.errors.${e.response.status}`,
+            args: {
+              time: DateUtils.formatAsTimeWithSeconds(
+                e.response.headers['retry-after']
+              )
+            }
+          })
         } else {
-          commit('setPageErrorMessage', { message: `views.login.errors.${e.response.status}`, args: { time: DateUtils.formatAsFullDateTime(e.response.headers['retry-after']) } })
+          commit('setPageErrorMessage', {
+            message: `views.login.errors.${e.response.status}`,
+            args: {
+              time: DateUtils.formatAsFullDateTime(
+                e.response.headers['retry-after']
+              )
+            }
+          })
         }
       } else {
         commit('setPageErrorMessage', 'views.login.errors.generic')
@@ -205,7 +242,10 @@ export default {
     },
     handleRegisterError ({ commit }, error) {
       if ([401, 403, 404, 409].includes(error.response.status)) {
-        commit('setPageErrorMessage', `views.register.errors.${error.response.status}`)
+        commit(
+          'setPageErrorMessage',
+          `views.register.errors.${error.response.status}`
+        )
       } else if (error.response.status === 429) {
         commit('setPageErrorMessage', 'views.login.errors.429')
       } else {
@@ -219,7 +259,7 @@ export default {
         context.commit('setUser', tokenPayload.data)
 
         // Update user info with additional data from API
-        axios.get(`${apiV3Segment}/user`).then(response => {
+        axios.get(`${apiV3Segment}/user`).then((response) => {
           const data = { ...tokenPayload.data }
 
           data.role_name = response.data.role_name
@@ -228,9 +268,11 @@ export default {
 
           context.commit('setUser', data)
         })
-      // Email verification page
+        // Email verification page
       } else {
-        context.commit('setUser', { current_email: tokenPayload.current_email })
+        context.commit('setUser', {
+          current_email: tokenPayload.current_email
+        })
       }
     },
     async updateSession (context, session) {
@@ -239,15 +281,18 @@ export default {
     // Email verification
     sendVerifyEmail (context, data) {
       const verifyEmailAxios = axios.create()
-      verifyEmailAxios.interceptors.request.use(config => {
+      verifyEmailAxios.interceptors.request.use((config) => {
         config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
         return config
       })
-      return verifyEmailAxios.post(`${authenticationSegment}/request-email-verification`, data)
+      return verifyEmailAxios.post(
+        `${authenticationSegment}/request-email-verification`,
+        data
+      )
     },
     verifyEmail (context, token) {
       const verifyEmailAxios = axios.create()
-      verifyEmailAxios.interceptors.request.use(config => {
+      verifyEmailAxios.interceptors.request.use((config) => {
         config.headers.Authorization = `Bearer ${token}`
         return config
       })
@@ -256,16 +301,20 @@ export default {
     // Password reset
     sendResetPasswordEmail (context, data) {
       const forgotPasswordAxios = axios.create()
-      return forgotPasswordAxios.post(`${authenticationSegment}/forgot-password`, data)
+      return forgotPasswordAxios.post(
+        `${authenticationSegment}/forgot-password`,
+        data
+      )
     },
     fetchExpiredPasswordPolicy (context, token) {
       const expiredPasswordAxios = axios.create()
-      expiredPasswordAxios.interceptors.request.use(config => {
+      expiredPasswordAxios.interceptors.request.use((config) => {
         config.headers.Authorization = `Bearer ${token}`
         return config
       })
-      return expiredPasswordAxios.get(`${apiV3Segment}/user/expired/password-policy`)
-        .then(response => {
+      return expiredPasswordAxios
+        .get(`${apiV3Segment}/user/expired/password-policy`)
+        .then((response) => {
           context.commit('setPasswordPolicy', response.data)
         })
     },
@@ -273,12 +322,15 @@ export default {
       const resetPasswordAxios = axios.create()
       const token = data.token
       delete data.token
-      resetPasswordAxios.interceptors.request.use(config => {
+      resetPasswordAxios.interceptors.request.use((config) => {
         config.headers.Authorization = `Bearer ${token}`
         return config
       })
 
-      return resetPasswordAxios.post(`${authenticationSegment}/reset-password`, data)
+      return resetPasswordAxios.post(
+        `${authenticationSegment}/reset-password`,
+        data
+      )
     }
   }
 }
