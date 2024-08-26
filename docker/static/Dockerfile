@@ -1,10 +1,10 @@
 #
-# frontend
+# old frontend
 #
-FROM node:18.20-alpine as frontend
+FROM node:18.20-alpine AS old-frontend
 
 RUN mkdir /isard-frontend
-COPY frontend /isard-frontend
+COPY old-frontend /isard-frontend
 
 ARG SRC_VERSION_ID
 ARG SRC_VERSION_LINK
@@ -14,7 +14,7 @@ RUN sed -i "s,isard_changelog_link,${SRC_VERSION_LINK},g"  /isard-frontend/src/v
 WORKDIR /isard-frontend
 
 RUN apk add python3 make g++
-RUN yarn
+RUN yarn install --frozen-lockfile
 RUN yarn build
 
 RUN rm -rf src
@@ -22,16 +22,37 @@ RUN rm -rf node_modules
 RUN rm -rf build
 
 #
+# frontend
+#
+FROM oven/bun:1.1.24-alpine AS frontend
+
+WORKDIR /build
+
+COPY frontend/package.json /build
+COPY frontend/bun.lockb /build
+
+RUN bun install --frozen-lockfile
+
+WORKDIR /
+
+COPY frontend /build
+
+WORKDIR /build
+
+# TODO: Run the typecheck here too!
+RUN bun run build-only
+
+#
 # spice-ts
 #
-FROM oven/bun:1.1.18 as spice-ts
+FROM oven/bun:1.1.24-alpine AS spice-ts
 
 WORKDIR /build
 
 COPY docker/static/spice-ts/package.json /build
 COPY docker/static/spice-ts/bun.lockb /build
 
-RUN bun install
+RUN bun install --frozen-lockfile
 
 WORKDIR /
 
@@ -58,5 +79,8 @@ COPY docker/static/noVNC /usr/share/nginx/html/viewer/noVNC
 COPY --from=spice-ts /build/dist /usr/share/nginx/html/viewer/spice-ts
 
 # Frontend
-COPY frontend/src/assets/logo.svg /usr/share/nginx/html/default_logo.svg
-COPY --from=frontend /isard-frontend/dist /usr/share/nginx/html
+COPY --from=frontend /build/dist /usr/share/nginx/html/frontend
+
+# Old frontend
+COPY old-frontend/src/assets/logo.svg /usr/share/nginx/html/old-frontend/default_logo.svg
+COPY --from=old-frontend /isard-frontend/dist /usr/share/nginx/html/old-frontend
