@@ -7,6 +7,7 @@ import json
 import logging as log
 import traceback
 
+import gevent
 from cachetools import TTLCache, cached
 from flask import request
 from isardvdi_common.api_exceptions import Error
@@ -312,8 +313,7 @@ def api_v3_admin_logs_desktops_config_old_entries(payload):
 @is_admin
 def logs_desktops_old_entries_delete(payload):
     old_logs = admins.get_older_than_old_entry_max_time("logs_desktops")
-    admin_table_delete_list("logs_desktops", old_logs)
-
+    gevent.spawn(admin_table_delete_list, "logs_desktops", old_logs)
     return (
         json.dumps(len(old_logs)),
         200,
