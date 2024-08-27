@@ -70,6 +70,7 @@ var (
 	ErrInternal           = errors.New("internal server error")
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrUserDisabled       = errors.New("disabled user")
+	ErrUserDisallowed     = errors.New("user can't use IsardVDI")
 	ErrUnknownIDP         = errors.New("unknown identity provider")
 	errInvalidIDP         = errors.New("invalid identity provider for this operation")
 )
@@ -167,7 +168,7 @@ func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor,
 	switch len(categories) {
 	case 0:
 		return "", &ProviderError{
-			User:   ErrInvalidCredentials,
+			User:   ErrUserDisallowed,
 			Detail: fmt.Errorf("user doesn't have any valid category, recieved raw argument: '%s'", rawCategories),
 		}
 

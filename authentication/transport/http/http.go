@@ -288,13 +288,22 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	if err != nil {
 		if errors.Is(err, provider.ErrInvalidCredentials) {
 			return &oasAuthentication.LoginUnauthorized{
-				Data: bytes.NewReader([]byte(provider.ErrInvalidCredentials.Error())),
+				Error: oasAuthentication.LoginErrorErrorInvalidCredentials,
+				Msg:   provider.ErrInvalidCredentials.Error(),
 			}, nil
 		}
 
 		if errors.Is(err, provider.ErrUserDisabled) {
 			return &oasAuthentication.LoginForbidden{
-				Data: bytes.NewReader([]byte(provider.ErrUserDisabled.Error())),
+				Error: oasAuthentication.LoginErrorErrorUserDisabled,
+				Msg:   provider.ErrUserDisabled.Error(),
+			}, nil
+		}
+
+		if errors.Is(err, provider.ErrUserDisallowed) {
+			return &oasAuthentication.LoginForbidden{
+				Error: oasAuthentication.LoginErrorErrorUserDisallowed,
+				Msg:   provider.ErrUserDisallowed.Error(),
 			}, nil
 		}
 
@@ -376,6 +385,12 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 		if errors.Is(err, provider.ErrUserDisabled) {
 			return &oasAuthentication.CallbackFound{
 				Location: "/login?error=user_disabled",
+			}, nil
+		}
+
+		if errors.Is(err, provider.ErrUserDisallowed) {
+			return &oasAuthentication.CallbackFound{
+				Location: "/login?error=user_disallowed",
 			}, nil
 		}
 

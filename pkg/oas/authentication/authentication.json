@@ -185,21 +185,21 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid credentials",
+                        "description": "Login error",
                         "content": {
-                            "text/plain": {
+                            "application/json": {
                                 "schema": {
-                                    "type": "string"
+                                    "$ref": "#/components/schemas/LoginError"
                                 }
                             }
                         }
                     },
                     "403": {
-                        "description": "User disabled",
+                        "description": "Login error",
                         "content": {
-                            "text/plain": {
+                            "application/json": {
                                 "schema": {
-                                    "type": "string"
+                                    "$ref": "#/components/schemas/LoginError"
                                 }
                             }
                         }
@@ -838,6 +838,30 @@
                         "type": "string"
                     }
                 },
+                "type": "object"
+            },
+            "LoginError": {
+                "properties": {
+                    "error": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "invalid_credentials",
+                            "user_disabled",
+                            "user_disallowed"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "error",
+                    "msg"
+                ],
                 "type": "object"
             },
             "CheckResponse": {

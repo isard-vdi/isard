@@ -230,7 +230,7 @@ func TestGuessCategory(t *testing.T) {
 
 				assert.Equal(expected, u)
 			},
-			ExpectedErr: "invalid credentials: user doesn't have any valid category, recieved raw argument: '[categoria1 categoria2]'",
+			ExpectedErr: "user can't use IsardVDI: user doesn't have any valid category, recieved raw argument: '[categoria1 categoria2]'",
 		},
 		"should parse the categories correctly from a single field, with multiple regex matches": {
 			PrepareDB: func(m *r.Mock) {
