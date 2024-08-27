@@ -13,7 +13,9 @@ import {
   LoginProviderForm,
   LoginProviderExternal,
   LoginCategoriesDropdown,
-  Provider
+  LoginCategorySelect,
+  Provider,
+  type CategorySelectToken
 } from '@/components/login'
 import { Separator } from '@/components/ui/separator'
 
@@ -33,8 +35,8 @@ const {
 } = useQuery(getCategoriesOptions())
 
 // TODO: Move this to the API call
-const showCategoryDropdown = true
-const categoryDropdownModel = ref('')
+const showCategoriesDropdown = true
+const categoriesDropdownModel = ref('')
 
 const category = computed(() => {
   if (route.params.category !== '') {
@@ -42,8 +44,8 @@ const category = computed(() => {
     return route.params.category
   }
 
-  if (showCategoryDropdown) {
-    return categoryDropdownModel.value
+  if (showCategoriesDropdown) {
+    return categoriesDropdownModel.value
   }
 
   // Fallback to the 'default' category if there's no category
@@ -52,9 +54,9 @@ const category = computed(() => {
   return 'default'
 })
 
-const categoryDropdownEl = ref<InstanceType<typeof LoginCategoriesDropdown> | null>(null)
-const focusCategorySelect = () => {
-  categoryDropdownEl.value?.focus()
+const categoriesDropdownEl = ref<InstanceType<typeof LoginCategoriesDropdown> | null>(null)
+const focusCategoriesDropdown = () => {
+  categoriesDropdownEl.value?.focus()
 }
 
 const loginError = ref<LoginErrorUnion | null>(null)
@@ -68,10 +70,12 @@ const loginErrorMsg = computed(() => {
 
   return t(baseKey + 'unknown')
 })
+const categorySelectToken = ref<CategorySelectToken | null>(null)
+
 const onFormSubmit = async (values) => {
   if (category.value === '') {
-    if (showCategoryDropdown) {
-      focusCategorySelect()
+    if (showCategoriesDropdown) {
+      focusCategoriesDropdown()
       return
     }
 
@@ -108,7 +112,8 @@ const onFormSubmit = async (values) => {
   const jwt = jwtDecode(bearer)
   switch (jwt.type) {
     case 'category-select':
-      // TODO: Choose your fighter
+      // TODO: Check types?
+      categorySelectToken.value = jwt.categories
       break
 
     default:
@@ -124,8 +129,8 @@ const onFormSubmit = async (values) => {
 
 const onExternalSubmit = async (provider: Provider) => {
   if (category.value === '') {
-    if (showCategoryDropdown) {
-      focusCategorySelect()
+    if (showCategoriesDropdown) {
+      focusCategoriesDropdown()
       return
     }
 
@@ -166,28 +171,32 @@ const onExternalSubmit = async (provider: Provider) => {
         <AlertDescription>{{ loginErrorMsg }}</AlertDescription>
       </Alert>
 
-      <LoginCategoriesDropdown
-        v-if="
-          route.params.category === '' &&
-          showCategoryDropdown &&
-          !categoriesIsPending &&
-          !categoriesIsError
-        "
-        ref="categoryDropdownEl"
-        v-model:modelValue="categoryDropdownModel"
-        :categories="categories"
-      />
+      <LoginCategorySelect v-if="categorySelectToken !== null" :categories="categorySelectToken" />
 
-      <LoginProviderForm v-if="!isProviderValid" @submit="onFormSubmit" />
-
-      <Separator v-if="!isProviderValid" :label="t('views.login.separator')" />
-
-      <template v-for="provider in Object.values(Provider)" :key="provider">
-        <LoginProviderExternal
-          v-if="!isProviderValid || route.params.provider === provider"
-          :provider="provider"
-          @submit="onExternalSubmit"
+      <template v-else>
+        <LoginCategoriesDropdown
+          v-if="
+            route.params.category === '' &&
+            showCategoriesDropdown &&
+            !categoriesIsPending &&
+            !categoriesIsError
+          "
+          ref="categoriesDropdownEl"
+          v-model:modelValue="categoriesDropdownModel"
+          :categories="categories"
         />
+
+        <LoginProviderForm v-if="!isProviderValid" @submit="onFormSubmit" />
+
+        <Separator v-if="!isProviderValid" :label="t('views.login.separator')" />
+
+        <template v-for="provider in Object.values(Provider)" :key="provider">
+          <LoginProviderExternal
+            v-if="!isProviderValid || route.params.provider === provider"
+            :provider="provider"
+            @submit="onExternalSubmit"
+          />
+        </template>
       </template>
     </div>
   </LoginLayout>

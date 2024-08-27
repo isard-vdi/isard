@@ -36,6 +36,6 @@ export const TwoColumns = createStory({
     { name: 'category 3', id: '333333', photo: 'https://via.placeholder.com/150' },
     { name: 'category 4', id: '444444', photo: 'https://via.placeholder.com/150' },
     { name: 'category 5', id: '555555', photo: 'https://via.placeholder.com/150' },
-    { name: 'category 6', id: '666666', photo: 'https://via.placeholder.com/150' },
+    { name: 'category 6', id: '666666', photo: 'https://via.placeholder.com/150' }
   ]
 })

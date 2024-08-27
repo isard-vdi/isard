@@ -8,3 +8,9 @@ export enum Provider {
   SAML = 'saml',
   Google = 'google'
 }
+
+export type CategorySelectToken = Array<{
+  id: string
+  name: string
+  photo: string
+}>

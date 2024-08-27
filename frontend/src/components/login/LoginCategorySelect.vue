@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { type CategorySelectToken } from '.'
 import { Button } from '@/components/ui/button'
 
 interface Props {
-  categories: Array<{ id: string; name: string; photo: string }>
+  categories: CategorySelectToken
 }
 const props = defineProps<Props>()
 
