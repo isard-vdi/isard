@@ -29,5 +29,15 @@
         "placeholder": "Select a category"
       }
     }
+  },
+  "authentication": {
+    "login": {
+      "errors": {
+        "unknown": "An error has ocurred",
+        "invalid_credentials": "Incorrect user or password",
+        "user_disabled": "The user is disabled",
+        "user_disallowed": "The user can't use IsardVDI"
+      }
+    }
   }
 }

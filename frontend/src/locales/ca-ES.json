@@ -29,5 +29,15 @@
         "placeholder": "Selecciona una categoria"
       }
     }
+  },
+  "authentication": {
+    "login": {
+      "errors": {
+        "unknown": "S'ha produït un error",
+        "invalid_credentials": "Usuari o contrasenya incorrecta",
+        "user_disabled": "L'usuari està deshabilitat",
+        "user_disallowed": "L'usuari no pot utilitzar IsardVDI"
+      }
+    }
   }
 }

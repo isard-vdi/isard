@@ -5,9 +5,10 @@ import { useI18n } from 'vue-i18n'
 import { jwtDecode } from 'jwt-decode'
 import { set as setCookie } from 'tiny-cookie'
 import { useQuery } from '@tanstack/vue-query'
-import { login, LoginData } from '@/gen/oas/authentication'
+import { login, LoginData, error as LoginErrorUnion } from '@/gen/oas/authentication'
 import { getCategoriesOptions } from '@/gen/oas/api/@tanstack/vue-query.gen'
 import { LoginLayout } from '@/layouts/login'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   LoginProviderForm,
   LoginProviderExternal,
@@ -16,7 +17,7 @@ import {
 } from '@/components/login'
 import { Separator } from '@/components/ui/separator'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const route = useRoute()
 
 // TODO: Router push to /login
@@ -56,6 +57,17 @@ const focusCategorySelect = () => {
   categoryDropdownEl.value?.focus()
 }
 
+const loginError = ref<LoginErrorUnion | null>(null)
+const loginErrorMsg = computed(() => {
+  const baseKey = 'authentication.login.errors.'
+  const key = baseKey + loginError.value
+  // Check if the error exists in the base locale
+  if (te(key, 'en-US')) {
+    return t(key)
+  }
+
+  return t(baseKey + 'unknown')
+})
 const onFormSubmit = async (values) => {
   if (category.value === '') {
     if (showCategoryDropdown) {
@@ -63,7 +75,8 @@ const onFormSubmit = async (values) => {
       return
     }
 
-    throw 'AAAAAAAAAAAAAAAAA'
+    loginError.value = 'unknown'
+    return
   }
 
   const { error, response } = await login({
@@ -75,39 +88,37 @@ const onFormSubmit = async (values) => {
   })
 
   if (error !== undefined) {
-    // TODO: Handle error! :D
-    console.error('ERROR FROM CLIENT!!!!')
-    console.error(error)
-  } else {
-    const authorization = response.headers.get('authorization')
-    if (authorization === null) {
-      // TODO: Handle error here
-      throw 'AAAAAAAAAAA :('
-    }
+    loginError.value = error.error
+    return
+  }
+  const authorization = response.headers.get('authorization')
+  if (authorization === null) {
+    loginError.value = 'unknown'
+    return
+  }
 
-    const bearer = authorization.replace(/^Bearer /g, '')
-    if (bearer.length === authorization.length) {
-      // TODO: No bearer :( , handle error
-      throw 'AAAAAAAAAAA :('
-    }
+  const bearer = authorization.replace(/^Bearer /g, '')
+  if (bearer.length === authorization.length) {
+    loginError.value = 'unknown'
+    return
+  }
 
-    // TODO: Try except???
-    // TODO: Remove this library
-    const jwt = jwtDecode(bearer)
-    switch (jwt.type) {
-      case 'category-select':
-        // TODO: Choose your fighter
-        break
+  // TODO: Try except???
+  // TODO: Remove this library
+  const jwt = jwtDecode(bearer)
+  switch (jwt.type) {
+    case 'category-select':
+      // TODO: Choose your fighter
+      break
 
-      default:
-        // TODO :Set cookie and redirect
-        // TODO: Remove this library
-        // TODO: Move this to a constant
-        // TODO: Eval to simply use the authentication already set cookie
-        setCookie('isardvdi_session', bearer)
-        window.location = '/'
-        break
-    }
+    default:
+      // TODO :Set cookie and redirect
+      // TODO: Remove this library
+      // TODO: Move this to a constant
+      // TODO: Eval to simply use the authentication already set cookie
+      setCookie('isardvdi_session', bearer)
+      window.location = '/'
+      break
   }
 }
 
@@ -118,7 +129,8 @@ const onExternalSubmit = async (provider: Provider) => {
       return
     }
 
-    throw 'AAAAAAAAAAAAAAAAA'
+    loginError.value = 'unknown'
+    return
   }
 
   const data: LoginData = {
@@ -149,6 +161,11 @@ const onExternalSubmit = async (provider: Provider) => {
 <template>
   <LoginLayout>
     <div class="flex flex-col space-y-4">
+      <!-- TODO: Skeleton while categories are loading -->
+      <Alert v-if="loginError !== null" variant="destructive">
+        <AlertDescription>{{ loginErrorMsg }}</AlertDescription>
+      </Alert>
+
       <LoginCategoriesDropdown
         v-if="
           route.params.category === '' &&
