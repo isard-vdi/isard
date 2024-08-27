@@ -24,6 +24,9 @@
           "saml": "Iniciar sessió amb SAML",
           "google": "Iniciar sessió amb Google"
         }
+      },
+      "login-categories-dropdown": {
+        "placeholder": "Selecciona una categoria"
       }
     }
   }

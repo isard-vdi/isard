@@ -18,7 +18,8 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "@tanstack/vue-query": "^5.51.21",
+    "@hey-api/client-fetch": "^0.2.4",
+    "@tanstack/vue-query": "^5.52.2",
     "@vee-validate/zod": "^4.13.2",
     "@vueuse/core": "^10.11.1",
     "class-variance-authority": "^0.7.0",

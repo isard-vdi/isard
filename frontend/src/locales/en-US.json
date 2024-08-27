@@ -24,6 +24,9 @@
           "saml": "Login with SAML",
           "google": "Login with Google"
         }
+      },
+      "login-categories-dropdown": {
+        "placeholder": "Select a category"
       }
     }
   }
