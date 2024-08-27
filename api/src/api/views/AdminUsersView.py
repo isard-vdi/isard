@@ -929,48 +929,19 @@ def admin_users_validate(payload):
     processed_list = []
     errors = []
 
-    p = Password()
-
     for user in user_list:
         # Validate each user
         user = {field: html.escape(str(value)) for field, value in user.items()}
         user = _validate_item("user_from_csv", user)
 
-        # Check if the category exists and the group is from the category
-        match = CategoryNameGroupNameMatch(user["category"], user["group"])
-        user["category_id"] = match["category_id"]
-        user["group_id"] = match["group_id"]
-
-        # If the user already exists skip it
-        user_id = users.GetByProviderCategoryUID(
-            "local", user["category_id"], user["username"].replace(" ", "")
-        )
-        if user_id:
+        try:
+            user = users.bulk_user_check(payload, user, "csv")
+        except Error as e:
             errors.append(
-                "Skipping user {}: The user already exists".format(user["username"])
+                f"Skipping user {user['username']}: {e.error.get('description')}"
             )
             continue
 
-        policy = users.get_user_password_policy(user["category_id"], user["role"])
-        user["password"] = p.generate_password(policy)
-
-        # Check if the role is valid
-        if payload["role_id"] == "manager":
-            if user["role"] not in ["manager", "advanced", "user"]:
-                errors.append(
-                    "Skipping user {}: Role not in manager, advanced or user".format(
-                        user["username"]
-                    )
-                )
-                continue
-        else:
-            if user["role"] not in ["admin", "manager", "advanced", "user"]:
-                errors.append(
-                    "Skipping user {}: Role not in admin, manager, advanced or user".format(
-                        user["username"]
-                    )
-                )
-                continue
         processed_list.append(user)
 
     return (

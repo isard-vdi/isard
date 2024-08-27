@@ -370,6 +370,8 @@ function socketio_on(){
                 [`username\tname\temail\tgroup\tcategory\trole\njdoe\tJohn Doe\tjdoe@isardvdi.com\tDefault\tDefault\tadvanced\nauser\tAnother User\tauser@domain.com\tDefault\tDefault\tuser`
                 ], { type: "text/csv" });
         } else if (kind === 'download-generated') {
+            $("#modalAddBulkUsers #send").attr("disabled", false);
+
             var notice = new PNotify({
                 title: "Creating CSV file...",
                 icon: 'fa fa-spinner fa-spin',
@@ -909,18 +911,47 @@ function socketio_on(){
     });
 }
 
-function initUsersSockets () {
+notice = {}
+
+function initUsersSockets () { 
     socket.on('msg', function (data) {
         var data = JSON.parse(data);
-        new PNotify({
-            title: data.title,
-            text: data.description,
-            hide: (data.params.hide != undefined ? data.params.hide : true),
-            delay: (data.params.delay != undefined ? data.params.delay : 4000),
-            icon: 'fa fa-' + (data.params.icon != undefined ? data.params.icon : 'info'),
-            opacity: 1,
-            type: data.type
-        });
+        if (data.id !== ""){
+            if (!(data.id in notice)) {
+                notice[data.id] = new PNotify({
+                    title: data.title,
+                    text: data.description,
+                    hide: (data.params.hide != undefined ? data.params.hide : true),
+                    delay: (data.params.delay != undefined ? data.params.delay : 4000),
+                    icon: 'fa fa-' + (data.params.icon != undefined ? data.params.icon : 'info'),
+                    opacity: 1,
+                    type: data.type
+                });
+            }
+            
+            if (data.params.delete == true){
+                notice[data.id].remove()
+            } else {
+                notice[data.id].update({
+                    title: data.title,
+                    text: data.description,
+                    hide: (data.params.hide != undefined ? data.params.hide : true),
+                    delay: (data.params.delay != undefined ? data.params.delay : 4000),
+                    icon: 'fa fa-' + (data.params.icon != undefined ? data.params.icon : 'info'),
+                    type: data.type
+                });
+            }
+        } else {
+            new PNotify({
+                title: data.title,
+                text: data.description,
+                hide: (data.params.hide != undefined ? data.params.hide : true),
+                delay: (data.params.delay != undefined ? data.params.delay : 4000),
+                icon: 'fa fa-' + (data.params.icon != undefined ? data.params.icon : 'info'),
+                opacity: 1,
+                type: data.type
+            });
+        }
     });
 
     socket.on('users_data', function(data) {
@@ -1349,7 +1380,7 @@ function csv2datatables(csv, modal) {
         async: false,
     }).done(function (data) {
         $(modal + " #csv_correct").show()
-        $(modal + " #send").attr("disabled", false);
+        // $(modal + " #send").attr("disabled", false);
         if (data.errors && data.errors.length > 0) {
             $(modal + " #csv_error").show()
             let errorsHtml = '<ul>'
@@ -1386,8 +1417,7 @@ function csv2datatables(csv, modal) {
                     "data": "password",
                     "width": "88px",
                     "render": function (data, type, full, meta) {
-                        // Otherwise passwords starting with '<' will not be displayed
-                        return $('<div>').text(data).html();
+                        return "*****"
                     }
                 },
             ] : [
@@ -1398,8 +1428,7 @@ function csv2datatables(csv, modal) {
                     "data": "password",
                     "width": "88px",
                     "render": function (data, type, full, meta) {
-                        // Otherwise passwords starting with '<' will not be displayed
-                        return $('<div>').text(data).html();
+                        return "*****"
                     }
                 },
                 { "data": "group", "width": "88px", "defaultContent": "" },
@@ -1444,7 +1473,6 @@ function parseCSV(csv) {
             users.push(usr)
         }
     })
-    console.log("users", users)
     return { users: users, error: "" };
 }
 

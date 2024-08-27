@@ -25,7 +25,6 @@ import uuid
 from datetime import datetime, timedelta
 
 import bcrypt
-import gevent
 import pytz
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
@@ -183,7 +182,7 @@ class ApiUsers:
         }
 
     def generate_users(self, payload, data):
-        # "batch_id": uuid.uuid4(),
+        batch_id = str(uuid.uuid4())
 
         new_users = []
         errors = []
@@ -191,69 +190,29 @@ class ApiUsers:
         # TODO: Check in quotas whether can create users
         p = Password()
 
-        ammount, total = 0, len(data["users"])
+        amount, total = 0, len(data["users"])
         for user in data["users"]:
             new_user = {}
-            username = user["username"].replace(" ", "")
-            # Check whether the user has permissions to create users in the category
+
             try:
-                ownsCategoryId(payload, user["category_id"])
+                user = self.bulk_user_check(payload, user, "generate")
             except Error as e:
                 errors.append(
-                    f"Couldn't create user {username}: { e.error.get('description') }"
-                )
-                continue
-            # Check if the category exists and the group is from the category
-            try:
-                match = CategoryNameGroupNameMatch(user["category"], user["group"])
-            except Error as e:
-                errors.append(
-                    f"Couldn't create user {username}: {e.error.get('description')}"
-                )
-                continue
-            # If the user already exists skip it
-            user_id = self.GetByProviderCategoryUID(
-                "local", match["category_id"], username
-            )
-            if user_id:
-                errors.append(
-                    f"Couldn't create user {username}: The user already exists"
+                    f"Skipping user {user['username']}: {e.error.get('description')}"
                 )
                 continue
 
-            # Check if the password meets the policy
-            policy = self.get_user_password_policy(match["category_id"], user["role"])
-            try:
-                p.check_policy(user["password"], policy, username=username)
-            except Error as e:
-                errors.append(
-                    f"Couldn't create user {username}: {e.error.get('description')}"
-                )
-                continue
-
-            # Check if the secondary groups exist and belong to the category
-            if user.get("secondary_groups") and len(user["secondary_groups"]) > 0:
-                try:
-                    self.check_secondary_groups_category(
-                        match["category_id"], user["secondary_groups"]
-                    )
-                except Error as e:
-                    errors.append(
-                        f"Couldn't create user {username}: {e.error.get('description')}"
-                    )
-                    continue
-
-            new_user["uid"] = username
+            new_user["uid"] = user["username"]
             new_user["provider"] = "local"
-            new_user["category"] = match["category_id"]
-            new_user["group"] = match["group_id"]
-            new_user["username"] = username
+            new_user["category"] = user["category_id"]
+            new_user["group"] = user["group_id"]
+            new_user["username"] = user["username"]
             new_user["password"] = p.encrypt(user["password"])
             new_user["name"] = user["name"]
             new_user["role"] = user["role"]
             new_user["accessed"] = int(time.time())
             new_user["quota"] = False
-            new_user["password_history"] = [user["password"]]
+            new_user["password_history"] = [p.encrypt(user["password"])]
             new_user["password_last_updated"] = int(time.time())
             new_user["email"] = user.get("email", "")
             new_user["email_verification_token"] = None
@@ -261,20 +220,29 @@ class ApiUsers:
             new_user = _validate_item("user", new_user)
             new_users.append(new_user)
 
-            ammount += 1
+            amount += 1
 
             notify_admin(
                 payload["user_id"],
-                "User created",
-                f"user '{username}' created \n{ammount}/{total}",
+                "User data generated",
+                "user '{username}' data generated \n{amount}/{total}".format(
+                    username=user["username"], amount=amount, total=total
+                ),
+                notify_id=batch_id,
                 type="info",
                 params={
+                    "hide": False,
                     "delay": 1000,
                     "icon": "user-plus",
                 },
             )
-
-        bulk_create(new_users)
+        notify_admin(
+            payload["user_id"],
+            "",
+            "",
+            notify_id=batch_id,
+            params={"delete": True},
+        )
 
         if not errors:
             notify_admin(
@@ -283,6 +251,7 @@ class ApiUsers:
                 description=f"{len(new_users)} users created",
                 type="success",
             )
+            bulk_create(new_users)
         else:
             notify_admin(
                 payload["user_id"],
@@ -1964,6 +1933,62 @@ class ApiUsers:
             r.table("users").get(user_id).update(
                 {"vpn": {"wireguard": {"keys": False}}}
             ).run(db.conn)
+
+    def bulk_user_check(self, payload, user, item_type):
+        if item_type == "csv":
+            user = _validate_item("user_from_csv", user)
+        elif item_type == "generate":
+            pass
+        else:
+            raise Error(
+                "bad_request",
+                f"Item type {item_type} not allowed",
+                description_code="item_type_not_allowed",
+            )
+
+        user["username"] = user["username"].replace(" ", "")
+
+        match = CategoryNameGroupNameMatch(user["category"], user["group"])
+        user["category_id"] = match["category_id"]
+        user["group_id"] = match["group_id"]
+
+        ownsCategoryId(payload, user["category_id"])
+
+        user_id = self.GetByProviderCategoryUID(
+            "local", user["category_id"], user["username"]
+        )
+        if user_id:
+            raise Error(
+                "bad_request",
+                f"User already exists",
+                description_code="user_already_exists",
+            )
+
+        # Check if the role is valid
+        if payload["role_id"] == "manager":
+            if user["role"] not in ["manager", "advanced", "user"]:
+                raise Error(
+                    "bad_request",
+                    f"Role not in manager, advanced or user",
+                    description_code="role_not_allowed",
+                )
+        else:
+            if user["role"] not in ["admin", "manager", "advanced", "user"]:
+                raise Error(
+                    "bad_request",
+                    f"Role not in admin, manager, advanced or user",
+                    description_code="role_not_allowed",
+                )
+
+        p = Password()
+        if item_type == "csv":
+            policy = self.get_user_password_policy(user["category_id"], user["role"])
+            user["password"] = p.generate_password(policy)
+        elif item_type == "generate":
+            policy = self.get_user_password_policy(match["category_id"], user["role"])
+            p.check_policy(user["password"], policy, username=user["username"])
+
+        return user
 
 
 def validate_email_jwt(user_id, email, minutes=60):

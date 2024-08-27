@@ -39,8 +39,9 @@ def notify_user(user_id, type, msg_code, params={}):
     )
 
 
-def notify_admin(user_id, title, description, type="info", params={}):
+def notify_admin(user_id, title, description, notify_id="", type="info", params={}):
     data = {
+        "id": notify_id,
         "type": type,
         "title": title,
         "description": description,
