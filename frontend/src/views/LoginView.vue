@@ -3,9 +3,10 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { jwtDecode } from 'jwt-decode'
-import { set as setCookie } from 'tiny-cookie'
+import { set as setCookie, get as getCookie } from 'tiny-cookie'
+import { createClient, createConfig, type Options as ClientOptions } from '@hey-api/client-fetch'
 import { useQuery } from '@tanstack/vue-query'
-import { login, LoginData, error as LoginErrorUnion } from '@/gen/oas/authentication'
+import { login, type LoginData, type error as LoginErrorUnion } from '@/gen/oas/authentication'
 import { getCategoriesOptions } from '@/gen/oas/api/@tanstack/vue-query.gen'
 import { LoginLayout } from '@/layouts/login'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -59,7 +60,9 @@ const focusCategoriesDropdown = () => {
   categoriesDropdownEl.value?.focus()
 }
 
-const loginError = ref<LoginErrorUnion | null>(null)
+const loginError = ref<LoginErrorUnion | null>(
+  route.query.error === undefined ? null : route.query.error
+)
 const loginErrorMsg = computed(() => {
   const baseKey = 'authentication.login.errors.'
   const key = baseKey + loginError.value
@@ -70,31 +73,29 @@ const loginErrorMsg = computed(() => {
 
   return t(baseKey + 'unknown')
 })
-const categorySelectToken = ref<CategorySelectToken | null>(null)
 
-const onFormSubmit = async (values) => {
-  if (category.value === '') {
-    if (showCategoriesDropdown) {
-      focusCategoriesDropdown()
-      return
+const categorySelectToken: ref<CategorySelectToken | null> = (() => {
+  // TODO: COnst this
+  const savedBearer = getCookie('authorization') || getCookie('isardvdi_session')
+
+  if (savedBearer !== null) {
+    const jwt = jwtDecode(savedBearer)
+    // TODO: COnst this
+    if (jwt.type === 'category-select') {
+      return jwt.categories
     }
-
-    loginError.value = 'unknown'
-    return
   }
 
-  const { error, response } = await login({
-    body: values,
-    query: {
-      category_id: category.value,
-      provider: 'form'
-    }
-  })
+  return null
+})()
 
+const submitLogin = async (options: ClientOptions<LoginData>) => {
+  const { error, response } = await login(options)
   if (error !== undefined) {
     loginError.value = error.error
     return
   }
+
   const authorization = response.headers.get('authorization')
   if (authorization === null) {
     loginError.value = 'unknown'
@@ -117,14 +118,46 @@ const onFormSubmit = async (values) => {
       break
 
     default:
-      // TODO :Set cookie and redirect
+      // Login to Webapp
+      if ([undefined, '', 'login'].includes(jwt.type)) {
+        if (['admin', 'manager'].includes(jwt.data.role_id)) {
+          await fetch('/isard-admin/login', {
+            method: 'POST',
+            headers: {
+              Authorization: authorization
+            }
+          })
+        }
+      }
+
       // TODO: Remove this library
       // TODO: Move this to a constant
       // TODO: Eval to simply use the authentication already set cookie
+
       setCookie('isardvdi_session', bearer)
       window.location = '/'
       break
   }
+}
+
+const onFormSubmit = async (values) => {
+  if (category.value === '') {
+    if (showCategoriesDropdown) {
+      focusCategoriesDropdown()
+      return
+    }
+
+    loginError.value = 'unknown'
+    return
+  }
+
+  await submitLogin({
+    body: values,
+    query: {
+      category_id: category.value,
+      provider: 'form'
+    }
+  })
 }
 
 const onExternalSubmit = async (provider: Provider) => {
@@ -161,6 +194,31 @@ const onExternalSubmit = async (provider: Provider) => {
   form.action = url.toString()
   form.submit()
 }
+
+const onCategorySelectSubmit = async (categoryId: string) => {
+  // TODO: Remove this when https://github.com/hey-api/openapi-ts/issues/963 is fixed
+  const client = createClient(createConfig())
+  client.setConfig({
+    baseUrl: '/authentication'
+  })
+  client.interceptors.request.use((request, options) => {
+    // TODO: COnst this and move it to a proper function or something
+    request.headers.set(
+      'Authorization',
+      'Bearer ' + (getCookie('authorization') || getCookie('isardvdi_session'))
+    )
+
+    return request
+  })
+
+  await submitLogin({
+    client: client,
+    query: {
+      category_id: categoryId,
+      provider: 'form'
+    }
+  })
+}
 </script>
 
 <template>
@@ -171,7 +229,11 @@ const onExternalSubmit = async (provider: Provider) => {
         <AlertDescription>{{ loginErrorMsg }}</AlertDescription>
       </Alert>
 
-      <LoginCategorySelect v-if="categorySelectToken !== null" :categories="categorySelectToken" />
+      <LoginCategorySelect
+        v-if="categorySelectToken !== null"
+        :categories="categorySelectToken"
+        @submit="onCategorySelectSubmit"
+      />
 
       <template v-else>
         <LoginCategoriesDropdown
