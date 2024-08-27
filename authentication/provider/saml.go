@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"slices"
 
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -31,7 +32,7 @@ const (
 var _ Provider = &SAML{}
 
 type SAML struct {
-	cfg        cfg.Authentication
+	Cfg        cfg.Authentication
 	log        *zerolog.Logger
 	db         r.QueryExecutor
 	Middleware *samlsp.Middleware
@@ -42,6 +43,7 @@ type SAML struct {
 	ReEmail    *regexp.Regexp
 	RePhoto    *regexp.Regexp
 	ReCategory *regexp.Regexp
+	ReGroup    *regexp.Regexp
 	ReRole     *regexp.Regexp
 }
 
@@ -96,7 +98,7 @@ func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *
 	middleware.ServiceProvider.SloURL = sloURL
 
 	s := &SAML{
-		cfg:        cfg,
+		Cfg:        cfg,
 		log:        log,
 		db:         db,
 		Middleware: middleware,
@@ -132,7 +134,7 @@ func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *
 	}
 	s.RePhoto = re
 
-	if s.cfg.SAML.GuessCategory {
+	if s.Cfg.SAML.GuessCategory {
 		re, err = regexp.Compile(cfg.SAML.RegexCategory)
 		if err != nil {
 			log.Fatal().Err(err).Msg("invalid category regex")
@@ -140,11 +142,19 @@ func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *
 		s.ReCategory = re
 	}
 
-	re, err = regexp.Compile(cfg.SAML.RegexRole)
-	if err != nil {
-		log.Fatal().Err(err).Msg("invalid role regex")
+	if s.Cfg.SAML.AutoRegister {
+		re, err = regexp.Compile(cfg.SAML.RegexGroup)
+		if err != nil {
+			log.Fatal().Err(err).Msg("invalid category regex")
+		}
+		s.ReGroup = re
+
+		re, err = regexp.Compile(cfg.SAML.RegexRole)
+		if err != nil {
+			log.Fatal().Err(err).Msg("invalid role regex")
+		}
+		s.ReRole = re
 	}
-	s.ReRole = re
 
 	return s
 }
@@ -155,7 +165,7 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 		redirect = *args.Redirect
 	}
 
-	ss, err := token.SignCallbackToken(s.cfg.Secret, types.ProviderSAML, categoryID, redirect)
+	ss, err := token.SignCallbackToken(s.Cfg.Secret, types.ProviderSAML, categoryID, redirect)
 	if err != nil {
 		return nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
@@ -188,15 +198,15 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 	var logAttrs any = attrs
 	s.log.Debug().Any("attributes", logAttrs).Msg("recieved attributes from SAML server")
 
-	username := matchRegex(s.ReUsername, attrs.Get(s.cfg.SAML.FieldUsername))
-	name := matchRegex(s.ReName, attrs.Get(s.cfg.SAML.FieldName))
-	email := matchRegex(s.ReEmail, attrs.Get(s.cfg.SAML.FieldEmail))
-	photo := matchRegex(s.RePhoto, attrs.Get(s.cfg.SAML.FieldPhoto))
+	username := matchRegex(s.ReUsername, attrs.Get(s.Cfg.SAML.FieldUsername))
+	name := matchRegex(s.ReName, attrs.Get(s.Cfg.SAML.FieldName))
+	email := matchRegex(s.ReEmail, attrs.Get(s.Cfg.SAML.FieldEmail))
+	photo := matchRegex(s.RePhoto, attrs.Get(s.Cfg.SAML.FieldPhoto))
 
 	u := &types.ProviderUserData{
 		Provider: claims.Provider,
 		Category: claims.CategoryID,
-		UID:      matchRegex(s.ReUID, attrs.Get(s.cfg.SAML.FieldUID)),
+		UID:      matchRegex(s.ReUID, attrs.Get(s.Cfg.SAML.FieldUID)),
 
 		Username: &username,
 		Name:     &name,
@@ -204,16 +214,16 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 		Photo:    &photo,
 	}
 
-	if s.cfg.SAML.GuessCategory {
-		attrCategories := attrs[s.cfg.SAML.FieldCategory]
+	if s.Cfg.SAML.GuessCategory {
+		attrCategories := attrs[s.Cfg.SAML.FieldCategory]
 		if attrCategories == nil {
 			return nil, nil, "", "", &ProviderError{
 				User:   ErrInternal,
-				Detail: fmt.Errorf("missing category attribute: '%s'", s.cfg.SAML.FieldCategory),
+				Detail: fmt.Errorf("missing category attribute: '%s'", s.Cfg.SAML.FieldCategory),
 			}
 		}
 
-		tkn, err := guessCategory(ctx, s.log, s.db, s.cfg.Secret, s.ReCategory, attrCategories, u)
+		tkn, err := guessCategory(ctx, s.log, s.db, s.Cfg.Secret, s.ReCategory, attrCategories, u)
 		if err != nil {
 			return nil, nil, "", "", err
 		}
@@ -223,34 +233,62 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 		}
 	}
 
-	if s.cfg.SAML.GuessRole {
-		attrRole := attrs[s.cfg.SAML.FieldRole]
+	var g *model.Group
+	if s.Cfg.SAML.AutoRegister {
+		//
+		// Guess group
+		//
+		attrGroups := attrs[s.Cfg.SAML.FieldGroup]
+		if attrGroups == nil {
+			s.log.Debug().Msg("missing groups attribute, will fallback to the default if defined")
+			attrGroups = []string{}
+		}
+
+		var err *ProviderError
+		g, err = guessGroup(guessGroupOpts{
+			Provider:     s,
+			ReGroup:      s.ReGroup,
+			DefaultGroup: s.Cfg.SAML.GroupDefault,
+		}, u, attrGroups)
+		if err != nil {
+			return nil, nil, "", "", err
+		}
+
+		//
+		// Guess role
+		//
+		attrRole := attrs[s.Cfg.SAML.FieldRole]
 		if attrRole == nil {
-			return nil, nil, "", "", &ProviderError{
-				User:   ErrInternal,
-				Detail: fmt.Errorf("missing group attribute: '%s'", s.cfg.SAML.FieldRole),
-			}
+			s.log.Debug().Msg("missing role attribute, will fallback to the default if defined")
+			attrRole = []string{}
 		}
 
-		allUsrRoles := []string{}
-		for _, g := range attrRole {
-			allUsrRoles = append(allUsrRoles, matchRegexMultiple(s.ReRole, g)...)
+		u.Role, err = guessRole(guessRoleOpts{
+			RoleAdminIDs:    s.Cfg.SAML.RoleAdminIDs,
+			RoleManagerIDs:  s.Cfg.SAML.RoleManagerIDs,
+			RoleAdvancedIDs: s.Cfg.SAML.RoleAdvancedIDs,
+			RoleUserIDs:     s.Cfg.SAML.RoleUserIDs,
+			RoleDefault:     s.Cfg.SAML.RoleDefault,
+		}, attrRole)
+		if err != nil {
+			return nil, nil, "", "", err
 		}
-
-		u.Role = guessRole(guessRoleOpts{
-			RoleAdminIDs:    s.cfg.SAML.RoleAdminIDs,
-			RoleManagerIDs:  s.cfg.SAML.RoleManagerIDs,
-			RoleAdvancedIDs: s.cfg.SAML.RoleAdvancedIDs,
-			RoleUserIDs:     s.cfg.SAML.RoleUserIDs,
-			RoleDefault:     s.cfg.SAML.RoleDefault,
-		}, allUsrRoles)
 	}
 
-	return nil, u, "", "", nil
+	return g, u, "", "", nil
 }
 
-func (s *SAML) AutoRegister() bool {
-	return s.cfg.SAML.AutoRegister
+func (s *SAML) AutoRegister(u *model.User) bool {
+	if s.Cfg.SAML.AutoRegister {
+		if len(s.Cfg.SAML.AutoRegisterRoles) != 0 {
+			// If the user role is in the autoregister roles list, auto register
+			return slices.Contains(s.Cfg.SAML.AutoRegisterRoles, string(u.Role))
+		}
+
+		return true
+	}
+
+	return false
 }
 
 func (SAML) String() string {

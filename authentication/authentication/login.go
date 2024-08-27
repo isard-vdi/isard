@@ -110,7 +110,7 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 
 	if !uExists {
 		// Manual registration
-		if !p.AutoRegister() {
+		if !p.AutoRegister(u) {
 			// If the user has logged in correctly, but doesn't exist in the DB, they have to register first!
 			ss, err := token.SignRegisterToken(a.Secret, u)
 

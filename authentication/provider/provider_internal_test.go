@@ -356,9 +356,11 @@ func TestGuessRole(t *testing.T) {
 		Cfg          guessRoleOpts
 		AllUsrRoles  []string
 		ExpectedRole model.Role
+		ExpectedErr  string
 	}{
 		"should work as expected": {
 			Cfg: guessRoleOpts{
+				ReRole:          regexp.MustCompile(".*"),
 				RoleAdminIDs:    []string{"other-admin", "admin"},
 				RoleManagerIDs:  []string{"manager"},
 				RoleAdvancedIDs: []string{"advanced"},
@@ -370,6 +372,7 @@ func TestGuessRole(t *testing.T) {
 		},
 		"should fallback to the default role if not found": {
 			Cfg: guessRoleOpts{
+				ReRole:          regexp.MustCompile(".*"),
 				RoleAdminIDs:    []string{"other-admin", "admin"},
 				RoleManagerIDs:  []string{"manager"},
 				RoleAdvancedIDs: []string{"advanced"},
@@ -379,15 +382,34 @@ func TestGuessRole(t *testing.T) {
 			AllUsrRoles:  []string{"aaa", "bbb", "ccc", "ddd"},
 			ExpectedRole: model.RoleUser,
 		},
+		"should return an error if no role is found and there's no default": {
+			Cfg: guessRoleOpts{
+				ReRole:          regexp.MustCompile(".*"),
+				RoleAdminIDs:    []string{"other-admin", "admin"},
+				RoleManagerIDs:  []string{"manager"},
+				RoleAdvancedIDs: []string{"advanced"},
+				RoleUserIDs:     []string{"user"},
+			},
+			AllUsrRoles: []string{"aaa", "bbb", "ccc", "ddd"},
+			ExpectedErr: "invalid credentials: emtpy user role, no default",
+		},
 	}
 
 	for name, tc := range cases {
 		assert := assert.New(t)
 
 		t.Run(name, func(t *testing.T) {
-			role := guessRole(tc.Cfg, tc.AllUsrRoles)
+			role, err := guessRole(tc.Cfg, tc.AllUsrRoles)
 
-			assert.Equal(tc.ExpectedRole, *role)
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.Nil(err)
+			}
+
+			if tc.ExpectedRole != "" {
+				assert.Equal(tc.ExpectedRole, *role)
+			}
 		})
 	}
 }

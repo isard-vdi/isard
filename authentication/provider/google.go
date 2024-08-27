@@ -98,7 +98,7 @@ func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, arg
 	return nil, u, "", "", nil
 }
 
-func (Google) AutoRegister() bool {
+func (Google) AutoRegister(*model.User) bool {
 	return false
 }
 

@@ -18,6 +18,7 @@ type ProviderUserData struct {
 	UID      string `json:"uid"`
 
 	Role     *model.Role `json:"role,omitempty"`
+	Group    *string     `json:"group"`
 	Username *string     `json:"username,omitempty"`
 	Name     *string     `json:"name,omitempty"`
 	Email    *string     `json:"email,omitempty"`
@@ -33,6 +34,10 @@ func (p ProviderUserData) ToUser() *model.User {
 
 	if p.Role != nil {
 		u.Role = *p.Role
+	}
+
+	if p.Group != nil {
+		u.Group = *p.Group
 	}
 
 	if p.Username != nil {

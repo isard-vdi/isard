@@ -146,9 +146,9 @@ func (f *Form) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*
 	}
 }
 
-func (f *Form) AutoRegister() bool {
+func (f *Form) AutoRegister(u *model.User) bool {
 	for _, p := range f.providers {
-		if p.AutoRegister() {
+		if p.AutoRegister(u) {
 			return true
 		}
 	}

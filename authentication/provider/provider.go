@@ -42,7 +42,7 @@ type CallbackArgs struct {
 type Provider interface {
 	Login(ctx context.Context, categoryID string, args LoginArgs) (g *model.Group, u *types.ProviderUserData, redirect string, tkn string, err *ProviderError)
 	Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (g *model.Group, u *types.ProviderUserData, redirect string, tkn string, err *ProviderError)
-	AutoRegister() bool
+	AutoRegister(u *model.User) bool
 	String() string
 	Healthcheck() error
 }
@@ -75,6 +75,8 @@ var (
 	errInvalidIDP         = errors.New("invalid identity provider for this operation")
 )
 
+var _ Provider = &Unknown{}
+
 type Unknown struct{}
 
 func (Unknown) String() string {
@@ -95,7 +97,7 @@ func (Unknown) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*
 	}
 }
 
-func (Unknown) AutoRegister() bool {
+func (Unknown) AutoRegister(*model.User) bool {
 	return false
 }
 
@@ -189,7 +191,52 @@ func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor,
 	}
 }
 
+type guessGroupOpts struct {
+	Provider     Provider
+	ReGroup      *regexp.Regexp
+	DefaultGroup string
+}
+
+func guessGroup(opts guessGroupOpts, u *types.ProviderUserData, rawGroups []string) (*model.Group, *ProviderError) {
+	groups := []*model.Group{}
+	for _, g := range rawGroups {
+		match := matchRegexMultiple(opts.ReGroup, g)
+		for _, m := range match {
+			groups = append(groups, genExternalGroup(opts.Provider, u.Category, m))
+		}
+	}
+
+	if len(groups) == 0 {
+		if opts.DefaultGroup == "" {
+			return nil, &ProviderError{
+				User:   ErrInvalidCredentials,
+				Detail: errors.New("emtpy user group, no default"),
+			}
+		}
+
+		groups = append(groups, genExternalGroup(opts.Provider, u.Category, opts.DefaultGroup))
+	}
+
+	return groups[0], nil
+}
+
+func genExternalGroup(p Provider, category, externalGID string) *model.Group {
+	externalAppID := fmt.Sprintf("provider-%s", p.String())
+	description := fmt.Sprintf("This is a auto register created by the authentication service. This group maps a %s group", p.String())
+
+	g := &model.Group{
+		Category:      category,
+		ExternalAppID: externalAppID,
+		ExternalGID:   externalGID,
+		Description:   description,
+	}
+	g.GenerateNameExternal(p.String())
+
+	return g
+}
+
 type guessRoleOpts struct {
+	ReRole          *regexp.Regexp
 	RoleAdminIDs    []string
 	RoleManagerIDs  []string
 	RoleAdvancedIDs []string
@@ -197,14 +244,20 @@ type guessRoleOpts struct {
 	RoleDefault     model.Role
 }
 
-func guessRole(cfg guessRoleOpts, allUsrRoles []string) *model.Role {
+func guessRole(opts guessRoleOpts, rawRoles []string) (*model.Role, *ProviderError) {
+	// Apply the regex filter to the role
+	usrRoles := []string{}
+	for _, r := range rawRoles {
+		usrRoles = append(usrRoles, matchRegexMultiple(opts.ReRole, r)...)
+	}
+
 	var role *model.Role
 
 	// Get the role that has more privileges
 	roles := []model.Role{model.RoleAdmin, model.RoleManager, model.RoleAdvanced, model.RoleUser}
-	for i, ids := range [][]string{cfg.RoleAdminIDs, cfg.RoleManagerIDs, cfg.RoleAdvancedIDs, cfg.RoleUserIDs} {
+	for i, ids := range [][]string{opts.RoleAdminIDs, opts.RoleManagerIDs, opts.RoleAdvancedIDs, opts.RoleUserIDs} {
 		for _, id := range ids {
-			for _, uRole := range allUsrRoles {
+			for _, uRole := range usrRoles {
 				if uRole == id {
 					if role != nil {
 						if roles[i].HasMorePrivileges(*role) {
@@ -220,8 +273,15 @@ func guessRole(cfg guessRoleOpts, allUsrRoles []string) *model.Role {
 
 	// Role fallback
 	if role == nil {
-		role = &cfg.RoleDefault
+		if opts.RoleDefault == "" {
+			return nil, &ProviderError{
+				User:   ErrInvalidCredentials,
+				Detail: errors.New("emtpy user role, no default"),
+			}
+		}
+
+		role = &opts.RoleDefault
 	}
 
-	return role
+	return role, nil
 }

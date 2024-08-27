@@ -69,7 +69,7 @@ func (l *Local) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (
 	}
 }
 
-func (Local) AutoRegister() bool {
+func (Local) AutoRegister(*model.User) bool {
 	return false
 }
 

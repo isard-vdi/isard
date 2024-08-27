@@ -1,4 +1,4 @@
-# Isard main config v2.15.0
+# Isard main config v2.16.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -202,6 +202,9 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 
 ### Auto Register the existing ldap users into IsardVDI
 #AUTHENTICATION_AUTHENTICATION_LDAP_AUTO_REGISTER=false
+### Only the users that belong to one of these groups will be autoregistered (comma separated)
+#AUTHENTICATION_AUTHENTICATION_LDAP_AUTO_REGISTER_GROUPS=
+
 ### Try guessing the category based in the LDAP search results (must have AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_CATEGORY configured)
 #AUTHENTICATION_AUTHENTICATION_LDAP_GUESS_CATEGORY=false
 ### These are the fields that the LDAP search responds. For example, in some installations, the field for the group is called 'group'
@@ -214,23 +217,23 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 ### If this is configured, this will set a default group when autoregistering a user
 ### This is only advised to be configured if you have users without a group, otherwise don't configure it
 ### It's the equivalent of AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP with AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP applied to it
-#AUTHENTICATION_AUTHENTICATION_LDAP_DEFAULT_GROUP=
-### The base search for listing all the groups of a user
-#AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH=
-### Filter is the actual filter used to search all the groups of a user. The '%s' represents the user that is sent through the form
+#AUTHENTICATION_AUTHENTICATION_LDAP_GROUP_DEFAULT=
+### The base search for listing all the roles of a user
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_SEARCH_BASE=
+### Filter is the actual filter used to search all the roles of a user. The '%s' represents the user that is sent through the form
 ### More information: https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html
-#AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_FILTER="(&(objectClass=posixGroup)(memberUid=%s))"
-# If this field is set to true, use the full DN instead of the user that is sent through the form to search for the user groups
-#AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH_USE_DN=false
-### The field that contains the group in the AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_FILTER search
-#AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH_FIELD=
-#AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH_REGEX=.*
-### All the users that are in at least one of the groups specified here, will be created in the admin role (comma separated)
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADMIN_GROUPS=
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_MANAGER_GROUPS=
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADVANCED_GROUPS=
-#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_USER_GROUPS=
-# This is the default role that users will have if they don't match in any of the previous groups.
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FILTER="(&(objectClass=posixGroup)(memberUid=%s))"
+# If this field is set to true, use the full DN instead of the user that is sent through the form to search for the user roles
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_USE_USE_DN=false
+### The field that contains the roles in the AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FILTER search
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FIELD=
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_REGEX=.*
+### All the users that are in at least one of the roles specified here, will be created in the admin role (comma separated)
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADMIN_IDS=
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_MANAGER_IDS=
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADVANCED_IDS=
+#AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_USER_IDS=
+# This is the default role that users will have if they don't match in any of the previous roles.
 # Values can be 'admin', 'manager', 'advanced', 'user'
 #AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_DEFAULT=user
 
@@ -254,11 +257,16 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 #AUTHENTICATION_AUTHENTICATION_SAML_REGEX_EMAIL=.*
 #AUTHENTICATION_AUTHENTICATION_SAML_FIELD_PHOTO=
 #AUTHENTICATION_AUTHENTICATION_SAML_REGEX_PHOTO=.*
-# TODO: We need to document this configuration options
+# TODO: We need to document this configuration options (see LDAP configuration options)
 #AUTHENTICATION_AUTHENTICATION_SAML_AUTO_REGISTER=false
+### Only the users that belong to one of these groups will be autoregistered (comma separated)
+#AUTHENTICATION_AUTHENTICATION_SAML_AUTO_REGISTER_ROLES=
 #AUTHENTICATION_AUTHENTICATION_SAML_GUESS_CATEGORY=false
 #AUTHENTICATION_AUTHENTICATION_SAML_FIELD_CATEGORY=
 #AUTHENTICATION_AUTHENTICATION_SAML_REGEX_CATEGORY=.*
+#AUTHENTICATION_AUTHENTICATION_SAML_FIELD_GROUP=
+#AUTHENTICATION_AUTHENTICATION_SAML_REGEX_GROUP=.*
+#AUTHENTICATION_AUTHENTICATION_SAML_GROUP_DEFAULT=default
 #AUTHENTICATION_AUTHENTICATION_SAML_GUESS_ROLE=false
 #AUTHENTICATION_AUTHENTICATION_SAML_FIELD_ROLE=
 #AUTHENTICATION_AUTHENTICATION_SAML_REGEX_ROLE=.*

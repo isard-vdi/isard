@@ -83,7 +83,7 @@ func (External) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (
 	}
 }
 
-func (External) AutoRegister() bool {
+func (External) AutoRegister(*model.User) bool {
 	return true
 }
 

@@ -259,6 +259,7 @@ func TestSignCategorySelectToken(t *testing.T) {
 					"user": map[string]any{
 						"provider": "SAML",
 						"category": "Test cat",
+						"group":    nil,
 						"uid":      "0000000",
 					},
 				}, claims)
