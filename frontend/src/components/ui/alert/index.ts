@@ -7,12 +7,13 @@ export { default as AlertDescription } from './AlertDescription.vue'
 export const alertVariants = cva(
   `relative w-full
   rounded-xl p-[16px] border border-gray-warm-300
-  text-sm
-  [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground`,
+  shadow-sm text-sm
+  [&>svg]:absolute [&>svg]:left-[16px] [&>svg]:top-[16px] [&>svg]:m-[10px] [&>svg~*]:ml-[56px]
+  [&>img]:absolute [&>img]:left-[16px] [&>img]:top-[16px] [&>img]:m-[10px] [&>img~*]:ml-[56px]`,
   {
     variants: {
       variant: {
-        default: 'bg-background text-foreground',
+        default: 'bg-base-white text-foreground',
         destructive: 'border-error-300 bg-error-25'
       }
     },
