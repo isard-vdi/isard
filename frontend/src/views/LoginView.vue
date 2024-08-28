@@ -43,10 +43,16 @@ const {
   data: config
 } = useQuery(getLoginConfigOptions())
 
-const isPending = computed(() => providersIsPending.value || categoriesIsPending.value || configIsPending.value)
+const isPending = computed(
+  () => providersIsPending.value || categoriesIsPending.value || configIsPending.value
+)
 
 // TODO: Router push to /login if the provider in the URL is invalid / not active / whatever
 const routeProvider = computed(() => {
+  if (route.params.provider === 'all') {
+    return 'all'
+  }
+
   const routeProvider = route.params.provider as Provider
   const routeProviderValid = Object.values(Provider).includes(routeProvider)
 
@@ -65,7 +71,7 @@ const showProvider = (provider: Provider): ComputedRef<boolean> =>
 
     // If there's a provider on the route, show it if it corresponds
     if (routeProvider.value) {
-      return provider === routeProvider.value
+      return routeProvider.value === 'all' ? true : provider === routeProvider.value
     }
 
     // If the providers are limited in the login configuration, follow this config
@@ -204,7 +210,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
       // TODO: Eval to simply use the authentication already set cookie
 
       setCookie('isardvdi_session', bearer)
-      window.location = '/'
+      window.location.href = '/'
       break
   }
 }
