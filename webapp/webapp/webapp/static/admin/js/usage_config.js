@@ -353,6 +353,34 @@ $(document).ready(function () {
     consolidate('media', false);
   })
 
+  // DELETE ALL CONSUMPTION DATA
+
+  $("#btn-delete-all-data").on("click", function () {
+    new PNotify({
+      title: "Are you sure you want to delete all consumption data?",
+      text: `This action is irreversible and can be resource-demanding.`,
+      addclass: 'pnotify-center-large',
+      confirm: {
+        confirm: true,
+        buttons: [
+          {
+            text: 'Delete', click: function (notice) {
+              deleteAllUsageConsumption();
+              notice.remove();
+            }
+          },
+          {
+            text: 'Cancel', click: function (notice) {
+              notice.remove();
+            }
+          }
+        ]
+      },
+    });
+  });
+
+  $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on);
+
 });
 
 function render_table_credits() {
@@ -1023,4 +1051,66 @@ function consolidate(item_type, days) {
       })
     }
   })
+}
+
+function deleteAllUsageConsumption() {
+  $.ajax({
+    type: "DELETE",
+    url: "/api/v3/admin/usage/delete_data/",
+    accept: "application/json",
+  }).done(() => {
+    new PNotify({
+      title: "Deleting data...",
+      text: `All consumption data is being deleted`,
+      hide: false,
+      icon: 'fa fa-spinner fa-pulse',
+      delay: 1000,
+      opacity: 1,
+      type: 'success'
+    });
+  }).fail(function (data) {
+    new PNotify({
+      title: "ERROR deleting logs",
+      text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+      hide: true,
+      delay: 1000,
+      icon: 'fa fa-error',
+      opacity: 1,
+      type: 'error'
+    });
+  });
+}
+
+// SOCKETIO
+
+function socketio_on() {
+  socket.on('usage_action_failed', function (data) {
+    PNotify.removeAll();
+    document.body.classList.remove('loading-cursor');
+    var data = JSON.parse(data);
+    new PNotify({
+      title: `ERROR: ${data.action} all consumption data`,
+      text: data.msg,
+      hide: true,
+      delay: 5000,
+      icon: 'fa fa-warning',
+      opacity: 1,
+      type: 'error'
+    });
+  });
+
+  socket.on('usage_action_completed', function (data) {
+    PNotify.removeAll();
+    document.body.classList.remove('loading-cursor');
+    var data = JSON.parse(data);
+    new PNotify({
+      title: `Action Succeeded: ${data.action}`,
+      text: `The action "${data.action}" completed on all consumption data.`,
+      hide: true,
+      delay: 4000,
+      icon: 'fa fa-success',
+      opacity: 1,
+      type: 'success'
+    });
+  });
 }

@@ -14,7 +14,7 @@ from isardvdi_common.api_exceptions import Error
 
 #!flask/bin/python
 # coding=utf-8
-from api import app
+from api import app, socketio
 
 from ..libv2.api_admin import (
     ApiAdmin,
@@ -313,7 +313,103 @@ def api_v3_admin_logs_desktops_config_old_entries(payload):
 @is_admin
 def logs_desktops_old_entries_delete(payload):
     old_logs = admins.get_older_than_old_entry_max_time("logs_desktops")
-    gevent.spawn(admin_table_delete_list, "logs_desktops", old_logs)
+
+    def delete_old_logs_process():
+        try:
+            admin_table_delete_list("logs_desktops", old_logs)
+            socketio.emit(
+                "logs_desktops_action_completed",
+                json.dumps({"action": "delete_all"}),
+                namespace="/administrators",
+                room="admins",
+            )
+        except Error as e:
+            app.logger.error(traceback.format_exc())
+            error_message = str(e)
+            if isinstance(e.args, tuple) and len(e.args) > 1:
+                error_message = e.args[1]
+
+            socketio.emit(
+                "logs_desktops_action_failed",
+                json.dumps(
+                    {
+                        "action": "delete_all",
+                        "msg": error_message,
+                    }
+                ),
+                namespace="/administrators",
+                room="admins",
+            )
+        except Exception as e:
+            app.logger.error(traceback.format_exc())
+            socketio.emit(
+                "logs_desktops_action_failed",
+                json.dumps(
+                    {
+                        "action": "delete_all",
+                        "msg": "Something went wrong",
+                    }
+                ),
+                namespace="/administrators",
+                room="admins",
+            )
+
+    gevent.spawn(delete_old_logs_process)
+
+    return (
+        json.dumps(len(old_logs)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/logs_desktops/old_entries/delete/all", methods=["DELETE"])
+@is_admin
+def logs_desktops_old_entries_delete_all(payload):
+    old_logs = admins.get_older_than_old_entry_max_time("logs_desktops", 0)
+
+    def delete_old_logs_process():
+        try:
+            admin_table_delete_list("logs_desktops", old_logs)
+            socketio.emit(
+                "logs_desktops_action_completed",
+                json.dumps({"action": "delete_all"}),
+                namespace="/administrators",
+                room="admins",
+            )
+        except Error as e:
+            app.logger.error(traceback.format_exc())
+            error_message = str(e)
+            if isinstance(e.args, tuple) and len(e.args) > 1:
+                error_message = e.args[1]
+
+            socketio.emit(
+                "logs_desktops_action_failed",
+                json.dumps(
+                    {
+                        "action": "delete_all",
+                        "msg": error_message,
+                    }
+                ),
+                namespace="/administrators",
+                room="admins",
+            )
+        except Exception as e:
+            app.logger.error(traceback.format_exc())
+            socketio.emit(
+                "logs_desktops_action_failed",
+                json.dumps(
+                    {
+                        "action": "delete_all",
+                        "msg": "Something went wrong",
+                    }
+                ),
+                namespace="/administrators",
+                room="admins",
+            )
+
+    gevent.spawn(delete_old_logs_process)
+
     return (
         json.dumps(len(old_logs)),
         200,
@@ -409,7 +505,102 @@ def api_v3_admin_logs_users_config_old_entries(payload):
 @is_admin
 def logs_users_old_entries_delete(payload):
     old_logs = admins.get_older_than_old_entry_max_time("logs_users")
-    admin_table_delete_list("logs_users", old_logs)
+
+    def delete_old_logs_process():
+        try:
+            admin_table_delete_list("logs_users", old_logs)
+            socketio.emit(
+                "logs_users_action_completed",
+                json.dumps({"action": "delete_all"}),
+                namespace="/administrators",
+                room="admins",
+            )
+        except Error as e:
+            app.logger.error(traceback.format_exc())
+            error_message = str(e)
+            if isinstance(e.args, tuple) and len(e.args) > 1:
+                error_message = e.args[1]
+
+            socketio.emit(
+                "logs_users_action_failed",
+                json.dumps(
+                    {
+                        "action": "delete_all",
+                        "msg": error_message,
+                    }
+                ),
+                namespace="/administrators",
+                room="admins",
+            )
+        except Exception as e:
+            app.logger.error(traceback.format_exc())
+            socketio.emit(
+                "logs_users_action_failed",
+                json.dumps(
+                    {
+                        "action": "delete_all",
+                        "msg": "Something went wrong",
+                    }
+                ),
+                namespace="/administrators",
+                room="admins",
+            )
+
+    gevent.spawn(delete_old_logs_process)
+
+    return (
+        json.dumps(len(old_logs)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/logs_users/old_entries/delete/all", methods=["DELETE"])
+@is_admin
+def logs_users_old_entries_delete_all(payload):
+    old_logs = admins.get_older_than_old_entry_max_time("logs_users", 0)
+
+    def delete_old_logs_process():
+        try:
+            admin_table_delete_list("logs_users", old_logs)
+            socketio.emit(
+                "logs_users_action_completed",
+                json.dumps({"action": "delete_all"}),
+                namespace="/administrators",
+                room="admins",
+            )
+        except Error as e:
+            app.logger.error(traceback.format_exc())
+            error_message = str(e)
+            if isinstance(e.args, tuple) and len(e.args) > 1:
+                error_message = e.args[1]
+
+            socketio.emit(
+                "logs_users_action_failed",
+                json.dumps(
+                    {
+                        "action": "delete_all",
+                        "msg": error_message,
+                    }
+                ),
+                namespace="/administrators",
+                room="admins",
+            )
+        except Exception as e:
+            app.logger.error(traceback.format_exc())
+            socketio.emit(
+                "logs_users_action_failed",
+                json.dumps(
+                    {
+                        "action": "delete_all",
+                        "msg": "Something went wrong",
+                    }
+                ),
+                namespace="/administrators",
+                room="admins",
+            )
+
+    gevent.spawn(delete_old_logs_process)
 
     return (
         json.dumps(len(old_logs)),

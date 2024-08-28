@@ -18,6 +18,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import json
+import traceback
 from datetime import datetime, timedelta
 
 import pytz
@@ -26,7 +28,7 @@ from cachetools.keys import hashkey
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
-from api import app
+from api import app, socketio
 
 from .flask_rethink import RDB
 from .usage.common import get_default_consumption, get_params
@@ -1073,3 +1075,48 @@ def unify_item_name(item_id):
         ).update({"item_name": current_name}).run(db.conn)
     get_start_end_consumption.cache_clear()
     return current_name
+
+
+def delete_all_consumption_data():
+    try:
+        with app.app_context():
+            r.table("usage_consumption").delete().run(db.conn)
+        socketio.emit(
+            "usage_action_completed",
+            json.dumps({"action": "delete_all"}),
+            namespace="/administrators",
+            room="admins",
+        )
+
+        return
+
+    except Error as e:
+        app.logger.error(traceback.format_exc())
+        error_message = str(e)
+        if isinstance(e.args, tuple) and len(e.args) > 1:
+            error_message = e.args[1]
+
+        socketio.emit(
+            "usage_action_failed",
+            json.dumps(
+                {
+                    "action": "delete_all",
+                    "msg": error_message,
+                }
+            ),
+            namespace="/administrators",
+            room="admins",
+        )
+    except Exception as e:
+        app.logger.error(traceback.format_exc())
+        socketio.emit(
+            "usage_action_failed",
+            json.dumps(
+                {
+                    "action": "delete_all",
+                    "msg": "Something went wrong",
+                }
+            ),
+            namespace="/administrators",
+            room="admins",
+        )
