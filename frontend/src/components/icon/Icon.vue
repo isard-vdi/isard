@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from 'vue'
 import { Primitive, type PrimitiveProps } from 'radix-vue'
+import { type IconVariants, iconVariants } from '.'
 import { cn } from '@/lib/utils'
 
 interface Props extends PrimitiveProps {
   name: string
+  size?: IconVariants['size']
   alt?: string
   class?: HTMLAttributes['class']
 }
@@ -24,6 +26,6 @@ const url = computed(() => {
     :alt="alt || props.name + ' icon'"
     :as="as"
     :as-child="asChild"
-    :class="cn('', props.class)"
+    :class="cn(iconVariants({ size }), props.class)"
   ></Primitive>
 </template>
