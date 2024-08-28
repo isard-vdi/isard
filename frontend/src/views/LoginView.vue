@@ -323,7 +323,7 @@ const onCategorySelectSubmit = async (categoryId: string) => {
             v-if="showProvider(Provider.Form).value"
             :text="config?.providers?.form?.submit_text"
             :hide-forgot-password="config?.providers?.form?.hide_forgot_password"
-            :class="config?.providers?.form?.submit_extra_styles"
+            :style="config?.providers?.form?.submit_extra_styles"
             @submit="onFormSubmit"
           />
 
@@ -342,7 +342,7 @@ const onCategorySelectSubmit = async (categoryId: string) => {
               :provider="provider"
               :text="config?.providers?.[provider]?.submit_text"
               :icon="config?.providers?.[provider]?.submit_icon"
-              :class="config?.providers?.[provider]?.submit_extra_styles"
+              :style="config?.providers?.[provider]?.submit_extra_styles"
               @submit="onExternalSubmit"
             />
           </template>
