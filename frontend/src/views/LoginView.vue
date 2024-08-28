@@ -55,12 +55,12 @@ const category = computed(() => {
   return 'default'
 })
 
-const categoriesDropdownEl = ref<InstanceType<typeof LoginCategoriesDropdown> | null>(null)
+const categoriesDropdownEl = typeof ref<InstanceType<typeof LoginCategoriesDropdown> | null>(null)
 const focusCategoriesDropdown = () => {
   categoriesDropdownEl.value?.focus()
 }
 
-const loginError = ref<LoginErrorUnion | null>(
+const loginError = ref<LoginErrorUnion | 'unknown' | null>(
   route.query.error === undefined ? null : route.query.error
 )
 const loginErrorMsg = computed(() => {
@@ -74,7 +74,7 @@ const loginErrorMsg = computed(() => {
   return t(baseKey + 'unknown')
 })
 
-const categorySelectToken: ref<CategorySelectToken | null> = (() => {
+const categorySelectToken: typeof ref<CategorySelectToken | null> = (() => {
   // TODO: COnst this
   const savedBearer = getCookie('authorization') || getCookie('isardvdi_session')
 
@@ -201,7 +201,7 @@ const onCategorySelectSubmit = async (categoryId: string) => {
   client.setConfig({
     baseUrl: '/authentication'
   })
-  client.interceptors.request.use((request, options) => {
+  client.interceptors.request.use((request) => {
     // TODO: COnst this and move it to a proper function or something
     request.headers.set(
       'Authorization',
