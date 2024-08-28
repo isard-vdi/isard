@@ -26,6 +26,26 @@
         "tags": [],
         "security": []
       }
+    },
+    "/api/v3/login_config": {
+      "get": {
+        "operationId": "GetLoginConfig",
+        "summary": "Get the configuration for the login page",
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetLoginConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -62,6 +82,190 @@
           "required": ["id", "name", "frontend"],
           "type": "object"
         }
+      },
+      "GetLoginConfigResponse": {
+        "title": "Configuration for the Login page",
+        "properties": {
+          "locale": {
+            "title": "Config related with the locale selection",
+            "properties": {
+              "hide": {
+                "title": "Whether to hide the locale switch",
+                "type": "boolean"
+              },
+              "available_locales": {
+                "title": "A list of the locales that will be available to the user",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "logo": {
+            "title": "Config related with the logo",
+            "properties": {
+              "hide": {
+                "title": "Whether to hide the logo",
+                "type": "boolean"
+              }
+            }
+          },
+          "info": {
+            "title": "Config realted with general information",
+            "properties": {
+              "title": {
+                "title": "The title of the page",
+                "type": "string"
+              },
+              "description": {
+                "title": "A small description (subtitle)",
+                "type": "string"
+              }
+            }
+          },
+          "maintenance": {
+            "title": "Config of the maintenance page",
+            "properties": {
+              "title": {
+                "title": "The title of the maintenance page",
+                "type": "string"
+              },
+              "description": {
+                "title": "A small description (subtitle)",
+                "type": "string"
+              }
+            }
+          },
+          "notification": {
+            "title": "Config of the notification that will be shown",
+            "properties": {
+              "icon": {
+                "title": "The icon that the notification will have",
+                "type": "string"
+              },
+              "title": {
+                "title": "The title of the maintenance page",
+                "type": "string"
+              },
+              "description": {
+                "title": "A small description (subtitle)",
+                "type": "string"
+              },
+              "button": {
+                "title": "Configuration related with the button",
+                "properties": {
+                  "text": {
+                    "title": "The text of the button",
+                    "type": "string"
+                  },
+                  "url": {
+                    "title": "The URL that the button will redirect to",
+                    "type": "string"
+                  }
+                },
+                "required": ["text", "url"],
+                "type": "object"
+              }
+            }
+          },
+          "providers": {
+            "title": "Config related with the different authentication providers",
+            "properties": {
+              "all": {
+                "title": "Config that will be applied to all the providers. A specific provider takes preference before this",
+                "properties": {
+                  "hide_categories_dropdown": {
+                    "title": "Whether to hide the categories dropdown for all the providers",
+                    "type": "boolean"
+                  },
+                  "display_providers": {
+                    "title": "The providers that will be displayed in the /login page. If some provider is missing here, it can be accessed through /login/<provider>. If the provider is not enabled in isardvdi.cfg, it won't be displayed",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "form",
+                        "saml",
+                        "google"
+                      ]
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              },
+              "form": {
+                "title": "Config related with the form provider",
+                "properties": {
+                  "hide_categories_dropdown": {
+                    "title": "Whether to hide the categories dropdown",
+                    "type": "boolean"
+                  },
+                  "hide_forgot_password": {
+                    "title": "Whether to hide the forgot password button",
+                    "type": "boolean"
+                  },
+                  "submit_text": {
+                    "title": "The text that will appear in the submit button for the form",
+                    "type": "string"
+                  },
+                  "submit_extra_styles": {
+                    "title": "Extra styles for the submit button. It will be added as `style=''` in the HTML",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "saml": {
+                "title": "Config related with the SAML provider",
+                "properties": {
+                  "hide_categories_dropdown": {
+                    "title": "Whether to hide the categories dropdown",
+                    "type": "boolean"
+                  },
+                  "submit_icon": {
+                    "title": "Icon for the submit button",
+                    "type": "string"
+                  },
+                  "submit_text": {
+                    "title": "The text that will appear in the submit button",
+                    "type": "string"
+                  },
+                  "submit_extra_styles": {
+                    "title": "Extra styles for the submit button. It will be added as `style=''` in the HTML",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "google": {
+                "title": "Config related with the Google provider",
+                "properties": {
+                  "hide_categories_dropdown": {
+                    "title": "Whether to hide the categories dropdown",
+                    "type": "boolean"
+                  },
+                  "submit_icon": {
+                    "title": "Icon for the submit button",
+                    "type": "string"
+                  },
+                  "submit_text": {
+                    "title": "The text that will appear in the submit button",
+                    "type": "string"
+                  },
+                  "submit_extra_styles": {
+                    "title": "Extra styles for the submit button. It will be added as `style=''` in the HTML",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
       }
     }
   },

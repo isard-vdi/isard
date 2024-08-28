@@ -6,6 +6,18 @@ import logoUrl from '@/assets/logo.svg'
 const { t } = useI18n()
 
 const isardVdiUrl = 'https://isardvdi.com'
+
+interface Props {
+  hideLocaleSwitch?: boolean
+  hideLogo?: boolean
+  title?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  hideLocaleSwitch: false,
+  hideLogo: false,
+  title: undefined
+})
 </script>
 
 <template>
@@ -17,14 +29,14 @@ const isardVdiUrl = 'https://isardvdi.com'
     <div class="w-full md:w-1/2 h-full p-[32px] flex flex-col justify-between">
       <!-- Language selector -->
       <div class="self-end">
-        <LocaleSwitch />
+        <LocaleSwitch v-if="!props.hideLocaleSwitch" />
       </div>
 
       <!-- Login form -->
       <div class="self-center flex flex-col w-[360px]">
-        <img class="self-center" :src="logoUrl" alt="IsardVDI logo" />
+        <img v-if="!props.hideLogo" class="self-center" :src="logoUrl" alt="IsardVDI logo" />
         <h1 class="mt-[46px] mb-[32px] text-display-sm font-semibold text-gray-warm-900">
-          {{ t('layouts.login.title') }}
+          {{ props.title || t('layouts.login.title') }}
         </h1>
         <div>
           <slot />

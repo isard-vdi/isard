@@ -104,7 +104,6 @@ func (a *Authentication) Providers() []string {
 
 		if k == types.ProviderForm {
 			providers = append(providers, v.(*provider.Form).Providers()...)
-			continue
 		}
 
 		providers = append(providers, k)

@@ -5,6 +5,7 @@ export { default as LoginCategorySelect } from './LoginCategorySelect.vue'
 
 // TODO: Move this to the correspondant place
 export enum Provider {
+  Form = 'form',
   SAML = 'saml',
   Google = 'google'
 }

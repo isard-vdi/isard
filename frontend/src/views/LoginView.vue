@@ -1,21 +1,23 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, type ComputedRef, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { jwtDecode } from 'jwt-decode'
 import { set as setCookie, get as getCookie } from 'tiny-cookie'
 import { createClient, createConfig, type Options as ClientOptions } from '@hey-api/client-fetch'
 import { useQuery } from '@tanstack/vue-query'
+import { providersOptions } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
 import { login, type LoginData, type error as LoginErrorUnion } from '@/gen/oas/authentication'
-import { getCategoriesOptions } from '@/gen/oas/api/@tanstack/vue-query.gen'
+import { getCategoriesOptions, getLoginConfigOptions } from '@/gen/oas/api/@tanstack/vue-query.gen'
 import { LoginLayout } from '@/layouts/login'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
+  Provider,
   LoginProviderForm,
   LoginProviderExternal,
   LoginCategoriesDropdown,
   LoginCategorySelect,
-  Provider,
   type CategorySelectToken
 } from '@/components/login'
 import { Separator } from '@/components/ui/separator'
@@ -23,11 +25,11 @@ import { Separator } from '@/components/ui/separator'
 const { t, te } = useI18n()
 const route = useRoute()
 
-// TODO: Router push to /login
-const isProviderValid = computed(() => {
-  const provider = route.params.provider as Provider
-  return provider && Object.values(Provider).includes(provider)
-})
+const {
+  isPending: providersIsPending,
+  isError: providersIsError,
+  data: providers
+} = useQuery(providersOptions())
 
 const {
   isPending: categoriesIsPending,
@@ -35,17 +37,86 @@ const {
   data: categories
 } = useQuery(getCategoriesOptions())
 
-// TODO: Move this to the API call
-const showCategoriesDropdown = true
-const categoriesDropdownModel = ref('')
+const {
+  isPending: configIsPending,
+  isError: configIsError,
+  data: config
+} = useQuery(getLoginConfigOptions())
 
-const category = computed(() => {
-  if (route.params.category !== '') {
-    // TODO: Filter from categories URL
-    return route.params.category
+// TODO: Router push to /login if the provider in the URL is invalid / not active / whatever
+const routeProvider = computed(() => {
+  const routeProvider = route.params.provider as Provider
+  const routeProviderValid = Object.values(Provider).includes(routeProvider)
+
+  return routeProviderValid ? routeProvider : null
+})
+
+// TODO: Router push to /login/provider if the category invalid / not active / whatever
+const routeCategory = computed(() => (route.params.category !== '' ? route.params.category : null))
+
+const showProvider = (provider: Provider): ComputedRef<boolean> =>
+  computed(() => {
+    // Check that the provider is enabled by authentication
+    if (!providers.value?.providers.includes(provider)) {
+      return false
+    }
+
+    // If there's a provider on the route, show it if it corresponds
+    if (routeProvider.value) {
+      return provider === routeProvider.value
+    }
+
+    // If the providers are limited in the login configuration, follow this config
+    const displayProviders = config.value?.providers?.all?.display_providers
+    if (displayProviders) {
+      return displayProviders.includes(provider)
+    }
+
+    // Otherwise, display the provider
+    return true
+  })
+
+const showCategoriesDropdown = computed(() => {
+  const providersConfig = config.value?.providers
+  if (providersConfig) {
+    let display = true
+
+    // Check if there's a general hide
+    if (providersConfig.all?.hide_categories_dropdown) {
+      display = false
+    }
+
+    if (providers.value?.providers) {
+      providers.value.providers.forEach((provider) => {
+        // Check if there's a provider specific hide
+        if (
+          providersConfig[provider] &&
+          providersConfig[provider].hide_categories_dropdown !== undefined
+        ) {
+          display = providersConfig[provider].hide_categories_dropdown
+        }
+      })
+    }
+
+    return display
   }
 
-  if (showCategoriesDropdown) {
+  // If there's a category set in the URL, don't show the dropdown
+  if (routeCategory.value) {
+    return false
+  }
+
+  return true
+})
+
+const categoriesDropdownModel = ref('')
+const category = computed(() => {
+  if (routeCategory.value) {
+    // TODO: Filter from categories URL
+    return routeCategory.value
+  }
+
+  if (categoriesDropdownModel.value !== '') {
     return categoriesDropdownModel.value
   }
 
@@ -142,7 +213,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
 
 const onFormSubmit = async (values) => {
   if (category.value === '') {
-    if (showCategoriesDropdown) {
+    if (showCategoriesDropdown.value) {
       focusCategoriesDropdown()
       return
     }
@@ -162,7 +233,7 @@ const onFormSubmit = async (values) => {
 
 const onExternalSubmit = async (provider: Provider) => {
   if (category.value === '') {
-    if (showCategoriesDropdown) {
+    if (showCategoriesDropdown.value) {
       focusCategoriesDropdown()
       return
     }
@@ -222,42 +293,51 @@ const onCategorySelectSubmit = async (categoryId: string) => {
 </script>
 
 <template>
-  <LoginLayout>
+  <LoginLayout
+    :hide-locale-switch="config?.locale?.hide"
+    :hide-logo="config?.logo?.hide"
+    :title="config?.info?.title"
+  >
     <div class="flex flex-col space-y-4">
-      <!-- TODO: Skeleton while categories are loading -->
-      <Alert v-if="loginError !== null" variant="destructive">
-        <AlertDescription>{{ loginErrorMsg }}</AlertDescription>
-      </Alert>
-
-      <LoginCategorySelect
-        v-if="categorySelectToken !== null"
-        :categories="categorySelectToken"
-        @submit="onCategorySelectSubmit"
-      />
+      <Skeleton v-if="providersIsPending || categoriesIsPending || configIsPending" class="h-6" />
 
       <template v-else>
-        <LoginCategoriesDropdown
-          v-if="
-            route.params.category === '' &&
-            showCategoriesDropdown &&
-            !categoriesIsPending &&
-            !categoriesIsError
-          "
-          ref="categoriesDropdownEl"
-          v-model:modelValue="categoriesDropdownModel"
-          :categories="categories"
+        <Alert v-if="loginError" variant="destructive">
+          <AlertDescription>{{ loginErrorMsg }}</AlertDescription>
+        </Alert>
+
+        <LoginCategorySelect
+          v-if="categorySelectToken"
+          :categories="categorySelectToken"
+          @submit="onCategorySelectSubmit"
         />
 
-        <LoginProviderForm v-if="!isProviderValid" @submit="onFormSubmit" />
-
-        <Separator v-if="!isProviderValid" :label="t('views.login.separator')" />
-
-        <template v-for="provider in Object.values(Provider)" :key="provider">
-          <LoginProviderExternal
-            v-if="!isProviderValid || route.params.provider === provider"
-            :provider="provider"
-            @submit="onExternalSubmit"
+        <template v-else>
+          <LoginCategoriesDropdown
+            v-if="showCategoriesDropdown"
+            ref="categoriesDropdownEl"
+            v-model:modelValue="categoriesDropdownModel"
+            :categories="categories"
           />
+
+          <LoginProviderForm v-if="showProvider(Provider.Form).value" @submit="onFormSubmit" />
+
+          <Separator
+            v-if="
+              !routeProvider &&
+              providers?.providers.includes('form') &&
+              providers.providers.length > 1
+            "
+            :label="t('views.login.separator')"
+          />
+
+          <template v-for="provider in Object.values(Provider)" :key="provider">
+            <LoginProviderExternal
+              v-if="provider !== Provider.Form && showProvider(provider).value"
+              :provider="provider"
+              @submit="onExternalSubmit"
+            />
+          </template>
         </template>
       </template>
     </div>
