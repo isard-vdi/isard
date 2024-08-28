@@ -88,16 +88,12 @@ const showCategoriesDropdown = computed(() => {
       display = false
     }
 
-    if (providers.value?.providers) {
-      providers.value.providers.forEach((provider) => {
-        // Check if there's a provider specific hide
-        if (
-          providersConfig[provider] &&
-          providersConfig[provider].hide_categories_dropdown !== undefined
-        ) {
-          display = providersConfig[provider].hide_categories_dropdown
-        }
-      })
+    // If there's an active provider, check the configuration for it
+    if (routeProvider.value) {
+      const hide = providersConfig[routeProvider.value]?.hide_categories_dropdown
+      if (hide !== undefined) {
+        display = !hide
+      }
     }
 
     return display
@@ -323,7 +319,13 @@ const onCategorySelectSubmit = async (categoryId: string) => {
             :categories="categories"
           />
 
-          <LoginProviderForm v-if="showProvider(Provider.Form).value" @submit="onFormSubmit" />
+          <LoginProviderForm
+            v-if="showProvider(Provider.Form).value"
+            :text="config?.providers?.form?.submit_text"
+            :hide-forgot-password="config?.providers?.form?.hide_forgot_password"
+            :class="config?.providers?.form?.submit_extra_styles"
+            @submit="onFormSubmit"
+          />
 
           <Separator
             v-if="
@@ -338,6 +340,9 @@ const onCategorySelectSubmit = async (categoryId: string) => {
             <LoginProviderExternal
               v-if="provider !== Provider.Form && showProvider(provider).value"
               :provider="provider"
+              :text="config?.providers?.[provider]?.submit_text"
+              :icon="config?.providers?.[provider]?.submit_icon"
+              :class="config?.providers?.[provider]?.submit_extra_styles"
               @submit="onExternalSubmit"
             />
           </template>
