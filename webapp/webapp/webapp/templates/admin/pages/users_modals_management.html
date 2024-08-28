@@ -348,14 +348,22 @@
                                 <div class="col-md-9 col-sm-9 col-xs-12">
                                     <input type="file" id="csv" name="csv" enctype="multipart/form-data" />
                                     <br>
+                                    <small style="color:#E74C3C;">The CSV must be separated by tabulations</small>
+                                    <br>
+                                    <small>You can upload up to 200 users per CSV</small>
+                                    <br>
+                                    <small>Passwords will be auto generated</small>
+                                    <br>
+                                    <small>Existing users will ignored, new users will be created.</small>
+                                    <br>
                                     <small>CSV file should have this columns:
                                         <ul>
-                                            <li>username / name / email / password / group / category / role</li>
+                                            <li>username / name / email / group / category / role</li>
                                             <li>Where <b>category</b> and <b>group</b> are their <i>names</i></li>
                                             <li>Where <b>role</b> must be <i>manager, advanced</i> or <i>user</i></li>
                                         </ul>
                                     </small>
-                                    <button type="button" class="btn btn-success btn-download-bulkusers" id="download-create"
+                                    <button type="button" class="btn btn-secondary btn-download-bulkusers" id="download-create"
                                         data-dismiss="modal">Download sample in CSV format</button>
                                 </div>
                             </div>
@@ -370,16 +378,12 @@
                             </div>
                             <div id="csv_correct" class="x_content" style="display:none">
                                 <div class="x_title">
-                                    <h4><i class="fa fa-check" style="color:lightgreen"></i> Imported data was validated
-                                    </h4>
-                                    <br>
-                                    <h4><i> (grey columns are not updated on existing users)</i></h4>
+                                    <h4><i class="fa fa-check" style="color:lightgreen"></i> Imported CSV file validated. Data preview:</h4>
                                     <div class="clearfix"></div>
                                 </div>
                                 <table id="csv_preview" class="table cell-border hover stripe">
                                     <thead>
                                         <tr>
-                                            <th>exists</th>
                                             <th>username</th>
                                             <th>name</th>
                                             <th>email</th>
@@ -392,9 +396,13 @@
                                     <tbody>
                                     </tbody>
                                 </table>
+                                <p class="fa fa-warning" style="color:rgb(186, 127, 60);"> You must download the CSV with
+                                    passwords before creating the users.</p><br>
+                                <button type="button" class="btn btn-info btn-download-bulkusers" id="download-generated"
+                                    >Download CSV with generated passwords</button>
                                 <hr>
                                 <div class="x_title">
-                                    <h4></i> Extra parameters for all validated users</h4>
+                                    <h4></i> Set other extra fields</h4>
                                     <div class="clearfix"></div>
                                 </div>
                                 <div class="item form-group">
@@ -419,28 +427,6 @@
             </ul>
             <ul class="nav navbar-right panel_toolbox">
                 <li><button id="send" type="button" class="btn btn-success">Create users</button></li>
-            </ul>
-            <ul class="nav navbar-right panel_toolbox">
-                <li>
-                    <div class="item form-group" style="display: block">
-                        <label class="control-label col-md-6 col-sm-6 col-xs-12" for="bulk-allow-update">
-                            Update existing users
-                        </label>
-                        <div class="col-md-3 col-sm-3 col-xs-12">
-                            <div class="checkbox" style="display: block">
-                                <label>
-                                    <div class="icheckbox_flat-green" style="position: relative;">
-                                        <input type="checkbox" id="bulk-allow-update" name="bulk-allow-update"
-                                            class="flat" style="position: absolute; opacity: 0;">
-                                        <ins class="iCheck-helper"
-                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                        </ins>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </li>
             </ul>
         </div>
     </div>
@@ -476,6 +462,12 @@
                                 <div class="col-md-9 col-sm-9 col-xs-12">
                                     <input type="file" id="csv-edit" name="csv" enctype="multipart/form-data" />
                                     <br>
+                                    <small style="color:#E74C3C;">The CSV must be separated by tabulations</small>
+                                    <br>
+                                    <small>You can upload up to 200 users per CSV</small>
+                                    <br>
+                                    <small>You can download a CSV file with the current users data using "<b>CSV for update</b>"</small>
+                                    <br>
                                     <small>CSV file should have these columns:
                                         <ul>
                                             <li>active / name / provider / category / uid / group / 
@@ -485,7 +477,6 @@
                                             <li>Secondary groups must be separated by "<b>/</b>"</li>
                                             <li>Leave the parameters you don't want to update <b>blank</b></li>
                                             <li>'Active' column must have as value either "<b>true</b>" or "<b>false</b>"</li>
-                                            <li>You can download a CSV file with the current users data using "<b>CSV with import format</b>"</li>
                                         </ul>
                                     </small>
                                     <button type="button" class="btn btn-success btn-download-bulkusers" id="download-edit"

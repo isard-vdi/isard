@@ -350,10 +350,13 @@ def ownsCategoryId(payload, category_id):
     )
 
 
+@cached(TTLCache(maxsize=100, ttl=10))
 def CategoryNameGroupNameMatch(category_name, group_name):
     with app.app_context():
         category = list(
-            r.table("categories").filter({"name": category_name.strip()}).run(db.conn)
+            r.table("categories")
+            .get_all(category_name.strip(), index="name")
+            .run(db.conn)
         )
     if not len(category):
         raise Error(

@@ -672,6 +672,8 @@ def socketio_admins_connect(auth=None):
         quit_admins_rooms(auth.get("jwt"))
         return False
 
+    if payload.get("user_id"):
+        join_room(payload["user_id"])
     if payload.get("role_id") == "admin":
         join_room("admins")
         if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":

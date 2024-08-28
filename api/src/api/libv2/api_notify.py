@@ -39,6 +39,22 @@ def notify_user(user_id, type, msg_code, params={}):
     )
 
 
+def notify_admin(user_id, title, description, notify_id="", type="info", params={}):
+    data = {
+        "id": notify_id,
+        "type": type,
+        "title": title,
+        "description": description,
+        "params": params,
+    }
+    socketio.emit(
+        "msg",
+        json.dumps(data),
+        namespace="/administrators",
+        room=user_id,
+    )
+
+
 def notify_desktop(desktop_id, type, msg_code, params={}):
     data = {
         "type": type,

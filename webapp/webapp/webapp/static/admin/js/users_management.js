@@ -362,16 +362,59 @@ function socketio_on(){
 
         if (kind === 'download-edit') {
             viewerFile = new Blob(
-                [`active,name,provider,category,uid,group,secondary_groups,password\ntrue,John Doe,local,Default,jdoe,Default,Default,cS227@tB\n,Another User,local,Default,auser,Default,`
+                [`active\tname\tprovider\tcategory\tuid\tgroup\tsecondary_groups\tpassword\ntrue\tJohn Doe\tlocal\tDefault\tjdoe\tDefault\tDefault\tcS227@tB\n\tAnother User\tlocal\tDefault\tauser\tDefault\t`
                 ], { type: "text/csv" });
 
         } else if (kind === 'download-create') {
             viewerFile = new Blob(
-                [`username,name,email,password,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,7j5*0Z/g,Default,Default,advanced\nauser,Another User,auser@domain.com,kE1)n4E1,Default,Default,user`
+                [`username\tname\temail\tgroup\tcategory\trole\njdoe\tJohn Doe\tjdoe@isardvdi.com\tDefault\tDefault\tadvanced\nauser\tAnother User\tauser@domain.com\tDefault\tDefault\tuser`
                 ], { type: "text/csv" });
+        } else if (kind === 'download-generated') {
+            $("#modalAddBulkUsers #send").attr("disabled", false);
+
+            var notice = new PNotify({
+                title: "Creating CSV file...",
+                icon: 'fa fa-spinner fa-spin',
+            })
+            var form = $('#modalAddBulkUsersForm');
+            $("#modalAddBulkUserForm #bulk_secondary_groups").empty().trigger('change')
+            formdata = form.serializeObject()
+            form.parsley().validate();
+            if (form.parsley().isValid()) {
+                users = csv_preview.data().toArray()
+                filecontents = users.map(user => {
+                    return `${user.username}\t${user.name}\t${user.email}\t${user.password}\t${user.group}\t${user.category}\t${user.role}`
+                }
+                ).join('\n')
+                viewerFile = new Blob([`username\tname\temail\tpassword\tgroup\tcategory\trole\n` + filecontents], { type: "text/csv" });
+                notice.update({
+                    title: "CSV file created",
+                    text: "CSV file created with Tab separator",
+                    hide: true,
+                    delay: 5000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: 'success'
+                });
+            } else {
+                notice.update({
+                    title: "ERROR creating CSV file",
+                    text: 'Please fill all the required fields',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                });
+                return;
+            }
         }
         var a = document.createElement('a');
-            a.download = 'bulk-users-template.csv';
+            if (kind === 'download-generated') {
+                a.download = 'bulk-users.csv';
+            } else {
+                a.download = 'bulk-users-template.csv';
+            }
             a.href = window.URL.createObjectURL(viewerFile);
         var ev = document.createEvent("MouseEvents");
             ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
@@ -580,49 +623,12 @@ function socketio_on(){
         };
     });
 
-    document.getElementById('csv').addEventListener('change', readFile, false);
-    var filecontents=''
-    function readFile(evt) {
+    $('#csv, #csv-edit').on('change', function (evt) {
         var files = evt.target.files;
         var file = files[0];
+        var filecontents=''
         var fileExtension = file.name.split('.').pop().toLowerCase();
-        if (fileExtension!=="csv" || (file.type !== 'text/csv' && file.type !== 'application/vnd.ms-excel')) {
-            new PNotify({
-                title: 'ERROR uploading file',
-                text: 'File must be a CSV file',
-                type: 'error',
-                hide: true,
-                icon: 'fa fa-warning',
-                delay: 5000,
-                opacity: 1
-            });
-        } else if (file.size > 25000) { //25kB
-            new PNotify({
-                title: 'ERROR uploading CSV',
-                text: 'File size must be less than 25kB',
-                type: 'error',
-                hide: true,
-                icon: 'fa fa-warning',
-                delay: 5000,
-                opacity: 1
-            });
-        } else {
-            var reader = new FileReader();
-            var modal = '#modalAddBulkUsers';
-            reader.onload = function (event) {
-                filecontents = event.target.result;
-                csv2datatables(filecontents, modal)
-            }
-            reader.readAsText(file, 'UTF-8')
-        }
-    }
 
-    document.getElementById('csv-edit').addEventListener('change', readFileEdit, false);
-    var filecontents = ''
-    function readFileEdit(evt) {
-        var files = evt.target.files;
-        var file = files[0];
-        var fileExtension = file.name.split('.').pop().toLowerCase();
         if (fileExtension!=="csv" || (file.type !== 'text/csv' && file.type !== 'application/vnd.ms-excel')) {
             new PNotify({
                 title: 'ERROR uploading file',
@@ -645,14 +651,14 @@ function socketio_on(){
             });
         } else {
             var reader = new FileReader();
-            var modal = '#modalUpdateFromCSV';
+            var modal = this.id === 'csv' ? '#modalAddBulkUsers' : '#modalUpdateFromCSV';
             reader.onload = function (event) {
                 filecontents = event.target.result;
                 csv2datatables(filecontents, modal)
             }
             reader.readAsText(file, 'UTF-8')
         }
-    }
+    })
 
     $("#modalAddBulkUsers #send").on('click', function(e){
         var form = $('#modalAddBulkUsersForm');
@@ -660,104 +666,36 @@ function socketio_on(){
         formdata = form.serializeObject()
         form.parsley().validate();
         if (form.parsley().isValid()){
-            data=formdata;
-            delete data['unlimited']
-            data['provider']='local';
             users=csv_preview.data().toArray()
             var notice = new PNotify({
                 title: "Adding users",
-            });
-            var usersAdded = 1;
-            users.forEach(function (user) {
-                data['uid'] = user['username'];
-                user['bulk'] = true
-                if(user["exists"] && !$('#bulk-allow-update').prop("checked")){
-                    notice.update({
-                        title: "Adding users",
-                        text: "Skipping user "+user["username"]+" as already exists",
+            })
+            $.ajax({
+                type: 'POST',
+                url: "/api/v3/admin/bulk/user",
+                data: JSON.stringify({ users: users }),
+                contentType: "application/json",
+                success: function(data)
+                {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                notice.update({
+                        title: `Adding ${ users.length } users`,
+                        text: "This process may take a while, please wait",
                         hide: true,
                         delay: 4000,
                         opacity: 1
                     });
-                    return true
-                }
-
-                if(user["exists"] && $('#bulk-allow-update').prop("checked")){
-                    user['secondary_groups'] = data['secondary_groups']
-                    user['quota'] = data['quota']
-                    $.ajax({
-                        type: 'POST',
-                        url: "/api/v3/admin/users/check/by/provider",
-                        data: JSON.stringify({
-                            "provider":data['provider'],
-                            "category":user['category'],
-                            "uid":user['username']
-                        }),
-                        contentType: "application/json",
-                        success: function(data){
-                            $.ajax({
-                                type: 'PUT',
-                                url: "/api/v3/admin/user/"+data,
-                                data: JSON.stringify(user) ,
-                                contentType: "application/json",
-                                success: function(data)
-                                {
-                                    $('form').each(function() { this.reset() });
-                                    $('.modal').modal('hide');
-                                notice.update({
-                                        title: "Updating",
-                                        text: "Updating user (" + ( usersAdded ) + "/" + users.length + "): ",
-                                        hide: true,
-                                        delay: 4000,
-                                        opacity: 1
-                                    });
-                                usersAdded ++;
-                                 },
-                                 error: function(data){
-                                    new PNotify({
-                                        title: "ERROR updating user",
-                                        text: data.responseJSON.description,
-                                        type: 'error',
-                                        hide: true,
-                                        icon: 'fa fa-warning',
-                                        delay: 15000,
-                                        opacity: 1
-                                    });
-                                 }
-                            });
-                        }
-                    })
-                }else{
-                    delete user["exists"]
-                    $.ajax({
-                        type: 'POST',
-                        url: "/api/v3/admin/user",
-                        data: JSON.stringify(Object.assign({},data,user)) ,
-                        contentType: "application/json",
-                        success: function(data)
-                        {
-                            $('form').each(function() { this.reset() });
-                            $('.modal').modal('hide');
-                        notice.update({
-                                title: "Adding users",
-                                text: "Added user (" + ( usersAdded ) + "/" + users.length + "): ",
-                                hide: true,
-                                delay: 4000,
-                                opacity: 1
-                            });
-                        usersAdded ++;
-                        },
-                        error: function(data){
-                            new PNotify({
-                                title: "ERROR adding user",
-                                text: data.responseJSON.description,
-                                type: 'error',
-                                hide: true,
-                                icon: 'fa fa-warning',
-                                delay: 15000,
-                                opacity: 1
-                            });
-                        }
+                },
+                error: function(data){
+                    new PNotify({
+                        title: "ERROR adding users",
+                        text: data.responseJSON.description,
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 15000,
+                        opacity: 1
                     });
                 }
             });
@@ -838,7 +776,11 @@ function socketio_on(){
                 }
             },
             { "data": "role_name", "width": "10px" },
-            { "data": "group_name", "width": "10px" },
+            {
+                "data": "group_name", "width": "10px", "render": function (data, type, full, meta) {
+                    return full.group_name ? full.group_name : ''
+                }
+            },
             {
                 "data": "secondary_groups", "width": "100px", "render": function (data, type, full, meta) {
                     var secondary_groups = full.secondary_groups_names.join(",");
@@ -852,9 +794,18 @@ function socketio_on(){
             {
                 "data": "email_verified", "defaultContent": 'NaN', "render": function (data, type, full, meta) {
                     if ('email_verified' in full && full['email_verified']) {
-                        return `<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="Verified ${new Date(full["email_verified"]).toLocaleString()}"</i>`
+                        return `<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="Verified ${new Date(full["email_verified"]).toLocaleString()}"></i>`
                     } else {
-                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                        return `<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>`
+                    }
+                }
+            },
+            {
+                "data": "email", "defaultContent": 'NaN', "render": function (data, type, full, meta) {
+                    if ('email_verified' in full && full['email_verified']) {
+                        return `<p style="color:green" title="Verified ${new Date(full["email_verified"]).toLocaleString()}">${full['email'] ? full['email'] : ''}</p>`
+                    } else {
+                        return `<p>${full['email'] ? full['email'] : ''}</p>`
                     }
                 }
             },
@@ -960,7 +911,49 @@ function socketio_on(){
     });
 }
 
-function initUsersSockets () {
+notice = {}
+
+function initUsersSockets () { 
+    socket.on('msg', function (data) {
+        var data = JSON.parse(data);
+        if (data.id !== ""){
+            if (!(data.id in notice)) {
+                notice[data.id] = new PNotify({
+                    title: data.title,
+                    text: data.description,
+                    hide: (data.params.hide != undefined ? data.params.hide : true),
+                    delay: (data.params.delay != undefined ? data.params.delay : 4000),
+                    icon: 'fa fa-' + (data.params.icon != undefined ? data.params.icon : 'info'),
+                    opacity: 1,
+                    type: data.type
+                });
+            }
+            
+            if (data.params.delete == true){
+                notice[data.id].remove()
+            } else {
+                notice[data.id].update({
+                    title: data.title,
+                    text: data.description,
+                    hide: (data.params.hide != undefined ? data.params.hide : true),
+                    delay: (data.params.delay != undefined ? data.params.delay : 4000),
+                    icon: 'fa fa-' + (data.params.icon != undefined ? data.params.icon : 'info'),
+                    type: data.type
+                });
+            }
+        } else {
+            new PNotify({
+                title: data.title,
+                text: data.description,
+                hide: (data.params.hide != undefined ? data.params.hide : true),
+                delay: (data.params.delay != undefined ? data.params.delay : 4000),
+                icon: 'fa fa-' + (data.params.icon != undefined ? data.params.icon : 'info'),
+                opacity: 1,
+                type: data.type
+            });
+        }
+    });
+
     socket.on('users_data', function(data) {
         var data = JSON.parse(data);
         data['secondary_groups_names'] = data['secondary_groups_data'].map(group => group['name']);
@@ -1344,13 +1337,23 @@ function setModalUser(){
 }
 
 
-function csv2datatables(csv, modal){
+function csv2datatables(csv, modal) {
     csv = csv.replace(/</g, '&lt;').replace(/>/g, '&gt;')
     var csv_data = parseCSV(csv)
-    if (modal=="#modalUpdateFromCSV") {
-        $.each(csv_data, function(key, user) {
+    if (csv_data.error !== "") {
+        $(modal + " #csv_correct").hide()
+        $(modal + " #send").attr("disabled", true);
+        $(modal + " #csv_error #csv_error_html").html(csv_data.error)
+        $(modal + " #csv_error").show()
+        if ($.fn.dataTable.isDataTable(modal + ' #csv_preview')) {
+            csv_preview.clear()
+        }
+        return
+    }
+    if (modal == "#modalUpdateFromCSV") {
+        $.each(csv_data.users, function (key, user) {
             if (user.active !== undefined) {
-                switch(user['active'].toLowerCase()) {
+                switch (user['active'].toLowerCase()) {
                     case "true":
                         user["active"] = true
                         break;
@@ -1360,7 +1363,7 @@ function csv2datatables(csv, modal){
                     case "":
                         delete user["active"]
                         break;
-                    }
+                }
             }
             if (user.name == "") { delete user.name; }
             if (user.password == "") { delete user.password; }
@@ -1368,66 +1371,72 @@ function csv2datatables(csv, modal){
                 delete user.secondary_groups
             }
         });
-    } else {
-        $(modal + ' #bulk-allow-update').iCheck('uncheck').iCheck('update');
     }
     $.ajax({
-        type: "POST",
-        url: modal == "#modalUpdateFromCSV" ?
-            "/api/v3/admin/users/csv/validate" :
-            "/api/v3/admin/users/validate/allow_update",
-        data: JSON.stringify(csv_data),
+        type: modal == "#modalUpdateFromCSV" ? "PUT" : "POST",
+        url: "/api/v3/admin/users/csv/validate",
+        data: JSON.stringify(csv_data.users),
         contentType: "application/json",
         async: false,
     }).done(function (data) {
         $(modal + " #csv_correct").show()
-        $(modal + " #csv_error").hide()
-        $(modal + " #send").attr("disabled", false);
-        if ( $.fn.dataTable.isDataTable(modal +  ' #csv_preview' ) ) {
-            $.each( data, function( index, value ){
-                if(value.exists){exists=true; return false}
-            });
-            csv_preview.clear().rows.add(data).draw()
-        }else{
-            csv_preview = $(modal + " #csv_preview").DataTable( {
-                data: data,
-                rowId: 'username',
-                columns: modal == "#modalUpdateFromCSV" ? [
-                    { "data": "active", "width": "50px", "render": function (data, type, full, meta) {
+        // $(modal + " #send").attr("disabled", false);
+        if (data.errors && data.errors.length > 0) {
+            $(modal + " #csv_error").show()
+            let errorsHtml = '<ul>'
+            data.errors.forEach(function (error) {
+                errorsHtml += '<li>' + error + '</li>'
+            })
+            errorsHtml += '</ul>'
+            $(modal + " #csv_error #csv_error_html").html(errorsHtml)
+        }
+        $(modal + " #csv_preview").DataTable().destroy();
+        csv_preview = $(modal + " #csv_preview").DataTable({
+            data: modal == "#modalUpdateFromCSV" ? data : data.users,
+            rowId: modal == "#modalUpdateFromCSV" ? "id": "username",
+            columns: modal == "#modalUpdateFromCSV" ? [
+                {
+                    "data": "active",
+                    "width": "50px",
+                    "render": function (data, type, full, meta) {
                         if (full.active) {
                             active = true
                             return '<i class="fa fa-check" style="color:lightgreen"></i>';
-                        } else if (full.active===false) {
+                        } else if (full.active === false) {
                             return '<i class="fa fa-close" style="color:darkgray"></i>';
                         }
-                    } },
-                    { "data": "name", "width": "88px", },
-                    { "data": "provider", "width": "50px", "className": "no-update" },
-                    { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update" },
-                    { "data": "uid", "width": "88px", "className": "no-update" },
-                    { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update" },
-                    { "data": "secondary_groups_names", "width": "88px", "defaultContent": "", },
-                    { "data": "password", "width": "88px" },
-                ] : [
-                    { "data": "exists", "width": "88px", "render": function (data, type, full, meta) {
-                        if (full.exists) {
-                            exists = true
-                            return '<i class="fa fa-check" style="color:lightgreen"></i>';
-                        } else {
-                            return '<i class="fa fa-close" style="color:darkgray"></i>';
-                        }
-                    } },
-                    { "data": "username", "width": "88px", "className": "no-update" },
-                    { "data": "name", "width": "88px" },
-                    { "data": "email", "width": "88px" },
-                    { "data": "password", "width": "88px" },
-                    { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update" },
-                    { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update" },
-                    { "data": "role", "width": "88px", "defaultContent": "" },
-                ] ,
-                "order": [[0, 'asc']],
-            } );
-        }
+                    }
+                },
+                { "data": "name", "width": "88px", },
+                { "data": "provider", "width": "50px", "className": "no-update" },
+                { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update" },
+                { "data": "uid", "width": "88px", "className": "no-update" },
+                { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update" },
+                { "data": "secondary_groups_names", "width": "88px", "defaultContent": "", },
+                {
+                    "data": "password",
+                    "width": "88px",
+                    "render": function (data, type, full, meta) {
+                        return "*****"
+                    }
+                },
+            ] : [
+                { "data": "username", "width": "88px" },
+                { "data": "name", "width": "88px" },
+                { "data": "email", "width": "88px" },
+                {
+                    "data": "password",
+                    "width": "88px",
+                    "render": function (data, type, full, meta) {
+                        return "*****"
+                    }
+                },
+                { "data": "group", "width": "88px", "defaultContent": "" },
+                { "data": "category", "width": "88px", "defaultContent": "" },
+                { "data": "role", "width": "88px", "defaultContent": "" },
+            ],
+            "order": [[0, 'asc']],
+        });
     }).fail(function (data) {
         $(modal + " #csv_correct").hide()
         $(modal + " #send").attr("disabled", true);
@@ -1440,19 +1449,31 @@ function csv2datatables(csv, modal){
 }
 
 
-function parseCSV(csv){
-    lines=csv.split(/\r?\n/)
-    header=lines[0].split(',')
-    users=[]
-    $.each(lines, function(n, l){
-        if(n!=0 && l.length > 10){
+function parseCSV(csv) {
+    lines = csv.split(/\r?\n/)
+    if (lines.length > 202) {
+        return {
+            users: [],
+            error: "The maximum number of users that can be added at once is 200"
+        }
+    }
+    header = lines[0].split('\t')
+    if (header.length < 2) {
+        return {
+            users: [],
+            error: "Header must be separated by tabs"
+        }
+    }
+    users = []
+    $.each(lines, function (n, l) {
+        if (n != 0 && l.length > 10) {
             // var regex = /("[^"]*"|[^,]+)(?=,|$)/g;
-            usr = toObject(header,l.split(","));
-            usr['id']=usr['username']
+            usr = toObject(header, l.split("\t"));
+            usr['id'] = usr['username']
             users.push(usr)
         }
     })
-    return users;
+    return { users: users, error: "" };
 }
 
 function toObject(names, values) {
@@ -1467,11 +1488,13 @@ function showUserExportButtons(table, buttonsRowClass) {
         buttons: [
             {
                 extend: 'csv',
+                title: "csv-users",
+                titleAttr: "Export the current displayed data to a CSV file",
                 exportOptions: {
                 },
                 customize: function (csv) {
                     var split_csv = csv.split("\n");
-                    var csv_data = 'Active,Name,Provider,Category,UID,Role,Group,Secondary groups,VPN,Last access,ID\n';
+                    var csv_data = 'Active\tName\tProvider\tCategory\tUID\tRole\tGroup\tSecondary groups\tVPN\tLast access\tID\n';
 
                     $.each(split_csv.slice(1), function (index, csv_row) {
                         var csv_cell_array = csv_row.split('","');
@@ -1484,29 +1507,53 @@ function showUserExportButtons(table, buttonsRowClass) {
                         csv_cell_array[7] = csv_cell_array[8].replace(/,/g, ' | ');
                         csv_cell_array[8] = rowData.vpn.wireguard.connected;
 
-                        csv_data = csv_data + csv_cell_array + '\n';
+                        csv_data = csv_data + csv_cell_array.join("\t") + '\n';
                     });
                     return csv_data
                 }
             },
             'excel',
-            'print',
+            {
+                extend:'print',
+                title: "print-users",
+                titleAttr: "Print the current displayed data",
+            },
             {
                 extend: 'csv',
-                text: 'CSV with import format',
+                text: 'CSV for update',
                 exportOptions: {
-                    columns: [15] // ID column
+                    columns: [16] // ID column
                 },
-                title: "csv_with_import_format",
+                title: "update-from-csv-export",
                 titleAttr: "Generate a CSV file from the current displayed data, to use in the \"Update from CSV\" feature.",
                 customize: function (csv) {
-                    var csv_data = ['active,name,provider,category,uid,username,group,secondary_groups,password\n']
+                    var csv_data = ['active	name\tprovider\tcategory\tuid\tusername\tgroup\tsecondary_groups\tpassword\n']
                     var split_csv = csv.split("\n");
                     $.each(split_csv.slice(1), function (index, csv_row) {
                         var csv_cell_array = csv_row.split('","');
                         csv_cell_array[0] = csv_cell_array[0].replace(/"/g, '');
                         var rowData = table.row('#' + csv_cell_array[0]).data();
-                        csv_data = csv_data + (`${rowData.active},\"${rowData.name}\",${rowData.provider},${rowData.category_name},${rowData.uid},${rowData.username},${rowData.group_name},${rowData.secondary_groups_names.join("/")},\n`);
+                        csv_data = csv_data + (`${rowData.active}\t${rowData.name}\t${rowData.provider}\t${rowData.category_name}\t${rowData.uid}\t${rowData.username}\t${rowData.group_name}\t${rowData.secondary_groups_names.join("/")}\t\n`);
+                    });
+                    return csv_data
+                }
+            },
+            {
+                extend: 'csv',
+                text: 'CSV for create',
+                exportOptions: {
+                    columns: [16] // ID column
+                },
+                title: "bulk-users-export",
+                titleAttr: `Generate a CSV file from the current displayed data, to use in the \"Bulk create\" feature.`,
+                customize: function (csv) {
+                    var csv_data = ['username\tname\temail\tgroup\tcategory\trole\n']
+                    var split_csv = csv.split("\n");
+                    $.each(split_csv.slice(1), function (index, csv_row) {
+                        var csv_cell_array = csv_row.split('","');
+                        csv_cell_array[0] = csv_cell_array[0].replace(/"/g, '');
+                        var rowData = table.row('#' + csv_cell_array[0]).data();
+                        csv_data = csv_data + (`${rowData.uid}\t${rowData.name}\t${rowData.email}\t${rowData.group_name}\t${rowData.category_name}\t${rowData.role}\n`);
                     });
                     return csv_data
                 }

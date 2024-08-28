@@ -62,11 +62,13 @@ from ..libv2.api_user_storage import (
     isard_user_storage_update_user_quota,
     user_storage_quota,
 )
+from ..views.decorators import CategoryNameGroupNameMatch, ownsCategoryId
 from .api_admin import (
     change_category_items_owner,
     change_group_items_owner,
     change_user_items_owner,
 )
+from .api_notify import notify_admin
 from .helpers import (
     GetAllTemplateDerivates,
     _check,
@@ -74,6 +76,7 @@ from .helpers import (
     _random_password,
     gen_payload_from_user,
 )
+from .validators import _validate_item
 
 
 @cached(cache=TTLCache(maxsize=300, ttl=10))
@@ -87,7 +90,10 @@ def user_exists(user_id):
         )
 
 
-@cached(cache=TTLCache(maxsize=100, ttl=10))
+cache_user = TTLCache(maxsize=100, ttl=10)
+
+
+@cached(cache_user)
 def get_user(user_id):
     with app.app_context():
         return r.table("users").get(user_id).without("password").run(db.conn)
@@ -151,6 +157,15 @@ def check_category_domain(category_id, domain):
         )
 
 
+def bulk_create(users):
+    for i in range(0, len(users), 5000):
+        batch_users = users[i : i + 5000]
+        with app.app_context():
+            r.table("users").insert(batch_users).run(db.conn)
+    for user in users:
+        isard_user_storage_add_user(user["id"])
+
+
 class ApiUsers:
     def Jwt(self, user_id, minutes=240):
         return {
@@ -165,6 +180,95 @@ class ApiUsers:
                 algorithm="HS256",
             )
         }
+
+    def generate_users(self, payload, data):
+        batch_id = str(uuid.uuid4())
+
+        new_users = []
+        errors = []
+
+        # TODO: Check in quotas whether can create users
+        p = Password()
+
+        amount, total = 0, len(data["users"])
+        for user in data["users"]:
+            new_user = {}
+
+            try:
+                user = self.bulk_user_check(payload, user, "generate")
+            except Error as e:
+                errors.append(
+                    f"Skipping user {user['username']}: {e.error.get('description')}"
+                )
+                continue
+
+            new_user["uid"] = user["username"]
+            new_user["provider"] = "local"
+            new_user["category"] = user["category_id"]
+            new_user["group"] = user["group_id"]
+            new_user["username"] = user["username"]
+            new_user["password"] = p.encrypt(user["password"])
+            new_user["name"] = user["name"]
+            new_user["role"] = user["role"]
+            new_user["accessed"] = int(time.time())
+            new_user["quota"] = False
+            new_user["password_history"] = [p.encrypt(user["password"])]
+            new_user["password_last_updated"] = int(time.time())
+            new_user["email"] = user.get("email", "")
+            new_user["email_verification_token"] = None
+            new_user["email_verified"] = None
+            new_user = _validate_item("user", new_user)
+            new_users.append(new_user)
+
+            amount += 1
+
+            notify_admin(
+                payload["user_id"],
+                "User data generated",
+                "user '{username}' data generated \n{amount}/{total}".format(
+                    username=user["username"], amount=amount, total=total
+                ),
+                notify_id=batch_id,
+                type="info",
+                params={
+                    "hide": False,
+                    "delay": 1000,
+                    "icon": "user-plus",
+                },
+            )
+        notify_admin(
+            payload["user_id"],
+            "",
+            "",
+            notify_id=batch_id,
+            params={"delete": True},
+        )
+
+        if not errors:
+            notify_admin(
+                payload["user_id"],
+                title="Bulk user creation",
+                description=f"{len(new_users)} users created",
+                type="success",
+            )
+            bulk_create(new_users)
+        else:
+            notify_admin(
+                payload["user_id"],
+                title=f"There were {len(errors)} errors",
+                description=f"{len(new_users)} users created, {len(errors)} errors",
+                type="error",
+            )
+            for err in errors:
+                notify_admin(
+                    payload["user_id"],
+                    title=("Error creating user"),
+                    description=err,
+                    type="error",
+                    params={"hide": False, "icon": "user-times"},
+                )
+
+        return {"users": new_users, "errors": errors}
 
     # TODO: Fix this!
     def Login(self, user_id, user_passwd, provider="local", category_id="default"):
@@ -721,6 +825,7 @@ class ApiUsers:
                                     "email_verified": None,
                                 }
                             ).run(db.conn)
+        cache_user.clear()
 
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
@@ -1259,12 +1364,11 @@ class ApiUsers:
         else:
             return category
 
+    @cached(TTLCache(maxsize=100, ttl=10))
     def CategoryGetByName(self, category_name):
         with app.app_context():
             category = list(
-                r.table("categories")
-                .filter({"name": category_name.strip()})
-                .run(db.conn)
+                r.table("categories").get_all(category_name, index="name").run(db.conn)
             )
         if not category:
             raise Error(
@@ -1830,6 +1934,62 @@ class ApiUsers:
                 {"vpn": {"wireguard": {"keys": False}}}
             ).run(db.conn)
 
+    def bulk_user_check(self, payload, user, item_type):
+        if item_type == "csv":
+            user = _validate_item("user_from_csv", user)
+        elif item_type == "generate":
+            pass
+        else:
+            raise Error(
+                "bad_request",
+                f"Item type {item_type} not allowed",
+                description_code="item_type_not_allowed",
+            )
+
+        user["username"] = user["username"].replace(" ", "")
+
+        match = CategoryNameGroupNameMatch(user["category"], user["group"])
+        user["category_id"] = match["category_id"]
+        user["group_id"] = match["group_id"]
+
+        ownsCategoryId(payload, user["category_id"])
+
+        user_id = self.GetByProviderCategoryUID(
+            "local", user["category_id"], user["username"]
+        )
+        if user_id:
+            raise Error(
+                "bad_request",
+                f"User already exists",
+                description_code="user_already_exists",
+            )
+
+        # Check if the role is valid
+        if payload["role_id"] == "manager":
+            if user["role"] not in ["manager", "advanced", "user"]:
+                raise Error(
+                    "bad_request",
+                    f"Role not in manager, advanced or user",
+                    description_code="role_not_allowed",
+                )
+        else:
+            if user["role"] not in ["admin", "manager", "advanced", "user"]:
+                raise Error(
+                    "bad_request",
+                    f"Role not in admin, manager, advanced or user",
+                    description_code="role_not_allowed",
+                )
+
+        p = Password()
+        if item_type == "csv":
+            policy = self.get_user_password_policy(user["category_id"], user["role"])
+            user["password"] = p.generate_password(policy)
+        elif item_type == "generate":
+            policy = self.get_user_password_policy(match["category_id"], user["role"])
+            p.check_policy(user["password"], policy, username=user["username"])
+
+        return user
+
 
 def validate_email_jwt(user_id, email, minutes=60):
     return {
@@ -1874,6 +2034,43 @@ class Password(object):
         chars = string.ascii_letters + string.digits + "!@#$*"
         rnd = random.SystemRandom()
         return "".join(rnd.choice(chars) for i in range(length))
+
+    def generate_password(self, policy):
+        if not policy:
+            raise ValueError("No policy provided")
+
+        length = policy.get("length")
+        min_uppercase = policy.get("uppercase")
+        min_lowercase = policy.get("lowercase")
+        min_digits = policy.get("digits")
+        min_special = policy.get("special_characters")
+
+        password_characters = []
+        if min_uppercase:
+            password_characters.extend(
+                random.choices(string.ascii_uppercase, k=min_uppercase)
+            )
+        if min_lowercase:
+            password_characters.extend(
+                random.choices(string.ascii_lowercase, k=min_lowercase)
+            )
+        if min_digits:
+            password_characters.extend(random.choices(string.digits, k=min_digits))
+        if min_special:
+            password_characters.extend(
+                random.choices("!@#$%^&*()-_=+[]{}|;:'\",.<>/?", k=min_special)
+            )
+
+        remaining_length = length - len(password_characters)
+        if remaining_length > 0:
+            all_characters = string.ascii_letters + string.digits + string.punctuation
+            password_characters.extend(
+                random.choices(all_characters, k=remaining_length)
+            )
+
+        random.shuffle(password_characters)
+
+        return "".join(password_characters)
 
     def check_policy(self, password, policy, user_id=None, username=None):
         if len(password) < policy["length"]:
