@@ -8,12 +8,14 @@ const { t } = useI18n()
 const isardVdiUrl = 'https://isardvdi.com'
 
 interface Props {
+  loading?: boolean
   hideLocaleSwitch?: boolean
   hideLogo?: boolean
   title?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  loading: false,
   hideLocaleSwitch: false,
   hideLogo: false,
   title: undefined
@@ -29,14 +31,14 @@ const props = withDefaults(defineProps<Props>(), {
     <div class="w-full md:w-1/2 h-full p-[32px] flex flex-col justify-between">
       <!-- Language selector -->
       <div class="self-end">
-        <LocaleSwitch v-if="!props.hideLocaleSwitch" />
+        <LocaleSwitch v-if="!loading && !props.hideLocaleSwitch" />
       </div>
 
       <!-- Login form -->
       <div class="self-center flex flex-col w-[360px]">
-        <img v-if="!props.hideLogo" class="self-center" :src="logoUrl" alt="IsardVDI logo" />
+        <img v-if="!loading && !props.hideLogo" class="self-center" :src="logoUrl" alt="IsardVDI logo" />
         <h1 class="mt-[46px] mb-[32px] text-display-sm font-semibold text-gray-warm-900">
-          {{ props.title || t('layouts.login.title') }}
+          {{ loading ? '' : (props.title || t('layouts.login.title')) }}
         </h1>
         <div>
           <slot />

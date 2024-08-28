@@ -43,6 +43,8 @@ const {
   data: config
 } = useQuery(getLoginConfigOptions())
 
+const isPending = computed(() => providersIsPending.value || categoriesIsPending.value || configIsPending.value)
+
 // TODO: Router push to /login if the provider in the URL is invalid / not active / whatever
 const routeProvider = computed(() => {
   const routeProvider = route.params.provider as Provider
@@ -294,6 +296,7 @@ const onCategorySelectSubmit = async (categoryId: string) => {
 
 <template>
   <LoginLayout
+    :loading="isPending"
     :hide-locale-switch="config?.locale?.hide"
     :hide-logo="config?.logo?.hide"
     :title="config?.info?.title"

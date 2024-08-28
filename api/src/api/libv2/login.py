@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from cachetools import TTLCache, cached
 from rethinkdb import RethinkDB
 
 from api import app
@@ -29,5 +30,7 @@ db = RDB(app)
 db.init_app(app)
 
 
+@cached(cache=TTLCache(maxsize=20, ttl=60))
 def get_login_config():
-    return r.table("config").get(1).pluck("login").run(db.conn)
+    with app.app_context():
+        return r.table("config").get(1).run(db.conn).get("login", {})
