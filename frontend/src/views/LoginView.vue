@@ -10,8 +10,9 @@ import { providersOptions } from '@/gen/oas/authentication/@tanstack/vue-query.g
 import { login, type LoginData, type error as LoginErrorUnion } from '@/gen/oas/authentication'
 import { getCategoriesOptions, getLoginConfigOptions } from '@/gen/oas/api/@tanstack/vue-query.gen'
 import { LoginLayout } from '@/layouts/login'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
 import {
   Provider,
   LoginProviderForm,
@@ -21,6 +22,7 @@ import {
   type CategorySelectToken
 } from '@/components/login'
 import { Separator } from '@/components/ui/separator'
+import { Icon } from '@/components/icon'
 
 const { t, te } = useI18n()
 const route = useRoute()
@@ -303,57 +305,82 @@ const onCategorySelectSubmit = async (categoryId: string) => {
     :hide-logo="config?.logo?.hide"
     :title="config?.info?.title"
   >
-    <div class="flex flex-col space-y-4">
-      <Skeleton v-if="providersIsPending || categoriesIsPending || configIsPending" class="h-6" />
-
-      <template v-else>
-        <Alert v-if="loginError" variant="destructive">
-          <AlertDescription>{{ loginErrorMsg }}</AlertDescription>
-        </Alert>
-
-        <LoginCategorySelect
-          v-if="categorySelectToken"
-          :categories="categorySelectToken"
-          @submit="onCategorySelectSubmit"
+    <template v-if="config?.notification" #cover>
+      <Alert variant="destructive">
+        <Icon
+          v-if="config.notification.icon"
+          :name="config.notification.icon"
+          class="rounded-[1px] outline outline-1 outline-offset-[10px] outline-gray-warm-300"
         />
+        <AlertTitle v-if="config.notification.title">{{ config.notification.title }}</AlertTitle>
+        <AlertDescription>
+          <p v-if="config.notification.description">{{ config.notification.description }}</p>
+
+          <Button
+            v-if="config.notification.button"
+            hierarchy="link-color"
+            class="p-0 mt-4"
+            as="a"
+            :href="config.notification.button.url"
+            >{{ config.notification.button.text }}</Button
+          >
+        </AlertDescription>
+      </Alert>
+    </template>
+
+    <template #default>
+      <div class="flex flex-col space-y-4">
+        <Skeleton v-if="providersIsPending || categoriesIsPending || configIsPending" class="h-6" />
 
         <template v-else>
-          <LoginCategoriesDropdown
-            v-if="showCategoriesDropdown"
-            ref="categoriesDropdownEl"
-            v-model:modelValue="categoriesDropdownModel"
-            :categories="categories"
+          <Alert v-if="loginError" variant="destructive">
+            <AlertDescription>{{ loginErrorMsg }}</AlertDescription>
+          </Alert>
+
+          <LoginCategorySelect
+            v-if="categorySelectToken"
+            :categories="categorySelectToken"
+            @submit="onCategorySelectSubmit"
           />
 
-          <LoginProviderForm
-            v-if="showProvider(Provider.Form).value"
-            :text="config?.providers?.form?.submit_text"
-            :hide-forgot-password="config?.providers?.form?.hide_forgot_password"
-            :style="config?.providers?.form?.submit_extra_styles"
-            @submit="onFormSubmit"
-          />
-
-          <Separator
-            v-if="
-              !routeProvider &&
-              providers?.providers.includes('form') &&
-              providers.providers.length > 1
-            "
-            :label="t('views.login.separator')"
-          />
-
-          <template v-for="provider in Object.values(Provider)" :key="provider">
-            <LoginProviderExternal
-              v-if="provider !== Provider.Form && showProvider(provider).value"
-              :provider="provider"
-              :text="config?.providers?.[provider]?.submit_text"
-              :icon="config?.providers?.[provider]?.submit_icon"
-              :style="config?.providers?.[provider]?.submit_extra_styles"
-              @submit="onExternalSubmit"
+          <template v-else>
+            <LoginCategoriesDropdown
+              v-if="showCategoriesDropdown"
+              ref="categoriesDropdownEl"
+              v-model:modelValue="categoriesDropdownModel"
+              :categories="categories"
             />
+
+            <LoginProviderForm
+              v-if="showProvider(Provider.Form).value"
+              :text="config?.providers?.form?.submit_text"
+              :hide-forgot-password="config?.providers?.form?.hide_forgot_password"
+              :style="config?.providers?.form?.submit_extra_styles"
+              @submit="onFormSubmit"
+            />
+
+            <Separator
+              v-if="
+                !routeProvider &&
+                providers?.providers.includes('form') &&
+                providers.providers.length > 1
+              "
+              :label="t('views.login.separator')"
+            />
+
+            <template v-for="provider in Object.values(Provider)" :key="provider">
+              <LoginProviderExternal
+                v-if="provider !== Provider.Form && showProvider(provider).value"
+                :provider="provider"
+                :text="config?.providers?.[provider]?.submit_text"
+                :icon="config?.providers?.[provider]?.submit_icon"
+                :style="config?.providers?.[provider]?.submit_extra_styles"
+                @submit="onExternalSubmit"
+              />
+            </template>
           </template>
         </template>
-      </template>
-    </div>
+      </div>
+    </template>
   </LoginLayout>
 </template>

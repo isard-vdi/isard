@@ -25,7 +25,11 @@ const props = withDefaults(defineProps<Props>(), {
 <template>
   <div class="flex h-screen overflow-y-auto">
     <!-- Left panel (cover image) -->
-    <div class="hidden md:block w-1/2 h-full bg-cover bg-center bg-cover-img"></div>
+    <div
+      class="hidden md:block w-1/2 h-full bg-cover bg-center bg-cover-img flex px-20 content-center"
+    >
+      <slot name="cover" />
+    </div>
 
     <!-- Right panel (login form) -->
     <div class="w-full md:w-1/2 h-full p-[32px] flex flex-col justify-between">
@@ -36,9 +40,16 @@ const props = withDefaults(defineProps<Props>(), {
 
       <!-- Login form -->
       <div class="self-center flex flex-col w-[360px]">
-        <img v-if="!loading && !props.hideLogo" class="self-center" :src="logoUrl" alt="IsardVDI logo" />
-        <h1 class="mt-[46px] mb-[32px] text-display-sm font-semibold text-gray-warm-900">
-          {{ loading ? '' : (props.title || t('layouts.login.title')) }}
+        <img
+          v-if="!loading && !props.hideLogo"
+          class="self-center"
+          :src="logoUrl"
+          alt="IsardVDI logo"
+        />
+        <h1
+          class="mt-[46px] mb-[32px] text-center text-display-sm font-semibold text-gray-warm-900"
+        >
+          {{ loading ? '' : props.title || t('layouts.login.title') }}
         </h1>
         <div>
           <slot />
