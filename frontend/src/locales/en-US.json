@@ -27,6 +27,10 @@
       },
       "login-categories-dropdown": {
         "placeholder": "Select a category"
+      },
+      "login-category-select": {
+        "logged-in-as": "Logged in as",
+        "logout": "Logout"
       }
     }
   },

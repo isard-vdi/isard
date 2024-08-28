@@ -27,6 +27,10 @@
       },
       "login-categories-dropdown": {
         "placeholder": "Selecciona una categoria"
+      },
+      "login-category-select": {
+        "logged-in-as": "Has iniciat sessió com a",
+        "logout": "Tancar sessió"
       }
     }
   },
