@@ -277,8 +277,9 @@ def _parse_desktop(desktop):
         )
         if permissions is None:
             desktop["permissions"] = []
-        desktop["permissions"] = permissions
-        desktop["permissions"].sort()
+        else:
+            desktop["permissions"] = permissions
+            desktop["permissions"].sort()
 
     # TODO: Sum all the desktop storages instead of getting only the first one, call get_domain_storage function to retrieve them
     desktop_size = 0

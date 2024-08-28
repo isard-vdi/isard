@@ -228,6 +228,7 @@
             <b-button
               class="rounded-circle px-2 mr-2 btn-orange"
               :title="$t('components.statusbar.deployment.buttons.recreate.title')"
+              :disabled="isRecreateButtonDisabled"
               @click="recreateDeployment()"
             >
               <b-icon
@@ -436,6 +437,7 @@ export default {
     const user = computed(() => $store.getters.getUser)
     const maxTime = computed(() => $store.getters.getMaxTime)
     const itemsInRecycleBin = computed(() => $store.getters.getItemsInRecycleBin)
+    const isRecreateButtonDisabled = computed(() => $store.getters.isRecreateButtonDisabled)
 
     const goToDeployments = () => {
       context.root.$router.push({ name: 'deployments' })
@@ -575,6 +577,7 @@ export default {
       $store.dispatch('checkHypervisorAvailability').then(response => {
         if (response.status === 200) {
           context.root.$snotify.clear()
+          setDisableRecreateButton(true)
 
           const yesAction = () => {
             context.root.$snotify.clear()
@@ -583,6 +586,7 @@ export default {
 
           const noAction = (toast) => {
             context.root.$snotify.clear()
+            setDisableRecreateButton(false)
           }
 
           context.root.$snotify.prompt(`${i18n.t('messages.confirmation.recreate-deployment', { name: deployment.value.name })}`, {
@@ -618,6 +622,9 @@ export default {
       $store.dispatch('navigate', path)
     }
 
+    const setDisableRecreateButton = (disabled) => {
+      $store.commit('setDisableRecreateButton', disabled)
+    }
     // Recycle Bin
     const restoreRecycleBin = () => {
       $store.dispatch('updateRecycleBinModal', {
@@ -684,7 +691,9 @@ export default {
       user,
       maxTime,
       itemsInRecycleBin,
-      emptyRecycleBin
+      emptyRecycleBin,
+      setDisableRecreateButton,
+      isRecreateButtonDisabled
     }
   }
 }

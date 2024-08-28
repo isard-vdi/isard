@@ -232,9 +232,7 @@ def get_deployment_info(deployment_id):
     template = get_document(
         "domains", create_dict["template"], ["create_dict", "guest_properties", "image"]
     )
-    from pprint import pformat
 
-    app.logger.debug(pformat(template))
     template["hardware"] = template["create_dict"].pop("hardware")
     template.pop("create_dict")
     template["guest_properties"] = template.pop("guest_properties")
@@ -447,7 +445,8 @@ def create_deployment_desktops(deployment_tag, desktop_data, users):
                 "image": desktop.get("image"),
             }
         )
-    ApiDesktopsPersistent().NewFromTemplateTh(desktops)
+    deployment = get_document("deployments", deployment_tag["tag"])
+    ApiDesktopsPersistent().NewFromTemplateTh(desktops, deployment)
 
 
 def edit_deployment_users(payload, deployment_id, allowed, users):

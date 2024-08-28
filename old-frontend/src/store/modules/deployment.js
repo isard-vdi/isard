@@ -31,7 +31,8 @@ const getDefaultState = () => {
       owner: {},
       coOwners: []
     },
-    permissions: []
+    permissions: [],
+    recreateButtonDisabled: false
   }
 }
 
@@ -60,6 +61,9 @@ export default {
     },
     getPermissions: state => {
       return state.permissions
+    },
+    isRecreateButtonDisabled: state => {
+      return state.recreateButtonDisabled
     }
   },
   mutations: {
@@ -113,6 +117,9 @@ export default {
     },
     removePermission: (state, permission) => {
       state.permissions = state.permissions.filter(p => p.id !== permission.id)
+    },
+    setDisableRecreateButton (state, value) {
+      state.recreateButtonDisabled = value
     }
   },
   actions: {
@@ -134,6 +141,13 @@ export default {
     socket_deploymentdesktopDelete (context, data) {
       const deploymentdesktop = DeploymentsUtils.parseDeploymentDesktop(JSON.parse(data))
       context.commit('remove_deploymentdesktop', deploymentdesktop)
+    },
+    socket_recreatingDesktops (context, _) {
+      context.commit('setDisableRecreateButton', true)
+    },
+    socket_endRecreatingDesktops (context, _) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deployment-recreated'), '', true, 3000)
+      context.commit('setDisableRecreateButton', false)
     },
     fetchDeployment (context, data) {
       axios.get(`${apiV3Segment}/deployment/${data.id}`).then(response => {

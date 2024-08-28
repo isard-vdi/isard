@@ -16,6 +16,8 @@ from datetime import datetime, timedelta, timezone
 import gevent
 import pytz
 
+from api import socketio
+
 from ..libv2.api_desktops_common import ApiDesktopsCommon
 from ..libv2.api_logging import logs_domain_event_directviewer
 from ..libv2.api_templates import ApiTemplates
@@ -122,10 +124,7 @@ class ApiDesktopsPersistent:
             raise Error("not_found", "Desktop not found", traceback.format_exc())
         return desktop
 
-    def NewFromTemplateTh(
-        self,
-        desktops,
-    ):
+    def NewFromTemplateTh(self, desktops, deployment):
         def process_desktops():
             for desktop in desktops:
                 result = self.NewFromTemplate(
@@ -147,6 +146,18 @@ class ApiDesktopsPersistent:
                         }
                     )
                 time.sleep(0.25)
+                socketio.emit(
+                    "recreating_desktops",
+                    json.dumps({"deployment_id": deployment["id"]}),
+                    namespace="/userspace",
+                    room=deployment["co_owners"],
+                ),
+            socketio.emit(
+                "end_recreating_desktops",
+                json.dumps({"deployment_id": deployment["id"]}),
+                namespace="/userspace",
+                room=deployment["co_owners"],
+            ),
 
         # Spawn the process_desktops greenlet and return immediately
         gevent.spawn(process_desktops)
