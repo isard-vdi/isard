@@ -307,6 +307,19 @@ const onCategorySelectSubmit = async (categoryId: string) => {
     }
   })
 }
+
+const onForgotPassword = () => {
+  const category = categoriesDropdownModel.value || routeCategory.value
+
+  if (category !== null) {
+    window.location = new URL('/forgot-password?categoryId=' + category, window.location.origin)
+    return
+  }
+
+  focusCategoriesDropdown()
+  return
+}
+
 </script>
 
 <template>
@@ -368,6 +381,7 @@ const onCategorySelectSubmit = async (categoryId: string) => {
               :hide-forgot-password="config?.providers?.form?.hide_forgot_password"
               :style="config?.providers?.form?.submit_extra_styles"
               @submit="onFormSubmit"
+              @forgot-password="onForgotPassword"
             />
 
             <Separator

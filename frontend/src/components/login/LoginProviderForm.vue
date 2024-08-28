@@ -47,7 +47,12 @@ const props = withDefaults(defineProps<Props>(), {
 })
 const emit = defineEmits<{
   submit: [data: typeof schema._output]
+  forgotPassword: []
 }>()
+
+const onForgotPassword = () => {
+  emit('forgotPassword')
+}
 </script>
 <template>
   <AutoForm
@@ -59,8 +64,8 @@ const emit = defineEmits<{
   >
     <a
       v-if="!props.hideForgotPassword"
-      href="/forgot-password"
-      class="block m-y-1 font-semibold text-center text-brand-500 hover:underline"
+      @click="onForgotPassword"
+      class="block m-y-1 font-semibold text-center text-brand-600 hover:underline"
       >{{ t('components.login.login-provider-form.forgot-password') }}</a
     >
 
