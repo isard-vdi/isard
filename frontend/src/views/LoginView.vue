@@ -12,11 +12,10 @@ import {
   getToken as getAuthToken,
   isCategorySelectClaims,
   useCookies as useAuthCookies,
-  type CategorySelectClaims,
-  TokenType,
   isLoginClaims,
   setToken as setAuthToken,
-  getBearer as getAuthBearer
+  getBearer as getAuthBearer,
+  removeToken as removeAuthToken
 } from '@/lib/auth'
 import { LoginLayout } from '@/layouts/login'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
@@ -27,8 +26,7 @@ import {
   LoginProviderForm,
   LoginProviderExternal,
   LoginCategoriesDropdown,
-  LoginCategorySelect,
-  type CategorySelectToken
+  LoginCategorySelect
 } from '@/components/login'
 import { Separator } from '@/components/ui/separator'
 import { Icon } from '@/components/icon'
@@ -142,7 +140,7 @@ const category = computed(() => {
   return 'default'
 })
 
-const categoriesDropdownEl = typeof ref<InstanceType<typeof LoginCategoriesDropdown> | null>(null)
+const categoriesDropdownEl = ref<InstanceType<typeof LoginCategoriesDropdown> | null>(null)
 const focusCategoriesDropdown = () => {
   categoriesDropdownEl.value?.focus()
 }
@@ -171,6 +169,9 @@ const categorySelectToken = computed(() => {
 })
 
 const submitLogin = async (options: ClientOptions<LoginData>) => {
+  // Cleanup old tokens
+  removeAuthToken(cookies)
+
   const { error, response } = await login(options)
   if (error !== undefined) {
     loginError.value = error.error
@@ -207,6 +208,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
   }
 
   setAuthToken(cookies, bearer)
+  window.location.href = '/'
 }
 
 const onFormSubmit = async (values) => {

@@ -97,10 +97,16 @@ export const getToken = (
 }
 
 export const setToken = (cookies: ReturnType<typeof useCookies>, bearer: string) => {
-  cookies.set(sessionTokenName, bearer)
+  cookies.set(sessionTokenName, bearer, {
+    path: '/'
+  })
 }
 
 export const removeToken = (cookies: ReturnType<typeof useCookies>) => {
-  cookies.remove(authorizationTokenName)
-  cookies.remove(sessionTokenName)
+  cookies.remove(authorizationTokenName, {
+    path: '/'
+  })
+  cookies.remove(sessionTokenName, {
+    path: '/'
+  })
 }
