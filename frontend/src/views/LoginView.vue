@@ -17,6 +17,7 @@ import {
   getBearer as getAuthBearer,
   removeToken as removeAuthToken
 } from '@/lib/auth'
+import { dateIsToday } from '@/lib/utils'
 import { LoginLayout } from '@/layouts/login'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -32,7 +33,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Icon } from '@/components/icon'
 
-const { t, te } = useI18n()
+const { t, te, d } = useI18n()
 const route = useRoute()
 const cookies = useAuthCookies()
 
@@ -215,12 +216,26 @@ const loginError = ref((() => {
 
   return error
 })())
-
+const loginErrorParams = ref<Date | undefined>(undefined)
 const loginErrorMsg = computed(() => {
   const baseKey = 'authentication.login.errors.'
   const key = baseKey + loginError.value
+
   // Check if the error exists in the base locale
   if (te(key, 'en-US')) {
+    // If the error is a rate_limit error, show the extra parameters
+    if (loginError.value === 'rate_limit') {
+      let timeParam = d(loginErrorParams.value, { hour: 'numeric', minute: 'numeric', second: 'numeric' })
+
+      if (!dateIsToday(loginErrorParams.value)) {
+        timeParam = d(loginErrorParams.value, {
+          day: 'numeric', month: 'numeric', year: 'numeric',
+          hour: 'numeric', minute: 'numeric', second: 'numeric'
+        })
+      }
+      return t(key, { time: timeParam })
+    }
+
     return t(key)
   }
 
@@ -242,6 +257,12 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
 
   const { error, response } = await login(options)
   if (error !== undefined) {
+    if (response.status === 429) {
+      loginError.value = 'rate_limit'
+      loginErrorParams.value = new Date(response.headers.get('retry-after'))
+      return
+    }
+
     loginError.value = error.error
     return
   }

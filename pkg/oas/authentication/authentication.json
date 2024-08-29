@@ -849,7 +849,8 @@
                         "enum": [
                             "invalid_credentials",
                             "user_disabled",
-                            "user_disallowed"
+                            "user_disallowed",
+                            "rate_limit"
                         ]
                     },
                     "msg": {

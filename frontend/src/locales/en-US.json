@@ -41,7 +41,8 @@
         "missing_category": "A category needs to be selected",
         "invalid_credentials": "Incorrect user or password",
         "user_disabled": "The user is disabled",
-        "user_disallowed": "The user can't use IsardVDI"
+        "user_disallowed": "The user can't use IsardVDI",
+        "rate_limit": "Too many login attempts, please try again at {time}"
       }
     }
   }
