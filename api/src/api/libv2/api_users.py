@@ -722,7 +722,7 @@ class ApiUsers:
         # password=False generates a random password
         with app.app_context():
             user_id = str(uuid.uuid4())
-            if get_user(user_id) is not None:
+            if r.table("users").get(user_id).run(db.conn) != None:
                 raise Error(
                     "conflict",
                     "Already exists user_id " + user_id,
