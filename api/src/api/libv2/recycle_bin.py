@@ -117,10 +117,6 @@ class RecycleBinDeleteQueue:
         self.worker_thread.join()
 
 
-# Recycle bin queue
-custom_queue = RecycleBinDeleteQueue()
-
-
 @cached(cache=TTLCache(maxsize=10, ttl=30))
 def get_status(category_id=None):
 
