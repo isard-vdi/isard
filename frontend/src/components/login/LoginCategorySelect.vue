@@ -1,47 +1,48 @@
 <script setup lang="ts">
-import { type CategorySelectToken } from '.'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useCookies } from '@vueuse/integrations/useCookies'
-import { jwtDecode } from 'jwt-decode'
+import { type CategorySelectToken } from '.'
+import {
+  getToken as getAuthToken,
+  isCategorySelectClaims,
+  removeToken as removeAuthToken,
+  useCookies as useAuthCookies
+} from '@/lib/auth'
 import { Button } from '@/components/ui/button'
-import { ref } from 'vue'
 
 const { t } = useI18n()
-const cookies = useCookies(['authorization', 'isardvdi_session'])
+const cookies = useAuthCookies()
 
 interface Props {
   categories: CategorySelectToken
 }
-const props = defineProps<Props>()
+
+const name = computed(() => {
+  const token = getAuthToken(cookies)
+  if (!token) {
+    return undefined
+  }
+
+  if (!isCategorySelectClaims(token)) {
+    return undefined
+  }
+
+  return token.user.name
+})
+
+const logout = () => {
+  removeAuthToken(cookies)
+}
 
 const onClick = (categoryId: string) => {
   emit('submit', categoryId)
 }
 
+const props = defineProps<Props>()
+
 const emit = defineEmits<{
   submit: [categoryId: string]
 }>()
-
-const username: typeof ref<string | null> = (() => {
-  // TODO: Use const
-  const savedBearer = cookies.get<string | undefined>('authorization') || cookies.get<string | undefined>('isardvdi_session')
-  if (!savedBearer) {
-    return null
-  }
-
-  const jwt = jwtDecode(savedBearer)
-  // TODO: Use const
-  if (jwt.type !== 'category-select') {
-      return null
-  }
-
-  return jwt.user.username
-})()
-
-const logout = () => {
-  cookies.remove('authorization')
-  cookies.remove('isardvdi_session')
-}
 </script>
 
 <template>
@@ -54,8 +55,10 @@ const logout = () => {
   </div>
   <div class="mt-[48px] flex flex-col justify-center items-center text-center">
     <p>
-      {{ t('components.login.login-category-select.logged-in-as') }} <b>{{ username }}</b>
+      {{ t('components.login.login-category-select.logged-in-as') }} <b>{{ name }}</b>
     </p>
-    <Button class="mt-[8px]" hierarchy="link-color" @click="logout">{{ t('components.login.login-category-select.logged-in-as') }}</Button>
+    <Button class="mt-[8px]" hierarchy="link-color" @click="logout">{{
+      t('components.login.login-category-select.logout')
+    }}</Button>
   </div>
 </template>

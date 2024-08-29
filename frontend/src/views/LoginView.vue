@@ -2,13 +2,22 @@
 import { computed, type ComputedRef, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useCookies } from '@vueuse/integrations/useCookies'
-import { jwtDecode } from 'jwt-decode'
 import { createClient, createConfig, type Options as ClientOptions } from '@hey-api/client-fetch'
 import { useQuery } from '@tanstack/vue-query'
 import { providersOptions } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
 import { login, type LoginData, type error as LoginErrorUnion } from '@/gen/oas/authentication'
 import { getCategoriesOptions, getLoginConfigOptions } from '@/gen/oas/api/@tanstack/vue-query.gen'
+import {
+  parseToken as parseAuthToken,
+  getToken as getAuthToken,
+  isCategorySelectClaims,
+  useCookies as useAuthCookies,
+  type CategorySelectClaims,
+  TokenType,
+  isLoginClaims,
+  setToken as setAuthToken,
+  getBearer as getAuthBearer
+} from '@/lib/auth'
 import { LoginLayout } from '@/layouts/login'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -26,7 +35,7 @@ import { Icon } from '@/components/icon'
 
 const { t, te } = useI18n()
 const route = useRoute()
-const cookies = useCookies(['authorization', 'isardvdi_session'])
+const cookies = useAuthCookies()
 
 const {
   isPending: providersIsPending,
@@ -152,19 +161,14 @@ const loginErrorMsg = computed(() => {
   return t(baseKey + 'unknown')
 })
 
-const categorySelectToken: typeof ref<CategorySelectToken | null> = (() => {
-  // TODO: COnst this
-  const savedBearer = cookies.get<string | undefined>('authorization') || cookies.get<string | undefined>('authorization')
-  if (!savedBearer) {
-    return null
+const categorySelectToken = computed(() => {
+  const token = getAuthToken(cookies)
+  if (!token || !isCategorySelectClaims(token)) {
+    return undefined
   }
 
-  const jwt = jwtDecode(savedBearer)
-  // TODO: COnst this
-  if (jwt.type === 'category-select') {
-    return jwt.categories
-  }
-})()
+  return token.categories
+})
 
 const submitLogin = async (options: ClientOptions<LoginData>) => {
   const { error, response } = await login(options)
@@ -185,36 +189,24 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     return
   }
 
-  // TODO: Try except???
-  // TODO: Remove this library
-  const jwt = jwtDecode(bearer)
-  switch (jwt.type) {
-    case 'category-select':
-      // TODO: Check types?
-      categorySelectToken.value = jwt.categories
-      break
-
-    default:
-      // Login to Webapp
-      if ([undefined, '', 'login'].includes(jwt.type)) {
-        if (['admin', 'manager'].includes(jwt.data.role_id)) {
-          await fetch('/isard-admin/login', {
-            method: 'POST',
-            headers: {
-              Authorization: authorization
-            }
-          })
-        }
-      }
-
-      // TODO: Remove this library
-      // TODO: Move this to a constant
-      // TODO: Eval to simply use the authentication already set cookie
-
-      cookies.set('isardvdi_session', bearer)
-      window.location.href = '/'
-      break
+  const jwt = parseAuthToken(bearer)
+  if (isCategorySelectClaims(jwt)) {
+    return
   }
+
+  if (isLoginClaims(jwt)) {
+    // Login to Webapp
+    if (['admin', 'manager'].includes(jwt.data.role_id)) {
+      await fetch('/isard-admin/login', {
+        method: 'POST',
+        headers: {
+          Authorization: authorization
+        }
+      })
+    }
+  }
+
+  setAuthToken(cookies, bearer)
 }
 
 const onFormSubmit = async (values) => {
@@ -279,11 +271,7 @@ const onCategorySelectSubmit = async (categoryId: string) => {
     baseUrl: '/authentication'
   })
   client.interceptors.request.use((request) => {
-    // TODO: COnst this and move it to a proper function or something
-    request.headers.set(
-      'Authorization',
-      'Bearer ' + (cookies.get('authorization') || cookies.get('isardvdi_session'))
-    )
+    request.headers.set('Authorization', 'Bearer ' + getAuthBearer(cookies))
 
     return request
   })
