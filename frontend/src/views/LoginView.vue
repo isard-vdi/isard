@@ -2,8 +2,8 @@
 import { computed, type ComputedRef, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useCookies } from '@vueuse/integrations/useCookies'
 import { jwtDecode } from 'jwt-decode'
-import { set as setCookie, get as getCookie } from 'tiny-cookie'
 import { createClient, createConfig, type Options as ClientOptions } from '@hey-api/client-fetch'
 import { useQuery } from '@tanstack/vue-query'
 import { providersOptions } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
@@ -26,6 +26,7 @@ import { Icon } from '@/components/icon'
 
 const { t, te } = useI18n()
 const route = useRoute()
+const cookies = useCookies(['authorization', 'isardvdi_session'])
 
 const {
   isPending: providersIsPending,
@@ -153,17 +154,16 @@ const loginErrorMsg = computed(() => {
 
 const categorySelectToken: typeof ref<CategorySelectToken | null> = (() => {
   // TODO: COnst this
-  const savedBearer = getCookie('authorization') || getCookie('isardvdi_session')
-
-  if (savedBearer !== null) {
-    const jwt = jwtDecode(savedBearer)
-    // TODO: COnst this
-    if (jwt.type === 'category-select') {
-      return jwt.categories
-    }
+  const savedBearer = cookies.get<string | undefined>('authorization') || cookies.get<string | undefined>('authorization')
+  if (!savedBearer) {
+    return null
   }
 
-  return null
+  const jwt = jwtDecode(savedBearer)
+  // TODO: COnst this
+  if (jwt.type === 'category-select') {
+    return jwt.categories
+  }
 })()
 
 const submitLogin = async (options: ClientOptions<LoginData>) => {
@@ -211,7 +211,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
       // TODO: Move this to a constant
       // TODO: Eval to simply use the authentication already set cookie
 
-      setCookie('isardvdi_session', bearer)
+      cookies.set('isardvdi_session', bearer)
       window.location.href = '/'
       break
   }
@@ -282,7 +282,7 @@ const onCategorySelectSubmit = async (categoryId: string) => {
     // TODO: COnst this and move it to a proper function or something
     request.headers.set(
       'Authorization',
-      'Bearer ' + (getCookie('authorization') || getCookie('isardvdi_session'))
+      'Bearer ' + (cookies.get('authorization') || cookies.get('isardvdi_session'))
     )
 
     return request
@@ -330,7 +330,7 @@ const onCategorySelectSubmit = async (categoryId: string) => {
 
     <template #default>
       <div class="flex flex-col space-y-4">
-        <Skeleton v-if="providersIsPending || categoriesIsPending || configIsPending" class="h-6" />
+        <Skeleton v-if="isPending" class="h-6" />
 
         <template v-else>
           <Alert v-if="loginError" variant="destructive">

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { type CategorySelectToken } from '.'
 import { useI18n } from 'vue-i18n'
+import { useCookies } from '@vueuse/integrations/useCookies'
 import { jwtDecode } from 'jwt-decode'
 import { Button } from '@/components/ui/button'
-import { get as getCookie, remove as removeCookie } from 'tiny-cookie'
 import { ref } from 'vue'
 
 const { t } = useI18n()
+const cookies = useCookies(['authorization', 'isardvdi_session'])
 
 interface Props {
   categories: CategorySelectToken
@@ -23,8 +24,7 @@ const emit = defineEmits<{
 
 const username: typeof ref<string | null> = (() => {
   // TODO: Use const
-  const savedBearer = getCookie('authorization') || getCookie('isardvdi_session')
-
+  const savedBearer = cookies.get<string | undefined>('authorization') || cookies.get<string | undefined>('isardvdi_session')
   if (!savedBearer) {
     return null
   }
@@ -39,8 +39,8 @@ const username: typeof ref<string | null> = (() => {
 })()
 
 const logout = () => {
-  removeCookie('authorization')
-  removeCookie('isardvdi_session')
+  cookies.remove('authorization')
+  cookies.remove('isardvdi_session')
 }
 </script>
 
