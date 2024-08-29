@@ -54,8 +54,8 @@ const logout = () => {
   </div>
   <div class="mt-[48px] flex flex-col justify-center items-center text-center">
     <p>
-      {{ t('components.login.login-categories-dropdown.logged-in-as') }} <b>{{ username }}</b>
+      {{ t('components.login.login-category-select.logged-in-as') }} <b>{{ username }}</b>
     </p>
-    <Button class="mt-[8px]" hierarchy="link-color" @click="logout">{{ t('components.login.login-categories-dropdown.logout') }}</Button>
+    <Button class="mt-[8px]" hierarchy="link-color" @click="logout">{{ t('components.login.login-category-select.logged-in-as') }}</Button>
   </div>
 </template>
