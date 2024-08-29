@@ -119,7 +119,7 @@ const categoriesDropdownModel = ref('')
 const category = computed(() => {
   if (routeCategory.value) {
     // TODO: Filter from categories URL
-    return routeCategory.value
+    return Array.isArray(routeCategory.value) ? routeCategory.value[0] : routeCategory.value
   }
 
   if (categoriesDropdownModel.value !== '') {
