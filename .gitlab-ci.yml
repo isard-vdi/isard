@@ -99,11 +99,11 @@ check-python:
     - isort --check .
     - black --check .
 
-check-frontend:
+check-old-frontend:
   stage: lint
   image: node:18.17
   script:
-    - cd frontend
+    - cd old-frontend
     - yarn
     - yarn lint --no-fix --max-warnings 0
 
