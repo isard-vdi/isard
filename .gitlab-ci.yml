@@ -39,9 +39,15 @@ default:
     - key:
         files:
           - frontend/package.json
-          - frontend/yarn.lock
+          - frontend/bun.lockb
       paths:
         - frontend/node_modules
+    - key:
+        files:
+          - old-frontend/package.json
+          - old-frontend/yarn.lock
+      paths:
+        - old-frontend/node_modules
     - key:
         files:
           - e2e/package.json
@@ -145,6 +151,7 @@ gen-protobuf:
   artifacts:
     paths:
       - pkg/gen
+      - frontend/src/gen
       - "**/testing_*_mock.go"
 
 docker-compose-build:
