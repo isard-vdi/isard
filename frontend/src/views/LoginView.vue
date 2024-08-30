@@ -147,7 +147,8 @@ const category = computed(() => {
     return Array.isArray(routeCategory.value) ? routeCategory.value[0] : routeCategory.value
   }
 
-  if (categoriesDropdownModel.value !== '') {
+  // If the dropdown is shown, always use this value
+  if (showCategoriesDropdown.value) {
     return categoriesDropdownModel.value
   }
 
