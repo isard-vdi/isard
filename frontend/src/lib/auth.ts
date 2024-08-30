@@ -59,9 +59,7 @@ const sessionTokenName = 'isardvdi_session'
 export const useCookies = () => vueuseCookies([authorizationTokenName, sessionTokenName])
 
 export const parseToken = (bearer: string): CategorySelectClaims | TypeClaims => {
-  console.warn('parsing token')
   const jwt = jwtDecode(bearer) as TypeClaims
-  console.warn('parsed token', jwt)
   switch (jwt.type) {
     case undefined:
       jwt.type = TokenType.Login

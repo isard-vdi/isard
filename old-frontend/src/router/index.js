@@ -427,37 +427,20 @@ router.beforeEach(async (to, from, next) => {
   if (to.matched.some((record) => record.meta.requiresAuth)) {
     // No session yet
     if (!session) {
-      const authorizationCookie = getCookie('authorization')
-      if (authorizationCookie) {
-        const token = jwtDecode(authorizationCookie)
-        if (token.type === 'register') {
-          if (to.name !== 'Register' && token.type === 'register') {
-            router.push({ name: 'Register' })
-          } else if (to.name === 'Register') {
-            next()
-          } else {
-            store.dispatch('loginSuccess', authorizationCookie)
-          }
-          // If user has multiple categories redirect to select category
-        } else if (token.type === 'category-select') {
-          window.location = '/login'
-        } else {
-          store.dispatch('loginSuccess', authorizationCookie)
-        }
-        // Routes to verify email and reset password require a token (sent by email)
-      } else if (['VerifyEmail', 'ResetPassword'].includes(to.name)) {
-        if (to.query.token) {
-          next()
-        } else {
-          window.location = '/login'
-        }
-        // If trying to access any route redirect to login
-      } else {
-        window.location = '/login'
-      }
-      // Local login
+      window.location = '/login'
     } else {
       const sessionData = jwtDecode(session)
+      // Handle user registration
+      if (sessionData.type === 'register') {
+        if (to.name !== 'Register') {
+          next({ name: 'Register' })
+          return
+        }
+
+        next()
+        return
+      }
+
       // TODO: The session might not be expired but it could be revoked
       if (new Date() > new Date((sessionData.exp - 30) * 1000)) {
         await store.dispatch('renew')
