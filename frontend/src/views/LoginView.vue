@@ -163,7 +163,7 @@ const focusCategoriesDropdown = () => {
   categoriesDropdownEl.value?.focus()
 }
 
-const loginError = ref<LoginErrorUnion | 'unknown' | null>(
+const loginError = ref<LoginErrorUnion | 'missing_category' | 'unknown' | null>(
   route.query.error === undefined ? null : route.query.error
 )
 const loginErrorMsg = computed(() => {
@@ -236,7 +236,7 @@ const onFormSubmit = async (values) => {
       return
     }
 
-    loginError.value = 'unknown'
+    loginError.value = 'missing_category'
     return
   }
 
@@ -256,7 +256,7 @@ const onExternalSubmit = async (provider: Provider) => {
       return
     }
 
-    loginError.value = 'unknown'
+    loginError.value = 'missing_category'
     return
   }
 
@@ -309,17 +309,18 @@ const onCategorySelectSubmit = async (categoryId: string) => {
 }
 
 const onForgotPassword = () => {
-  const category = categoriesDropdownModel.value || routeCategory.value
+  if (category.value === '') {
+    if (showCategoriesDropdown.value) {
+      focusCategoriesDropdown()
+      return
+    }
 
-  if (category !== null) {
-    window.location = new URL('/forgot-password?categoryId=' + category, window.location.origin)
+    loginError.value = 'missing_category'
     return
   }
 
-  focusCategoriesDropdown()
-  return
+  window.location.href = '/forgot-password?categoryId=' + category.value
 }
-
 </script>
 
 <template>

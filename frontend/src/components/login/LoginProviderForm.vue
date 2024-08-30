@@ -59,16 +59,16 @@ const onForgotPassword = () => {
     :form="form"
     :schema="schema"
     :field-config="fieldConfig"
-    class="space-y-5"
+    class="flex flex-col space-y-5"
     @submit="onSubmit"
   >
-    <a
+    <Button
       v-if="!props.hideForgotPassword"
+      hierarchy="link-color"
+      class="p-0 text-brand-600"
       @click="onForgotPassword"
-      class="block m-y-1 font-semibold text-center text-brand-600 hover:underline"
-      >{{ t('components.login.login-provider-form.forgot-password') }}</a
+      >{{ t('components.login.login-provider-form.forgot-password') }}</Button
     >
-
     <Button type="submit" size="lg" class="w-full">{{
       props.text || t('components.login.login-provider-form.login')
     }}</Button>
