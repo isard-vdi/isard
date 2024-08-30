@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { LocaleSwitch } from '@/components/locale-switch'
-import logoUrl from '@/assets/logo.svg'
 
 const { t } = useI18n()
 
@@ -43,7 +42,7 @@ const props = withDefaults(defineProps<Props>(), {
         <img
           v-if="!loading && !props.hideLogo"
           class="self-center"
-          :src="logoUrl"
+          :src="'/custom/logo.svg'"
           alt="IsardVDI logo"
         />
         <h1

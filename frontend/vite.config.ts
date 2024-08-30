@@ -23,7 +23,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '^/(authentication|api).*': {
+      '^/(authentication|api|custom).*': {
         target: 'https://localhost',
         secure: false
       }

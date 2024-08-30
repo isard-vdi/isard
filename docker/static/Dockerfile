@@ -77,8 +77,8 @@ COPY docker/static/noVNC /usr/share/nginx/html/viewer/noVNC
 COPY --from=spice-ts /build/dist /usr/share/nginx/html/viewer/spice-ts
 
 # Frontend
+COPY frontend/src/assets/logo.svg /usr/share/nginx/html/default_logo.svg
 COPY --from=frontend /build/dist /usr/share/nginx/html/frontend
 
 # Old frontend
-COPY old-frontend/src/assets/logo.svg /usr/share/nginx/html/old-frontend/default_logo.svg
 COPY --from=old-frontend /isard-frontend/dist /usr/share/nginx/html/old-frontend
