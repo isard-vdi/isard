@@ -8,7 +8,7 @@ import {
   SelectGroup,
   SelectItem
 } from '@/components/ui/select'
-import { Locale, i18n, setLocale } from '@/i18n'
+import { Locale, i18n, setLocale } from '@/lib/i18n'
 
 const locale = defineModel<Locale>({
   default: i18n.global.locale.value,
