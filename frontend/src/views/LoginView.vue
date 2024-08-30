@@ -94,11 +94,15 @@ const showProvider = (provider: Provider): ComputedRef<boolean> =>
     return true
   })
 
+const providersToShow = computed(() =>
+  Object.values(Provider).filter((provider) => showProvider(provider).value)
+)
+
 const showCategoriesDropdown = computed(() => {
+  let display = true
+
   const providersConfig = config.value?.providers
   if (providersConfig) {
-    let display = true
-
     // Check if there's a general hide
     if (providersConfig.all?.hide_categories_dropdown) {
       display = false
@@ -110,17 +114,30 @@ const showCategoriesDropdown = computed(() => {
       if (hide !== undefined) {
         display = !hide
       }
-    }
 
-    return display
+      // Otherwise, check the other providers
+    } else {
+      for (const provider of providersToShow.value) {
+        const hide = providersConfig[provider]?.hide_categories_dropdown
+        if (hide !== undefined) {
+          // If there's a provider that explicitelly enables the category dropdown,
+          // takes preference over the rest
+          if (!hide) {
+            break
+          }
+
+          display = !hide
+        }
+      }
+    }
   }
 
   // If there's a category set in the URL, don't show the dropdown
   if (routeCategory.value) {
-    return false
+    display = false
   }
 
-  return true
+  return display
 })
 
 const categoriesDropdownModel = ref('')
@@ -353,17 +370,13 @@ const onCategorySelectSubmit = async (categoryId: string) => {
             />
 
             <Separator
-              v-if="
-                !routeProvider &&
-                providers?.providers.includes('form') &&
-                providers.providers.length > 1
-              "
+              v-if="providersToShow.length > 1 && providersToShow.includes(Provider.Form)"
               :label="t('views.login.separator')"
             />
 
-            <template v-for="provider in Object.values(Provider)" :key="provider">
+            <template v-for="provider in providersToShow" :key="provider">
               <LoginProviderExternal
-                v-if="provider !== Provider.Form && showProvider(provider).value"
+                v-if="provider !== Provider.Form"
                 :provider="provider"
                 :text="config?.providers?.[provider]?.submit_text"
                 :icon="config?.providers?.[provider]?.submit_icon"
