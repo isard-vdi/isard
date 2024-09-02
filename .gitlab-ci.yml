@@ -105,12 +105,34 @@ check-python:
     - isort --check .
     - black --check .
 
+check-frontend:
+  stage: lint
+  image: oven/bun:1.1.24-alpine
+  parallel:
+    matrix:
+      - JOB: "format --write=false --check"
+      - JOB: "lint --max-warnings 0"
+        # TODO: Remove this when all lint errors are fixed
+        ALLOW_FAILURE: "true"
+      - JOB: "type-check"
+        # TODO: Remove this when all type errors are fixed
+        ALLOW_FAILURE: "true"
+  rules:
+    - if: $ALLOW_FAILURE == "true"
+      allow_failure: true
+    - if: $ALLOW_FAILURE != "true"
+      allow_failure: false
+  script:
+    - cd frontend
+    - bun install --frozen-lockfile
+    - bun run $JOB
+
 check-old-frontend:
   stage: lint
   image: node:18.17
   script:
     - cd old-frontend
-    - yarn
+    - yarn install --frozen-lockfile
     - yarn lint --no-fix --max-warnings 0
 
 check-protobuf:
