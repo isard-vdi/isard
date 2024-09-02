@@ -33,7 +33,9 @@ group:
   coerce: sanitize
 hypervisors_pools:
   type: list
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 icon:
   type: string
   default_setter: mediaicon
@@ -107,6 +109,7 @@ url-isard:
   type:
     - string
     - boolean
+  coerce: sanitize
 url-web:
   type: string
   coerce: sanitize

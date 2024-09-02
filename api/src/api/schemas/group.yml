@@ -23,7 +23,9 @@ parent_category:
 linked_groups:
   type: list
   default: []
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 uid:
   required: true
   empty: false
@@ -89,7 +91,9 @@ auto:
       required: true
       type: list
       minlength: 1
-      coerce: sanitize
+      schema:
+        type: string
+        coerce: sanitize
 ephimeral:
   type: dict
   schema:

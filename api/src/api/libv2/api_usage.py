@@ -55,13 +55,14 @@ def get_usage_consumption_between_dates(
                 .run(db.conn)
             )
     else:
-        items = list(
-            r.table("usage_consumption")
-            .get_all(r.args(items_ids), index="item_id")
-            .pluck("item_id", "item_name")
-            .distinct()
-            .run(db.conn)
-        )
+        with app.app_context():
+            items = list(
+                r.table("usage_consumption")
+                .get_all(r.args(items_ids), index="item_id")
+                .pluck("item_id", "item_name")
+                .distinct()
+                .run(db.conn)
+            )
     data = []
     reset_dates = get_reset_dates(start_date, end_date)
     for current_day in range(0, (end_date - start_date).days + 1):
@@ -150,8 +151,9 @@ def get_reset_dates(start_date=None, end_date=None):
 def add_reset_date(reset_dates):
     with app.app_context():
         r.table("usage_reset_dates").delete().run(db.conn)
-        for date in set(reset_dates):
-            date = date.replace(tzinfo=pytz.timezone("UTC"))
+    for date in set(reset_dates):
+        date = date.replace(tzinfo=pytz.timezone("UTC"))
+        with app.app_context():
             r.table("usage_reset_dates").insert({"date": date}).run(db.conn)
     cache_usage_reset_date.clear()
 
@@ -192,16 +194,16 @@ def get_start_end_consumption(
     app.logger.debug("Start date: %s", start_date)
     end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
     if items_ids is None:
+        items = r.table("usage_consumption").get_all(
+            item_consumer, index="item_consumer"
+        )
+        if category_id:
+            items = items.pluck(
+                "item_id", "item_name", "item_consumer_category_id"
+            ).filter({"item_consumer_category_id": category_id})
+        else:
+            items = items.pluck("item_id", "item_name")
         with app.app_context():
-            items = r.table("usage_consumption").get_all(
-                item_consumer, index="item_consumer"
-            )
-            if category_id:
-                items = items.pluck(
-                    "item_id", "item_name", "item_consumer_category_id"
-                ).filter({"item_consumer_category_id": category_id})
-            else:
-                items = items.pluck("item_id", "item_name")
             items = list(items.distinct().run(db.conn))
     else:
         with app.app_context():
@@ -345,6 +347,7 @@ def get_item_date_consumption(
             )
             .run(db.conn)
         )
+    with app.app_context():
         data["inc"] = (
             r.table("usage_consumption")
             .get_all(item_id, index="item_id")
@@ -432,9 +435,9 @@ def consolidate_consumptions(item_type=None, total_days=2):
                 .nth(0)["started_time"]
                 .run(db.conn)
             )
-            total_days = int(
-                (datetime.now(pytz.utc) - beggining_time).total_seconds() / 60 / 60 / 24
-            )
+        total_days = int(
+            (datetime.now(pytz.utc) - beggining_time).total_seconds() / 60 / 60 / 24
+        )
         pass
     else:
         total_days = int(total_days)
@@ -580,16 +583,16 @@ def get_usage_grouping(grouping_id):
 def add_usage_grouping(data):
     with app.app_context():
         r.table("usage_grouping").insert(data).run(db.conn)
-        cache_usage_grouping.clear()
-        cache_usage_grouping_dropdown.clear()
+    cache_usage_grouping.clear()
+    cache_usage_grouping_dropdown.clear()
     return True
 
 
 def update_usage_grouping(data):
     with app.app_context():
         r.table("usage_grouping").get(data["id"]).update(data).run(db.conn)
-        cache_usage_grouping.clear()
-        cache_usage_grouping_dropdown.clear()
+    cache_usage_grouping.clear()
+    cache_usage_grouping_dropdown.clear()
     return True
 
 
@@ -597,8 +600,8 @@ def delete_usage_grouping(grouping_id):
     try:
         with app.app_context():
             r.table("usage_grouping").get(grouping_id).delete().run(db.conn)
-            cache_usage_grouping.clear()
-            cache_usage_grouping_dropdown.clear()
+        cache_usage_grouping.clear()
+        cache_usage_grouping_dropdown.clear()
     except:
         raise Error(
             "not_found",
@@ -628,7 +631,7 @@ def add_usage_limits(name, desc, limits):
                 "limits": limits,
             }
         ).run(db.conn)
-        cache_usage_limits.clear()
+    cache_usage_limits.clear()
     return True
 
 
@@ -642,7 +645,7 @@ def update_usage_limits(id, name, desc, limits):
                 "limits": limits,
             }
         ).run(db.conn)
-        cache_usage_limits.clear()
+    cache_usage_limits.clear()
     return True
 
 
@@ -650,7 +653,7 @@ def delete_usage_limits(limit_id):
     try:
         with app.app_context():
             r.table("usage_limit").get(limit_id).delete().run(db.conn)
-            cache_usage_limits.clear()
+        cache_usage_limits.clear()
     except:
         raise Error("not_found", "Limit with ID" + limit_id + " not found in database")
     return True
@@ -686,10 +689,11 @@ cache_usage_parameters = TTLCache(maxsize=10, ttl=60)
 
 
 def get_usage_parameters(ids=None):
-    with app.app_context():
-        if ids:
+    if ids:
+        with app.app_context():
             return list(r.table("usage_parameter").get_all(r.args(ids)).run(db.conn))
-        else:
+    else:
+        with app.app_context():
             return list(r.table("usage_parameter").run(db.conn))
 
 
@@ -707,7 +711,7 @@ def add_usage_parameters(data):
                 "units": data["units"],
             }
         ).run(db.conn)
-        cache_usage_parameters.clear()
+    cache_usage_parameters.clear()
     return True
 
 
@@ -715,7 +719,7 @@ def update_usage_parameters(data):
     if data["custom"]:
         with app.app_context():
             r.table("usage_parameter").get(data["id"]).update(data).run(db.conn)
-            cache_usage_parameters.clear()
+        cache_usage_parameters.clear()
     else:
         raise Error("forbidden", "Only custom parameters can be edited")
     return True
@@ -725,7 +729,7 @@ def delete_usage_parameters(parameter_id):
     try:
         with app.app_context():
             r.table("usage_parameter").get(parameter_id).delete().run(db.conn)
-            cache_usage_parameters.clear()
+        cache_usage_parameters.clear()
     except:
         raise Error(
             "not_found",
@@ -909,6 +913,7 @@ def add_usage_credit(data):
             .pluck("id", "name", "desc", "limits")
             .run(db.conn)
         )
+    with app.app_context():
         r.table("usage_credit").insert(
             {
                 "item_id": data["item_id"],
@@ -923,7 +928,7 @@ def add_usage_credit(data):
                 "limits_name": limits.get("name"),
             }
         ).run(db.conn)
-        cache_usage_credits.clear()
+    cache_usage_credits.clear()
     return True
 
 
@@ -951,7 +956,7 @@ def update_usage_credit(data):
         check_usage_limits(data.get("limits"))
     with app.app_context():
         r.table("usage_credit").get(data["id"]).update(data).run(db.conn)
-        cache_usage_credits.clear()
+    cache_usage_credits.clear()
     return True
 
 
@@ -959,7 +964,7 @@ def delete_usage_credit(credit_id):
     try:
         with app.app_context():
             r.table("usage_credit").get(credit_id).delete().run(db.conn)
-            cache_usage_credits.clear()
+        cache_usage_credits.clear()
     except:
         raise Error(
             "not_found", "Credit with ID " + credit_id + " not found in database"
@@ -999,7 +1004,7 @@ def cut_existing_usage_credits(item_id, item_type, grouping_id, start_date, end_
         outer[0]["end_date"] = start_date + timedelta(days=-1)
         with app.app_context():
             r.table("usage_credit").get(outer[0]["id"]).update(outer[0]).run(db.conn)
-            cache_usage_credits.clear()
+        cache_usage_credits.clear()
         return
 
     # It must only be one credit interval maximum matching before and after
@@ -1021,7 +1026,7 @@ def cut_existing_usage_credits(item_id, item_type, grouping_id, start_date, end_
         before[0]["end_date"] = start_date + timedelta(days=-1)
         with app.app_context():
             r.table("usage_credit").get(before[0]["id"]).update(before[0]).run(db.conn)
-            cache_usage_credits.clear()
+        cache_usage_credits.clear()
         return
 
     inner = [
@@ -1038,7 +1043,7 @@ def cut_existing_usage_credits(item_id, item_type, grouping_id, start_date, end_
         )
         with app.app_context():
             r.table("usage_credit").get(inner[0]["id"]).delete().run(db.conn)
-            cache_usage_credits.clear()
+        cache_usage_credits.clear()
         return
 
     after = [
@@ -1056,7 +1061,7 @@ def cut_existing_usage_credits(item_id, item_type, grouping_id, start_date, end_
         after[0]["start_date"] = end_date + timedelta(days=1)
         with app.app_context():
             r.table("usage_credit").get(after[0]["id"]).update(after[0]).run(db.conn)
-            cache_usage_credits.clear()
+        cache_usage_credits.clear()
     return
 
 
@@ -1068,6 +1073,7 @@ def unify_item_name(item_id):
             .order_by("date")
             .run(db.conn)
         )[-1]["item_name"]
+    with app.app_context():
         r.table("usage_consumption").get_all(item_id, index="item_id").filter(
             lambda uc: uc["item_name"] != current_name
         ).update({"item_name": current_name}).run(db.conn)

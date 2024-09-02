@@ -101,7 +101,8 @@ def media_task_delete(media_id, user_id=None, keep_status=None):
 
     actual_status = media.status
     if media.status == "DownloadFailedInvalidFormat" and not keep_status:
-        r.table("media").get(media.id).update({"status": "deleted"}).run(db.conn)
+        with app.app_context():
+            r.table("media").get(media.id).update({"status": "deleted"}).run(db.conn)
         return
     finished_status = actual_status if keep_status else "deleted"
     if actual_status == "DownloadFailed":
@@ -191,13 +192,14 @@ class ApiMedia:
         if "isos" in domain_cd and domain_cd["isos"] != []:
             for m in domain_cd["isos"]:
                 try:
-                    iso = (
-                        r.table("media")
-                        .get(m["id"])
-                        .pluck("id", "name", {"progress": "total"})
-                        .merge({"kind": "iso"})
-                        .run(db.conn)
-                    )
+                    with app.app_context():
+                        iso = (
+                            r.table("media")
+                            .get(m["id"])
+                            .pluck("id", "name", {"progress": "total"})
+                            .merge({"kind": "iso"})
+                            .run(db.conn)
+                        )
                     iso["size"] = iso.pop("progress")["total"]
                     media.append(iso)
                 except:
@@ -206,13 +208,14 @@ class ApiMedia:
         if "floppies" in domain_cd and domain_cd["floppies"] != []:
             for m in domain_cd["floppies"]:
                 try:
-                    fd = (
-                        r.table("media")
-                        .get(m["id"])
-                        .pluck("id", "name", {"progress": "total"})
-                        .merge({"kind": "fd"})
-                        .run(db.conn)
-                    )
+                    with app.app_context():
+                        fd = (
+                            r.table("media")
+                            .get(m["id"])
+                            .pluck("id", "name", {"progress": "total"})
+                            .merge({"kind": "fd"})
+                            .run(db.conn)
+                        )
                     fd["size"] = fd.pop("progress")["total"]
                     media.append(fd)
                 except:
@@ -275,7 +278,8 @@ class ApiMedia:
             desktop_updating(desktop["id"])
 
     def count(self, user_id):
-        return r.table("media").get_all(user_id, index="user").count().run(db.conn)
+        with app.app_context():
+            return r.table("media").get_all(user_id, index="user").count().run(db.conn)
 
 
 def domain_from_disk(user, name, description, icon, create_dict, hyper_pools):
@@ -289,7 +293,8 @@ def domain_from_disk(user, name, description, icon, create_dict, hyper_pools):
 
     parsed_name = name
     media_id = create_dict.pop("media")
-    media = r.table("media").get(media_id).run(db.conn)
+    with app.app_context():
+        media = r.table("media").get(media_id).run(db.conn)
     create_dict["hardware"]["disks"] = [
         {"file": media["path"], "size": media["progress"]["total"]}
     ]  # 15G as a format

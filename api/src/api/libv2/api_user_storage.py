@@ -319,11 +319,11 @@ def isard_user_storage_sync_groups(provider_id):
 def isard_user_storage_get_provider(provider_id):
     if not provider_id:
         return None
-    with app.app_context():
-        try:
+    try:
+        with app.app_context():
             return r.table("user_storage").get(provider_id).run(db.conn)
-        except:
-            return None
+    except:
+        return None
 
 
 @cached(TTLCache(maxsize=1, ttl=3))
@@ -404,12 +404,13 @@ def isard_user_storage_get_providers_ws():
         if provider["access"] == []:
             provider["category_names"] = []
         else:
-            provider["category_names"] = (
-                r.table("categories")
-                .get_all(r.args(provider["access"]))["name"]
-                .coerce_to("array")
-                .run(db.conn)
-            )
+            with app.app_context():
+                provider["category_names"] = (
+                    r.table("categories")
+                    .get_all(r.args(provider["access"]))["name"]
+                    .coerce_to("array")
+                    .run(db.conn)
+                )
         if not provider.get("password"):
             provider["authorization"] = False
             provider["connection"] = False
@@ -701,14 +702,16 @@ def _get_provider_users_array(provider_id):
 def _get_isard_group_info(group_id):
     with app.app_context():
         group = r.table("groups").get(group_id).run(db.conn)
-        return {
-            "id": group["id"],
-            "name": group["name"],
-            "parent_category": group["parent_category"],
-            "category_name": r.table("categories")
-            .get(group["parent_category"])["name"]
-            .run(db.conn),
-        }
+    with app.app_context():
+        category_name = (
+            r.table("categories").get(group["parent_category"])["name"].run(db.conn)
+        )
+    return {
+        "id": group["id"],
+        "name": group["name"],
+        "parent_category": group["parent_category"],
+        "category_name": category_name,
+    }
 
 
 def _get_isard_group_category_name(group_id):

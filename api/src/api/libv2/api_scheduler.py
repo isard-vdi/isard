@@ -103,35 +103,37 @@ class Scheduler:
             booking = []
             if desktop.get("tag"):
                 item_id = desktop.get("tag")
-                booking = (
-                    r.table("bookings")
-                    .get_all(item_id, index="item_id")
-                    .filter(
-                        lambda plan: plan["end"]
-                        > r.now() & plan["reservables"]["vgpus"]
-                        == desktop.get("create_dict", {})
-                        .get("reservables", {})
-                        .get("vgpus")
+                with app.app_context():
+                    booking = (
+                        r.table("bookings")
+                        .get_all(item_id, index="item_id")
+                        .filter(
+                            lambda plan: plan["end"]
+                            > r.now() & plan["reservables"]["vgpus"]
+                            == desktop.get("create_dict", {})
+                            .get("reservables", {})
+                            .get("vgpus")
+                        )
+                        .order_by("start")
+                        .run(db.conn)
                     )
-                    .order_by("start")
-                    .run(db.conn)
-                )
             if not len(booking):
                 # If not, find if desktop has a booking
                 item_id = desktop_id
-                booking = (
-                    r.table("bookings")
-                    .get_all(item_id, index="item_id")
-                    .filter(
-                        lambda plan: plan["end"]
-                        > r.now() & plan["reservables"]["vgpus"]
-                        == desktop.get("create_dict", {})
-                        .get("reservables", {})
-                        .get("vgpus")
+                with app.app_context():
+                    booking = (
+                        r.table("bookings")
+                        .get_all(item_id, index="item_id")
+                        .filter(
+                            lambda plan: plan["end"]
+                            > r.now() & plan["reservables"]["vgpus"]
+                            == desktop.get("create_dict", {})
+                            .get("reservables", {})
+                            .get("vgpus")
+                        )
+                        .order_by("start")
+                        .run(db.conn)
                     )
-                    .order_by("start")
-                    .run(db.conn)
-                )
             if not len(booking):
                 if payload["role_id"] in ["admin", "manager"]:
                     # They are gods, they can do whatever they want

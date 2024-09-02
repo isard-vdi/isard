@@ -71,31 +71,31 @@ class ApiAllowed:
         index_key=None,
         index_value=None,
     ):
+        query = r.table(table)
+        if index_key and index_value:
+            query = query.get_all(index_value, index=index_key)
+        if query_filter:
+            query = query.filter(query_filter)
+        if table == "groups":
+            query = query.merge(
+                lambda d: {
+                    "category_name": r.table("categories")
+                    .get(d["parent_category"])
+                    .default({"name": "[deleted]"})["name"],
+                }
+            )
+        if table == "users":
+            query = query.merge(
+                lambda d: {
+                    "category_name": r.table("categories")
+                    .get(d["category"])
+                    .default({"name": "[deleted]"})["name"],
+                    "group_name": r.table("groups")
+                    .get(d["group"])
+                    .default({"name": "[deleted]"})["name"],
+                }
+            )
         with app.app_context():
-            query = r.table(table)
-            if index_key and index_value:
-                query = query.get_all(index_value, index=index_key)
-            if query_filter:
-                query = query.filter(query_filter)
-            if table == "groups":
-                query = query.merge(
-                    lambda d: {
-                        "category_name": r.table("categories")
-                        .get(d["parent_category"])
-                        .default({"name": "[deleted]"})["name"],
-                    }
-                )
-            if table == "users":
-                query = query.merge(
-                    lambda d: {
-                        "category_name": r.table("categories")
-                        .get(d["category"])
-                        .default({"name": "[deleted]"})["name"],
-                        "group_name": r.table("groups")
-                        .get(d["group"])
-                        .default({"name": "[deleted]"})["name"],
-                    }
-                )
             return list(
                 query.filter(lambda doc: doc[field].match("(?i)" + value))
                 .pluck(pluck)

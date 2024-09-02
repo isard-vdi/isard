@@ -116,9 +116,9 @@ class ApiDesktopsPersistent:
     def Get(self, desktop_id):
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
-            if not desktop:
-                raise Error("not_found", "Desktop not found", traceback.format_exc())
-            return desktop
+        if not desktop:
+            raise Error("not_found", "Desktop not found", traceback.format_exc())
+        return desktop
 
     def NewFromTemplateTh(
         self,
@@ -168,13 +168,14 @@ class ApiDesktopsPersistent:
     ):
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
-            if not template:
-                raise Error(
-                    "not_found",
-                    "Template not found",
-                    traceback.format_exc(),
-                    description_code="not_found",
-                )
+        if not template:
+            raise Error(
+                "not_found",
+                "Template not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
+        with app.app_context():
             user = (
                 r.table("users")
                 .get(user_id)
@@ -182,12 +183,12 @@ class ApiDesktopsPersistent:
                 .pluck("id", "username", "category", "group")
                 .run(db.conn)
             )
-            if not user.get("id"):
-                raise Error(
-                    "not_found",
-                    f"NewFromTemplate: user id {user_id} not found.",
-                    description_code="not_found",
-                )
+        if not user.get("id"):
+            raise Error(
+                "not_found",
+                f"NewFromTemplate: user id {user_id} not found.",
+                description_code="not_found",
+            )
 
         if new_data:
             # In new data interfaces are a list of ids
@@ -289,25 +290,18 @@ class ApiDesktopsPersistent:
             }
 
         with app.app_context():
-            query = r.table("domains").insert(new_desktop).run(db.conn)
-            if not _check(query, "inserted"):
-                raise Error(
-                    "internal_server",
-                    "NewFromTemplate: unable to insert new desktop in database",
-                    description_code="unable_to_insert",
+            r.table("domains").insert(new_desktop).run(db.conn)
+        if image:
+            image_data = image
+            if not image_data.get("file"):
+                img_uuid = api_cards.update(
+                    domain_id, image_data["id"], image_data["type"]
                 )
+                card = api_cards.get_card(img_uuid, image_data["type"])
             else:
-                if image:
-                    image_data = image
-                    if not image_data.get("file"):
-                        img_uuid = api_cards.update(
-                            domain_id, image_data["id"], image_data["type"]
-                        )
-                        card = api_cards.get_card(img_uuid, image_data["type"])
-                    else:
-                        img_uuid = api_cards.upload(domain_id, image_data)
-                        card = api_cards.get_card(img_uuid, image_data["type"])
-                return new_desktop
+                img_uuid = api_cards.upload(domain_id, image_data)
+                card = api_cards.get_card(img_uuid, image_data["type"])
+        return new_desktop
 
     def convertTemplateToDesktop(self, payload, data):
         data = _validate_item("template_to_desktop", data)
@@ -392,8 +386,8 @@ class ApiDesktopsPersistent:
         users = []
         desktops = []
 
-        with app.app_context():
-            try:
+        try:
+            with app.app_context():
                 template = (
                     r.table("domains")
                     .get(data["template_id"])
@@ -406,8 +400,8 @@ class ApiDesktopsPersistent:
                     )
                     .run(db.conn)
                 )
-            except:
-                raise Error("not_found", "Template to create desktops not found")
+        except:
+            raise Error("not_found", "Template to create desktops not found")
 
         if all(value is False for value in selected.values()):
             raise Error(
@@ -419,10 +413,9 @@ class ApiDesktopsPersistent:
             if selected["roles"] is not False:
                 if not selected["roles"]:
                     with app.app_context():
-                        selected["roles"] = [
-                            r["id"]
-                            for r in list(r.table("roles").pluck("id").run(db.conn))
-                        ]
+                        selected["roles"] = list(
+                            r.table("roles").pluck("id")["id"].run(db.conn)
+                        )
                 for role in selected["roles"]:
                     # Can't use get_all as has no index in database
                     with app.app_context():
@@ -436,12 +429,9 @@ class ApiDesktopsPersistent:
             if selected["categories"] is not False:
                 if not selected["categories"]:
                     with app.app_context():
-                        selected["categories"] = [
-                            c["id"]
-                            for c in list(
-                                r.table("categories").pluck("id").run(db.conn)
-                            )
-                        ]
+                        selected["categories"] = (
+                            r.table("categories").pluck("id")["id"].run(db.conn)
+                        )
                 with app.app_context():
                     users_in_categories = list(
                         r.table("users")
@@ -466,6 +456,7 @@ class ApiDesktopsPersistent:
                     .run(db.conn)
                 )
 
+            with app.app_context():
                 users_in_secondary_groups = list(
                     r.table("users")
                     .get_all(r.args(selected["groups"]), index="secondary_groups")["id"]
@@ -479,9 +470,7 @@ class ApiDesktopsPersistent:
                 if payload["role_id"] == "manager":
                     query = query.get_all(payload["category_id"], index="category")
                 with app.app_context():
-                    selected["users"] = [
-                        u["id"] for u in list(query.pluck("id").run(db.conn))
-                    ]
+                    selected["users"] = list(query.pluck("id")["id"].run(db.conn))
             users = users + selected["users"]
 
         users = list(set(users))
@@ -540,22 +529,22 @@ class ApiDesktopsPersistent:
                 )
         with app.app_context():
             xml = r.table("virt_install").get(data["xml_id"]).run(db.conn)
-            if not xml:
-                raise Error(
-                    "not_found",
-                    "Not found virt install xml id",
-                    traceback.format_exc(),
-                    description_code="not_found",
-                )
+        if not xml:
+            raise Error(
+                "not_found",
+                "Not found virt install xml id",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
         with app.app_context():
             media = r.table("media").get(data["media_id"]).run(db.conn)
-            if not media:
-                raise Error(
-                    "not_found",
-                    "Not found media id",
-                    traceback.format_exc(),
-                    description_code="not_found",
-                )
+        if not media:
+            raise Error(
+                "not_found",
+                "Not found media id",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
 
         with app.app_context():
             graphics = [
@@ -564,13 +553,13 @@ class ApiDesktopsPersistent:
                 .get_all(r.args(data["hardware"]["graphics"]))
                 .run(db.conn)
             ]
-            if not len(graphics):
-                raise Error(
-                    "not_found",
-                    "Not found graphics ids",
-                    traceback.format_exc(),
-                    description_code="not_found",
-                )
+        if not len(graphics):
+            raise Error(
+                "not_found",
+                "Not found graphics ids",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
 
         with app.app_context():
             videos = [
@@ -579,13 +568,13 @@ class ApiDesktopsPersistent:
                 .get_all(r.args(data["hardware"]["videos"]))
                 .run(db.conn)
             ]
-            if not len(videos):
-                raise Error(
-                    "not_found",
-                    "Not found videos ids",
-                    traceback.format_exc(),
-                    description_code="not_found",
-                )
+        if not len(videos):
+            raise Error(
+                "not_found",
+                "Not found videos ids",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
 
         with app.app_context():
             interfaces = [
@@ -594,17 +583,17 @@ class ApiDesktopsPersistent:
                 .get_all(r.args(data["hardware"]["interfaces"]))
                 .run(db.conn)
             ]
-            if len(data["hardware"]["interfaces"]) != len(interfaces):
-                raise Error(
-                    "not_found",
-                    "Not found interface id",
-                    traceback.format_exc(),
-                    description_code="not_found",
-                )
-            data["hardware"]["interfaces"] = [
-                {"id": interface, "mac": gen_new_mac()}
-                for interface in data["hardware"]["interfaces"]
-            ]
+        if len(data["hardware"]["interfaces"]) != len(interfaces):
+            raise Error(
+                "not_found",
+                "Not found interface id",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
+        data["hardware"]["interfaces"] = [
+            {"id": interface, "mac": gen_new_mac()}
+            for interface in data["hardware"]["interfaces"]
+        ]
 
         if data["hardware"].get("disk_size"):
             disks = [
@@ -741,19 +730,10 @@ class ApiDesktopsPersistent:
                 r.table("domains").get(d).update(desktop).run(db.conn)
 
     def UpdateReservables(self, desktop_id, reservables):
-        if not _check(
-            r.table("domains")
-            .get(desktop_id)
-            .update({"create_dict": {"reservables": reservables}})
-            .run(db.conn),
-            "replaced",
-        ):
-            raise Error(
-                "internal_server",
-                "Unable to update desktop reservables in database",
-                traceback.format_exc(),
-                description_code="unable_to_update",
-            )
+        with app.app_context():
+            r.table("domains").get(desktop_id).update(
+                {"create_dict": {"reservables": reservables}}
+            ).run(db.conn)
 
     def JumperUrl(self, id):
         with app.app_context():
@@ -771,16 +751,16 @@ class ApiDesktopsPersistent:
 
     def JumperUrlReset(self, id, disabled=False, length=32):
         if disabled == True:
-            with app.app_context():
-                try:
+            try:
+                with app.app_context():
                     r.table("domains").get(id).update({"jumperurl": False}).run(db.conn)
-                except:
-                    raise Error(
-                        "not_found",
-                        "Unable to reset jumperurl as domain not exists",
-                        traceback.format_exc(),
-                        description_code="unable_to_reset_domain_jumperurl",
-                    )
+            except:
+                raise Error(
+                    "not_found",
+                    "Unable to reset jumperurl as domain not exists",
+                    traceback.format_exc(),
+                    description_code="unable_to_reset_domain_jumperurl",
+                )
         else:
             code = api_jumperurl_gencode()
             with app.app_context():
@@ -788,12 +768,13 @@ class ApiDesktopsPersistent:
             return code
 
     def count(self, user_id):
-        return (
-            r.table("domains")
-            .get_all(["desktop", user_id], index="kind_user")
-            .count()
-            .run(db.conn)
-        )
+        with app.app_context():
+            return (
+                r.table("domains")
+                .get_all(["desktop", user_id], index="kind_user")
+                .count()
+                .run(db.conn)
+            )
 
     def check_viewers(self, data, domain):
         if data.get("guest_properties", {}).get("viewers") == None:
@@ -1007,7 +988,6 @@ class ApiDesktopsPersistent:
             ).update({"status": target_status}).run(db.conn)
 
     def change_status_category(self, category, current_status, target_status):
-
         with app.app_context():
             r.table("domains").get_all(
                 ["desktop", current_status, category], index="kind_status_category"
@@ -1016,20 +996,21 @@ class ApiDesktopsPersistent:
     def update_storage(self, domain_id, new_storage_id, old_storage_id=None):
         with app.app_context():
             domain = r.table("domains").get(domain_id).run(db.conn)
-            if not domain:
-                raise Error(
-                    "not_found",
-                    "Domain not found",
-                    traceback.format_exc(),
-                    description_code="not_found",
-                )
-            if domain["status"] not in ["Stopped", "Maintenance"]:
-                raise Error(
-                    "precondition_required",
-                    "Desktop must be stopped to change storage",
-                    traceback.format_exc(),
-                )
-            if domain["kind"] == "desktop":
+        if not domain:
+            raise Error(
+                "not_found",
+                "Domain not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
+        if domain["status"] not in ["Stopped", "Maintenance"]:
+            raise Error(
+                "precondition_required",
+                "Desktop must be stopped to change storage",
+                traceback.format_exc(),
+            )
+        if domain["kind"] == "desktop":
+            with app.app_context():
                 r.table("domains").get(domain_id).update(
                     {
                         "create_dict": {
@@ -1061,16 +1042,17 @@ def check_template_status(template_id=None, template=None):
 
 
 def domain_template_tree(domain_id):
-    with app.app_context():
-        try:
+    try:
+        with app.app_context():
             parents_ids = (
                 r.table("domains")
                 .get(domain_id)
                 .pluck("parents")["parents"]
                 .run(db.conn)
             )
-        except:
-            return []
+    except:
+        return []
+    with app.app_context():
         parents = list(
             r.table("domains")
             .get_all(r.args(parents_ids))
@@ -1104,34 +1086,35 @@ def get_desktops_with_resource(table, item):
     elif table == "reservables_vgpus":
         return api_ri.check_desktops_with_profile("gpus", item["id"])
     elif table in ["interfaces", "boots", "videos"]:
-        return list(
-            r.table("domains")
-            .get_all(item["id"], index="boot_order" if table == "boots" else table)
-            .eq_join("user", r.table("users"))
-            .pluck(
-                {
-                    "left": {"id": True},
-                    "right": {
-                        "id": True,
-                        "group": True,
-                        "category": True,
-                        "role": True,
-                    },
-                }
+        with app.app_context():
+            return list(
+                r.table("domains")
+                .get_all(item["id"], index="boot_order" if table == "boots" else table)
+                .eq_join("user", r.table("users"))
+                .pluck(
+                    {
+                        "left": {"id": True},
+                        "right": {
+                            "id": True,
+                            "group": True,
+                            "category": True,
+                            "role": True,
+                        },
+                    }
+                )
+                .map(
+                    lambda doc: {
+                        "id": doc["left"]["id"],
+                        "user_data": {
+                            "role_id": doc["right"]["role"],
+                            "category_id": doc["right"]["category"],
+                            "group_id": doc["right"]["group"],
+                            "user_id": doc["right"]["id"],
+                        },
+                    }
+                )
+                .run(db.conn)
             )
-            .map(
-                lambda doc: {
-                    "id": doc["left"]["id"],
-                    "user_data": {
-                        "role_id": doc["right"]["role"],
-                        "category_id": doc["right"]["category"],
-                        "group_id": doc["right"]["group"],
-                        "user_id": doc["right"]["id"],
-                    },
-                }
-            )
-            .run(db.conn)
-        )
 
 
 def unassign_resource_from_desktops_and_deployments(table, item):
@@ -1166,6 +1149,7 @@ def unassign_resource_from_desktops_and_deployments(table, item):
                     }
                 }
             ).run(db.conn)
+        with app.app_context():
             r.table("deployments").get_all(r.args(not_allowed_deployments)).update(
                 {
                     "create_dict": {
@@ -1184,23 +1168,10 @@ def unassign_resource_from_desktops_and_deployments(table, item):
         )
     elif table == "interfaces":
         if item["id"] == "wireguard":
-            r.table("domains").get_all(r.args(not_allowed_desktops)).replace(
-                r.row.without(
-                    {
-                        "guest_properties": {
-                            "viewers": {
-                                "browser_rdp": True,
-                                "file_rdpgw": True,
-                                "file_rdpvpn": True,
-                            }
-                        },
-                    }
-                )
-            ).run(db.conn)
-            r.table("deployments").get_all(r.args(not_allowed_deployments)).replace(
-                r.row.without(
-                    {
-                        "create_dict": {
+            with app.app_context():
+                r.table("domains").get_all(r.args(not_allowed_desktops)).replace(
+                    r.row.without(
+                        {
                             "guest_properties": {
                                 "viewers": {
                                     "browser_rdp": True,
@@ -1209,31 +1180,48 @@ def unassign_resource_from_desktops_and_deployments(table, item):
                                 }
                             },
                         }
+                    )
+                ).run(db.conn)
+            with app.app_context():
+                r.table("deployments").get_all(r.args(not_allowed_deployments)).replace(
+                    r.row.without(
+                        {
+                            "create_dict": {
+                                "guest_properties": {
+                                    "viewers": {
+                                        "browser_rdp": True,
+                                        "file_rdpgw": True,
+                                        "file_rdpvpn": True,
+                                    }
+                                },
+                            }
+                        }
+                    )
+                ).run(db.conn)
+        with app.app_context():
+            r.table("domains").get_all(r.args(not_allowed_desktops)).update(
+                {
+                    "create_dict": {
+                        "hardware": {
+                            "interfaces": r.row["create_dict"]["hardware"][
+                                "interfaces"
+                            ].filter(lambda interface: interface["id"].ne(item["id"]))
+                        }
                     }
-                )
+                }
             ).run(db.conn)
-        r.table("domains").get_all(r.args(not_allowed_desktops)).update(
-            {
-                "create_dict": {
-                    "hardware": {
-                        "interfaces": r.row["create_dict"]["hardware"][
-                            "interfaces"
-                        ].filter(lambda interface: interface["id"].ne(item["id"]))
+        with app.app_context():
+            r.table("deployments").get_all(r.args(not_allowed_deployments)).update(
+                {
+                    "create_dict": {
+                        "hardware": {
+                            "interfaces": r.row["create_dict"]["hardware"][
+                                "interfaces"
+                            ].difference([item["id"]])
+                        }
                     }
                 }
-            }
-        ).run(db.conn)
-        r.table("deployments").get_all(r.args(not_allowed_deployments)).update(
-            {
-                "create_dict": {
-                    "hardware": {
-                        "interfaces": r.row["create_dict"]["hardware"][
-                            "interfaces"
-                        ].difference([item["id"]])
-                    }
-                }
-            }
-        ).run(db.conn)
+            ).run(db.conn)
     elif table in ["boots", "videos"]:
         fields = {
             "boots": "boot_order",
@@ -1273,34 +1261,35 @@ def get_deployments_with_resource(table, item):
             "boots": "boot_order",
             "videos": "videos",
         }
-        return list(
-            r.table("deployments")
-            .get_all(item["id"], index=indexes[table])
-            .eq_join("user", r.table("users"))
-            .pluck(
-                {
-                    "left": {"id": True},
-                    "right": {
-                        "id": True,
-                        "group": True,
-                        "category": True,
-                        "role": True,
-                    },
-                }
+        with app.app_context():
+            return list(
+                r.table("deployments")
+                .get_all(item["id"], index=indexes[table])
+                .eq_join("user", r.table("users"))
+                .pluck(
+                    {
+                        "left": {"id": True},
+                        "right": {
+                            "id": True,
+                            "group": True,
+                            "category": True,
+                            "role": True,
+                        },
+                    }
+                )
+                .map(
+                    lambda doc: {
+                        "id": doc["left"]["id"],
+                        "user_data": {
+                            "role_id": doc["right"]["role"],
+                            "category_id": doc["right"]["category"],
+                            "group_id": doc["right"]["group"],
+                            "user_id": doc["right"]["id"],
+                        },
+                    }
+                )
+                .run(db.conn)
             )
-            .map(
-                lambda doc: {
-                    "id": doc["left"]["id"],
-                    "user_data": {
-                        "role_id": doc["right"]["role"],
-                        "category_id": doc["right"]["category"],
-                        "group_id": doc["right"]["group"],
-                        "user_id": doc["right"]["id"],
-                    },
-                }
-            )
-            .run(db.conn)
-        )
     else:
         raise Error(
             "forbidden",

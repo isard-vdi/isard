@@ -104,8 +104,8 @@ class Scheduler:
                 )
 
     def load_jobs(self, job_id=None):
-        with app.app_context():
-            if job_id:
+        if job_id:
+            with app.app_context():
                 job = (
                     r.table("scheduler_jobs")
                     .get(job_id)
@@ -113,10 +113,11 @@ class Scheduler:
                     .default(None)
                     .run(db.conn)
                 )
-                if not job:
-                    raise Error("not_found")
-                return job
-            else:
+            if not job:
+                raise Error("not_found")
+            return job
+        else:
+            with app.app_context():
                 return list(r.table("scheduler_jobs").without("job_state").run(db.conn))
 
     def list_actions(self):
@@ -294,15 +295,19 @@ class Scheduler:
 
     def remove_job_action(self, action, category_id=None):
         if category_id:
-            jobs = (
-                r.table("scheduler_jobs")
-                .get(category_id + ".recycle_bin_delete")
-                .run(db.conn)
-            )
+            with app.app_context():
+                jobs = (
+                    r.table("scheduler_jobs")
+                    .get(category_id + ".recycle_bin_delete")
+                    .run(db.conn)
+                )
         else:
-            jobs = (
-                r.table("scheduler_jobs").get_all(action, index="action").run(db.conn)
-            )
+            with app.app_context():
+                jobs = (
+                    r.table("scheduler_jobs")
+                    .get_all(action, index="action")
+                    .run(db.conn)
+                )
         for job in jobs:
             self.remove_job(job["id"])
 
@@ -318,13 +323,14 @@ class Scheduler:
     def get_max_time(self, category_id=None):
         if not category_id:
             try:
-                return (
-                    r.table("scheduler_jobs")
-                    .get("admin.recycle_bin_delete_admin")["kwargs"][
-                        "max_delete_period"
-                    ]
-                    .run(db.conn)
-                )
+                with app.app_context():
+                    return (
+                        r.table("scheduler_jobs")
+                        .get("admin.recycle_bin_delete_admin")["kwargs"][
+                            "max_delete_period"
+                        ]
+                        .run(db.conn)
+                    )
             except:
                 return "null"
         else:
@@ -364,10 +370,13 @@ class Scheduler:
 
     def get_max_time_admin(self):
         try:
-            return (
-                r.table("scheduler_jobs")
-                .get("admin.recycle_bin_delete_admin")["kwargs"]["max_delete_period"]
-                .run(db.conn)
-            )
+            with app.app_context():
+                return (
+                    r.table("scheduler_jobs")
+                    .get("admin.recycle_bin_delete_admin")["kwargs"][
+                        "max_delete_period"
+                    ]
+                    .run(db.conn)
+                )
         except:
             return "null"

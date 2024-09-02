@@ -135,16 +135,17 @@ class ResourceItemsGpus:
             items = list(query.run(db.conn))
         for item in items:
             if item.get("active_profile"):
-                available_units = list(
-                    r.table("gpu_profiles")
-                    .get_all(
-                        [item["brand"], item["model"]],
-                        index="brand-model",
-                    )
-                    .concat_map(lambda doc: doc["profiles"])
-                    .filter(lambda p: p["profile"] == item["active_profile"])
-                    .run(db.conn)
-                )[0]
+                with app.app_context():
+                    available_units = list(
+                        r.table("gpu_profiles")
+                        .get_all(
+                            [item["brand"], item["model"]],
+                            index="brand-model",
+                        )
+                        .concat_map(lambda doc: doc["profiles"])
+                        .filter(lambda p: p["profile"] == item["active_profile"])
+                        .run(db.conn)
+                    )[0]
                 item["available_units"] = available_units["units"]
                 item["active_profile"] = self.get_subitem(
                     item["id"], available_units["id"]
@@ -236,81 +237,83 @@ class ResourceItemsGpus:
     def add_reservable_vgpu(self, item_id, subitem_id):
         with app.app_context():
             item = r.table("gpus").get(item_id).run(db.conn)
-            subitem = self.get_subitem(item_id, subitem_id)
-            if not subitem:
-                raise Error(
-                    "not_found",
-                    "Gpu profile id not found in gpu_profiles table",
-                    description_code="not_found",
-                )
-            new_reservable_vgpu = {
-                "allowed": {
-                    "categories": False,
-                    "groups": False,
-                    "roles": ["admin"],
-                    "users": False,
-                },
-                "brand": item["brand"],
-                "description": item["brand"]
-                + " vGPU "
-                + item["model"]
-                + " with profile "
-                + subitem["profile"]
-                + " with "
-                + str(subitem["memory"])
-                + " vRAM with maximum "
-                + str(subitem["units"])
-                + " vGPUs per device",
-                "heads": 1,
-                "id": item["brand"] + "-" + item["model"] + "-" + subitem["profile"],
-                "model": item["model"],
-                "name": "GPU "
-                + item["brand"]
-                + " "
-                + item["model"]
-                + " "
-                + str(subitem["memory"]),
-                "profile": subitem["profile"],
-                "ram": subitem["memory"],
-                "vram": subitem["memory"],
-                "units": subitem["units"],
-                "priority_id": "default",
-            }
-            if not _check(
+        subitem = self.get_subitem(item_id, subitem_id)
+        if not subitem:
+            raise Error(
+                "not_found",
+                "Gpu profile id not found in gpu_profiles table",
+                description_code="not_found",
+            )
+        new_reservable_vgpu = {
+            "allowed": {
+                "categories": False,
+                "groups": False,
+                "roles": ["admin"],
+                "users": False,
+            },
+            "brand": item["brand"],
+            "description": item["brand"]
+            + " vGPU "
+            + item["model"]
+            + " with profile "
+            + subitem["profile"]
+            + " with "
+            + str(subitem["memory"])
+            + " vRAM with maximum "
+            + str(subitem["units"])
+            + " vGPUs per device",
+            "heads": 1,
+            "id": item["brand"] + "-" + item["model"] + "-" + subitem["profile"],
+            "model": item["model"],
+            "name": "GPU "
+            + item["brand"]
+            + " "
+            + item["model"]
+            + " "
+            + str(subitem["memory"]),
+            "profile": subitem["profile"],
+            "ram": subitem["memory"],
+            "vram": subitem["memory"],
+            "units": subitem["units"],
+            "priority_id": "default",
+        }
+        with app.app_context():
+            replaced = _check(
                 r.table("reservables_vgpus")
                 .insert(new_reservable_vgpu, conflict="update")
                 .run(db.conn),
                 "replaced",
-            ):
-                raise Error(
-                    "internal_server",
-                    "Unable to update bookable in database.",
-                    description_code="unable_to_update_bookable",
-                )
-            else:
-                with app.app_context():
-                    total_profiles = (
-                        r.table("gpus")
-                        .filter(
-                            lambda profiles: profiles["profiles_enabled"].contains(
-                                new_reservable_vgpu["id"]
-                            )
+            )
+        if not replaced:
+            raise Error(
+                "internal_server",
+                "Unable to update bookable in database.",
+                description_code="unable_to_update_bookable",
+            )
+        else:
+            with app.app_context():
+                total_profiles = (
+                    r.table("gpus")
+                    .filter(
+                        lambda profiles: profiles["profiles_enabled"].contains(
+                            new_reservable_vgpu["id"]
                         )
-                        .count()
-                        .run(db.conn)
                     )
-                    units_profile = list(
-                        r.table("reservables_vgpus")
-                        .filter(lambda id: id["id"].eq(new_reservable_vgpu["id"]))[
-                            "units"
-                        ]
-                        .run(db.conn)
-                    )
-                    total_units = total_profiles * units_profile[0]
+                    .count()
+                    .run(db.conn)
+                )
+            with app.app_context():
+                units_profile = list(
+                    r.table("reservables_vgpus")
+                    .filter(lambda id: id["id"].eq(new_reservable_vgpu["id"]))["units"]
+                    .run(db.conn)
+                )
+            total_units = total_profiles * units_profile[0]
 
-                    r.table("reservables_vgpus").filter(
-                        {"id": new_reservable_vgpu["id"]}
-                    ).update({"total_units": total_units}).run(db.conn)
+            with app.app_context():
+                r.table("reservables_vgpus").filter(
+                    {"id": new_reservable_vgpu["id"]}
+                ).update({"total_units": total_units}).run(db.conn)
 
     def delete_reservable_vgpu(self, subitem_id):
         with app.app_context():
@@ -353,25 +356,25 @@ class ResourceItemsGpus:
     def list_subitems_enabled(self, item_id):
         with app.app_context():
             item = r.table("gpus").get(item_id).run(db.conn)
-            if not item:
-                raise Error(
-                    "not_found",
-                    "Gpu id not found in gpu table: " + str(item_id),
-                    description_code="not_found",
-                )
-            try:
-                with app.app_context():
-                    subitems = list(
-                        r.table("gpu_profiles")
-                        .get_all([item["brand"], item["model"]], index="brand-model")
-                        .run(db.conn)
-                    )[0]["profiles"]
-            except:
-                raise Error(
-                    "not_found",
-                    "Gpu id not found in gpu definitions table",
-                    description_code="not_found",
-                )
+        if not item:
+            raise Error(
+                "not_found",
+                "Gpu id not found in gpu table: " + str(item_id),
+                description_code="not_found",
+            )
+        try:
+            with app.app_context():
+                subitems = list(
+                    r.table("gpu_profiles")
+                    .get_all([item["brand"], item["model"]], index="brand-model")
+                    .run(db.conn)
+                )[0]["profiles"]
+        except:
+            raise Error(
+                "not_found",
+                "Gpu id not found in gpu definitions table",
+                description_code="not_found",
+            )
         return [
             subitem for subitem in subitems if subitem["id"] in item["profiles_enabled"]
         ]
@@ -472,7 +475,7 @@ class ResourceItemsGpus:
                 )
                 .run(db.conn)
             )
-            return deployments
+        return deployments
 
     def deassign_desktops_with_gpu(self, item_id, desktops):
         query = r.table("domains")
@@ -481,20 +484,21 @@ class ResourceItemsGpus:
         else:
             query = query.get_all(r.args(desktops))
 
-        query.filter(
-            (r.row.has_fields({"create_dict": {"reservables": {"vgpus": True}}}))
-        ).update(
-            {
-                "create_dict": {
-                    "reservables": {"vgpus": None},
-                    "hardware": {
-                        "videos": ["default"],
-                    },
+        with app.app_context():
+            query.filter(
+                (r.row.has_fields({"create_dict": {"reservables": {"vgpus": True}}}))
+            ).update(
+                {
+                    "create_dict": {
+                        "reservables": {"vgpus": None},
+                        "hardware": {
+                            "videos": ["default"],
+                        },
+                    }
                 }
-            }
-        ).run(
-            db.conn
-        )
+            ).run(
+                db.conn
+            )
         return desktops
 
     def get_subitem_parent_item(self, subitem):

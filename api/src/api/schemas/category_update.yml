@@ -28,7 +28,9 @@ auto:
       required: true
       type: list
       minlength: 1
-      coerce: sanitize
+      schema:
+        type: string
+        coerce: sanitize
 ephimeral:
   type:
     - dict

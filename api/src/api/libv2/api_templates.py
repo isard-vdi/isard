@@ -44,41 +44,42 @@ class ApiTemplates:
         description="",
         enabled=False,
     ):
-        with app.app_context():
-            try:
+        try:
+            with app.app_context():
                 user = (
                     r.table("users")
                     .get(user_id)
                     .pluck("id", "category", "group", "provider", "username", "uid")
                     .run(db.conn)
                 )
-            except:
-                raise Error(
-                    "not_found",
-                    "User not found",
-                    traceback.format_exc(),
-                    description_code="not_found",
-                )
+        except:
+            raise Error(
+                "not_found",
+                "User not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
+        with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
-            if desktop == None:
-                raise Error(
-                    "not_found",
-                    "Desktop not found",
-                    traceback.format_exc(),
-                    description_code="not_found",
-                )
-            if desktop.get("status") != "Stopped":
-                raise Error(
-                    "precondition_required",
-                    "To create a template, status desktop must be Stopped",
-                    traceback.format_exc(),
-                )
-            if desktop.get("server"):
-                raise Error(
-                    "internal_server",
-                    "Can't create a template from a server",
-                    traceback.format_exc(),
-                )
+        if desktop == None:
+            raise Error(
+                "not_found",
+                "Desktop not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
+        if desktop.get("status") != "Stopped":
+            raise Error(
+                "precondition_required",
+                "To create a template, status desktop must be Stopped",
+                traceback.format_exc(),
+            )
+        if desktop.get("server"):
+            raise Error(
+                "internal_server",
+                "Can't create a template from a server",
+                traceback.format_exc(),
+            )
         if not Domain(desktop.get("id")).storage_ready:
             raise Error(
                 error="precondition_required",
@@ -213,8 +214,8 @@ class ApiTemplates:
         return new_template_id
 
     def Get(self, template_id):
-        with app.app_context():
-            try:
+        try:
+            with app.app_context():
                 return (
                     r.table("domains")
                     .get(template_id)
@@ -231,10 +232,8 @@ class ApiTemplates:
                     )
                     .run(db.conn)
                 )
-            except:
-                raise Error(
-                    "not_found", "Template id not found", traceback.format_exc()
-                )
+        except:
+            raise Error("not_found", "Template id not found", traceback.format_exc())
 
     def UpdateTemplate(self, template_id, data):
         with app.app_context():
@@ -249,7 +248,8 @@ class ApiTemplates:
         if template and template["kind"] == "template":
             with app.app_context():
                 r.table("domains").get(template_id).update(data).run(db.conn)
-            template = r.table("domains").get(template_id).run(db.conn)
+            with app.app_context():
+                template = r.table("domains").get(template_id).run(db.conn)
             return template
         raise Error(
             "conflict",
@@ -259,12 +259,13 @@ class ApiTemplates:
         )
 
     def count(seld, user_id):
-        return (
-            r.table("domains")
-            .get_all(["template", user_id], index="kind_user")
-            .count()
-            .run(db.conn)
-        )
+        with app.app_context():
+            return (
+                r.table("domains")
+                .get_all(["template", user_id], index="kind_user")
+                .count()
+                .run(db.conn)
+            )
 
     def check_children(self, payload, domain_tree):
         try:
@@ -306,8 +307,8 @@ class ApiTemplates:
 
     def get_deployments_with_template(self, template_id, return_username=False):
         query = r.table("deployments").get_all(template_id, index="template")
-        with app.app_context():
-            if return_username:
+        if return_username:
+            with app.app_context():
                 return list(
                     query.merge(
                         lambda deployment: {
@@ -317,7 +318,8 @@ class ApiTemplates:
                         }
                     ).run(db.conn)
                 )
-            else:
+        else:
+            with app.app_context():
                 return list(query.run(db.conn))
 
 

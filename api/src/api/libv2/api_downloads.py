@@ -201,7 +201,7 @@ def get_new_kind(kind, username):
                 .filter(~r.row["url-isard"].eq(False))
                 .run(db.conn)
             )
-            dbb_dict = {d["url-isard"]: d for d in dbb}
+        dbb_dict = {d["url-isard"]: d for d in dbb}
         if kind == "media":
             with app.app_context():
                 mbb = list(

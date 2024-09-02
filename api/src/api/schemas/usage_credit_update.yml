@@ -1,4 +1,5 @@
 id:
+  type: string
   required: true
   empty: false
   coerce: sanitize

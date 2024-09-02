@@ -580,10 +580,11 @@ def payload_priority(payload, reservables):
         for subitem in v:
             with app.app_context():
                 reservable = r.table("reservables_" + k).get(subitem).run(db.conn)
-                if not reservable.get("priority_id") or reservable["priority_id"] == "":
-                    priority_id = "default"
-                else:
-                    priority_id = reservable.get("priority_id")
+            if not reservable.get("priority_id") or reservable["priority_id"] == "":
+                priority_id = "default"
+            else:
+                priority_id = reservable.get("priority_id")
+            with app.app_context():
                 rules = list(
                     r.table("bookings_priority")
                     .get_all(priority_id, index="rule_id")
@@ -608,11 +609,12 @@ def min_profile_priority(reservables):
         for subitem in v:
             with app.app_context():
                 reservable = r.table("reservables_" + k).get(subitem).run(db.conn)
-                if not reservable.get("priority_id") or reservable["priority_id"] == "":
-                    priority_id = "default"
-                else:
-                    priority_id = reservable.get("priority_id")
-                # Exclude default admins priority
+            if not reservable.get("priority_id") or reservable["priority_id"] == "":
+                priority_id = "default"
+            else:
+                priority_id = reservable.get("priority_id")
+            # Exclude default admins priority
+            with app.app_context():
                 priority = (
                     r.table("bookings_priority")
                     .get_all(priority_id, index="rule_id")
@@ -914,13 +916,14 @@ def join_existing_plan_after_new_plan_start(plan):
                 .filter(r.row["start"] == plan["end"] + timedelta(0, 1))
             ).run(db.conn)
         )
-        if len(joined_plan_start):
+    if len(joined_plan_start):
+        with app.app_context():
             r.table("resource_planner").get(joined_plan_start[0]["id"]).update(
                 {"start": plan["start"]}
             ).run(db.conn)
-            new_plan = joined_plan_start[0]
-            ## Missing update scheduler!
-            ## There was an scheduler for joined_plan_start[0]["id"] that needs updating date to plan["start"]
+        new_plan = joined_plan_start[0]
+        ## Missing update scheduler!
+        ## There was an scheduler for joined_plan_start[0]["id"] that needs updating date to plan["start"]
     return new_plan
 
 
@@ -935,13 +938,14 @@ def join_existing_plan_before_new_plan_end(plan):
                 .filter(r.row["end"] == plan["start"] - timedelta(0, 1))
             ).run(db.conn)
         )
-        if len(joined_plan_end):
+    if len(joined_plan_end):
+        with app.app_context():
             r.table("resource_planner").get(joined_plan_end[0]["id"]).update(
                 {"end": plan["end"]}
             ).run(db.conn)
-            new_plan = joined_plan_end[0]
-            ## Missing update scheduler!
-            ## There was probably a default plan at end that needs updating date to plan["end"]
+        new_plan = joined_plan_end[0]
+        ## Missing update scheduler!
+        ## There was probably a default plan at end that needs updating date to plan["end"]
 
     return new_plan
 

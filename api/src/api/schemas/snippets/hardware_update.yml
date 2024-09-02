@@ -3,11 +3,13 @@ virtualization_nested:
 boot_order:
   type: list
   empty: false
-  allowed:
-    - iso
-    - floppy
-    - disk
-    - pxe
+  schema:
+    type: string
+    allowed:
+      - iso
+      - floppy
+      - disk
+      - pxe
 vcpus:
   type: integer
   empty: false
@@ -17,14 +19,20 @@ memory:
 graphics:
   type: list
   empty: false
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 videos:
   type: list
   empty: false
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 interfaces:
   type: list
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 disk_bus:
   type: string
   empty: false
@@ -35,14 +43,28 @@ disk_bus:
   - virtio
 isos:
   type: list
-  coerce: sanitize
+  schema:
+    type: dict
+    schema:
+      id:
+        required: true
+        type: string
+        coerce: sanitize
 floppies:
   type: list
-  coerce: sanitize
+  schema:
+    type: dict
+    schema:
+      id:
+        required: true
+        type: string
+        coerce: sanitize
 reservables:
   type: dict
   schema:
     vgpus:
       type: list
       nullable: true
-      coerce: sanitize
+      schema:
+        type: string
+        coerce: sanitize

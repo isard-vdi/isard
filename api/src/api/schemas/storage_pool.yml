@@ -1,11 +1,14 @@
 id:
+  type: string
   required: true
   default_setter: genuuid
+  coerce: sanitize
 allowed:
   type: dict
   schema: allowed
 description:
   type: string
+  coerce: sanitize
 enabled:
   type: boolean
   required: false
@@ -14,13 +17,18 @@ name:
   type: string
   required: true
   empty: false
+  coerce: sanitize
 mountpoint:
   required: true
   type: string
+  coerce: sanitize
 categories:
   empty: false
   type: list
   required: true
+  schema:
+    type: string
+    coerce: sanitize
 paths:
   type: dict
   schema:
@@ -32,6 +40,7 @@ paths:
           path:
             type: string
             required: true
+            coerce: sanitize
           weight:
             type: integer
             required: true
@@ -43,6 +52,7 @@ paths:
           path:
             type: string
             required: true
+            coerce: sanitize
           weight:
             type: integer
             required: true
@@ -54,6 +64,7 @@ paths:
           path:
             type: string
             required: true
+            coerce: sanitize
           weight:
             type: integer
             required: true
@@ -65,6 +76,7 @@ paths:
           path:
             type: string
             required: true
+            coerce: sanitize
           weight:
             type: integer
             required: true

@@ -1,5 +1,6 @@
 grouping:
   type: string
+  coerce: sanitize
 priority:
   type: integer
 x_axis_days:
@@ -8,6 +9,8 @@ x_axis_days:
 title:
   type: string
   maxlength: 40
+  coerce: sanitize
 subtitle:
   type: string
   maxlength: 40
+  coerce: sanitize

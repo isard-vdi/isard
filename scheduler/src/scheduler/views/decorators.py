@@ -54,12 +54,12 @@ def is_admin(f):
 def itemExists(item_table, item_id):
     with app.app_context():
         item = r.table(item_table).get(item_id).run(db.conn)
-        if not item:
-            raise Error(
-                "not_found",
-                item_table + " not found id: " + item_id,
-                traceback.format_exc(),
-            )
+    if not item:
+        raise Error(
+            "not_found",
+            item_table + " not found id: " + item_id,
+            traceback.format_exc(),
+        )
 
 
 def is_admin_or_manager(f):

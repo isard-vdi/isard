@@ -58,6 +58,7 @@ def active_client(
                     {"vpn": {"wireguard": connection_data}}
                 ).run(db.conn)
                 return True
+        with app.app_context():
             r.table("users").get_all(client_ip, index="wg_client_ip").update(
                 {"vpn": {"wireguard": connection_data}}
             ).run(db.conn)
@@ -111,6 +112,7 @@ def reset_connections_list_status(
             r.table("users").get_all(
                 r.args(users_vpn_ips), index="wg_client_ip"
             ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)
+        with app.app_context():
             r.table("remotevpn").get_all(
                 r.args(users_vpn_ips), index="wg_client_ip"
             ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)

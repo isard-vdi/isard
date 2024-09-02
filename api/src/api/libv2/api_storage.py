@@ -247,7 +247,7 @@ def get_storage(storage_id):
             )
             .run(db.conn)
         )
-        return parse_disks([disk])[0]
+    return parse_disks([disk])[0]
 
 
 def parse_disks(disks):
@@ -262,47 +262,6 @@ def parse_disks(disks):
             disk.pop("status_logs")
             parsed_disks.append(disk)
     return parsed_disks
-
-
-def get_disk_tree():
-    root = {"id": None}
-    query = (
-        r.table("storage")
-        .merge(
-            lambda disk: {
-                "user_name": r.table("users")
-                .get(disk["user_id"])["name"]
-                .default("[DELETED]"),
-                "category_name": r.table("categories")
-                .get(r.table("users").get(disk["user_id"])["category"])["name"]
-                .default("[DELETED]"),
-                "title": disk["id"],
-                "icon": "fa fa-folder-open",
-                "domains": r.table("domains")
-                .get_all(disk["id"], index="storage_ids")
-                .count(),
-            }
-        )
-        .pluck(
-            "id",
-            "parent",
-            "status",
-            "directory_path",
-            "user_name",
-            "category_name",
-            "domains",
-            "title",
-            "icon",
-        )
-        .run(db.conn)
-    )
-
-    def recursive(query, parent):
-        parent["children"] = []
-        for item in query:
-            if item.get("parent") == parent["id"]:
-                parent["children"].append(item)
-                recursive(query, item)
 
     recursive(list(query), root)
     return root["children"]
@@ -367,12 +326,12 @@ def restore_disk(storage_id, restore_desktops=True):
     if restore_desktops:
         update["last_domain_attached"] = None
     try:
-        with app.app_context():
-            if restore_desktops:
+        if restore_desktops:
+            with app.app_context():
                 r.table("domains").insert(
                     r.table("storage").get(storage_id)["last_domain_attached"]
                 ).run(db.conn)
-
+        with app.app_context():
             r.table("storage").get(storage_id).update(update).run(db.conn)
     except:
         raise Error(
@@ -400,14 +359,15 @@ def add_storage_pool(data):
         _check_duplicated_paths(data["paths"])
     with app.app_context():
         existing_categories = list(r.table("storage_pool")["categories"].run(db.conn))
-        for categories in existing_categories:
-            if set(categories).intersection(set(data["categories"])):
-                raise Error(
-                    "conflict",
-                    "Pool with one of the selected categories already exists: "
-                    + str(set(categories).intersection(set(data["categories"]))),
-                )
-        else:
+    for categories in existing_categories:
+        if set(categories).intersection(set(data["categories"])):
+            raise Error(
+                "conflict",
+                "Pool with one of the selected categories already exists: "
+                + str(set(categories).intersection(set(data["categories"]))),
+            )
+    else:
+        with app.app_context():
             r.table("storage_pool").insert(data).run(db.conn)
 
 
@@ -454,9 +414,10 @@ def update_storage_pool(storage_pool_id, data):
             if key in data:
                 data.pop(key)
     if "categories" in data:
-        existing_pools = list(
-            r.table("storage_pool").pluck("categories", "id").run(db.conn)
-        )
+        with app.app_context():
+            existing_pools = list(
+                r.table("storage_pool").pluck("categories", "id").run(db.conn)
+            )
         for pool in existing_pools:
             if (
                 set(pool["categories"]).intersection(set(data["categories"]))

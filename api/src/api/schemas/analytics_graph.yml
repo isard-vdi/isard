@@ -6,6 +6,7 @@ id:
 grouping:
   type: string
   required: true
+  coerce: sanitize
 priority:
   type: integer
   required: true
@@ -17,6 +18,8 @@ title:
   type: string
   required: true
   maxlength: 40
+  coerce: sanitize
 subtitle:
   type: string
   maxlength: 40
+  coerce: sanitize

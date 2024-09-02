@@ -41,7 +41,8 @@ def get_viewers_config():
         viewers = (
             r.table("config").get(1).pluck("viewers")["viewers"].keys().run(db.conn)
         )
-        for viewer in viewers:
+    for viewer in viewers:
+        with app.app_context():
             custom.append(
                 r.table("config")
                 .get(1)

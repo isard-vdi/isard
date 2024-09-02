@@ -78,14 +78,14 @@ def get_notification_templates():
 
 
 def get_notification_template(template_id):
-    with app.app_context():
-        try:
+    try:
+        with app.app_context():
             return r.table("notification_tmpls").get(template_id).run(db.conn)
-        except:
-            raise Error(
-                "not_found",
-                "Notification template with ID: " + template_id + " not found",
-            )
+    except:
+        raise Error(
+            "not_found",
+            "Notification template with ID: " + template_id + " not found",
+        )
 
 
 def update_notification_template(template_id, data):
@@ -124,7 +124,8 @@ def delete_notification_template(template_id):
         raise Error("bad request", "Unable to delete default templates")
 
     # TODO: check it's not being used
-    r.table("notification_tmpls").get(template_id).delete().run(db.conn)
+    with app.app_context():
+        r.table("notification_tmpls").get(template_id).delete().run(db.conn)
 
 
 def get_notification_event_template(event, user_id, args):
@@ -134,19 +135,20 @@ def get_notification_event_template(event, user_id, args):
         event_data = list(
             r.table("system_events").filter({"event": event}).run(db.conn)
         )[0]
-        data["channels"] = event_data["channels"]
+    data["channels"] = event_data["channels"]
 
+    with app.app_context():
         template = r.table("notification_tmpls").get(event_data["tmpl_id"]).run(db.conn)
 
-        if lang in template["lang"]:
-            data = template["lang"][lang]
+    if lang in template["lang"]:
+        data = template["lang"][lang]
+    else:
+        if template["default"] in template["lang"]:
+            data = template["lang"][template["default"]]
         else:
-            if template["default"] in template["lang"]:
-                data = template["lang"][template["default"]]
-            else:
-                data = template["system"]
+            data = template["system"]
 
-        data["body"] = data["body"].format(**args)
-        data["footer"] = data["footer"].format(**args)
+    data["body"] = data["body"].format(**args)
+    data["footer"] = data["footer"].format(**args)
 
     return data

@@ -289,9 +289,10 @@ class ReservablesPlanner:
                 "deleted",
             ):
                 Error("internal_server", "Could not remove plan from database.")
-            self.scheduler.remove_scheduler_startswith_id(plan_id)
+        self.scheduler.remove_scheduler_startswith_id(plan_id)
 
-            ## NEEDS to get plan["start"] and plan["end"] to get only those bookings??
+        ## NEEDS to get plan["start"] and plan["end"] to get only those bookings??
+        with app.app_context():
             result = (
                 r.table("bookings")
                 .filter(
@@ -598,6 +599,7 @@ class ReservablesPlanner:
                     .run(db.conn)
                 )
             )
+        with app.app_context():
             overlaps_end = list(
                 (
                     r.table("resource_planner")
@@ -611,6 +613,7 @@ class ReservablesPlanner:
                     .run(db.conn)
                 )
             )
+        with app.app_context():
             overlaps_completely = list(
                 (
                     r.table("resource_planner")
@@ -718,6 +721,7 @@ class ReservablesPlanner:
                     .run(db.conn)
                 )
             )
+        with app.app_context():
             overlaps_end = list(
                 (
                     r.table("resource_planner")
@@ -734,6 +738,7 @@ class ReservablesPlanner:
                     .run(db.conn)
                 )
             )
+        with app.app_context():
             overlaps_completely = list(
                 (
                     r.table("resource_planner")
@@ -825,9 +830,10 @@ class ReservablesPlanner:
         conflicts = {}
         with app.app_context():
             plans = r.table("resource_planner").run(db.conn)
-            for plan in plans:
-                if not conflicts.get(plan["item_id"]):
-                    conflicts[plan["item_id"]] = {"start": [], "end": []}
+        for plan in plans:
+            if not conflicts.get(plan["item_id"]):
+                conflicts[plan["item_id"]] = {"start": [], "end": []}
+            with app.app_context():
                 start = list(
                     (
                         r.table("resource_planner")
@@ -842,6 +848,7 @@ class ReservablesPlanner:
                         .run(db.conn)
                     )
                 )
+            with app.app_context():
                 end = list(
                     (
                         r.table("resource_planner")
@@ -855,13 +862,13 @@ class ReservablesPlanner:
                         .run(db.conn)
                     )
                 )
-                if len(start):
-                    log.debug("------------------- START CONFLICTS")
-                    log.debug(pformat(plan))
-                    log.debug(pformat(start))
-                if len(end):
-                    log.debug("------------------- END CONFLICTS")
-                    log.debug(pformat(plan))
-                    log.debug(pformat(end))
+            if len(start):
+                log.debug("------------------- START CONFLICTS")
+                log.debug(pformat(plan))
+                log.debug(pformat(start))
+            if len(end):
+                log.debug("------------------- END CONFLICTS")
+                log.debug(pformat(plan))
+                log.debug(pformat(end))
 
         return conflicts

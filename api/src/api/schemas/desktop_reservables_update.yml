@@ -4,4 +4,6 @@ reservables:
     vgpus:
       type: list
       nullable: true
-      coerce: sanitize
+      schema:
+        type: string
+        coerce: sanitize

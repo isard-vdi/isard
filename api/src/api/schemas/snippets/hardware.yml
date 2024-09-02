@@ -4,7 +4,9 @@ virtualization_nested:
 boot_order:
   type: list
   default: ["iso"]
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 vcpus:
   type: integer
   default: 2
@@ -14,15 +16,21 @@ memory:
 graphics:
   type: list
   default: ["default"]
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 videos:
   type: list
   default: ["default"]
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 interfaces:
   type: list
   default: ["default"]
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize
 disk_size:
   type: integer
   default: 40
@@ -33,16 +41,30 @@ disk_bus:
 isos:
   type: list
   default: []
-  coerce: sanitize
+  schema:
+    type: dict
+    schema:
+      id:
+        required: true
+        type: string
+        coerce: sanitize
 floppies:
   type: list
   default: []
-  coerce: sanitize
+  schema:
+    type: dict
+    schema:
+      id:
+        required: true
+        type: string
+        coerce: sanitize
 reservables:
   type: dict
   schema:
     vgpus:
       type: list
       nullable: true
-      coerce: sanitize
+      schema:
+        type: string
+        coerce: sanitize
 

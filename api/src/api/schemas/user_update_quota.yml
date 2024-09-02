@@ -8,4 +8,6 @@ quota:
   schema: quotas
 ids:
   type: list
-  coerce: sanitize
+  schema:
+    type: string
+    coerce: sanitize

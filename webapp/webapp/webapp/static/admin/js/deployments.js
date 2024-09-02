@@ -47,7 +47,7 @@ $(document).ready(function() {
     order: [[1, "asc"]],
     "columnDefs": [
       {
-        "targets": 9,
+        "targets": 10,
         "render": function ( data, type, full, meta ) {
           if ('tag_visible' in full.create_dict && full.create_dict.tag_visible) {
             return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="' + full.create_dict.tag_visible + '"></i>'
@@ -57,7 +57,7 @@ $(document).ready(function() {
         }
       },
       {
-        "targets": 10,
+        "targets": 11,
         "render": function ( data, type, full, meta ) {
           if ( type === 'display' || type === 'filter' ) {
             return formatTimestampUTC(full.last_access*1000)
@@ -66,7 +66,7 @@ $(document).ready(function() {
         }
       },
       {
-        "targets": 11,
+        "targets": 12,
         "render": function ( data, type, full, meta ) {
           return `<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>`
         }

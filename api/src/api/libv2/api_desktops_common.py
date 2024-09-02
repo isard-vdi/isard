@@ -228,11 +228,11 @@ class ApiDesktopsCommon:
                 .run(db.conn)["create_dict"]
             )
         if "isos" in hardware["hardware"]:
-            with app.app_context():
-                isos = hardware["hardware"]["isos"]
-                hardware["hardware"]["isos"] = []
-                # Loop instead of a get_all query to keep the isos array order
-                for iso in isos:
+            isos = hardware["hardware"]["isos"]
+            hardware["hardware"]["isos"] = []
+            # Loop instead of a get_all query to keep the isos array order
+            for iso in isos:
+                with app.app_context():
                     hardware["hardware"]["isos"].append(
                         r.table("media").get(iso["id"]).pluck("id", "name").run(db.conn)
                     )

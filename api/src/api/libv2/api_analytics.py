@@ -42,7 +42,8 @@ def storage_usage(categories=None):
                 .pluck({"progress": "total_bytes"})
                 .sum(lambda size: size["progress"]["total_bytes"].default(0))
                 .run(db.conn)
-            ) / 1073741824
+            ) / 10737418240
+        with app.app_context():
             storage["domains"] = (
                 r.table("users")
                 .get_all(r.args(categories), index="category")
@@ -75,6 +76,7 @@ def storage_usage(categories=None):
                 .sum(lambda size: size["progress"]["total_bytes"].default(0))
                 .run(db.conn)
             ) / 1073741824
+        with app.app_context():
             storage["domains"] = (
                 r.table("users")
                 .pluck("id")
@@ -112,6 +114,7 @@ def resource_count(categories=None):
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             count["templates"] = (
                 r.table("domains")
                 .get_all(r.args(categories), index="category")
@@ -119,6 +122,7 @@ def resource_count(categories=None):
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             count["media"] = (
                 r.table("media")
                 .get_all(r.args(categories), index="category")
@@ -126,18 +130,21 @@ def resource_count(categories=None):
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             count["users"] = (
                 r.table("users")
                 .get_all(r.args(categories), index="category")
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             count["groups"] = (
                 r.table("groups")
                 .get_all(r.args(categories), index="parent_category")
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             count["deployments"] = (
                 r.table("deployments")
                 .eq_join("user", r.table("users"))
@@ -154,20 +161,25 @@ def resource_count(categories=None):
             count["desktops"] = (
                 r.table("domains").get_all("desktop", index="kind").count().run(db.conn)
             )
+        with app.app_context():
             count["templates"] = (
                 r.table("domains")
                 .get_all("template", index="kind")
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             count["media"] = (
                 r.table("media")
                 .filter(r.row["status"].ne("deleted"))
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             count["users"] = r.table("users").count().run(db.conn)
+        with app.app_context():
             count["groups"] = r.table("groups").count().run(db.conn)
+        with app.app_context():
             count["deployments"] = r.table("deployments").count().run(db.conn)
 
     return count
@@ -265,12 +277,14 @@ def suggested_removals(categories=None, months_without_use=6):
     )
     with app.app_context():
         suggestions["empty_deployments"] = list(empty_deployments_query.run(db.conn))
+    with app.app_context():
         suggestions["unused_desktops"]["desktops"] = list(
             unused_desktops_query.run(db.conn)
         )
-        unused_desktops_ids = [
-            desktop["id"] for desktop in suggestions["unused_desktops"]["desktops"]
-        ]
+    unused_desktops_ids = [
+        desktop["id"] for desktop in suggestions["unused_desktops"]["desktops"]
+    ]
+    with app.app_context():
         suggestions["unused_desktops"]["size"] = (
             r.table("domains")
             .get_all(r.args(unused_desktops_ids))
