@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { type HTMLAttributes, provide, computed, inject } from 'vue'
 import { useId } from 'radix-vue'
-import { FieldContextKey, useFieldError } from 'vee-validate';
+import { FieldContextKey, useFieldError } from 'vee-validate'
 import { FORM_ITEM_INJECTION_KEY } from './injectionKeys'
 import { cn } from '@/lib/utils'
 

@@ -28,8 +28,8 @@
       },
       "login-provider-external": {
         "default-text": {
-            "saml": "Saioa SAMLrekin hasi",
-            "google": "Saioa Googlekin hasi"
+          "saml": "Saioa SAMLrekin hasi",
+          "google": "Saioa Googlekin hasi"
         }
       },
       "login-categories-dropdown": {
