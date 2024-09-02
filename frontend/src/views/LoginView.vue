@@ -32,7 +32,7 @@ import {
 } from '@/components/login'
 import { Separator } from '@/components/ui/separator'
 import { Icon } from '@/components/icon'
-import { i18n, setLocale } from '@/lib/i18n'
+import { Locale, setLocale } from '@/lib/i18n'
 
 const { t, te, d } = useI18n()
 const route = useRoute()
@@ -419,7 +419,7 @@ watch(error, (newErr) => {
 // Set the locale if there's a configuration set
 watch(config, (newCfg) => {
   if (newCfg?.locale?.default) {
-    setLocale(i18n, newCfg.locale.default)
+    setLocale(newCfg.locale.default as Locale)
   }
 })
 </script>

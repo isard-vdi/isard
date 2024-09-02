@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineModel } from 'vue'
+import { defineModel, watch } from 'vue'
 import {
   Select,
   SelectTrigger,
@@ -11,11 +11,17 @@ import {
 import { Locale, i18n, setLocale } from '@/lib/i18n'
 
 const locale = defineModel<Locale>({
-  default: i18n.global.locale.value,
+  default: i18n.global.locale.value as Locale,
   set(newLocale) {
-    setLocale(i18n, newLocale)
+    setLocale(newLocale)
 
     return newLocale
+  }
+})
+
+watch(i18n.global.locale, (newI18n) => {
+  if (locale.value !== newI18n) {
+    locale.value = newI18n as Locale
   }
 })
 </script>
