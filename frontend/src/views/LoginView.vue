@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, type ComputedRef, ref, watchEffect } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, type ComputedRef, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createClient, createConfig, type Options as ClientOptions } from '@hey-api/client-fetch'
 import { useQuery } from '@tanstack/vue-query'
@@ -32,6 +32,7 @@ import {
 } from '@/components/login'
 import { Separator } from '@/components/ui/separator'
 import { Icon } from '@/components/icon'
+import { i18n, setLocale } from '@/lib/i18n'
 
 const { t, te, d } = useI18n()
 const route = useRoute()
@@ -224,7 +225,7 @@ const loginErrorMsg = computed(() => {
   // Check if the error exists in the base locale
   if (te(key, 'en-US')) {
     // If the error is a rate_limit error, show the extra parameters
-    if (loginError.value === 'rate_limit') {
+    if (loginError.value === 'rate_limit' && loginErrorParams.value) {
       let timeParam = d(loginErrorParams.value, { hour: 'numeric', minute: 'numeric', second: 'numeric' })
 
       if (!dateIsToday(loginErrorParams.value)) {
@@ -394,9 +395,16 @@ const onForgotPassword = () => {
 }
 
 // Redirect to the maintenance page if there's a maintenance error
-watchEffect(() => {
-  if (error.value && error.value.message.includes('503')) {
+watch(error, (newErr) => {
+  if (newErr && newErr.message.includes('503')) {
     window.location.href = '/maintenance'
+  }
+})
+
+// Set the locale if there's a configuration set
+watch(config, (newCfg) => {
+  if (newCfg?.locale?.default) {
+    setLocale(i18n, newCfg.locale.default)
   }
 })
 </script>

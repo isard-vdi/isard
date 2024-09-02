@@ -101,6 +101,10 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "default": {
+                "type": "string",
+                "title": "The default locale that will be shown to the users"
               }
             }
           },
