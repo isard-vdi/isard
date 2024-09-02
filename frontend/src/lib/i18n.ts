@@ -8,7 +8,9 @@ const emptyLocale = {} as MessageSchema
 
 export enum Locale {
   English = 'en-US',
-  Català = 'ca-ES'
+  Català = 'ca-ES',
+  Euskara = 'eu-ES',
+  Español = 'es-ES'
 }
 
 const localesWithoutRegion = (() => {

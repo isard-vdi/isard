@@ -1,0 +1,45 @@
+{
+  "router": {
+    "titles": {
+      "login": "Saioa hasi"
+    }
+  },
+  "views": {
+    "login": {
+      "separator": "edo honako hauek erabiliz hasi"
+    }
+  },
+  "layouts": {
+    "login": {
+      "title": "Saioa hasi",
+      "works-with": "Egilea"
+    }
+  },
+  "components": {
+    "login": {
+      "login-provider-form": {
+        "category": "Kategoria",
+        "username": "Erabiltzailearen izena",
+        "password": "Pasahitza",
+        "forgot-password": "Pasahitza ahaztu duzu?",
+        "login": "Saioa hasi"
+      },
+      "login-provider-external": {
+        "default-text": {}
+      },
+      "login-categories-dropdown": {},
+      "login-category-select": {
+        "logout": "Saioa itxi"
+      }
+    }
+  },
+  "authentication": {
+    "login": {
+      "errors": {
+        "unknown": "Akats bat gertatu da",
+        "invalid_credentials": "Erabiltzailea edo pasahitza ez dira zuzenak",
+        "user_disabled": "Erabiltzailea desgaituta dago"
+      }
+    }
+  }
+}
