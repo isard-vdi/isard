@@ -264,6 +264,7 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 		}
 
 		u.Role, err = guessRole(guessRoleOpts{
+			ReRole:          s.ReRole,
 			RoleAdminIDs:    s.Cfg.SAML.RoleAdminIDs,
 			RoleManagerIDs:  s.Cfg.SAML.RoleManagerIDs,
 			RoleAdvancedIDs: s.Cfg.SAML.RoleAdvancedIDs,
