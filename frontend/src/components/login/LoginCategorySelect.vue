@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useI18n, i18nT } from 'vue-i18n'
+import { useI18n } from 'vue-i18n'
 import { type CategorySelectToken } from '.'
 import {
   getToken as getAuthToken,
