@@ -78,3 +78,9 @@ maintenance:
   type: boolean
   nullable: true
   default: false
+uid:
+  type: string
+  maxlength: 255
+  required: true
+  empty: false
+  coerce: sanitize

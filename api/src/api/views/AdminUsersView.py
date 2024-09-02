@@ -638,6 +638,14 @@ def api_v3_admin_category_insert(payload):
     group = _validate_item("group", group)
 
     checkDuplicate("categories", category["name"])
+    try:
+        checkDuplicate("categories", category["uid"])
+    except:
+        raise Error(
+            "conflict",
+            f"Category UID \"{category['uid']}\" already exists",
+            traceback.format_exc(),
+        )
     checkDuplicateCustomURL(category["custom_url_name"])
 
     admin_table_insert("categories", category)
