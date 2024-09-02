@@ -36,7 +36,7 @@
         "placeholder": "Selecciona una categoría"
       },
       "login-category-select": {
-        "logged-in-as": "Has iniciado sesión como",
+        "logged-in-as": "Has iniciado sesión como {name}",
         "logout": "Cerrar sesión"
       }
     }

@@ -1,12 +1,14 @@
 {
   "router": {
     "titles": {
+      "home": "Hasi",
       "login": "Saioa hasi"
     }
   },
   "views": {
     "login": {
-      "separator": "edo honako hauek erabiliz hasi"
+      "separator": "edo honako hauek erabiliz hasi",
+      "select-category": "Kategoria bat hautatu"
     }
   },
   "layouts": {
@@ -25,10 +27,16 @@
         "login": "Saioa hasi"
       },
       "login-provider-external": {
-        "default-text": {}
+        "default-text": {
+            "saml": "Saioa SAMLrekin hasi",
+            "google": "Saioa Googlekin hasi"
+        }
       },
-      "login-categories-dropdown": {},
+      "login-categories-dropdown": {
+        "placeholder": "Kategoria bat hautatu behar da"
+      },
       "login-category-select": {
+        "logged-in-as": "Saioa {name} bezala hasi duzu",
         "logout": "Saioa itxi"
       }
     }
@@ -37,8 +45,11 @@
     "login": {
       "errors": {
         "unknown": "Akats bat gertatu da",
+        "missing_category": "Kategoria bat hautatu behar da",
         "invalid_credentials": "Erabiltzailea edo pasahitza ez dira zuzenak",
-        "user_disabled": "Erabiltzailea desgaituta dago"
+        "user_disabled": "Erabiltzailea desgaituta dago",
+        "user_disallowed": "Erabiltzaileak ezin du IsardVDI erabili",
+        "rate_limit": "Sesioa hasteko saiakera gehiegi izan dira. Saiatu berriro {time}-an"
       }
     }
   }

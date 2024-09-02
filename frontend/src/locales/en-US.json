@@ -36,7 +36,7 @@
         "placeholder": "Select a category"
       },
       "login-category-select": {
-        "logged-in-as": "Logged in as",
+        "logged-in-as": "Logged in as {name}",
         "logout": "Logout"
       }
     }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useI18n, i18nT } from 'vue-i18n'
 import { type CategorySelectToken } from '.'
 import {
   getToken as getAuthToken,
@@ -54,9 +54,11 @@ const emit = defineEmits<{
     </template>
   </div>
   <div class="mt-[48px] flex flex-col justify-center items-center text-center">
-    <p>
-      {{ t('components.login.login-category-select.logged-in-as') }} <b>{{ name }}</b>
-    </p>
+    <i18n-t keypath="components.login.login-category-select.logged-in-as" tag="p">
+      <template #name>
+        <b>{{ name }}</b>
+      </template>
+    </i18n-t>
     <Button class="mt-[8px]" hierarchy="link-color" @click="logout">{{
       t('components.login.login-category-select.logout')
     }}</Button>
