@@ -209,6 +209,21 @@ const focusCategoriesDropdown = () => {
   categoriesDropdownEl.value?.focus()
 }
 
+const description = computed(() => {
+  let description: string | undefined = undefined
+  if (config.value?.providers?.all?.description) {
+    description = config.value.providers.all.description
+  }
+
+  if (providersToShow.value.length === 1) {
+    if (config.value?.providers?.[providersToShow.value[0]]?.description) {
+      description = config.value.providers[providersToShow.value[0]]?.description
+    }
+  }
+
+  return description
+})
+
 const loginError = ref((() => {
   const error = Array.isArray(route.query.error) ? route.query.error[0] : route.query.error
   if (!error || error === '') {
@@ -415,6 +430,7 @@ watch(config, (newCfg) => {
     :hide-locale-switch="config?.locale?.hide"
     :hide-logo="config?.logo?.hide"
     :title="config?.info?.title"
+    :description="categorySelectToken ? t('views.login.select-category') : description"
   >
     <template v-if="config?.notification" #cover>
       <Alert variant="destructive">

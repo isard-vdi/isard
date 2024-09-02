@@ -1,7 +1,8 @@
 {
   "views": {
     "login": {
-      "separator": "Other logins"
+      "separator": "Other logins",
+      "select-category": "Select a category"
     }
   },
   "layouts": {

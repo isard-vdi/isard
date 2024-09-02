@@ -126,10 +126,6 @@
                 "type": "string",
                 "title": "The title of the page"
               },
-              "description": {
-                "type": "string",
-                "title": "A small description (subtitle)"
-              }
             }
           },
           "maintenance": {
@@ -187,6 +183,10 @@
                 "type": "object",
                 "title": "Config that will be applied to all the providers. A specific provider takes preference before this",
                 "properties": {
+                  "description": {
+                    "type": "string",
+                    "title": "A small description (subtitle)"
+                  },
                   "hide_categories_dropdown": {
                     "type": "boolean",
                     "title": "Whether to hide the categories dropdown for all the providers"
@@ -209,6 +209,10 @@
                 "type": "object",
                 "title": "Config related with the form provider",
                 "properties": {
+                  "description": {
+                    "type": "string",
+                    "title": "A small description (subtitle)"
+                  },
                   "hide_categories_dropdown": {
                     "type": "boolean",
                     "title": "Whether to hide the categories dropdown"
@@ -231,6 +235,10 @@
                 "type": "object",
                 "title": "Config related with the SAML provider",
                 "properties": {
+                  "description": {
+                    "type": "string",
+                    "title": "A small description (subtitle)"
+                  },
                   "hide_categories_dropdown": {
                     "type": "boolean",
                     "title": "Whether to hide the categories dropdown"
@@ -253,6 +261,10 @@
                 "title": "Config related with the Google provider",
                 "type": "object",
                 "properties": {
+                  "description": {
+                    "type": "string",
+                    "title": "A small description (subtitle)"
+                  },
                   "hide_categories_dropdown": {
                     "type": "boolean",
                     "title": "Whether to hide the categories dropdown"

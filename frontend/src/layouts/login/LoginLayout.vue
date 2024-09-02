@@ -11,13 +11,15 @@ interface Props {
   hideLocaleSwitch?: boolean
   hideLogo?: boolean
   title?: string
+  description?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
   hideLocaleSwitch: false,
   hideLogo: false,
-  title: undefined
+  title: undefined,
+  description: undefined
 })
 </script>
 
@@ -46,10 +48,17 @@ const props = withDefaults(defineProps<Props>(), {
           alt="IsardVDI logo"
         />
         <h1
+          v-if="!loading"
           class="mt-[46px] mb-[32px] text-center text-display-sm font-semibold text-gray-warm-900"
         >
-          {{ loading ? '' : props.title || t('layouts.login.title') }}
+          {{ props.title || t('layouts.login.title') }}
         </h1>
+
+        <h2
+        v-if="!loading && props.description"
+        class="text-center text-md font-semibold mb-[32px]">
+          {{ props.description }}
+        </h2>
         <div>
           <slot />
         </div>
