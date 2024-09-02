@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { createClient, createConfig, type Options as ClientOptions } from '@hey-api/client-fetch'
 import { useQuery } from '@tanstack/vue-query'
 import { providersOptions } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
-import { login, type LoginData } from '@/gen/oas/authentication'
+import { login, type LoginData, type LoginError as AuthLoginError } from '@/gen/oas/authentication'
 import { getCategoriesOptions, getLoginConfigOptions } from '@/gen/oas/api/@tanstack/vue-query.gen'
 import {
   parseToken as parseAuthToken,
@@ -212,6 +212,7 @@ const category = computed(() => {
 
 const categoriesDropdownEl = ref<InstanceType<typeof LoginCategoriesDropdown> | null>(null)
 const focusCategoriesDropdown = () => {
+  loginError.value = 'missing_category'
   categoriesDropdownEl.value?.focus()
 }
 
@@ -230,11 +231,33 @@ const description = computed(() => {
   return description
 })
 
-const loginError = ref(
+// TODO: Type this!
+type LoginError = AuthLoginError['error'] | 'unknown' | 'missing_category'
+
+const isLoginError = (error: string): error is LoginError => {
+  switch (error) {
+    case 'unknown':
+    case 'missing_category':
+    case 'invalid_credentials':
+    case 'user_disabled':
+    case 'user_disallowed':
+    case 'rate_limit':
+      return true
+
+    default:
+      return false
+  }
+}
+
+const loginError = ref<LoginError | undefined>(
   (() => {
     const error = Array.isArray(route.query.error) ? route.query.error[0] : route.query.error
     if (!error || error === '') {
       return undefined
+    }
+
+    if (!isLoginError(error)) {
+      return 'unknown'
     }
 
     return error

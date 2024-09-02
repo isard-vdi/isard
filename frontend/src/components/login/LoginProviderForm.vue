@@ -22,7 +22,10 @@ const schema = z.object({
 const fieldConfig = computed(() => {
   return {
     username: {
-      label: t('components.login.login-provider-form.username')
+      label: t('components.login.login-provider-form.username'),
+      inputProps: {
+        autoComplete: 'off'
+      }
     },
     password: {
       label: t('components.login.login-provider-form.password'),

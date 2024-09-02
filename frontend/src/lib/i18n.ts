@@ -35,7 +35,9 @@ export const i18n = createI18n<[MessageSchema], `${Locale}`, false>({
   fallbackLocale: [Locale.English],
   messages: {
     [Locale.English]: enUS,
-    [Locale.Català]: emptyLocale
+    [Locale.Català]: emptyLocale,
+    [Locale.Euskara]: emptyLocale,
+    [Locale.Español]: emptyLocale
   }
 })
 
