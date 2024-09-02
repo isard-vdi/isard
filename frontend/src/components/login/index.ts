@@ -10,6 +10,8 @@ export enum Provider {
   Google = 'google'
 }
 
+export const isProvider = (provider: string): provider is Provider  => Object.values(Provider).includes(provider as Provider)
+
 export type CategorySelectToken = Array<{
   id: string
   name: string

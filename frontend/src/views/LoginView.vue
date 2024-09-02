@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, type ComputedRef, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, type ComputedRef, ref, watchEffect } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createClient, createConfig, type Options as ClientOptions } from '@hey-api/client-fetch'
 import { useQuery } from '@tanstack/vue-query'
 import { providersOptions } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
-import { login, type LoginData, type error as LoginErrorUnion } from '@/gen/oas/authentication'
+import { login, type LoginData } from '@/gen/oas/authentication'
 import { getCategoriesOptions, getLoginConfigOptions } from '@/gen/oas/api/@tanstack/vue-query.gen'
 import {
   parseToken as parseAuthToken,
@@ -26,7 +26,8 @@ import {
   LoginProviderForm,
   LoginProviderExternal,
   LoginCategoriesDropdown,
-  LoginCategorySelect
+  LoginCategorySelect,
+  isProvider
 } from '@/components/login'
 import { Separator } from '@/components/ui/separator'
 import { Icon } from '@/components/icon'
@@ -38,39 +39,83 @@ const cookies = useAuthCookies()
 const {
   isPending: providersIsPending,
   isError: providersIsError,
+  error: providersError,
   data: providers
 } = useQuery(providersOptions())
 
 const {
   isPending: categoriesIsPending,
   isError: categoriesIsError,
+  error: categoriesError,
   data: categories
 } = useQuery(getCategoriesOptions())
 
 const {
   isPending: configIsPending,
   isError: configIsError,
+  error: configError,
   data: config
 } = useQuery(getLoginConfigOptions())
 
 const isPending = computed(
   () => providersIsPending.value || categoriesIsPending.value || configIsPending.value
 )
+const isError = computed(() => providersIsError.value || categoriesIsError.value || configIsError.value)
+const error = computed(() => {
+  if (providersIsError.value) {
+    return providersError.value
+  }
 
-// TODO: Router push to /login if the provider in the URL is invalid / not active / whatever
+  if (categoriesIsError.value) {
+    return categoriesError.value
+  }
+
+  if (configIsError.value) {
+    return configError.value
+  }
+
+  return undefined
+})
+
 const routeProvider = computed(() => {
-  if (route.params.provider === 'all') {
+  const provider = Array.isArray(route.params.provider) ? route.params.provider[0] : route.params.provider
+  if (provider === 'all') {
     return 'all'
   }
 
-  const routeProvider = route.params.provider as Provider
-  const routeProviderValid = Object.values(Provider).includes(routeProvider)
+  // Check that the provider specified in the route is valid
+  if (!isProvider(provider)) {
+    // TODO: Router push to /login if the provider in the URL is invalid / not active / whatever
+    return undefined
+  }
 
-  return routeProviderValid ? routeProvider : null
+  return provider
 })
 
-// TODO: Router push to /login/provider if the category invalid / not active / whatever
-const routeCategory = computed(() => (route.params.category !== '' ? route.params.category : null))
+const routeCategory = computed(() => {
+  const category = Array.isArray(route.params.category) ? route.params.category[0] : route.params.category
+
+  // Check that the category specified in the route is valid
+  if (category === '' || isPending.value || !categories.value) {
+    // TODO: Router push to /login/provider if the category invalid / not active / whatever
+    return undefined
+  }
+
+  // Check that the category specified in the route is an existing category
+  let found = false
+  for (const c of categories.value) {
+    if (c.custom_url_name === category) {
+      found = true
+      break
+    }
+  }
+
+  if (!found) {
+    return undefined
+  }
+
+  return category
+})
 
 const showProvider = (provider: Provider): ComputedRef<boolean> =>
   computed(() => {
@@ -143,8 +188,7 @@ const showCategoriesDropdown = computed(() => {
 const categoriesDropdownModel = ref('')
 const category = computed(() => {
   if (routeCategory.value) {
-    // TODO: Filter from categories URL
-    return Array.isArray(routeCategory.value) ? routeCategory.value[0] : routeCategory.value
+    return routeCategory.value
   }
 
   // If the dropdown is shown, always use this value
@@ -163,9 +207,15 @@ const focusCategoriesDropdown = () => {
   categoriesDropdownEl.value?.focus()
 }
 
-const loginError = ref<LoginErrorUnion | 'missing_category' | 'unknown' | null>(
-  route.query.error === undefined ? null : route.query.error
-)
+const loginError = ref((() => {
+  const error = Array.isArray(route.query.error) ? route.query.error[0] : route.query.error
+  if (!error || error === '') {
+    return undefined
+  }
+
+  return error
+})())
+
 const loginErrorMsg = computed(() => {
   const baseKey = 'authentication.login.errors.'
   const key = baseKey + loginError.value
@@ -321,6 +371,13 @@ const onForgotPassword = () => {
 
   window.location.href = '/forgot-password?categoryId=' + category.value
 }
+
+// Redirect to the maintenance page if there's a maintenance error
+watchEffect(() => {
+  if (error.value && error.value.message.includes('503')) {
+    window.location.href = '/maintenance'
+  }
+})
 </script>
 
 <template>
@@ -356,6 +413,8 @@ const onForgotPassword = () => {
     <template #default>
       <div class="flex flex-col space-y-4">
         <Skeleton v-if="isPending" class="h-6" />
+
+        <Alert v-else-if="isError" variant="destructive">{{ t('authentication.login.errors.unknown') }}</Alert>
 
         <template v-else>
           <Alert v-if="loginError" variant="destructive">
