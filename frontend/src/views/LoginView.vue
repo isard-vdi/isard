@@ -62,7 +62,9 @@ const {
 const isPending = computed(
   () => providersIsPending.value || categoriesIsPending.value || configIsPending.value
 )
-const isError = computed(() => providersIsError.value || categoriesIsError.value || configIsError.value)
+const isError = computed(
+  () => providersIsError.value || categoriesIsError.value || configIsError.value
+)
 const error = computed(() => {
   if (providersIsError.value) {
     return providersError.value
@@ -80,7 +82,9 @@ const error = computed(() => {
 })
 
 const routeProvider = computed(() => {
-  const provider = Array.isArray(route.params.provider) ? route.params.provider[0] : route.params.provider
+  const provider = Array.isArray(route.params.provider)
+    ? route.params.provider[0]
+    : route.params.provider
   if (provider === 'all') {
     return 'all'
   }
@@ -95,7 +99,9 @@ const routeProvider = computed(() => {
 })
 
 const routeCategory = computed(() => {
-  const category = Array.isArray(route.params.category) ? route.params.category[0] : route.params.category
+  const category = Array.isArray(route.params.category)
+    ? route.params.category[0]
+    : route.params.category
 
   // Check that the category specified in the route is valid
   if (category === '' || isPending.value || !categories.value) {
@@ -224,14 +230,16 @@ const description = computed(() => {
   return description
 })
 
-const loginError = ref((() => {
-  const error = Array.isArray(route.query.error) ? route.query.error[0] : route.query.error
-  if (!error || error === '') {
-    return undefined
-  }
+const loginError = ref(
+  (() => {
+    const error = Array.isArray(route.query.error) ? route.query.error[0] : route.query.error
+    if (!error || error === '') {
+      return undefined
+    }
 
-  return error
-})())
+    return error
+  })()
+)
 const loginErrorParams = ref<Date | undefined>(undefined)
 const loginErrorMsg = computed(() => {
   const baseKey = 'authentication.login.errors.'
@@ -241,12 +249,20 @@ const loginErrorMsg = computed(() => {
   if (te(key, 'en-US')) {
     // If the error is a rate_limit error, show the extra parameters
     if (loginError.value === 'rate_limit' && loginErrorParams.value) {
-      let timeParam = d(loginErrorParams.value, { hour: 'numeric', minute: 'numeric', second: 'numeric' })
+      let timeParam = d(loginErrorParams.value, {
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric'
+      })
 
       if (!dateIsToday(loginErrorParams.value)) {
         timeParam = d(loginErrorParams.value, {
-          day: 'numeric', month: 'numeric', year: 'numeric',
-          hour: 'numeric', minute: 'numeric', second: 'numeric'
+          day: 'numeric',
+          month: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: 'numeric',
+          second: 'numeric'
         })
       }
       return t(key, { time: timeParam })
@@ -459,7 +475,9 @@ watch(config, (newCfg) => {
       <div class="flex flex-col space-y-4">
         <Skeleton v-if="isPending" class="h-6" />
 
-        <Alert v-else-if="isError" variant="destructive">{{ t('authentication.login.errors.unknown') }}</Alert>
+        <Alert v-else-if="isError" variant="destructive">{{
+          t('authentication.login.errors.unknown')
+        }}</Alert>
 
         <template v-else>
           <Alert v-if="loginError" variant="destructive">

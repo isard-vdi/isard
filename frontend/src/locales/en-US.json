@@ -1,4 +1,10 @@
 {
+  "router": {
+    "titles": {
+      "home": "Home",
+      "login": "Login"
+    }
+  },
   "views": {
     "login": {
       "separator": "Other logins",
@@ -45,12 +51,6 @@
         "user_disallowed": "The user can't use IsardVDI",
         "rate_limit": "Too many login attempts, please try again at {time}"
       }
-    }
-  },
-  "router": {
-    "titles": {
-      "home": "Home",
-      "login": "Login"
     }
   }
 }

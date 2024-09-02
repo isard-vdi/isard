@@ -1,4 +1,10 @@
 {
+  "router": {
+    "titles": {
+      "home": "Inici",
+      "login": "Iniciar sessió"
+    }
+  },
   "views": {
     "login": {
       "separator": "Altres accessos",
@@ -45,12 +51,6 @@
         "user_disallowed": "L'usuari no pot utilitzar IsardVDI",
         "rate_limit": "S'han produït massa intents d'inici de sessió. Torni-ho a provar a {time}"
       }
-    }
-  },
-  "router": {
-    "titles": {
-      "home": "Inici",
-      "login": "Iniciar sessió"
     }
   }
 }

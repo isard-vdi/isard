@@ -4,6 +4,8 @@ import enUS from '../locales/en-US.json'
 
 type MessageSchema = typeof enUS
 
+const emptyLocale = {} as MessageSchema
+
 export enum Locale {
   English = 'en-US',
   Català = 'ca-ES'
@@ -29,8 +31,11 @@ export const i18n = createI18n<[MessageSchema], `${Locale}`, false>({
   legacy: false,
   locale: Locale.English,
   fallbackLocale: [Locale.English],
+  messages: {
+    [Locale.English]: enUS,
+    [Locale.Català]: emptyLocale
+  }
 })
-i18n.global.setLocaleMessage(Locale.English, enUS)
 
 const loadLocale = async (locale: Locale) => {
   const messages = await import(`../locales/${locale}.json`)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineModel, watch } from 'vue'
+import { defineModel, onMounted, watch } from 'vue'
 import {
   Select,
   SelectTrigger,
@@ -17,6 +17,11 @@ const locale = defineModel<Locale>({
 
     return newLocale
   }
+})
+
+// Ensure the sync between the switch and the locale
+onMounted(() => {
+  locale.value = i18n.global.locale.value as Locale
 })
 
 watch(i18n.global.locale, (newI18n) => {

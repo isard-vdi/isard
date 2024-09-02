@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { isardVdiUrl } from '@/lib/constants'
 import { LocaleSwitch } from '@/components/locale-switch'
 
 const { t } = useI18n()
-
-const isardVdiUrl = 'https://isardvdi.com'
 
 interface Props {
   loading?: boolean
@@ -55,8 +54,9 @@ const props = withDefaults(defineProps<Props>(), {
         </h1>
 
         <h2
-        v-if="!loading && props.description"
-        class="text-center text-md font-semibold mb-[32px]">
+          v-if="!loading && props.description"
+          class="text-center text-md font-semibold mb-[32px]"
+        >
           {{ props.description }}
         </h2>
         <div>
