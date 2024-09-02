@@ -109,18 +109,19 @@ const routeCategory = computed(() => {
     return undefined
   }
 
+  // TODO: Solve this with an API call or something
   // Check that the category specified in the route is an existing category
-  let found = false
-  for (const c of categories.value) {
-    if (c.custom_url_name === category) {
-      found = true
-      break
-    }
-  }
-
-  if (!found) {
-    return undefined
-  }
+  // let found = false
+  // for (const c of categories.value) {
+  //   if (c.custom_url_name === category) {
+  //     found = true
+  //     break
+  //   }
+  // }
+  //
+  // if (!found) {
+  //   return undefined
+  // }
 
   return category
 })
