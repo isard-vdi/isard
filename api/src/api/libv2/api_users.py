@@ -729,35 +729,33 @@ class ApiUsers:
                     traceback.format_exc(),
                 )
 
-            if get_role(role_id) is None:
-                raise Error(
-                    "not_found",
-                    "Not found role_id " + role_id + " for user_id " + user_id,
-                    traceback.format_exc(),
-                )
+        if get_role(role_id) is None:
+            raise Error(
+                "not_found",
+                "Not found role_id " + role_id + " for user_id " + user_id,
+                traceback.format_exc(),
+            )
 
-            if get_category(category_id) is None:
-                raise Error(
-                    "not_found",
-                    "Not found category_id " + category_id + " for user_id " + user_id,
-                    traceback.format_exc(),
-                )
+        if get_category(category_id) is None:
+            raise Error(
+                "not_found",
+                "Not found category_id " + category_id + " for user_id " + user_id,
+                traceback.format_exc(),
+            )
 
-            group = get_group(group_id)
-            if group is None:
-                raise Error(
-                    "not_found",
-                    "Not found group_id " + group_id + " for user_id " + user_id,
-                    traceback.format_exc(),
-                )
-            if password == False:
-                password = _random_password()
-            else:
-                bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode(
-                    "utf-8"
-                )
-            if encrypted_password != False:
-                password = encrypted_password
+        group = get_group(group_id)
+        if group is None:
+            raise Error(
+                "not_found",
+                "Not found group_id " + group_id + " for user_id " + user_id,
+                traceback.format_exc(),
+            )
+        if password == False:
+            password = _random_password()
+        else:
+            bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        if encrypted_password != False:
+            password = encrypted_password
 
         user = {
             "id": user_id,
