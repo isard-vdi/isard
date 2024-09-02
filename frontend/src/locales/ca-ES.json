@@ -46,5 +46,11 @@
         "rate_limit": "S'han produït massa intents d'inici de sessió. Torni-ho a provar a {time}"
       }
     }
+  },
+  "router": {
+    "titles": {
+      "home": "Inici",
+      "login": "Iniciar sessió"
+    }
   }
 }
