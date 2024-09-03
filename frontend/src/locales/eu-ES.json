@@ -33,7 +33,8 @@
         }
       },
       "login-categories-dropdown": {
-        "placeholder": "Kategoria bat hautatu behar da"
+        "placeholder": "Kategoria bat hautatu behar da",
+        "not-found": "Ez da kategoriarik aurkitu"
       },
       "login-category-select": {
         "logged-in-as": "Saioa {name} bezala hasi duzu",

@@ -33,6 +33,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Icon } from '@/components/icon'
 import { Locale, setLocale } from '@/lib/i18n'
+import type { GetCategoriesResponse } from '@/gen/oas/api'
 
 const { t, te, d } = useI18n()
 const route = useRoute()
@@ -194,7 +195,7 @@ const showCategoriesDropdown = computed(() => {
   return display
 })
 
-const categoriesDropdownModel = ref('')
+const categoriesDropdownModel = ref<GetCategoriesResponse[number] | undefined>(undefined)
 const category = computed(() => {
   if (routeCategory.value) {
     return routeCategory.value
@@ -202,7 +203,7 @@ const category = computed(() => {
 
   // If the dropdown is shown, always use this value
   if (showCategoriesDropdown.value) {
-    return categoriesDropdownModel.value
+    return categoriesDropdownModel.value ? categoriesDropdownModel.value.id : undefined
   }
 
   // Fallback to the 'default' category if there's no category
@@ -363,7 +364,9 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
 }
 
 const onFormSubmit = async (values) => {
-  if (category.value === '') {
+  loginError.value = undefined
+
+  if (!category.value) {
     if (showCategoriesDropdown.value) {
       focusCategoriesDropdown()
       return
@@ -383,7 +386,9 @@ const onFormSubmit = async (values) => {
 }
 
 const onExternalSubmit = async (provider: Provider) => {
-  if (category.value === '') {
+  loginError.value = undefined
+
+  if (!category.value) {
     if (showCategoriesDropdown.value) {
       focusCategoriesDropdown()
       return
@@ -442,7 +447,9 @@ const onCategorySelectSubmit = async (categoryId: string) => {
 }
 
 const onForgotPassword = () => {
-  if (category.value === '') {
+  loginError.value = undefined
+
+  if (!category.value) {
     if (showCategoriesDropdown.value) {
       focusCategoriesDropdown()
       return
@@ -525,7 +532,7 @@ watch(config, (newCfg) => {
               v-if="showCategoriesDropdown"
               ref="categoriesDropdownEl"
               v-model:modelValue="categoriesDropdownModel"
-              :categories="categories"
+              :categories="categories || []"
             />
 
             <LoginProviderForm

@@ -33,7 +33,8 @@
         }
       },
       "login-categories-dropdown": {
-        "placeholder": "Selecciona una categoria"
+        "placeholder": "Selecciona una categoria",
+        "not-found": "No s'ha trobat cap categoria"
       },
       "login-category-select": {
         "logged-in-as": "Has iniciat sessió com a {name}",

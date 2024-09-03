@@ -33,7 +33,8 @@
         }
       },
       "login-categories-dropdown": {
-        "placeholder": "Select a category"
+        "placeholder": "Select a category",
+        "not-found": "No category found"
       },
       "login-category-select": {
         "logged-in-as": "Logged in as {name}",
