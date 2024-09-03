@@ -343,12 +343,18 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
   if (isLoginClaims(jwt)) {
     // Login to Webapp
     if (['admin', 'manager'].includes(jwt.data.role_id)) {
-      await fetch('/isard-admin/login', {
-        method: 'POST',
-        headers: {
-          Authorization: authorization
-        }
-      })
+      try {
+        await fetch('/isard-admin/login', {
+          method: 'POST',
+          headers: {
+            Authorization: authorization
+          }
+        })
+      } catch (error) {
+        // If there's an error logging to Webapp, log it and continue.
+        // It probably is a 503, because is in maintenance
+        console.error(error)
+      }
     }
   }
 
