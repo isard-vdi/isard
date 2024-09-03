@@ -67,6 +67,7 @@ const onForgotPassword = () => {
   >
     <Button
       v-if="!props.hideForgotPassword"
+      type="button"
       hierarchy="link-color"
       class="p-0 text-brand-600"
       @click="onForgotPassword"
