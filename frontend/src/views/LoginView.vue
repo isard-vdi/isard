@@ -486,7 +486,7 @@ watch(config, (newCfg) => {
     :description="categorySelectToken ? t('views.login.select-category') : description"
   >
     <template v-if="config?.notification" #cover>
-      <Alert variant="destructive">
+      <Alert class="bg-white border-error-600">
         <Icon
           v-if="config.notification.icon"
           :name="config.notification.icon"
