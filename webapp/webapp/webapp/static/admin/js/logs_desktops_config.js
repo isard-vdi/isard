@@ -52,6 +52,56 @@ $(document).ready(function () {
             });
         });
     });
+
+    $("#btn-delete-logs").on("click", function () {
+        new PNotify({
+            title: "Are you sure you want to delete all logs data?",
+            text: `This action is irreversible and can be resource-demanding.`,
+            addclass: 'pnotify-center-large',
+            confirm: {
+                confirm: true,
+                buttons: [
+                    {
+                        text: 'Delete', click: function (notice) {
+                            $.ajax({
+                                type: "DELETE",
+                                url: "/api/v3/logs_desktops/old_entries/delete/all",
+                                accept: "application/json",
+                            }).done(() => {
+                                new PNotify({
+                                    title: "Deleting logs...",
+                                    text: `All user logs are being deleted`,
+                                    hide: false,
+                                    delay: 1000,
+                                    icon: 'fa fa-spinner fa-pulse',
+                                    opacity: 1,
+                                    type: 'success'
+                                });
+                            }).fail(function (data) {
+                                new PNotify({
+                                    title: "ERROR deleting logs",
+                                    text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+                                    hide: true,
+                                    delay: 1000,
+                                    icon: 'fa fa-error',
+                                    opacity: 1,
+                                    type: 'error'
+                                });
+                            });
+                            notice.remove();
+                        }
+                    },
+                    {
+                        text: 'Cancel', click: function (notice) {
+                            notice.remove();
+                        }
+                    }
+                ]
+            },
+        });
+    });
+
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on);
 });
 
 
@@ -125,5 +175,39 @@ function updateSchedulerJob(action) {
             opacity: 1,
             type: 'error'
         });
+    });
+}
+
+// SOCKETIO
+
+function socketio_on() {
+    socket.on('logs_desktops_action_failed', function (data) {
+      PNotify.removeAll();
+      document.body.classList.remove('loading-cursor');
+      var data = JSON.parse(data);
+      new PNotify({
+        title: `ERROR: ${data.action} all logs desktops`,
+        text: data.msg,
+        hide: true,
+        delay: 5000,
+        icon: 'fa fa-warning',
+        opacity: 1,
+        type: 'error'
+      });
+    });
+  
+    socket.on('logs_desktops_action_completed', function (data) {
+      PNotify.removeAll();
+      document.body.classList.remove('loading-cursor');
+      var data = JSON.parse(data);
+      new PNotify({
+        title: `Action Succeeded: ${data.action}`,
+        text: `The action "${data.action}" completed on all logs desktops.`,
+        hide: true,
+        delay: 4000,
+        icon: 'fa fa-success',
+        opacity: 1,
+        type: 'success'
+      });
     });
 }

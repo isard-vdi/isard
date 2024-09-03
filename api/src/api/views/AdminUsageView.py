@@ -21,6 +21,7 @@
 import json
 from datetime import date, datetime
 
+import gevent
 import pytz
 from cachetools import TTLCache, cached
 from flask import request
@@ -37,6 +38,7 @@ from ..libv2.api_usage import (
     add_usage_parameters,
     consolidate_consumptions,
     count_usage_consumers,
+    delete_all_consumption_data,
     delete_usage_credit,
     delete_usage_grouping,
     delete_usage_limits,
@@ -634,6 +636,17 @@ def api_v3_admin_usage_reset_add(payload):
 
     return (
         json.dumps(data["date_list"]),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/usage/delete_data", methods=["DELETE"])
+@is_admin
+def api_v3_admin_usage_delete_consumption_data(payload):
+    gevent.spawn(delete_all_consumption_data)
+    return (
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )

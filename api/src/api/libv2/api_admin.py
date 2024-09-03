@@ -1281,11 +1281,15 @@ class ApiAdmin:
         except r.ReqlNonExistenceError:
             return {"max_time": None, "action": None}
 
-    def get_older_than_old_entry_max_time(self, table):
+    def get_older_than_old_entry_max_time(self, table, max_time_config=None):
         if table == "logs_desktops":
-            max_time_config = self.get_logs_desktops_old_entries_config()["max_time"]
+            if max_time_config is None:
+                max_time_config = self.get_logs_desktops_old_entries_config()[
+                    "max_time"
+                ]
         elif table == "logs_users":
-            max_time_config = self.get_logs_users_old_entries_config()["max_time"]
+            if max_time_config is None:
+                max_time_config = self.get_logs_users_old_entries_config()["max_time"]
         else:
             raise Error(
                 "forbidden",

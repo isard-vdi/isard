@@ -321,7 +321,7 @@ def add_logs_desktops_entries(payload, action):
                     "system",
                     "cron",
                     f"logs_desktops_old_entries_action_{action}",
-                    "00",
+                    "22",
                     "30",
                     f"logs_desktops_old_entries_action_{action}",
                     kwargs={},
