@@ -427,76 +427,85 @@ router.beforeEach(async (to, from, next) => {
   if (to.matched.some((record) => record.meta.requiresAuth)) {
     // No session yet
     if (!session) {
-      window.location = '/login'
-    } else {
-      const sessionData = jwtDecode(session)
-      // Handle user registration
-      if (sessionData.type === 'register') {
-        if (to.name !== 'Register') {
-          next({ name: 'Register' })
-          return
-        }
-
+      const authCookie = getCookie('authorization')
+      if (!authCookie) {
+        window.location.href = '/login'
         next()
         return
       }
 
-      // TODO: The session might not be expired but it could be revoked
-      if (new Date() > new Date((sessionData.exp - 30) * 1000)) {
-        await store.dispatch('renew')
-        session = store.getters.getSession
-        if (session) {
-          store.dispatch('saveNavigation', { url: to })
-          next()
-        } else {
-          store.dispatch('logout')
-        }
-      } else {
+      store.dispatch('loginSuccess', authCookie)
+      next()
+      return
+    }
+
+    const sessionData = jwtDecode(session)
+    // Handle user registration
+    if (sessionData.type === 'register') {
+      if (to.name !== 'Register') {
+        next({ name: 'Register' })
+        return
+      }
+
+      next()
+      return
+    }
+
+    // TODO: The session might not be expired but it could be revoked
+    if (new Date() > new Date((sessionData.exp - 30) * 1000)) {
+      await store.dispatch('renew')
+      session = store.getters.getSession
+      if (session) {
         store.dispatch('saveNavigation', { url: to })
-        store.dispatch('fetchUser')
-        // Logged in without requirements
-        if (!to.query.token && !sessionData.type) {
-          if (
-            to.meta.allowedRoles &&
-            to.meta.allowedRoles.includes(store.getters.getUser.role_id)
-          ) {
-            store.dispatch('openSocket', {})
-            if (isEmpty(store.getters.getConfig)) {
-              store.dispatch('fetchConfig')
-            }
-            if (!store.getters.getMaxTime) {
-              store.dispatch('fetchMaxTime')
-            }
-            next()
-          } else {
-            store.dispatch('saveNavigation', { url: from })
-            next({ name: 'desktops' })
+        next()
+      } else {
+        store.dispatch('logout')
+      }
+    } else {
+      store.dispatch('saveNavigation', { url: to })
+      store.dispatch('fetchUser')
+      // Logged in without requirements
+      if (!to.query.token && !sessionData.type) {
+        if (
+          to.meta.allowedRoles &&
+          to.meta.allowedRoles.includes(store.getters.getUser.role_id)
+        ) {
+          store.dispatch('openSocket', {})
+          if (isEmpty(store.getters.getConfig)) {
+            store.dispatch('fetchConfig')
           }
-          // Requires disclaimer acceptance, will be redirected
-        } else if (
-          to.name !== 'Disclaimer' &&
-          ['disclaimer-acknowledgement-required'].includes(sessionData.type)
-        ) {
-          router.push({ name: 'Disclaimer' })
-          // Requires email verification, will be redirected
-        } else if (
-          to.name !== 'VerifyEmail' &&
-          ['email-verification-required', 'email-verification'].includes(
-            sessionData.type
-          )
-        ) {
-          router.push({ name: 'VerifyEmail' })
-          // Requires password reset, will be redirected
-        } else if (
-          to.name !== 'ResetPassword' &&
-          ['password-reset-required', 'password-reset'].includes(
-            sessionData.type
-          )
-        ) {
-          router.push({ name: 'ResetPassword' })
-        } else {
+          if (!store.getters.getMaxTime) {
+            store.dispatch('fetchMaxTime')
+          }
           next()
+        } else {
+          store.dispatch('saveNavigation', { url: from })
+          next({ name: 'desktops' })
         }
+        // Requires disclaimer acceptance, will be redirected
+      } else if (
+        to.name !== 'Disclaimer' &&
+        ['disclaimer-acknowledgement-required'].includes(sessionData.type)
+      ) {
+        router.push({ name: 'Disclaimer' })
+        // Requires email verification, will be redirected
+      } else if (
+        to.name !== 'VerifyEmail' &&
+        ['email-verification-required', 'email-verification'].includes(
+          sessionData.type
+        )
+      ) {
+        router.push({ name: 'VerifyEmail' })
+        // Requires password reset, will be redirected
+      } else if (
+        to.name !== 'ResetPassword' &&
+        ['password-reset-required', 'password-reset'].includes(
+          sessionData.type
+        )
+      ) {
+        router.push({ name: 'ResetPassword' })
+      } else {
+        next()
       }
     }
   } else {
