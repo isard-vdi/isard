@@ -48,7 +48,7 @@ export default {
     acknowledgeDisclaimer (context) {
       const disclaimerAxios = axios.create()
       disclaimerAxios.interceptors.request.use(config => {
-        config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
+        config.headers.Authorization = `Bearer ${getCookie(sessionCookieName) || getCookie('authorization')}`
         return config
       })
       disclaimerAxios.post(`${authenticationSegment}/acknowledge-disclaimer`, {}).then((response) => {

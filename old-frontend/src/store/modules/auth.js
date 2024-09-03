@@ -92,7 +92,7 @@ export default {
       })
       await authentication
         .post(
-          `/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}`,
+          `/login?provider=${data ? data.get('provider') : 'form'}&category_id=${data ? data.get('category_id') : 'default'}`,
           data,
           { timeout: 25000 }
         )
