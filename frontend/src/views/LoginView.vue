@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { computed, type ComputedRef, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createClient, createConfig, type Options as ClientOptions } from '@hey-api/client-fetch'
-import { useQuery } from '@tanstack/vue-query'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { providersOptions } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
 import { login, type LoginData, type LoginError as AuthLoginError } from '@/gen/oas/authentication'
-import { getCategoriesOptions, getLoginConfigOptions } from '@/gen/oas/api/@tanstack/vue-query.gen'
+import {
+  getCategoriesOptions,
+  getCategoriesQueryKey,
+  getCategoryOptions,
+  getCategoryQueryKey,
+  getLoginConfigOptions
+} from '@/gen/oas/api/@tanstack/vue-query.gen'
 import {
   parseToken as parseAuthToken,
   getToken as getAuthToken,
@@ -37,51 +43,13 @@ import type { GetCategoriesResponse } from '@/gen/oas/api'
 
 const { t, te, d } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const cookies = useAuthCookies()
+const queryClient = useQueryClient()
 
-const {
-  isPending: providersIsPending,
-  isError: providersIsError,
-  error: providersError,
-  data: providers
-} = useQuery(providersOptions())
-
-const {
-  isPending: categoriesIsPending,
-  isError: categoriesIsError,
-  error: categoriesError,
-  data: categories
-} = useQuery(getCategoriesOptions())
-
-const {
-  isPending: configIsPending,
-  isError: configIsError,
-  error: configError,
-  data: config
-} = useQuery(getLoginConfigOptions())
-
-const isPending = computed(
-  () => providersIsPending.value || categoriesIsPending.value || configIsPending.value
-)
-const isError = computed(
-  () => providersIsError.value || categoriesIsError.value || configIsError.value
-)
-const error = computed(() => {
-  if (providersIsError.value) {
-    return providersError.value
-  }
-
-  if (categoriesIsError.value) {
-    return categoriesError.value
-  }
-
-  if (configIsError.value) {
-    return configError.value
-  }
-
-  return undefined
-})
-
+/*
+ * Route arguments
+ */
 const routeProvider = computed(() => {
   const provider = Array.isArray(route.params.provider)
     ? route.params.provider[0]
@@ -104,29 +72,85 @@ const routeCategory = computed(() => {
     ? route.params.category[0]
     : route.params.category
 
-  // Check that the category specified in the route is valid
-  if (category === '' || isPending.value || !categories.value) {
-    // TODO: Router push to /login/provider if the category invalid / not active / whatever
-    return undefined
-  }
-
-  // TODO: Solve this with an API call or something
-  // Check that the category specified in the route is an existing category
-  // let found = false
-  // for (const c of categories.value) {
-  //   if (c.custom_url_name === category) {
-  //     found = true
-  //     break
-  //   }
-  // }
-  //
-  // if (!found) {
-  //   return undefined
-  // }
-
-  return category
+  return category !== '' ? category : undefined
 })
 
+/*
+ * Data loading
+ */
+const {
+  isPending: providersIsPending,
+  isError: providersIsError,
+  error: providersError,
+  data: providers
+} = useQuery(providersOptions())
+
+const {
+  isPending: configIsPending,
+  isError: configIsError,
+  error: configError,
+  data: config
+} = useQuery(getLoginConfigOptions())
+
+const categoriesOpts = computed(() => getCategoriesOptions())
+const categoriesQueryKey = computed(() => getCategoriesQueryKey())
+const {
+  isPending: categoriesIsPending,
+  isError: categoriesIsError,
+  error: categoriesError,
+  data: categories
+} = useQuery({
+  ...categoriesOpts.value,
+  queryKey: categoriesQueryKey,
+  enabled: computed(() => !routeCategory.value)
+})
+
+const categoryOpts = computed(() =>
+  getCategoryOptions({
+    path: {
+      custom_url: routeCategory.value || ''
+    }
+  })
+)
+const categoryQueryKey = computed(() =>
+  getCategoryQueryKey({
+    path: {
+      custom_url: routeCategory.value || ''
+    }
+  })
+)
+const {
+  isPending: categoryIsPending,
+  isError: categoryIsError,
+  error: categoryError,
+  data: category
+} = useQuery({
+  ...categoryOpts.value,
+  queryKey: categoryQueryKey,
+  enabled: computed(() => !!routeCategory.value)
+})
+
+const isPending = computed(
+  () =>
+    providersIsPending.value ||
+    configIsPending.value ||
+    (categoriesIsPending.value && categoryIsPending.value)
+)
+
+const isError = computed(
+  () =>
+    providersIsError.value ||
+    configIsError.value ||
+    categoriesIsError.value ||
+    categoryIsError.value
+)
+const error = computed(
+  () => providersError.value || configError.value || categoriesError.value || categoryError.value
+)
+
+/*
+ * View logic
+ */
 const showProvider = (provider: Provider): ComputedRef<boolean> =>
   computed(() => {
     // Check that the provider is enabled by authentication
@@ -155,6 +179,11 @@ const providersToShow = computed(() =>
 
 const showCategoriesDropdown = computed(() => {
   let display = true
+
+  // If there's a category set in the URL, don't show the dropdown
+  if (routeCategory.value) {
+    return false
+  }
 
   const providersConfig = config.value?.providers
   if (providersConfig) {
@@ -187,18 +216,13 @@ const showCategoriesDropdown = computed(() => {
     }
   }
 
-  // If there's a category set in the URL, don't show the dropdown
-  if (routeCategory.value) {
-    display = false
-  }
-
   return display
 })
 
 const categoriesDropdownModel = ref<GetCategoriesResponse[number] | undefined>(undefined)
-const category = computed(() => {
-  if (routeCategory.value) {
-    return routeCategory.value
+const selectedCategory = computed(() => {
+  if (category.value) {
+    return category.value.id
   }
 
   // If the dropdown is shown, always use this value
@@ -308,6 +332,9 @@ const categorySelectToken = computed(() => {
   return token.categories
 })
 
+/*
+ * Actions
+ */
 const submitLogin = async (options: ClientOptions<LoginData>) => {
   // Cleanup old tokens
   removeAuthToken(cookies)
@@ -366,7 +393,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
 const onFormSubmit = async (values) => {
   loginError.value = undefined
 
-  if (!category.value) {
+  if (!selectedCategory.value) {
     if (showCategoriesDropdown.value) {
       focusCategoriesDropdown()
       return
@@ -379,7 +406,7 @@ const onFormSubmit = async (values) => {
   await submitLogin({
     body: values,
     query: {
-      category_id: category.value,
+      category_id: selectedCategory.value,
       provider: 'form'
     }
   })
@@ -388,7 +415,7 @@ const onFormSubmit = async (values) => {
 const onExternalSubmit = async (provider: Provider) => {
   loginError.value = undefined
 
-  if (!category.value) {
+  if (!selectedCategory.value) {
     if (showCategoriesDropdown.value) {
       focusCategoriesDropdown()
       return
@@ -400,7 +427,7 @@ const onExternalSubmit = async (provider: Provider) => {
 
   const data: LoginData = {
     query: {
-      category_id: category.value,
+      category_id: selectedCategory.value,
       provider: provider,
       redirect: '/'
     }
@@ -449,7 +476,7 @@ const onCategorySelectSubmit = async (categoryId: string) => {
 const onForgotPassword = () => {
   loginError.value = undefined
 
-  if (!category.value) {
+  if (!selectedCategory.value) {
     if (showCategoriesDropdown.value) {
       focusCategoriesDropdown()
       return
@@ -459,8 +486,12 @@ const onForgotPassword = () => {
     return
   }
 
-  window.location.href = '/forgot-password?categoryId=' + category.value
+  window.location.href = '/forgot-password?categoryId=' + selectedCategory.value
 }
+
+/*
+ * Watchers
+ */
 
 // Redirect to the maintenance page if there's a maintenance error
 watch(error, (newErr) => {
@@ -475,6 +506,21 @@ watch(config, (newCfg) => {
     setLocale(newCfg.locale.default as Locale)
   }
 })
+
+watch(categoryError, (newErr) => {
+  if (newErr && JSON.parse(newErr.message).error === 'not_found') {
+    router
+      .push({
+        name: 'login',
+        params: {
+          provider: routeProvider.value
+        }
+      })
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: categoryQueryKey.value })
+      })
+  }
+})
 </script>
 
 <template>
@@ -482,7 +528,7 @@ watch(config, (newCfg) => {
     :loading="isPending"
     :hide-locale-switch="config?.locale?.hide"
     :hide-logo="config?.logo?.hide"
-    :title="config?.info?.title"
+    :title="category?.name || config?.info?.title"
     :description="categorySelectToken ? t('views.login.select-category') : description"
   >
     <template v-if="config?.notification" #cover>

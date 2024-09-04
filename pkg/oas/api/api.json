@@ -27,6 +27,38 @@
         "security": []
       }
     },
+    "/api/v3/category/{custom_url}": {
+      "get": {
+        "operationId": "GetCategory",
+        "summary": "List all the available categories for the user to login",
+        "description": "",
+        "parameters": [
+          {
+              "in": "path",
+              "name": "custom_url",
+              "description": "The custom_url for the category",
+              "required": true,
+              "schema": {
+                  "type": "string"
+              }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCategoryResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [],
+        "security": []
+      }
+    },
     "/api/v3/login_config": {
       "get": {
         "operationId": "GetLoginConfig",
@@ -82,6 +114,21 @@
           },
           "required": ["id", "name", "frontend"]
         }
+      },
+      "GetCategoryResponse": {
+        "type": "object",
+        "title": "Category data",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "The ID of the category"
+          },
+          "name": {
+            "type": "string",
+            "title": "The name of the category"
+          }
+        },
+        "required": ["id", "name"]
       },
       "GetLoginConfigResponse": {
         "type": "object",
