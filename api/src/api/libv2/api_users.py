@@ -1779,7 +1779,10 @@ class ApiUsers:
 
     def get_user_policy(self, subtype, category, role, user_id=None):
         if user_id:
-            user = get_user(user_id)
+            with app.app_context():
+                user = (
+                    r.table("users").get(user_id).pluck("category", "role").run(db.conn)
+                )
             category = user["category"]
             role = user["role"]
 
@@ -1816,7 +1819,13 @@ class ApiUsers:
         return self.get_user_policy("email_verification", category, role, user_id)
 
     def change_password(self, password, user_id):
-        user = get_user(user_id)
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("category", "role", "password_history")
+                .run(db.conn)
+            )
 
         p = Password()
         policy = self.get_user_password_policy(user["category"], user["role"])
@@ -1841,7 +1850,13 @@ class ApiUsers:
             ).run(db.conn)
 
     def check_password_expiration(self, user_id):
-        user = get_user(user_id)
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("category", "role", "password_last_updated", "provider")
+                .run(db.conn)
+            )
         if user["provider"] != "local":
             return False
         policy = self.get_user_password_policy(
@@ -1878,7 +1893,13 @@ class ApiUsers:
     def check_verified_email(self, user_id):
         if not os.environ.get("NOTIFY_EMAIL"):
             return False
-        user = get_user(user_id)
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("email_verified", "category", "role", "provider")
+                .run(db.conn)
+            )
         if user["provider"] != "local":
             return False
         policy = self.get_email_policy(user["category"], user["role"])
@@ -1888,7 +1909,13 @@ class ApiUsers:
             return user["email_verified"]
 
     def check_acknowledged_disclaimer(self, user_id):
-        user = get_user(user_id)
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("role", "category", "lang", "disclaimer_acknowledged")
+                .run(db.conn)
+            )
         if user.get("disclaimer_acknowledged"):
             return False
 
@@ -2117,7 +2144,13 @@ class Password(object):
             )
 
         if user_id:  # new users do not have user_id
-            user = get_user(user_id)
+            with app.app_context():
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .pluck("username", "password_history")
+                    .run(db.conn)
+                )
             username = user["username"]
 
             if policy["old_passwords"]:
