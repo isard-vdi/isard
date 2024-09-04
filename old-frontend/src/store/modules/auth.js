@@ -90,22 +90,21 @@ export default {
         }
         return config
       })
-      await authentication
+      const response = await authentication
         .post(
           `/login?provider=${data ? data.get('provider') : 'form'}&category_id=${data ? data.get('category_id') : 'default'}`,
           data,
           { timeout: 25000 }
         )
-        .then((response) => {
-          const token = jwtDecode(response.data)
-          if (token.type === 'register') {
-            router.push({ name: 'Register' })
-          } else if (token.type === 'category-select') {
-            window.location = '/'
-          } else {
-            context.dispatch('loginSuccess', response.data)
-          }
-        })
+
+      const token = jwtDecode(response.data)
+      if (token.type === 'register') {
+        router.push({ name: 'Register' })
+      } else if (token.type === 'category-select') {
+        window.location = '/'
+      } else {
+        context.dispatch('loginSuccess', response.data)
+      }
     },
     fetchUserCategories (context) {
       const token = jwtDecode(getCookie('authorization'))
@@ -254,7 +253,7 @@ export default {
     },
     fetchUser (context) {
       // Get basic user info from token
-      const tokenPayload = jwtDecode(getCookie(sessionCookieName))
+      const tokenPayload = jwtDecode(context.getters.getSession)
       if (tokenPayload.data) {
         context.commit('setUser', tokenPayload.data)
 

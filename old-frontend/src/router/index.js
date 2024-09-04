@@ -429,12 +429,18 @@ router.beforeEach(async (to, from, next) => {
     if (!session) {
       const authCookie = getCookie('authorization')
       if (!authCookie) {
+        if (['VerifyEmail', 'ResetPassword'].includes(to.name)) {
+          if (to.query.token) {
+            next()
+            return
+          }
+        }
+
         window.location.href = '/login'
         return
       }
 
       store.dispatch('loginSuccess', authCookie)
-      next()
       return
     }
 
