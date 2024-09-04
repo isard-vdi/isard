@@ -430,7 +430,6 @@ router.beforeEach(async (to, from, next) => {
       const authCookie = getCookie('authorization')
       if (!authCookie) {
         window.location.href = '/login'
-        next()
         return
       }
 
