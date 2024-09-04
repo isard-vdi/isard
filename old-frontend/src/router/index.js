@@ -448,6 +448,9 @@ router.beforeEach(async (to, from, next) => {
 
       next()
       return
+    } else if (sessionData.type === 'category-select') {
+      window.location.href = '/login'
+      return
     }
 
     // TODO: The session might not be expired but it could be revoked
