@@ -436,7 +436,9 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
     storage = Storage(storage_id)
     if not storage.user_id:
         raise Error("not_found", description_code="storage_not_found")
-    if len(get_storage_derivatives(storage_id)) > 1:
+
+    storage_domains = get_storage_derivatives(storage.id)
+    if len(storage_domains) > 1:
         raise Error(
             "precondition_required",
             "Unable to edit Windows registry of storage with derivatives",
@@ -448,9 +450,9 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
             description_code="desktops_not_stopped",
         )
 
-    desktops.set_desktops_maintenance(payload, storage_id, "virt_win_reg")
-    set_storage_maintenance(payload, storage_id)
-    storage_domains = get_storage_derivatives(storage.id)
+    desktops.set_desktops_maintenance(
+        payload, storage_id, "virt_win_reg", domains=storage_domains
+    )
 
     try:
         storage.create_task(
@@ -754,9 +756,11 @@ def storage_move(payload, storage_id, path):
             description_code="desktops_not_stopped",
         )
 
-    desktops.set_desktops_maintenance(payload, storage_id, "move")
-    storage.status = "maintenance"
     storage_domains = get_storage_derivatives(storage.id)
+    desktops.set_desktops_maintenance(
+        payload, storage_id, "move", domains=storage_domains
+    )
+    storage.status = "maintenance"
 
     storage_pool_origin = StoragePool.get_best_for_action(
         "move", path=storage.directory_path
@@ -1044,7 +1048,9 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
             description_code="desktops_not_stopped",
         )
 
-    desktops.set_desktops_maintenance(payload, storage_id, "increase")
+    desktops.set_desktops_maintenance(
+        payload, storage_id, "increase", domains=storage_domains
+    )
     set_storage_maintenance(payload, storage_id)
 
     socketio.emit(
@@ -1297,7 +1303,7 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
             description_code="desktops_not_stopped",
         )
 
-    set_desktops_maintenance(payload, storage_id, "recreate")
+    desktops.set_desktops_maintenance(payload, storage_id, "recreate")
     storage_orig = set_storage_maintenance(payload, storage_id)
 
     if request.is_json:
