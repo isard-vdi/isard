@@ -14,6 +14,7 @@ openapi_ts() {
 
 rm -rf pkg/gen
 rm -rf frontend/src/gen
+rm -f ./*/**/testing_*_mock.go
 
 # Protobuf
 source /venv/bin/activate
