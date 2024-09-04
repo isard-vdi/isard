@@ -12,6 +12,7 @@ import portion as P
 import pytz
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
+from rethinkdb.errors import ReqlNonExistenceError
 
 from api import app
 
@@ -639,3 +640,85 @@ def bookings_max_units(bookings):
 
     # get max units for all items:
     return max([item[1]["units"] for item in items])
+
+
+def check_all_bookings(batch_size=250):
+    app.logger.info("check_all_bookings Started")
+
+    # filter all desktops with an old booking
+    with app.app_context():
+        desktops = list(
+            r.table("domains")
+            .get_all("desktop", index="kind")
+            .eq_join("booking_id", r.table("bookings"))
+            .filter(lambda booking: booking["right"]["end"] < r.now())["left"]["id"]
+            .run(db.conn)
+        )
+    app.logger.info(
+        f"check_all_bookings Updating {len(desktops)} desktops with old bookings"
+    )
+    for i in range(0, len(desktops), batch_size):
+        batch_ids = desktops[i : i + batch_size]
+        with app.app_context():
+            r.table("domains").get_all(r.args(batch_ids)).update(
+                {"booking_id": False}
+            ).run(db.conn)
+
+    # filter all desktops with a non existing booking
+    with app.app_context():
+        bookings = list(
+            r.table("domains")
+            .get_all("desktop", index="kind_valid_booking")
+            .filter(lambda desktop: desktop["booking_id"] != False)
+            .pluck("booking_id")["booking_id"]
+            .run(db.conn)
+        )
+    with app.app_context():
+        existing_bookings = list(
+            r.table("bookings").get_all(r.args(bookings))["id"].run(db.conn)
+        )
+    nonexistent_bookings = [b for b in bookings if b not in existing_bookings]
+    app.logger.info(
+        f"check_all_bookings Updating {len(nonexistent_bookings)} desktops with nonexistent bookings"
+    )
+
+    for i in range(0, len(nonexistent_bookings), batch_size):
+        batch_ids = nonexistent_bookings[i : i + batch_size]
+        with app.app_context():
+            r.table("domains").get_all(r.args(batch_ids), index="booking_id").update(
+                {"booking_id": False}
+            ).run(db.conn)
+
+    # update desktops with current booking
+    with app.app_context():
+        current_bookings = list(
+            r.table("bookings")
+            .get_all("desktop", index="item_type")
+            .filter(
+                lambda booking: booking["start"] < r.now() and booking["end"] > r.now()
+            )
+            .run(db.conn)
+        )
+    for booking in current_bookings:
+        with app.app_context():
+            r.table("domains").get(booking["item_id"]).update(
+                {"booking_id": booking["id"]}
+            ).run(db.conn)
+
+    # update deployment desktops with current booking
+    with app.app_context():
+        current_bookings = list(
+            r.table("bookings")
+            .get_all("deployment", index="item_type")
+            .filter(
+                lambda booking: booking["start"] < r.now() and booking["end"] > r.now()
+            )
+            .run(db.conn)
+        )
+    for booking in current_bookings:
+        with app.app_context():
+            r.table("domains").get_all(booking["item_id"], index="tag").update(
+                {"booking_id": booking["id"]}
+            ).run(db.conn)
+
+    app.logger.info("check_all_bookings Finished")
