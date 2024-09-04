@@ -3,21 +3,28 @@
 #
 FROM node:18.20-alpine AS old-frontend
 
-RUN mkdir /isard-frontend
-COPY old-frontend /isard-frontend
-
 ARG SRC_VERSION_ID
 ARG SRC_VERSION_LINK
 
-WORKDIR /isard-frontend
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++
 
-RUN apk add python3 make g++
+WORKDIR /build
+
+COPY old-frontend/package.json /build
+COPY old-frontend/yarn.lock /build
+
 RUN yarn install --frozen-lockfile
-RUN yarn build
 
-RUN rm -rf src
-RUN rm -rf node_modules
-RUN rm -rf build
+WORKDIR /
+
+COPY old-frontend /build
+
+WORKDIR /build
+
+RUN yarn build
 
 #
 # frontend
@@ -81,4 +88,4 @@ COPY frontend/src/assets/logo.svg /usr/share/nginx/html/default_logo.svg
 COPY --from=frontend /build/dist /usr/share/nginx/html/frontend
 
 # Old frontend
-COPY --from=old-frontend /isard-frontend/dist /usr/share/nginx/html/old-frontend
+COPY --from=old-frontend /build/dist /usr/share/nginx/html/old-frontend
