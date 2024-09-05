@@ -270,6 +270,10 @@ func (c *Client) do(ctx context.Context, req *http.Request, v interface{}) (*htt
 		return rsp, errRsp
 	}
 
+	if rsp.StatusCode == http.StatusServiceUnavailable {
+		return rsp, ErrMaintenance
+	}
+
 	// TODO: Should we react to more non 200 codes? (>=500)
 	if rsp.StatusCode >= http.StatusInternalServerError {
 		return rsp, fmt.Errorf("unexpected http code: %d", rsp.StatusCode)

@@ -94,4 +94,9 @@ var (
 		Msg:        "Insufficient storage",
 		StatusCode: http.StatusInsufficientStorage,
 	}
+	ErrMaintenance = Err{
+		Err:        "maintenance",
+		Msg:        "Maintenance",
+		StatusCode: http.StatusServiceUnavailable,
+	}
 )
