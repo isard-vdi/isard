@@ -9,3 +9,8 @@ quota:
 role:
   type: string
   coerce: sanitize
+limits:
+  type: 
+    - dict
+    - boolean
+  schema: limits
