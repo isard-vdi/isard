@@ -1,5 +1,6 @@
 import { type JwtPayload, jwtDecode } from 'jwt-decode'
 import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
+import type { CookieSetOptions } from 'universal-cookie'
 
 interface ProviderUserData {
   provider: string
@@ -94,17 +95,16 @@ export const getToken = (
   return parseToken(bearer)
 }
 
+const cookieOpts: CookieSetOptions = {
+  path: '/',
+  sameSite: 'strict'
+}
+
 export const setToken = (cookies: ReturnType<typeof useCookies>, bearer: string) => {
-  cookies.set(sessionTokenName, bearer, {
-    path: '/'
-  })
+  cookies.set(sessionTokenName, bearer, cookieOpts)
 }
 
 export const removeToken = (cookies: ReturnType<typeof useCookies>) => {
-  cookies.remove(authorizationTokenName, {
-    path: '/'
-  })
-  cookies.remove(sessionTokenName, {
-    path: '/'
-  })
+  cookies.remove(authorizationTokenName, cookieOpts)
+  cookies.remove(sessionTokenName, cookieOpts)
 }
