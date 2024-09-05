@@ -65,6 +65,7 @@ from .decorators import (
     CategoryNameGroupNameMatch,
     checkDuplicate,
     checkDuplicateCustomURL,
+    checkDuplicateUID,
     checkDuplicateUser,
     has_token,
     is_admin,
@@ -547,6 +548,7 @@ def api_v3_admin_edit_category(payload, category_id):
 
     data = _validate_item("category_update", data)
     checkDuplicate("categories", data["name"], item_id=data["id"])
+    checkDuplicateUID(data["uid"], category_id=data["id"])
     checkDuplicateCustomURL(data["custom_url_name"], category_id=data["id"])
     admin_table_update("categories", data)
     return json.dumps(data), 200, {"Content-Type": "application/json"}
@@ -638,16 +640,8 @@ def api_v3_admin_category_insert(payload):
     group = _validate_item("group", group)
 
     checkDuplicate("categories", category["name"])
-    try:
-        checkDuplicate("categories", category["uid"])
-    except:
-        raise Error(
-            "conflict",
-            f"Category UID \"{category['uid']}\" already exists",
-            traceback.format_exc(),
-        )
+    checkDuplicateUID(data["uid"])
     checkDuplicateCustomURL(category["custom_url_name"])
-
     admin_table_insert("categories", category)
     admin_table_insert("groups", group)
     return (
