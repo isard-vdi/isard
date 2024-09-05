@@ -44,48 +44,16 @@ type AuthenticationLocal struct {
 }
 
 type AuthenticationLDAP struct {
-	Enabled            bool       `mapstructure:"enabled"`
-	Protocol           string     `mapstructure:"protocol"`
-	Host               string     `mapstructure:"host"`
-	Port               int        `mapstructure:"port"`
-	BindDN             string     `mapstructure:"bind_dn"`
-	Password           string     `mapstructure:"password"`
-	BaseSearch         string     `mapstructure:"base_search"`
-	Filter             string     `mapstructure:"filter"`
-	FieldUID           string     `mapstructure:"field_uid"`
-	RegexUID           string     `mapstructure:"regex_uid"`
-	FieldUsername      string     `mapstructure:"field_username"`
-	RegexUsername      string     `mapstructure:"regex_username"`
-	FieldName          string     `mapstructure:"field_name"`
-	RegexName          string     `mapstructure:"regex_name"`
-	FieldEmail         string     `mapstructure:"field_email"`
-	RegexEmail         string     `mapstructure:"regex_email"`
-	FieldPhoto         string     `mapstructure:"field_photo"`
-	RegexPhoto         string     `mapstructure:"regex_photo"`
-	AutoRegister       bool       `mapstructure:"auto_register"`
-	GuessCategory      bool       `mapstructure:"guess_category"`
-	FieldCategory      string     `mapstructure:"field_category"`
-	RegexCategory      string     `mapstructure:"regex_category"`
-	FieldGroup         string     `mapstructure:"field_group"`
-	RegexGroup         string     `mapstructure:"regex_group"`
-	DefaultGroup       string     `mapstructure:"default_group"`
-	GroupsSearch       string     `mapstructure:"groups_search"`
-	GroupsFilter       string     `mapstructure:"groups_filter"`
-	GroupsSearchUseDN  bool       `mapstructure:"groups_search_use_dn"`
-	GroupsSearchField  string     `mapstructure:"groups_search_field"`
-	GroupsSearchRegex  string     `mapstructure:"groups_search_regex"`
-	RoleAdminGroups    []string   `mapstructure:"role_admin_groups"`
-	RoleManagerGroups  []string   `mapstructure:"role_manager_groups"`
-	RoleAdvancedGroups []string   `mapstructure:"role_advanced_groups"`
-	RoleUserGroups     []string   `mapstructure:"role_user_groups"`
-	RoleDefault        model.Role `mapstructure:"role_default"`
-}
+	Enabled bool `mapstructure:"enabled"`
 
-type AuthenticationSAML struct {
-	Enabled       bool
-	MetadataURL   string `mapstructure:"metadata_url"`
-	KeyFile       string `mapstructure:"key_file"`
-	CertFile      string `mapstructure:"cert_file"`
+	Protocol   string `mapstructure:"protocol"`
+	Host       string `mapstructure:"host"`
+	Port       int    `mapstructure:"port"`
+	BindDN     string `mapstructure:"bind_dn"`
+	Password   string `mapstructure:"password"`
+	BaseSearch string `mapstructure:"base_search"`
+
+	Filter        string `mapstructure:"filter"`
 	FieldUID      string `mapstructure:"field_uid"`
 	RegexUID      string `mapstructure:"regex_uid"`
 	FieldUsername string `mapstructure:"field_username"`
@@ -96,6 +64,67 @@ type AuthenticationSAML struct {
 	RegexEmail    string `mapstructure:"regex_email"`
 	FieldPhoto    string `mapstructure:"field_photo"`
 	RegexPhoto    string `mapstructure:"regex_photo"`
+
+	AutoRegister      bool     `mapstructure:"auto_register"`
+	AutoRegisterRoles []string `mapstructure:"auto_register_roles"`
+
+	GuessCategory bool   `mapstructure:"guess_category"`
+	FieldCategory string `mapstructure:"field_category"`
+	RegexCategory string `mapstructure:"regex_category"`
+
+	FieldGroup   string `mapstructure:"field_group"`
+	RegexGroup   string `mapstructure:"regex_group"`
+	GroupDefault string `mapstructure:"group_default"`
+
+	RoleListSearchBase string `mapstructure:"role_list_search_base"`
+	RoleListFilter     string `mapstructure:"role_list_filter"`
+	RoleListUseUserDN  bool   `mapstructure:"role_list_use_user_dn"`
+	RoleListField      string `mapstructure:"role_list_field"`
+	RoleListRegex      string `mapstructure:"role_list_regex"`
+
+	RoleAdminIDs    []string   `mapstructure:"role_admin_ids"`
+	RoleManagerIDs  []string   `mapstructure:"role_manager_ids"`
+	RoleAdvancedIDs []string   `mapstructure:"role_advanced_ids"`
+	RoleUserIDs     []string   `mapstructure:"role_user_ids"`
+	RoleDefault     model.Role `mapstructure:"role_default"`
+}
+
+type AuthenticationSAML struct {
+	Enabled bool
+
+	MetadataURL string `mapstructure:"metadata_url"`
+	KeyFile     string `mapstructure:"key_file"`
+	CertFile    string `mapstructure:"cert_file"`
+
+	FieldUID      string `mapstructure:"field_uid"`
+	RegexUID      string `mapstructure:"regex_uid"`
+	FieldUsername string `mapstructure:"field_username"`
+	RegexUsername string `mapstructure:"regex_username"`
+	FieldName     string `mapstructure:"field_name"`
+	RegexName     string `mapstructure:"regex_name"`
+	FieldEmail    string `mapstructure:"field_email"`
+	RegexEmail    string `mapstructure:"regex_email"`
+	FieldPhoto    string `mapstructure:"field_photo"`
+	RegexPhoto    string `mapstructure:"regex_photo"`
+
+	AutoRegister      bool     `mapstructure:"auto_register"`
+	AutoRegisterRoles []string `mapstructure:"auto_register_roles"`
+
+	GuessCategory bool   `mapstructure:"guess_category"`
+	FieldCategory string `mapstructure:"field_category"`
+	RegexCategory string `mapstructure:"regex_category"`
+
+	FieldGroup   string `mapstructure:"field_group"`
+	RegexGroup   string `mapstructure:"regex_group"`
+	GroupDefault string `mapstructure:"group_default"`
+
+	FieldRole       string     `mapstructure:"field_role"`
+	RegexRole       string     `mapstructure:"regex_role"`
+	RoleAdminIDs    []string   `mapstructure:"role_admin_ids"`
+	RoleManagerIDs  []string   `mapstructure:"role_manager_ids"`
+	RoleAdvancedIDs []string   `mapstructure:"role_advanced_ids"`
+	RoleUserIDs     []string   `mapstructure:"role_user_ids"`
+	RoleDefault     model.Role `mapstructure:"role_default"`
 }
 
 type AuthenticationGoogle struct {
@@ -152,57 +181,73 @@ func setDefaults() {
 			"enabled": true,
 		},
 		"ldap": map[string]interface{}{
-			"enabled":              false,
-			"protocol":             "ldap",
-			"host":                 "",
-			"port":                 389,
-			"bind_dn":              "",
-			"password":             "",
-			"base_search":          "",
-			"filter":               "(&(objectClass=person)(uid=%s))",
-			"field_uid":            "",
-			"regex_uid":            ".*",
-			"field_username":       "",
-			"regex_username":       ".*",
-			"field_name":           "",
-			"regex_name":           ".*",
-			"field_email":          "",
-			"regex_email":          ".*",
-			"field_photo":          "",
-			"regex_photo":          ".*",
-			"auto_register":        false,
-			"guess_category":       false,
-			"field_category":       "",
-			"regex_category":       ".*",
-			"field_group":          "",
-			"regex_group":          ".*",
-			"default_group":        "",
-			"groups_search":        "",
-			"groups_filter":        "(&(objectClass=posixGroup)(memberUid=%s))",
-			"groups_search_use_dn": false,
-			"groups_search_field":  "",
-			"groups_search_regex":  ".*",
-			"role_admin_groups":    []string{},
-			"role_manager_groups":  []string{},
-			"role_advanced_groups": []string{},
-			"role_user_groups":     []string{},
-			"role_default":         "user",
+			"enabled":               false,
+			"protocol":              "ldap",
+			"host":                  "",
+			"port":                  389,
+			"bind_dn":               "",
+			"password":              "",
+			"base_search":           "",
+			"filter":                "(&(objectClass=person)(uid=%s))",
+			"field_uid":             "",
+			"regex_uid":             ".*",
+			"field_username":        "",
+			"regex_username":        ".*",
+			"field_name":            "",
+			"regex_name":            ".*",
+			"field_email":           "",
+			"regex_email":           ".*",
+			"field_photo":           "",
+			"regex_photo":           ".*",
+			"auto_register":         false,
+			"auto_register_roles":   []string{},
+			"guess_category":        false,
+			"field_category":        "",
+			"regex_category":        ".*",
+			"field_group":           "",
+			"regex_group":           ".*",
+			"group_default":         "default",
+			"role_list_search_base": "",
+			"role_list_filter":      "(&(objectClass=posixGroup)(memberUid=%s))",
+			"role_list_use_user_dn": false,
+			"role_list_field":       "",
+			"role_list_regex":       ".*",
+			"role_admin_ids":        []string{},
+			"role_manager_ids":      []string{},
+			"role_advanced_ids":     []string{},
+			"role_user_ids":         []string{},
+			"role_default":          "user",
 		},
 		"saml": map[string]interface{}{
-			"enabled":        false,
-			"metadata_url":   "",
-			"key_file":       "/keys/isardvdi.key",
-			"cert_file":      "/keys/isardvdi.cert",
-			"field_uid":      "",
-			"regex_uid":      ".*",
-			"field_username": "",
-			"regex_username": ".*",
-			"field_name":     "",
-			"regex_name":     ".*",
-			"field_email":    "",
-			"regex_email":    ".*",
-			"field_photo":    "",
-			"regex_photo":    ".*",
+			"enabled":             false,
+			"metadata_url":        "",
+			"key_file":            "/keys/isardvdi.key",
+			"cert_file":           "/keys/isardvdi.cert",
+			"field_uid":           "",
+			"regex_uid":           ".*",
+			"field_username":      "",
+			"regex_username":      ".*",
+			"field_name":          "",
+			"regex_name":          ".*",
+			"field_email":         "",
+			"regex_email":         ".*",
+			"field_photo":         "",
+			"regex_photo":         ".*",
+			"auto_register":       false,
+			"auto_register_roles": []string{},
+			"guess_category":      false,
+			"field_category":      "",
+			"regex_category":      ".*",
+			"field_group":         "",
+			"regex_group":         ".*",
+			"group_default":       "default",
+			"field_role":          "",
+			"regex_role":          ".*",
+			"role_admin_ids":      []string{},
+			"role_manager_ids":    []string{},
+			"role_advanced_ids":   []string{},
+			"role_user_ids":       []string{},
+			"role_default":        "user",
 		},
 		"google": map[string]interface{}{
 			"enabled":       false,

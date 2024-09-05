@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/url"
 
-	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
-	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
-	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
+	"gitlab.com/isard/isardvdi/authentication/provider"
+	"gitlab.com/isard/isardvdi/authentication/provider/types"
+	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 
@@ -22,8 +22,8 @@ type Interface interface {
 	Providers() []string
 	Provider(provider string) provider.Provider
 
-	Login(ctx context.Context, provider string, categoryID string, args map[string]string, remoteAddr string) (tkn, redirect string, err error)
-	Callback(ctx context.Context, ss string, args map[string]string, remoteAddr string) (tkn, redirect string, err error)
+	Login(ctx context.Context, provider string, categoryID string, args provider.LoginArgs, remoteAddr string) (tkn, redirect string, err error)
+	Callback(ctx context.Context, ss string, args provider.CallbackArgs, remoteAddr string) (tkn, redirect string, err error)
 	Check(ctx context.Context, tkn string, remoteAddr string) error
 	Renew(ctx context.Context, ss string, remoteAddr string) (tkn string, err error)
 	Logout(ctx context.Context, tkn string) (err error)
@@ -74,13 +74,13 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli isardvdi.
 	}
 
 	providers := map[string]provider.Provider{
-		types.Unknown:  &provider.Unknown{},
-		types.Form:     provider.InitForm(cfg.Authentication, db),
-		types.External: &provider.External{},
+		types.ProviderUnknown:  &provider.Unknown{},
+		types.ProviderForm:     provider.InitForm(cfg.Authentication, log, db),
+		types.ProviderExternal: &provider.External{},
 	}
 
 	if cfg.Authentication.SAML.Enabled {
-		saml := provider.InitSAML(cfg.Authentication)
+		saml := provider.InitSAML(cfg.Authentication, log, db)
 		a.saml = saml.Middleware
 		providers[saml.String()] = saml
 	}
@@ -98,11 +98,11 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli isardvdi.
 func (a *Authentication) Providers() []string {
 	providers := []string{}
 	for k, v := range a.providers {
-		if k == types.Unknown || k == types.External {
+		if k == types.ProviderUnknown || k == types.ProviderExternal {
 			continue
 		}
 
-		if k == types.Form {
+		if k == types.ProviderForm {
 			providers = append(providers, v.(*provider.Form).Providers()...)
 			continue
 		}
@@ -116,7 +116,7 @@ func (a *Authentication) Providers() []string {
 func (a *Authentication) Provider(p string) provider.Provider {
 	prv := a.providers[p]
 	if prv == nil {
-		return a.providers[types.Unknown]
+		return a.providers[types.ProviderUnknown]
 	}
 
 	return prv

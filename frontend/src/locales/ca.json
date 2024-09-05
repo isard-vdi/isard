@@ -353,6 +353,12 @@
                 "generic": "S'ha produït un error"
             }
         },
+        "select-category": {
+            "title": "Selecciona una categoria per iniciar sessió",
+            "maintenance": "Aquesta categoria es troba en manteniment en aquests moments",
+            "subtitle": "Sessió iniciada com a {user}",
+            "logout": "Tancar sessió"
+        },
         "maintenance": {
             "title": "Actualment, el servei d'Isard es troba en manteniment",
             "the-service": "El servei tornarà a estar disponible en una estona",
@@ -1441,7 +1447,8 @@
             "password": "Reestablir contrasenya",
             "email": "Verificar correu electrònic",
             "forgot-password": "Reestablir contrasenya",
-            "disclaimer": "Avís legal"
+            "disclaimer": "Avís legal",
+            "select_category": "Seleccioneu una categoria"
         }
     },
     "message-modal": {

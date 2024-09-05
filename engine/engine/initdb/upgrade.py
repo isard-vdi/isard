@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 141
+release_version = 142
+# release 142: Add uuid and photo fields to category
 # release 141: Add deployment quotas
 # release 140: Add credentials to RDP VPN viewer
 # release 139: Add template index to deployments table
@@ -4873,6 +4874,22 @@ password:s:%s"""
                     ],
                     category["id"],
                 )
+
+        if version == 142:
+            try:
+                categories = list(r.table(table).run(self.conn))
+
+                for category in categories:
+                    self.add_keys(
+                        table,
+                        [
+                            {"uid": category["id"]},
+                            {"photo": ""},
+                        ],
+                        id=category["id"],
+                    )
+            except Exception as e:
+                print(e)
 
         return True
 

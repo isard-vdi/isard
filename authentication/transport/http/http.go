@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication"
-	"gitlab.com/isard/isardvdi/authentication/authentication/limits"
-	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
-	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
-	"gitlab.com/isard/isardvdi/authentication/authentication/token"
+	"gitlab.com/isard/isardvdi/authentication/limits"
+	"gitlab.com/isard/isardvdi/authentication/provider"
+	"gitlab.com/isard/isardvdi/authentication/provider/types"
+	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"
 
@@ -180,15 +180,7 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 			w.Header().Add("Authorization", t.Authorization)
 
 			if t.SetCookie.Set {
-				c := &http.Cookie{
-					Name:    "authorization",
-					Path:    "/",
-					Value:   t.SetCookie.Value,
-					Secure:  true,
-					Expires: time.Now().Add(5 * time.Minute),
-				}
-
-				http.SetCookie(w, c)
+				w.Header().Set("Set-Cookie", t.SetCookie.Value)
 			}
 
 			http.Redirect(w, r, t.Location, http.StatusFound)
@@ -196,16 +188,7 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 
 		case *oasAuthentication.LoginOKHeaders:
 			w.Header().Add("Authorization", t.Authorization)
-
-			c := &http.Cookie{
-				Name:    "authorization",
-				Path:    "/",
-				Value:   t.SetCookie,
-				Secure:  true,
-				Expires: time.Now().Add(5 * time.Minute),
-			}
-
-			http.SetCookie(w, c)
+			w.Header().Set("Set-Cookie", t.SetCookie)
 
 			w.WriteHeader(http.StatusOK)
 			b, err := io.ReadAll(t.Response.Data)
@@ -240,32 +223,32 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	// Remote address is injected in the RequestMetadata middleware
 	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
 
-	args := map[string]string{}
+	args := provider.LoginArgs{}
 
 	// Token provided in the Authorization header
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
 	if ok {
-		args[provider.TokenArgsKey] = tkn
+		args.Token = &tkn
 	}
 
 	// Redirect the user after login
 	if params.Redirect.Set {
-		args[provider.RedirectArgsKey] = params.Redirect.Value
+		args.Redirect = &params.Redirect.Value
 	}
 
 	// Form parameters (username + password)
 	if req.Set && req.Value.Username.Set {
-		args["username"] = req.Value.Username.Value
+		args.FormUsername = &req.Value.Username.Value
 	}
 
 	if req.Set && req.Value.Password.Set {
-		args["password"] = req.Value.Password.Value
+		args.FormPassword = &req.Value.Password.Value
 	}
 
 	log := a.Log.With().Str("provider", string(params.Provider)).Logger()
 
 	p := a.Authentication.Provider(string(params.Provider))
-	if p.String() == types.SAML {
+	if p.String() == types.ProviderSAML {
 		c := &http.Cookie{
 			Name:  "token",
 			Value: params.Token.Value,
@@ -305,13 +288,22 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	if err != nil {
 		if errors.Is(err, provider.ErrInvalidCredentials) {
 			return &oasAuthentication.LoginUnauthorized{
-				Data: bytes.NewReader([]byte(provider.ErrInvalidCredentials.Error())),
+				Error: oasAuthentication.LoginErrorErrorInvalidCredentials,
+				Msg:   provider.ErrInvalidCredentials.Error(),
 			}, nil
 		}
 
 		if errors.Is(err, provider.ErrUserDisabled) {
 			return &oasAuthentication.LoginForbidden{
-				Data: bytes.NewReader([]byte(provider.ErrUserDisabled.Error())),
+				Error: oasAuthentication.LoginErrorErrorUserDisabled,
+				Msg:   provider.ErrUserDisabled.Error(),
+			}, nil
+		}
+
+		if errors.Is(err, provider.ErrUserDisallowed) {
+			return &oasAuthentication.LoginForbidden{
+				Error: oasAuthentication.LoginErrorErrorUserDisallowed,
+				Msg:   provider.ErrUserDisallowed.Error(),
 			}, nil
 		}
 
@@ -367,11 +359,11 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 	// Remote address is injected in the RequestMetadata middleware
 	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
 
-	args := map[string]string{}
+	args := provider.CallbackArgs{}
 
 	// OAuth2
 	if params.Code.Set {
-		args["code"] = params.Code.Value
+		args.Oauth2Code = &params.Code.Value
 	}
 
 	// SAML
@@ -393,6 +385,12 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 		if errors.Is(err, provider.ErrUserDisabled) {
 			return &oasAuthentication.CallbackFound{
 				Location: "/login?error=user_disabled",
+			}, nil
+		}
+
+		if errors.Is(err, provider.ErrUserDisallowed) {
+			return &oasAuthentication.CallbackFound{
+				Location: "/login?error=user_disallowed",
 			}, nil
 		}
 
@@ -517,7 +515,7 @@ func (a *AuthenticationServer) Logout(ctx context.Context, req *oasAuthenticatio
 func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthentication.ProvidersResponse, error) {
 	providers := []oasAuthentication.Providers{}
 	for _, p := range a.Authentication.Providers() {
-		if p == types.Local || p == types.LDAP {
+		if p == types.ProviderLocal || p == types.ProviderLDAP {
 			continue
 		}
 

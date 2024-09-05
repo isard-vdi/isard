@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
+	"gitlab.com/isard/isardvdi/authentication/token"
 )
 
 func (a *Authentication) AcknowledgeDisclaimer(ctx context.Context, ss string) error {

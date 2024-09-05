@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"gitlab.com/isard/isardvdi/authentication/authentication/token"
+	"gitlab.com/isard/isardvdi/authentication/token"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 
 	"google.golang.org/grpc/codes"

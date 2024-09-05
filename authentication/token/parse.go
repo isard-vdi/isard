@@ -114,3 +114,7 @@ func ParsePasswordResetRequiredToken(secret, ss string) (*PasswordResetRequiredC
 func ParsePasswordResetToken(secret, ss string) (*PasswordResetClaims, error) {
 	return parseAuthenticationToken[*PasswordResetClaims](secret, ss, &PasswordResetClaims{})
 }
+
+func ParseCategorySelectToken(secret, ss string) (*CategorySelectClaims, error) {
+	return parseAuthenticationToken[*CategorySelectClaims](secret, ss, &CategorySelectClaims{})
+}

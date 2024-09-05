@@ -53,58 +53,76 @@ func (g *Group) LoadExternal(ctx context.Context, sess r.QueryExecutor) error {
 func (g *Group) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 	// Check if the group is original of IsardVDI or is a group mapped from elsewhere
 	if g.ExternalAppID != "" && g.ExternalGID != "" {
-		res, err := r.Table("groups").Filter(r.And(
+		return g.ExistsWithExternal(ctx, sess)
+	}
+
+	res, err := r.Table("groups").Get(g.ID).Run(sess)
+	if err != nil {
+		return false, &db.Err{
+			Err: err,
+		}
+	}
+	defer res.Close()
+
+	if res.IsNil() {
+		return false, nil
+	}
+
+	if err := res.One(g); err != nil {
+		if errors.Is(err, r.ErrEmptyResult) {
+			return false, nil
+		}
+
+		return false, &db.Err{
+			Msg: "read db response",
+			Err: err,
+		}
+	}
+
+	return true, nil
+}
+
+func (g *Group) existsWith(ctx context.Context, sess r.QueryExecutor, filter r.Term) (bool, error) {
+	res, err := r.Table("groups").Filter(filter).Run(sess)
+	if err != nil {
+		return false, &db.Err{
+			Err: err,
+		}
+	}
+	defer res.Close()
+
+	if res.IsNil() {
+		return false, nil
+	}
+
+	if err := res.One(g); err != nil {
+		if errors.Is(err, r.ErrEmptyResult) {
+			return false, nil
+		}
+
+		return false, &db.Err{
+			Msg: "read db response",
+			Err: err,
+		}
+	}
+
+	return true, nil
+}
+
+func (g *Group) ExistsWithExternal(ctx context.Context, sess r.QueryExecutor) (bool, error) {
+	return g.existsWith(ctx, sess,
+		r.And(
 			r.Eq(r.Row.Field("external_app_id"), g.ExternalAppID),
 			r.Eq(r.Row.Field("external_gid"), g.ExternalGID),
-		), r.FilterOpts{}).Run(sess)
-		if err != nil {
-			return false, &db.Err{
-				Err: err,
-			}
-		}
-		defer res.Close()
+		),
+	)
+}
 
-		if res.IsNil() {
-			return false, nil
-		}
-
-		if err := res.One(g); err != nil {
-			if errors.Is(err, r.ErrEmptyResult) {
-				return false, nil
-			}
-
-			return false, &db.Err{
-				Msg: "read db response",
-				Err: err,
-			}
-		}
-
-		return true, nil
-
-	} else {
-		res, err := r.Table("groups").Get(g.ID).Run(sess)
-		if err != nil {
-			return false, &db.Err{
-				Err: err,
-			}
-		}
-		defer res.Close()
-
-		if res.IsNil() {
-			return false, nil
-		}
-
-		if err := res.One(g); err != nil {
-			if errors.Is(err, r.ErrEmptyResult) {
-				return false, nil
-			}
-
-			return false, &db.Err{
-				Msg: "read db response",
-				Err: err,
-			}
-		}
-
-		return true, nil
-	}
+func (g *Group) ExistsWithUID(ctx context.Context, sess r.QueryExecutor) (bool, error) {
+	return g.existsWith(ctx, sess,
+		r.And(
+			r.Eq(r.Row.Field("category"), g.Category),
+			r.Eq(r.Row.Field("uid"), g.UID),
+		),
+	)
 }

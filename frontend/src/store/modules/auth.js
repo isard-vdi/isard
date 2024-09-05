@@ -22,7 +22,8 @@ export default {
     pageErrorMessage: {
       message: '',
       args: {}
-    }
+    },
+    userCategories: []
   },
   getters: {
     getSession: state => {
@@ -36,6 +37,9 @@ export default {
     },
     getPageErrorMessage: state => {
       return state.pageErrorMessage
+    },
+    getUserCategories: state => {
+      return state.userCategories
     }
   },
   mutations: {
@@ -61,6 +65,9 @@ export default {
     },
     setCurrentRoute (state, routeName) {
       state.currentRoute = routeName
+    },
+    setUserCategories (state, categories) {
+      state.userCategories = categories
     }
   },
   actions: {
@@ -75,13 +82,21 @@ export default {
         }
         return config
       })
-      await authentication.post(`/login?provider=${data ? data.get('provider') : 'form'}&category_id=${data ? data.get('category_id') : 'default'}`, data, { timeout: 25000 }).then(response => {
-        if (jwtDecode(response.data).type === 'register') {
+      await authentication.post(`/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}`, data, { timeout: 25000 }).then(response => {
+        const token = jwtDecode(response.data)
+        if (token.type === 'register') {
           router.push({ name: 'Register' })
+        } else if (token.type === 'category-select') {
+          router.push({ name: 'SelectCategory' })
         } else {
           context.dispatch('loginSuccess', response.data)
         }
       })
+    },
+    fetchUserCategories (context) {
+      const token = jwtDecode(getCookie('authorization'))
+      context.commit('setUser', jwtDecode(getCookie('authorization')).user)
+      context.commit('setUserCategories', token.categories)
     },
     loginSuccess (context, token) {
       context.commit('setSession', token)
@@ -181,6 +196,12 @@ export default {
         loginData.append('username', registeredUser.username)
         context.dispatch('login', loginData)
       })
+    },
+    async selectCategory (context, categoryId) {
+      const loginData = new FormData()
+      loginData.append('provider', 'saml')
+      loginData.append('category_id', categoryId)
+      context.dispatch('login', loginData)
     },
     handleRegisterError ({ commit }, error) {
       if ([401, 403, 404, 409].includes(error.response.status)) {

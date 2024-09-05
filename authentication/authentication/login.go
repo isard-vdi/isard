@@ -6,36 +6,47 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
-	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
+	"gitlab.com/isard/isardvdi/authentication/provider"
+	"gitlab.com/isard/isardvdi/authentication/provider/types"
+	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 )
 
-func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args map[string]string, remoteAddr string) (string, string, error) {
+func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args provider.LoginArgs, remoteAddr string) (string, string, error) {
+	if args.Redirect == nil {
+		redirect := ""
+		args.Redirect = &redirect
+	}
+
 	// Check if the user sends a token
-	if args[provider.TokenArgsKey] != "" {
-		typ, err := token.GetTokenType(args[provider.TokenArgsKey])
+	if args.Token != nil {
+		typ, err := token.GetTokenType(*args.Token)
 		if err != nil {
 			return "", "", fmt.Errorf("get the JWT token type: %w", err)
 		}
 
 		switch typ {
 		case token.TypeRegister:
-			return a.finishRegister(ctx, remoteAddr, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
+			return a.finishRegister(ctx, remoteAddr, *args.Token, *args.Redirect)
 
 		case token.TypeDisclaimerAcknowledgementRequired:
-			return a.finishDisclaimerAcknowledgement(ctx, remoteAddr, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
+			return a.finishDisclaimerAcknowledgement(ctx, remoteAddr, *args.Token, *args.Redirect)
 
 		case token.TypePasswordResetRequired:
-			return a.finishPasswordReset(ctx, remoteAddr, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
+			return a.finishPasswordReset(ctx, remoteAddr, *args.Token, *args.Redirect)
+
+		case token.TypeCategorySelect:
+			return a.finishCategorySelect(ctx, remoteAddr, categoryID, *args.Token, *args.Redirect)
 		}
 	}
 
-	// Get the provider and log in
+	// Get the provider
 	p := a.Provider(prv)
-	g, u, redirect, lErr := p.Login(ctx, categoryID, args)
+
+	// Log in
+	g, u, redirect, ss, lErr := p.Login(ctx, categoryID, args)
 	if lErr != nil {
 		a.Log.Info().Str("prv", p.String()).Err(lErr).Msg("login failed")
 
@@ -47,23 +58,65 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		return "", redirect, nil
 	}
 
-	// Remove weird characters from the user and group names
-	normalizeIdentity(g, u)
+	// If the provider returns a token return it
+	if ss != "" {
+		return ss, redirect, nil
+	}
+
+	// Continue with the login process, passing the redirect path that has been
+	// requested by the user
+	return a.startLogin(ctx, remoteAddr, p, g, u, *args.Redirect)
+}
+
+func (a *Authentication) Callback(ctx context.Context, ss string, args provider.CallbackArgs, remoteAddr string) (string, string, error) {
+	claims, err := token.ParseCallbackToken(a.Secret, ss)
+	if err != nil {
+		return "", "", fmt.Errorf("parse callback state: %w", err)
+	}
+
+	// Get the provider
+	p := a.Provider(claims.Provider)
+
+	// Callback
+	g, u, redirect, ss, cErr := p.Callback(ctx, claims, args)
+	if cErr != nil {
+		a.Log.Info().Str("prv", p.String()).Err(cErr).Msg("callback failed")
+
+		return "", "", fmt.Errorf("callback: %w", cErr)
+	}
+
+	if redirect == "" {
+		redirect = claims.Redirect
+	}
+
+	// If the provider returns a token return it
+	if ss != "" {
+		return ss, redirect, nil
+	}
+
+	return a.startLogin(ctx, remoteAddr, p, g, u, redirect)
+}
+
+func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p provider.Provider, g *model.Group, data *types.ProviderUserData, redirect string) (string, string, error) {
+	u := data.ToUser()
 
 	uExists, err := u.Exists(ctx, a.DB)
 	if err != nil {
 		return "", "", fmt.Errorf("check if user exists: %w", err)
 	}
 
+	// Remove weird characters from the user and group names
+	normalizeIdentity(g, u)
+
 	if !uExists {
 		// Manual registration
-		if !p.AutoRegister() {
+		if !p.AutoRegister(u) {
 			// If the user has logged in correctly, but doesn't exist in the DB, they have to register first!
 			ss, err := token.SignRegisterToken(a.Secret, u)
 
 			a.Log.Info().Err(err).Str("usr", u.UID).Str("tkn", ss).Msg("register token signed")
 
-			return ss, "", err
+			return ss, redirect, err
 		}
 
 		// Automatic group registration!
@@ -85,48 +138,6 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		if err := a.registerUser(u); err != nil {
 			return "", "", fmt.Errorf("auto register user: %w", err)
 		}
-	}
-
-	return a.finishLogin(ctx, remoteAddr, u, args[provider.RedirectArgsKey])
-}
-
-func (a *Authentication) Callback(ctx context.Context, ss string, args map[string]string, remoteAddr string) (string, string, error) {
-	claims, err := token.ParseCallbackToken(a.Secret, ss)
-	if err != nil {
-		return "", "", fmt.Errorf("parse callback state: %w", err)
-	}
-
-	p := a.Provider(claims.Provider)
-
-	// TODO: Add autoregister for more providers?
-	_, u, redirect, cErr := p.Callback(ctx, claims, args)
-	if cErr != nil {
-		a.Log.Info().Str("prv", p.String()).Err(cErr).Msg("callback failed")
-
-		return "", "", fmt.Errorf("callback: %w", cErr)
-	}
-
-	exists, err := u.Exists(ctx, a.DB)
-	if err != nil {
-		return "", "", fmt.Errorf("check if user exists: %w", err)
-	}
-
-	if redirect == "" {
-		redirect = claims.Redirect
-	}
-
-	// Remove weird characters from the user name
-	normalizeIdentity(nil, u)
-
-	if !exists {
-		ss, err = token.SignRegisterToken(a.Secret, u)
-		if err != nil {
-			return "", "", err
-		}
-
-		a.Log.Info().Str("usr", u.UID).Str("tkn", ss).Msg("register token signed")
-
-		return ss, redirect, nil
 	}
 
 	return a.finishLogin(ctx, remoteAddr, u, redirect)
@@ -271,4 +282,16 @@ func (a *Authentication) finishPasswordReset(ctx context.Context, remoteAddr, ss
 	}
 
 	return a.finishLogin(ctx, remoteAddr, u, redirect)
+}
+
+func (a *Authentication) finishCategorySelect(ctx context.Context, remoteAddr, categoryID, ss, redirect string) (string, string, error) {
+	claims, err := token.ParseCategorySelectToken(a.Secret, ss)
+	if err != nil {
+		return "", "", err
+	}
+
+	u := &claims.User
+	u.Category = categoryID
+
+	return a.startLogin(ctx, remoteAddr, a.Provider(claims.User.Provider), nil, u, redirect)
 }

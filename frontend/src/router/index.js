@@ -18,7 +18,6 @@ import TemplateNew from '@/pages/TemplateNew.vue'
 import Templates from '@/pages/Templates.vue'
 import DirectViewer from '@/views/DirectViewer.vue'
 import Error from '@/views/Error.vue'
-import Login from '@/views/Login.vue'
 import Maintenance from '@/views/Maintenance.vue'
 import NotFound from '@/views/NotFound.vue'
 import Rdp from '@/views/Rdp.vue'
@@ -39,6 +38,9 @@ import { jwtDecode } from 'jwt-decode'
 import store from '@/store'
 import { getCookie } from 'tiny-cookie'
 import { isEmpty } from 'lodash'
+import LoginLayout from '../views/LoginLayout.vue'
+import SelectCategory from '../components/login/SelectCategory.vue'
+import LoginForm from '../components/login/LoginForm.vue'
 
 Vue.use(VueRouter)
 
@@ -378,11 +380,32 @@ const router = new VueRouter({
     },
     {
       path: '/login/:customUrlName?',
-      name: 'Login',
-      component: Login,
-      meta: {
-        title: i18n.t('router.titles.login')
-      }
+      component: LoginLayout,
+      children: [
+        {
+          path: '',
+          name: 'Login',
+          component: LoginForm,
+          meta: {
+            title: i18n.t('router.titles.login')
+          }
+        }
+      ]
+    },
+    {
+      path: '/select-category',
+      component: LoginLayout,
+      children: [
+        {
+          path: '',
+          name: 'SelectCategory',
+          component: SelectCategory,
+          meta: {
+            title: i18n.t('router.titles.select_category'),
+            requiresAuth: true
+          }
+        }
+      ]
     },
     {
       path: '/register',
@@ -438,15 +461,29 @@ router.beforeEach(async (to, from, next) => {
     if (!session) {
       const authorizationCookie = getCookie('authorization')
       if (authorizationCookie) {
-        if (to.name !== 'Register' && jwtDecode(authorizationCookie).type === 'register') {
-          router.push({ name: 'Register' })
-        } else if (to.name === 'Register') {
-          next()
+        const token = jwtDecode(authorizationCookie)
+        if (token.type === 'register') {
+          if (to.name !== 'Register' && token.type === 'register') {
+            router.push({ name: 'Register' })
+          } else if (to.name === 'Register') {
+            next()
+          } else {
+            store.dispatch('loginSuccess', authorizationCookie)
+          }
+        // If user has multiple categories redirect to select category
+        } else if (token.type === 'category-select') {
+          if (to.name !== 'SelectCategory' && token.type === 'category-select') {
+            router.push({ name: 'SelectCategory' })
+          } else if (to.name === 'SelectCategory') {
+            next()
+          } else {
+            router.push({ name: 'Login' })
+          }
         } else {
           store.dispatch('loginSuccess', authorizationCookie)
         }
       // Routes to verify email and reset password require a token (sent by email)
-      } else if (['VerifyEmail', 'ResetPassword'].includes(to.name)) {
+      } else if (['VerifyEmail', 'ResetPassword', 'SelectCategory'].includes(to.name)) {
         if (to.query.token) {
           next()
         } else {
@@ -502,8 +539,12 @@ router.beforeEach(async (to, from, next) => {
       }
     }
   } else {
-    store.dispatch('saveNavigation', { url: to })
-    next()
+    if (to.name === 'Login' && getCookie('authorization') && jwtDecode(getCookie('authorization')).type === 'category-select') {
+      router.push({ name: 'SelectCategory' })
+    } else {
+      store.dispatch('saveNavigation', { url: to })
+      next()
+    }
   }
 })
 
