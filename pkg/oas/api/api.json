@@ -189,38 +189,13 @@
               }
             }
           },
-          "notification": {
-            "type": "object",
-            "title": "Config of the notification that will be shown",
-            "properties": {
-              "icon": {
-                "type": "string",
-                "title": "The icon that the notification will have"
-              },
-              "title": {
-                "type": "string",
-                "title": "The title of the maintenance page"
-              },
-              "description": {
-                "type": "string",
-                "title": "A small description (subtitle)"
-              },
-              "button": {
-                "type": "object",
-                "title": "Configuration related with the button",
-                "properties": {
-                  "text": {
-                    "type": "string",
-                    "title": "The text of the button"
-                  },
-                  "url": {
-                    "type": "string",
-                    "title": "The URL that the button will redirect to"
-                  }
-                },
-                "required": ["text", "url"]
-              }
-            }
+          "notification_cover": {
+            "title": "Config of the notification that will be shown over the cover image",
+            "$ref": "#/components/schemas/GetLoginConfigResponseNotification"
+          },
+          "notification_form": {
+            "title": "Config of the notification that will be shown in the Login form",
+            "$ref": "#/components/schemas/GetLoginConfigResponseNotification"
           },
           "providers": {
             "type": "object",
@@ -253,84 +228,78 @@
                 }
               },
               "form": {
-                "type": "object",
-                "title": "Config related with the form provider",
-                "properties": {
-                  "description": {
-                    "type": "string",
-                    "title": "A small description (subtitle)"
-                  },
-                  "hide_categories_dropdown": {
-                    "type": "boolean",
-                    "title": "Whether to hide the categories dropdown"
-                  },
-                  "hide_forgot_password": {
-                    "type": "boolean",
-                    "title": "Whether to hide the forgot password button"
-                  },
-                  "submit_text": {
-                    "type": "string",
-                    "title": "The text that will appear in the submit button for the form"
-                  },
-                  "submit_extra_styles": {
-                    "type": "string",
-                    "title": "Extra styles for the submit button. It will be added as `style=''` in the HTML"
-                  }
-                }
+                "$ref": "#/components/schemas/GetLoginConfigResponseProvider"
               },
               "saml": {
-                "type": "object",
-                "title": "Config related with the SAML provider",
-                "properties": {
-                  "description": {
-                    "type": "string",
-                    "title": "A small description (subtitle)"
-                  },
-                  "hide_categories_dropdown": {
-                    "type": "boolean",
-                    "title": "Whether to hide the categories dropdown"
-                  },
-                  "submit_icon": {
-                    "type": "string",
-                    "title": "Icon for the submit button"
-                  },
-                  "submit_text": {
-                    "type": "string",
-                    "title": "The text that will appear in the submit button"
-                  },
-                  "submit_extra_styles": {
-                    "type": "string",
-                    "title": "Extra styles for the submit button. It will be added as `style=''` in the HTML"
-                  }
-                }
+                "$ref": "#/components/schemas/GetLoginConfigResponseProvider"
               },
               "google": {
-                "title": "Config related with the Google provider",
-                "type": "object",
-                "properties": {
-                  "description": {
-                    "type": "string",
-                    "title": "A small description (subtitle)"
-                  },
-                  "hide_categories_dropdown": {
-                    "type": "boolean",
-                    "title": "Whether to hide the categories dropdown"
-                  },
-                  "submit_icon": {
-                    "type": "string",
-                    "title": "Icon for the submit button"
-                  },
-                  "submit_text": {
-                    "type": "string",
-                    "title": "The text that will appear in the submit button"
-                  },
-                  "submit_extra_styles": {
-                    "type": "string",
-                    "title": "Extra styles for the submit button. It will be added as `style=''` in the HTML"
-                  }
-                }
+                "$ref": "#/components/schemas/GetLoginConfigResponseProvider"
               }
             }
+          }
+        }
+      },
+      "GetLoginConfigResponseNotification": {
+        "type": "object",
+        "title": "Config of the notification that will be shown",
+        "properties": {
+          "icon": {
+            "type": "string",
+            "title": "The icon that the notification will have"
+          },
+          "title": {
+            "type": "string",
+            "title": "The title of the maintenance page"
+          },
+          "description": {
+            "type": "string",
+            "title": "A small description (subtitle)"
+          },
+          "button": {
+            "type": "object",
+            "title": "Configuration related with the button",
+            "properties": {
+              "text": {
+                "type": "string",
+                "title": "The text of the button"
+              },
+              "url": {
+                "type": "string",
+                "title": "The URL that the button will redirect to"
+              }
+            },
+            "required": ["text", "url"]
+          }
+        }
+      },
+      "GetLoginConfigResponseProvider": {
+        "type": "object",
+        "title": "Config related with a specific provider",
+        "properties": {
+          "description": {
+            "type": "string",
+            "title": "A small description (subtitle)"
+          },
+          "hide_categories_dropdown": {
+            "type": "boolean",
+            "title": "Whether to hide the categories dropdown"
+          },
+          "hide_forgot_password": {
+            "type": "boolean",
+            "title": "Whether to hide the forgot password button"
+          },
+          "submit_icon": {
+            "type": "string",
+            "title": "Icon for the Submit button"
+          },
+          "submit_text": {
+            "type": "string",
+            "title": "The text that will appear in the submit button for the form"
+          },
+          "submit_extra_styles": {
+            "type": "string",
+            "title": "Extra styles for the submit button. It will be added as `style=''` in the HTML"
           }
         }
       }

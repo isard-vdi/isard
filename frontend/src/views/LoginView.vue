@@ -6,6 +6,7 @@ import { createClient, createConfig, type Options as ClientOptions } from '@hey-
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { providersOptions } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
 import { login, type LoginData, type LoginError as AuthLoginError } from '@/gen/oas/authentication'
+import type { GetCategoriesResponse } from '@/gen/oas/api'
 import {
   getCategoriesOptions,
   getCategoriesQueryKey,
@@ -24,22 +25,20 @@ import {
   removeToken as removeAuthToken
 } from '@/lib/auth'
 import { dateIsToday } from '@/lib/utils'
+import { Locale, setLocale } from '@/lib/i18n'
 import { LoginLayout } from '@/layouts/login'
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Button } from '@/components/ui/button'
 import {
   Provider,
   LoginProviderForm,
   LoginProviderExternal,
   LoginCategoriesDropdown,
   LoginCategorySelect,
+  LoginNotification,
   isProvider
 } from '@/components/login'
 import { Separator } from '@/components/ui/separator'
-import { Icon } from '@/components/icon'
-import { Locale, setLocale } from '@/lib/i18n'
-import type { GetCategoriesResponse } from '@/gen/oas/api'
 
 const { t, te, d } = useI18n()
 const route = useRoute()
@@ -531,27 +530,8 @@ watch(categoryError, (newErr) => {
     :title="category?.name || config?.info?.title"
     :description="categorySelectToken ? t('views.login.select-category') : description"
   >
-    <template v-if="config?.notification" #cover>
-      <Alert class="bg-white border-error-600">
-        <Icon
-          v-if="config.notification.icon"
-          :name="config.notification.icon"
-          class="rounded-[1px] outline outline-1 outline-offset-[10px] outline-gray-warm-300"
-        />
-        <AlertTitle v-if="config.notification.title">{{ config.notification.title }}</AlertTitle>
-        <AlertDescription>
-          <p v-if="config.notification.description">{{ config.notification.description }}</p>
-
-          <Button
-            v-if="config.notification.button"
-            hierarchy="link-color"
-            class="p-0 mt-4"
-            as="a"
-            :href="config.notification.button.url"
-            >{{ config.notification.button.text }}</Button
-          >
-        </AlertDescription>
-      </Alert>
+    <template v-if="config?.notification_cover" #cover>
+      <LoginNotification :config="config.notification_cover" class="border-error-600" />
     </template>
 
     <template #default>
@@ -563,6 +543,7 @@ watch(categoryError, (newErr) => {
         }}</Alert>
 
         <template v-else>
+          <LoginNotification v-if="config?.notification_form" :config="config.notification_form" />
           <Alert v-if="loginError" variant="destructive">
             <AlertDescription>{{ loginErrorMsg }}</AlertDescription>
           </Alert>
