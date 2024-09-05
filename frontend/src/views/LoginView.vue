@@ -346,7 +346,12 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
       return
     }
 
-    loginError.value = error.error
+    if (error.error) {
+      loginError.value = error.error
+      return
+    }
+
+    loginError.value = 'unknown'
     return
   }
 
