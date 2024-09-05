@@ -1,6 +1,6 @@
 stages:
   - lint
-  - version
+  - unit-test
   - release
 
 include:
