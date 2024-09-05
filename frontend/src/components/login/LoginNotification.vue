@@ -28,6 +28,7 @@ const props = defineProps<Props>()
         class="p-0 mt-4"
         as="a"
         :href="props.config.button.url"
+        :style="props.config.button.extra_styles"
         >{{ props.config.button.text }}</Button
       >
     </AlertDescription>

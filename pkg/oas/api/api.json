@@ -267,6 +267,10 @@
               "url": {
                 "type": "string",
                 "title": "The URL that the button will redirect to"
+              },
+              "extra_styles": {
+                "type": "string",
+                "title": "Extra styles for the button. It will be added as `style=''` in the HTML"
               }
             },
             "required": ["text", "url"]
