@@ -1325,8 +1325,8 @@
         "new_template_bad_body_data": "Dades incorrectes en la creació de nova plantilla",
         "desktops_not_stopped": "Els escriptoris associats a aquest emmagatzematge han d'estar aturats per realitzar aquesta acció",
         "increase_desktops_not_stopped": "L'escriptori associat a aquest emmagatzematge ha d'estar aturat per incrementar la mida del disc",
-        "increase_storage_has_derivatives": "L'emmagatzematge és d'una plantilla i no es pot incrementar"
-   
+        "increase_storage_has_derivatives": "L'emmagatzematge és d'una plantilla i no es pot incrementar",
+        "hypervisors_not_available": "No s'ha pogut iniciar l'escriptori. El sistema pot estar sobrecarregat. Torni-ho a provar més tard."
     },
     "messages": {
         "title": {
