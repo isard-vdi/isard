@@ -1030,7 +1030,6 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
     ):
         raise Error("bad_request", "Disk size quota exceeded")
 
-    storage = Storage(storage_id)
     storage_domains = get_storage_derivatives(storage_id)
     if len(storage_domains) > 1:
         raise Error(

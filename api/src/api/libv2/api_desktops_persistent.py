@@ -1025,7 +1025,7 @@ class ApiDesktopsPersistent:
 
         return domain_id
 
-    def set_desktops_maintenance(payload, storage_id, action, batch_size=50000):
+    def set_desktops_maintenance(self, payload, storage_id, action, batch_size=50000):
         domains = get_storage_derivatives(storage_id)
 
         for domain_id in domains:
