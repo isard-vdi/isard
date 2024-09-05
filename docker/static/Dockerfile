@@ -1,37 +1,63 @@
 #
-# frontend
+# old frontend
 #
-FROM node:18.20-alpine as frontend
-
-RUN mkdir /isard-frontend
-COPY frontend /isard-frontend
+FROM node:18.20-alpine AS old-frontend
 
 ARG SRC_VERSION_ID
 ARG SRC_VERSION_LINK
-RUN sed -i "s*isard_display_version*${SRC_VERSION_ID}*g" /isard-frontend/src/views/Login.vue
-RUN sed -i "s,isard_changelog_link,${SRC_VERSION_LINK},g"  /isard-frontend/src/views/Login.vue
 
-WORKDIR /isard-frontend
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++
 
-RUN apk add python3 make g++
-RUN yarn
+WORKDIR /build
+
+COPY old-frontend/package.json /build
+COPY old-frontend/yarn.lock /build
+
+RUN yarn install --frozen-lockfile
+
+WORKDIR /
+
+COPY old-frontend /build
+
+WORKDIR /build
+
 RUN yarn build
 
-RUN rm -rf src
-RUN rm -rf node_modules
-RUN rm -rf build
+#
+# frontend
+#
+FROM oven/bun:1.1.24-alpine AS frontend
+
+WORKDIR /build
+
+COPY frontend/package.json /build
+COPY frontend/bun.lockb /build
+
+RUN bun install --frozen-lockfile
+
+WORKDIR /
+
+COPY frontend /build
+
+WORKDIR /build
+
+# TODO: Run the typecheck here too!
+RUN bun run build-only
 
 #
 # spice-ts
 #
-FROM oven/bun:1.1.18 as spice-ts
+FROM oven/bun:1.1.24-alpine AS spice-ts
 
 WORKDIR /build
 
 COPY docker/static/spice-ts/package.json /build
 COPY docker/static/spice-ts/bun.lockb /build
 
-RUN bun install
+RUN bun install --frozen-lockfile
 
 WORKDIR /
 
@@ -59,4 +85,7 @@ COPY --from=spice-ts /build/dist /usr/share/nginx/html/viewer/spice-ts
 
 # Frontend
 COPY frontend/src/assets/logo.svg /usr/share/nginx/html/default_logo.svg
-COPY --from=frontend /isard-frontend/dist /usr/share/nginx/html
+COPY --from=frontend /build/dist /usr/share/nginx/html/frontend
+
+# Old frontend
+COPY --from=old-frontend /build/dist /usr/share/nginx/html/old-frontend

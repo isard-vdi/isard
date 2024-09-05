@@ -1,54 +1,37 @@
-<template>
-  <div
-    id="app"
-    :class="{ guacamole: $route.name === 'Rdp' }"
-  >
-    <router-view />
-    <vue-snotify />
-    <MessageModal />
-  </div>
-</template>
+<script setup lang="ts">
+import { watch } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
+import TooltipProvider from '@/components/ui/tooltip/TooltipProvider.vue'
+import { appTitle } from './lib/constants'
+import { isString } from './lib/utils'
+import { useI18n } from 'vue-i18n'
+import { i18n } from './lib/i18n'
 
-<script>
-import { onBeforeMount, onBeforeUnmount } from '@vue/composition-api'
-import MessageModal from './components/MessageModal.vue'
-import { listenCookieChange } from '@/helpers/cookies'
-import { sessionCookieName } from '@/shared/constants'
-import { getCookie } from 'tiny-cookie'
+const route = useRoute()
+const { t } = useI18n()
 
-export default {
-  components: { MessageModal },
-  setup (_, context) {
-    const $store = context.root.$store
-    const viewsNotRedirected = ['Login', 'VerifyEmail', 'ResetPassword', 'ForgotPassword']
-    onBeforeMount(() => {
-      listenCookieChange((_, { oldValue, newValue }) => {
-        if (!getCookie(sessionCookieName)) {
-          $store.dispatch('logout', !viewsNotRedirected.includes(context.root.$route.name))
-        }
-      }, sessionCookieName, 1000)
-    })
-    onBeforeUnmount(() => {
-      $store.dispatch('closeSocket')
-    })
+const updateTitle = () => {
+  if (route.meta.title && isString(route.meta.title)) {
+    document.title = `${appTitle} - ${t(route.meta.title)}`
+  } else {
+    document.title = appTitle
   }
 }
 
+watch(
+  () => route.meta.title,
+  () => {
+    updateTitle()
+  }
+)
+
+watch(i18n.global.locale, () => {
+  updateTitle()
+})
 </script>
 
-<style>
-#app {
-    font-family: Arial, Avenir, Helvetica, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    color: #2c3e50;
-    height: 100%;
-    overflow-y: hidden;
-}
-
-.guacamole {
-  overflow: hidden;
-  width: 100%;
-  height: 100%;
-}
-</style>
+<template>
+  <TooltipProvider>
+    <RouterView />
+  </TooltipProvider>
+</template>

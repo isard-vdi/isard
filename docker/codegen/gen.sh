@@ -1,6 +1,20 @@
 #!/bin/sh
 
+set -e
+
+openapi_ts() {
+	ln -s /deps/package.json .
+	ln -s /deps/node_modules .
+
+	CODEGEN="$1" npx --no @hey-api/openapi-ts
+
+	rm package.json
+	rm node_modules
+}
+
 rm -rf pkg/gen
+rm -rf frontend/src/gen
+rm -f ./*/**/testing_*_mock.go
 
 # Protobuf
 source /venv/bin/activate
@@ -14,6 +28,12 @@ ogen --target ./pkg/gen/oas/notifier -package notifier --clean pkg/oas/notifier/
 # Authentication OAS
 mkdir -p pkg/gen/oas/authentication
 ogen --target ./pkg/gen/oas/authentication -package authentication --clean pkg/oas/authentication/authentication.json
+openapi_ts authentication
+
+# API OAS
+mkdir -p pkg/gen/oas/api
+ogen --target ./pkg/gen/oas/api -package api --clean pkg/oas/api/api.json
+openapi_ts api
 
 # Go mocks
 mockery

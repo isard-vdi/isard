@@ -331,10 +331,11 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	}
 
 	c := &http.Cookie{
-		Name:    "authorization",
-		Path:    "/",
-		Value:   tkn,
-		Expires: time.Now().Add(5 * time.Minute),
+		Name:     "authorization",
+		Path:     "/",
+		Value:    tkn,
+		Expires:  time.Now().Add(5 * time.Minute),
+		SameSite: http.SameSiteStrictMode,
 	}
 	cookie := c.String()
 
@@ -406,10 +407,11 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 	}
 
 	c := &http.Cookie{
-		Name:    "authorization",
-		Path:    "/",
-		Value:   tkn,
-		Expires: time.Now().Add(5 * time.Minute),
+		Name:     "authorization",
+		Path:     "/",
+		Value:    tkn,
+		Expires:  time.Now().Add(5 * time.Minute),
+		SameSite: http.SameSiteStrictMode,
 	}
 	cookie := c.String()
 

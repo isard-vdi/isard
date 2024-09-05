@@ -39,9 +39,15 @@ default:
     - key:
         files:
           - frontend/package.json
-          - frontend/yarn.lock
+          - frontend/bun.lockb
       paths:
         - frontend/node_modules
+    - key:
+        files:
+          - old-frontend/package.json
+          - old-frontend/yarn.lock
+      paths:
+        - old-frontend/node_modules
     - key:
         files:
           - e2e/package.json
@@ -101,10 +107,32 @@ check-python:
 
 check-frontend:
   stage: lint
-  image: node:18.17
+  image: oven/bun:1.1.24-alpine
+  parallel:
+    matrix:
+      - JOB: "format --write=false --check"
+      - JOB: "lint --max-warnings 0"
+        # TODO: Remove this when all lint errors are fixed
+        ALLOW_FAILURE: "true"
+      - JOB: "type-check"
+        # TODO: Remove this when all type errors are fixed
+        ALLOW_FAILURE: "true"
+  rules:
+    - if: $ALLOW_FAILURE == "true"
+      allow_failure: true
+    - if: $ALLOW_FAILURE != "true"
+      allow_failure: false
   script:
     - cd frontend
-    - yarn
+    - bun install --frozen-lockfile
+    - bun run $JOB
+
+check-old-frontend:
+  stage: lint
+  image: node:18.17
+  script:
+    - cd old-frontend
+    - yarn install --frozen-lockfile
     - yarn lint --no-fix --max-warnings 0
 
 check-protobuf:
@@ -145,6 +173,7 @@ gen-protobuf:
   artifacts:
     paths:
       - pkg/gen
+      - frontend/src/gen
       - "**/testing_*_mock.go"
 
 docker-compose-build:

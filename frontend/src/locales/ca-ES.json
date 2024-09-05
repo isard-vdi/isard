@@ -1,0 +1,57 @@
+{
+  "router": {
+    "titles": {
+      "home": "Inici",
+      "login": "Iniciar sessió"
+    }
+  },
+  "views": {
+    "login": {
+      "separator": "Altres accessos",
+      "select-category": "Selecciona una categoria"
+    }
+  },
+  "layouts": {
+    "login": {
+      "title": "Iniciar sessió",
+      "works-with": "Funciona amb"
+    }
+  },
+  "components": {
+    "login": {
+      "login-provider-form": {
+        "category": "Categoria",
+        "username": "Nom d'usuari",
+        "password": "Contrasenya",
+        "forgot-password": "Has oblidat la contrasenya?",
+        "login": "Iniciar sessió"
+      },
+      "login-provider-external": {
+        "default-text": {
+          "saml": "Iniciar sessió amb SAML",
+          "google": "Iniciar sessió amb Google"
+        }
+      },
+      "login-categories-dropdown": {
+        "placeholder": "Selecciona una categoria",
+        "not-found": "No s'ha trobat cap categoria"
+      },
+      "login-category-select": {
+        "logged-in-as": "Has iniciat sessió com a {name}",
+        "logout": "Tancar sessió"
+      }
+    }
+  },
+  "authentication": {
+    "login": {
+      "errors": {
+        "unknown": "S'ha produït un error",
+        "missing_category": "Fa falta seleccionar una categoria",
+        "invalid_credentials": "Usuari o contrasenya incorrecta",
+        "user_disabled": "L'usuari està deshabilitat",
+        "user_disallowed": "L'usuari no pot utilitzar IsardVDI",
+        "rate_limit": "S'han produït massa intents d'inici de sessió. Torni-ho a provar a {time}"
+      }
+    }
+  }
+}

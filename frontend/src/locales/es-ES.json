@@ -1,0 +1,57 @@
+{
+  "router": {
+    "titles": {
+      "home": "Inicio",
+      "login": "Iniciar sesión"
+    }
+  },
+  "views": {
+    "login": {
+      "separator": "Otros accessos",
+      "select-category": "Selecciona una categoría"
+    }
+  },
+  "layouts": {
+    "login": {
+      "title": "Iniciar sesión",
+      "works-with": "Funciona con"
+    }
+  },
+  "components": {
+    "login": {
+      "login-provider-form": {
+        "category": "Categoría",
+        "username": "Nombre de usuario",
+        "password": "Contraseña",
+        "forgot-password": "¿Has olvidado tu contraseña?",
+        "login": "Iniciar sesión"
+      },
+      "login-provider-external": {
+        "default-text": {
+          "saml": "Iniciar sesión con SAML",
+          "google": "Iniciar sesión con Google"
+        }
+      },
+      "login-categories-dropdown": {
+        "placeholder": "Selecciona una categoría",
+        "not-found": "No se ha encontrado ninguna categoría"
+      },
+      "login-category-select": {
+        "logged-in-as": "Has iniciado sesión como {name}",
+        "logout": "Cerrar sesión"
+      }
+    }
+  },
+  "authentication": {
+    "login": {
+      "errors": {
+        "unknown": "Se ha producido un error",
+        "missing_category": "Hace falta seleccionar una categoría",
+        "invalid_credentials": "Usuario o contraseña incorrecta",
+        "user_disabled": "El usuario está deshabilitado",
+        "user_disallowed": "El usuario no puede utilizar IsardVDI",
+        "rate_limit": "Se han producido demasiados intentos de inicio de sesión. Vuélve a intentarlo a {time}"
+      }
+    }
+  }
+}

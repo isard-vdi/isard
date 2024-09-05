@@ -314,6 +314,7 @@ function actionsCategoryDetail() {
         }).done(function (category) {
             $('#modalEditCategoryForm #name').val(category.name);
             $('#modalEditCategoryForm #custom-url').val(category.custom_url_name);
+            $('#modalEditCategoryForm #uid').val(category.uid);
             $('#modalEditCategoryForm #description').val(category.description);
             $('#modalEditCategoryForm #id').val(category.id);
             $('#modalEditCategoryForm #allowed_domain').val(category.allowed_domain);
@@ -491,9 +492,10 @@ function actionsCategoryDetail() {
     });
 }
 
-function customURLChange(titlestr) {
+function customURLandUIDChange(titlestr) {
     var url = titlestr.replace(/ /g, "_");
     document.getElementsByName("custom_url_name")[0].value = url;
+    $("#modalAddCategoryForm #uid")[0].value = url;
 }
 
 function ephemeralDesktopsShow(form, item) {

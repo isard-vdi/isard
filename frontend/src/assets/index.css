@@ -1,0 +1,271 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Colors */
+    --base-white: hsl(0, 0%, 100%, 1);
+    --base-black: hsl(0, 0%, 0%, 1);
+    --base-background: hsl(43, 64%, 96%, 1);
+    --base-menu: hsl(45, 19%, 88%, 1);
+    --base-menu-hover: hsl(46, 22%, 85%, 1);
+    --base-menu-current: hsl(45, 21%, 85%, 1);
+    --brand-100: hsl(189, 41%, 93%, 1);
+    --brand-200: hsl(192, 48%, 88%, 1);
+    --brand-600: hsl(190, 29%, 36%, 1);
+    --brand-700: hsl(190, 66%, 20%, 1);
+    --brand-800: hsl(189, 67%, 12%, 1);
+    --brand-900: hsl(191, 66%, 8%, 1);
+    --gray-warm-25: hsl(59, 10%, 99%, 1);
+    --gray-warm-50: hsl(59, 10%, 98%, 1);
+    --gray-warm-100: hsl(59, 6%, 96%, 1);
+    --gray-warm-200: hsl(19, 7%, 90%, 1);
+    --gray-warm-300: hsl(23, 7%, 83%, 1);
+    --gray-warm-400: hsl(23, 6%, 64%, 1);
+    --gray-warm-500: hsl(24, 6%, 45%, 1);
+    --gray-warm-600: hsl(32, 6%, 32%, 1);
+    --gray-warm-700: hsl(29, 7%, 25%, 1);
+    --gray-warm-800: hsl(11, 7%, 15%, 1);
+    --gray-warm-900: hsl(23, 11%, 10%, 1);
+    --gray-warm-950: hsl(23, 11%, 8%, 1);
+    --error-25: hsl(0, 50%, 95%, 1);
+    --error-50: hsl(358, 48%, 90%, 1);
+    --error-100: hsl(358, 49%, 85%, 1);
+    --error-200: hsl(359, 47%, 81%, 1);
+    --error-300: hsl(359, 48%, 76%, 1);
+    --error-400: hsl(359, 48%, 61%, 1);
+    --error-500: hsl(359, 48%, 56%, 1);
+    --error-600: hsl(359, 48%, 52%, 1);
+    --error-700: hsl(359, 45%, 41%, 1);
+    --error-800: hsl(359, 45%, 26%, 1);
+    --error-900: hsl(358, 46%, 10%, 1);
+    --error-950: hsl(0, 46%, 5%, 1);
+    --success-25: hsl(144, 38%, 95%, 1);
+    --success-50: hsl(141, 38%, 90%, 1);
+    --success-100: hsl(141, 38%, 85%, 1);
+    --success-300: hsl(141, 38%, 75%, 1);
+    --success-400: hsl(141, 37%, 59%, 1);
+    --success-500: hsl(141, 37%, 54%, 1);
+    --success-600: hsl(141, 39%, 49%, 1);
+    --success-700: hsl(141, 38%, 39%, 1);
+    --success-800: hsl(142, 39%, 29%, 1);
+    --success-900: hsl(140, 39%, 20%, 1);
+    --success-950: hsl(141, 40%, 10%, 1);
+    --warning-25: hsl(42, 100%, 97%, 1);
+    --warning-50: hsl(42, 100%, 93%, 1);
+    --warning-100: hsl(42, 96%, 90%, 1);
+    --warning-200: hsl(44, 98%, 77%, 1);
+    --warning-300: hsl(42, 98%, 80%, 1);
+    --warning-400: hsl(42, 97%, 73%, 1);
+    --warning-500: hsl(42, 97%, 70%, 1);
+    --warning-600: hsl(42, 98%, 66%, 1);
+    --warning-700: hsl(42, 56%, 53%, 1);
+    --warning-800: hsl(42, 50%, 26%, 1);
+    --warning-900: hsl(42, 50%, 20%, 1);
+    --warning-950: hsl(42, 50%, 13%, 1);
+    --info-25: hsl(192, 38%, 95%, 1);
+    --info-50: hsl(195, 38%, 90%, 1);
+    --info-100: hsl(194, 38%, 85%, 1);
+    --info-200: hsl(194, 37%, 64%, 1);
+    --info-300: hsl(194, 37%, 59%, 1);
+    --info-400: hsl(194, 37%, 54%, 1);
+    --info-500: hsl(194, 39%, 49%, 1);
+    --info-600: hsl(194, 38%, 39%, 1);
+    --info-700: hsl(194, 39%, 35%, 1);
+    --info-800: hsl(193, 39%, 29%, 1);
+    --info-900: hsl(195, 39%, 20%, 1);
+    --info-950: hsl(194, 39%, 15%, 1);
+    --secondary-1-400: hsl(67, 53%, 73%, 1);
+    --secondary-1-500: hsl(67, 58%, 59%, 1);
+    --secondary-1-600: hsl(68, 100%, 18%, 1);
+    --secondary-2-400: hsl(16, 72%, 72%, 1);
+    --secondary-2-500: hsl(16, 81%, 60%, 1);
+    --secondary-2-600: hsl(21, 100%, 23%, 1);
+    --secondary-3-400: hsl(174, 47%, 73%, 1);
+    --secondary-3-500: hsl(173, 41%, 56%, 1);
+    --secondary-3-600: hsl(173, 63%, 19%, 1);
+    --badges-purple-200: hsl(245, 97%, 92%, 1);
+    --badges-purple-700: hsl(257, 72%, 50%, 1);
+    --badges-indigo-200: hsl(222, 98%, 89%, 1);
+    --badges-indigo-700: hsl(239, 60%, 51%, 1);
+    --badges-violet-200: hsl(250, 96%, 92%, 1);
+    --badges-violet-600: hsl(261, 84%, 58%, 1);
+    --badges-violet-700: hsl(262, 71%, 50%, 1);
+    --badges-violet-900: hsl(262, 68%, 35%, 1);
+
+    /* Fonts */
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    --font-size-text-xl: 20px;
+    --font-size-text-lg: 18px;
+    --font-size-text-md: 16px;
+    --font-size-text-sm: 14px;
+    --font-size-text-xs: 12px;
+
+    --font-size-display-2xl: 72px;
+    --font-size-display-xl: 60px;
+    --font-size-display-lg: 48px;
+    --font-size-display-md: 36px;
+    --font-size-display-sm: 30px;
+    --font-size-display-xs: 20px;
+
+    --font-line-height-text-xl: 30px;
+    --font-line-height-text-lg: 28px;
+    --font-line-height-text-md: 24px;
+    --font-line-height-text-sm: 20px;
+    --font-line-height-text-xs: 18px;
+
+    --font-line-height-display-2xl: 90px;
+    --font-line-height-display-xl: 72px;
+    --font-line-height-display-lg: 60px;
+    --font-line-height-display-md: 44px;
+    --font-line-height-display-sm: 38px;
+    --font-line-height-display-xs: 32px;
+
+    --font-letter-spacing-text-xl: -0%;
+    --font-letter-spacing-text-lg: -0%;
+    --font-letter-spacing-text-md: -0%;
+    --font-letter-spacing-text-sm: -0%;
+    --font-letter-spacing-text-xs: -0%;
+
+    --font-letter-spacing-display-2xl: -2%;
+    --font-letter-spacing-display-xl: -2%;
+    --font-letter-spacing-display-lg: -2%;
+    --font-letter-spacing-display-md: -2%;
+    --font-letter-spacing-display-sm: -0%;
+    --font-letter-spacing-display-xs: -0%;
+
+    /* Spacing */
+    --spacing-sm: 12px;
+    --spacing-md: 14px;
+    --spacing-lg: 16px;
+    --spacing-xl: 18px;
+    --spacing-2xl: 22px;
+
+    --spacing-0: 0px;
+    --spacing-0-5: 2px;
+    --spacing-1: 4px;
+    --spacing-2: 8px;
+    --spacing-3: 12px;
+    --spacing-4: 16px;
+    --spacing-5: 20px;
+    --spacing-6: 24px;
+    --spacing-8: 32px;
+    --spacing-10: 40px;
+    --spacing-12: 48px;
+    --spacing-16: 64px;
+    --spacing-20: 80px;
+    --spacing-24: 96px;
+    --spacing-32: 128px;
+    --spacing-40: 160px;
+    --spacing-48: 192px;
+    --spacing-56: 224px;
+    --spacing-64: 256px;
+    --spacing-80: 320px;
+    --spacing-96: 384px;
+    --spacing-120: 480px;
+    --spacing-140: 560px;
+    --spacing-160: 640px;
+    --spacing-180: 720px;
+    --spacing-192: 768px;
+    --spacing-256: 1024px;
+    --spacing-320: 1280px;
+    --spacing-360: 1440px;
+    --spacing-400: 1600px;
+    --spacing-480: 1920px;
+
+    --radius-none: 0px;
+    --radius-xxs: 2px;
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 12px;
+    --radius-2xl: 16px;
+    --radius-3xl: 20px;
+    --radius-4xl: 24px;
+    --radius-full: 9999px;
+
+    --ring-brand-shadow-xs: 3px;
+    --ring-brand-shadow-sm: 4px;
+    --ring-brand-color: hsl(203, 60%, 31%, 0.24);
+    --ring-gray-color: hsl(218, 15%, 65%, 0.14);
+    --ring-gray-secondary-color: hsl(218, 15%, 65%, 0.2);
+    --ring-warning-color: hsla(42, 98%, 80%, 0.42);
+    --ring-error-color: hsla(4, 86%, 58%, 0.24) /* --background: 43, 64%, 96%, 1; */
+      /* --foreground: 222.2 84% 4.9%; */ /* Branding */
+      /* --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 359, 48%, 52%, 1;
+    --destructive-foreground: var(--base-white); */
+      /* Spacing */ /* --radius: 0.5rem;
+
+    /* Components */
+      /* --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+
+    --ring: 222.2 84% 4.9%; */;
+  }
+
+  /* .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --ring: 212.7 26.8% 83.9%;
+  } */
+}
+
+@layer base {
+  * {
+    /* @apply border-border; */
+  }
+
+  body {
+    /* @apply bg-background text-foreground; */
+    @apply text-sm;
+    color: var(--gray-warm-600);
+  }
+}

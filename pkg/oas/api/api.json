@@ -1,0 +1,314 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "IsardVDI API",
+    "version": "3.1"
+  },
+  "paths": {
+    "/api/v3/categories": {
+      "get": {
+        "operationId": "GetCategories",
+        "summary": "List all the available categories for the user to login",
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCategoriesResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [],
+        "security": []
+      }
+    },
+    "/api/v3/category/{custom_url}": {
+      "get": {
+        "operationId": "GetCategory",
+        "summary": "List all the available categories for the user to login",
+        "description": "",
+        "parameters": [
+          {
+              "in": "path",
+              "name": "custom_url",
+              "description": "The custom_url for the category",
+              "required": true,
+              "schema": {
+                  "type": "string"
+              }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCategoryResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [],
+        "security": []
+      }
+    },
+    "/api/v3/login_config": {
+      "get": {
+        "operationId": "GetLoginConfig",
+        "summary": "Get the configuration for the login page",
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetLoginConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "GetCategoriesResponse": {
+        "type": "array",
+        "title": "List of the categories",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "title": "The ID of the category"
+            },
+            "name": {
+              "type": "string",
+              "title": "The name of the category"
+            },
+            "frontend": {
+              "type": "boolean",
+              "title": "Whether to show this on the frontend dropdown"
+            },
+            "custom_url_name": {
+              "type": "string",
+              "title": "An URL friendly name for the category"
+            }
+          },
+          "required": ["id", "name", "frontend"]
+        }
+      },
+      "GetCategoryResponse": {
+        "type": "object",
+        "title": "Category data",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "The ID of the category"
+          },
+          "name": {
+            "type": "string",
+            "title": "The name of the category"
+          }
+        },
+        "required": ["id", "name"]
+      },
+      "GetLoginConfigResponse": {
+        "type": "object",
+        "title": "Configuration for the Login page",
+        "properties": {
+          "locale": {
+            "type": "object",
+            "title": "Config related with the locale selection",
+            "properties": {
+              "hide": {
+                "type": "boolean",
+                "title": "Whether to hide the locale switch"
+              },
+              "available_locales": {
+                "type": "array",
+                "title": "A list of the locales that will be available to the user",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "default": {
+                "type": "string",
+                "title": "The default locale that will be shown to the users"
+              }
+            }
+          },
+          "logo": {
+            "type": "object",
+            "title": "Config related with the logo",
+            "properties": {
+              "hide": {
+                "type": "boolean",
+                "title": "Whether to hide the logo"
+              }
+            }
+          },
+          "info": {
+            "type": "object",
+            "title": "Config realted with general information",
+            "properties": {
+              "title": {
+                "type": "string",
+                "title": "The title of the page"
+              },
+            }
+          },
+          "maintenance": {
+            "type": "object",
+            "title": "Config of the maintenance page",
+            "properties": {
+              "title": {
+                "type": "string",
+                "title": "The title of the maintenance page"
+              },
+              "description": {
+                "type": "string",
+                "title": "A small description (subtitle)"
+              }
+            }
+          },
+          "notification_cover": {
+            "title": "Config of the notification that will be shown over the cover image",
+            "$ref": "#/components/schemas/GetLoginConfigResponseNotification"
+          },
+          "notification_form": {
+            "title": "Config of the notification that will be shown in the Login form",
+            "$ref": "#/components/schemas/GetLoginConfigResponseNotification"
+          },
+          "providers": {
+            "type": "object",
+            "title": "Config related with the different authentication providers",
+            "properties": {
+              "all": {
+                "type": "object",
+                "title": "Config that will be applied to all the providers. A specific provider takes preference before this",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "title": "A small description (subtitle)"
+                  },
+                  "hide_categories_dropdown": {
+                    "type": "boolean",
+                    "title": "Whether to hide the categories dropdown for all the providers"
+                  },
+                  "display_providers": {
+                    "type": "array",
+                    "title": "The providers that will be displayed in the /login page. If some provider is missing here, it can be accessed through /login/<provider>. If the provider is not enabled in isardvdi.cfg, it won't be displayed",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "form",
+                        "saml",
+                        "google"
+                      ]
+                    }
+                  }
+                }
+              },
+              "form": {
+                "$ref": "#/components/schemas/GetLoginConfigResponseProvider"
+              },
+              "saml": {
+                "$ref": "#/components/schemas/GetLoginConfigResponseProvider"
+              },
+              "google": {
+                "$ref": "#/components/schemas/GetLoginConfigResponseProvider"
+              }
+            }
+          }
+        }
+      },
+      "GetLoginConfigResponseNotification": {
+        "type": "object",
+        "title": "Config of the notification that will be shown",
+        "properties": {
+          "icon": {
+            "type": "string",
+            "title": "The icon that the notification will have"
+          },
+          "title": {
+            "type": "string",
+            "title": "The title of the maintenance page"
+          },
+          "description": {
+            "type": "string",
+            "title": "A small description (subtitle)"
+          },
+          "button": {
+            "type": "object",
+            "title": "Configuration related with the button",
+            "properties": {
+              "text": {
+                "type": "string",
+                "title": "The text of the button"
+              },
+              "url": {
+                "type": "string",
+                "title": "The URL that the button will redirect to"
+              },
+              "extra_styles": {
+                "type": "string",
+                "title": "Extra styles for the button. It will be added as `style=''` in the HTML"
+              }
+            },
+            "required": ["text", "url"]
+          }
+        }
+      },
+      "GetLoginConfigResponseProvider": {
+        "type": "object",
+        "title": "Config related with a specific provider",
+        "properties": {
+          "description": {
+            "type": "string",
+            "title": "A small description (subtitle)"
+          },
+          "hide_categories_dropdown": {
+            "type": "boolean",
+            "title": "Whether to hide the categories dropdown"
+          },
+          "hide_forgot_password": {
+            "type": "boolean",
+            "title": "Whether to hide the forgot password button"
+          },
+          "submit_icon": {
+            "type": "string",
+            "title": "Icon for the Submit button"
+          },
+          "submit_text": {
+            "type": "string",
+            "title": "The text that will appear in the submit button for the form"
+          },
+          "submit_extra_styles": {
+            "type": "string",
+            "title": "Extra styles for the submit button. It will be added as `style=''` in the HTML"
+          }
+        }
+      }
+    }
+  },
+  "security": [],
+  "tags": []
+}
