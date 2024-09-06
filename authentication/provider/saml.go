@@ -83,6 +83,7 @@ func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *
 		IDPMetadata:        metadata,
 		DefaultRedirectURI: "/authentication/callback",
 	})
+	middleware.OnError = samlOnError(log)
 
 	// Configure the full path of the SAML endpoints
 	acsURL := *baseURL
@@ -157,6 +158,18 @@ func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *
 	}
 
 	return s
+}
+
+func samlOnError(log *zerolog.Logger) func(http.ResponseWriter, *http.Request, error) {
+	return func(w http.ResponseWriter, r *http.Request, err error) {
+		if parsedErr, ok := err.(*saml.InvalidResponseError); ok {
+			log.Warn().Err(parsedErr.PrivateErr).Str("rsp", parsedErr.Response).Time("now", parsedErr.Now).Msg("received invalid SAML response")
+		} else {
+			log.Error().Err(err).Msg("unexpected SAML error")
+		}
+
+		http.Redirect(w, r, "/login?error=unknown", http.StatusFound)
+	}
 }
 
 func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
