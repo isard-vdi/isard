@@ -23,16 +23,18 @@ const props = withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <div class="flex h-screen overflow-y-auto">
+  <div class="flex h-full min-h-screen overflow-y-auto">
     <!-- Left panel (cover image) -->
     <div
-      class="hidden md:block w-1/2 h-full bg-cover bg-center bg-cover-img flex px-20 content-center fixed"
+      class="hidden md:block w-1/2 h-screen bg-cover bg-center bg-cover-img flex px-20 content-center fixed"
     >
       <slot name="cover" />
     </div>
 
     <!-- Right panel (login form) -->
-    <div class="w-full md:w-1/2 md:ml-[50%] h-full p-[32px] flex flex-col justify-between">
+    <div
+      class="w-full md:w-1/2 md:ml-[50%] h-full min-h-screen p-[32px] flex flex-col justify-between"
+    >
       <!-- Language selector -->
       <div class="self-end">
         <LocaleSwitch v-if="!loading && !props.hideLocaleSwitch" />
@@ -65,7 +67,7 @@ const props = withDefaults(defineProps<Props>(), {
       </div>
 
       <!-- Extra info -->
-      <div class="self-center flex">
+      <div class="self-center flex mt-8">
         <div>
           <p>
             {{ t('layouts.login.works-with') }}
