@@ -14,10 +14,6 @@ name:
 email:
   type: string
   coerce: sanitize
-password:
-  type: string
-  required: true
-  empty: false
 group:
   type: string
   required: true
