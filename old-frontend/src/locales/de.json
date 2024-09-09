@@ -437,7 +437,8 @@
                     "placeholder": "Bestätige das Passwort"
                 },
                 "current-password": {
-                    "label": "Geben Sie Ihr aktuelles Passwort ein:"
+                    "label": "Geben Sie Ihr aktuelles Passwort ein:",
+                    "placeholder": "Aktuelles Passwort"
                 }
             }
         },
@@ -483,7 +484,9 @@
         "minLengthValue": "Das Feld {property} hat {model} Zeichen, muss aber eine Mindestlänge von {min} haben.",
         "sameAs": "Das Feld {property} muss den gleichen Wert wie {property2} haben.",
         "url": "Das Feld {property} muss eine URL sein.",
-        "undefined": "Nicht definiert"
+        "undefined": "Nicht definiert",
+        "email": "Das {property} Feld muss eine gültige E-Mail Adresse sein.",
+        "URLFormat": "Es muss mit \"https://\" beginnen."
     },
     "messages": {
         "no": "Nein",
