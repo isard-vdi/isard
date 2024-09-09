@@ -458,7 +458,7 @@
             "error": {
                 "groups": "Mindestens eine Gruppe muss selektiert sein",
                 "groups-users": "Mindestens ein Nutzer oder eine Gruppe muss ausgewählt werden",
-                "users": "Mindestens ein Benutzer muss ausgewählt werden"
+                "users": "Mindestens ein Nutzer muss ausgewählt werden"
             }
         },
         "filter-placeholder": "Tippe zum suchen",
