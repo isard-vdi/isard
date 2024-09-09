@@ -434,6 +434,9 @@
                 "confirmation-password": {
                     "label": "Passwortbestätigung",
                     "placeholder": "Bestätige das Passwort"
+                },
+                "current-password": {
+                    "label": "Geben Sie Ihr aktuelles Passwort ein:"
                 }
             }
         },
@@ -451,7 +454,20 @@
         "duplicate-template": {
             "title": "Vorlage duplizieren"
         },
-        "show-pages": "Zeigen"
+        "show-pages": "Zeigen",
+        "email": {
+            "modal": {
+                "change-validate-address": "Ändern oder Bestätigen Ihrer E-Mail-Adresse",
+                "title": "E-Mail-Änderung/Validierung",
+                "email": {
+                    "label": "Email",
+                    "placeholder": "Email"
+                },
+                "buttons": {
+                    "verify": "E-Mail aktualisieren und verifizieren"
+                }
+            }
+        }
     },
     "errors": {
         "desktop_new_user_quota_exceeded": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
