@@ -239,14 +239,16 @@
                 "action": "Aktion",
                 "description": "Beschreibung",
                 "state": "Zustand",
-                "name": "Name"
+                "name": "Name",
+                "desktop-size": "Größe"
             },
             "no-info-default": "Keine Beschreibung vorhanden",
             "actions": {
                 "delete": "Löschen",
                 "template": "Zur Vorlage machen",
                 "edit": "bearbeiten",
-                "direct-link": "direkter Link"
+                "direct-link": "direkter Link",
+                "booking": "Zeitplan"
             },
             "filter-label": "Filtern",
             "notification-bar": {
