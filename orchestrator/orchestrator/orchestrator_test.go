@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.nhat.io/grpcmock"
+	gRPC "google.golang.org/grpc"
 )
 
 func TestStart(t *testing.T) {
@@ -247,8 +248,7 @@ func TestStart(t *testing.T) {
 				list.Once()
 
 				destroy := s.ExpectServerStream("operations.v1.OperationsService/DestroyHypervisors")
-				destroy.Run(func(ctx context.Context, req any, s grpc.ServerStream) error {
-
+				destroy.Run(func(ctx context.Context, req any, s gRPC.ServerStream) error {
 					msg1 := &operationsv1.DestroyHypervisorsResponse{
 						State: operationsv1.OperationState_OPERATION_STATE_ACTIVE,
 					}
