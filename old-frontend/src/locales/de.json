@@ -300,9 +300,49 @@
         "bookings": {
             "item": {
                 "split-labels": {
-                    "bookings": "Buchungen"
-                }
+                    "bookings": "Buchungen",
+                    "availability": "Verfügbarkeit"
+                },
+                "modal": {
+                    "title": "Titel",
+                    "start-date": "Startdatum",
+                    "start-time": "Startzeit",
+                    "profile": "Profil",
+                    "end-time": "Endzeit",
+                    "create": {
+                        "button": "Buchung hinzufügen",
+                        "modal-title": "Buchung hinzufügen"
+                    },
+                    "edit": {
+                        "modal-title": "Buchung bearbeiten"
+                    },
+                    "end-date": "Enddatum",
+                    "select-profile": "Bitte wähle ein Profil aus"
+                },
+                "event-titles": {
+                    "unavailable": "Nicht verfügbar",
+                    "overridable": "Überschreibbar",
+                    "available": "Verfügbar"
+                },
+                "status-bar": {
+                    "buttons": {
+                        "add-booking": "Buchung hinzufügen"
+                    },
+                    "max-time": "Maximale Buchungszeit",
+                    "max-items": "Maximale Buchungen"
+                },
+                "units": "Einheiten"
             }
+        },
+        "deployment-desktop-list": {
+            "table-header": {
+                "user": "Nutzer",
+                "group": "Gruppe",
+                "action": "Aktion",
+                "viewers": "Zuschauer",
+                "state": "Status"
+            },
+            "filter-label": "Filter"
         }
     },
     "forms": {
