@@ -294,7 +294,25 @@
                     }
                 }
             },
-            "new-media": "Neues Medium"
+            "new-media": "Neues Medium",
+            "recycle-bin": {
+                "title": "Papierkorb",
+                "buttons": {
+                    "info": {
+                        "title": "Mehr Informationen"
+                    },
+                    "delete": {
+                        "title": "Entfernen"
+                    },
+                    "restore": {
+                        "title": "Wiederherstellen"
+                    }
+                },
+                "back": "Zurück zum Papierkorb"
+            },
+            "recycle-bins": {
+                "empty-recycle-bin": "Papierkorb leeren"
+            }
         },
         "select-search": {
             "empty": "Keine Optionen verfügbar"
@@ -510,6 +528,11 @@
                 "buttons": {
                     "verify": "E-Mail aktualisieren und verifizieren"
                 }
+            }
+        },
+        "direct-link": {
+            "modal": {
+                "enable": "Direkten Viewer-Zugang ermöglichen"
             }
         }
     },
