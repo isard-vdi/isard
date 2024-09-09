@@ -168,6 +168,342 @@ func TestStart(t *testing.T) {
 				HyperMaxRAM:        102400,
 			},
 		},
+		"should destroy an hypervisor if required": {
+			PrepareOperations: func(s *grpcmock.Server) {
+				list := s.ExpectUnary("operations.v1.OperationsService/ListHypervisors")
+				list.Return(&operationsv1.ListHypervisorsResponse{
+					Hypervisors: []*operationsv1.ListHypervisorsResponseHypervisor{{
+						Id:    "bm-e2-11",
+						Cpu:   64,
+						Ram:   524288,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
+					}, {
+						Id:    "bm-e2-12",
+						Cpu:   64,
+						Ram:   524288,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
+					}, {
+						Id:    "bm-e2-13",
+						Cpu:   64,
+						Ram:   524288,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
+					}, {
+						Id:    "bm-e2-14",
+						Cpu:   64,
+						Ram:   524288,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
+					}, {
+						Id:    "bm-e4-11",
+						Cpu:   128,
+						Ram:   2097152,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
+					}, {
+						Id:    "bm-e4-12",
+						Cpu:   128,
+						Ram:   2097152,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
+					}, {
+						Id:    "bm-e4-13",
+						Cpu:   128,
+						Ram:   2097152,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+					}, {
+						Id:    "bm-e4-16",
+						Cpu:   128,
+						Ram:   2097152,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+					}, {
+						Id:    "bm-std3-11",
+						Cpu:   64,
+						Ram:   1048576,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+					}, {
+						Id:    "bm-std3-12",
+						Cpu:   64,
+						Ram:   1048576,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
+					}, {
+						Id:    "bm-std3-13",
+						Cpu:   64,
+						Ram:   1048576,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+					}, {
+						Id:    "bm-std3-14",
+						Cpu:   64,
+						Ram:   1048576,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+					}, {
+						Id:    "bm-std3-15",
+						Cpu:   64,
+						Ram:   1048576,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+					}, {
+						Id:    "bm-e4-15",
+						Cpu:   128,
+						Ram:   2097152,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
+					}},
+				})
+				list.Once()
+
+				destroy := s.ExpectServerStream("operations.v1.OperationsService/DestroyHypervisors")
+				destroy.Run(func(ctx context.Context, req any, s grpc.ServerStream) error {
+
+					msg1 := &operationsv1.DestroyHypervisorsResponse{
+						State: operationsv1.OperationState_OPERATION_STATE_ACTIVE,
+					}
+					msg2 := &operationsv1.DestroyHypervisorsResponse{
+						State: operationsv1.OperationState_OPERATION_STATE_COMPLETED,
+					}
+
+					if err := s.SendMsg(msg1); err != nil {
+						return err
+					}
+					if err := s.SendMsg(msg2); err != nil {
+						return err
+					}
+
+					return nil
+				})
+				destroy.Once()
+			},
+			PrepareAPI: func(cancel context.CancelFunc, m *apiMock.Client) {
+				hypers := []*isardvdi.OrchestratorHypervisor{{
+					ID:                  "bm-e2-11",
+					Status:              isardvdi.HypervisorStatusOnline,
+					OnlyForced:          true,
+					Buffering:           false,
+					DestroyTime:         time.Date(2024, 2, 14, 23, 12, 19, 0, time.UTC),
+					BookingsEndTime:     time.Time{},
+					OrchestratorManaged: true,
+					GPUOnly:             false,
+					DesktopsStarted:     27,
+					MinFreeMemGB:        50,
+					CPU: isardvdi.OrchestratorResourceLoad{
+						Total: 100,
+						Used:  3,
+						Free:  97,
+					},
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 515855,
+						Used:  119794,
+						Free:  396060,
+					},
+				}, {
+					ID:                  "bm-e2-12",
+					Status:              isardvdi.HypervisorStatusOnline,
+					OnlyForced:          true,
+					Buffering:           false,
+					DestroyTime:         time.Date(2024, 2, 14, 23, 12, 30, 0, time.UTC),
+					BookingsEndTime:     time.Time{},
+					OrchestratorManaged: true,
+					GPUOnly:             false,
+					DesktopsStarted:     20,
+					MinFreeMemGB:        50,
+					CPU: isardvdi.OrchestratorResourceLoad{
+						Total: 100,
+						Used:  2,
+						Free:  98,
+					},
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 515855,
+						Used:  70115,
+						Free:  445739,
+					},
+				}, {
+					ID:                  "bm-e4-12",
+					Status:              isardvdi.HypervisorStatusOnline,
+					OnlyForced:          true,
+					Buffering:           false,
+					DestroyTime:         time.Date(2024, 2, 14, 21, 56, 55, 0, time.UTC),
+					BookingsEndTime:     time.Time{},
+					OrchestratorManaged: true,
+					GPUOnly:             false,
+					DesktopsStarted:     6,
+					MinFreeMemGB:        200,
+					CPU: isardvdi.OrchestratorResourceLoad{
+						Total: 100,
+						Used:  1,
+						Free:  99,
+					},
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 2051898,
+						Used:  38185,
+						Free:  2013712,
+					},
+				}, {
+					ID:                  "bm-e4-11",
+					Status:              isardvdi.HypervisorStatusOnline,
+					OnlyForced:          true,
+					Buffering:           false,
+					DestroyTime:         time.Date(2024, 2, 14, 22, 45, 5, 0, time.UTC),
+					BookingsEndTime:     time.Time{},
+					OrchestratorManaged: true,
+					GPUOnly:             false,
+					DesktopsStarted:     27,
+					MinFreeMemGB:        200,
+					CPU: isardvdi.OrchestratorResourceLoad{
+						Total: 100,
+						Used:  3,
+						Free:  97,
+					},
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 2051898,
+						Used:  153885,
+						Free:  1898012,
+					},
+				}, {
+					ID:                  "bm-e2-13",
+					Status:              isardvdi.HypervisorStatusOnline,
+					OnlyForced:          true,
+					Buffering:           false,
+					DestroyTime:         time.Date(2024, 2, 15, 1, 2, 11, 0, time.UTC),
+					BookingsEndTime:     time.Time{},
+					OrchestratorManaged: true,
+					GPUOnly:             false,
+					DesktopsStarted:     40,
+					MinFreeMemGB:        50,
+					CPU: isardvdi.OrchestratorResourceLoad{
+						Total: 100,
+						Used:  10,
+						Free:  90,
+					},
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 515855,
+						Used:  230584,
+						Free:  285271,
+					},
+				}, {
+					ID:                  "bm-e2-14",
+					Status:              isardvdi.HypervisorStatusOnline,
+					OnlyForced:          true,
+					Buffering:           false,
+					DestroyTime:         time.Date(2024, 2, 15, 1, 17, 52, 0, time.UTC),
+					BookingsEndTime:     time.Time{},
+					OrchestratorManaged: true,
+					GPUOnly:             false,
+					DesktopsStarted:     20,
+					MinFreeMemGB:        50,
+					CPU: isardvdi.OrchestratorResourceLoad{
+						Total: 100,
+						Used:  6,
+						Free:  94,
+					},
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 515855,
+						Used:  127595,
+						Free:  388260,
+					},
+				}, {
+					ID:                  "bm-std3-11",
+					Status:              isardvdi.HypervisorStatusOnline,
+					OnlyForced:          true,
+					Buffering:           false,
+					DestroyTime:         time.Time{},
+					BookingsEndTime:     time.Time{},
+					OrchestratorManaged: false,
+					GPUOnly:             false,
+					DesktopsStarted:     0,
+					MinFreeMemGB:        100,
+					CPU: isardvdi.OrchestratorResourceLoad{
+						Total: 100,
+						Used:  1,
+						Free:  99,
+					},
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 1031700,
+						Used:  7441,
+						Free:  1024258,
+					},
+				}, {
+					ID:                  "bm-std3-12",
+					Status:              isardvdi.HypervisorStatusOnline,
+					OnlyForced:          true,
+					Buffering:           false,
+					DestroyTime:         time.Date(2024, 2, 14, 22, 45, 16, 0, time.UTC),
+					BookingsEndTime:     time.Time{},
+					OrchestratorManaged: true,
+					GPUOnly:             false,
+					DesktopsStarted:     49,
+					MinFreeMemGB:        100,
+					CPU: isardvdi.OrchestratorResourceLoad{
+						Total: 100,
+						Used:  5,
+						Free:  95,
+					},
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 1031700,
+						Used:  201767,
+						Free:  829932,
+					},
+				}, {
+					ID:                  "gpu-a10-2",
+					Status:              isardvdi.HypervisorStatusOnline,
+					OnlyForced:          false,
+					Buffering:           false,
+					DestroyTime:         time.Time{},
+					BookingsEndTime:     time.Time{},
+					OrchestratorManaged: false,
+					GPUOnly:             false,
+					DesktopsStarted:     89,
+					MinFreeMemGB:        100,
+					CPU: isardvdi.OrchestratorResourceLoad{
+						Total: 100,
+						Used:  20,
+						Free:  80,
+					},
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 1031700,
+						Used:  498174,
+						Free:  533525,
+					},
+					GPUs: []*isardvdi.OrchestratorHypervisorGPU{{
+						ID:         "gpu-a10-2-pci_0000_31_00_0",
+						Brand:      "NVIDIA",
+						Model:      "A10",
+						Profile:    "2Q",
+						TotalUnits: 12,
+						FreeUnits:  12,
+						UsedUnits:  0,
+					}, {
+						ID:         "gpu-a10-2-pci_0000_ca_00_0",
+						Brand:      "NVIDIA",
+						Model:      "A10",
+						Profile:    "4Q",
+						TotalUnits: 6,
+						FreeUnits:  6,
+						UsedUnits:  0,
+					}, {
+						ID:         "gpu-a10-2-pci_0000_b1_00_0",
+						Brand:      "NVIDIA",
+						Model:      "A10",
+						Profile:    "2Q",
+						TotalUnits: 12,
+						FreeUnits:  12,
+						UsedUnits:  0,
+					}, {
+						ID:         "gpu-a10-2-pci_0000_17_00_0",
+						Brand:      "NVIDIA",
+						Model:      "A10",
+						Profile:    "4Q",
+						TotalUnits: 6,
+						FreeUnits:  6,
+						UsedUnits:  0,
+					}},
+				}}
+
+				m.On("OrchestratorHypervisorList", mock.AnythingOfType("*context.cancelCtx")).Return(hypers, nil)
+				m.On("OrchestratorHypervisorStopDesktops", mock.AnythingOfType("*context.timerCtx"), "bm-e2-11").Return(nil)
+			},
+			CfgRata: cfg.DirectorRata{
+				MinRAMLimitPercent: 150,
+				MinRAMLimitMargin:  0,
+				MaxRAMLimitPercent: 150,
+				MaxRAMLimitMargin:  0,
+				HyperMinRAM:        41200,
+				HyperMaxRAM:        102400,
+			},
+		},
 	}
 
 	for name, tc := range cases {
