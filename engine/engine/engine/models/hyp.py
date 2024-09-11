@@ -1209,7 +1209,7 @@ class hyp(object):
                     type_id_running == all_uuids[uuid_running]["type_id"]
                     and pci_mdev_id_running == all_uuids[uuid_running]["pci_mdev_id"]
                 ):
-                    if len(d["vm_name"]) > 0:
+                    if len(d.get("vm_name", [])) > 0:
                         if get_domain_status(d["vm_name"]) is None:
                             destroy_domains.append(d["vm_name"])
                         else:
