@@ -82,12 +82,15 @@ from .validators import _validate_item
 @cached(cache=TTLCache(maxsize=300, ttl=10))
 def user_exists(user_id):
     with app.app_context():
-        return (
-            r.table("users")
-            .get(user_id)
-            .pluck("id", "username", "name", "category", "group", "active")
-            .run(db.conn)
-        )
+        try:
+            return (
+                r.table("users")
+                .get(user_id)
+                .pluck("id", "username", "name", "category", "group", "active")
+                .run(db.conn)
+            )
+        except r.ReqlNonExistenceError:
+            raise Error("not_found", "User not found")
 
 
 cache_user = TTLCache(maxsize=100, ttl=10)
