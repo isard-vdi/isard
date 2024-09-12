@@ -120,7 +120,7 @@ func matchRegexMultiple(re *regexp.Regexp, s string) []string {
 
 	// Attempt to match all the groups
 	result := re.FindAllStringSubmatch(s, -1)
-	if len(result) == 1 {
+	if len(result) == 0 || len(result[0]) == 1 {
 		// If no groups are found, attempt to do a global match
 		global := re.FindString(s)
 		if global == "" {
