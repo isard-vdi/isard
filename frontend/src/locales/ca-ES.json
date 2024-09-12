@@ -3,7 +3,8 @@
     "titles": {
       "home": "Inici",
       "login": "Iniciar sessió",
-      "register": "Registre"
+      "register": "Registre",
+      "maintenance": "Manteniment"
     }
   },
   "views": {
@@ -75,6 +76,11 @@
     },
     "single-page": {
       "go-back": "Tornar enrere"
+    },
+    "maintenance": {
+      "title": "En manteniment",
+      "description": "El servei d'IsardVDI tornarà a estar disponible en una estona. Disculpeu les molèsties.",
+      "button": "Anar al login"
     }
   },
   "components": {

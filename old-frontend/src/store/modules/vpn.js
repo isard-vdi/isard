@@ -1,6 +1,6 @@
 import axios from 'axios'
 import i18n from '@/i18n'
-import router from '@/router'
+// import router from '@/router'
 import { apiV3Segment } from '../../shared/constants'
 import { ErrorUtils } from '../../utils/errorUtils'
 
@@ -33,7 +33,7 @@ export default {
         this._vm.$snotify.clear()
 
         if (e.response.status === 503) {
-          router.push({ name: 'Maintenance' })
+          window.location.pathname = '/maintenance'
         } else {
           ErrorUtils.showErrorMessage(this._vm.$snotify, e,
             i18n.t('components.navbar.vpn.downloadvpn-error.description'),

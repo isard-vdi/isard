@@ -369,14 +369,6 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/maintenance',
-      name: 'Maintenance',
-      component: () => import('@/views/Maintenance.vue'),
-      meta: {
-        title: i18n.t('router.titles.maintenance')
-      }
-    },
-    {
       path: '/vw/*',
       name: 'DirectViewer',
       component: () => import('@/views/DirectViewer.vue'),

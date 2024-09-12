@@ -4,7 +4,8 @@
       "home": "Home",
       "login": "Login",
       "migration": "Migration",
-      "register": "Register"
+      "register": "Register",
+      "maintenance": "Maintenance"
     }
   },
   "views": {
@@ -76,6 +77,11 @@
     },
     "single-page": {
       "go-back": "Go back"
+    },
+    "maintenance": {
+      "title": "Under maintenance",
+      "description": "The IsardVDI service will be available again in a few minutes. Sorry for the inconvenience.",
+      "button": "Go to login"
     }
   },
   "components": {

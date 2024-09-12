@@ -113,6 +113,26 @@ def has_token(f):
     return decorated
 
 
+def has_token_maintenance(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        payload = get_header_jwt_payload()
+        if payload.get("type", "") not in ["login", ""]:
+            raise Error(
+                "forbidden",
+                "Token not valid for this operation.",
+                traceback.format_exc(),
+            )
+        api_sessions.get(
+            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+        )
+
+        kwargs["payload"] = payload
+        return f(*args, **kwargs)
+
+    return decorated
+
+
 def has_viewer_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):

@@ -51,7 +51,8 @@ export default function axiosSetUp () {
         document.querySelector('[type="submit"]').removeAttribute('disabled')
       }
       if (!error.config.url.includes('scheduler') && error.response.status === 503) {
-        router.replace({ name: 'Maintenance' })
+        // router.replace({ name: 'Maintenance' })
+        window.location.pathname = '/maintenance'
       } else if (error.response.status === 500) {
         router.replace({
           name: 'Error',

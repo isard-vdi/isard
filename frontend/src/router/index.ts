@@ -28,6 +28,12 @@ const router = createRouter({
       name: 'register',
       component: () => import('../views/RegisterView.vue'),
       meta: { title: 'router.titles.register' }
+    },
+    {
+      path: '/maintenance',
+      name: 'maintenance',
+      component: () => import('../views/MaintenanceView.vue'),
+      meta: { title: 'router.titles.maintenance' }
     }
   ]
 })

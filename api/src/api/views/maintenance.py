@@ -27,7 +27,12 @@ from api import app
 
 from ..libv2.maintenance import Maintenance
 from ..libv2.validators import _validate_item
-from .decorators import get_category_maintenance, has_token, is_admin, maintenance
+from .decorators import (
+    get_category_maintenance,
+    has_token,
+    has_token_maintenance,
+    is_admin,
+)
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=5))
@@ -42,9 +47,28 @@ def _api_maintenance_get_status():
 
 @cached(cache=TTLCache(maxsize=1, ttl=5))
 @app.route("/api/v3/maintenance", methods=["GET"])
+@has_token_maintenance
+def _api_maintenance_get(payload):
+    if payload["role_id"] == "admin":
+        # Admins should not be affected by maintenance
+        return (
+            json.dumps(False),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    status = Maintenance.enabled
+    category_status = get_category_maintenance(payload["category_id"])
+    return (
+        json.dumps(status or category_status),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=5))
 @app.route("/api/v3/maintenance/<category_id>", methods=["GET"])
-@has_token
-def _api_maintenance_get(payload, category_id=None):
+@is_admin
+def _api_maintenance_get_category(payload, category_id=None):
     status = Maintenance.enabled
     category_status = get_category_maintenance(
         category_id if category_id else payload["category_id"]

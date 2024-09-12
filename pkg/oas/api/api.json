@@ -260,6 +260,76 @@
           }
         ]
       }
+    },
+    "/api/v3/maintenance": {
+      "get": {
+        "operationId": "GetMaintenance",
+        "summary": "Check if maintenance is enabled globally or the user's category",
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetMaintenanceResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [],
+        "security": [
+            {
+                "BearerAuth": []
+            }
+        ]
+      }
+    },
+    "/api/v3/maintenance/status": {
+      "get": {
+        "operationId": "GetMaintenanceStatus",
+        "summary": "Check if maintenance is enabled globally",
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetMaintenanceStatusResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [],
+        "security": []
+      }
+    },
+    "/api/v3/maintenance/text/frontend": {
+      "get": {
+        "operationId": "GetMaintenanceText",
+        "summary": "List the custom maintenance text",
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetMaintenanceTextResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [],
+        "security": []
+      }
     }
   },
   "components": {
@@ -804,6 +874,33 @@
           "msg"
         ],
         "type": "object"
+      },
+      "GetMaintenanceResponse": {
+        "type": "boolean",
+        "title": "Maintenance status"
+      },
+      "GetMaintenanceStatusResponse": {
+        "type": "boolean",
+        "title": "Global maintenance status"
+      },
+      "GetMaintenanceTextResponse": {
+        "type": "object",
+        "title": "Maintenance text",
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "The custom title of the maintenance page"
+          },
+          "body": {
+            "type": "string",
+            "title": "The custom body of the maintenance page"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Whether the maintenance page is enabled"
+          }
+        },
+        "required": ["title", "body", "enabled"]
       }
     }
   },
