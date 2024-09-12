@@ -7,8 +7,8 @@
 
 $(document).ready(function () {
     $template_category = $(".template-detail-categories");
-    $("#modalEditCategoryForm #span-custom-url").append(location.protocol + '//' + location.host + '/login/');
-    $("#modalAddCategoryForm #span-custom-url").append(location.protocol + '//' + location.host + '/login/');
+    $("#modalEditCategoryForm #span-custom-url").append(location.protocol + '//' + location.host + '/login/form/');
+    $("#modalAddCategoryForm #span-custom-url").append(location.protocol + '//' + location.host + '/login/form/');
 
     var categories_table = $('#categories').DataTable({
         "initComplete": function (settings, json) {
