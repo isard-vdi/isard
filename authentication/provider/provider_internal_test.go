@@ -16,6 +16,56 @@ import (
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
+func TestMatchRegexMultiple(t *testing.T) {
+	require := require.New(t)
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		PrepareRegexp   func() *regexp.Regexp
+		Input           string
+		ExpectedMatches []string
+	}{
+		"should be able to do a simple match": {
+			PrepareRegexp: func() *regexp.Regexp {
+				re, err := regexp.Compile(".*")
+				require.NoError(err)
+
+				return re
+			},
+			Input:           "nefix",
+			ExpectedMatches: []string{"nefix"},
+		},
+		"should be able to do a simple group match": {
+			PrepareRegexp: func() *regexp.Regexp {
+				re, err := regexp.Compile("([^,]+)+")
+				require.NoError(err)
+
+				return re
+			},
+			Input:           "categoria1,categoria2,categoria3",
+			ExpectedMatches: []string{"categoria1", "categoria2", "categoria3"},
+		},
+		"should be able to match a group": {
+			PrepareRegexp: func() *regexp.Regexp {
+				re, err := regexp.Compile("/home/users/([^/]+)/[^/]+/[^/]+")
+				require.NoError(err)
+
+				return re
+			},
+			Input:           "/home/users/escola/escola/nefix",
+			ExpectedMatches: []string{"escola"},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			result := matchRegexMultiple(tc.PrepareRegexp(), tc.Input)
+
+			assert.Equal(tc.ExpectedMatches, result)
+		})
+	}
+}
+
 func TestGuessCategory(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
@@ -313,6 +363,48 @@ func TestGuessCategory(t *testing.T) {
 				assert.Equal(expected, u)
 			},
 			ExpectedErr: "internal server error: check category exists: eRRoR",
+		},
+		"should match a regex group in a signle field response": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Filter(r.Eq(r.Row.Field("uid"), "escola"))).Return([]interface{}{
+					map[string]interface{}{
+						"id":          "escola",
+						"uid":         "escola",
+						"name":        "Escola",
+						"description": "Descripció de escola",
+						"photo":       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
+					},
+				}, nil)
+			},
+			Secret: "Nodigasna",
+			PrepareRegexp: func() *regexp.Regexp {
+				re, err := regexp.Compile("/home/users/([^/]+)/[^/]+/[^/]+")
+				require.NoError(err)
+
+				return re
+			},
+			RawCategories: []string{"/home/users/escola/escola/isardqueryldap"},
+			PrepareUserData: func() *types.ProviderUserData {
+				name := "Escola"
+
+				return &types.ProviderUserData{
+					Provider: types.ProviderSAML,
+					Category: "",
+					UID:      "escola",
+					Name:     &name,
+				}
+			},
+			CheckUserData: func(u *types.ProviderUserData) {
+				name := "Escola"
+				expected := &types.ProviderUserData{
+					Provider: types.ProviderSAML,
+					Category: "escola",
+					UID:      "escola",
+					Name:     &name,
+				}
+
+				assert.Equal(expected, u)
+			},
 		},
 	}
 
