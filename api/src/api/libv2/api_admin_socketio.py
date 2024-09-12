@@ -514,8 +514,15 @@ class HypervisorsThread(threading.Thread):
                                         .merge(
                                             lambda hyper: {
                                                 "gpus": r.table("vgpus")
-                                                .filter({"hyp_id": hyper["id"]})
-                                                .count(),
+                                                .filter({"hyp_id": hyper["id"]})["id"]
+                                                .coerce_to("array"),
+                                                "physical_gpus": r.table("gpus")
+                                                .filter(
+                                                    lambda gpu: gpu[
+                                                        "physical_device"
+                                                    ].ne(None)
+                                                )["physical_device"]
+                                                .coerce_to("array"),
                                                 "desktops_started": r.table("domains")
                                                 .get_all(
                                                     hyper["id"], index="hyp_started"
