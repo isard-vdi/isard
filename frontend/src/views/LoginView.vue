@@ -184,6 +184,11 @@ const showCategoriesDropdown = computed(() => {
     return false
   }
 
+  // If there is only one category, don't show the dropdown
+  if (categories.value?.length === 1) {
+    return false
+  }
+
   const providersConfig = config.value?.providers
   if (providersConfig) {
     // Check if there's a general hide
@@ -227,6 +232,11 @@ const selectedCategory = computed(() => {
   // If the dropdown is shown, always use this value
   if (showCategoriesDropdown.value) {
     return categoriesDropdownModel.value ? categoriesDropdownModel.value.id : undefined
+  }
+
+  // If there's only one category, use it
+  if (categories.value?.length === 1) {
+    return categories.value[0].id
   }
 
   // Fallback to the 'default' category if there's no category
