@@ -70,6 +70,16 @@ def api_v3_desktop_start(payload, desktop_id):
         desktop = quotas.desktop_start(user_id, desktop_id)
     desktop = _parse_desktop_booking(desktop)
 
+    try:
+        check_storage_pool_availability(payload.get("category_id"))
+    except Error as e:
+        raise Error(
+            "precondition_required",
+            e.error["description"],
+            traceback.format_exc(),
+            "hypervisors_not_available",
+        )
+
     if desktop["needs_booking"]:
         try:
             desktops.check_current_plan(payload, desktop_id)

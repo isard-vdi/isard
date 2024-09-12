@@ -1429,8 +1429,8 @@
         "bookings_max_time_reached": "El usuario ha alcanzado el tiempo máximo de escritorios reservables",
         "desktops_not_stopped": "Los escritorios asociados a este almacenamiento deben estar parados para realizar esta acción",
         "increase_desktops_not_stopped": "El escritorio asociado a este almacenamiento debe estar parado para incrementar el tamaño del disco",
-        "increase_storage_has_derivatives": "El almacenamiento es de una plantilla y no se puede incrementar"
-  
+        "increase_storage_has_derivatives": "El almacenamiento es de una plantilla y no se puede incrementar",
+        "hypervisors_not_available": "No se ha podido iniciar el escritorio. El sistema puede estar sobrecargado. Inténtelo de nuevo más tarde."
     },
     "router": {
         "titles": {

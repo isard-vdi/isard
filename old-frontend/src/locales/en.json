@@ -1417,7 +1417,8 @@
         "bookings_max_time_reached": "The user has reached the maximum time limit for bookable desktops",
         "desktops_not_stopped": "The desktops associated with this storage must be stopped to perform this action",
         "increase_desktops_not_stopped": "The desktop associated with this storage must be stopped to increase the disk size",
-        "increase_storage_has_derivatives": "The storage is from a template and can't be increased"
+        "increase_storage_has_derivatives": "The storage is from a template and can't be increased",
+        "hypervisors_not_available": "The desktop could not be started. The system may be overloaded. Please try again later."
     },
     "router": {
         "titles": {

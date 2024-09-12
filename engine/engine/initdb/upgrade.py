@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 142
+release_version = 143
+# release 143: Add UID index to categories
 # release 142: Add uuid and photo fields to category
 # release 141: Add deployment quotas
 # release 140: Add credentials to RDP VPN viewer
@@ -4888,6 +4889,12 @@ password:s:%s"""
                         ],
                         id=category["id"],
                     )
+
+            except Exception as e:
+                print(e)
+        if version == 143:
+            try:
+                r.table(table).index_create("uid").run(self.conn)
             except Exception as e:
                 print(e)
 

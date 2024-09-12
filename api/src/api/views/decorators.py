@@ -716,6 +716,20 @@ def checkDuplicateCustomURL(custom_url, category_id=None):
         )
 
 
+def checkDuplicateUID(uid, category_id=None):
+    query = (
+        r.table("categories")
+        .get_all(uid, index="uid")
+        .filter(lambda item: (item["id"] != category_id))
+        .count()
+    )
+    with app.app_context():
+        if query.run(db.conn) > 0:
+            raise Error(
+                "conflict", "Category UID already exists", traceback.format_exc()
+            )
+
+
 def allowedTemplateId(payload, template_id):
     with app.app_context():
         template = (
