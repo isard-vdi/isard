@@ -215,12 +215,13 @@ class ApiUsers:
             new_user["role"] = user["role"]
             new_user["accessed"] = int(time.time())
             new_user["quota"] = False
+            new_user["email"] = user.get("email", "")
+            # Must be done first to avoid the removal of the following fields
+            new_user = _validate_item("user", new_user)
             new_user["password_history"] = [p.encrypt(user["password"])]
             new_user["password_last_updated"] = int(time.time())
-            new_user["email"] = user.get("email", "")
             new_user["email_verification_token"] = None
             new_user["email_verified"] = None
-            new_user = _validate_item("user", new_user)
             new_users.append(new_user)
 
             amount += 1
@@ -1872,7 +1873,7 @@ class ApiUsers:
             return False
         return (
             True
-            if not user["password_last_updated"]
+            if not user.get("password_last_updated")
             else (
                 datetime.fromtimestamp(user["password_last_updated"])
                 + timedelta(days=policy["expiration"])
@@ -1909,7 +1910,7 @@ class ApiUsers:
         if not policy:
             return False
         else:
-            return user["email_verified"]
+            return user.get("email_verified")
 
     def check_acknowledged_disclaimer(self, user_id):
         with app.app_context():
