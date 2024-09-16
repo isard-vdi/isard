@@ -243,6 +243,9 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 ## If the key and cert files don't exist, they will be self signed automatically
 #AUTHENTICATION_AUTHENTICATION_SAML_KEY_FILE=/keys/isardvdi.key
 #AUTHENTICATION_AUTHENTICATION_SAML_CERT_FILE=/keys/isardvdi.cert
+## DO NOT CHANGE THIS UNLESS YOU KNOW WHAT YOU'RE DOING
+## Set the maximum time between the initial login request and the response
+#AUTHENTICATION_AUTHENTICATION_SAML_MAX_ISSUE_DELAY=90s
 
 ### These are the fields that the SAML search responds. For example, in some installations, the field for the email is called 'mail'
 ### Then, a regex is applied to this field, in case we needed to filter inside a SAML field. By default it collects the whole field. The 

@@ -76,6 +76,10 @@ func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *
 	url := *baseURL
 	url.Path = path.Join(baseURL.Path, "/callback")
 
+	// Set the maximum time between the initial login request and the
+	// response
+	saml.MaxIssueDelay = cfg.SAML.MaxIssueDelay
+
 	middleware, _ := samlsp.New(samlsp.Options{
 		URL:                url,
 		Key:                k.PrivateKey.(*rsa.PrivateKey),

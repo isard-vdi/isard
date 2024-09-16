@@ -92,9 +92,10 @@ type AuthenticationLDAP struct {
 type AuthenticationSAML struct {
 	Enabled bool
 
-	MetadataURL string `mapstructure:"metadata_url"`
-	KeyFile     string `mapstructure:"key_file"`
-	CertFile    string `mapstructure:"cert_file"`
+	MetadataURL   string        `mapstructure:"metadata_url"`
+	KeyFile       string        `mapstructure:"key_file"`
+	CertFile      string        `mapstructure:"cert_file"`
+	MaxIssueDelay time.Duration `mapstructure:"max_issue_delay"`
 
 	FieldUID      string `mapstructure:"field_uid"`
 	RegexUID      string `mapstructure:"regex_uid"`
@@ -223,6 +224,7 @@ func setDefaults() {
 			"metadata_url":        "",
 			"key_file":            "/keys/isardvdi.key",
 			"cert_file":           "/keys/isardvdi.cert",
+			"max_issue_delay":     "90s",
 			"field_uid":           "",
 			"regex_uid":           ".*",
 			"field_username":      "",
