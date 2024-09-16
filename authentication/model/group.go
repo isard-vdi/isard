@@ -24,11 +24,16 @@ func (g *Group) GenerateNameExternal(prv string) {
 	g.Name = fmt.Sprintf("%s_%s_%s", prv, g.ExternalAppID, g.ExternalGID)
 }
 
-func (g *Group) LoadExternal(ctx context.Context, sess r.QueryExecutor) error {
-	res, err := r.Table("groups").Filter(r.And(
+func externalFilter(g *Group) r.Term {
+	return r.And(
+		r.Eq(r.Row.Field("parent_category"), g.Category),
 		r.Eq(r.Row.Field("external_app_id"), g.ExternalAppID),
 		r.Eq(r.Row.Field("external_gid"), g.ExternalGID),
-	), r.FilterOpts{}).Run(sess)
+	)
+}
+
+func (g *Group) LoadExternal(ctx context.Context, sess r.QueryExecutor) error {
+	res, err := r.Table("groups").Filter(externalFilter(g)).Run(sess, r.RunOpts{Context: ctx})
 	if err != nil {
 		return &db.Err{
 			Err: err,
@@ -56,7 +61,7 @@ func (g *Group) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) 
 		return g.ExistsWithExternal(ctx, sess)
 	}
 
-	res, err := r.Table("groups").Get(g.ID).Run(sess)
+	res, err := r.Table("groups").Get(g.ID).Run(sess, r.RunOpts{Context: ctx})
 	if err != nil {
 		return false, &db.Err{
 			Err: err,
@@ -83,7 +88,7 @@ func (g *Group) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) 
 }
 
 func (g *Group) existsWith(ctx context.Context, sess r.QueryExecutor, filter r.Term) (bool, error) {
-	res, err := r.Table("groups").Filter(filter).Run(sess)
+	res, err := r.Table("groups").Filter(filter).Run(sess, r.RunOpts{Context: ctx})
 	if err != nil {
 		return false, &db.Err{
 			Err: err,
@@ -110,19 +115,5 @@ func (g *Group) existsWith(ctx context.Context, sess r.QueryExecutor, filter r.T
 }
 
 func (g *Group) ExistsWithExternal(ctx context.Context, sess r.QueryExecutor) (bool, error) {
-	return g.existsWith(ctx, sess,
-		r.And(
-			r.Eq(r.Row.Field("external_app_id"), g.ExternalAppID),
-			r.Eq(r.Row.Field("external_gid"), g.ExternalGID),
-		),
-	)
-}
-
-func (g *Group) ExistsWithUID(ctx context.Context, sess r.QueryExecutor) (bool, error) {
-	return g.existsWith(ctx, sess,
-		r.And(
-			r.Eq(r.Row.Field("category"), g.Category),
-			r.Eq(r.Row.Field("uid"), g.UID),
-		),
-	)
+	return g.existsWith(ctx, sess, externalFilter(g))
 }
