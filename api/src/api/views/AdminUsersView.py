@@ -399,7 +399,6 @@ def api_v3_admin_user_insert(payload):
     data["password_history"] = [data["password"]]
     data["password_last_updated"] = int(time.time())
     data["email_verification_token"] = None
-    data["email_verified"] = None
     admin_table_insert("users", data)
 
     return (
@@ -1175,7 +1174,7 @@ def user_required_disclaimer_acknowledgement(payload, user_id):
 @is_admin
 def user_required_email_verification(payload, user_id):
     return (
-        json.dumps({"required": users.check_verified_email(user_id) == None}),
+        json.dumps({"required": not users.check_verified_email(user_id)}),
         200,
         {"Content-Type": "application/json"},
     )

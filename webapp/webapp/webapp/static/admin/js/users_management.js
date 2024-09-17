@@ -18,6 +18,7 @@ function socketio_on(){
 
 	$('.btn-new-user').on('click', function () {
         setQuotaMax('#users-quota',kind='category',id=false,disabled=false);
+        $('#modalAddUser .email-verified').iCheck('uncheck').iCheck('update');
         $('#modalAddUser .apply').html('group quota');
         $('#modalAddUser').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddUserForm')[0].reset();
@@ -124,6 +125,7 @@ function socketio_on(){
         $("#modalAddBulkUsers #send").attr("disabled", true);
         $('#modalAddBulkUsers').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddBulkUsersForm')[0].reset();
+        $('#modalAddBulkUsersForm :checkbox').iCheck('uncheck').iCheck('update');
         if ( $.fn.dataTable.isDataTable( '#csv_preview' ) ) {
             csv_preview.clear().draw()
             $("#csv_correct").hide()
@@ -180,6 +182,7 @@ function socketio_on(){
             $(modal + ' :checkbox').iCheck('uncheck').iCheck('update');
             $(modal + ' :radio').iCheck('uncheck').iCheck('update');
             $(modal + ' #active').iCheck('check').iCheck('update');
+            $(modal + ' .email-verified').iCheck('check').iCheck('update');
             $(modal + ' #overwrite-secondary-group-checkbox').iCheck('check').iCheck('update');
 
             $(modal + ' #secondary_groups').select2({
@@ -211,6 +214,7 @@ function socketio_on(){
             });
 
             showAndHideByCheckbox($(modal + " #edit-secondary-group-checkbox"), $(modal + " #secondary-groups-panel"));
+            showAndHideByCheckbox($(modal + " #edit-email-verified-checkbox"), $(modal + " #email-verified-panel"));
             showAndHideByCheckbox($(modal + " #edit-active-inactive-checkbox"), $(modal + " #active-inactive-panel"));
 
             var ids = [];
@@ -283,6 +287,23 @@ function socketio_on(){
                         showAlert(form.find(".edit-secondary-groups .alert"), data.responseJSON.description, "error");
                     }
                 })
+            }
+
+            if (data["edit-email-verified"] === 'on') {
+                $.ajax({
+                    type: 'PUT',
+                    url: '/api/v3/admin/users/bulk',
+                    data: JSON.stringify({ "email_verified": data['email-verified'] === 'on', "ids": data['ids'] }),
+                    contentType: 'application/json',
+                    async: false,
+                    success: function () {
+                        showAlert(form.find("#general-alert"), "Updated successfully", "success");
+                    },
+                    error: function (data) {
+                        hideModal = false;
+                        showAlert(form.find("#general-alert"), data.responseJSON.description, "error");
+                    }
+                });
             }
 
             if (hideModal) {
@@ -448,6 +469,7 @@ function socketio_on(){
         if (form.parsley().isValid()){   // || 'unlimited' in formdata){
             data=formdata;
             data['password']=data['password-add-user'];
+            data['email_verified'] = data['email-verified'] === 'on';
             delete data['password-add-user'];
             delete data['password2-add-user'];
             delete data['unlimited'];
@@ -504,6 +526,7 @@ function socketio_on(){
         if (form.parsley().isValid()){
             data=formdata;
             data['secondary_groups'] = data['secondary_groups'] || [];
+            data['email_verified'] = data['email-verified'] === 'on';
             delete data['unlimited']
             var notice = new PNotify({
                 text: 'Updating user...',
@@ -664,6 +687,7 @@ function socketio_on(){
         $("#modalAddBulkUserForm #bulk_secondary_groups").empty().trigger('change')
         formdata = form.serializeObject()
         form.parsley().validate();
+        formdata['email-verified'] = formdata['email-verified'] === 'on'
         if (form.parsley().isValid()){
             users=csv_preview.data().toArray()
             var notice = new PNotify({
@@ -672,7 +696,7 @@ function socketio_on(){
             $.ajax({
                 type: 'POST',
                 url: "/api/v3/admin/bulk/user",
-                data: JSON.stringify({ users: users }),
+                data: JSON.stringify({ users: users, email_verified: formdata['email-verified'] }),
                 contentType: "application/json",
                 success: function(data)
                 {
@@ -1048,6 +1072,10 @@ function actionsUserDetail(){
             $('#modalEditUserForm #id').val(user.id);
             $('#modalEditUserForm #uid').val(user.uid);
             $('#modalEditUserForm #email').val(user.email);
+            $('#modalEditUserForm #email-verified').iCheck('uncheck').iCheck('update');
+            if (user.email_verified) {
+                $('#modalEditUserForm #email-verified').iCheck('check').iCheck('update');
+            }
             $('#modalEditUserForm #role option:selected').prop("selected", false);
             $('#modalEditUserForm #role option[value="'+user.role+'"]').prop("selected",true);
             $('#modalEditUserForm #category option:selected').prop("selected", false);
