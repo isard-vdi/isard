@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 143
+release_version = 144
+# release 144: Add password_history to users that don't have it
 # release 143: Add UID index to categories
 # release 142: Add uuid and photo fields to category
 # release 141: Add deployment quotas
@@ -4065,7 +4066,23 @@ password:s:%s"""
                     ],
                     user["id"],
                 )
-
+        if version == 144:
+            try:
+                r.table("users").filter(
+                    lambda user: r.not_(user.has_fields("password_history"))
+                ).update(lambda user: {"password_history": [user["password"]]}).run(
+                    self.conn
+                )
+                r.table("users").filter(
+                    lambda user: r.not_(user.has_fields("password_last_updated"))
+                ).update(lambda user: {"password_last_updated": int(time.time())}).run(
+                    self.conn
+                )
+                r.table("users").filter(
+                    lambda user: r.not_(user.has_fields("email_verified"))
+                ).update(lambda user: {"email_verified": None}).run(self.conn)
+            except Exception as e:
+                print(e)
         return True
 
     """

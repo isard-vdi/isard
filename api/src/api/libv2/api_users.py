@@ -1841,7 +1841,7 @@ class ApiUsers:
             password_history = []
         else:
             password_history = user["password_history"]
-            user["password_history"].append(password)
+            password_history.append(password)
             password_history = password_history[-policy["old_passwords"] :]
 
         with app.app_context():
