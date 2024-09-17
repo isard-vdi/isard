@@ -399,7 +399,7 @@ def qmp_notify(payload, desktop_id):
 def _send_message_qmp(desktop_id, message):
     message_base64 = base64.b64encode(bytes(message, "utf-8"))
     hypervisor = current_app.db.get_domain_hyp_started(desktop_id)
-    if hypervisor:
+    if hypervisor and hypervisor in current_app.m.q.workers:
         current_app.m.q.workers[hypervisor].put(
             {"type": "notify", "desktop_id": desktop_id, "message": message_base64}, 10
         )
