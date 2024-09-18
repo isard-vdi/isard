@@ -22,6 +22,7 @@ webapp.interceptors.request.use(function (config) {
 export default {
   state: {
     session: getCookie(sessionCookieName) || false,
+    timeDrift: Number(localStorage.getItem('auth_time_drift')) || 0,
     user: null,
     currentRoute: '',
     pageErrorMessage: {
@@ -33,6 +34,9 @@ export default {
   getters: {
     getSession: (state) => {
       return state.session
+    },
+    getTimeDrift: (state) => {
+      return state.timeDrift
     },
     getUser: (state) => {
       return state.user
@@ -57,6 +61,10 @@ export default {
         removeCookie('session')
       }
       state.session = session
+    },
+    setTimeDrift (state, drift) {
+      state.timeDrift = drift
+      localStorage.setItem('auth_time_drift', drift)
     },
     setUser (state, user) {
       state.user = user
@@ -114,6 +122,7 @@ export default {
     loginSuccess (context, token) {
       context.commit('setSession', token)
       const session = jwtDecode(context.getters.getSession)
+      context.dispatch('updateTimeDrift', session)
       if (!session.type) {
         context.dispatch('fetchUser')
         if (['admin', 'manager'].includes(context.getters.getUser.role_id)) {
@@ -144,6 +153,7 @@ export default {
         .post('/renew', {})
         .then((response) => {
           context.commit('setSession', response.data.token)
+          context.dispatch('updateTimeDrift', jwtDecode(response.data.token))
           context.dispatch('openSocket', {})
           context.dispatch('fetchUser')
         })
@@ -276,6 +286,15 @@ export default {
     },
     async updateSession (context, session) {
       context.commit('setSession', session)
+      context.dispatch('updateTimeDrift', jwtDecode(session))
+    },
+    updateTimeDrift (context, jwt) {
+      // Unixtime in milis
+      const local = Date.now()
+      // Unixtime in seconds
+      const server = jwt.iat * 1000
+
+      context.commit('setTimeDrift', server - local)
     },
     // Email verification
     sendVerifyEmail (context, data) {

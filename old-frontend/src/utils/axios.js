@@ -20,7 +20,7 @@ export default function axiosSetUp () {
       if (getCookie(sessionCookieName)) {
         const session = store.getters.getSession
         const sessionData = jwtDecode(session)
-        if (new Date() > new Date((sessionData.exp - 30) * 1000)) {
+        if (Date.now() + store.getters.getTimeDrift > ((sessionData.exp - 30) * 1000)) {
           await store.dispatch('renew')
         }
         config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`

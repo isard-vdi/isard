@@ -74,6 +74,8 @@ function renewSession(sessionCookie) {
             },
             success: function (response) {
                 saveCookie('isardvdi_session', response.token)
+                let sessionData = jwtDecode(response.token)
+                localStorage.setItem('auth_time_drift', (sessionData.iat * 1000) - Date.now())
             },
             // If it can't be renewed logout the user
             error: function (xhr, status, error) {
@@ -88,7 +90,8 @@ function setAjaxHeader() {
         url: "/api/v3",
         beforeSend: function (jqXHR, settings) {
             let sessionData = jwtDecode(sessionCookie)
-            if (new Date() > new Date((sessionData.exp - 30) * 1000)) {
+            let timeDrift = Number(localStorage.getItem('auth_time_drift')) || 0;
+            if (Date.now() + timeDrift > ((sessionData.exp - 30) * 1000)) {
                 renewSession(sessionCookie)
                 sessionCookie = getCookie('isardvdi_session')
             }
