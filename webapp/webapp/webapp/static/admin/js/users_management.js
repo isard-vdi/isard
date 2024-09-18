@@ -362,12 +362,12 @@ function socketio_on(){
 
         if (kind === 'download-edit') {
             viewerFile = new Blob(
-                [`active\tname\tprovider\tcategory\tuid\tgroup\tsecondary_groups\tpassword\ntrue\tJohn Doe\tlocal\tDefault\tjdoe\tDefault\tDefault\tcS227@tB\n\tAnother User\tlocal\tDefault\tauser\tDefault\t`
+                [`active,name,provider,category,uid,group,secondary_groups,password\ntrue,John Doe,local,Default,jdoe,Default,Default,cS227@tB\n,Another User,local,Default,auser,Default,`
                 ], { type: "text/csv" });
 
         } else if (kind === 'download-create') {
             viewerFile = new Blob(
-                [`username\tname\temail\tgroup\tcategory\trole\njdoe\tJohn Doe\tjdoe@isardvdi.com\tDefault\tDefault\tadvanced\nauser\tAnother User\tauser@domain.com\tDefault\tDefault\tuser`
+                [`username,name,email,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,Default,Default,advanced\nauser,Another User,auser@domain.com,Default,Default,user`
                 ], { type: "text/csv" });
         } else if (kind === 'download-generated') {
             $("#modalAddBulkUsers #send").attr("disabled", false);
@@ -383,13 +383,12 @@ function socketio_on(){
             if (form.parsley().isValid()) {
                 users = csv_preview.data().toArray()
                 filecontents = users.map(user => {
-                    return `${user.username}\t${user.name}\t${user.email}\t${user.password}\t${user.group}\t${user.category}\t${user.role}`
+                    return `${user.username},${user.name},${user.email},\"${user.password.replace(/"/g, '""')}\",${user.group},${user.category},${user.role}`
                 }
                 ).join('\n')
-                viewerFile = new Blob([`username\tname\temail\tpassword\tgroup\tcategory\trole\n` + filecontents], { type: "text/csv" });
+                viewerFile = new Blob([`username,name,email,password,group,category,role\n` + filecontents], { type: "text/csv" });
                 notice.update({
                     title: "CSV file created",
-                    text: "CSV file created with Tab separator",
                     hide: true,
                     delay: 5000,
                     icon: 'fa fa-success',
@@ -1457,18 +1456,23 @@ function parseCSV(csv) {
             error: "The maximum number of users that can be added at once is 200"
         }
     }
-    header = lines[0].split('\t')
+    header = lines[0].split(',')
     if (header.length < 2) {
         return {
             users: [],
-            error: "Header must be separated by tabs"
+            error: "Header must be separated by commas"
         }
     }
     users = []
     $.each(lines, function (n, l) {
         if (n != 0 && l.length > 10) {
             // var regex = /("[^"]*"|[^,]+)(?=,|$)/g;
-            usr = toObject(header, l.split("\t"));
+            usr = toObject(header, l.split(","));
+
+            // remove enclosing quotes and unescape fields
+            for (var key in usr) {
+                usr[key] = usr[key].replace(/^"(.*)"$/, '$1').replace(/""/g, '"');
+            }
             usr['id'] = usr['username']
             users.push(usr)
         }
@@ -1494,7 +1498,7 @@ function showUserExportButtons(table, buttonsRowClass) {
                 },
                 customize: function (csv) {
                     var split_csv = csv.split("\n");
-                    var csv_data = 'Active\tName\tProvider\tCategory\tUID\tRole\tGroup\tSecondary groups\tVPN\tLast access\tID\n';
+                    var csv_data = 'Active,Name,Provider,Category,UID,Role,Group,Secondary groups,VPN,Last access,ID\n';
 
                     $.each(split_csv.slice(1), function (index, csv_row) {
                         var csv_cell_array = csv_row.split('","');
@@ -1507,7 +1511,7 @@ function showUserExportButtons(table, buttonsRowClass) {
                         csv_cell_array[7] = csv_cell_array[8].replace(/,/g, ' | ');
                         csv_cell_array[8] = rowData.vpn.wireguard.connected;
 
-                        csv_data = csv_data + csv_cell_array.join("\t") + '\n';
+                        csv_data = csv_data + csv_cell_array.join(",") + '\n';
                     });
                     return csv_data
                 }
@@ -1527,13 +1531,13 @@ function showUserExportButtons(table, buttonsRowClass) {
                 title: "update-from-csv-export",
                 titleAttr: "Generate a CSV file from the current displayed data, to use in the \"Update from CSV\" feature.",
                 customize: function (csv) {
-                    var csv_data = ['active	name\tprovider\tcategory\tuid\tusername\tgroup\tsecondary_groups\tpassword\n']
+                    var csv_data = ['active,name,provider,category,uid,username,group,secondary_groups,password\n']
                     var split_csv = csv.split("\n");
                     $.each(split_csv.slice(1), function (index, csv_row) {
                         var csv_cell_array = csv_row.split('","');
                         csv_cell_array[0] = csv_cell_array[0].replace(/"/g, '');
                         var rowData = table.row('#' + csv_cell_array[0]).data();
-                        csv_data = csv_data + (`${rowData.active}\t${rowData.name}\t${rowData.provider}\t${rowData.category_name}\t${rowData.uid}\t${rowData.username}\t${rowData.group_name}\t${rowData.secondary_groups_names.join("/")}\t\n`);
+                        csv_data = csv_data + (`${rowData.active},${rowData.name},${rowData.provider},${rowData.category_name},${rowData.uid},${rowData.username},${rowData.group_name},${rowData.secondary_groups_names.join("/")},\n`);
                     });
                     return csv_data
                 }
@@ -1547,13 +1551,13 @@ function showUserExportButtons(table, buttonsRowClass) {
                 title: "bulk-users-export",
                 titleAttr: `Generate a CSV file from the current displayed data, to use in the \"Bulk create\" feature.`,
                 customize: function (csv) {
-                    var csv_data = ['username\tname\temail\tgroup\tcategory\trole\n']
+                    var csv_data = ['username,name,email,group,category,role\n']
                     var split_csv = csv.split("\n");
                     $.each(split_csv.slice(1), function (index, csv_row) {
                         var csv_cell_array = csv_row.split('","');
                         csv_cell_array[0] = csv_cell_array[0].replace(/"/g, '');
                         var rowData = table.row('#' + csv_cell_array[0]).data();
-                        csv_data = csv_data + (`${rowData.uid}\t${rowData.name}\t${rowData.email}\t${rowData.group_name}\t${rowData.category_name}\t${rowData.role}\n`);
+                        csv_data = csv_data + (`${rowData.uid},${rowData.name},${rowData.email},${rowData.group_name},${rowData.category_name},${rowData.role}\n`);
                     });
                     return csv_data
                 }
