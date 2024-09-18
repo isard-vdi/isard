@@ -18,11 +18,13 @@ import {
   parseToken as parseAuthToken,
   getToken as getAuthToken,
   isCategorySelectClaims,
+  isRegisterClaims,
   useCookies as useAuthCookies,
   isLoginClaims,
   setToken as setAuthToken,
   getBearer as getAuthBearer,
-  removeToken as removeAuthToken
+  removeToken as removeAuthToken,
+  checkLoginRegister as checkAuthLoginRegister
 } from '@/lib/auth'
 import { dateIsToday } from '@/lib/utils'
 import { Locale, setLocale } from '@/lib/i18n'
@@ -306,8 +308,8 @@ const loginErrorMsg = computed(() => {
 
   // Check if the error exists in the base locale
   if (te(key, 'en-US')) {
-    // If the error is a rate_limit error, show the extra parameters
-    if (loginError.value === 'rate_limit' && loginErrorParams.value) {
+    // If the error is a rate_limit_date error, show the extra parameters
+    if (loginError.value === 'rate_limit_date' && loginErrorParams.value) {
       let timeParam = d(loginErrorParams.value, {
         hour: 'numeric',
         minute: 'numeric',
@@ -350,19 +352,14 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
   removeAuthToken(cookies)
 
   const { error, response } = await login(options)
-  if (error !== undefined) {
-    if (response.status === 429) {
-      loginError.value = 'rate_limit'
-      loginErrorParams.value = new Date(response.headers.get('retry-after'))
-      return
+  const check = checkAuthLoginRegister(error, response)
+  if (check !== undefined) {
+    if (check.error) {
+      loginError.value = check.error
     }
-
-    if (error.error) {
-      loginError.value = error.error
-      return
+    if (check.errorParams) {
+      loginErrorParams.value = check.errorParams
     }
-
-    loginError.value = 'unknown'
     return
   }
 
@@ -381,6 +378,10 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
   const jwt = parseAuthToken(bearer)
   if (isCategorySelectClaims(jwt)) {
     return
+  }
+
+  if (isRegisterClaims(jwt)) {
+    router.push({ name: 'register' })
   }
 
   if (isLoginClaims(jwt)) {

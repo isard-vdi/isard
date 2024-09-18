@@ -3,7 +3,8 @@
     "titles": {
       "home": "Home",
       "login": "Login",
-      "migration": "Migration"
+      "migration": "Migration",
+      "register": "Register"
     }
   },
   "views": {
@@ -63,6 +64,9 @@
           "generic": "There was an error while migrating your {type}, please contact an administrator."
         }
       }
+    },
+    "register": {
+      "title": "Sign Up"
     }
   },
   "layouts": {
@@ -105,6 +109,13 @@
       "migration-item-box": {
         "quota_exceeded": "'{type}' quotas will be exceeded"
       }
+    },
+    "register": {
+      "register-form": {
+        "code": "Sign up code",
+        "register": "Sign up",
+        "cancel": "Cancel"
+      }
     }
   },
   "authentication": {
@@ -115,7 +126,8 @@
         "invalid_credentials": "Incorrect user or password",
         "user_disabled": "The user is disabled",
         "user_disallowed": "The user can't use IsardVDI",
-        "rate_limit": "Too many login attempts, please try again at {time}"
+        "rate_limit_date": "Too many login attempts, please try again at {time}",
+        "rate_limit": "Too many login attempts, please try again later"
       }
     }
   },
@@ -135,6 +147,15 @@
         "migration_template_quota_error": "The user has more templates than the new user quota",
         "migration_media_quota_error": "The user has more media than the new user quota",
         "migration_deployments_quota_error": "The user has more deployments than the new user quota"
+      }
+    },
+    "register": {
+      "errors": {
+        "unauthorized": "Session expired",
+        "forbidden": "The email domain you are trying to use is not authorized for your category.",
+        "not_found": "Code not found",
+        "conflict": "User already exists",
+        "internal_server": "Server error"
       }
     }
   },

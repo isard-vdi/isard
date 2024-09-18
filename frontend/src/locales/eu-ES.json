@@ -2,13 +2,17 @@
   "router": {
     "titles": {
       "home": "Hasi",
-      "login": "Saioa hasi"
+      "login": "Saioa hasi",
+      "register": "Erregistroa"
     }
   },
   "views": {
     "login": {
       "separator": "edo honako hauek erabiliz hasi",
       "select-category": "Kategoria bat hautatu"
+    },
+    "register": {
+      "title": "Erregistroa"
     }
   },
   "layouts": {
@@ -40,6 +44,13 @@
         "logged-in-as": "Saioa {name} bezala hasi duzu",
         "logout": "Saioa itxi"
       }
+    },
+    "register": {
+      "register-form": {
+        "code": "Erregistro-kodea",
+        "register": "Izena eman",
+        "cancel": "Itxi"
+      }
     }
   },
   "authentication": {
@@ -50,7 +61,18 @@
         "invalid_credentials": "Erabiltzailea edo pasahitza ez dira zuzenak",
         "user_disabled": "Erabiltzailea desgaituta dago",
         "user_disallowed": "Erabiltzaileak ezin du IsardVDI erabili",
-        "rate_limit": "Sesioa hasteko saiakera gehiegi izan dira. Saiatu berriro {time}-an"
+        "rate_limit_date": "Sesioa hasteko saiakera gehiegi izan dira. Saiatu berriro {time}-an",
+        "rate_limit": "Sesioa hasteko saiakera gehiegi izan dira. Saiatu berriro geroago"
+      }
+    }
+  },
+  "api": {
+    "register": {
+      "errors": {
+        "unauthorized": "Amaitutako saioa",
+        "not_found": "Kodea ez da aurkitu",
+        "conflict": "Erabiltzailea badago lehendik",
+        "internal_server": "Zerbitzariaren errorea"
       }
     }
   }
