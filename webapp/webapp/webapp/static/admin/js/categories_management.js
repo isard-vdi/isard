@@ -212,6 +212,9 @@ $(document).ready(function () {
         form.parsley().validate();
         if (form.parsley().isValid()) {
             data = form.serializeObject();
+            if (!data['uid']) {
+                delete data['uid'];
+            }
             data['frontend'] = 'frontend' in data;
             data['maintenance'] = 'maintenance' in data;
             if (!('ephimeral-enabled' in data)) {
@@ -492,10 +495,9 @@ function actionsCategoryDetail() {
     });
 }
 
-function customURLandUIDChange(titlestr) {
+function customURLChange(titlestr) {
     var url = titlestr.replace(/ /g, "_");
     document.getElementsByName("custom_url_name")[0].value = url;
-    $("#modalAddCategoryForm #uid")[0].value = url;
 }
 
 function ephemeralDesktopsShow(form, item) {
