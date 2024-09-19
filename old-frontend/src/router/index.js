@@ -460,7 +460,7 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // TODO: The session might not be expired but it could be revoked
-    if (new Date() > new Date((sessionData.exp - 30) * 1000)) {
+    if (Date.now() + store.getters.getTimeDrift > ((sessionData.exp - 30) * 1000)) {
       await store.dispatch('renew')
       session = store.getters.getSession
       if (session) {
