@@ -23,6 +23,7 @@ services:
       - /dev/vfio:/dev/vfio
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+      - /opt/isard-local/hypervisor/custom_networks:/opt/custom_networks
     env_file:
       - .env
     environment:

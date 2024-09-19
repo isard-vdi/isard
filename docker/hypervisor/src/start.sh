@@ -60,6 +60,20 @@ echo "Libvirt started!"
 #sh -c "/src/vlans/vlans-discover.sh"
 
 echo "---> Setting up networks..."
+cp /opt/default_networks/*.xml /etc/libvirt/qemu/networks/
+FILES=/etc/libvirt/qemu/networks/*
+for f in $FILES
+do
+  filename=$(basename -- "$f")
+  filename="${filename%.*}"
+  if [ $filename != "autostart" ]; then
+    /usr/bin/virsh net-destroy $filename >/dev/null 2>&1
+    /usr/bin/virsh net-undefine $filename >/dev/null 2>&1
+  fi
+done
+
+cp /opt/default_networks/*.xml /etc/libvirt/qemu/networks/
+cp /opt/custom_networks/*.xml /etc/libvirt/qemu/networks/
 FILES=/etc/libvirt/qemu/networks/*
 for f in $FILES
 do
@@ -67,6 +81,7 @@ do
   filename="${filename%.*}"
   if [ $filename != "autostart" ]; then
     echo "Activating network: $filename"
+    /usr/bin/virsh net-define $f
     /usr/bin/virsh net-start $filename
     /usr/bin/virsh net-autostart $filename
   fi
