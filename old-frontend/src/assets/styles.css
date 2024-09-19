@@ -622,10 +622,13 @@
   overflow-y: auto;
 }
 
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+
 .disclaimer-container {
-  margin-top: 4rem !important;
-  height: calc(100vh - 120px);
+  height: calc(100vh);
   overflow-y: auto;
+  background-color: #fbf7ed !important;
+  font-family: 'Montserrat', 'sans-serif';
 }
 
 .tab-content {
@@ -699,4 +702,18 @@
 .list-red-bar > td:first-child {
   border-radius: 11px;
   border-left: 10px solid #dc3545 !important;
+}
+
+#new-logo-wrapper {
+  width: 250px;
+  height: 100px;
+  background-color: transparent !important;
+  overflow: hidden;
+  display: flex;
+  margin: auto;
+}
+
+#new-logo-wrapper img {
+  margin: auto;
+  height: 90%;
 }
