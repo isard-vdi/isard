@@ -468,19 +468,10 @@ const onCategorySelectSubmit = async (categoryId: string) => {
   // We extract it outside the interceptor, because afterwards will get deleted
   const bearer = getAuthBearer(cookies)
 
-  // TODO: Remove this when https://github.com/hey-api/openapi-ts/issues/963 is fixed
-  const client = createClient(createConfig())
-  client.setConfig({
-    baseUrl: '/authentication'
-  })
-  client.interceptors.request.use((request) => {
-    request.headers.set('Authorization', 'Bearer ' + bearer)
-
-    return request
-  })
-
   await submitLogin({
-    client: client,
+    headers: {
+      Authorization: 'Bearer ' + bearer
+    },
     query: {
       category_id: categoryId,
       provider: 'form'
