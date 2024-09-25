@@ -152,3 +152,25 @@ function listenCookieChange(callback, cookieName, interval = 1000) {
         }
     }, interval)
 }
+
+function logout() {
+    $.ajax({
+        url: '/authentication/logout',
+        type: 'POST',
+        contentType: 'application/json',
+        headers: {
+            'Authorization': 'Bearer ' + getCookie('isardvdi_session')
+        },
+        data: JSON.stringify({}),
+        success: function (response) {
+            window.location = '/isard-admin/logout'
+        },
+        error: function (xhr, status, error) {
+            window.location = '/isard-admin/logout'
+        }
+    });
+}
+
+$('#logout-btn').click(function () {
+    logout()
+})

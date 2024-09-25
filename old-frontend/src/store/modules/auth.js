@@ -163,6 +163,17 @@ export default {
         })
     },
     logout (context, redirect = true) {
+      const bearer = `Bearer ${getCookie(sessionCookieName)}`
+      const logoutAxios = axios.create()
+      logoutAxios.interceptors.request.use((config) => {
+        config.headers.Authorization = bearer
+        return config
+      })
+      logoutAxios.post(
+        `${authenticationSegment}/logout`,
+        {}
+      )
+
       if (getCookie(sessionCookieName)) {
         const session = jwtDecode(context.getters.getSession)
         if (!session.type) {
