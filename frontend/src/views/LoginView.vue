@@ -126,7 +126,8 @@ const {
 } = useQuery({
   ...categoryOpts.value,
   queryKey: categoryQueryKey,
-  enabled: computed(() => !!routeCategory.value)
+  enabled: computed(() => !!routeCategory.value),
+  retry: false
 })
 
 const isPending = computed(
@@ -573,7 +574,7 @@ watch(categoryError, (newErr) => {
             <LoginCategoriesDropdown
               v-if="showCategoriesDropdown"
               ref="categoriesDropdownEl"
-              v-model:modelValue="categoriesDropdownModel"
+              v-model:model-value="categoriesDropdownModel"
               :categories="categories || []"
             />
 
