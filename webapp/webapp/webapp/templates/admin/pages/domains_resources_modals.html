@@ -1,19 +1,17 @@
-<div class="modal fade" id="modalVideos" tabindex="-1" role="dialog" 
-    aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalVideos" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
-            <div class="modal-header">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
-                       <span aria-hidden="true">&times;</span>
-                       <span class="sr-only">Close</span>
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
                     <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-rss"> </i> Add new video
                 </h4>
             </div>
-            
+
             <!-- Modal Body -->
             <div class="modal-body">
                 <form id="modalAddVideos" class="form-horizontal form-label-left">
@@ -24,12 +22,17 @@
                                 <div class="col-md-4 col-xs-12">
                                     <label class="control-label" for="name">Name <span class="required">*</span>
                                     </label>
-                                    <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New video name" data-parsley-trigger="change" required type="text">
+                                    <input id="name" class="roundbox" maxlength="50"
+                                        pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$"
+                                        data-parsley-length="[4, 50]" name="name" placeholder="New video name"
+                                        data-parsley-trigger="change" required type="text">
                                 </div>
                                 <div class="col-md-8 col-xs-12">
-                                    <label class="control-label" for="description">Description 
+                                    <label class="control-label" for="description">Description
                                     </label>
-                                    <input id="description" class="roundbox"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  placeholder="Desktop description"  type="text" style="width:100%">
+                                    <input id="description" class="roundbox" name="description"
+                                        data-parsley-length="[0, 255]" data-parsley-trigger="change" maxlength="255"
+                                        placeholder="Desktop description" type="text" style="width:100%">
                                 </div>
                             </div>
                             <div class="row">
@@ -44,22 +47,22 @@
                                         <option value="xen">XEN</option>
                                         <option value="vbox">VBOX</option>
                                         <option value="qxl">QXL</option>
-                                     </select>
+                                    </select>
                                 </div>
                             </div>
                             <div class="row">
-                            <div class="col-md-4 col-xs-12">
+                                <div class="col-md-4 col-xs-12">
                                     <label>Heads</label>
-                                    <input id="videos-heads" name="heads"/>
+                                    <input id="videos-heads" name="heads" />
                                 </div>
-                            <div class="col-md-4 col-xs-12">
+                                <div class="col-md-4 col-xs-12">
                                     <label>RAM (KB)</label>
-                                    <input id="videos-ram" name="ram"/>
+                                    <input id="videos-ram" name="ram" />
                                 </div>
-                            <div class="col-md-4 col-xs-12">
+                                <div class="col-md-4 col-xs-12">
                                     <label>vRAM (KB)</label>
-                                    <input id="videos-vram" name="vram"/>
-                                </div>                            
+                                    <input id="videos-vram" name="vram" />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -74,7 +77,8 @@
                     <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
                 </ul>
                 <ul class="nav navbar-right panel_toolbox">
-                    <li><button id="btn-hardware" type="button" class="btn btn-info" style="display: none;">Set hardware</button></li>
+                    <li><button id="btn-hardware" type="button" class="btn btn-info" style="display: none;">Set
+                            hardware</button></li>
                     <button id="send" type="button" class="btn btn-success">Add video</button></li>
                 </ul>
             </div>
@@ -82,58 +86,66 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalInterfaces" tabindex="-1" role="dialog" 
-     aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalInterfaces" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
-            <div class="modal-header">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
-                       <span aria-hidden="true">&times;</span>
-                       <span class="sr-only">Close</span>
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
                     <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-rss"> </i> Add new interface
                 </h4>
             </div>
-            
+
             <!-- Modal Body -->
             <div class="modal-body">
-                
+
                 <form id="modalInterfacesForm" class="form-horizontal form-label-left">
-                        
+
                     <div class="x_panel" style="padding: 5px;">
                         <p style="font-size: 18px;margin-bottom:0px;">Set interface parameters</p>
                         <div class="x_content" style="padding: 0px;">
                             <div class="row">
-                                <input id="id" name="id" value="" hidden/>
+                                <input id="id" name="id" value="" hidden />
                                 <div class="col-md-4 col-xs-12">
                                     <label class="control-label" for="name">Name <span class="required">*</span>
                                     </label>
-                                        <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New interface name" data-parsley-trigger="change" required type="text">
+                                    <input id="name" class="roundbox" maxlength="50"
+                                        pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$"
+                                        data-parsley-length="[4, 50]" name="name" placeholder="New interface name"
+                                        data-parsley-trigger="change" required type="text">
                                 </div>
                                 <div class="col-md-8 col-xs-12">
-                                    <label class="control-label" for="description">Description 
+                                    <label class="control-label" for="description">Description
                                     </label>
-                                    <input id="description" class="roundbox"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  placeholder="Interface description"  type="text" style="width:100%">
+                                    <input id="description" class="roundbox" name="description"
+                                        data-parsley-length="[0, 255]" data-parsley-trigger="change" maxlength="255"
+                                        placeholder="Interface description" type="text" style="width:100%">
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-md-6 col-xs-12">
-                                    <label class="control-label" for="kind">Type: <span class="required">*</span></label>
-                                        <select id="kind" name="kind" class="form-control roundbox" required>
-                                            <option value="">Choose..</option>
-                                            <option value="bridge">Bridge</option>
-                                            <option value="network">Network</option>
-                                            <option value="ovs">OpenVSwitch</option>
-                                            <option value="personal">Personal</option>
-                                        </select>
+                                    <label class="control-label" for="kind">Type: <span
+                                            class="required">*</span></label>
+                                    <select id="kind" name="kind" class="form-control roundbox" required>
+                                        <option value="">Choose..</option>
+                                        <option value="bridge">Bridge</option>
+                                        <option value="network">Network</option>
+                                        <option value="ovs">OpenVSwitch</option>
+                                        <option value="personal">Personal</option>
+                                    </select>
                                 </div>
                                 <div class="col-md-6 col-xs-12">
-                                    <label id='ifname_label' class="control-label" for="ifname">(First select type)<span class="required">*</span>
+                                    <label id='ifname_label' class="control-label" for="ifname">(First select type)<span
+                                            class="required">*</span>
                                     </label>
-                                    <input id="ifname" class="roundbox" maxlength="50" data-parsley-length="[1, 50]" name="ifname" placeholder="Select Type first" data-parsley-trigger="change" required>
+                                    <input id="ifname" class="roundbox" maxlength="50" data-parsley-length="[1, 50]"
+                                        name="ifname" placeholder="Select Type first" data-parsley-trigger="change"
+                                        required>
                                 </div>
                                 <!-- <div class="col-md-8 col-xs-12">
                                     <label class="control-label" for="net">Network
@@ -141,25 +153,27 @@
                                     <input id="net"  class="roundbox" name="net" placeholder="Network (Ex.: 192.168.1.0/24)"  type="text" style="width:100%" data-parsley-cidr="">
                                 </div> -->
                             </div>
-                            
+
                             <div class="row">
 
-                                    <div class="col-md-6 col-xs-12">
-                                        <label class="control-label" for="model">Model: <span class="required">*</span></label>
-                                            <select id="model" name="model" class="form-control roundbox" required>
-                                                <option value="">Choose..</option>
-                                                <option value="rtl8931">rtl8931</option>
-                                                <option value="virtio">virtio</option>
-                                                <option value="e1000">e1000</option>
-                                            </select>
-                                    </div>
-                                    <div class="col-md-6 col-xs-12">
-                                    <label class="control-label" for="model">QoS: <span class="required">*</span></label>
-                                        <select id="qos_id" name="qos_id" class="form-control roundbox" required>
-                                        </select>
-                                </div>                              
+                                <div class="col-md-6 col-xs-12">
+                                    <label class="control-label" for="model">Model: <span
+                                            class="required">*</span></label>
+                                    <select id="model" name="model" class="form-control roundbox" required>
+                                        <option value="">Choose..</option>
+                                        <option value="rtl8931">rtl8931</option>
+                                        <option value="virtio">virtio</option>
+                                        <option value="e1000">e1000</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 col-xs-12">
+                                    <label class="control-label" for="model">QoS: <span
+                                            class="required">*</span></label>
+                                    <select id="qos_id" name="qos_id" class="form-control roundbox" required>
+                                    </select>
+                                </div>
                             </div>
-                        
+
                         </div>
                     </div>
                 </form>
@@ -177,227 +191,294 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalQosNet" tabindex="-1" role="dialog" 
-     aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalQosNet" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
-            <div class="modal-header">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
-                       <span aria-hidden="true">&times;</span>
-                       <span class="sr-only">Close</span>
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
                     <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-road"> </i> Add new Net QoS
                 </h4>
             </div>
-            
+
             <!-- Modal Body -->
             <div class="modal-body">
-                
-              <form id="modalQosNetForm" class="form-horizontal form-label-left">
-                <div class="row">
-                    <input id="id" name="id" value="" hidden/>
-                    <div class="col-md-4 col-xs-12">
-                        <label class="control-label" for="name">Name <span class="required">*</span>
-                        </label>
-                          <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
-                    </div>
-                    <div class="col-md-8 col-xs-12">
-                        <label class="control-label" for="description">Description 
-                        </label>
-                        <input id="description" class="roundbox"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  placeholder="Desktop description"  type="text" style="width:100%">
-                    </div>
-                </div>                     
-                <div class="row">
-                    
-                    <div class="x_panel">
-                        <p style="font-size: 16px;margin-bottom:0px;">Inbound (KBytes/s)</p>
-                        <div class="col-xs-3 form-group">
-                            <label>Average</label>
-                            <input id="qos-bandwidth-inbound-average" name="qos-bandwidth-inbound-average" class="form-control"  value="10000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                        </div>
-                        <div class="col-xs-3 form-group">
-                            <label>Peak</label>
-                            <input id="qos-bandwidth-inbound-peak" name="qos-bandwidth-inbound-peak" class="form-control" value="15000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                        </div>
-                        <div class="col-xs-3 form-group">
-                            <label>Floor</label>
-                            <input id="qos-bandwidth-inbound-floor" name="qos-bandwidth-inbound-floor" class="form-control col-md-7 col-xs-12" value="5000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                        </div>
-                        <div class="col-xs-3 form-group">
-                            <label>Burst</label>
-                            <input id="qos-bandwidth-inbound-burst" name="qos-bandwidth-inbound-burst" class="form-control col-md-7 col-xs-12" value="20000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                        </div>                  
-                    </div>
-       
-                    <div class="x_panel">
-                        <p style="font-size: 16px;margin-bottom:0px;">Outbound (KBytes/s)</p>
-                        <div class="col-xs-3 form-group">
-                            <label>Average</label>
-                            <input id="qos-bandwidth-outbound-average" name="qos-bandwidth-outbound-average" class="form-control" value="10000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                        </div>
-                        <div class="col-xs-3 form-group">
-                            <label>Peak</label>
-                            <input id="qos-bandwidth-outbound-peak" name="qos-bandwidth-outbound-peak" class="form-control" value="15000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                        </div>
-                        <div class="col-xs-3 form-group">
-                            <label>Burst</label>
-                            <input id="qos-bandwidth-outbound-burst" name="qos-bandwidth-outbound-burst" class="form-control col-md-7 col-xs-12" value="20000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                        </div>                
-                    </div>    
-                </div>   
 
-            </form>
-        </div>
-        <!-- Modal Footer -->
-        <div class="modal-footer">
-            <ul class="nav navbar-left panel_toolbox">
-                <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
-            </ul>
-            <ul class="nav navbar-right panel_toolbox">
-                <button id="send" type="button" class="btn btn-success">Add Net QoS</button></li>
-            </ul>
-        </div>
+                <form id="modalQosNetForm" class="form-horizontal form-label-left">
+                    <div class="row">
+                        <input id="id" name="id" value="" hidden />
+                        <div class="col-md-4 col-xs-12">
+                            <label class="control-label" for="name">Name <span class="required">*</span>
+                            </label>
+                            <input id="name" class="roundbox" maxlength="50"
+                                pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]"
+                                name="name" placeholder="New desktop name" data-parsley-trigger="change" required
+                                type="text">
+                        </div>
+                        <div class="col-md-8 col-xs-12">
+                            <label class="control-label" for="description">Description
+                            </label>
+                            <input id="description" class="roundbox" name="description" data-parsley-length="[0, 255]"
+                                data-parsley-trigger="change" maxlength="255" placeholder="Desktop description"
+                                type="text" style="width:100%">
+                        </div>
+                    </div>
+                    <div class="row">
+
+                        <div class="x_panel">
+                            <p style="font-size: 16px;margin-bottom:0px;">Inbound (KBytes/s)</p>
+                            <div class="col-xs-3 form-group">
+                                <label>Average</label>
+                                <input id="qos-bandwidth-inbound-average" name="qos-bandwidth-inbound-average"
+                                    class="form-control" value="10000" min="0" max="999999999" class="roundbox"
+                                    pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                    type="number" />
+                            </div>
+                            <div class="col-xs-3 form-group">
+                                <label>Peak</label>
+                                <input id="qos-bandwidth-inbound-peak" name="qos-bandwidth-inbound-peak"
+                                    class="form-control" value="15000" min="0" max="999999999" class="roundbox"
+                                    pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                    type="number" />
+                            </div>
+                            <div class="col-xs-3 form-group">
+                                <label>Floor</label>
+                                <input id="qos-bandwidth-inbound-floor" name="qos-bandwidth-inbound-floor"
+                                    class="form-control col-md-7 col-xs-12" value="5000" min="0" max="999999999"
+                                    class="roundbox" pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change"
+                                    required type="number" />
+                            </div>
+                            <div class="col-xs-3 form-group">
+                                <label>Burst</label>
+                                <input id="qos-bandwidth-inbound-burst" name="qos-bandwidth-inbound-burst"
+                                    class="form-control col-md-7 col-xs-12" value="20000" min="0" max="999999999"
+                                    class="roundbox" pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change"
+                                    required type="number" />
+                            </div>
+                        </div>
+
+                        <div class="x_panel">
+                            <p style="font-size: 16px;margin-bottom:0px;">Outbound (KBytes/s)</p>
+                            <div class="col-xs-3 form-group">
+                                <label>Average</label>
+                                <input id="qos-bandwidth-outbound-average" name="qos-bandwidth-outbound-average"
+                                    class="form-control" value="10000" min="0" max="999999999" class="roundbox"
+                                    pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                    type="number" />
+                            </div>
+                            <div class="col-xs-3 form-group">
+                                <label>Peak</label>
+                                <input id="qos-bandwidth-outbound-peak" name="qos-bandwidth-outbound-peak"
+                                    class="form-control" value="15000" min="0" max="999999999" class="roundbox"
+                                    pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                    type="number" />
+                            </div>
+                            <div class="col-xs-3 form-group">
+                                <label>Burst</label>
+                                <input id="qos-bandwidth-outbound-burst" name="qos-bandwidth-outbound-burst"
+                                    class="form-control col-md-7 col-xs-12" value="20000" min="0" max="999999999"
+                                    class="roundbox" pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change"
+                                    required type="number" />
+                            </div>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <button id="send" type="button" class="btn btn-success">Add Net QoS</button></li>
+                </ul>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="modalQosDisk" tabindex="-1" role="dialog" 
-     aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalQosDisk" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <!-- Modal Header -->
-            <div class="modal-header">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
-                       <span aria-hidden="true">&times;</span>
-                       <span class="sr-only">Close</span>
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
                     <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-road"> </i> Add new Disk QoS
                 </h4>
             </div>
-            
+
             <!-- Modal Body -->
             <div class="modal-body">
-                
-              <form id="modalQosDiskForm" class="form-horizontal form-label-left">
-                <div class="row">
-                    <input id="id" name="id" value="" hidden/>
-                    <div class="col-md-4 col-xs-12">
-                        <label class="control-label" for="name">Name <span class="required">*</span>
-                        </label>
-                          <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width: 100%;">
-                    </div>
-                    <div class="col-md-8 col-xs-12">
-                        <label class="control-label" for="description">Description 
-                        </label>
-                        <input id="description" class="roundbox"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  placeholder="Desktop description"  type="text" style="width:100%">
-                    </div>
-                </div>                         
-                <div class="row">
-                    <div class="col-md-6 col-sm-6 col-xs-12">
-                        <p style="font-size: 20px;margin-bottom:0px;">Throughputs</p>
-                        <div class="x_panel">
-                            <p style="font-size: 16px;margin-bottom:0px;">Limit (bytes per second)</p>
-                            <div class="col-xs-6 form-group">
-                                <label>read_bytes_sec</label>
-                                <input id="iotune-read_bytes_sec" name="iotune-read_bytes_sec" class="form-control" value="50000000" min="0" max="9999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                            </div>
-                            <div class="col-xs-6 form-group">
-                                <label>write_bytes_sec</label>
-                                <input id="iotune-write_bytes_sec" name="iotune-write_bytes_sec" class="form-control" value="10000000" min="0" max="9999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                            </div>                 
+                <form id="modalQosDiskForm" class="form-horizontal form-label-left">
+                    <div class="row x_panel">
+                        <input id="id" name="id" value="" hidden />
+                        <div class="col-md-4 col-xs-12">
+                            <label class="control-label" for="name">Name <span class="required">*</span>
+                            </label>
+                            <input id="name" class="roundbox" maxlength="50"
+                                pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9:/]+$" data-parsley-length="[4, 50]"
+                                name="name" placeholder="New Disk QoS name" data-parsley-trigger="change" required
+                                type="text" style="width: 100%;">
                         </div>
-                        
-                        <div class="x_panel">
-                            <p style="font-size: 16px;margin-bottom:0px;">Maximum limit (bytes per second)</p> 
-                            <div class="col-xs-6 form-group">
-                                <label>read_bytes_sec_max</label>
-                                <input id="iotune-read_bytes_sec_max" name="iotune-read_bytes_sec_max" class="form-control" value="90000000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                            </div>
-                            <div class="col-xs-6 form-group">
-                                <label>write_bytes_sec_max</label>
-                                <input id="iotune-write_bytes_sec_max" name="iotune-write_bytes_sec_max" class="form-control" value="50000000" min="0" max="999999999" class="roundbox"pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                            </div>             
-                        </div> 
-
-                        <div class="x_panel">
-                            <p style="font-size: 16px;margin-bottom:0px;">Maximum write burst per second</p>
-                            <div class="col-xs-6 form-group">
-                                <label>read_bytes_sec_max_length</label>
-                                <input id="iotune-read_bytes_sec_max_length" name="iotune-read_bytes_sec_max_length" class="form-control" value="1" min="0" max="120" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                            </div>
-                            <div class="col-xs-6 form-group">
-                                <label>write_bytes_sec_max_length</label>
-                                <input id="iotune-write_bytes_sec_max_length" name="iotune-write_bytes_sec_max_length" class="form-control" value="1" min="0" max="120" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                            </div> 
-                            <p style="font-size: 12px;margin-bottom:0px;">
-                                Maximum duration for write_bytes_sec_max burst period (seconds)                     
-                            </p>
-                            <p style="font-size: 12px;margin-bottom:0px;">
-                                [Only valid when the bytes_sec_max is set]                        
-                            </p>                                      
-                        </div> 
-
-                        
+                        <div class="col-md-8 col-xs-12">
+                            <label class="control-label" for="description">Description
+                            </label>
+                            <input id="description" class="roundbox" name="description" data-parsley-length="[0, 255]"
+                                data-parsley-trigger="change" maxlength="255" placeholder="Disk QoS description"
+                                type="text" style="width:100%">
+                        </div>
                     </div>
-                    <div class="col-md-6 col-sm-6 col-xs-12">
-                        <p style="font-size: 20px;margin-bottom:0px;">IOPS</p>
-                        <div class="x_panel">
-                            <p style="font-size: 16px;margin-bottom:0px;">I/O operations per second.</p>
-                            <div class="col-xs-6 form-group">
-                                <label>read_iops_sec</label>
-                                <input id="iotune-read_iops_sec" name="iotune-read_iops_sec" class="form-control" value="20000" min="0" max="500000" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                            </div>
-                            <div class="col-xs-6 form-group">
-                                <label>write_iops_sec</label>
-                                <input id="iotune-write_iops_sec" name="iotune-write_iops_sec" class="form-control" value="10000" min="0" max="500000" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                            </div>              
-                        </div> 
+                    <div class="row">
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                            <div class="x_panel">
+                                <p style="font-size: 20px;margin-bottom:0px;">Throughputs</p>
+                                <div class="x_panel" style="margin-bottom: 0px;padding-bottom: 0px;">
+                                    <h4>Limit after burst</h4>
+                                    <div class="col-xs-6 form-group">
+                                        <label>Read (MB/s)</label>
+                                        <input id="iotune_megabytes-read_bytes_sec"
+                                            name="iotune_megabytes-read_bytes_sec" class="form-control" value="" min="0"
+                                            max="9999999999" class="roundbox" pattern="^[0-9@]+$" placeholder="50"
+                                            data-parsley-trigger="change" required type="number" />
+                                    </div>
+                                    <div class="col-xs-6 form-group">
+                                        <label>Write (MB/s)</label>
+                                        <input id="iotune_megabytes-write_bytes_sec"
+                                            name="iotune_megabytes-write_bytes_sec" class="form-control" value=""
+                                            min="0" max="9999999999" class="roundbox" pattern="^[0-9@]+$"
+                                            placeholder="50" data-parsley-trigger="change" required type="number" />
+                                    </div>
+                                </div>
 
-                            
-                        <div class="x_panel">
-                            <p style="font-size: 16px;margin-bottom:0px;">Maximum read I/O operations per second.</p> 
-                            <div class="col-xs-6 form-group">
-                                <label>read_iops_sec_max</label>
-                                <input id="iotune-read_iops_sec_max" name="iotune-read_iops_sec_max" class="form-control" value="15000" min="0" max="500000" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                            </div>
-                            <div class="col-xs-6 form-group">
-                                <label>write_iops_sec_max</label>
-                                <input id="iotune-write_iops_sec_max" name="iotune-write_iops_sec_max" class="form-control" value="25000" min="0" max="500000" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                            </div>
-                            <div class="col-xs-6 form-group">
-                                <label>size_iops_sec</label>
-                                <input id="iotune-size_iops_sec" name="iotune-size_iops_sec" class="form-control" value="15000" min="0" max="500000" class="roundbox" pattern="^[[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                            </div>               
-                        </div> 
+                                <div class="x_panel" style="margin-bottom: 0px;padding-bottom: 0px;">
+                                    <h4>Burst</h4>
+                                    <div class="col-xs-6 form-group">
+                                        <label>Read (MB/s)</label>
+                                        <input id="iotune_megabytes-read_bytes_sec_max"
+                                            name="iotune_megabytes-read_bytes_sec_max" class="form-control" value=""
+                                            min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"
+                                            placeholder="80" data-parsley-trigger="change" required type="number" />
+                                    </div>
+                                    <div class="col-xs-6 form-group">
+                                        <label>Write (MB/s)</label>
+                                        <input id="iotune_megabytes-write_bytes_sec_max"
+                                            name="iotune_megabytes-write_bytes_sec_max" class="form-control" value=""
+                                            min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"
+                                            placeholder="80" data-parsley-trigger="change" required type="number" />
+                                    </div>
+                                </div>
 
-                        
-                        <div class="x_panel">
-                            <p style="font-size: 16px;margin-bottom:0px;">Maximum duration for read burst period.</p>
-                            <div class="col-xs-6 form-group">
-                                <label>read_iops_sec_max_length</label>
-                                <input id="iotune-read_iops_sec_max_length" name="iotune-read_iops_sec_max_length" class="form-control" value="1" min="0" max="120" class="roundbox"pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <div class="x_panel" style="margin-bottom: 0px;padding-bottom: 0px;">
+                                    <h4>Burst duration</h4>
+                                    <div class="col-xs-6 form-group">
+                                        <label>Read (seconds)</label>
+                                        <input id="iotune-read_bytes_sec_max_length"
+                                            name="iotune-read_bytes_sec_max_length" class="form-control" value=""
+                                            min="0" max="120" class="roundbox" pattern="^[0-9@]+$" placeholder="2"
+                                            data-parsley-trigger="change" required type="number" />
+                                    </div>
+                                    <div class="col-xs-6 form-group">
+                                        <label>Write (seconds)</label>
+                                        <input id="iotune-write_bytes_sec_max_length"
+                                            name="iotune-write_bytes_sec_max_length" class="form-control" value=""
+                                            min="0" max="120" class="roundbox" pattern="^[0-9@]+$" placeholder="2"
+                                            data-parsley-trigger="change" required type="number" />
+                                    </div>
+                                </div>
+
                             </div>
-                            <div class="col-xs-6 form-group">
-                                <label>write_iops_sec_max_length</label>
-                                <input id="iotune-write_iops_sec_max_length" name="iotune-write_iops_sec_max_length" class="form-control" value="1" min="0" max="120" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-                            </div>  
-                            <p style="font-size: 12px;margin-bottom:0px;">
-                                Maximum duration for read_iops_sec_max burst period. (seconds)                   
+                        </div>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                            <div class="x_panel">
+
+                                <p style="font-size: 20px;margin-bottom:0px;">IOPS</p>
+                                <div class="x_panel" style="margin-bottom: 0px;padding-bottom: 0px;">
+                                    <h4>Limit after burst</h4>
+                                    <div class="col-xs-6 form-group">
+                                        <label>Read (IOPS)</label>
+                                        <input id="iotune-read_iops_sec" name="iotune-read_iops_sec"
+                                            class="form-control" value="" min="0" max="500000" class="roundbox"
+                                            pattern="^[0-9@]+$" placeholder="10000" data-parsley-trigger="change"
+                                            required type="number" />
+                                    </div>
+                                    <div class="col-xs-6 form-group">
+                                        <label>Write (IOPS)</label>
+                                        <input id="iotune-write_iops_sec" name="iotune-write_iops_sec"
+                                            class="form-control" value="" min="0" max="500000" class="roundbox"
+                                            pattern="^[0-9@]+$" placeholder="10000" data-parsley-trigger="change"
+                                            required type="number" />
+                                    </div>
+                                </div>
+
+
+                                <div class="x_panel" style="margin-bottom: 0px;padding-bottom: 0px;">
+                                    <h4>Burst</h4>
+                                    <div class="col-xs-6 form-group">
+                                        <label>Read (IOPS)</label>
+                                        <input id="iotune-read_iops_sec_max" name="iotune-read_iops_sec_max"
+                                            class="form-control" value="" min="0" max="500000" class="roundbox"
+                                            pattern="^[0-9@]+$" placeholder="15000" data-parsley-trigger="change"
+                                            required type="number" />
+                                    </div>
+                                    <div class="col-xs-6 form-group">
+                                        <label>Write (IOPS)</label>
+                                        <input id="iotune-write_iops_sec_max" name="iotune-write_iops_sec_max"
+                                            class="form-control" value="" min="0" max="500000" class="roundbox"
+                                            pattern="^[0-9@]+$" placeholder="15000" data-parsley-trigger="change"
+                                            required type="number" />
+                                    </div>
+                                </div>
+
+
+                                <div class="x_panel" style="margin-bottom: 0px;padding-bottom: 0px;">
+                                    <h4>Burst duration</h4>
+                                    <div class="col-xs-6 form-group">
+                                        <label>Read (seconds)</label>
+                                        <input id="iotune-read_iops_sec_max_length"
+                                            name="iotune-read_iops_sec_max_length" class="form-control" value="" min="0"
+                                            max="120" class="roundbox" pattern="^[0-9@]+$" placeholder="2"
+                                            data-parsley-trigger="change" required type="number" />
+                                    </div>
+                                    <div class="col-xs-6 form-group">
+                                        <label>Write (seconds)</label>
+                                        <input id="iotune-write_iops_sec_max_length"
+                                            name="iotune-write_iops_sec_max_length" class="form-control" value=""
+                                            min="0" max="120" class="roundbox" pattern="^[0-9@]+$" placeholder="2"
+                                            data-parsley-trigger="change" required type="number" />
+                                    </div>
+                                </div>
+
+                                <div class="x_panel" style="margin-bottom: 0px;padding-bottom: 0px;">
+                                    <h4>IOPS size (KB per I/O operation)</h4>
+                                    <div class="col-xs-6 form-group">
+                                        <input id="iotune_kilobytes-size_iops_sec" name="iotune_kilobytes-size_iops_sec"
+                                            class="form-control" value="" min="0" max="500000" class="roundbox"
+                                            pattern="^[[0-9@]+$" placeholder="4" data-parsley-trigger="change" required
+                                            type="number" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="x_content" style="margin-left:40px;">
+                            <p class="fa fa-info-circle" style="color:rgb(60, 127, 186)">
+                                Any field with a value of 0 will not apply
                             </p>
-                            <p style="font-size: 12px;margin-bottom:0px;">
-                                [Only valid when the iops_sec_max is set]                        
-                            </p>                                       
-                        </div>                                                                                    
-
-                    </div>   
-                </div>
-            </form>
+                        </div>
+                    </div>
+                </form>
             </div>
+
             <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
                     <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
@@ -410,54 +491,60 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalRemotevpn" tabindex="-1" role="dialog" 
-     aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalRemotevpn" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
-            <div class="modal-header">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
-                       <span aria-hidden="true">&times;</span>
-                       <span class="sr-only">Close</span>
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
                     <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-lock"> </i> Add new VPN client
                 </h4>
             </div>
-            
+
             <!-- Modal Body -->
             <div class="modal-body">
-                
-              <form id="modalRemotevpnForm" class="form-horizontal form-label-left">
-                     
-			  <div class="x_panel" style="padding: 5px;">
-                  <p style="font-size: 18px;margin-bottom:0px;">Set client parameters</p>
-					<div class="x_content">
-                        <div class="row">
-                            <input id="id" name="id" value="" hidden/>
-                            <div class="col-md-4 col-xs-12">
-                                <label class="control-label" for="name">Name <span class="required">*</span>
-                                </label>
-                                  <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
-                            </div>
-                            <div class="col-md-8 col-xs-12">
-                                <label class="control-label" for="description">Description 
-                                </label>
-                                <input id="description" class="roundbox"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  placeholder="Desktop description"  type="text" style="width:100%">
-                            </div>
-                        </div>
 
-                        <div class="row">
-                           <div class="col-md-12 col-xs-12">
-                              <label class="control-label" for="type">Optional extra Routed Hosts/Networks 
-                              </label>
-                              <input id="interfaces" class="roundbox" maxlength="80" pattern="^[/.,0-9]+$" data-parsley-length="[4, 50]" name="interfaces" placeholder="Comma-separated nets" data-parsley-trigger="change" type="text">
-                           </div>
+                <form id="modalRemotevpnForm" class="form-horizontal form-label-left">
+
+                    <div class="x_panel" style="padding: 5px;">
+                        <p style="font-size: 18px;margin-bottom:0px;">Set client parameters</p>
+                        <div class="x_content">
+                            <div class="row">
+                                <input id="id" name="id" value="" hidden />
+                                <div class="col-md-4 col-xs-12">
+                                    <label class="control-label" for="name">Name <span class="required">*</span>
+                                    </label>
+                                    <input id="name" class="roundbox" maxlength="50"
+                                        pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$"
+                                        data-parsley-length="[4, 50]" name="name" placeholder="New desktop name"
+                                        data-parsley-trigger="change" required type="text">
+                                </div>
+                                <div class="col-md-8 col-xs-12">
+                                    <label class="control-label" for="description">Description
+                                    </label>
+                                    <input id="description" class="roundbox" name="description"
+                                        data-parsley-length="[0, 255]" data-parsley-trigger="change" maxlength="255"
+                                        placeholder="Desktop description" type="text" style="width:100%">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-12 col-xs-12">
+                                    <label class="control-label" for="type">Optional extra Routed Hosts/Networks
+                                    </label>
+                                    <input id="interfaces" class="roundbox" maxlength="80" pattern="^[/.,0-9]+$"
+                                        data-parsley-length="[4, 50]" name="interfaces"
+                                        placeholder="Comma-separated nets" data-parsley-trigger="change" type="text">
+                                </div>
+                            </div>
                         </div>
-				</div>
-			  </div>
-            </form>
+                    </div>
+                </form>
             </div>
             <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">

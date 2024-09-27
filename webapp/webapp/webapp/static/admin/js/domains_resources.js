@@ -445,14 +445,16 @@ $(document).ready(function () {
         switch ($(this).attr('id')) {
             case 'btn-alloweds':
                 modalAllowedsFormShow('qos_disk', data)
+                $('#modalAlloweds #alloweds_panel #categories_pannel').hide();
+                $('#modalAlloweds #alloweds_panel #groups_pannel').hide();
+                $('#modalAlloweds #alloweds_panel #users_pannel').hide();
+                $('#modalAlloweds #allowed-title h4').html('Apply to roles <small>This QoS will be applied to users roles desktops when starting</small>')
                 break;
             case 'btn-edit':
                 $("#modalQosDiskForm")[0].reset();
-                $('#modalQosDisk').modal({
-                    backdrop: 'static',
-                    keyboard: false
-                }).modal('show');
                 $('#modalQosDisk #modalQosDiskForm').parsley();
+                $('#modalQosDisk .modal-header h4').html("<i class='fa fa-pencil fa-1x'></i><i class='fa fa-road'></i> Edit Disk QoS");
+                $('#modalQosDisk .modal-footer button#send').text("Edit Disk QoS");
                 $.ajax({
                     type: "POST",
                     url: "/api/v3/admin/table/qos_disk",
@@ -460,27 +462,33 @@ $(document).ready(function () {
                     contentType: "application/json",
                     accept: "application/json",
                     success: function (qos) {
-                        $('#modalQosDiskForm #name').val(qos.name).attr("disabled", true);
                         $('#modalQosDiskForm #id').val(qos.id);
+                        $('#modalQosDiskForm #name').val(qos.name);
                         $('#modalQosDiskForm #description').val(qos.description);
                         $.each(qos.iotune, function (key, value) {
                             $('#modalQosDiskForm #iotune-' + key).val(value)
+                            $('#modalQosDiskForm #iotune_kilobytes-' + key).val(value / 1024)
+                            $('#modalQosDiskForm #iotune_megabytes-' + key).val(value / 1024 / 1024)
                         });
                     }
                 });
+                $('#modalQosDisk').modal({
+                    backdrop: 'static',
+                    keyboard: false
+                }).modal('show');
                 break;
-
         }
     });
 
     $('.add-new-qos-disk').on('click', function () {
-        $('#modalQosDiskForm #name').attr("disabled", false);
         $("#modalQosDiskForm")[0].reset();
+        $('#modalQosDisk #modalQosDiskForm').parsley();
+        $('#modalQosDisk .modal-header h4').html("<i class='fa fa-plus fa-1x'></i><i class='fa fa-road'></i> Add new Disk QoS");
+        $('#modalQosDisk .modal-footer button#send').text("Add Disk QoS");
         $('#modalQosDisk').modal({
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        $('#modalQosDisk #modalQosDiskForm').parsley();
     })
 
 
@@ -489,7 +497,6 @@ $(document).ready(function () {
         data = form.serializeObject()
         form.parsley().validate();
         if (form.parsley().isValid()) {
-            data['allowed'] = { 'roles': false, 'categories': false, 'groups': false, 'users': false }
             data = QosDiskParse(data)
             if (data['id'] == "") {
                 //Insert
@@ -1007,7 +1014,8 @@ $(document).ready(function () {
     });
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
-function socketio_on(){
+
+function socketio_on() {
     socket.on('data', function (data) {
         var dict = JSON.parse(data);
         switch (dict['table']) {
@@ -1113,7 +1121,15 @@ function removeQosAd(data) {
 function QosDiskParse(data) {
     data['iotune'] = {}
     $.each(data, function (key, value) {
-        if (key.startsWith('iotune-')) {
+        if (key.startsWith('iotune_kilobytes-')) {
+            data['iotune'][key.split('-')[1]] = parseInt(value * 1024) || 0
+            delete data[key];
+        }
+        else if (key.startsWith('iotune_megabytes-')) {
+            data['iotune'][key.split('-')[1]] = parseInt(value * 1024 * 1024) || 0
+            delete data[key];
+        }
+        else if (key.startsWith('iotune-')) {
             data['iotune'][key.split('-')[1]] = parseInt(value) || 0
             delete data[key];
         }
