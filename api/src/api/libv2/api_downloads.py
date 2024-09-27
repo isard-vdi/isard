@@ -341,6 +341,7 @@ def formatDomains(data, user_id):
         d["create_dict"]["hardware"]["interfaces"] = [
             {"id": interface, "mac": gen_new_mac()} for interface in interfaces
         ]
+        d["create_dict"]["hardware"]["qos_disk_id"] = False
         d["tag"] = False
         d["persistent"] = True
         if d.get("options"):

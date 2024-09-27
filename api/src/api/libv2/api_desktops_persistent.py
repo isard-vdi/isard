@@ -654,6 +654,7 @@ class ApiDesktopsPersistent:
                     "interfaces": data["hardware"]["interfaces"],
                     "memory": int(data["hardware"]["memory"]),
                     "vcpus": int(data["hardware"]["vcpus"]),
+                    "qos_disk_id": False,
                 },
             },
             "tag": False,

@@ -100,6 +100,7 @@ class ApiTemplates:
                 **create_dict,
                 **{"reservables": desktop["create_dict"]["reservables"]},
             }
+        create_dict["hardware"]["qos_disk_id"] = False
 
         template_dict = {
             "accessed": int(time.time()),
