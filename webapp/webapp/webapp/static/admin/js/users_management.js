@@ -817,7 +817,7 @@ function socketio_on(){
             {
                 "data": "email_verified", "defaultContent": 'NaN', "render": function (data, type, full, meta) {
                     if ('email_verified' in full && full['email_verified']) {
-                        return `<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="Verified ${new Date(full["email_verified"]).toLocaleString()}"></i>`
+                        return `<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="Verified ${new Date(full["email_verified"]*1000).toLocaleString()}"></i>`
                     } else {
                         return `<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>`
                     }
