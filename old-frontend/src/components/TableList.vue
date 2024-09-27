@@ -442,7 +442,7 @@ export default {
     const changeDesktopStatus = (desktop, data) => {
       if (data.action === 'cancel') {
         $store.dispatch('cancelOperation', data)
-      } else if (canStart(desktop)) {
+      } else if (canStart(desktop) || data.action !== 'start') {
         $store.dispatch('changeDesktopStatus', data)
       } else {
         $store.dispatch('checkCanStart', { id: desktop.id, type: 'desktop', profile: desktop.reservables.vgpus[0], action: data.action })
