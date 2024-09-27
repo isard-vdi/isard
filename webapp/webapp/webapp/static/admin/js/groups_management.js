@@ -375,6 +375,9 @@ function actionsGroupDetail(){
                     delete data['ephimeral-enabled'];
                     data['ephimeral-minutes'] = parseInt(data['ephimeral-minutes'])
                 }
+                if (!data["linked_groups"]) {
+                    data["linked_groups"] = [];
+                }
                 // if (!('auto-desktops-enabled' in data)) {
                 //     delete data['auto-desktops'];
                 //     data['auto'] = false
