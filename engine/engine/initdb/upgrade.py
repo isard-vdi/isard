@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 144
+release_version = 145
+# release 145: Change default QoS values
 # release 144: Add password_history to users that don't have it
 # release 143: Add UID index to categories
 # release 142: Add uuid and photo fields to category
@@ -2900,6 +2901,21 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 145:
+            try:
+                r.table(table).index_create(
+                    "qos_disk_id", r.row["create_dict"]["hardware"]["qos_disk_id"]
+                ).run(self.conn)
+                r.table(table).index_wait("qos_disk_id").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table("domains").update(
+                    {"create_dict": {"hardware": {"qos_disk_id": False}}}
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
         return True
 
     """
@@ -4935,6 +4951,54 @@ password:s:%s"""
                 r.table(table).index_create("name").run(self.conn)
             except Exception as e:
                 print(e)
+        if version == 145:
+            try:
+                r.table(table).get("limit50MBps").update(
+                    {
+                        "iotune": {
+                            # throughput limit in bytes per second.
+                            "read_bytes_sec": 50 * 1024 * 1024,
+                            "write_bytes_sec": 50 * 1024 * 1024,
+                            # maximum throughput limit in bytes per second.
+                            "read_bytes_sec_max": 80 * 1024 * 1024,
+                            "write_bytes_sec_max": 80 * 1024 * 1024,
+                            # maximum duration in seconds for the write_bytes_sec_max burst period.
+                            # Only valid when the bytes_sec_max is set.
+                            "read_bytes_sec_max_length": 2,
+                            "write_bytes_sec_max_length": 2,
+                            # I/O operations per second.
+                            "read_iops_sec": 10000,
+                            "write_iops_sec": 10000,
+                            # maximum read I/O operations per second.
+                            "read_iops_sec_max": 15000,
+                            "write_iops_sec_max": 15000,
+                            "size_iops_sec": 4 * 1024,
+                            # maximum duration in seconds for the read_iops_sec_max burst period.
+                            # Only valid when the iops_sec_max is set.
+                            "read_iops_sec_max_length": 2,
+                            "write_iops_sec_max_length": 2,
+                        },
+                        "allowed": {
+                            "roles": False,
+                            "categories": False,
+                            "groups": False,
+                            "users": False,
+                        },
+                    }
+                ).run(self.conn)
+                r.table(table).get("unlimited").update(
+                    {
+                        "allowed": {
+                            "roles": False,
+                            "categories": False,
+                            "groups": False,
+                            "users": False,
+                        },
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
