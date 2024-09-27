@@ -40,6 +40,7 @@
                 class="mr-0 mr-md-4"
                 variant="outline-primary"
                 size="sm"
+                type="submit"
                 @click="createEvent()"
               >
                 {{ $t("components.bookings.item.status-bar.buttons.add-booking") }}

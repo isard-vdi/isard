@@ -98,9 +98,11 @@ function setAjaxHeader() {
                 settings.url = "/api/v3" + settings.url
             }
             $("body").css("cursor", "wait");
+            $("#send:not(:disabled)").addClass('ajaxDisabled').prop('disabled', true);
         },
         complete: function () {
             $("body").css("cursor", "");
+            $("#send:disabled.ajaxDisabled").removeClass('ajaxDisabled').prop('disabled', false);
         },
     });
 
