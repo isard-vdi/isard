@@ -1,152 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <!-- Meta, title, CSS, favicons, etc. -->
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="no-cache">
-    <meta http-equiv="Expires" content="-1">
-    <meta http-equiv="Cache-Control" content="no-cache">
-    <meta id="user_data" data-userid="{{ current_user.id }}"  data-role="{{ current_user.role }}" data-categoryid="{{ current_user.category }}">
 
-    <title>{{ title }} | Isard VDI</title>
-    <!-- Bootstrap -->
-    <link href="/isard-admin/vendors/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link href="/isard-admin/vendors/font-awesome/css/font-awesome.min.css" rel="stylesheet">
-    <!-- Datatables -->
-    <link href="/isard-admin/vendors/datatables.net-bs/css/dataTables.bootstrap.min.css" rel="stylesheet">
-    <link href="/isard-admin/vendors/datatables.net-buttons-bs/css/buttons.bootstrap.min.css" rel="stylesheet">
-    <!-- PNotify -->
-    <link href="/isard-admin/vendors/pnotify/dist/pnotify.css" media="all" rel="stylesheet" type="text/css" />
-    <link href="/isard-admin/vendors/pnotify/dist/pnotify.buttons.css" media="all" rel="stylesheet" type="text/css" />
-    <!-- iCheck -->
-    <link href="/isard-admin/vendors/icheck/skins/flat/green.css" rel="stylesheet">
-    <link href="/isard-admin/vendors/select2/dist/css/select2.min.css" rel="stylesheet">
-    {% block css %}{% endblock %}
-    <!-- Custom Theme Style -->
-    <link href="/isard-admin/static/css/custom.css" rel="stylesheet">
-    <!-- Isard Style Sheet-->
-    <link href="/isard-admin/static/isard.css" rel="stylesheet">
-  </head>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <!-- Meta, title, CSS, favicons, etc. -->
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="no-cache">
+  <meta http-equiv="Expires" content="-1">
+  <meta http-equiv="Cache-Control" content="no-cache">
+  <meta id="user_data" data-userid="{{ current_user.id }}" data-role="{{ current_user.role }}"
+    data-categoryid="{{ current_user.category }}">
 
-  <body class="nav-md">
-    <div class="container body">
-      <div class="main_container">
-        <div class="col-md-3 left_col">
-          <div class="left_col scroll-view">
-		        {% include 'sidebar.html' %}
-          </div>
+  <title>{{ title }} | Isard VDI</title>
+  <!-- Bootstrap -->
+  <link href="/isard-admin/vendors/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link href="/isard-admin/vendors/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+  <!-- Datatables -->
+  <link href="/isard-admin/vendors/datatables.net-bs/css/dataTables.bootstrap.min.css" rel="stylesheet">
+  <link href="/isard-admin/vendors/datatables.net-buttons-bs/css/buttons.bootstrap.min.css" rel="stylesheet">
+  <!-- PNotify -->
+  <link href="/isard-admin/vendors/pnotify/dist/pnotify.css" media="all" rel="stylesheet" type="text/css" />
+  <link href="/isard-admin/vendors/pnotify/dist/pnotify.buttons.css" media="all" rel="stylesheet" type="text/css" />
+  <!-- iCheck -->
+  <link href="/isard-admin/vendors/icheck/skins/flat/green.css" rel="stylesheet">
+  <link href="/isard-admin/vendors/select2/dist/css/select2.min.css" rel="stylesheet">
+  {% block css %}{% endblock %}
+  <!-- Custom Theme Style -->
+  <link href="/isard-admin/static/css/custom.css" rel="stylesheet">
+  <!-- Isard Style Sheet-->
+  <link href="/isard-admin/static/isard.css" rel="stylesheet">
+</head>
+
+<body class="nav-md">
+  <div class="container body">
+    <div class="main_container">
+      <div class="col-md-3 left_col">
+        <div class="left_col scroll-view">
+          {% include 'sidebar.html' %}
         </div>
-        <!-- top navigation -->
-        {% include 'header.html' %}
-        <!-- /top navigation -->
-        <div class="right_col" role="main">
-          <!-- page content -->
-          {% block content %}      
-          {% endblock %}
-          <!-- /page content -->
-        </div>
-        <!-- footer content -->
-        {% include 'footer.html' %}
-        <!-- /footer content -->
       </div>
+      <!-- top navigation -->
+      {% include 'header.html' %}
+      <!-- /top navigation -->
+      <div class="right_col" role="main">
+        <!-- page content -->
+        {% block content %}
+        {% endblock %}
+        <!-- /page content -->
+      </div>
+      <!-- footer content -->
+      {% include 'footer.html' %}
+      <!-- /footer content -->
     </div>
-	  <div id="modal-lostconnection" class="modal fade" role="dialog" style="width:50%;margin-left:30%;margin-top:10%;z-index: 100000;">
-      <div class="modal-admin">
-        <div class="modal-content">
-          <div class="row text-center"><h2 style="margin-bottom:5px">Connection lost</h2></div>
-          <hr>
-          <div class="row">
-            <div class="col-md-1 col-sm-1 col-xs-12"></div>
-            <div class="col-md-10 col-sm-10 col-xs-12">
-              <div class="row text-center">Unable to contact server. There should be a problem with network or a heavy load.</div>
-              <br>
-              <div class="row text-center" style="margin-bottom:25px">
-                  <i class="fa fa-circle-o-notch fa-spin fa-fw"></i> Trying to reconnect...  
-              </div>
-            </div>
-            <div class="col-md-1 col-sm-1 col-xs-12">
-            </div>
-          </div>
-        </div>
-	    </div>
-	  </div>
-    <div id="modal-loading" class="modal fade" role="dialog" hidden style="width:50%;margin-left:30%;margin-top:10%;z-index: 10000;">
+  </div>
+  <div id="modal-lostconnection" class="modal fade" role="dialog"
+    style="width:50%;margin-left:30%;margin-top:10%;z-index: 100000;">
+    <div class="modal-admin">
       <div class="modal-content">
         <div class="row text-center">
-            <h2 style="margin-bottom:5px">Loading</h2>
-            <div class="loading-ring"></div>
-            <p style="margin-bottom:5px">This may take a while...</p>
+          <h2 style="margin-bottom:5px">Connection lost</h2>
+        </div>
+        <hr>
+        <div class="row">
+          <div class="col-md-1 col-sm-1 col-xs-12"></div>
+          <div class="col-md-10 col-sm-10 col-xs-12">
+            <div class="row text-center">Unable to contact server. There should be a problem with network or a heavy
+              load.</div>
+            <br>
+            <div class="row text-center" style="margin-bottom:25px">
+              <i class="fa fa-circle-o-notch fa-spin fa-fw"></i> Trying to reconnect...
+            </div>
+          </div>
+          <div class="col-md-1 col-sm-1 col-xs-12">
+          </div>
         </div>
       </div>
+    </div>
+  </div>
+  <div id="modal-loading" class="modal fade" role="dialog" hidden
+    style="width:50%;margin-left:30%;margin-top:10%;z-index: 10000;">
+    <div class="modal-content">
+      <div class="row text-center">
+        <h2 style="margin-bottom:5px">Loading</h2>
+        <div class="loading-ring"></div>
+        <p style="margin-bottom:5px">This may take a while...</p>
+      </div>
+    </div>
   </div>
 
-    <!-- jQuery -->
-    <script src="/isard-admin/vendors/jquery/dist/jquery.min.js"></script>
-    <!-- Bootstrap -->
-    <script src="/isard-admin/vendors/bootstrap/dist/js/bootstrap.min.js"></script>
-    <!-- Datatables -->
-    <script src="/isard-admin/vendors/datatables.net/js/jquery.dataTables.min.js"></script>
-    <script src="/isard-admin/vendors/datatables.net-bs/js/dataTables.bootstrap.min.js"></script>
-    <script src="/isard-admin/vendors/datatables.net-buttons/js/dataTables.buttons.min.js"></script>
-    <script src="/isard-admin/vendors/datatables.net-buttons/js/buttons.html5.min.js"></script>
-    <script src="/isard-admin/vendors/datatables.net-buttons/js/buttons.print.min.js"></script>
-    <!-- PNotify -->
-    <script type="text/javascript" src="/isard-admin/vendors/pnotify/dist/pnotify.js"></script>
-    <script type="text/javascript" src="/isard-admin/vendors/pnotify/dist/pnotify.confirm.js"></script>
-    <script type="text/javascript" src="/isard-admin/vendors/pnotify/dist/pnotify.buttons.js"></script>
-    <!-- Parsley -->
-    <script src="/isard-admin/vendors/parsleyjs/dist/parsley.min.js"></script>
-    <!-- moment -->   
-	  <script src="/isard-admin/vendors/moment/min/moment.min.js"></script>
-    <script src="/isard-admin/vendors/icheck/icheck.min.js"></script>
-    <!-- Select2 -->
-    <script src="/isard-admin/vendors/select2/dist/js/select2.full.min.js"></script>
-    <!-- SocketIO -->
-    <script src="/isard-admin/socketio/socket.io.min.js"></script>
-    <!-- isard initializers -->
-    <script src="/isard-admin/static/isard.js"></script>
-    <!-- IsardVDI session management -->
-    <script src="/isard-admin/static/js/auth.js"></script>
-    <!-- Set user jwt header in ajax requests -->
-    <script>
-        const sessionCookie = getCookie('isardvdi_session')
-        let sessionData = jwtDecode(sessionCookie)
-        setAjaxHeader()
-        $.fn.dataTable.ext.errMode = function (settings, helpPage, message) {
-          console.log(message)
-        };
+  <!-- jQuery -->
+  <script src="/isard-admin/vendors/jquery/dist/jquery.min.js"></script>
+  <!-- Bootstrap -->
+  <script src="/isard-admin/vendors/bootstrap/dist/js/bootstrap.min.js"></script>
+  <!-- Datatables -->
+  <script src="/isard-admin/vendors/datatables.net/js/jquery.dataTables.min.js"></script>
+  <script src="/isard-admin/vendors/datatables.net-bs/js/dataTables.bootstrap.min.js"></script>
+  <script src="/isard-admin/vendors/datatables.net-buttons/js/dataTables.buttons.min.js"></script>
+  <script src="/isard-admin/vendors/datatables.net-buttons/js/buttons.html5.min.js"></script>
+  <script src="/isard-admin/vendors/datatables.net-buttons/js/buttons.print.min.js"></script>
+  <!-- PNotify -->
+  <script type="text/javascript" src="/isard-admin/vendors/pnotify/dist/pnotify.js"></script>
+  <script type="text/javascript" src="/isard-admin/vendors/pnotify/dist/pnotify.confirm.js"></script>
+  <script type="text/javascript" src="/isard-admin/vendors/pnotify/dist/pnotify.buttons.js"></script>
+  <!-- Parsley -->
+  <script src="/isard-admin/vendors/parsleyjs/dist/parsley.min.js"></script>
+  <!-- moment -->
+  <script src="/isard-admin/vendors/moment/min/moment.min.js"></script>
+  <script src="/isard-admin/vendors/icheck/icheck.min.js"></script>
+  <!-- Select2 -->
+  <script src="/isard-admin/vendors/select2/dist/js/select2.full.min.js"></script>
+  <!-- SocketIO -->
+  <script src="/isard-admin/socketio/socket.io.min.js"></script>
+  <!-- isard initializers -->
+  <script src="/isard-admin/static/isard.js"></script>
+  <!-- IsardVDI session management -->
+  <script src="/isard-admin/static/js/auth.js"></script>
+  <!-- Set user jwt header in ajax requests -->
+  <script>
+    const sessionCookie = getCookie('isardvdi_session')
+    let sessionData = jwtDecode(sessionCookie)
+    setAjaxHeader()
+    $.fn.dataTable.ext.errMode = function (settings, helpPage, message) {
+      console.log(message)
+    };
 
-        listenCookieChange((_, { oldValue, newValue }) => {
-          if (!getCookie('isardvdi_session')) {
-            window.location = '/isard-admin/logout'
-          }
-        }, 1000);
-    </script>
-    <!-- isard quota sse -->
-	  <script src="/isard-admin/static/js/quota.js"></script>
-    <!-- flashed messages with pnotify -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-	  {% if messages %}
-		{% for category, message in messages %}
-			<script type="text/javascript">
-  			new PNotify({
-				title: "{{ nav }}",
-				text: "{{ message }}",
-				hide: true,
-				delay: 2000,
-				//~ icon: 'fa fa-alert-sign',
-				opacity: 1,
-				type: "{{ category }}",
-				addclass: "pnotify-center"
-			});
-			</script>	
-		{% endfor %}
-	  {% endif %}
-	  {% endwith %}
-    {% block pagescript %}{% endblock %}
-  </body>
+    listenCookieChange((_, { oldValue, newValue }) => {
+      if (!getCookie('isardvdi_session')) {
+        window.location = '/isard-admin/logout'
+      }
+    }, 1000);
+  </script>
+  <!-- isard quota sse -->
+  <script src="/isard-admin/static/js/quota.js"></script>
+  <!-- flashed messages with pnotify -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  {% for category, message in messages %}
+  <script type="text/javascript">
+    new PNotify({
+      title: "{{ nav }}",
+      text: "{{ message }}",
+      hide: true,
+      delay: 2000,
+      //~ icon: 'fa fa-alert-sign',
+      opacity: 1,
+      type: "{{ category }}",
+      addclass: "pnotify-center"
+    });
+  </script>
+  {% endfor %}
+  {% endif %}
+  {% endwith %}
+  {% block pagescript %}{% endblock %}
+</body>
+
 </html>

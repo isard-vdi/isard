@@ -1,6 +1,7 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
 {% block css %}
+<link href="/isard-admin/vendors/ion-rangeslider/css/ion.rangeSlider.css" rel="stylesheet">
 {% endblock %}
 {% block content %}
 <div class="row">
@@ -216,7 +217,8 @@
 {% endblock %}
 
 {% block pagescript %}
-    <!-- Isard restful ajax calls -->
-    <script src="/isard-admin/static/js/restful.js"></script>
-    <script src="/isard-admin/static/admin/js/domains_resources.js"></script>
+   <script src="/isard-admin/vendors/ion-rangeslider/js/ion.rangeSlider.min.js"></script>
+   <!-- Isard restful ajax calls -->
+   <script src="/isard-admin/static/js/restful.js"></script>
+   <script src="/isard-admin/static/admin/js/domains_resources.js"></script>
 {% endblock %}
