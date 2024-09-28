@@ -116,7 +116,7 @@ def api_v3_admin_update_table(payload, table):
 @app.route("/api/v3/admin/table/<table>/<item_id>", methods=["DELETE"])
 @is_admin
 def api_v3_admin_delete_table(payload, table, item_id):
-    if table in ["interfaces", "reservables_vgpus", "boots", "videos"]:
+    if table in ["interfaces", "reservables_vgpus", "boots", "videos", "qos_disk"]:
         unassign_resource_from_desktops_and_deployments(table, {"id": item_id})
     admin_table_delete(table, item_id)
     return (json.dumps({}), 200, {"Content-Type": "application/json"})

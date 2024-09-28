@@ -423,7 +423,7 @@ $(document).ready(function () {
                 "className": 'details-control',
                 "orderable": false,
                 "data": null,
-                "defaultContent": '' //'<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+                "defaultContent": ''
             },
             { "data": "name" },
             { "data": "description" },
@@ -432,8 +432,8 @@ $(document).ready(function () {
                 "orderable": false,
                 "data": null,
                 "defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
-                                    <button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
-                //~ <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                <button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
+                <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
 
             },
         ],
@@ -476,6 +476,36 @@ $(document).ready(function () {
                     backdrop: 'static',
                     keyboard: false
                 }).modal('show');
+                break;
+            case 'btn-delete':
+                new PNotify({
+                    title: 'Confirmation Needed',
+                    text: "Are you sure you want to delete disk QoS: " + data.name + "?",
+                    hide: false,
+                    opacity: 0.9,
+                    confirm: {
+                        confirm: true
+                    },
+                    buttons: {
+                        closer: false,
+                        sticker: false
+                    },
+                    history: {
+                        history: false
+                    },
+                    addclass: 'pnotify-center'
+                }).get().on('pnotify.confirm', function () {
+                    $.ajax({
+                        type: "DELETE",
+                        url: "/admin/table/qos_disk/" + data["id"],
+                        contentType: "application/json",
+                        success: function (data) {
+                            $('form').each(function () { this.reset() });
+                            $('.modal').modal('hide');
+                        }
+                    });
+                }).on('pnotify.cancel', function () {
+                });
                 break;
         }
     });

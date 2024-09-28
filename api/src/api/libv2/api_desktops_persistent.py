@@ -1119,6 +1119,13 @@ def get_desktops_with_resource(table, item):
 
 
 def unassign_resource_from_desktops_and_deployments(table, item):
+    if table == "qos_disk":
+        with app.app_context():
+            r.table("domains").get_all(item["id"], index="qos_disk_id").update(
+                {"create_dict": {"hardware": {"qos_disk_id": False}}}
+            ).run(db.conn)
+        return []
+
     domains = get_desktops_with_resource(table, item)
     not_allowed_desktops = []
     deployments = get_deployments_with_resource(table, item)
