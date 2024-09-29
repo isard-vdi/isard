@@ -24,6 +24,7 @@ from engine.services.db import (
     get_domain,
     get_graphics_types,
     get_interface,
+    get_qos_disk_iotune,
     remove_fieds_when_stopped,
     update_domain_dict_create_dict,
     update_domain_dict_hardware,
@@ -1268,6 +1269,22 @@ class DomainXML(object):
             self.index_disks[bus] += 1
             return path
 
+    def set_qos_disk(self, d_iotune):
+        xml_iotune = "  <iotune>\n"
+        add_iotune = False
+        for k, v in d_iotune.items():
+            if type(v) is int and v > 0:
+                s = f"    <{k}>{v}</{k}>\n"
+                xml_iotune += s
+                add_iotune = True
+        xml_iotune += "  </iotune>"
+        element_iotune = etree.parse(StringIO(xml_iotune)).getroot()
+
+        if add_iotune is True:
+            for tree_disk in self.tree.xpath('/domain/devices/disk[@device="disk"]'):
+                tree_disk[-1].addnext(element_iotune)
+                log.debug(etree.tostring(tree_disk, pretty_print=True).decode())
+
     def set_cdrom(self, new_path_cdrom, index=0):
         if self.tree.xpath('/domain/devices/disk[@device="cdrom"]'):
             self.tree.xpath('/domain/devices/disk[@device="cdrom"]')[index].xpath(
@@ -1686,6 +1703,15 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     category_id = dict_domain["category"]
     parent_id = dict_domain["create_dict"].get("origin", "")
     x.add_metadata_isard(user_id, group_id, category_id, parent_id)
+
+    # qos
+    qos_disk_id = dict_domain["create_dict"]["hardware"].get("qos_disk_id", False)
+    if qos_disk_id:
+        iotune = get_qos_disk_iotune(qos_disk_id)
+        if iotune:
+            x.set_qos_disk(iotune)
+        else:
+            log.error(f"qos_disk_id {qos_disk_id} not found in qos_disk table")
 
     if (
         not dict_domain.get("create_dict", {})

@@ -1605,6 +1605,18 @@ def get_domains_id(user, id_pool, kind="desktop", origin=None):
     return ids
 
 
+def get_qos_disk_iotune(qos_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("qos_disk")
+    try:
+        d = rtable.get(qos_id).pluck("iotune").run(r_conn)
+    except Exception as e:
+        close_rethink_connection(r_conn)
+        return False
+    close_rethink_connection(r_conn)
+    return d["iotune"]
+
+
 def update_domain_delete_after_stopped(id_domain, do_delete=True):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")

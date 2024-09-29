@@ -67,4 +67,6 @@ reservables:
       schema:
         type: string
         coerce: sanitize
-
+qos_disk_id:
+  required: false
+  default: false

@@ -1,3 +1,4 @@
+from cachetools import TTLCache, cached
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.domain import Domain
 from rethinkdb import RethinkDB
@@ -24,6 +25,27 @@ from .flask_rethink import RDB
 
 db = RDB(app)
 db.init_app(app)
+
+
+@cached(cache=TTLCache(maxsize=20, ttl=30))
+def get_qos_disks():
+    with app.app_context():
+        qos_disks = list(r.table("qos_disk").pluck("id", "allowed").run(db.conn))
+    return qos_disks
+
+
+def get_desktop_qos_disk_id(desktop):
+    qos_disks = get_qos_disks()
+    for qos_disk in qos_disks:
+        if qos_disk["allowed"]["roles"] == []:
+            return qos_disk["id"]
+    for qos_disk in qos_disks:
+        if (
+            qos_disk["allowed"]["roles"]
+            and desktop["role_id"] in qos_disk["allowed"]["roles"]
+        ):
+            return qos_disk["id"]
+    return False
 
 
 def wait_status(
@@ -69,26 +91,34 @@ def wait_status(
     return status
 
 
-def get_desktop_status(desktop_id):
+def get_desktop(desktop_id):
     try:
         with app.app_context():
-            status = (
+            domain = (
                 r.table("domains")
                 .get(desktop_id)
-                .pluck("status")["status"]
+                .pluck("status", "create_dict", "user")
                 .run(db.conn)
             )
+        return {
+            "status": domain["status"],
+            "role_id": r.table("users")
+            .get(domain["user"])
+            .pluck("role")["role"]
+            .run(db.conn),
+            "qos_disk_id": domain["create_dict"]["hardware"].get("qos_disk_id", False),
+        }
     except:
         raise Error(
             "not_found",
             "Desktop not found",
             description_code="not_found",
         )
-    return status
 
 
 def desktop_start(desktop_id, wait_seconds=0, paused=False):
-    status = get_desktop_status(desktop_id)
+    domain = get_desktop(desktop_id)
+    status = domain["status"]
     if status in ["Started", "Starting", "StartingPaused", "CreatingAndStarting"]:
         return True
     if status not in ["Stopped", "Failed"]:
@@ -104,12 +134,18 @@ def desktop_start(desktop_id, wait_seconds=0, paused=False):
             description="Desktop storages aren't ready",
             description_code="desktop_storage_not_ready",
         )
+    qos_disk_id = get_desktop_qos_disk_id(domain)
     with app.app_context():
         domain = (
             r.table("domains")
             .get(desktop_id)
             .update(
-                {"status": "Starting", "viewer": {}, "accessed": int(time.time())},
+                {
+                    "status": "Starting",
+                    "viewer": {},
+                    "accessed": int(time.time()),
+                    "create_dict": {"hardware": {"qos_disk_id": qos_disk_id}},
+                },
                 return_changes=True,
             )
             .run(db.conn)
@@ -129,19 +165,24 @@ def desktops_start(desktops_ids, wait_seconds=0, paused=False):
             .run(db.conn)
         )
     desktops_ok = [
-        desktop["id"]
-        for desktop in desktops
-        if desktop["status"] in ["Stopped", "Failed"]
+        desktop for desktop in desktops if desktop["status"] in ["Stopped", "Failed"]
     ]
     new_status = "Starting" if not paused else "StartingPaused"
-    with app.app_context():
-        r.table("domains").get_all(r.args(desktops_ok)).update(
-            {"status": new_status, "viewer": {}, "accessed": int(time.time())}
+    for desktop in desktops_ok:
+        qos_disk_id = get_desktop_qos_disk_id(desktop) if not paused else False
+        r.table("domains").get(desktop["id"]).update(
+            {
+                "status": new_status,
+                "viewer": {},
+                "accessed": int(time.time()),
+                "create_dict": {"hardware": {"qos_disk_id": qos_disk_id}},
+            }
         ).run(db.conn)
 
 
 def desktop_stop(desktop_id, force=False, wait_seconds=0):
-    status = get_desktop_status(desktop_id)
+    domain = get_desktop(desktop_id)
+    status = domain["status"]
     if status in ["Stopped", "Stopping", "Failed"]:
         return status
     if status == "Started":
@@ -212,7 +253,8 @@ def desktops_stop_all():
 
 
 def desktop_reset(desktop_id):
-    status = get_desktop_status(desktop_id)
+    domain = get_desktop(desktop_id)
+    status = domain["status"]
     if status not in ["Started", "Shutting-down", "Suspended", "Stopping"]:
         raise Error(
             "precondition_required",

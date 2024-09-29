@@ -423,7 +423,7 @@ $(document).ready(function () {
                 "className": 'details-control',
                 "orderable": false,
                 "data": null,
-                "defaultContent": '' //'<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+                "defaultContent": ''
             },
             { "data": "name" },
             { "data": "description" },
@@ -432,8 +432,8 @@ $(document).ready(function () {
                 "orderable": false,
                 "data": null,
                 "defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
-                                    <button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
-                //~ <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                <button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
+                <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
 
             },
         ],
@@ -445,14 +445,16 @@ $(document).ready(function () {
         switch ($(this).attr('id')) {
             case 'btn-alloweds':
                 modalAllowedsFormShow('qos_disk', data)
+                $('#modalAlloweds #alloweds_panel #categories_pannel').hide();
+                $('#modalAlloweds #alloweds_panel #groups_pannel').hide();
+                $('#modalAlloweds #alloweds_panel #users_pannel').hide();
+                $('#modalAlloweds #allowed-title h4').html('Apply to roles <small>This QoS will be applied to users roles desktops when starting</small>')
                 break;
             case 'btn-edit':
                 $("#modalQosDiskForm")[0].reset();
-                $('#modalQosDisk').modal({
-                    backdrop: 'static',
-                    keyboard: false
-                }).modal('show');
                 $('#modalQosDisk #modalQosDiskForm').parsley();
+                $('#modalQosDisk .modal-header h4').html("<i class='fa fa-pencil fa-1x'></i><i class='fa fa-road'></i> Edit Disk QoS");
+                $('#modalQosDisk .modal-footer button#send').text("Edit Disk QoS");
                 $.ajax({
                     type: "POST",
                     url: "/api/v3/admin/table/qos_disk",
@@ -460,27 +462,63 @@ $(document).ready(function () {
                     contentType: "application/json",
                     accept: "application/json",
                     success: function (qos) {
-                        $('#modalQosDiskForm #name').val(qos.name).attr("disabled", true);
                         $('#modalQosDiskForm #id').val(qos.id);
+                        $('#modalQosDiskForm #name').val(qos.name);
                         $('#modalQosDiskForm #description').val(qos.description);
                         $.each(qos.iotune, function (key, value) {
                             $('#modalQosDiskForm #iotune-' + key).val(value)
+                            $('#modalQosDiskForm #iotune_kilobytes-' + key).val(value / 1024)
+                            $('#modalQosDiskForm #iotune_megabytes-' + key).val(value / 1024 / 1024)
                         });
                     }
                 });
+                $('#modalQosDisk').modal({
+                    backdrop: 'static',
+                    keyboard: false
+                }).modal('show');
                 break;
-
+            case 'btn-delete':
+                new PNotify({
+                    title: 'Confirmation Needed',
+                    text: "Are you sure you want to delete disk QoS: " + data.name + "?",
+                    hide: false,
+                    opacity: 0.9,
+                    confirm: {
+                        confirm: true
+                    },
+                    buttons: {
+                        closer: false,
+                        sticker: false
+                    },
+                    history: {
+                        history: false
+                    },
+                    addclass: 'pnotify-center'
+                }).get().on('pnotify.confirm', function () {
+                    $.ajax({
+                        type: "DELETE",
+                        url: "/admin/table/qos_disk/" + data["id"],
+                        contentType: "application/json",
+                        success: function (data) {
+                            $('form').each(function () { this.reset() });
+                            $('.modal').modal('hide');
+                        }
+                    });
+                }).on('pnotify.cancel', function () {
+                });
+                break;
         }
     });
 
     $('.add-new-qos-disk').on('click', function () {
-        $('#modalQosDiskForm #name').attr("disabled", false);
         $("#modalQosDiskForm")[0].reset();
+        $('#modalQosDisk #modalQosDiskForm').parsley();
+        $('#modalQosDisk .modal-header h4').html("<i class='fa fa-plus fa-1x'></i><i class='fa fa-road'></i> Add new Disk QoS");
+        $('#modalQosDisk .modal-footer button#send').text("Add Disk QoS");
         $('#modalQosDisk').modal({
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        $('#modalQosDisk #modalQosDiskForm').parsley();
     })
 
 
@@ -489,7 +527,6 @@ $(document).ready(function () {
         data = form.serializeObject()
         form.parsley().validate();
         if (form.parsley().isValid()) {
-            data['allowed'] = { 'roles': false, 'categories': false, 'groups': false, 'users': false }
             data = QosDiskParse(data)
             if (data['id'] == "") {
                 //Insert
@@ -1007,7 +1044,8 @@ $(document).ready(function () {
     });
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
-function socketio_on(){
+
+function socketio_on() {
     socket.on('data', function (data) {
         var dict = JSON.parse(data);
         switch (dict['table']) {
@@ -1113,7 +1151,15 @@ function removeQosAd(data) {
 function QosDiskParse(data) {
     data['iotune'] = {}
     $.each(data, function (key, value) {
-        if (key.startsWith('iotune-')) {
+        if (key.startsWith('iotune_kilobytes-')) {
+            data['iotune'][key.split('-')[1]] = parseInt(value * 1024) || 0
+            delete data[key];
+        }
+        else if (key.startsWith('iotune_megabytes-')) {
+            data['iotune'][key.split('-')[1]] = parseInt(value * 1024 * 1024) || 0
+            delete data[key];
+        }
+        else if (key.startsWith('iotune-')) {
             data['iotune'][key.split('-')[1]] = parseInt(value) || 0
             delete data[key];
         }

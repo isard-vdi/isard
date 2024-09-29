@@ -1,5 +1,5 @@
-    <div class="x_panel" style="height: auto;">
-      <div class="x_title">
+<div class="x_panel" style="height: auto;">
+    <div class="x_title">
         <div id="allowed-title">
             <h4>Allows <small>By default ONLY YOUR USER will have access</small></h4>
             <ul class="nav navbar-right panel_toolbox">
@@ -7,102 +7,119 @@
             </ul>
         </div>
         <div class="clearfix"></div>
-      </div>
-      <span id="allowed-warning" class="text-danger" hidden>
+    </div>
+    <span id="allowed-warning" class="text-danger" hidden>
         <h5>
             <i class="fa fa-warning"></i>
             It will be unassigned from desktops whose user permissions are revoked
             <ul>
-                <li>Revoking permissions could led unusable desktops/templates without modifying their hardware again.</li>
+                <li>Revoking permissions could led unusable desktops/templates without modifying their hardware again.
+                </li>
                 <li>This action is not reversible!</li>
             </ul>
         </h5>
-      </span>
-      <div id="alloweds_panel" class="x_content" style="display: none;">
-                    {% if current_user.role == 'admin' %}
-                        <div class="row" id="roles_pannel">
-                            <div class="col-md-3 col-xs-12">
-                              <label class="control-label" for="a-roles-cb">
-                                <div class="icheckbox_flat-green" style="position: relative;">
-                                    <input type="checkbox" id="a-roles-cb" name="a-roles-cb" class="flat" style="position: absolute; opacity: 0;">
-                                    <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                    </ins>
-                                </div>
-                                Set roles</label>
-                            </div>
-                            
-                            <div class="col-md-9 col-xs-12">
-                                <label class="control-label" for="a-roles">Roles 
-                                </label>
-                                <select id="a-roles" name="a-roles[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;" disabled>
-                                </select>
-                            </div>
-                        </div>
+    </span>
+    <div id="alloweds_panel" class="x_content" style="display: none;">
+        {% if current_user.role == 'admin' %}
+        <div class="row" id="roles_pannel">
+            <div class="col-md-3 col-xs-12">
+                <label class="control-label" for="a-roles-cb">
+                    <div class="icheckbox_flat-green" style="position: relative;">
+                        <input type="checkbox" id="a-roles-cb" name="a-roles-cb" class="flat"
+                            style="position: absolute; opacity: 0;">
+                        <ins class="iCheck-helper"
+                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                        </ins>
+                    </div>
+                    Set roles
+                </label>
+            </div>
 
-                        <div class="row" id="categories_pannel">
-                            <div class="col-md-3 col-xs-12">
-                              <label class="control-label" for="a-categories-cb">
-                                <div class="icheckbox_flat-green" style="position: relative;">
-                                    <input type="checkbox" id="a-categories-cb" name="a-categories-cb" class="flat" style="position: absolute; opacity: 0;">
-                                    <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                    </ins>
-                                </div>
-                                Set categories</label>
-                            </div>
-                            
-                            <div class="col-md-9 col-xs-12">
-                                <label class="control-label" for="a-categories">Categories 
-                                </label>
-                                <select id="a-categories" name="a-categories[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;" disabled>
-                                </select>
-                            </div>
-                        </div>
-                        {% else %}
-                        <input type="hidden" id="a-roles" value=false>
-                        <input type="hidden" id="a-categories" value=false>
-                        {% endif %}
+            <div class="col-md-9 col-xs-12">
+                <label class="control-label" for="a-roles">Roles
+                </label>
+                <select id="a-roles" name="a-roles[]" class="tags-select roundbox" multiple="multiple"
+                    style="width: 100%;" disabled>
+                </select>
+            </div>
+        </div>
 
-                        <div class="row">
-                            <div class="col-md-3 col-xs-12">
-                              <label class="control-label" for="a-groups-cb">
-                                <div class="icheckbox_flat-green" style="position: relative;">
-                                    <input type="checkbox" id="a-groups-cb" name="a-groups-cb" class="flat" style="position: absolute; opacity: 0;">
-                                    <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                    </ins>
-                                </div>
-                                Set groups</label>
-                            </div>
-                            
-                            <div class="col-md-9 col-xs-12">
-                                <label class="control-label" for="a-groups">Groups 
-                                </label>
-                                <select id="a-groups" name="a-groups[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;" disabled>
-                                </select>
-                                <div id="a-groups-error-status"></div>
-                            </div>
-                        </div>
+        <div class="row" id="categories_pannel">
+            <div class="col-md-3 col-xs-12">
+                <label class="control-label" for="a-categories-cb">
+                    <div class="icheckbox_flat-green" style="position: relative;">
+                        <input type="checkbox" id="a-categories-cb" name="a-categories-cb" class="flat"
+                            style="position: absolute; opacity: 0;">
+                        <ins class="iCheck-helper"
+                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                        </ins>
+                    </div>
+                    Set categories
+                </label>
+            </div>
 
-                        <div class="row">
-                            <div class="col-md-3 col-xs-12">
-                              <label class="control-label" for="a-users-cb">
-                                <div class="icheckbox_flat-green" style="position: relative;">
-                                    <input type="checkbox" id="a-users-cb" name="a-users-cb" class="flat" style="position: absolute; opacity: 0;">
-                                    <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                    </ins>
-                                </div>
-                                Set users</label>
-                            </div>
-                            
-                            <div class="col-md-9 col-xs-12">
-                                <label class="control-label" for="a-users">Users 
-                                </label>
-                                <select id="a-users" name="a-users[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;" disabled>
-                                </select>
-                                <div id="a-users-error-status"></div>
-                            </div>
-                        </div>
+            <div class="col-md-9 col-xs-12">
+                <label class="control-label" for="a-categories">Categories
+                </label>
+                <select id="a-categories" name="a-categories[]" class="tags-select roundbox" multiple="multiple"
+                    style="width: 100%;" disabled>
+                </select>
+            </div>
+        </div>
+        {% else %}
+        <input type="hidden" id="a-roles" value=false>
+        <input type="hidden" id="a-categories" value=false>
+        {% endif %}
 
-      </div>
+        <div class="row" id="groups_pannel">
+            <div class="col-md-3 col-xs-12">
+                <label class="control-label" for="a-groups-cb">
+                    <div class="icheckbox_flat-green" style="position: relative;">
+                        <input type="checkbox" id="a-groups-cb" name="a-groups-cb" class="flat"
+                            style="position: absolute; opacity: 0;">
+                        <ins class="iCheck-helper"
+                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                        </ins>
+                    </div>
+                    Set groups
+                </label>
+            </div>
+
+            <div class="col-md-9 col-xs-12">
+                <label class="control-label" for="a-groups">Groups
+                </label>
+                <select id="a-groups" name="a-groups[]" class="tags-select roundbox" multiple="multiple"
+                    style="width: 100%;" disabled>
+                </select>
+                <div id="a-groups-error-status"></div>
+            </div>
+        </div>
+
+        <div class="row" id="users_pannel">
+            <div class="col-md-3 col-xs-12">
+                <label class="control-label" for="a-users-cb">
+                    <div class="icheckbox_flat-green" style="position: relative;">
+                        <input type="checkbox" id="a-users-cb" name="a-users-cb" class="flat"
+                            style="position: absolute; opacity: 0;">
+                        <ins class="iCheck-helper"
+                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                        </ins>
+                    </div>
+                    Set users
+                </label>
+            </div>
+
+            <div class="col-md-9 col-xs-12">
+                <label class="control-label" for="a-users">Users
+                </label>
+                <select id="a-users" name="a-users[]" class="tags-select roundbox" multiple="multiple"
+                    style="width: 100%;" disabled>
+                </select>
+                <div id="a-users-error-status"></div>
+            </div>
+        </div>
+
     </div>
-        <!-- jQuery Tags Input -->
-    <script src="/isard-admin/static/js/snippets/alloweds.js"></script>  
+</div>
+<!-- jQuery Tags Input -->
+<script src="/isard-admin/static/js/snippets/alloweds.js"></script>
