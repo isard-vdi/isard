@@ -45,7 +45,8 @@
             "title": "创建新模板",
             "name": "名称",
             "description": "描述",
-            "enabled": "开启"
+            "enabled": "已启用",
+            "disabled": "已禁用"
         },
         "registration": {
             "code": "注册码"
