@@ -86,6 +86,20 @@
                     "verify": "更新并验证邮箱"
                 }
             }
+        },
+        "new-deployment": {
+            "visible": "用户可见",
+            "name": "部署名称",
+            "not-visible": "用户不可见",
+            "desktop": {
+                "title": "新的桌面数据：",
+                "template": "模板",
+                "name": "桌面名称",
+                "description": "桌面描述"
+            },
+            "filter": "过滤器",
+            "section-title-template": "选择一个模板：",
+            "title": "创建新部署："
         }
     }
 }
