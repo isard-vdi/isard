@@ -21,6 +21,7 @@ MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024
 from api import socketio
 
 from ..libv2.api_admin import ApiAdmin
+from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 from ..libv2.api_storage import (
     _check_domains_status,
     get_disks_ids_by_status,
@@ -31,6 +32,7 @@ from ..libv2.api_storage import (
 )
 from ..libv2.quotas import Quotas
 
+desktops = ApiDesktopsPersistent()
 quotas = Quotas()
 from .decorators import (
     canPerformActionDeployment,
@@ -1392,6 +1394,11 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
                                                         "Stopped": {
                                                             "domain": [domain_id],
                                                         },
+                                                        "deleted": {
+                                                            "storage": [
+                                                                storage_orig.id
+                                                            ],
+                                                        },
                                                     }
                                                     if domain_id
                                                     else {
@@ -1420,6 +1427,8 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
             "internal_server_error",
             "Error creating storage",
         )
+
+    desktops.update_storage(domain_id, storage.id)
 
     return (
         json.dumps(
