@@ -521,6 +521,19 @@ $(document).ready(function () {
         }).modal('show');
     })
 
+    window.Parsley.addValidator('burst', {
+        requirementType: 'string',
+        validateString: function (value, maxFieldSelector) {
+            const maxValue = $(maxFieldSelector).val();
+            if (!maxValue) {
+                return true;
+            }
+            return parseInt(value, 10) <= parseInt(maxValue, 10);
+        },
+        messages: {
+            en: 'The limit value should be less than or equal to the burst value.'
+        }
+    });
 
     $("#modalQosDisk #send").on('click', function (e) {
         var form = $('#modalQosDiskForm');
@@ -541,7 +554,7 @@ $(document).ready(function () {
                 })
                 $.ajax({
                     type: "POST",
-                    url: "/admin/table/add/qos_disk",
+                    url: "/api/v3/qos_disk",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -558,15 +571,32 @@ $(document).ready(function () {
                         $('.modal').modal('hide');
                     },
                     error: function (data) {
-                        notice.update({
-                            title: 'ERROR creating disk QoS',
-                            text: data.responseJSON.description,
-                            type: 'error',
-                            hide: true,
-                            icon: 'fa fa-warning',
-                            delay: 2000,
-                            opacity: 1
-                        })
+                        if (data.responseJSON.error) {
+                            errors = '<ul>'
+                            $.each(data.responseJSON.error, function (key, value) {
+                                errors += "<li>" + value + '</li>';
+                            });
+                            errors += '</ul>'
+                            notice.update({
+                                title: 'ERROR creating disk QoS',
+                                text: errors,
+                                type: 'error',
+                                hide: true,
+                                icon: 'fa fa-warning',
+                                delay: 2000,
+                                opacity: 1
+                            })
+                        } else {
+                            notice.update({
+                                title: 'ERROR creating disk QoS',
+                                text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                                type: 'error',
+                                hide: true,
+                                icon: 'fa fa-warning',
+                                delay: 2000,
+                                opacity: 1
+                            })
+                        }
                     }
                 });
             } else {
@@ -580,7 +610,7 @@ $(document).ready(function () {
                 data['name'] = $('#modalQosDiskForm #name').val();
                 $.ajax({
                     type: "PUT",
-                    url: "/admin/table/update/qos_disk",
+                    url: "/api/v3/qos_disk",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (data) {
@@ -597,15 +627,32 @@ $(document).ready(function () {
                         $('.modal').modal('hide');
                     },
                     error: function (data) {
-                        notice.update({
-                            title: 'ERROR updating disk QoS',
-                            text: data.responseJSON.description,
-                            type: 'error',
-                            hide: true,
-                            icon: 'fa fa-warning',
-                            delay: 2000,
-                            opacity: 1
-                        })
+                        if (data.responseJSON.errors) {
+                            errors = '<ul>'
+                            $.each(data.responseJSON.errors, function (key, value) {
+                                errors += "<li>" + value + '</li>';
+                            });
+                            errors += '</ul>'
+                            notice.update({
+                                title: 'ERROR creating disk QoS',
+                                text: errors,
+                                type: 'error',
+                                hide: true,
+                                icon: 'fa fa-warning',
+                                delay: 2000,
+                                opacity: 1
+                            })
+                        } else {
+                            notice.update({
+                                title: 'ERROR updating disk QoS',
+                                text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                                type: 'error',
+                                hide: true,
+                                icon: 'fa fa-warning',
+                                delay: 2000,
+                                opacity: 1
+                            })
+                        }
                     }
                 });
             }
