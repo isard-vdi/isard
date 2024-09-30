@@ -1,4 +1,4 @@
-package isardvdi
+package sdk
 
 import (
 	"context"

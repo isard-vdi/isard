@@ -2,6 +2,8 @@ module gitlab.com/isard/isardvdi
 
 go 1.23.2
 
+replace gitlab.com/isard/isardvdi/pkg/sdk => ./pkg/sdk
+
 // TODO: Remove this when merged: https://github.com/crewjam/saml/pull/549
 replace github.com/crewjam/saml => github.com/Daniel-Wachter/saml v0.0.0-20240124130410-b8ee52d250c2
 
@@ -30,7 +32,7 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
-	gitlab.com/isard/isardvdi-sdk-go v1.9.0
+	gitlab.com/isard/isardvdi/pkg/sdk v0.0.0-00010101000000-000000000000
 	go.nhat.io/grpcmock v0.28.0
 	go.opentelemetry.io/otel v1.30.0
 	go.opentelemetry.io/otel/metric v1.30.0

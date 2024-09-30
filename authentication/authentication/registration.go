@@ -7,7 +7,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/token"
 
-	"gitlab.com/isard/isardvdi-sdk-go"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 )
 
 type apiRegisterUserRsp struct {
@@ -46,8 +46,8 @@ func (a *Authentication) registerGroup(g *model.Group) error {
 		return fmt.Errorf("register the group: %w", err)
 	}
 
-	g.ID = isardvdi.GetString(grp.ID)
-	g.UID = isardvdi.GetString(grp.UID)
+	g.ID = sdk.GetString(grp.ID)
+	g.UID = sdk.GetString(grp.UID)
 
 	return nil
 }

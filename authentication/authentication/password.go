@@ -11,7 +11,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
 
-	"gitlab.com/isard/isardvdi-sdk-go"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 )
 
 var ErrUserNotFound = errors.New("user not found")
@@ -124,7 +124,7 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd, remoteAddr
 	}
 
 	if err := a.API.AdminUserResetPassword(ctx, userID, pwd); err != nil {
-		var apiErr *isardvdi.Err
+		var apiErr *sdk.Err
 		if !errors.As(err, &apiErr) {
 			return fmt.Errorf("unknown API error: %w", err)
 		}

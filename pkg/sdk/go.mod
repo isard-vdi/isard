@@ -1,4 +1,4 @@
-module gitlab.com/isard/isardvdi-sdk-go
+module gitlab.com/isard/isardvdi/pkg/sdk
 
 go 1.16
 

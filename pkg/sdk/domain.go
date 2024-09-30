@@ -1,4 +1,4 @@
-package isardvdi
+package sdk
 
 type DomainState string
 

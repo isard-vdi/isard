@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"gitlab.com/isard/isardvdi-sdk-go"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 )
 
 var (
@@ -57,7 +57,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cli, err := isardvdi.NewClient(&isardvdi.Cfg{
+	cli, err := sdk.NewClient(&sdk.Cfg{
 		Host:        fmt.Sprintf("%s://%s", apiProtocol, apiAddr),
 		IgnoreCerts: apiIgnoreCerts,
 		Token:       tkn,
@@ -68,12 +68,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := cli.UserOwnsDesktop(r.Context(), &isardvdi.UserOwnsDesktopOpts{
+	if err := cli.UserOwnsDesktop(r.Context(), &sdk.UserOwnsDesktopOpts{
 		ProxyVideo:     r.Host,
 		ProxyHyperHost: hyper,
 		Port:           port,
 	}); err != nil {
-		if errors.Is(err, isardvdi.ErrForbidden) {
+		if errors.Is(err, sdk.ErrForbidden) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}

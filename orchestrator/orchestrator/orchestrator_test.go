@@ -7,13 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/isard/isardvdi-sdk-go"
-	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +28,7 @@ func TestStart(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareOperations func(*grpcmock.Server)
-		PrepareAPI        func(context.CancelFunc, *apiMock.Client)
+		PrepareAPI        func(context.CancelFunc, *sdk.MockSdk)
 		CfgRata           cfg.DirectorRata
 	}{
 		"should remove an hypervisor from only forced if it's available, instead of scaling up": {
@@ -53,10 +52,10 @@ func TestStart(t *testing.T) {
 					}},
 				})
 			},
-			PrepareAPI: func(cancel context.CancelFunc, m *apiMock.Client) {
-				hypers := []*isardvdi.OrchestratorHypervisor{{
+			PrepareAPI: func(cancel context.CancelFunc, m *sdk.MockSdk) {
+				hypers := []*sdk.OrchestratorHypervisor{{
 					ID:                  "bm-e4-12",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          false,
 					Buffering:           false,
 					DestroyTime:         time.Time{},
@@ -65,19 +64,19 @@ func TestStart(t *testing.T) {
 					GPUOnly:             false,
 					DesktopsStarted:     234,
 					MinFreeMemGB:        200,
-					CPU: isardvdi.OrchestratorResourceLoad{
+					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  27,
 						Free:  73,
 					},
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 2051898,
 						Used:  1216615,
 						Free:  835282,
 					},
 				}, {
 					ID:                  "gpu-a10-2",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          false,
 					Buffering:           false,
 					DestroyTime:         time.Time{},
@@ -86,17 +85,17 @@ func TestStart(t *testing.T) {
 					GPUOnly:             false,
 					DesktopsStarted:     70,
 					MinFreeMemGB:        100,
-					CPU: isardvdi.OrchestratorResourceLoad{
+					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  30,
 						Free:  70,
 					},
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 1031700,
 						Used:  461632,
 						Free:  570067,
 					},
-					GPUs: []*isardvdi.OrchestratorHypervisorGPU{{
+					GPUs: []*sdk.OrchestratorHypervisorGPU{{
 						ID:         "gpu-a10-2-pci_0000_31_00_0",
 						Brand:      "NVIDIA",
 						Model:      "A10",
@@ -131,7 +130,7 @@ func TestStart(t *testing.T) {
 					}},
 				}, {
 					ID:                  "bm-e4-15",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          true,
 					Buffering:           false,
 					DestroyTime:         time.Time{},
@@ -140,12 +139,12 @@ func TestStart(t *testing.T) {
 					GPUOnly:             false,
 					DesktopsStarted:     0,
 					MinFreeMemGB:        200,
-					CPU: isardvdi.OrchestratorResourceLoad{
+					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  1,
 						Free:  99,
 					},
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 2051898,
 						Used:  10727,
 						Free:  2041170,
@@ -267,10 +266,10 @@ func TestStart(t *testing.T) {
 				})
 				destroy.Once()
 			},
-			PrepareAPI: func(cancel context.CancelFunc, m *apiMock.Client) {
-				hypers := []*isardvdi.OrchestratorHypervisor{{
+			PrepareAPI: func(cancel context.CancelFunc, m *sdk.MockSdk) {
+				hypers := []*sdk.OrchestratorHypervisor{{
 					ID:                  "bm-e2-11",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          true,
 					Buffering:           false,
 					DestroyTime:         time.Date(2024, 2, 14, 23, 12, 19, 0, time.UTC),
@@ -279,19 +278,19 @@ func TestStart(t *testing.T) {
 					GPUOnly:             false,
 					DesktopsStarted:     27,
 					MinFreeMemGB:        50,
-					CPU: isardvdi.OrchestratorResourceLoad{
+					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  3,
 						Free:  97,
 					},
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  119794,
 						Free:  396060,
 					},
 				}, {
 					ID:                  "bm-e2-12",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          true,
 					Buffering:           false,
 					DestroyTime:         time.Date(2024, 2, 14, 23, 12, 30, 0, time.UTC),
@@ -300,19 +299,19 @@ func TestStart(t *testing.T) {
 					GPUOnly:             false,
 					DesktopsStarted:     20,
 					MinFreeMemGB:        50,
-					CPU: isardvdi.OrchestratorResourceLoad{
+					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  2,
 						Free:  98,
 					},
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  70115,
 						Free:  445739,
 					},
 				}, {
 					ID:                  "bm-e4-12",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          true,
 					Buffering:           false,
 					DestroyTime:         time.Date(2024, 2, 14, 21, 56, 55, 0, time.UTC),
@@ -321,19 +320,19 @@ func TestStart(t *testing.T) {
 					GPUOnly:             false,
 					DesktopsStarted:     6,
 					MinFreeMemGB:        200,
-					CPU: isardvdi.OrchestratorResourceLoad{
+					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  1,
 						Free:  99,
 					},
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 2051898,
 						Used:  38185,
 						Free:  2013712,
 					},
 				}, {
 					ID:                  "bm-e4-11",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          true,
 					Buffering:           false,
 					DestroyTime:         time.Date(2024, 2, 14, 22, 45, 5, 0, time.UTC),
@@ -342,19 +341,19 @@ func TestStart(t *testing.T) {
 					GPUOnly:             false,
 					DesktopsStarted:     27,
 					MinFreeMemGB:        200,
-					CPU: isardvdi.OrchestratorResourceLoad{
+					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  3,
 						Free:  97,
 					},
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 2051898,
 						Used:  153885,
 						Free:  1898012,
 					},
 				}, {
 					ID:                  "bm-e2-13",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          true,
 					Buffering:           false,
 					DestroyTime:         time.Date(2024, 2, 15, 1, 2, 11, 0, time.UTC),
@@ -363,19 +362,19 @@ func TestStart(t *testing.T) {
 					GPUOnly:             false,
 					DesktopsStarted:     40,
 					MinFreeMemGB:        50,
-					CPU: isardvdi.OrchestratorResourceLoad{
+					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  10,
 						Free:  90,
 					},
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  230584,
 						Free:  285271,
 					},
 				}, {
 					ID:                  "bm-e2-14",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          true,
 					Buffering:           false,
 					DestroyTime:         time.Date(2024, 2, 15, 1, 17, 52, 0, time.UTC),
@@ -384,19 +383,19 @@ func TestStart(t *testing.T) {
 					GPUOnly:             false,
 					DesktopsStarted:     20,
 					MinFreeMemGB:        50,
-					CPU: isardvdi.OrchestratorResourceLoad{
+					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  6,
 						Free:  94,
 					},
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 515855,
 						Used:  127595,
 						Free:  388260,
 					},
 				}, {
 					ID:                  "bm-std3-11",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          true,
 					Buffering:           false,
 					DestroyTime:         time.Time{},
@@ -405,19 +404,19 @@ func TestStart(t *testing.T) {
 					GPUOnly:             false,
 					DesktopsStarted:     0,
 					MinFreeMemGB:        100,
-					CPU: isardvdi.OrchestratorResourceLoad{
+					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  1,
 						Free:  99,
 					},
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 1031700,
 						Used:  7441,
 						Free:  1024258,
 					},
 				}, {
 					ID:                  "bm-std3-12",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          true,
 					Buffering:           false,
 					DestroyTime:         time.Date(2024, 2, 14, 22, 45, 16, 0, time.UTC),
@@ -426,19 +425,19 @@ func TestStart(t *testing.T) {
 					GPUOnly:             false,
 					DesktopsStarted:     49,
 					MinFreeMemGB:        100,
-					CPU: isardvdi.OrchestratorResourceLoad{
+					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  5,
 						Free:  95,
 					},
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 1031700,
 						Used:  201767,
 						Free:  829932,
 					},
 				}, {
 					ID:                  "gpu-a10-2",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          false,
 					Buffering:           false,
 					DestroyTime:         time.Time{},
@@ -447,17 +446,17 @@ func TestStart(t *testing.T) {
 					GPUOnly:             false,
 					DesktopsStarted:     89,
 					MinFreeMemGB:        100,
-					CPU: isardvdi.OrchestratorResourceLoad{
+					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
 						Used:  20,
 						Free:  80,
 					},
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 1031700,
 						Used:  498174,
 						Free:  533525,
 					},
-					GPUs: []*isardvdi.OrchestratorHypervisorGPU{{
+					GPUs: []*sdk.OrchestratorHypervisorGPU{{
 						ID:         "gpu-a10-2-pci_0000_31_00_0",
 						Brand:      "NVIDIA",
 						Model:      "A10",
@@ -528,7 +527,7 @@ func TestStart(t *testing.T) {
 			require.NoError(err)
 			defer operationsConn.Close()
 
-			apiCli := &apiMock.Client{}
+			apiCli := sdk.NewMockSdk(t)
 			tc.PrepareAPI(cancel, apiCli)
 
 			rata := director.NewRata(

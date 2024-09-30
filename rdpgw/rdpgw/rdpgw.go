@@ -9,7 +9,7 @@ import (
 
 	"github.com/bolkedebruin/rdpgw/protocol"
 	"github.com/patrickmn/go-cache"
-	"gitlab.com/isard/isardvdi-sdk-go"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 	"gitlab.com/isard/isardvdi/rdpgw/cfg"
 )
 
@@ -51,7 +51,7 @@ func verifyServer(apiAddr string) func(context.Context, string) (bool, error) {
 			return false, fmt.Errorf("split host ip and port: %w", err)
 		}
 
-		cli, err := isardvdi.NewClient(&isardvdi.Cfg{
+		cli, err := sdk.NewClient(&sdk.Cfg{
 			Host:  fmt.Sprintf("http://%s", apiAddr),
 			Token: tkn.(string),
 		})
@@ -59,10 +59,10 @@ func verifyServer(apiAddr string) func(context.Context, string) (bool, error) {
 			return false, fmt.Errorf("error creating the client: %w", err)
 		}
 
-		if err := cli.UserOwnsDesktop(ctx, &isardvdi.UserOwnsDesktopOpts{
+		if err := cli.UserOwnsDesktop(ctx, &sdk.UserOwnsDesktopOpts{
 			IP: ip,
 		}); err != nil {
-			if errors.Is(err, isardvdi.ErrForbidden) {
+			if errors.Is(err, sdk.ErrForbidden) {
 				return false, errors.New("unauthorized")
 			}
 

@@ -16,8 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"gitlab.com/isard/isardvdi-sdk-go"
-	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 	"go.nhat.io/grpcmock"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
@@ -28,7 +27,7 @@ func TestStartLogin(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareDB       func(*r.Mock)
-		PrepareAPI      func(*apiMock.Client)
+		PrepareAPI      func(*sdk.MockSdk)
 		PrepareProvider func(*provider.MockProvider)
 		PrepareSessions func(*grpcmock.Server)
 
@@ -50,7 +49,7 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("category"), "default"),
 				))).Return([]interface{}{}, nil)
 			},
-			PrepareAPI:      func(c *apiMock.Client) {},
+			PrepareAPI:      func(c *sdk.MockSdk) {},
 			PrepareSessions: func(s *grpcmock.Server) {},
 
 			Provider: "local",
@@ -98,9 +97,9 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("external_gid"), "my group ID"),
 				))).Return([]interface{}{}, nil)
 			},
-			PrepareAPI: func(c *apiMock.Client) {
+			PrepareAPI: func(c *sdk.MockSdk) {
 				genID := "uuid here!"
-				c.On("AdminGroupCreate", mock.AnythingOfType("context.backgroundCtx"), "default", "category", "category", "some description", "provider-saml", "my group ID").Return(&isardvdi.Group{
+				c.On("AdminGroupCreate", mock.AnythingOfType("context.backgroundCtx"), "default", "category", "category", "some description", "provider-saml", "my group ID").Return(&sdk.Group{
 					ID:  &genID,
 					UID: &genID,
 				}, nil)
@@ -159,7 +158,7 @@ func TestStartLogin(t *testing.T) {
 			dbMock := r.NewMock()
 			tc.PrepareDB(dbMock)
 
-			apiMock := &apiMock.Client{}
+			apiMock := sdk.NewMockSdk(t)
 			if tc.PrepareAPI != nil {
 				tc.PrepareAPI(apiMock)
 			}

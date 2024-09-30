@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"gitlab.com/isard/isardvdi-sdk-go"
 	"gitlab.com/isard/isardvdi/orchestrator/log"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	combinations "github.com/mxschmitt/golang-combinations"
 	"github.com/rs/zerolog"
@@ -18,12 +18,12 @@ const (
 )
 
 type Chamaleon struct {
-	apiCli isardvdi.Interface
+	apiCli sdk.Interface
 
 	log *zerolog.Logger
 }
 
-func NewChamaleon(log *zerolog.Logger, apiCli isardvdi.Interface) *Chamaleon {
+func NewChamaleon(log *zerolog.Logger, apiCli sdk.Interface) *Chamaleon {
 	return &Chamaleon{
 		apiCli: apiCli,
 		log:    log,
@@ -34,7 +34,7 @@ func (c *Chamaleon) String() string {
 	return DirectorTypeChamaleon
 }
 
-func (c *Chamaleon) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*isardvdi.OrchestratorHypervisor) (*operationsv1.CreateHypervisorsRequest, *operationsv1.DestroyHypervisorsRequest, []string, []string, error) {
+func (c *Chamaleon) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*sdk.OrchestratorHypervisor) (*operationsv1.CreateHypervisorsRequest, *operationsv1.DestroyHypervisorsRequest, []string, []string, error) {
 	operationsHypersAvail := []*operationsv1.ListHypervisorsResponseHypervisor{}
 availHypersLoop:
 	for _, h := range operationsHypers {
@@ -61,11 +61,11 @@ availHypersLoop:
 
 	totalUnits := map[string]int{}
 
-	hypersAvail := []*isardvdi.OrchestratorHypervisor{}
-	hypersOnDeadRow := []*isardvdi.OrchestratorHypervisor{}
+	hypersAvail := []*sdk.OrchestratorHypervisor{}
+	hypersOnDeadRow := []*sdk.OrchestratorHypervisor{}
 	for _, h := range hypers {
 		switch h.Status {
-		case isardvdi.HypervisorStatusOnline:
+		case sdk.HypervisorStatusOnline:
 			if h.DestroyTime.IsZero() {
 				// Ensure we don't play with buffering hypervisors! :)
 				if !h.Buffering && !h.OnlyForced && len(h.GPUs) != 0 {
@@ -137,7 +137,7 @@ availHypersLoop:
 	hypersToDestroy := []string{}
 	for _, h := range hypers {
 		switch h.Status {
-		case isardvdi.HypervisorStatusOnline:
+		case sdk.HypervisorStatusOnline:
 			// Ensure we don't play with buffering hypervisors or non orchestrator managed ones! :)
 			if !h.Buffering && h.OrchestratorManaged && len(h.GPUs) != 0 {
 				// Check if we need to kill the hypervisor (because it's time to kill it or it has 0 desktops started)
@@ -164,8 +164,8 @@ availHypersLoop:
 	return nil, nil, nil, nil, nil
 }
 
-func chamaleonMaximumBookings(times ...isardvdi.OrchestratorGPUBookingTime) isardvdi.OrchestratorGPUBookingTime {
-	booking := isardvdi.OrchestratorGPUBookingTime{}
+func chamaleonMaximumBookings(times ...sdk.OrchestratorGPUBookingTime) sdk.OrchestratorGPUBookingTime {
+	booking := sdk.OrchestratorGPUBookingTime{}
 
 	for _, t := range times {
 		if t.Units > booking.Units {
@@ -202,8 +202,8 @@ func chamaleonIsSmaller(this []*operationsv1.ListHypervisorsResponseHypervisor, 
 }
 
 // TODO: THIS SHOULD TAKE INTO ACCOUNT DIFFERENT DESKTOPS / BOOKINGS AND ALL THIS STUFF
-func chamaleonIsBigger(this []*isardvdi.OrchestratorHypervisor, thanThis []*isardvdi.OrchestratorHypervisor) bool {
-	lists := [2][]*isardvdi.OrchestratorHypervisor{this, thanThis}
+func chamaleonIsBigger(this []*sdk.OrchestratorHypervisor, thanThis []*sdk.OrchestratorHypervisor) bool {
+	lists := [2][]*sdk.OrchestratorHypervisor{this, thanThis}
 	mem := [2]int{}
 	dktps := [2]int{}
 	for i, l := range lists {
@@ -236,7 +236,7 @@ func chamaleonIsBigger(this []*isardvdi.OrchestratorHypervisor, thanThis []*isar
 	return mem[0] > mem[1]
 }
 
-func chamaleonBestHypersToCreateIsardVDI(avail []*isardvdi.OrchestratorHypervisor, minUnits map[string]int) ([]string, error) {
+func chamaleonBestHypersToCreateIsardVDI(avail []*sdk.OrchestratorHypervisor, minUnits map[string]int) ([]string, error) {
 	hypers := []*operationsv1.ListHypervisorsResponseHypervisor{}
 	for _, h := range avail {
 		gpus := []*operationsv1.HypervisorGPU{}
@@ -338,7 +338,7 @@ combosLoop:
 	return ids, nil
 }
 
-func chamaleonCanBeDestroyed(hypers []*isardvdi.OrchestratorHypervisor, total map[string]int, bookings []*isardvdi.OrchestratorGPUBooking) bool {
+func chamaleonCanBeDestroyed(hypers []*sdk.OrchestratorHypervisor, total map[string]int, bookings []*sdk.OrchestratorGPUBooking) bool {
 	hypersUnits := map[string]int{}
 	for _, h := range hypers {
 		for _, g := range h.GPUs {
@@ -358,8 +358,8 @@ func chamaleonCanBeDestroyed(hypers []*isardvdi.OrchestratorHypervisor, total ma
 	return canBeDestroyed
 }
 
-func chamaleonBestHypersToDestroy(avail []*isardvdi.OrchestratorHypervisor, total map[string]int, bookings []*isardvdi.OrchestratorGPUBooking) []string {
-	var bestHypers []*isardvdi.OrchestratorHypervisor
+func chamaleonBestHypersToDestroy(avail []*sdk.OrchestratorHypervisor, total map[string]int, bookings []*sdk.OrchestratorGPUBooking) []string {
+	var bestHypers []*sdk.OrchestratorHypervisor
 
 	combos := combinations.All(avail)
 	for _, c := range combos {
@@ -378,7 +378,7 @@ func chamaleonBestHypersToDestroy(avail []*isardvdi.OrchestratorHypervisor, tota
 	return ids
 }
 
-func (c *Chamaleon) ExtraOperations(ctx context.Context, hypers []*isardvdi.OrchestratorHypervisor) error {
+func (c *Chamaleon) ExtraOperations(ctx context.Context, hypers []*sdk.OrchestratorHypervisor) error {
 	return nil
 }
 

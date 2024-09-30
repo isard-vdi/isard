@@ -1,4 +1,4 @@
-package isardvdi
+package sdk
 
 func GetString(s *string) string {
 	if s != nil {

@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi-sdk-go"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 	"gitlab.com/isard/isardvdi/pkg/ssh"
 	stdSSH "golang.org/x/crypto/ssh"
 )
@@ -29,7 +29,7 @@ var (
 )
 
 // TODO: RDP Web, noVNC
-func (c *Check) testViewers(ctx context.Context, log *zerolog.Logger, cli isardvdi.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
+func (c *Check) testViewers(ctx context.Context, log *zerolog.Logger, cli sdk.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
 	// const port = 9000
 	// service, err := selenium.NewGeckoDriverService("geckodriver", port)
 	// if err != nil {
@@ -43,17 +43,17 @@ func (c *Check) testViewers(ctx context.Context, log *zerolog.Logger, cli isardv
 	// }
 	// defer wd.Quit()
 
-	log.Debug().Str("viewer", string(isardvdi.DesktopViewerSpice)).Msg("testing viewer")
+	log.Debug().Str("viewer", string(sdk.DesktopViewerSpice)).Msg("testing viewer")
 	if err := c.testSpice(ctx, cli, sshCli, id); err != nil {
 		return err
 	}
 
-	log.Debug().Str("viewer", string(isardvdi.DesktopViewerRdpGW)).Msg("testing viewer")
+	log.Debug().Str("viewer", string(sdk.DesktopViewerRdpGW)).Msg("testing viewer")
 	if err := c.testRdpGW(ctx, cli, sshCli, failSelfSigned, id); err != nil {
 		return err
 	}
 
-	log.Debug().Str("viewer", string(isardvdi.DesktopViewerRdpVPN)).Msg("testing viewer")
+	log.Debug().Str("viewer", string(sdk.DesktopViewerRdpVPN)).Msg("testing viewer")
 	if err := c.testRdpVPN(ctx, cli, sshCli, failSelfSigned, id); err != nil {
 		return err
 	}
@@ -66,8 +66,8 @@ func (c *Check) testViewers(ctx context.Context, log *zerolog.Logger, cli isardv
 	return nil
 }
 
-func (c *Check) testSpice(ctx context.Context, cli isardvdi.Interface, sshCli *stdSSH.Client, id string) error {
-	spice, err := cli.DesktopViewer(ctx, isardvdi.DesktopViewerSpice, id)
+func (c *Check) testSpice(ctx context.Context, cli sdk.Interface, sshCli *stdSSH.Client, id string) error {
+	spice, err := cli.DesktopViewer(ctx, sdk.DesktopViewerSpice, id)
 	if err != nil {
 		return fmt.Errorf("get spice viewer: %w", err)
 	}
@@ -84,23 +84,23 @@ func (c *Check) testSpice(ctx context.Context, cli isardvdi.Interface, sshCli *s
 	return nil
 }
 
-func (c *Check) testRdpGW(ctx context.Context, cli isardvdi.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
-	if err := c.testRDP(ctx, cli, sshCli, isardvdi.DesktopViewerRdpGW, failSelfSigned, id); err != nil {
+func (c *Check) testRdpGW(ctx context.Context, cli sdk.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
+	if err := c.testRDP(ctx, cli, sshCli, sdk.DesktopViewerRdpGW, failSelfSigned, id); err != nil {
 		return fmt.Errorf("%w: %w", ErrViewerRDPGW, err)
 	}
 
 	return nil
 }
 
-func (c *Check) testRdpVPN(ctx context.Context, cli isardvdi.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
-	if err := c.testRDP(ctx, cli, sshCli, isardvdi.DesktopViewerRdpVPN, failSelfSigned, id); err != nil {
+func (c *Check) testRdpVPN(ctx context.Context, cli sdk.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
+	if err := c.testRDP(ctx, cli, sshCli, sdk.DesktopViewerRdpVPN, failSelfSigned, id); err != nil {
 		return fmt.Errorf("%w: %w", ErrViewerRDPVPN, err)
 	}
 
 	return nil
 }
 
-func (c *Check) testRDP(ctx context.Context, cli isardvdi.Interface, sshCli *stdSSH.Client, viewer isardvdi.DesktopViewer, failSelfSigned bool, id string) error {
+func (c *Check) testRDP(ctx context.Context, cli sdk.Interface, sshCli *stdSSH.Client, viewer sdk.DesktopViewer, failSelfSigned bool, id string) error {
 	rdp, err := cli.DesktopViewer(ctx, viewer, id)
 	if err != nil {
 		return fmt.Errorf("get %s viewer: %w", viewer, err)

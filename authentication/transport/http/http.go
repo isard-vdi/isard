@@ -23,7 +23,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi-sdk-go"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -774,7 +774,7 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 			}
 		}
 
-		var apiErr *isardvdi.Err
+		var apiErr *sdk.Err
 		if errors.As(err, &apiErr) {
 			// Extract the extra description_code and params from the error
 			var (
@@ -802,7 +802,7 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 			}
 
 			// Handle the error
-			if errors.Is(err, isardvdi.ErrBadRequest) {
+			if errors.Is(err, sdk.ErrBadRequest) {
 				return &oasAuthentication.ResetPasswordBadRequest{
 					Error:           oasAuthentication.ResetPasswordErrorErrorBadRequest,
 					DescriptionCode: descCode,
@@ -811,7 +811,7 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 				}, nil
 			}
 
-			if errors.Is(err, isardvdi.ErrInternalServer) {
+			if errors.Is(err, sdk.ErrInternalServer) {
 				return &oasAuthentication.ResetPasswordInternalServerError{
 					Error:           oasAuthentication.ResetPasswordErrorErrorInternalServer,
 					DescriptionCode: descCode,

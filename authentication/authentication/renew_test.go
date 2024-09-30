@@ -12,11 +12,11 @@ import (
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
 	"go.nhat.io/grpcmock"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -103,7 +103,7 @@ func TestRenew(t *testing.T) {
 
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
-			apiMock := &apiMock.Client{}
+			apiMock := sdk.NewMockSdk(t)
 
 			if tc.PrepareSessions == nil {
 				tc.PrepareSessions = func(s *grpcmock.Server) {}

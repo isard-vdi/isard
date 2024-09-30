@@ -5,10 +5,10 @@ import (
 	"errors"
 	"sync"
 
-	"gitlab.com/isard/isardvdi-sdk-go"
 	"gitlab.com/isard/isardvdi/check/check"
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/rs/zerolog"
 	gRPC "google.golang.org/grpc"
@@ -77,7 +77,7 @@ func (c *CheckServer) CheckIsardVDI(ctx context.Context, req *checkv1.CheckIsard
 	return &checkv1.CheckIsardVDIResponse{
 		IsardvdiVersion:    result.IsardVDIVersion,
 		MaintenanceMode:    result.MaintenanceMode,
-		IsardvdiSdkVersion: isardvdi.Version,
+		IsardvdiSdkVersion: sdk.Version,
 		DependenciesVersions: &checkv1.DependenciesVersions{
 			Remmina:      result.DependenciesVersions.Remmina,
 			RemoteViewer: result.DependenciesVersions.RemoteViewer,
@@ -102,7 +102,7 @@ func (c *CheckServer) CheckHypervisor(ctx context.Context, req *checkv1.CheckHyp
 	return &checkv1.CheckHypervisorResponse{
 		IsardvdiVersion:    result.IsardVDIVersion,
 		MaintenanceMode:    result.MaintenanceMode,
-		IsardvdiSdkVersion: isardvdi.Version,
+		IsardvdiSdkVersion: sdk.Version,
 		DependenciesVersions: &checkv1.DependenciesVersions{
 			Remmina:      result.DependenciesVersions.Remmina,
 			RemoteViewer: result.DependenciesVersions.RemoteViewer,

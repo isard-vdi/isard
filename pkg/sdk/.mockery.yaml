@@ -1,0 +1,12 @@
+with-expecter: true
+inpackage: true
+filename: "testing_{{.InterfaceName | snakecase}}_mock.go"
+dir: "{{.InterfaceDir}}"
+mockname: "Mock{{.InterfaceName}}"
+outpkg: "{{.PackageName}}"
+packages:
+  gitlab.com/isard/isardvdi/pkg/sdk:
+    interfaces:
+      Interface:
+        config:
+          mockname: "Mock{{ .PackageName | camelcase }}"
