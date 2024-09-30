@@ -37,12 +37,15 @@
                 "category": "分类",
                 "group": "组",
                 "user": "用户"
-            }
+            },
+            "section-title-template": "选择一个模板：",
+            "title": "创建新的桌面："
         },
         "new-template": {
             "title": "创建新模板",
             "name": "名称",
-            "description": "描述"
+            "description": "描述",
+            "enabled": "开启"
         },
         "registration": {
             "code": "注册码"
@@ -74,7 +77,14 @@
         "email": {
             "modal": {
                 "title": "电子邮件更改/验证",
-                "change-validate-address": "更改或验证您的电子邮件地址"
+                "change-validate-address": "更改或验证您的电子邮件地址",
+                "email": {
+                    "label": "邮箱",
+                    "placeholder": "邮箱"
+                },
+                "buttons": {
+                    "verify": "更新并验证邮箱"
+                }
             }
         }
     }
