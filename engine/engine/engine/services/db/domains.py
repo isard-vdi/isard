@@ -883,8 +883,11 @@ def get_domain_forced_hyp(id_domain):
 def get_domain(id):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
-
-    dict_domain = rtable.get(id).without("tag_visible").run(r_conn)
+    try:
+        dict_domain = rtable.get(id).without("tag_visible").run(r_conn)
+    except ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return None
     close_rethink_connection(r_conn)
     return dict_domain
 

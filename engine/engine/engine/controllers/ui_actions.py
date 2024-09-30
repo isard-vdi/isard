@@ -653,7 +653,13 @@ class UiActions(object):
 
     def create_template_disks_from_domain(self, id_domain):
         dict_domain = get_domain(id_domain)
-
+        if dict_domain is None:
+            log.error(
+                "CREATE_TEMPLATE_DISKS_FROM_DOMAIN: Domain {} not found in database. Not creating any disk.".format(
+                    id_domain
+                )
+            )
+            return False
         create_dict = dict_domain["create_dict"]
 
         pool_id = get_category_storage_pool_id(dict_domain.get("category"))
@@ -764,6 +770,13 @@ class UiActions(object):
 
     def create_template_in_db(self, id_domain):
         domain_dict = get_domain(id_domain)
+        if domain_dict is None:
+            log.error(
+                "CREATE_TEMPLATE_IN_DB_FROM_DOMAIN: Domain {} not found in database. Not creating any disk.".format(
+                    id_domain
+                )
+            )
+            return False
         template_dict = domain_dict["create_dict"]["template_dict"]
         template_dict["status"] = "CreatingNewTemplateInDB"
         template_id = template_dict["id"]
@@ -828,7 +841,13 @@ class UiActions(object):
 
     def creating_disk_from_scratch(self, id_new):
         dict_domain = get_domain(id_new)
-
+        if dict_domain is None:
+            log.error(
+                "CREATING_DISK_FROM_SCRATCH: Domain {} not found in database. Not creating any disk.".format(
+                    id_new
+                )
+            )
+            return False
         pool_id = get_category_storage_pool_id(dict_domain.get("category"))
 
         dict_to_create = dict_domain["create_dict"]
@@ -971,6 +990,13 @@ class UiActions(object):
 
     def creating_disks_from_template(self, id_new):
         dict_domain = get_domain(id_new)
+        if dict_domain is None:
+            log.error(
+                "CREATING_DISKS_FROM_TEMPLATE: Domain {} not found in database. Not creating any disk.".format(
+                    id_new
+                )
+            )
+            return False
         persistent = dict_domain.get("persistent", True)
         if persistent:
             path_type = "desktop"
@@ -1218,6 +1244,13 @@ class UiActions(object):
                 log.error("Exception message: {}".format(e))
 
         domain = get_domain(id_domain)
+        if domain is None:
+            log.error(
+                "CREATING_AND_TEST_XML_START_DOMAIN: Domain {} not found in database. Not creating any xml.".format(
+                    id_domain
+                )
+            )
+            return False
         # create_dict_hw = domain['create_dict']['hardware']
         # for media in ['isos','floppies']
         #     if 'isos' in create_dict_hw.keys():
@@ -1235,7 +1268,7 @@ class UiActions(object):
         elif xml_from_virt_install is False:
             id_template = domain["create_dict"]["origin"]
             template = get_domain(id_template)
-            if not template:
+            if template is None:
                 logs.main.error(
                     "##### Traceback: creating_and_test_xml_start, xml_from...\n{}\n ...template {} not found when creating domain...\n {}\n...\n{}\n...".format(
                         xml_from, id_template, domain, traceback.format_exc()
@@ -1375,6 +1408,13 @@ class UiActions(object):
         # INFO TO DEVELOPER: falta verificar que el id no existe y si existe salir enseguida, ya que si no haríamos updates y
         # creaciónes de disco peligrosas
         dict_domain_template = get_domain(id_template)
+        if dict_domain_template is None:
+            log.error(
+                "CREATE_TEMPLATE_DISKS_FROM_DOMAIN: Template {} not found in database. Not creating any domain.".format(
+                    id_template
+                )
+            )
+            return False
         dict_domain_new = dict_domain_template.copy()
         dict_domain_new["id"] = id_new
         dict_domain_new["user"] = user
