@@ -34,6 +34,13 @@ func TestParseIsardMetadata(t *testing.T) {
 			GroupID:    "default-default",
 			CategoryID: "default",
 		},
+		Parent: &IsardMetadataParent{
+			XMLName: xml.Name{
+				Local: "parent",
+				Space: "http://isardvdi.com",
+			},
+			ParentID: "_local-default-admin-admin-elsax",
+		},
 	}
 
 	assert.NoError(err)
