@@ -34,6 +34,7 @@ func TestStartLogin(t *testing.T) {
 		RemoteAddr       string
 		Provider         string
 		Group            *model.Group
+		SecondaryGroups  []*model.Group
 		ProviderUserData func() *types.ProviderUserData
 		Redirect         string
 
@@ -84,7 +85,7 @@ func TestStartLogin(t *testing.T) {
 			},
 			ExpectedRedirect: "/",
 		},
-		"should autoregister both the group and user correctly": {
+		"should autoregister both the groups and user correctly": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
@@ -96,6 +97,20 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
 					r.Eq(r.Row.Field("external_gid"), "my group ID"),
 				))).Return([]interface{}{}, nil)
+				m.On(r.Table("groups").Filter(r.And(
+					r.Eq(r.Row.Field("parent_category"), "default"),
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "existing secondary group"),
+				))).Return([]interface{}{
+					map[string]interface{}{
+						"id": "imagine an UUID here",
+					},
+				}, nil)
+				m.On(r.Table("groups").Filter(r.And(
+					r.Eq(r.Row.Field("parent_category"), "default"),
+					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
+					r.Eq(r.Row.Field("external_gid"), "other secondary group"),
+				))).Return([]interface{}{}, nil)
 			},
 			PrepareAPI: func(c *sdk.MockSdk) {
 				genID := "uuid here!"
@@ -103,7 +118,11 @@ func TestStartLogin(t *testing.T) {
 					ID:  &genID,
 					UID: &genID,
 				}, nil)
-				c.On("AdminUserAutoRegister", mock.AnythingOfType("context.backgroundCtx"), mock.AnythingOfType("string"), "advanced", "uuid here!").Return("user ID", nil)
+				c.On("AdminGroupCreate", mock.AnythingOfType("context.backgroundCtx"), "default", "category", "category", "some description", "provider-saml", "other secondary group").Return(&sdk.Group{
+					ID:  &genID,
+					UID: &genID,
+				}, nil)
+				c.On("AdminUserAutoRegister", mock.AnythingOfType("context.backgroundCtx"), mock.AnythingOfType("string"), "advanced", "uuid here!", []string{"imagine an UUID here", "uuid here!"}).Return("user ID", nil)
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "user ID").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "user ID").Return(false, nil)
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "user ID").Return(true, nil)
@@ -119,6 +138,19 @@ func TestStartLogin(t *testing.T) {
 				Name:          "category",
 				Description:   "some description",
 			},
+			SecondaryGroups: []*model.Group{{
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "existing secondary group",
+				Name:          "category",
+				Description:   "some description",
+			}, {
+				Category:      "default",
+				ExternalAppID: "provider-saml",
+				ExternalGID:   "other secondary group",
+				Name:          "category",
+				Description:   "some description",
+			}},
 			ProviderUserData: func() *types.ProviderUserData {
 				role := model.RoleAdvanced
 				username := "nefix"
@@ -189,7 +221,7 @@ func TestStartLogin(t *testing.T) {
 
 			p := a.Provider(tc.Provider)
 
-			tkn, redirect, err := a.startLogin(ctx, tc.RemoteAddr, p, tc.Group, tc.ProviderUserData(), tc.Redirect)
+			tkn, redirect, err := a.startLogin(ctx, tc.RemoteAddr, p, tc.Group, tc.SecondaryGroups, tc.ProviderUserData(), tc.Redirect)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

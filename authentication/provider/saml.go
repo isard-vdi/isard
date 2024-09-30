@@ -176,7 +176,7 @@ func samlOnError(log *zerolog.Logger) func(http.ResponseWriter, *http.Request, e
 	}
 }
 
-func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	redirect := ""
 	if args.Redirect != nil {
 		redirect = *args.Redirect
@@ -184,7 +184,7 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 
 	ss, err := token.SignCallbackToken(s.Cfg.Secret, types.ProviderSAML, categoryID, redirect)
 	if err != nil {
-		return nil, nil, "", "", &ProviderError{
+		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
 			Detail: fmt.Errorf("sign the callback token: %w", err),
 		}
@@ -196,15 +196,15 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	}
 	u.RawQuery = v.Encode()
 
-	return nil, nil, u.String(), "", nil
+	return nil, []*model.Group{}, nil, u.String(), "", nil
 }
 
-func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	r := ctx.Value(HTTPRequest).(*http.Request)
 
 	sess, err := s.Middleware.Session.GetSession(r)
 	if err != nil {
-		return nil, nil, "", "", &ProviderError{
+		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
 			Detail: fmt.Errorf("get SAML session: %w", err),
 		}
@@ -234,7 +234,7 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 	if s.Cfg.SAML.GuessCategory {
 		attrCategories := attrs[s.Cfg.SAML.FieldCategory]
 		if attrCategories == nil {
-			return nil, nil, "", "", &ProviderError{
+			return nil, nil, nil, "", "", &ProviderError{
 				User:   ErrInternal,
 				Detail: fmt.Errorf("missing category attribute: '%s'", s.Cfg.SAML.FieldCategory),
 			}
@@ -242,15 +242,16 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 
 		tkn, err := guessCategory(ctx, s.log, s.db, s.Cfg.Secret, s.ReCategory, attrCategories, u)
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, nil, "", "", err
 		}
 
 		if tkn != "" {
-			return nil, nil, "/", tkn, nil
+			return nil, []*model.Group{}, nil, "/", tkn, nil
 		}
 	}
 
 	var g *model.Group
+	secondary := []*model.Group{}
 	if s.Cfg.SAML.AutoRegister {
 		//
 		// Guess group
@@ -262,13 +263,13 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 		}
 
 		var err *ProviderError
-		g, err = guessGroup(guessGroupOpts{
+		g, secondary, err = guessGroup(ctx, s.db, guessGroupOpts{
 			Provider:     s,
 			ReGroup:      s.ReGroup,
 			DefaultGroup: s.Cfg.SAML.GroupDefault,
 		}, u, attrGroups)
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, nil, "", "", err
 		}
 
 		//
@@ -289,11 +290,11 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 			RoleDefault:     s.Cfg.SAML.RoleDefault,
 		}, attrRole)
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, nil, "", "", err
 		}
 	}
 
-	return g, u, "", "", nil
+	return g, secondary, u, "", "", nil
 }
 
 func (s *SAML) AutoRegister(u *model.User) bool {

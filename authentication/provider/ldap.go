@@ -144,13 +144,13 @@ func (l *LDAP) listRoles(usr string) ([]string, error) {
 	return roles, nil
 }
 
-func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	usr := *args.FormUsername
 	pwd := *args.FormPassword
 
 	conn, err := l.newConn()
 	if err != nil {
-		return nil, nil, "", "", &ProviderError{
+		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
 			Detail: err,
 		}
@@ -177,20 +177,20 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	rsp, err := conn.Search(req)
 	if err != nil {
 		if ldap.IsErrorWithCode(err, ldap.LDAPResultNoSuchObject) {
-			return nil, nil, "", "", &ProviderError{
+			return nil, nil, nil, "", "", &ProviderError{
 				User:   ErrInvalidCredentials,
 				Detail: errors.New("user not found"),
 			}
 		}
 
-		return nil, nil, "", "", &ProviderError{
+		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
 			Detail: fmt.Errorf("serach the user: %w", err),
 		}
 	}
 
 	if len(rsp.Entries) != 1 {
-		return nil, nil, "", "", &ProviderError{
+		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInvalidCredentials,
 			Detail: fmt.Errorf("user not found: found '%d' users", len(rsp.Entries)),
 		}
@@ -202,13 +202,13 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 
 	if err := conn.Bind(usrDN, pwd); err != nil {
 		if ldap.IsErrorWithCode(err, ldap.LDAPResultInvalidCredentials) {
-			return nil, nil, "", "", &ProviderError{
+			return nil, nil, nil, "", "", &ProviderError{
 				User:   ErrInvalidCredentials,
 				Detail: errors.New("invalid password"),
 			}
 		}
 
-		return nil, nil, "", "", &ProviderError{
+		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
 			Detail: fmt.Errorf("bind the user: %w", err),
 		}
@@ -234,15 +234,16 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 		attrCategories := entry.GetAttributeValues(l.cfg.FieldCategory)
 		tkn, err := guessCategory(ctx, l.log, l.db, l.secret, l.ReCategory, attrCategories, u)
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, nil, "", "", err
 		}
 
 		if tkn != "" {
-			return nil, nil, "", tkn, nil
+			return nil, nil, nil, "", tkn, nil
 		}
 	}
 
 	var g *model.Group
+	secondary := []*model.Group{}
 	if l.cfg.AutoRegister {
 		//
 		// Guess group
@@ -253,13 +254,13 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 		}
 
 		var err *ProviderError
-		g, err = guessGroup(guessGroupOpts{
+		g, secondary, err = guessGroup(ctx, l.db, guessGroupOpts{
 			Provider:     l,
 			ReGroup:      l.ReGroup,
 			DefaultGroup: l.cfg.GroupDefault,
 		}, u, attrGroups)
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, nil, "", "", err
 		}
 
 		//
@@ -272,7 +273,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 
 		attrRoles, lErr := l.listRoles(searchID)
 		if lErr != nil {
-			return nil, nil, "", "", &ProviderError{
+			return nil, nil, nil, "", "", &ProviderError{
 				User:   ErrInternal,
 				Detail: fmt.Errorf("list all groups: %w", err),
 			}
@@ -287,15 +288,15 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 			RoleDefault:     l.cfg.RoleDefault,
 		}, attrRoles)
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, nil, "", "", err
 		}
 	}
 
-	return g, u, "", "", nil
+	return g, secondary, u, "", "", nil
 }
 
-func (l *LDAP) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
-	return nil, nil, "", "", &ProviderError{
+func (l *LDAP) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+	return nil, nil, nil, "", "", &ProviderError{
 		User:   errInvalidIDP,
 		Detail: errors.New("the LDAP provider doesn't support the callback operation"),
 	}

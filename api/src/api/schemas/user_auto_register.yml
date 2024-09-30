@@ -9,3 +9,13 @@ group_id:
   required: true
   empty: false
   coerce: sanitize
+
+secondary_groups:
+  type: list
+  required: false
+  default: []
+  schema:
+    required: false
+    type: string
+    empty: false
+    coerce: sanitize

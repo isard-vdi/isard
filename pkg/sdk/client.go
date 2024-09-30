@@ -50,7 +50,7 @@ type Interface interface {
 	AdminUserRequiredDisclaimerAcknowledgement(ctx context.Context, id string) (bool, error)
 	AdminUserRequiredEmailVerification(ctx context.Context, id string) (bool, error)
 	AdminUserRequiredPasswordReset(ctx context.Context, id string) (bool, error)
-	AdminUserAutoRegister(ctx context.Context, registerTkn, roleID, groupID string) (id string, err error)
+	AdminUserAutoRegister(ctx context.Context, registerTkn, roleID, groupID string, secondaryGroupsIDs []string) (id string, err error)
 
 	AdminGroupCreate(ctx context.Context, category, uid, name, description, externalAppID, externalGID string) (*Group, error)
 	AdminDesktopList(context.Context) ([]*AdminDesktop, error)

@@ -133,10 +133,14 @@ func (c *Client) AdminUserRequiredPasswordReset(ctx context.Context, id string) 
 	return *rsp.Required, nil
 }
 
-func (c *Client) AdminUserAutoRegister(ctx context.Context, registerTkn string, roleID string, groupID string) (string, error) {
-	body := map[string]string{
+func (c *Client) AdminUserAutoRegister(ctx context.Context, registerTkn string, roleID string, groupID string, secondaryGroupsIDs []string) (string, error) {
+	body := map[string]interface{}{
 		"role_id":  roleID,
 		"group_id": groupID,
+	}
+
+	if secondaryGroupsIDs != nil {
+		body["secondary_groups"] = secondaryGroupsIDs
 	}
 
 	req, err := c.newJSONRequest(http.MethodPost, "admin/user/auto-register", body)

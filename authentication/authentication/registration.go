@@ -20,7 +20,7 @@ func (a *Authentication) registerUser(u *model.User) error {
 		return err
 	}
 
-	id, err := a.API.AdminUserAutoRegister(context.Background(), tkn, string(u.Role), u.Group)
+	id, err := a.API.AdminUserAutoRegister(context.Background(), tkn, string(u.Role), u.Group, u.SecondaryGroups)
 	if err != nil {
 		return fmt.Errorf("register the user: %w", err)
 	}

@@ -42,7 +42,7 @@ func InitGoogle(cfg cfg.Authentication) *Google {
 	}
 }
 
-func (g *Google) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+func (g *Google) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	redirect := ""
 	if args.Redirect != nil {
 		redirect = *args.Redirect
@@ -50,19 +50,19 @@ func (g *Google) Login(ctx context.Context, categoryID string, args LoginArgs) (
 
 	redirect, err := g.provider.login(categoryID, redirect)
 	if err != nil {
-		return nil, nil, "", "", &ProviderError{
+		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
 			Detail: err,
 		}
 	}
 
-	return nil, nil, redirect, "", nil
+	return nil, []*model.Group{}, nil, redirect, "", nil
 }
 
-func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	oTkn, err := g.provider.callback(ctx, args)
 	if err != nil {
-		return nil, nil, "", "", &ProviderError{
+		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
 			Detail: err,
 		}
@@ -70,7 +70,7 @@ func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, arg
 
 	svc, err := gAPI.NewService(ctx, option.WithTokenSource(oauth2.StaticTokenSource(oTkn)))
 	if err != nil {
-		return nil, nil, "", "", &ProviderError{
+		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
 			Detail: fmt.Errorf("create Google API client: %w", err),
 		}
@@ -78,7 +78,7 @@ func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, arg
 
 	gUsr, err := svc.Userinfo.Get().Do()
 	if err != nil {
-		return nil, nil, "", "", &ProviderError{
+		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
 			Detail: fmt.Errorf("get user information from Google: %w", err),
 		}
@@ -95,7 +95,7 @@ func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, arg
 		Photo:    &gUsr.Picture,
 	}
 
-	return nil, u, "", "", nil
+	return nil, []*model.Group{}, u, "", "", nil
 }
 
 func (Google) AutoRegister(*model.User) bool {

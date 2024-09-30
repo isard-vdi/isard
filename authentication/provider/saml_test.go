@@ -22,19 +22,21 @@ func TestSAMLLogin(t *testing.T) {
 	redirect := "/hola"
 
 	cases := map[string]struct {
-		CategoryID    string
-		Args          provider.LoginArgs
-		ExpectedGrp   *model.Group
-		ExpectedUsr   *types.ProviderUserData
-		CheckRedirect func(string)
-		ExpectedTkn   string
-		ExpectedErr   string
+		CategoryID        string
+		Args              provider.LoginArgs
+		ExpectedGrp       *model.Group
+		ExpectedSecondary []*model.Group
+		ExpectedUsr       *types.ProviderUserData
+		CheckRedirect     func(string)
+		ExpectedTkn       string
+		ExpectedErr       string
 	}{
 		"should work as expected": {
 			CategoryID: "default",
 			Args: provider.LoginArgs{
 				Redirect: &redirect,
 			},
+			ExpectedSecondary: []*model.Group{},
 			CheckRedirect: func(redirect string) {
 				u, err := url.Parse(redirect)
 				assert.NoError(err)
@@ -59,9 +61,10 @@ func TestSAMLLogin(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := &provider.SAML{}
-			g, u, redirect, tkn, err := s.Login(context.Background(), tc.CategoryID, tc.Args)
+			g, secondary, u, redirect, tkn, err := s.Login(context.Background(), tc.CategoryID, tc.Args)
 
 			assert.Equal(tc.ExpectedGrp, g)
+			assert.Equal(tc.ExpectedSecondary, secondary)
 			assert.Equal(tc.ExpectedUsr, u)
 			tc.CheckRedirect(redirect)
 			assert.Equal(tc.ExpectedTkn, tkn)

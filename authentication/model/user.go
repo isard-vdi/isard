@@ -17,9 +17,10 @@ type User struct {
 	Provider string `rethinkdb:"provider"`
 	Active   bool   `rethinkdb:"active"`
 
-	Category string `rethinkdb:"category"`
-	Role     Role   `rethinkdb:"role"`
-	Group    string `rethinkdb:"group"`
+	Category        string   `rethinkdb:"category"`
+	Role            Role     `rethinkdb:"role"`
+	Group           string   `rethinkdb:"group"`
+	SecondaryGroups []string `rethinkdb:"secondary_groups"`
 
 	Password           string `rethinkdb:"password"`
 	PasswordResetToken string `rethinkdb:"password_reset_token"`

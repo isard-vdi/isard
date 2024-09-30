@@ -24,16 +24,21 @@ func (g *Group) GenerateNameExternal(prv string) {
 	g.Name = fmt.Sprintf("%s_%s_%s", prv, g.ExternalAppID, g.ExternalGID)
 }
 
-func externalFilter(g *Group) r.Term {
+func externalFilter(src r.Term, category interface{}, externalAppID interface{}, externalGID interface{}) r.Term {
 	return r.And(
-		r.Eq(r.Row.Field("parent_category"), g.Category),
-		r.Eq(r.Row.Field("external_app_id"), g.ExternalAppID),
-		r.Eq(r.Row.Field("external_gid"), g.ExternalGID),
+		r.Eq(src.Field("parent_category"), category),
+		r.Eq(src.Field("external_app_id"), externalAppID),
+		r.Eq(src.Field("external_gid"), externalGID),
 	)
 }
 
 func (g *Group) LoadExternal(ctx context.Context, sess r.QueryExecutor) error {
-	res, err := r.Table("groups").Filter(externalFilter(g)).Run(sess, r.RunOpts{Context: ctx})
+	res, err := r.Table("groups").Filter(externalFilter(
+		r.Row,
+		g.Category,
+		g.ExternalAppID,
+		g.ExternalGID,
+	)).Run(sess, r.RunOpts{Context: ctx})
 	if err != nil {
 		return &db.Err{
 			Err: err,
@@ -115,5 +120,47 @@ func (g *Group) existsWith(ctx context.Context, sess r.QueryExecutor, filter r.T
 }
 
 func (g *Group) ExistsWithExternal(ctx context.Context, sess r.QueryExecutor) (bool, error) {
-	return g.existsWith(ctx, sess, externalFilter(g))
+	return g.existsWith(ctx, sess, externalFilter(
+		r.Row,
+		g.Category,
+		g.ExternalAppID,
+		g.ExternalGID,
+	))
+}
+
+func GroupsExistsWithExternal(ctx context.Context, sess r.QueryExecutor, groups []*Group) ([]*Group, error) {
+	res, err := r.Table("groups").Filter(func(row r.Term) r.Term {
+		return r.Expr(groups).Contains(func(group r.Term) r.Term {
+			return externalFilter(
+				row,
+				group.Field("parent_category"),
+				group.Field("external_app_id"),
+				group.Field("external_gid"),
+			)
+		})
+	}).Run(sess, r.RunOpts{Context: ctx})
+	if err != nil {
+		return nil, &db.Err{
+			Err: err,
+		}
+	}
+	defer res.Close()
+
+	if res.IsNil() {
+		return []*Group{}, nil
+	}
+
+	result := []*Group{}
+	if err := res.All(&result); err != nil {
+		if errors.Is(err, r.ErrEmptyResult) {
+			return []*Group{}, nil
+		}
+
+		return nil, &db.Err{
+			Msg: "read db response",
+			Err: err,
+		}
+	}
+
+	return result, nil
 }

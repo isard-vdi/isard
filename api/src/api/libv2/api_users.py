@@ -763,6 +763,7 @@ class ApiUsers:
         encrypted_password=False,
         photo="",
         email="",
+        secondary_groups=[],
     ):
         # password=False generates a random password
         user_id = str(uuid.uuid4())
@@ -818,7 +819,7 @@ class ApiUsers:
             "photo": photo,
             "default_templates": [],
             "quota": group["quota"],  # 10GB
-            "secondary_groups": [],
+            "secondary_groups": secondary_groups,
             "password_history": [password],
             "email_verification_token": None,
             "email_verified": False,
