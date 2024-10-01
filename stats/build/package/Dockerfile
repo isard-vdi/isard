@@ -8,8 +8,12 @@ FROM ${GOLANG_BUILD_IMAGE} as build
 
 WORKDIR /build
 
+RUN mkdir -p /build/pkg/sdk
+
 COPY go.mod /build
 COPY go.sum /build
+COPY pkg/sdk/go.mod /build/pkg/sdk
+COPY pkg/sdk/go.sum /build/pkg/sdk
 
 RUN go mod download
 
