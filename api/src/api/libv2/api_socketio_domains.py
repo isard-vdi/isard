@@ -263,6 +263,7 @@ class DomainsThread(threading.Thread):
 
                             if event == "update" or (
                                 c["old_val"]
+                                and c["new_val"]
                                 and c["old_val"].get("tag_visible")
                                 != c["new_val"].get("tag_visible")
                             ):
