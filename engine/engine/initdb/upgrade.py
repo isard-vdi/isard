@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 145
+release_version = 146
+# release 146: Add template index to authentication table
 # release 145: Change default QoS values
 # release 144: Add password_history to users that don't have it
 # release 143: Add UID index to categories
@@ -4192,6 +4193,14 @@ password:s:%s"""
                 print(e)
             try:
                 r.table(table).get("default-email-verification").delete().run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 146:
+            try:
+                r.table(table).index_create(
+                    "disclaimer_template", r.row["disclaimer"]["template"]
+                ).run(self.conn)
             except Exception as e:
                 print(e)
         return True

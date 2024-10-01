@@ -121,9 +121,18 @@ def delete_notification_template(template_id):
             r.table("notification_tmpls").get(template_id).pluck("kind").run(db.conn)
         ).get("kind")
     if kind in ["disclaimer", "desktop", "password", "email"]:
-        raise Error("bad request", "Unable to delete default templates")
+        raise Error("bad_request", "Unable to delete default templates")
 
-    # TODO: check it's not being used
+    with app.app_context():
+        uses = (
+            r.table("authentication")
+            .get_all(template_id, index="disclaimer_template")
+            .count()
+            .run(db.conn)
+        )
+    if uses > 0:
+        raise Error("bad_request", "Unable to delete a template that is in use")
+
     with app.app_context():
         r.table("notification_tmpls").get(template_id).delete().run(db.conn)
 

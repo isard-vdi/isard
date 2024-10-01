@@ -12,6 +12,11 @@ email:
   required: false
   type: string
   coerce: sanitize
+email_verified:
+  required: false
+  default: false
+  type: boolean
+  coerce: sanitize
 group:
   required: true
   empty: false

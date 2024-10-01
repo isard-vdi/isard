@@ -221,7 +221,9 @@ class ApiUsers:
             new_user["password_history"] = [p.encrypt(user["password"])]
             new_user["password_last_updated"] = int(time.time())
             new_user["email_verification_token"] = None
-            new_user["email_verified"] = None
+            new_user["email_verified"] = (
+                int(time.time()) if data.get("email_verified") else False
+            )
             new_users.append(new_user)
 
             amount += 1
@@ -342,10 +344,10 @@ class ApiUsers:
             if os.environ.get("FRONTEND_SHOW_TEMPORAL") == None
             else os.environ.get("FRONTEND_SHOW_TEMPORAL") == "True"
         )
-        frontend_show_change_email = os.environ.get(
-            "NOTIFY_EMAIL"
-        ) == "True" and self.get_email_policy(
-            payload["category_id"], payload["role_id"]
+        frontend_show_change_email = (
+            payload.get("provider") == "local"
+            and os.environ.get("NOTIFY_EMAIL") == "True"
+            and self.get_email_policy(payload["category_id"], payload["role_id"])
         )
         isard_user_storage_update_user_quota(payload["user_id"])
         return {
@@ -780,7 +782,7 @@ class ApiUsers:
             "secondary_groups": [],
             "password_history": [password],
             "email_verification_token": None,
-            "email_verified": None,
+            "email_verified": False,
         }
         with app.app_context():
             r.table("users").insert(user).run(db.conn)
@@ -811,7 +813,7 @@ class ApiUsers:
                             r.table("users").get(user_id).update(
                                 {
                                     "email_verification_token": token,
-                                    "email_verified": None,
+                                    "email_verified": False,
                                 }
                             ).run(db.conn)
                         send_verification_email(data.get("email"), user_id, token)
@@ -820,9 +822,12 @@ class ApiUsers:
                             r.table("users").get(user_id).update(
                                 {
                                     "email_verification_token": None,
-                                    "email_verified": None,
+                                    "email_verified": False,
                                 }
                             ).run(db.conn)
+        if data.get("email_verified") == True:
+            data["email_verified"] = int(time.time())
+
         cache_user.clear()
 
         with app.app_context():
@@ -1896,7 +1901,7 @@ class ApiUsers:
 
     def check_verified_email(self, user_id):
         if not os.environ.get("NOTIFY_EMAIL"):
-            return False
+            return True
         with app.app_context():
             user = (
                 r.table("users")
@@ -1905,10 +1910,10 @@ class ApiUsers:
                 .run(db.conn)
             )
         if user["provider"] != "local":
-            return False
+            return True
         policy = self.get_email_policy(user["category"], user["role"])
         if not policy:
-            return False
+            return True
         else:
             return user.get("email_verified")
 

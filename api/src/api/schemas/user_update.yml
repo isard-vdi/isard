@@ -8,6 +8,10 @@ name:
 email:
   type: string
   coerce: sanitize
+email_verified:
+  required: false
+  type: boolean
+  coerce: sanitize
 role:
   type: string
   allowed:
