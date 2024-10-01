@@ -1,19 +1,20 @@
 {
   "dependencies": {
-    "echarts": "^5.4.3",
-    "mathjs": "^12.1.0",
-    "socket.io": "^4.7.2",
-    "jquery": "^3.0.0",
-    "bootstrap": "^3.3.7",
+    "bootstrap": "^3.4.1",
+    "datatables.net": "^1.13.11",
+    "datatables.net-bs": "^1.13.11",
+    "datatables.net-buttons": "^2.4.3",
+    "datatables.net-buttons-bs": "^2.4.3",
+    "daterangepicker": "^3.1.0",
+    "echarts": "^5.5.1",
     "font-awesome": "^4.7.0",
     "icheck": "^1.0.2",
-    "select2": "^4.0.13",
+    "ion-rangeslider": "^2.3.1",
+    "jquery": "^3.7.1",
+    "mathjs": "^12.4.3",
     "parsleyjs": "^2.9.2",
     "pnotify": "^3.2.1",
-    "daterangepicker": "^3.1.0",
-    "datatables.net": "^1.13.8",
-    "datatables.net-bs": "^1.13.8",
-    "datatables.net-buttons": "^2.4.2",
-    "datatables.net-buttons-bs": "^2.4.2"
+    "select2": "^4.0.13",
+    "socket.io": "^4.8.0"
   }
 }

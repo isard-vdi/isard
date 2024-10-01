@@ -615,7 +615,7 @@ $(document).ready(function () {
 
     // INTERFACES
 
-    window.ParsleyValidator.addValidator('vlanrange', (value) => {
+    window.Parsley.addValidator('vlanrange', (value) => {
         values = value.split('-')
         return values.length === 2 && values[0] <= values[1] && 1 <= values[0] && values[0] <= 4094 && 1 <= values[1] && values[1] <= 4094
     })
