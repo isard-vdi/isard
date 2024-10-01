@@ -42,6 +42,7 @@ from .decorators import (
     is_admin_or_manager_or_advanced,
     ownsDeploymentDesktopId,
     ownsDomainId,
+    ownsStorageId,
 )
 
 scheduler = Scheduler()
@@ -410,6 +411,8 @@ def api_v3_desktop_update_storage_id(payload, desktop_id):
             traceback.format_exc(),
             description_code="desktop_incorrect_body_data",
         )
+
+    ownsStorageId(payload, data["storage_id"])
 
     desktops.update_storage(desktop_id, data["storage_id"])
 
