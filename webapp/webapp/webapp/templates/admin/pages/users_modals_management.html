@@ -1139,7 +1139,7 @@
                                 <input id="name" class="roundbox" maxlength="50"
                                     pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 50]"
                                     name="name" placeholder="New category name" data-parsley-trigger="change" required
-                                    type="text" style="width:100%" onkeyup='customURLandUIDChange(this.value);''>
+                                    type="text" style="width:100%" onkeyup='customURLChange(this.value);''>
                             </div>
                             <div class="col-md-8 col-sm-8 col-xs-12">
                                 <label class="control-label" for="description">Description</label>
@@ -1176,7 +1176,7 @@
                                         <input id="uid" class="roundbox" name="uid" data-parsley-length="[0, 255]" data-parsley-trigger="change"
                                             maxlength="255" placeholder="Category uid" type="text" style="width:100%"
                                             data-parsley-pattern-message="The field can only contain numbers, letters, '_' or '-'"
-                                            data-parsley-pattern="^[a-zA-Z0-9-_]+$" required>
+                                            data-parsley-pattern="^[a-zA-Z0-9-_]+$">
                                     </div>
                                 </div>
                             </div>

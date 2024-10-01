@@ -627,7 +627,7 @@ def api_v3_admin_category_insert(payload):
         )
 
     category = _validate_item("category", data)
-    category["uid"] = category["id"]
+    category["uid"] = data.get("uid", category["id"])
 
     ## Create associated Main group
     group = {
@@ -640,7 +640,7 @@ def api_v3_admin_category_insert(payload):
     group = _validate_item("group", group)
 
     checkDuplicate("categories", category["name"])
-    checkDuplicateUID(data["uid"])
+    checkDuplicateUID(category["uid"])
     checkDuplicateCustomURL(category["custom_url_name"])
     admin_table_insert("categories", category)
     admin_table_insert("groups", group)
