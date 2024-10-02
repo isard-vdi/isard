@@ -1405,7 +1405,7 @@ class ApiUsers:
                     .pluck("frontend", "custom_url_name")
                     .run(db.conn)
                 )
-            return "/login/" + category.get("custom_url_name")
+            return category.get("custom_url_name")
         except:
             return "/login"
 
