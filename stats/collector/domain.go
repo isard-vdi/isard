@@ -155,7 +155,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descCPUTime = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "cpu_time"),
 		"CPU Time",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -163,7 +163,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descCPUUser = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "cpu_user"),
 		"CPU User",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -171,7 +171,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descCPUSystem = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "cpu_system"),
 		"CPU System",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -179,7 +179,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonCurrent = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_current"),
 		"Current Balloon",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -187,7 +187,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonMaximum = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_maximum"),
 		"Maximum Balloon",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -195,7 +195,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonSwapIn = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_swap_in"),
 		"Balloon Swap In",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -203,7 +203,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonSwapOut = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_swap_out"),
 		"Balloon Swap Out",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -211,7 +211,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonMajorFault = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_major_fault"),
 		"Balloon major fault",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -219,7 +219,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonMinorFault = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_minor_fault"),
 		"Balloon minor fault",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -227,7 +227,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonUnused = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_unused"),
 		"Balloon unused",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -235,7 +235,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonAvailable = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_available"),
 		"Balloon available",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -243,7 +243,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonRss = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_rss"),
 		"Balloon rss",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -251,7 +251,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonUsable = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_usable"),
 		"Balloon usable",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -259,7 +259,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonLastUpdate = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_last_update"),
 		"Balloon last update",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -267,7 +267,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonDiskCaches = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_disk_caches"),
 		"Balloon disk caches",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -275,7 +275,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonHugetlbPgAlloc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_hugetlb_pg_alloc"),
 		"Balloon hugeltb pg alloc",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -283,7 +283,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBalloonHugetlbPgFail = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "balloon_hugetlb_pg_fail"),
 		"Balloon hugeltb pg fail",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -291,7 +291,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descVCPUCurrent = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "vcpu_current"),
 		"VCPU current",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -299,7 +299,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descVCPUState = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "vcpu_state"),
 		"VCPU State",
-		[]string{"desktop", "vcpu", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "vcpu", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -307,7 +307,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descVCPUTime = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "vcpu_time"),
 		"VCPU Time",
-		[]string{"desktop", "vcpu", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "vcpu", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -315,7 +315,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descVCPUWait = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "vcpu_wait"),
 		"VCPU Wait",
-		[]string{"desktop", "vcpu", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "vcpu", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -323,7 +323,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descVCPUDelay = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "vcpu_delay"),
 		"VCPU Delay",
-		[]string{"desktop", "vcpu", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "vcpu", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -331,7 +331,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descVCPUHalted = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "vcpu_halted"),
 		"VCPU Halted",
-		[]string{"desktop", "vcpu", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "vcpu", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -339,7 +339,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descNetRxBytes = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_rx_bytes"),
 		"Network Rx bytes",
-		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -347,7 +347,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descNetRxPkts = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_rx_pkts"),
 		"Network Rx packets",
-		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -355,7 +355,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descNetRxErrs = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_rx_errors"),
 		"Network Rx errors",
-		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -363,7 +363,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descNetRxDrop = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_rx_drop"),
 		"Network Rx drop",
-		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -371,7 +371,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descNetTxBytes = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_tx_bytes"),
 		"Network Tx bytes",
-		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -379,7 +379,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descNetTxPkts = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_tx_pkts"),
 		"Network Tx packets",
-		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -387,7 +387,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descNetTxErrs = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_tx_errors"),
 		"Network Tx errors",
-		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -395,7 +395,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descNetTxDrop = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_tx_drop"),
 		"Network Rx drop",
-		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "net", "mac", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -403,7 +403,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBlockBackingIndex = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "block_backing_index"),
 		"Block backing chain index",
-		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -411,7 +411,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBlockRdBytes = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "block_rd_bytes"),
 		"Block rd bytes",
-		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -419,7 +419,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBlockRdReqs = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "block_rd_reqs"),
 		"Block rd reqs",
-		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -427,7 +427,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBlockRdTimes = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "block_rd_times"),
 		"Block rd times",
-		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -435,7 +435,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBlockWrBytes = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "block_wr_bytes"),
 		"Block wr bytes",
-		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -443,7 +443,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBlockWrReqs = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "block_wr_reqs"),
 		"Block wr reqs",
-		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -451,7 +451,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBlockWrTimes = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "block_wr_times"),
 		"Block wr times",
-		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -459,7 +459,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBlockFlReqs = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "block_fl_reqs"),
 		"Block fl reqs",
-		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -467,7 +467,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBlockFlTimes = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "block_fl_times"),
 		"Block fl times",
-		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -475,7 +475,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBlockAllocation = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "block_allocation"),
 		"Block allocation",
-		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -483,7 +483,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBlockCapacity = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "block_capacity"),
 		"Block capacity",
-		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -491,7 +491,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descBlockPhysical = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "block_physical"),
 		"Block physical",
-		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "block_path", "block_name", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -499,7 +499,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descMemAvailable = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "mem_available"),
 		"Memory available",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -507,7 +507,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descMemTotal = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "mem_total"),
 		"Total memory",
-		[]string{"desktop", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -515,7 +515,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descPortSpice = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "port_spice"),
 		"SPICE port",
-		[]string{"desktop", "port", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "port", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -523,7 +523,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descPortSpiceTLS = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "port_spice_tls"),
 		"SPICE TLS port",
-		[]string{"desktop", "port", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "port", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -531,7 +531,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descPortVNC = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "port_vnc"),
 		"VNC port",
-		[]string{"desktop", "port", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "port", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -539,7 +539,7 @@ func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, 
 	d.descPortVNCWebsocket = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "port_vnc_websocket"),
 		"VNC Websocket port",
-		[]string{"desktop", "port", "user_id", "group_id", "category_id"},
+		[]string{"desktop", "port", "user_id", "group_id", "category_id", "template_id"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -612,8 +612,9 @@ type metadata struct {
 }
 
 type IsardMetadata struct {
-	XMLName xml.Name          `xml:"isard"`
-	Who     *IsardMetadataWho `xml:"who"`
+	XMLName xml.Name             `xml:"isard"`
+	Who     *IsardMetadataWho    `xml:"who"`
+	Parent  *IsardMetadataParent `xml:"parent"`
 }
 
 type IsardMetadataWho struct {
@@ -621,6 +622,11 @@ type IsardMetadataWho struct {
 	UserID     string   `xml:"user_id,attr"`
 	GroupID    string   `xml:"group_id,attr"`
 	CategoryID string   `xml:"category_id,attr"`
+}
+
+type IsardMetadataParent struct {
+	XMLName  xml.Name `xml:"parent"`
+	ParentID string   `xml:"parent_id,attr"`
 }
 
 type cacheDomain struct {
@@ -641,50 +647,57 @@ func (c *Domain) Collect(ch chan<- prometheus.Metric) {
 			userID     string
 			groupID    string
 			categoryID string
+			templateID string
 		)
 		if stats.metadata != nil {
-			userID = stats.metadata.Who.UserID
-			groupID = stats.metadata.Who.GroupID
-			categoryID = stats.metadata.Who.CategoryID
+			if stats.metadata.Who != nil {
+				userID = stats.metadata.Who.UserID
+				groupID = stats.metadata.Who.GroupID
+				categoryID = stats.metadata.Who.CategoryID
+			}
+
+			if stats.metadata.Parent != nil {
+				templateID = stats.metadata.Parent.ParentID
+			}
 		}
 
 		if s.Cpu != nil {
-			ch <- prometheus.MustNewConstMetric(c.descCPUTime, prometheus.GaugeValue, float64(s.Cpu.Time), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descCPUUser, prometheus.GaugeValue, float64(s.Cpu.User), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descCPUSystem, prometheus.GaugeValue, float64(s.Cpu.System), name, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descCPUTime, prometheus.GaugeValue, float64(s.Cpu.Time), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descCPUUser, prometheus.GaugeValue, float64(s.Cpu.User), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descCPUSystem, prometheus.GaugeValue, float64(s.Cpu.System), name, userID, groupID, categoryID, templateID)
 		}
 
 		if s.Balloon != nil {
-			ch <- prometheus.MustNewConstMetric(c.descBalloonCurrent, prometheus.GaugeValue, float64(s.Balloon.Current), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonMaximum, prometheus.GaugeValue, float64(s.Balloon.Maximum), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonSwapIn, prometheus.GaugeValue, float64(s.Balloon.SwapIn), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonSwapOut, prometheus.GaugeValue, float64(s.Balloon.SwapOut), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonMajorFault, prometheus.GaugeValue, float64(s.Balloon.MajorFault), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonMinorFault, prometheus.GaugeValue, float64(s.Balloon.MinorFault), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonUnused, prometheus.GaugeValue, float64(s.Balloon.Unused), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonAvailable, prometheus.GaugeValue, float64(s.Balloon.Available), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonRss, prometheus.GaugeValue, float64(s.Balloon.Rss), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonUsable, prometheus.GaugeValue, float64(s.Balloon.Usable), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonLastUpdate, prometheus.GaugeValue, float64(s.Balloon.LastUpdate), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonDiskCaches, prometheus.GaugeValue, float64(s.Balloon.DiskCaches), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonHugetlbPgAlloc, prometheus.GaugeValue, float64(s.Balloon.HugetlbPgAlloc), name, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(c.descBalloonHugetlbPgFail, prometheus.GaugeValue, float64(s.Balloon.HugetlbPgFail), name, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonCurrent, prometheus.GaugeValue, float64(s.Balloon.Current), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonMaximum, prometheus.GaugeValue, float64(s.Balloon.Maximum), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonSwapIn, prometheus.GaugeValue, float64(s.Balloon.SwapIn), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonSwapOut, prometheus.GaugeValue, float64(s.Balloon.SwapOut), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonMajorFault, prometheus.GaugeValue, float64(s.Balloon.MajorFault), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonMinorFault, prometheus.GaugeValue, float64(s.Balloon.MinorFault), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonUnused, prometheus.GaugeValue, float64(s.Balloon.Unused), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonAvailable, prometheus.GaugeValue, float64(s.Balloon.Available), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonRss, prometheus.GaugeValue, float64(s.Balloon.Rss), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonUsable, prometheus.GaugeValue, float64(s.Balloon.Usable), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonLastUpdate, prometheus.GaugeValue, float64(s.Balloon.LastUpdate), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonDiskCaches, prometheus.GaugeValue, float64(s.Balloon.DiskCaches), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonHugetlbPgAlloc, prometheus.GaugeValue, float64(s.Balloon.HugetlbPgAlloc), name, userID, groupID, categoryID, templateID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonHugetlbPgFail, prometheus.GaugeValue, float64(s.Balloon.HugetlbPgFail), name, userID, groupID, categoryID, templateID)
 		}
 
 		if s.Vcpu != nil {
-			ch <- prometheus.MustNewConstMetric(c.descVCPUCurrent, prometheus.GaugeValue, float64(len(s.Vcpu)), name, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descVCPUCurrent, prometheus.GaugeValue, float64(len(s.Vcpu)), name, userID, groupID, categoryID, templateID)
 
 			for i, v := range s.Vcpu {
-				ch <- prometheus.MustNewConstMetric(c.descVCPUState, prometheus.GaugeValue, float64(v.State), name, strconv.Itoa(i), userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descVCPUTime, prometheus.GaugeValue, float64(v.Time), name, strconv.Itoa(i), userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descVCPUWait, prometheus.GaugeValue, float64(v.Wait), name, strconv.Itoa(i), userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descVCPUDelay, prometheus.GaugeValue, float64(int(v.Delay)), name, strconv.Itoa(i), userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descVCPUState, prometheus.GaugeValue, float64(v.State), name, strconv.Itoa(i), userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descVCPUTime, prometheus.GaugeValue, float64(v.Time), name, strconv.Itoa(i), userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descVCPUWait, prometheus.GaugeValue, float64(v.Wait), name, strconv.Itoa(i), userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descVCPUDelay, prometheus.GaugeValue, float64(int(v.Delay)), name, strconv.Itoa(i), userID, groupID, categoryID, templateID)
 
 				var halted float64 = 0
 				if v.Halted {
 					halted = 1
 				}
-				ch <- prometheus.MustNewConstMetric(c.descVCPUHalted, prometheus.GaugeValue, halted, name, strconv.Itoa(i), userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descVCPUHalted, prometheus.GaugeValue, halted, name, strconv.Itoa(i), userID, groupID, categoryID, templateID)
 			}
 		}
 
@@ -697,51 +710,51 @@ func (c *Domain) Collect(ch chan<- prometheus.Metric) {
 					}
 				}
 
-				ch <- prometheus.MustNewConstMetric(c.descNetRxBytes, prometheus.GaugeValue, float64(n.RxBytes), name, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descNetRxPkts, prometheus.GaugeValue, float64(n.RxPkts), name, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descNetRxErrs, prometheus.CounterValue, float64(n.RxErrs), name, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descNetRxDrop, prometheus.GaugeValue, float64(n.RxDrop), name, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descNetTxBytes, prometheus.GaugeValue, float64(n.TxBytes), name, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descNetTxPkts, prometheus.GaugeValue, float64(n.TxPkts), name, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descNetTxErrs, prometheus.CounterValue, float64(n.TxErrs), name, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descNetTxDrop, prometheus.GaugeValue, float64(n.TxDrop), name, n.Name, mac, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descNetRxBytes, prometheus.GaugeValue, float64(n.RxBytes), name, n.Name, mac, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descNetRxPkts, prometheus.GaugeValue, float64(n.RxPkts), name, n.Name, mac, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descNetRxErrs, prometheus.CounterValue, float64(n.RxErrs), name, n.Name, mac, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descNetRxDrop, prometheus.GaugeValue, float64(n.RxDrop), name, n.Name, mac, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descNetTxBytes, prometheus.GaugeValue, float64(n.TxBytes), name, n.Name, mac, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descNetTxPkts, prometheus.GaugeValue, float64(n.TxPkts), name, n.Name, mac, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descNetTxErrs, prometheus.CounterValue, float64(n.TxErrs), name, n.Name, mac, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descNetTxDrop, prometheus.GaugeValue, float64(n.TxDrop), name, n.Name, mac, userID, groupID, categoryID, templateID)
 			}
 		}
 
 		if s.Block != nil {
 			for _, b := range s.Block {
-				ch <- prometheus.MustNewConstMetric(c.descBlockBackingIndex, prometheus.GaugeValue, float64(b.BackingIndex), name, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descBlockRdBytes, prometheus.GaugeValue, float64(b.RdBytes), name, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descBlockRdReqs, prometheus.GaugeValue, float64(b.RdReqs), name, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descBlockRdTimes, prometheus.GaugeValue, float64(b.RdTimes), name, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descBlockWrBytes, prometheus.GaugeValue, float64(b.WrBytes), name, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descBlockWrTimes, prometheus.GaugeValue, float64(b.WrTimes), name, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descBlockWrReqs, prometheus.GaugeValue, float64(b.WrReqs), name, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descBlockFlTimes, prometheus.GaugeValue, float64(b.FlTimes), name, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descBlockFlReqs, prometheus.GaugeValue, float64(b.FlReqs), name, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descBlockAllocation, prometheus.GaugeValue, float64(b.Allocation), name, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descBlockCapacity, prometheus.GaugeValue, float64(b.Capacity), name, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(c.descBlockPhysical, prometheus.GaugeValue, float64(b.Physical), name, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockBackingIndex, prometheus.GaugeValue, float64(b.BackingIndex), name, b.Path, b.Name, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockRdBytes, prometheus.GaugeValue, float64(b.RdBytes), name, b.Path, b.Name, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockRdReqs, prometheus.GaugeValue, float64(b.RdReqs), name, b.Path, b.Name, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockRdTimes, prometheus.GaugeValue, float64(b.RdTimes), name, b.Path, b.Name, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockWrBytes, prometheus.GaugeValue, float64(b.WrBytes), name, b.Path, b.Name, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockWrTimes, prometheus.GaugeValue, float64(b.WrTimes), name, b.Path, b.Name, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockWrReqs, prometheus.GaugeValue, float64(b.WrReqs), name, b.Path, b.Name, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockFlTimes, prometheus.GaugeValue, float64(b.FlTimes), name, b.Path, b.Name, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockFlReqs, prometheus.GaugeValue, float64(b.FlReqs), name, b.Path, b.Name, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockAllocation, prometheus.GaugeValue, float64(b.Allocation), name, b.Path, b.Name, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockCapacity, prometheus.GaugeValue, float64(b.Capacity), name, b.Path, b.Name, userID, groupID, categoryID, templateID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockPhysical, prometheus.GaugeValue, float64(b.Physical), name, b.Path, b.Name, userID, groupID, categoryID, templateID)
 			}
 		}
 
-		ch <- prometheus.MustNewConstMetric(c.descMemAvailable, prometheus.GaugeValue, stats.mem.available, name, userID, groupID, categoryID)
-		ch <- prometheus.MustNewConstMetric(c.descMemTotal, prometheus.GaugeValue, stats.mem.total, name, userID, groupID, categoryID)
+		ch <- prometheus.MustNewConstMetric(c.descMemAvailable, prometheus.GaugeValue, stats.mem.available, name, userID, groupID, categoryID, templateID)
+		ch <- prometheus.MustNewConstMetric(c.descMemTotal, prometheus.GaugeValue, stats.mem.total, name, userID, groupID, categoryID, templateID)
 
 		if stats.ports.spice != 0 {
-			ch <- prometheus.MustNewConstMetric(c.descPortSpice, prometheus.GaugeValue, 1, name, strconv.Itoa(stats.ports.spice), userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descPortSpice, prometheus.GaugeValue, 1, name, strconv.Itoa(stats.ports.spice), userID, groupID, categoryID, templateID)
 		}
 
 		if stats.ports.spiceTls != 0 {
-			ch <- prometheus.MustNewConstMetric(c.descPortSpiceTLS, prometheus.GaugeValue, 1, name, strconv.Itoa(stats.ports.spiceTls), userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descPortSpiceTLS, prometheus.GaugeValue, 1, name, strconv.Itoa(stats.ports.spiceTls), userID, groupID, categoryID, templateID)
 		}
 
 		if stats.ports.vnc != 0 {
-			ch <- prometheus.MustNewConstMetric(c.descPortVNC, prometheus.GaugeValue, 1, name, strconv.Itoa(stats.ports.vnc), userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descPortVNC, prometheus.GaugeValue, 1, name, strconv.Itoa(stats.ports.vnc), userID, groupID, categoryID, templateID)
 		}
 
 		if stats.ports.vncWebsocket != 0 {
-			ch <- prometheus.MustNewConstMetric(c.descPortVNCWebsocket, prometheus.GaugeValue, 1, name, strconv.Itoa(stats.ports.vncWebsocket), userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descPortVNCWebsocket, prometheus.GaugeValue, 1, name, strconv.Itoa(stats.ports.vncWebsocket), userID, groupID, categoryID, templateID)
 		}
 	}
 
