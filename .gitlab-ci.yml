@@ -161,6 +161,24 @@ docker-image-codegen:
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
 
+docker-image-codegen-no-cache:
+  image: "docker:${DOCKER_VERSION}"
+  stage: build-codegen
+  services:
+    - name: "docker:${DOCKER_VERSION}-dind-rootless"
+  parallel:
+    matrix:
+      - DOCKERFILE: docker/codegen/Dockerfile
+        IMAGE: codegen
+  before_script:
+    - until docker info; do sleep 1; done
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+  when: manual
+
 gen-protobuf:
   stage: generate
   image: "docker:${DOCKER_VERSION}"
