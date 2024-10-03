@@ -1242,6 +1242,7 @@ class UiActions(object):
                 )
                 log.error("Traceback: \n .{}".format(traceback.format_exc()))
                 log.error("Exception message: {}".format(e))
+                return False
 
         domain = get_domain(id_domain)
         if domain is None:
