@@ -1433,8 +1433,9 @@ class UiActions(object):
         else:
             dict_domain_new["server"] = dict_domain_template["server"]
 
-        x = DomainXML(dict_domain_template["xml"], id_domain=id_new)
-        if x.parser is False:
+        try:
+            x = DomainXML(dict_domain_template["xml"], id_domain=id_new)
+        except:
             log.error("error when parsing xml")
             dict_domain_new["status"] = "Failed"
             dict_domain_new["detail"] = "XML Parser have failed, xml with errors"
