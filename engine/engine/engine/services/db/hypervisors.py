@@ -428,7 +428,7 @@ def get_hyp_hostname_from_id(id):
         close_rethink_connection(r_conn)
     except ReqlNonExistenceError:
         close_rethink_connection(r_conn)
-        return False, False, False
+        return False, False, False, False, False, False
     if len(l) > 0:
         if l.__contains__("user") and l.__contains__("port"):
             return (
