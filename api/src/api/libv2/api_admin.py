@@ -19,6 +19,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import json
+
+from api.libv2.api_notify import notify_admins
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -30,6 +33,10 @@ import io
 import os
 import traceback
 
+import gevent
+
+from api import socketio
+
 from .flask_rethink import RDB
 
 db = RDB(app)
@@ -37,7 +44,17 @@ db.init_app(app)
 
 from isardvdi_common.api_exceptions import Error
 
-from .api_desktop_events import desktops_delete, desktops_start, desktops_stop
+from .api_desktop_events import (
+    activate_autostart,
+    deactivate_autostart,
+    desktops_delete,
+    desktops_force_failed,
+    desktops_start,
+    desktops_stop,
+    desktops_toggle,
+    remove_favourite_hyper,
+    remove_forced_hyper,
+)
 from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_templates import ApiTemplates
 from .api_user_storage import (
@@ -1012,195 +1029,42 @@ class ApiAdmin:
             )
         return data
 
-    def MultipleActions(self, table, action, ids, agent_id):
-        if action == "soft_toggle":
-            domains_stopped = self.CheckField(
-                table, "status", "Stopped", ids
-            ) + self.CheckField(table, "status", "Failed", ids)
-            desktops_start(domains_stopped)
-            domains_started = self.CheckField(table, "status", "Started", ids)
-            with app.app_context():
-                res_started = (
-                    r.table(table)
-                    .get_all(r.args(domains_started))
-                    .update({"status": "Shutting-down"})
-                    .run(db.conn)
-                )
-            return True
+    def multiple_actions(self, action, ids, agent_id):
+        def process_bulk_action():
+            if action == "soft_toggle":
+                desktops_toggle(ids)
 
-        if action == "toggle":
-            domains_stopped = self.CheckField(
-                table, "status", "Stopped", ids
-            ) + self.CheckField(table, "status", "Failed", ids)
-            desktops_start(domains_stopped)
-            domains_started = self.CheckField(table, "status", "Started", ids)
-            desktops_stop(domains_started, force=True)
-            return True
+            if action == "toggle":
+                desktops_toggle(ids, force=True)
 
-        if action == "toggle_visible":
-            domains_shown = self.CheckField(table, "tag_visible", True, ids)
-            domains_hidden = self.CheckField(table, "tag_visible", False, ids)
-            for domain_id in domains_hidden:
-                with app.app_context():
-                    r.table(table).get(domain_id).update(
-                        {"tag_visible": True, "jumperurl": self.api_jumperurl_gencode()}
-                    ).run(db.conn)
-            desktops_stop(domains_shown, force=True)
-            with app.app_context():
-                res_hidden = (
-                    r.table(table)
-                    .get_all(r.args(domains_shown))
-                    .update({"tag_visible": False, "viewer": False, "jumperurl": False})
-                    .run(db.conn)
-                )
-            return True
+            if action == "delete":
+                desktops_delete(agent_id, ids)
 
-        if action == "download_jumperurls":
-            with app.app_context():
-                data = list(
-                    r.table(table)
-                    .get_all(r.args(ids))
-                    .pluck("id", "user", "jumperurl")
-                    .has_fields("jumperurl")
-                    .run(db.conn)
-                )
-            data = [d for d in data if d["jumperurl"]]
-            if not len(data):
-                return "username,name,email,url"
-            with app.app_context():
-                users = list(
-                    r.table("users")
-                    .get_all(r.args([u["user"] for u in data]))
-                    .pluck("id", "username", "name", "email")
-                    .run(db.conn)
-                )
-            result = []
-            for d in data:
-                u = [u for u in users if u["id"] == d["user"]][0]
-                result.append(
-                    {
-                        "username": u["username"],
-                        "name": u["name"],
-                        "email": u["email"],
-                        "url": "https://"
-                        + os.environ["DOMAIN"]
-                        + "/vw/"
-                        + d["jumperurl"],
-                    }
-                )
+            if action == "force_failed":
+                desktops_force_failed(ids)
 
-            fieldnames = ["username", "name", "email", "url"]
-            with io.StringIO() as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-                for row in result:
-                    writer.writerow(row)
-                return csvfile.getvalue()
-            return data
+            if action == "shutting_down":
+                desktops_stop(ids, force=False)
 
-        if action == "delete":
-            desktops_delete(agent_id, ids)
-            return True
+            if action == "stopping":
+                desktops_stop(ids, force=True)
 
-        if action == "force_failed":
-            with app.app_context():
-                res = r.table(table).get_all(r.args(ids)).pluck("status").run(db.conn)
-            for item in res:
-                if item.get("status") in [
-                    "Stopped",
-                    "Started",
-                    "Downloading",
-                ]:
-                    return "Cannot change to Failed status desktops from Stopped, Started or Downloading status"
-            with app.app_context():
-                res_deleted = (
-                    r.table(table)
-                    .get_all(r.args(ids))
-                    .update({"status": "Failed", "hyp_started": False})
-                    .run(db.conn)
-                )
-            return True
+            if action == "starting_paused":
+                desktops_start(ids, paused=True)
 
-        if action == "shutting_down":
-            domains_started = self.CheckField(table, "status", "Started", ids)
-            with app.app_context():
-                res_deleted = (
-                    r.table(table)
-                    .get_all(r.args(domains_started))
-                    .update({"status": "Shutting-down"})
-                    .run(db.conn)
-                )
-            return True
+            if action == "remove_forced_hyper":
+                remove_forced_hyper(ids)
 
-        if action == "stopping":
-            domains_shutting_down = self.CheckField(
-                table, "status", "Shutting-down", ids
-            )
-            domains_started = self.CheckField(table, "status", "Started", ids)
-            domains = domains_shutting_down + domains_started
-            desktops_stop(domains, force=True)
-            return True
+            if action == "remove_favourite_hyper":
+                remove_favourite_hyper(ids)
 
-            ## TODO: Pending Stats
-        # if action == "stop_noviewer":
-        #     domains_tostop = self.CheckField(
-        #         table, "status", "Started", ids
-        #     )
-        #     res = (
-        #         r.table(table)
-        #         .get_all(r.args(domains_tostop))
-        #         .filter(~r.row.has_fields({"viewer": "client_since"}))
-        #         .update({"status": "Stopping","accessed":int(time.time())})
-        #         .run(db.conn)
-        #     )
-        #     return True
+            if action == "activate_autostart":
+                activate_autostart(ids)
 
-        if action == "starting_paused":
-            domains_stopped = self.CheckField(table, "status", "Stopped", ids)
-            domains_failed = self.CheckField(table, "status", "Failed", ids)
-            domains = domains_stopped + domains_failed
-            desktops_start(domains, paused=True)
-            return True
+            if action == "deactivate_autostart":
+                deactivate_autostart(ids)
 
-        if action == "remove_forced_hyper":
-            with app.app_context():
-                r.table("domains").get_all(r.args(ids)).update(
-                    {"forced_hyp": False}
-                ).run(db.conn)
-            return True
-
-        if action == "remove_favourite_hyper":
-            with app.app_context():
-                r.table("domains").get_all(r.args(ids)).update(
-                    {"favourite_hyp": False}
-                ).run(db.conn)
-            return True
-
-        if action == "activate_autostart":
-            with app.app_context():
-                r.table("domains").get_all(r.args(ids)).filter({"server": True}).update(
-                    {"server_autostart": True}
-                ).run(db.conn)
-            return True
-
-        if action == "deactivate_autostart":
-            with app.app_context():
-                r.table("domains").get_all(r.args(ids)).update(
-                    {"server_autostart": False}
-                ).run(db.conn)
-            return True
-
-        return False
-
-    def CheckField(self, table, field, value, ids):
-        with app.app_context():
-            return list(
-                r.table(table)
-                .get_all(r.args(ids))
-                .filter({field: value})
-                .pluck("id")["id"]
-                .run(db.conn)
-            )
+        gevent.spawn(process_bulk_action)
 
     def get_domains_field(self, field, kind, payload):
         query = r.table("domains")

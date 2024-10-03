@@ -164,7 +164,7 @@ export default {
     },
     deleteRecycleBin (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-recycle-bin'), '', true, 1000)
-      return axios.delete(`${apiV3Segment}/recycle_bin/delete/${data.id}`).then(response => {
+      return axios.delete(`${apiV3Segment}/recycle_bin/${data.id}`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

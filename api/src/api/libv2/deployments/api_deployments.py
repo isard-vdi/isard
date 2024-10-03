@@ -596,22 +596,19 @@ def edit_deployment(payload, deployment_id, data):
             ).run(db.conn)
 
 
-def checkDesktopsStarted(deployment_id):
-    deployment_desktops = get_cached_deployment_desktops(deployment_id)
-    started_desktops = len(
-        [
-            desktop
-            for desktop in deployment_desktops
-            if desktop["status"]
-            in [
-                "Started",
-                "Starting",
-                "StartingPaused",
-                "CreatingAndStarting",
-                "Shutting-down",
-            ]
-        ]
-    )
+def check_desktops_started(deployment_id):
+    with app.app_context():
+        started_desktops = (
+            r.table("domains")
+            .get_all(deployment_id, index="tag")
+            .filter(
+                lambda desktop: r.not_(
+                    r.expr(["Stopped", "Failed", "Unknown"]).contains(desktop["status"])
+                )
+            )
+            .count()
+            .run(db.conn)
+        )
     if started_desktops > 0:
         raise Error(
             "precondition_required",

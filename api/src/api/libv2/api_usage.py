@@ -1088,8 +1088,8 @@ def delete_all_consumption_data():
         with app.app_context():
             r.table("usage_consumption").delete().run(db.conn)
         socketio.emit(
-            "usage_action_completed",
-            json.dumps({"action": "delete_all"}),
+            "usage_action",
+            json.dumps({"action": "delete_all", "status": "completed"}),
             namespace="/administrators",
             room="admins",
         )
@@ -1103,11 +1103,12 @@ def delete_all_consumption_data():
             error_message = e.args[1]
 
         socketio.emit(
-            "usage_action_failed",
+            "usage_action",
             json.dumps(
                 {
                     "action": "delete_all",
                     "msg": error_message,
+                    "status": "failed",
                 }
             ),
             namespace="/administrators",
@@ -1116,11 +1117,12 @@ def delete_all_consumption_data():
     except Exception as e:
         app.logger.error(traceback.format_exc())
         socketio.emit(
-            "usage_action_failed",
+            "usage_action",
             json.dumps(
                 {
                     "action": "delete_all",
                     "msg": "Something went wrong",
+                    "status": "failed",
                 }
             ),
             namespace="/administrators",

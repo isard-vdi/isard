@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 148
+release_version = 149
+# release 149: Add multi desktop ids and kind index
 # release 148: Add booking_id, kind_booking, kind_valid_booking index to domains table
 #              Add item_type index to bookings table
 #              Update desktops without booking_id to booking_id False
@@ -2956,6 +2957,13 @@ password:s:%s"""
                     ),
                 ).run(self.conn)
                 r.table(table).index_wait("kind_valid_booking").run(self.conn)
+            except Exception as e:
+                print(e)
+        if version == 149:
+            try:
+                r.table("domains").index_create(
+                    "kind_ids", [r.row["kind"], r.row["id"]]
+                ).run(self.conn)
             except Exception as e:
                 print(e)
         return True

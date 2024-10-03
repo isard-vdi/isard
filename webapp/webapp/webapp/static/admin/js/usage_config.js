@@ -1091,8 +1091,7 @@ function socketio_on() {
     new PNotify({
       title: `ERROR: ${data.action} all consumption data`,
       text: data.msg,
-      hide: true,
-      delay: 5000,
+      hide: false,
       icon: 'fa fa-warning',
       opacity: 1,
       type: 'error'

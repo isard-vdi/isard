@@ -129,6 +129,7 @@ $(document).ready(function () {
         width: '550'
       }).get().on('pnotify.confirm', function () {
         document.body.classList.add('loading-cursor')
+        var notify = new PNotify();
         $.ajax({
           type: "PUT",
           url: '/api/v3/storages/status',
@@ -137,31 +138,29 @@ $(document).ready(function () {
           }),
           contentType: "application/json",
           success: function (data) {
-            document.body.classList.remove('loading-cursor')
             $('.mactionsStorage option[value="none"]').prop("selected", true);
             $('thead #select-all').prop("checked", false);
-            new PNotify({
-              title: 'Success',
-              text: ' Storages ' + action + ' performed successfully',
-              hide: true,
-              delay: 2000,
-              icon: 'fa fa-' + data.icon,
-              opacity: 1,
-              type: 'success'
+            notify.update({
+              title: 'Processing',
+              text: `Processing action: ${action} on ${ids.length} storage(s)`,
+              type: 'info',
+              hide: false,
+              icon: 'fa fa-spinner fa-pulse',
+              opacity: 1
             });
           },
           error: function (xhr) {
             document.body.classList.remove('loading-cursor')
             $('.mactionsStorage option[value="none"]').prop("selected", true);
-            new PNotify({
-              title: 'Error',
-              text: 'Couldn\'t perform the action \'' + actionText + '\' correctly',
-              type: 'error',
+            notify.update({
+              title: "ERROR " + action + " storage(s)",
+              text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
               hide: true,
-              icon: 'fa fa-warning',
-              delay: 5000,
-              opacity: 1
-            })
+              delay: 3000,
+              icon: 'fa fa-alert-sign',
+              opacity: 1,
+              type: 'error'
+            });
           }
         })
       }).on('pnotify.cancel', function () {
@@ -188,36 +187,35 @@ $(document).ready(function () {
                 if (value == "I'm aware") {
                   notice.remove();
                   document.body.classList.add('loading-cursor')
+                  var notify = new PNotify();
                   $.ajax({
                     type: "PUT",
                     url: '/api/v3/storages/status/' + status,
                     contentType: "application/json",
                     success: function (data) {
-                      document.body.classList.remove('loading-cursor')
                       $('.mactionsStorage option[value="none"]').prop("selected", true);
                       $('thead #select-all').prop("checked", false);
-                      new PNotify({
-                        title: 'Success',
-                        text: ' Storages ' + action + ' performed successfully',
-                        hide: true,
-                        delay: 2000,
-                        icon: 'fa fa-' + data.icon,
-                        opacity: 1,
-                        type: 'success'
+                      notify.update({
+                        title: 'Processing',
+                        text: `Processing action: ${action} to ALL storage(s)`,
+                        type: 'info',
+                        hide: false,
+                        icon: 'fa fa-spinner fa-pulse',
+                        opacity: 1
                       });
                     },
                     error: function (xhr) {
                       document.body.classList.remove('loading-cursor')
                       $('.mactionsStorage option[value="none"]').prop("selected", true);
-                      new PNotify({
-                        title: 'Error',
-                        text: 'Couldn\'t perform the action \'' + actionText + '\' correctly',
-                        type: 'error',
+                      notify.update({
+                        title: "ERROR " + action + " storage(s)",
+                        text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
                         hide: true,
-                        icon: 'fa fa-warning',
-                        delay: 5000,
-                        opacity: 1
-                      })
+                        delay: 3000,
+                        icon: 'fa fa-alert-sign',
+                        opacity: 1,
+                        type: 'error'
+                      });
                     }
                   })
                 }
@@ -802,10 +800,12 @@ function socketio_on() {
               showNotification(data.status);
             }
           } else {
-            storagesOtherTable.row(id).remove().draw();
-            if (typeof (storage_ready.row(id).id()) == 'undefined') {
-              storage_ready.row.add({ ...actual_data, ...data }).draw();
-              showNotification(data.status);
+            if (storagesOtherTable) {
+              storagesOtherTable.row(id).remove().draw();
+              if (typeof (storage_ready.row(id).id()) == 'undefined') {
+                storage_ready.row.add({ ...actual_data, ...data }).draw();
+                showNotification(data.status);
+              }
             }
           }
         } else {
@@ -839,6 +839,31 @@ function socketio_on() {
           storagesOtherTable.row(taskRow).data(rowData).draw();
         }
       }
+    }
+  });
+  socket.on('storage_action', function (data) {
+    PNotify.removeAll();
+    var data = JSON.parse(data);
+    if (data.status === 'failed') {
+      new PNotify({
+        title: `ERROR: ${data.action} on ${data.count} storage(s)`,
+        text: data.msg,
+        hide: false,
+        icon: 'fa fa-warning',
+        opacity: 1,
+        type: 'error'
+      });
+    } else if (data.status === 'completed') {
+      storage_ready.ajax.reload();
+      new PNotify({
+        title: `Action Succeeded: ${data.action}`,
+        text: `The action "${data.action}" completed on ${data.count} storage(s).`,
+        hide: true,
+        delay: 4000,
+        icon: 'fa fa-success',
+        opacity: 1,
+        type: 'success'
+      });
     }
   });
 }

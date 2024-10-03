@@ -434,7 +434,7 @@ $(document).ready(function () {
         }).get().on('pnotify.confirm', function () {
           $.ajax({
             type: "DELETE",
-            url: '/api/v3/recycle_bin/delete/' + row.data()['id'],
+            url: '/api/v3/recycle_bin/' + row.data()['id'],
             contentType: "application/json",
             error: function (xhr, ajaxOptions, thrownError) {
               new PNotify({
@@ -471,7 +471,7 @@ $(document).ready(function () {
           })
           $.ajax({
             url: "/api/v3/recycle_bin/restore/" + data.id,
-            method: "GET",
+            method: "PUT",
             error: function (xhr) {
               notice.update({
                 title: `ERROR restoring ${data['item_type']}`,
@@ -547,7 +547,32 @@ $(document).ready(function () {
     })
     socket.on('add_recycle_bin', function (data) {
       dtUpdateInsert(recyclebin_domains, data, false);
-    })
+    }),
+    socket.on('recyclebin_action', function (data) {
+      PNotify.removeAll();
+      var data = JSON.parse(data);
+      if (data.status === 'failed') {
+        new PNotify({
+          title: `ERROR: ${data.action} on ${data.count} entries`,
+          text: data.msg,
+          hide: false,
+          icon: 'fa fa-warning',
+          opacity: 1,
+          type: 'error'
+        });
+      } else if (data.status === 'completed') {
+        recyclebin_domains.ajax.reload();
+        new PNotify({
+          title: `Action Succeeded: ${data.action}`,
+          text: `The action "${data.action}" completed on ${data.count} entries.`,
+          hide: true,
+          delay: 4000,
+          icon: 'fa fa-success',
+          opacity: 1,
+          type: 'success'
+        });
+      }
+    });
   }
 
   recyclebin_domains.on('click', 'tbody tr', function (e) {
@@ -594,34 +619,35 @@ $(document).ready(function () {
         addclass: 'pnotify-center-large',
         width: '550'
       }).get().on('pnotify.confirm', function () {
+        var notify = new PNotify();
         $.ajax({
-          type: "PUT",
+          type: action == "delete" ? "DELETE" : "PUT",
           url: '/api/v3/recycle_bin/' + action + '/',
           data: JSON.stringify({'recycle_bin_ids':ids}),
+          contentType: "application/json",
           success: function (data) {
             $('#mactions option[value="none"]').prop("selected", true);
             $('#recyclebin_domains tr.active .form-check-input').prop("checked", false);
             $('#recyclebin_domains tr.active').removeClass('active')
             $('thead #select-all').prop("checked", false);
-            new PNotify({
-              title: 'Success',
-              text: 'Recycle bin entries ' + action + ' performed successfully',
-              hide: true,
-              delay: 2000,
-              icon: 'fa fa-' + data.icon,
-              opacity: 1,
-              type: 'success'
-            });
+            notify.update({
+              title: 'Processing',
+              text: `Processing action: ${action} ${ids.length} entries`,
+              type: 'info',
+              hide: false,
+              icon: 'fa fa-spinner fa-pulse',
+              opacity: 1
+            })
           },
           error: function (xhr) {
-            new PNotify({
-              title: 'Error',
-              text: 'Couldn\'t ' + action + ' recycle bin entries ',
-              type: 'error',
+            notify.update({
+              title: "ERROR " + action + " desktops",
+              text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
               hide: true,
-              icon: 'fa fa-warning',
-              delay: 5000,
-              opacity: 1
+              delay: 3000,
+              icon: 'fa fa-alert-sign',
+              opacity: 1,
+              type: 'error'
             })
           }
         })

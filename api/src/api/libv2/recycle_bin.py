@@ -744,7 +744,7 @@ class RecycleBin(object):
             with app.app_context():
                 data = r.table("recycle_bin").get(id).run(db.conn)
             if not data:
-                raise Error("not_found", "recycle_bin not found")
+                raise Error("not_found", f"recycle_bin not found: {id}")
             for key, value in data.items():
                 self.__dict__[key] = value
 

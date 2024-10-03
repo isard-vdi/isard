@@ -182,33 +182,28 @@ function updateSchedulerJob(action) {
 // SOCKETIO
 
 function socketio_on() {
-    socket.on('logs_users_action_failed', function (data) {
-      PNotify.removeAll();
-      document.body.classList.remove('loading-cursor');
-      var data = JSON.parse(data);
-      new PNotify({
-        title: `ERROR: ${data.action} all logs users`,
-        text: data.msg,
-        hide: true,
-        delay: 5000,
-        icon: 'fa fa-warning',
-        opacity: 1,
-        type: 'error'
-      });
-    });
-  
-    socket.on('logs_users_action_completed', function (data) {
-      PNotify.removeAll();
-      document.body.classList.remove('loading-cursor');
-      var data = JSON.parse(data);
-      new PNotify({
-        title: `Action Succeeded: ${data.action}`,
-        text: `The action "${data.action}" completed on all logs users.`,
-        hide: true,
-        delay: 4000,
-        icon: 'fa fa-success',
-        opacity: 1,
-        type: 'success'
-      });
+    socket.on('logs_users_action', function (data) {
+        PNotify.removeAll();
+        var data = JSON.parse(data);
+        if (data.status === 'failed') {
+            new PNotify({
+                title: `ERROR: ${data.action} on logs users.`,
+                text: data.msg,
+                hide: false,
+                icon: 'fa fa-warning',
+                opacity: 1,
+                type: 'error'
+            });
+        } else if (data.status === 'completed') {
+            new PNotify({
+                title: `Action Succeeded: ${data.action}`,
+                text: `The action "${data.action}" completed on logs users.`,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success'
+            });
+        }
     });
 }

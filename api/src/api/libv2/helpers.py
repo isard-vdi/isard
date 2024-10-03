@@ -1099,12 +1099,13 @@ def _duplicated(template_id):
 def wait_status(
     desktops_ids, current_status, wait_seconds=0, interval_seconds=2, raise_exc=False
 ):
-    desktops_status = list(
-        r.table("domains")
-        .get_all(r.args(desktops_ids))
-        .pluck("status")["status"]
-        .run(db.conn)
-    )
+    with app.app_context():
+        desktops_status = list(
+            r.table("domains")
+            .get_all(r.args(desktops_ids))
+            .pluck("status")["status"]
+            .run(db.conn)
+        )
     if wait_seconds == 0:
         return desktops_status
     seconds = 0
