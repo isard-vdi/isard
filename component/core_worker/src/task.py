@@ -333,3 +333,20 @@ def send_storage_socket_user(event, storage_id):
             }
         ]
     )
+
+
+def domain_change_storage(domain_id, storage_id):
+    """
+    Change a domain's storage.
+
+    :param domain_id: Domain ID
+    :type domain_id: str
+    :param storage_id: Storage ID
+    :type storage_id: str
+    """
+    domain = Domain(domain_id)
+
+    c_dict = domain.create_dict
+    c_dict["hardware"]["disks"][0]["storage_id"] = storage_id
+
+    domain.create_dict = c_dict

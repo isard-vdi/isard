@@ -21,7 +21,6 @@ MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024
 from api import socketio
 
 from ..libv2.api_admin import ApiAdmin
-from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 from ..libv2.api_storage import (
     _check_domains_status,
     get_disks_ids_by_status,
@@ -32,7 +31,6 @@ from ..libv2.api_storage import (
 )
 from ..libv2.quotas import Quotas
 
-desktops = ApiDesktopsPersistent()
 quotas = Quotas()
 from .decorators import (
     canPerformActionDeployment,
@@ -1289,6 +1287,18 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
 
     ownsStorageId(payload, storage_id)
 
+    if len(Storage(storage_id).domains) > 1:
+        raise Error(
+            "precondition_required",
+            "Unable to recreate storage with derivatives",
+        )
+    if not _check_domains_status(storage_id):
+        raise Error(
+            "precondition_required",
+            "All desktops must be 'Stopped' for storage operations.",
+            description_code="desktops_not_stopped",
+        )
+
     set_desktops_maintenance(payload, storage_id, "recreate")
     storage_orig = set_storage_maintenance(payload, storage_id)
 
@@ -1353,13 +1363,12 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
     )
 
     try:
-        storage_orig.create_task(
+        task = Task(
             user_id=storage.user_id,
             queue=f"storage.{storage_pool.id}.{priority}",
-            task="recreate",
+            task="create",
             job_kwargs={
                 "kwargs": {
-                    "original_path": storage_orig.path,
                     "storage_path": storage.path,
                     "storage_type": storage.type,
                     **parent_args,
@@ -1367,52 +1376,104 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
             },
             dependents=[
                 {
-                    "queue": f"storage.{storage_pool.id}.default",
-                    "task": "qemu_img_info_backing_chain",
+                    "queue": f"core",
+                    "task": "domain_change_storage",
                     "job_kwargs": {
                         "kwargs": {
+                            "domain_id": domain_id,
                             "storage_id": storage.id,
-                            "storage_path": storage.path,
                         }
                     },
                     "dependents": [
                         {
-                            "queue": "core",
-                            "task": "storage_update",
+                            "queue": f"storage.{storage_pool.id}.{priority}",
+                            "task": "delete",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "path": storage_orig.path,
+                                },
+                            },
                             "dependents": [
                                 {
-                                    "queue": "core",
-                                    "task": "update_status",
+                                    "queue": f"storage.{storage_pool.id}.{priority}",
+                                    "task": "qemu_img_info_backing_chain",
                                     "job_kwargs": {
                                         "kwargs": {
-                                            "statuses": {
-                                                "finished": (
-                                                    {
-                                                        "ready": {
-                                                            "storage": [storage.id],
-                                                        },
-                                                        "Stopped": {
-                                                            "domain": [domain_id],
-                                                        },
-                                                        "deleted": {
-                                                            "storage": [
-                                                                storage_orig.id
-                                                            ],
-                                                        },
-                                                    }
-                                                    if domain_id
-                                                    else {
-                                                        "ready": {
-                                                            "storage": [storage.id],
-                                                        },
-                                                    }
-                                                ),
-                                            },
-                                        },
+                                            "storage_id": storage.id,
+                                            "storage_path": storage.path,
+                                        }
                                     },
+                                    "dependents": [
+                                        {
+                                            "queue": "core",
+                                            "task": "storage_update",
+                                            "dependents": [
+                                                {
+                                                    "queue": "core",
+                                                    "task": "update_status",
+                                                    "job_kwargs": {
+                                                        "kwargs": {
+                                                            "statuses": {
+                                                                "canceled": {
+                                                                    "ready": {
+                                                                        "storage": [
+                                                                            storage.id
+                                                                        ],
+                                                                    },
+                                                                },
+                                                                "finished": (
+                                                                    {
+                                                                        "ready": {
+                                                                            "storage": [
+                                                                                storage.id
+                                                                            ],
+                                                                        },
+                                                                        "Stopped": {
+                                                                            "domain": [
+                                                                                domain_id
+                                                                            ],
+                                                                        },
+                                                                        "deleted": {
+                                                                            "storage": [
+                                                                                storage_orig.id
+                                                                            ],
+                                                                        },
+                                                                    }
+                                                                    if domain_id
+                                                                    else {
+                                                                        "ready": {
+                                                                            "storage": [
+                                                                                storage.id
+                                                                            ],
+                                                                        },
+                                                                        "deleted": {
+                                                                            "storage": [
+                                                                                storage_orig.id
+                                                                            ],
+                                                                        },
+                                                                    }
+                                                                ),
+                                                            },
+                                                        },
+                                                    },
+                                                    "dependents": [
+                                                        {
+                                                            "queue": "core",
+                                                            "task": "storage_delete",
+                                                            "job_kwargs": {
+                                                                "kwargs": {
+                                                                    "storage_id": storage.id
+                                                                }
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    ],
                                 }
                             ],
-                        }
+                        },
                     ],
                 },
             ],
@@ -1427,8 +1488,6 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
             "internal_server_error",
             "Error creating storage",
         )
-
-    desktops.update_storage(domain_id, storage.id)
 
     return (
         json.dumps(
