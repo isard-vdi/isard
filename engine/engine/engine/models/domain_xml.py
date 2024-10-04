@@ -1552,7 +1552,14 @@ def populate_dict_hardware_from_create_dict(id_domain):
             for d in create_dict["hardware"][media_type]:
                 new_media_dict = {}
                 media = get_media(d["id"])
-                new_media_dict["path"] = media["path_downloaded"]
+                path = media.get("path_downloaded")
+                if path is None:
+                    log.error(
+                        f"media with id {d['id']} has not path_downloaded in media table. Setting to DownloadFailed"
+                    )
+                    update_table_field("media", d["id"], "status", "DownloadFailed")
+                    continue
+                new_media_dict["path"] = path
                 new_hardware_dict[media_type].append(new_media_dict)
 
     new_hardware_dict["name"] = id_domain
