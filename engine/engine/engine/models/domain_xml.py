@@ -1233,6 +1233,17 @@ class DomainXML(object):
         # self.name = new_name
         # self.vm_dict['name'] = new_name
 
+    def set_disk_driver_cache(self):
+        cache = os.environ.get("ENGINE_GUESTS_DISK_DRIVER_CACHE")
+        if cache is None:
+            return
+        for index, disk in enumerate(
+            self.tree.xpath('/domain/devices/disk[@device="disk"]')
+        ):
+            self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath(
+                "driver"
+            )[0].set("cache", cache)
+
     def set_vdisk(self, new_path_vdisk, index=0, type_disk="qcow2", force_bus=False):
         if self.tree.xpath('/domain/devices/disk[@device="disk"]'):
             self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath(
@@ -1703,6 +1714,14 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     category_id = dict_domain["category"]
     parent_id = dict_domain["create_dict"].get("origin", "")
     x.add_metadata_isard(user_id, group_id, category_id, parent_id)
+
+    # disk cache
+    try:
+        x.set_disk_driver_cache()
+    except Exception as e:
+        log.error(
+            "Exception when setting domain {} disk cache: {}".format(id_domain, e)
+        )
 
     # qos
     qos_disk_id = dict_domain["create_dict"]["hardware"].get("qos_disk_id", False)
