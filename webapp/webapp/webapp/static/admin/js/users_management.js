@@ -1484,18 +1484,28 @@ function parseCSV(csv) {
             error: "The maximum number of users that can be added at once is 200"
         }
     }
-    header = lines[0].split(',')
-    if (header.length < 2) {
+    var separator = ''
+    const separators = [',', ';']
+    for (var i = 0; i < separators.length; i++) {
+        header = lines[0].split(separators[i])
+        if (header.length < 2) {
+            continue
+        } else {
+            separator = separators[i]
+            break
+        }
+    }
+    if (separator == '') {
         return {
             users: [],
-            error: "Header must be separated by commas"
+            error: "Header must be separated by " + separators.join(" or ")
         }
     }
     users = []
     $.each(lines, function (n, l) {
         if (n != 0 && l.length > 10) {
             // var regex = /("[^"]*"|[^,]+)(?=,|$)/g;
-            usr = toObject(header, l.split(","));
+            usr = toObject(header, l.split(separator));
 
             // remove enclosing quotes and unescape fields
             for (var key in usr) {
