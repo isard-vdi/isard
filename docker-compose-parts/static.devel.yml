@@ -6,7 +6,7 @@ services:
     - ${BUILD_ROOT_PATH}/docker/static/noVNC:/usr/share/nginx/html/static/noVNC
   isard-frontend-dev:
     container_name: isard-frontend-dev
-    image: node:18.20
+    image: oven/bun:1.1.24-alpine
     logging:
       driver: "json-file"
       options:
@@ -14,8 +14,22 @@ services:
     networks:
       isard-network:
     working_dir: /usr/local/src/isard-frontend/
-    environment:
-      CYPRESS_CACHE_FOLDER: /usr/local/src/isard-frontend/node_modules/.cache/cypress
-    command: sh -c "yarn install && yarn serve"
+    command: sh -c "bun install && bun run dev --host"
     volumes:
     - ${BUILD_ROOT_PATH}/frontend/:/usr/local/src/isard-frontend/
+
+  isard-old-frontend-dev:
+    container_name: isard-old-frontend-dev
+    image: node:18.20
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+    networks:
+      isard-network:
+    working_dir: /usr/local/src/isard-old-frontend/
+    environment:
+      CYPRESS_CACHE_FOLDER: /usr/local/src/isard-old-frontend/node_modules/.cache/cypress
+    command: sh -c "yarn install && yarn serve"
+    volumes:
+    - ${BUILD_ROOT_PATH}/old-frontend/:/usr/local/src/isard-old-frontend/
