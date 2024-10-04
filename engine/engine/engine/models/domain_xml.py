@@ -1252,6 +1252,7 @@ class DomainXML(object):
             self.tree.xpath('/domain/devices/disk[@device="disk"]')[index].xpath(
                 "driver"
             )[0].set("type", type_disk)
+            self.set_disk_driver_cache()
             path = (
                 self.tree.xpath('/domain/devices/disk[@device="disk"]')[index]
                 .xpath("source")[0]
