@@ -150,11 +150,14 @@ $(document).ready(function() {
       { "data": "desktops_started", "defaultContent": 0 },
       {
         "data": "gpus", "defaultContent": 0, render: function (data, type, row) {
-          return data.sort().toString() == row.physical_gpus.sort().toString() ? data.length :
-            `<i title="This hypervisor is assigned to ${data.length} GPUs but there is only ${row.physical_gpus.length} physical GPUs. These GPUs do not correspond:
-             \n${data.filter(gpu => !row.physical_gpus.includes(gpu))
-              .concat(row.physical_gpus.filter(gpu => !data.includes(gpu)))}" class="fa fa-warning" style="color:red;">
-            ${row.physical_gpus.length + "/" + data.length}</i>`
+          var physical_gpus = row.gpus.filter(function(gpu) {
+            return row.physical_gpus.includes(gpu);
+          });
+          return data.sort().toString() == physical_gpus.sort().toString() ? data.length :
+            `<i title="This hypervisor is assigned to ${data.length} GPUs but there is only ${physical_gpus.length} physical GPUs. These GPUs do not correspond:
+             \n${data.filter(gpu => !physical_gpus.includes(gpu))
+              .concat(physical_gpus.filter(gpu => !data.includes(gpu)))}" class="fa fa-warning" style="color:red;">
+            ${physical_gpus.length + "/" + data.length}</i>`
         }
       },
       { "data": "vpn.wireguard.connected", "defaultContent": 'NaN' },
