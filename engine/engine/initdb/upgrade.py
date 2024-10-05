@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 146
+release_version = 147
+# release 147: Add new virtio video model
 # release 146: Add template index to authentication table
 # release 145: Change default QoS values
 # release 144: Add password_history to users that don't have it
@@ -3613,6 +3614,26 @@ password:s:%s"""
                     )
             except Exception as e:
                 print(e)
+
+        if version == 147:
+            r.table("videos").insert(
+                [
+                    {
+                        "allowed": {
+                            "categories": False,
+                            "groups": False,
+                            "roles": ["admin"],
+                            "users": False,
+                        },
+                        "description": "Virtio default video profile",
+                        "heads": 1,
+                        "model": "virtio",
+                        "name": "Virtio",
+                        "ram": 0,
+                        "vram": 0,
+                    },
+                ]
+            ).run(self.conn)
 
         return True
 
