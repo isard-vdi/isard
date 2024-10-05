@@ -43,6 +43,7 @@ module.exports = {
   },
 
   devServer: {
-    disableHostCheck: true
+    disableHostCheck: true,
+    public: 'https://localhost:443'
   }
 }
