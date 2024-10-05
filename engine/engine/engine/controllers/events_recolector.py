@@ -19,7 +19,6 @@ import traceback
 
 import libvirt
 from engine.controllers.ui_actions import Q_PRIORITY_PERSONAL_UNIT
-from engine.models.domain_xml import DomainXML
 from engine.models.rethink_hyp_event import RethinkHypEvent
 from engine.services.db import (
     domain_get_vgpu_info,

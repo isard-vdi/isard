@@ -233,7 +233,7 @@ class DomainXML(object):
             log.error("xml that fail: \n{}".format(xml))
             log.error("Traceback: {}".format(traceback.format_exc()))
             self.parser = False
-            return None
+            raise ValueError("Failed to parse XML")
 
         if id_domain:
             self.set_name(id_domain)
@@ -1379,11 +1379,22 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     d = get_domain(id_domain)
     hw = d["hardware"]
     if xml is None:
-        v = DomainXML(d["xml"], id_domain=id_domain)
+        try:
+            v = DomainXML(d["xml"], id_domain=id_domain)
+        except:
+            log.error(
+                f"Error in update_xml_from_dict_domain with id_domain {id_domain}"
+            )
+            return False
     else:
-        v = DomainXML(xml, id_domain=id_domain)
-    if v.parser is False:
-        return False
+        try:
+            v = DomainXML(xml, id_domain=id_domain)
+        except:
+            log.error(
+                f"Error in update_xml_from_dict_domain with id_domain {id_domain}"
+            )
+            return False
+
     # v.set_memory(memory=hw['currentMemory'],unit=hw['currentMemory_unit'])
     v.set_memory(
         memory=hw["memory"],
