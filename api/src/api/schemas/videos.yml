@@ -24,6 +24,7 @@ model:
     - "xen"
     - "vbox"
     - "qxl"
+    - "virtio"
 allowed:
   type: dict
   schema: allowed
