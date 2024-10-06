@@ -239,14 +239,16 @@
                 "action": "Aktion",
                 "description": "Beschreibung",
                 "state": "Zustand",
-                "name": "Name"
+                "name": "Name",
+                "desktop-size": "Größe"
             },
             "no-info-default": "Keine Beschreibung vorhanden",
             "actions": {
                 "delete": "Löschen",
                 "template": "Zur Vorlage machen",
                 "edit": "bearbeiten",
-                "direct-link": "direkter Link"
+                "direct-link": "direkter Link",
+                "booking": "Zeitplan"
             },
             "filter-label": "Filtern",
             "notification-bar": {
@@ -292,7 +294,25 @@
                     }
                 }
             },
-            "new-media": "Neues Medium"
+            "new-media": "Neues Medium",
+            "recycle-bin": {
+                "title": "Papierkorb",
+                "buttons": {
+                    "info": {
+                        "title": "Mehr Informationen"
+                    },
+                    "delete": {
+                        "title": "Entfernen"
+                    },
+                    "restore": {
+                        "title": "Wiederherstellen"
+                    }
+                },
+                "back": "Zurück zum Papierkorb"
+            },
+            "recycle-bins": {
+                "empty-recycle-bin": "Papierkorb leeren"
+            }
         },
         "select-search": {
             "empty": "Keine Optionen verfügbar"
@@ -300,9 +320,49 @@
         "bookings": {
             "item": {
                 "split-labels": {
-                    "bookings": "Buchungen"
-                }
+                    "bookings": "Buchungen",
+                    "availability": "Verfügbarkeit"
+                },
+                "modal": {
+                    "title": "Titel",
+                    "start-date": "Startdatum",
+                    "start-time": "Startzeit",
+                    "profile": "Profil",
+                    "end-time": "Endzeit",
+                    "create": {
+                        "button": "Buchung hinzufügen",
+                        "modal-title": "Buchung hinzufügen"
+                    },
+                    "edit": {
+                        "modal-title": "Buchung bearbeiten"
+                    },
+                    "end-date": "Enddatum",
+                    "select-profile": "Bitte wähle ein Profil aus"
+                },
+                "event-titles": {
+                    "unavailable": "Nicht verfügbar",
+                    "overridable": "Überschreibbar",
+                    "available": "Verfügbar"
+                },
+                "status-bar": {
+                    "buttons": {
+                        "add-booking": "Buchung hinzufügen"
+                    },
+                    "max-time": "Maximale Buchungszeit",
+                    "max-items": "Maximale Buchungen"
+                },
+                "units": "Einheiten"
             }
+        },
+        "deployment-desktop-list": {
+            "table-header": {
+                "user": "Nutzer",
+                "group": "Gruppe",
+                "action": "Aktion",
+                "viewers": "Zuschauer",
+                "state": "Status"
+            },
+            "filter-label": "Filter"
         }
     },
     "forms": {
@@ -397,7 +457,8 @@
             "name": "Name der Verteilung",
             "error": {
                 "groups": "Mindestens eine Gruppe muss selektiert sein",
-                "groups-users": "Mindestens ein Nutzer oder eine Gruppe muss ausgewählt werden"
+                "groups-users": "Mindestens ein Nutzer oder eine Gruppe muss ausgewählt werden",
+                "users": "Mindestens ein Nutzer muss ausgewählt werden"
             }
         },
         "filter-placeholder": "Tippe zum suchen",
@@ -434,6 +495,10 @@
                 "confirmation-password": {
                     "label": "Passwortbestätigung",
                     "placeholder": "Bestätige das Passwort"
+                },
+                "current-password": {
+                    "label": "Geben Sie Ihr aktuelles Passwort ein:",
+                    "placeholder": "Aktuelles Passwort"
                 }
             }
         },
@@ -451,7 +516,25 @@
         "duplicate-template": {
             "title": "Vorlage duplizieren"
         },
-        "show-pages": "Zeigen"
+        "show-pages": "Zeigen",
+        "email": {
+            "modal": {
+                "change-validate-address": "Ändern oder Bestätigen Ihrer E-Mail-Adresse",
+                "title": "E-Mail-Änderung/Validierung",
+                "email": {
+                    "label": "Email",
+                    "placeholder": "Email"
+                },
+                "buttons": {
+                    "verify": "E-Mail aktualisieren und verifizieren"
+                }
+            }
+        },
+        "direct-link": {
+            "modal": {
+                "enable": "Direkten Viewer-Zugang ermöglichen"
+            }
+        }
     },
     "errors": {
         "desktop_new_user_quota_exceeded": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
@@ -466,7 +549,9 @@
         "minLengthValue": "Das Feld {property} hat {model} Zeichen, muss aber eine Mindestlänge von {min} haben.",
         "sameAs": "Das Feld {property} muss den gleichen Wert wie {property2} haben.",
         "url": "Das Feld {property} muss eine URL sein.",
-        "undefined": "Nicht definiert"
+        "undefined": "Nicht definiert",
+        "email": "Das {property} Feld muss eine gültige E-Mail Adresse sein.",
+        "URLFormat": "Es muss mit \"https://\" beginnen."
     },
     "messages": {
         "no": "Nein",

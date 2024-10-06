@@ -37,12 +37,16 @@
                 "category": "分类",
                 "group": "组",
                 "user": "用户"
-            }
+            },
+            "section-title-template": "选择一个模板：",
+            "title": "创建新的桌面："
         },
         "new-template": {
             "title": "创建新模板",
             "name": "名称",
-            "description": "描述"
+            "description": "描述",
+            "enabled": "已启用",
+            "disabled": "已禁用"
         },
         "registration": {
             "code": "注册码"
@@ -74,8 +78,29 @@
         "email": {
             "modal": {
                 "title": "电子邮件更改/验证",
-                "change-validate-address": "更改或验证您的电子邮件地址"
+                "change-validate-address": "更改或验证您的电子邮件地址",
+                "email": {
+                    "label": "邮箱",
+                    "placeholder": "邮箱"
+                },
+                "buttons": {
+                    "verify": "更新并验证邮箱"
+                }
             }
+        },
+        "new-deployment": {
+            "visible": "用户可见",
+            "name": "部署名称",
+            "not-visible": "用户不可见",
+            "desktop": {
+                "title": "新的桌面数据：",
+                "template": "模板",
+                "name": "桌面名称",
+                "description": "桌面描述"
+            },
+            "filter": "过滤器",
+            "section-title-template": "选择一个模板：",
+            "title": "创建新部署："
         }
     }
 }

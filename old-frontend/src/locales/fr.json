@@ -470,7 +470,9 @@
         "minLengthValue": "Le champ {property} a {model} caractères, mais sa longueur minimale doit être de {min}.",
         "url": "Le champ {property} doit être une URL.",
         "sameAs": "Le champ {property} doit avoir la même valeur que le champ {property2}.",
-        "undefined": "Non défini"
+        "undefined": "Non défini",
+        "URLFormat": "Cela doit commencer par \"https://\".",
+        "email": "Le champ {property} doit être une adresse e-mail valide."
     },
     "forms": {
         "new-desktop": {
@@ -567,7 +569,8 @@
                 "confirmation-password": {
                     "placeholder": "Confirmer le mot de passe",
                     "label": "Confirmation du mot de passe"
-                }
+                },
+                "warning": "Votre mot de passe a expiré. Vous devez le changer pour continuer"
             }
         },
         "new-template": {
