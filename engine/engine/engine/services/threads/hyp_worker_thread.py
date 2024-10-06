@@ -131,57 +131,62 @@ class HypWorkerThread(threading.Thread):
                 update_hyp_status(self.hyp_id, "Error", detail=self.error)
                 self.stop = True
 
-            hyp_id = self.hyp_id
-            if self.stop is not True:
-                # get info from hypervisor
-                self.h.get_info_from_hypervisor(
-                    nvidia_enabled=nvidia_enabled,
-                    force_get_hyp_info=force_get_hyp_info,
-                    # force_get_hyp_info=True,
-                    init_vgpu_profiles=init_vgpu_profiles,
-                )
-
-                update_table_field(
-                    "hypervisors",
-                    self.hyp_id,
-                    "viewer_status",
-                    self.h.get_hyp_video_status(),
-                    soft=True,
-                )
-
-                self.h.get_system_stats()
-
-                # load info and nvidia info from db
-                self.h.load_info_from_db()
-
-                # INIT
-
-                if nvidia_enabled:
-                    self.h.init_nvidia()
-                    logs.workers.debug(
-                        f"nvidia info updated in hypervisor {self.hyp_id}"
+            try:
+                hyp_id = self.hyp_id
+                if self.stop is not True:
+                    # get info from hypervisor
+                    self.h.get_info_from_hypervisor(
+                        nvidia_enabled=nvidia_enabled,
+                        force_get_hyp_info=force_get_hyp_info,
+                        # force_get_hyp_info=True,
+                        init_vgpu_profiles=init_vgpu_profiles,
                     )
 
-                if (
-                    self.h.info["kvm_module"] == "intel"
-                    or self.h.info["kvm_module"] == "amd"
-                ):
-                    self.stop = False
-                else:
-                    logs.workers.error(
-                        "hypervisor {} has not virtualization support (VT-x for Intel processors and AMD-V for AMD processors). ".format(
-                            hyp_id
+                    update_table_field(
+                        "hypervisors",
+                        self.hyp_id,
+                        "viewer_status",
+                        self.h.get_hyp_video_status(),
+                        soft=True,
+                    )
+
+                    self.h.get_system_stats()
+
+                    # load info and nvidia info from db
+                    self.h.load_info_from_db()
+
+                    # INIT
+
+                    if nvidia_enabled:
+                        self.h.init_nvidia()
+                        logs.workers.debug(
+                            f"nvidia info updated in hypervisor {self.hyp_id}"
                         )
-                    )
-                    update_hyp_status(
-                        hyp_id,
-                        "Error",
-                        detail="KVM requires that the virtual machine host's processor has virtualization "
-                        + "support (named VT-x for Intel processors and AMD-V for AMD processors). "
-                        + "Check CPU capabilities and enable virtualization support in your BIOS.",
-                    )
-                    self.stop = True
 
+                    if (
+                        self.h.info["kvm_module"] == "intel"
+                        or self.h.info["kvm_module"] == "amd"
+                    ):
+                        self.stop = False
+                    else:
+                        logs.workers.error(
+                            "hypervisor {} has not virtualization support (VT-x for Intel processors and AMD-V for AMD processors). ".format(
+                                hyp_id
+                            )
+                        )
+                        update_hyp_status(
+                            hyp_id,
+                            "Error",
+                            detail="KVM requires that the virtual machine host's processor has virtualization "
+                            + "support (named VT-x for Intel processors and AMD-V for AMD processors). "
+                            + "Check CPU capabilities and enable virtualization support in your BIOS.",
+                        )
+                        self.stop = True
+            except Exception as e:
+                logs.exception_id.debug("0059")
+                self.error = f"Hypervisor {hyp_id} failed to get info. Exception: {e}"
+                update_hyp_status(self.hyp_id, "Error", detail=self.error)
+                self.stop = True
         if self.stop is not True:
             update_table_field(
                 "hypervisors", self.hyp_id, "stats", self.h.stats, soft=True
@@ -714,12 +719,28 @@ class HypWorkerThread(threading.Thread):
                             self.stop = True
                             break
 
-        update_hyp_thread_status("worker", self.hyp_id, "Stopping")
-        self.h.disconnect()
-        self.q_event_register.put(
-            {"type": "del_hyp_to_receive_events", "hyp_id": self.hyp_id}
-        )
-        action = {}
-        action["type"] = "thread_hyp_worker_dead"
-        action["hyp_id"] = self.hyp_id
-        self.queue_master.put(action)
+        try:
+            update_hyp_thread_status("worker", self.hyp_id, "Stopping")
+            try:
+                self.h.disconnect()
+            except Exception as e:
+                logs.exception_id.debug("0066")
+                logs.workers.error(
+                    "Unable to disconnect from hypervisor {} in working thread: {}\n Have disappeared?".format(
+                        self.hyp_id, e
+                    )
+                )
+            self.q_event_register.put(
+                {"type": "del_hyp_to_receive_events", "hyp_id": self.hyp_id}
+            )
+            action = {}
+            action["type"] = "thread_hyp_worker_dead"
+            action["hyp_id"] = self.hyp_id
+            self.queue_master.put(action)
+        except Exception as e:
+            logs.exception_id.debug("0067")
+            logs.workers.error(
+                "General error in disconnecting hypervisor {} in working thread: {}".format(
+                    self.hyp_id, e
+                )
+            )
