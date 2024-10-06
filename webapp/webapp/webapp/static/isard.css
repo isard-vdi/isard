@@ -245,3 +245,7 @@ table.dataTable tr.shown td.details-control > button > i:before {
     transform: rotate(360deg);
   }
 }
+
+.ajaxDisabled {
+  cursor: wait !important;
+}
