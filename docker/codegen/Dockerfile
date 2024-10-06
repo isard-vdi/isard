@@ -23,8 +23,8 @@ WORKDIR /deps
 
 # We need to install it 'locally', otherwise it won't work
 RUN npm install \
-  @hey-api/openapi-ts@0.53.0 \
-  @hey-api/client-fetch@0.2.4
+  @hey-api/openapi-ts@0.53.2 \
+  @hey-api/client-fetch@0.3.1
 
 COPY docker/codegen/gen.sh /gen.sh
 
