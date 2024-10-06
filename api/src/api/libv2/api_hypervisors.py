@@ -888,6 +888,47 @@ class ApiHypervisors:
             )
         return status
 
+    @cached(cache=TTLCache(maxsize=200, ttl=10))
+    def get_hyper_started_domains(self, hyper_id):
+        with app.app_context():
+            domains = list(
+                r.table("domains")
+                .get_all(hyper_id, index="hyp_started")
+                .filter({"status": "Started", "kind": "desktop"})
+                .pluck(
+                    [
+                        "id",
+                        "name",
+                        {
+                            "create_dict": {
+                                "hardware": ["vcpus", "memory"],
+                            }
+                        },
+                        "username",
+                        "category",
+                        "group",
+                        "server",
+                        "persistent",
+                    ]
+                )
+                .map(
+                    lambda domain: domain.merge(
+                        {
+                            "category_name": r.table("categories")
+                            .get(domain["category"])
+                            .pluck("name")["name"]
+                            .default(""),
+                            "group_name": r.table("groups")
+                            .get(domain["group"])
+                            .pluck("name")["name"]
+                            .default(""),
+                        }
+                    )
+                )
+                .run(db.conn)
+            )
+        return domains
+
 
 @cached(cache=TTLCache(maxsize=200, ttl=10))
 def check_storage_pool_availability(category_id=None):
