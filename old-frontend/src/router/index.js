@@ -1,43 +1,12 @@
-import MainLayout from '@/layouts/MainLayout.vue'
-import Booking from '@/pages/Booking'
-import BookingsSummary from '@/pages/BookingsSummary'
-import Deployment from '@/pages/Deployment.vue'
-import DeploymentNew from '@/pages/DeploymentNew.vue'
-import DeploymentEdit from '@/pages/DeploymentEdit.vue'
-import Deployments from '@/pages/Deployments.vue'
-import DeploymentVideowall from '@/pages/DeploymentVideowall.vue'
-import DomainEdit from '@/pages/DomainEdit.vue'
-import DesktopNew from '@/pages/DesktopNew.vue'
-import Desktops from '@/pages/Desktops.vue'
-import Media from '@/pages/Media.vue'
-import MediaNew from '@/pages/MediaNew.vue'
-import NewFromMedia from '@/pages/NewFromMedia.vue'
-import Planning from '@/pages/Planning'
-import Profile from '@/pages/Profile.vue'
-import TemplateNew from '@/pages/TemplateNew.vue'
-import Templates from '@/pages/Templates.vue'
-import DirectViewer from '@/views/DirectViewer.vue'
-import Error from '@/views/Error.vue'
-import Maintenance from '@/views/Maintenance.vue'
-import NotFound from '@/views/NotFound.vue'
-import Rdp from '@/views/Rdp.vue'
-import Register from '@/views/Register.vue'
-import Storage from '@/pages/Storage.vue'
-import RecycleBins from '@/pages/RecycleBins.vue'
-import RecycleBin from '@/pages/RecycleBin.vue'
-import ResetPassword from '@/pages/ResetPassword.vue'
-import ForgotPassword from '@/pages/ForgotPassword.vue'
-import VerifyEmail from '@/pages/VerifyEmail.vue'
-import Disclaimer from '@/pages/Disclaimer.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
-import { appTitle } from '../shared/constants'
-import i18n from '@/i18n'
 import moment from 'moment'
 import { jwtDecode } from 'jwt-decode'
-import store from '@/store'
 import { getCookie } from 'tiny-cookie'
 import { isEmpty } from 'lodash'
+import { appTitle } from '../shared/constants'
+import i18n from '@/i18n'
+import store from '@/store'
 
 Vue.use(VueRouter)
 
@@ -47,12 +16,12 @@ const router = new VueRouter({
       path: '/',
       name: 'Home',
       redirect: '/desktops',
-      component: MainLayout,
+      component: () => import('@/layouts/MainLayout.vue'),
       children: [
         {
           path: 'desktops',
           name: 'desktops',
-          component: Desktops,
+          component: () => import('@/pages/Desktops.vue'),
           meta: {
             title: i18n.t('router.titles.desktops'),
             allowedRoles: ['admin', 'manager', 'advanced', 'user']
@@ -61,7 +30,7 @@ const router = new VueRouter({
         {
           path: 'desktops/new',
           name: 'desktopsnew',
-          component: DesktopNew,
+          component: () => import('@/pages/DesktopNew.vue'),
           meta: {
             title: i18n.t('router.titles.new_desktop'),
             allowedRoles: ['admin', 'manager', 'advanced', 'user']
@@ -74,12 +43,12 @@ const router = new VueRouter({
     },
     {
       path: '/domain',
-      component: MainLayout,
+      component: () => import('@/layouts/MainLayout.vue'),
       children: [
         {
           path: 'edit',
           name: 'domainedit',
-          component: DomainEdit,
+          component: () => import('@/pages/DomainEdit.vue'),
           meta: {
             title: i18n.t('router.titles.edit-domain'),
             allowedRoles: ['admin', 'manager', 'advanced', 'user']
@@ -92,12 +61,12 @@ const router = new VueRouter({
     },
     {
       path: '/booking',
-      component: MainLayout,
+      component: () => import('@/layouts/MainLayout.vue'),
       children: [
         {
           path: ':type/:id',
           name: 'booking',
-          component: Booking,
+          component: () => import('@/pages/Booking.vue'),
           meta: {
             title: i18n.t('router.titles.booking'),
             allowedRoles: ['admin', 'manager', 'advanced', 'user']
@@ -106,7 +75,7 @@ const router = new VueRouter({
         {
           path: 'summary',
           name: 'bookingsummary',
-          component: BookingsSummary,
+          component: () => import('@/pages/BookingsSummary.vue'),
           meta: {
             title: i18n.t('router.titles.booking'),
             allowedRoles: ['admin', 'manager', 'advanced', 'user']
@@ -119,12 +88,12 @@ const router = new VueRouter({
     },
     {
       path: '/planning',
-      component: MainLayout,
+      component: () => import('@/layouts/MainLayout.vue'),
       children: [
         {
           path: '',
           name: 'Planning',
-          component: Planning,
+          component: () => import('@/pages/Planning.vue'),
           meta: {
             title: i18n.t('router.titles.planning'),
             allowedRoles: ['admin']
@@ -137,12 +106,12 @@ const router = new VueRouter({
     },
     {
       path: '/templates',
-      component: MainLayout,
+      component: () => import('@/layouts/MainLayout.vue'),
       children: [
         {
           path: '',
           name: 'templates',
-          component: Templates,
+          component: () => import('@/pages/Templates.vue'),
           meta: {
             title: i18n.t('router.titles.templates'),
             allowedRoles: ['admin', 'manager', 'advanced']
@@ -151,7 +120,7 @@ const router = new VueRouter({
         {
           path: 'new',
           name: 'templatenew',
-          component: TemplateNew,
+          component: () => import('@/pages/TemplateNew.vue'),
           meta: {
             title: i18n.t('router.titles.new_template'),
             allowedRoles: ['admin', 'manager', 'advanced']
@@ -160,7 +129,7 @@ const router = new VueRouter({
         {
           path: 'duplicate',
           name: 'templateduplicate',
-          component: TemplateNew,
+          component: () => import('@/pages/TemplateNew.vue'),
           meta: {
             title: i18n.t('router.titles.duplicate_template'),
             allowedRoles: ['admin', 'manager', 'advanced']
@@ -174,16 +143,16 @@ const router = new VueRouter({
     {
       path: '/rdp',
       name: 'Rdp',
-      component: Rdp
+      component: () => import('@/views/Rdp.vue')
     },
     {
       path: '/deployments',
-      component: MainLayout,
+      component: () => import('@/layouts/MainLayout.vue'),
       children: [
         {
           path: '',
           name: 'deployments',
-          component: Deployments,
+          component: () => import('@/pages/Deployments.vue'),
           meta: {
             title: i18n.t('router.titles.deployment'),
             allowedRoles: ['admin', 'manager', 'advanced']
@@ -192,7 +161,7 @@ const router = new VueRouter({
         {
           path: 'new',
           name: 'deploymentsnew',
-          component: DeploymentNew,
+          component: () => import('@/pages/DeploymentNew.vue'),
           meta: {
             title: i18n.t('router.titles.new_deployment'),
             allowedRoles: ['admin', 'manager', 'advanced']
@@ -205,12 +174,12 @@ const router = new VueRouter({
     },
     {
       path: '/deployment/:id',
-      component: MainLayout,
+      component: () => import('@/layouts/MainLayout.vue'),
       children: [
         {
           path: '',
           name: 'deployment_desktops',
-          component: Deployment,
+          component: () => import('@/pages/Deployment.vue'),
           meta: {
             title: i18n.t('router.titles.deployment'),
             allowedRoles: ['admin', 'manager', 'advanced']
@@ -219,7 +188,7 @@ const router = new VueRouter({
         {
           path: 'videowall',
           name: 'deployment_videowall',
-          component: DeploymentVideowall,
+          component: () => import('@/pages/DeploymentVideowall.vue'),
           meta: {
             title: i18n.t('router.titles.deployment_videowall'),
             allowedRoles: ['admin', 'manager', 'advanced']
@@ -228,7 +197,7 @@ const router = new VueRouter({
         {
           path: 'edit',
           name: 'deploymentEdit',
-          component: DeploymentEdit,
+          component: () => import('@/pages/DeploymentEdit.vue'),
           meta: {
             title: i18n.t('router.titles.edit-deployment'),
             allowedRoles: ['admin', 'manager', 'advanced']
@@ -241,12 +210,12 @@ const router = new VueRouter({
     },
     {
       path: '/profile',
-      component: MainLayout,
+      component: () => import('@/layouts/MainLayout.vue'),
       children: [
         {
           path: ':action?',
           name: 'profile',
-          component: Profile,
+          component: () => import('@/pages/Profile.vue'),
           meta: {
             title: i18n.t('router.titles.profile'),
             allowedRoles: ['admin', 'manager', 'advanced', 'user']
@@ -259,12 +228,12 @@ const router = new VueRouter({
     },
     {
       path: '/media',
-      component: MainLayout,
+      component: () => import('@/layouts/MainLayout.vue'),
       children: [
         {
           path: '',
           name: 'media',
-          component: Media,
+          component: () => import('@/pages/Media.vue'),
           meta: {
             title: i18n.t('router.titles.media'),
             allowedRoles: ['admin', 'manager', 'advanced']
@@ -273,7 +242,7 @@ const router = new VueRouter({
         {
           path: 'new',
           name: 'medianew',
-          component: MediaNew,
+          component: () => import('@/pages/MediaNew.vue'),
           meta: {
             title: i18n.t('router.titles.new_media'),
             allowedRoles: ['admin', 'manager', 'advanced']
@@ -282,7 +251,7 @@ const router = new VueRouter({
         {
           path: 'desktop/new',
           name: 'newfrommedia',
-          component: NewFromMedia,
+          component: () => import('@/pages/NewFromMedia.vue'),
           meta: {
             title: i18n.t('router.titles.new_desktop'),
             allowedRoles: ['admin', 'manager', 'advanced']
@@ -295,12 +264,12 @@ const router = new VueRouter({
     },
     {
       path: '/userstorage',
-      component: MainLayout,
+      component: () => import('@/layouts/MainLayout.vue'),
       children: [
         {
           path: '',
           name: 'userstorage',
-          component: Storage,
+          component: () => import('@/pages/Storage.vue'),
           meta: {
             title: i18n.t('router.titles.storage'),
             allowedRoles: ['admin', 'manager', 'advanced', 'user']
@@ -316,12 +285,12 @@ const router = new VueRouter({
       path: '/',
       name: 'RecycleBins',
       redirect: '/recycleBins',
-      component: MainLayout,
+      component: () => import('@/layouts/MainLayout.vue'),
       children: [
         {
           path: 'recycleBins',
           name: 'recycleBins',
-          component: RecycleBins,
+          component: () => import('@/pages/RecycleBins.vue'),
           meta: {
             title: i18n.t('router.titles.recycleBin'),
             allowedRoles: ['admin', 'manager', 'advanced', 'user']
@@ -330,7 +299,7 @@ const router = new VueRouter({
         {
           path: '/recyclebin/:id',
           name: 'recycleBin',
-          component: RecycleBin,
+          component: () => import('@/pages/RecycleBin.vue'),
           meta: {
             title: i18n.t('router.titles.recycleBin'),
             allowedRoles: ['admin', 'manager', 'advanced', 'user']
@@ -343,7 +312,7 @@ const router = new VueRouter({
     },
     {
       path: '/reset-password',
-      component: ResetPassword,
+      component: () => import('@/pages/ResetPassword.vue'),
       name: 'ResetPassword',
       meta: {
         title: i18n.t('router.titles.password'),
@@ -352,7 +321,7 @@ const router = new VueRouter({
     },
     {
       path: '/forgot-password',
-      component: ForgotPassword,
+      component: () => import('@/pages/ForgotPassword.vue'),
       name: 'ForgotPassword',
       meta: {
         title: i18n.t('router.titles.forgot-password')
@@ -360,7 +329,7 @@ const router = new VueRouter({
     },
     {
       path: '/verify-email',
-      component: VerifyEmail,
+      component: () => import('@/pages/VerifyEmail.vue'),
       name: 'VerifyEmail',
       meta: {
         title: i18n.t('router.titles.verify-email'),
@@ -369,7 +338,7 @@ const router = new VueRouter({
     },
     {
       path: '/disclaimer',
-      component: Disclaimer,
+      component: () => import('@/pages/Disclaimer.vue'),
       name: 'Disclaimer',
       meta: {
         title: i18n.t('router.titles.disclaimer')
@@ -378,7 +347,7 @@ const router = new VueRouter({
     {
       path: '/register',
       name: 'Register',
-      component: Register,
+      component: () => import('@/views/Register.vue'),
       meta: {
         title: i18n.t('router.titles.register'),
         requiresAuth: true
@@ -387,7 +356,7 @@ const router = new VueRouter({
     {
       path: '/error/:code',
       name: 'Error',
-      component: Error,
+      component: () => import('@/views/Error.vue'),
       meta: {
         title: i18n.t('router.titles.error')
       }
@@ -395,7 +364,7 @@ const router = new VueRouter({
     {
       path: '*',
       name: 'NotFound',
-      component: NotFound,
+      component: () => import('@/views/NotFound.vue'),
       meta: {
         title: i18n.t('router.titles.not_found')
       }
@@ -403,7 +372,7 @@ const router = new VueRouter({
     {
       path: '/maintenance',
       name: 'Maintenance',
-      component: Maintenance,
+      component: () => import('@/views/Maintenance.vue'),
       meta: {
         title: i18n.t('router.titles.maintenance')
       }
@@ -411,7 +380,7 @@ const router = new VueRouter({
     {
       path: '/vw/*',
       name: 'DirectViewer',
-      component: DirectViewer,
+      component: () => import('@/views/DirectViewer.vue'),
       meta: {
         title: i18n.t('router.titles.direct_viewer')
       }
