@@ -229,7 +229,7 @@ docker-compose-build:
 
 unit-test-go:
   stage: unit-test
-  image: golang:1.21
+  image: golang:1.22
   before_script:
     - apt-get update && apt-get install -y libvirt-dev
     - go install gotest.tools/gotestsum@latest

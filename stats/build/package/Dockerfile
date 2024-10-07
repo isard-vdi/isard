@@ -25,8 +25,7 @@ COPY stats /build/stats
 
 WORKDIR /build/stats
 
-# TODO: Remove this after Go 1.22
-RUN GOEXPERIMENT=loopvar go build -o bin/stats cmd/stats/main.go
+RUN go build -o bin/stats cmd/stats/main.go
 
 
 #

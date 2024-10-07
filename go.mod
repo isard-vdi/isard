@@ -1,8 +1,6 @@
 module gitlab.com/isard/isardvdi
 
-go 1.21.0
-
-toolchain go1.21.9
+go 1.22.8
 
 // TODO: Remove this when merged: https://github.com/crewjam/saml/pull/549
 replace github.com/crewjam/saml => github.com/Daniel-Wachter/saml v0.0.0-20240124130410-b8ee52d250c2
