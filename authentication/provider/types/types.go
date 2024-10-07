@@ -58,3 +58,41 @@ func (p ProviderUserData) ToUser() *model.User {
 
 	return u
 }
+
+func (p *ProviderUserData) FromUser(u *model.User) {
+	if u.Provider != "" {
+		p.Provider = u.Provider
+	}
+
+	if u.Category != "" {
+		p.Category = u.Category
+	}
+
+	if u.UID != "" {
+		p.UID = u.UID
+	}
+
+	if u.Role != "" {
+		p.Role = &u.Role
+	}
+
+	if u.Group != "" {
+		p.Group = &u.Group
+	}
+
+	if u.Username != "" {
+		p.Username = &u.Username
+	}
+
+	if u.Name != "" {
+		p.Name = &u.Name
+	}
+
+	if u.Email != "" {
+		p.Email = &u.Email
+	}
+
+	if u.Photo != "" {
+		p.Photo = &u.Photo
+	}
+}

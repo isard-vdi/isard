@@ -40,7 +40,7 @@ $(document).ready(function () {
             { "data": "name", className: "xe-name" },
             { "data": "description", className: "xe-description" },
             { "data": "frontend", className: "xe-frontend" },
-            { "data": "allowed_domain", className: "xe-allowed_domain" },
+            { "data": "allowed_domains", className: "xe-allowed_domains" },
             { "data": "ephemeral_desktops", className: "xe-ephemeral_desktops" },
             {
                 'data': 'maintenance',
@@ -70,7 +70,33 @@ $(document).ready(function () {
             {
                 "targets": 4,
                 "render": function (data, type, full, meta) {
-                    return full.allowed_domain ? full.allowed_domain : " ";
+                    domains = ""
+
+                    if (full.allowed_domains) {
+                        if (full.allowed_domains.local && full.allowed_domains.local.length > 0) {
+                            domains += '<span title="local">' + full.allowed_domains.local.join(', ') + '</span>'
+                        }
+                        if (full.allowed_domains.google && full.allowed_domains.google.length > 0) {
+                            if (domains.length > 0) {
+                                domains += ' │ '
+                            }
+                            domains += '<span title="google">' + full.allowed_domains.google.join(', ') + '</span>'
+                        }
+                        if (full.allowed_domains.saml && full.allowed_domains.saml.length > 0) {
+                            if (domains.length > 0) {
+                                domains += ' │ '
+                            }
+                            domains += '<span title="saml">' + full.allowed_domains.saml.join(', ') + '</span>'
+                        }
+                        if (full.allowed_domains.ldap && full.allowed_domains.ldap.length > 0) {
+                            if (domains.length > 0) {
+                                domains += ' │ '
+                            }
+                            domains += '<span title="ldap">' + full.allowed_domains.ldap.join(', ') + '</span>'
+                        }
+
+                        return domains
+                    }
                 }
             },
             {
@@ -248,6 +274,12 @@ $(document).ready(function () {
             // if (!('auto-desktops-enabled' in data)) {
             //     delete data['auto-desktops'];
             // }
+            data["allowed_domains"] = {
+                "local": splitAllowedDomains(data["allowed_domains_local"]),
+                "google": splitAllowedDomains(data["allowed_domains_google"]),
+                "saml": splitAllowedDomains(data["allowed_domains_saml"]),
+                "ldap": splitAllowedDomains(data["allowed_domains_ldap"])
+            }
             data = JSON.unflatten(data);
             max_time = false;
             if (data['max']['time'] == 'on') {
@@ -341,8 +373,25 @@ function actionsCategoryDetail() {
             $('#modalEditCategoryForm #uid').val(category.uid);
             $('#modalEditCategoryForm #description').val(category.description);
             $('#modalEditCategoryForm #id').val(category.id);
-            $('#modalEditCategoryForm #allowed_domain').val(category.allowed_domain);
 
+            api.ajax('/api/v3/admin/authentication/providers', 'GET', '').done(function (providers) {
+                if (providers.local === true) {
+                    $('#modalEditCategoryForm #allowed_domains_local_container').attr('hidden', false);
+                    $('#modalEditCategoryForm #allowed_domains_local').val(category.allowed_domains.local);
+                }
+                if (providers.google === true) {
+                    $('#modalEditCategoryForm #allowed_domains_google_container').attr('hidden', false);
+                    $('#modalEditCategoryForm #allowed_domains_google').val(category.allowed_domains.google);
+                }
+                if (providers.saml === true) {
+                    $('#modalEditCategoryForm #allowed_domains_saml_container').attr('hidden', false);
+                    $('#modalEditCategoryForm #allowed_domains_saml').val(category.allowed_domains.saml);
+                }
+                if (providers.ldap === true) {
+                    $('#modalEditCategoryForm #allowed_domains_ldap_container').attr('hidden', false);
+                    $('#modalEditCategoryForm #allowed_domains_ldap').val(category.allowed_domains.ldap);
+                }
+            });
             api.ajax('/scheduler/recycle_bin_delete/max_time_category/' + category.id, 'GET', '').done(function (time) {
                 if (time != null) {
                     $(("#modalEditCategoryForm #max-time-enabled")).iCheck('check').iCheck('update');
@@ -398,6 +447,16 @@ function actionsCategoryDetail() {
                 //     delete data['auto-desktops'];
                 //     data['auto'] = false;
                 // }
+                data["allowed_domains"] = {
+                    "local": splitAllowedDomains(data["allowed_domains_local"]),
+                    "google": splitAllowedDomains(data["allowed_domains_google"]),
+                    "saml": splitAllowedDomains(data["allowed_domains_saml"]),
+                    "ldap": splitAllowedDomains(data["allowed_domains_ldap"])
+                }
+                delete data["allowed_domains_local"];
+                delete data["allowed_domains_google"];
+                delete data["allowed_domains_saml"];
+                delete data["allowed_domains_ldap"];
                 data = JSON.unflatten(data);
                 var notice = new PNotify({
                     text: 'Updating category...',
@@ -645,4 +704,8 @@ function storagePoolEnabledShow(form) {
   $(form + " #storage-pool-enabled").on("ifUnchecked", function (event) {
     $(form + " #storage-pool-data").hide();
   });
+}
+
+function splitAllowedDomains(data) {
+    return data.split(',').map(function (item) { return item.trim() }).filter(function (item) { return item.length > 0 });
 }

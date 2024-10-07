@@ -2,6 +2,7 @@ package authentication
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"gitlab.com/isard/isardvdi/authentication/cfg"
@@ -49,6 +50,14 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("provider"), "local"),
 					r.Eq(r.Row.Field("category"), "default"),
 				))).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"allowed_domains": map[string]interface{}{
+							"local": []interface{}{},
+						},
+					},
+				}, nil)
 			},
 			PrepareAPI:      func(c *sdk.MockSdk) {},
 			PrepareSessions: func(s *grpcmock.Server) {},
@@ -111,6 +120,14 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
 					r.Eq(r.Row.Field("external_gid"), "other secondary group"),
 				))).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"allowed_domains": map[string]interface{}{
+							"local": []interface{}{},
+						},
+					},
+				}, nil)
 			},
 			PrepareAPI: func(c *sdk.MockSdk) {
 				genID := "uuid here!"
@@ -177,6 +194,33 @@ func TestStartLogin(t *testing.T) {
 				assert.Equal("user ID", tkn.UserID)
 			},
 			ExpectedRedirect: "/",
+		},
+		"should return an error if there is an error getting the category": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return(nil, fmt.Errorf("Category error"))
+			},
+			PrepareAPI:      func(c *sdk.MockSdk) {},
+			PrepareSessions: func(s *grpcmock.Server) {},
+
+			Provider: "local",
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "pau"
+				name := "Pau Abril"
+				email := "🐐@💌.kz"
+
+				return &types.ProviderUserData{
+					Provider: "local",
+					Category: "default",
+					UID:      "905d7714-df00-499a-8b0a-7d7a0a40191f",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+				}
+			},
+			Redirect: "/",
+
+			ExpectedErr: "get category: Category error",
 		},
 	}
 

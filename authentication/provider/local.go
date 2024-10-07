@@ -59,6 +59,10 @@ func (l *Local) Login(ctx context.Context, categoryID string, args LoginArgs) (*
 		}
 	}
 
+	// Update data with the new user information,
+	// as it may have data that is unknown in this point
+	data.FromUser(u)
+
 	return nil, []*model.Group{}, data, "", "", nil
 }
 

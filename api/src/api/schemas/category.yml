@@ -18,12 +18,33 @@ frontend:
   type: boolean
   nullable: true 
   default: false
-allowed_domain:
-  type: string
-  required: false
-  nullable: false
-  default: ""
-  coerce: sanitize
+allowed_domains:
+  type: dict
+  schema:
+    local:
+      type: list
+      schema:
+        type: string
+        nullable: false
+        coerce: sanitize
+    google:
+      type: list
+      schema:
+        type: string
+        nullable: false
+        coerce: sanitize
+    saml:
+      type: list
+      schema:
+        type: string
+        nullable: false
+        coerce: sanitize
+    ldap:
+      type: list
+      schema:
+        type: string
+        nullable: false
+        coerce: sanitize
 auto:
   type:
     - dict

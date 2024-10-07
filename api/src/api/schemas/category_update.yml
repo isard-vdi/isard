@@ -14,11 +14,34 @@ description:
   coerce: sanitize
 frontend:
   type: boolean
-  nullable: true 
-allowed_domain:
-  type: string
-  nullable: false
-  coerce: sanitize
+  nullable: true
+allowed_domains:
+  type: dict
+  schema:
+    local:
+      type: list
+      schema:
+        type: string
+        nullable: false
+        coerce: sanitize
+    google:
+      type: list
+      schema:
+        type: string
+        nullable: false
+        coerce: sanitize
+    saml:
+      type: list
+      schema:
+        type: string
+        nullable: false
+        coerce: sanitize
+    ldap:
+      type: list
+      schema:
+        type: string
+        nullable: false
+        coerce: sanitize
 auto:
   type:
     - dict

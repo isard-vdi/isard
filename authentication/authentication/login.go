@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/mail"
+	"slices"
+	"strings"
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -99,6 +102,40 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args provider.
 
 func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p provider.Provider, g *model.Group, secondary []*model.Group, data *types.ProviderUserData, redirect string) (string, string, error) {
 	u := data.ToUser()
+
+	c := &model.Category{ID: u.Category}
+	c, err := c.Load(ctx, a.DB)
+	if err != nil {
+		return "", "", fmt.Errorf("get category: %w", err)
+	}
+
+	domains, ok := c.AllowedDomains[u.Provider]
+	if ok {
+		// if there are domains, check the user is in the allowed domains
+		if len(domains) != 0 {
+			// If the user doesn't have an email, return an error
+			if u.Email == "" {
+				return "", "", provider.ErrUserDisallowed
+			}
+
+			// Parse the email address of the user
+			addr, err := mail.ParseAddress(u.Email)
+			if err != nil {
+				return "", "", fmt.Errorf("parse user email address: '%s': %w", u.Email, err)
+			}
+
+			// Check the position of the last @ in the email address
+			// We check for the last @ because `"user@something"@example.com` is a valid address https://stackoverflow.com/a/12355882
+			at := strings.LastIndex(addr.Address, "@")
+			// Get the domain from the email address after the last @
+			domain := u.Email[at+1:]
+
+			// If the domain is not in the allowed domains, return an error
+			if !slices.Contains(domains, domain) {
+				return "", "", provider.ErrUserDisallowed
+			}
+		}
+	}
 
 	uExists, err := u.Exists(ctx, a.DB)
 	if err != nil {
