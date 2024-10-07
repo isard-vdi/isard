@@ -14,6 +14,7 @@ import traceback
 
 from isardvdi_common.api_exceptions import Error
 
+from ..libv2.caches import get_document
 from .flask_rethink import RDB
 
 db = RDB(app)
@@ -60,7 +61,7 @@ def check_user_duplicated_domain_name(name, user_id, kind="desktop", item_id=Non
             .run(db.conn)
             > 0
         ):
-            user_name = r.table("users").get(user_id).pluck("name").run(db.conn)["name"]
+            user_name = get_document("users", user_id, ["name"])
             raise Error(
                 "conflict",
                 "User " + user_name + " already has " + kind + " with name " + name,

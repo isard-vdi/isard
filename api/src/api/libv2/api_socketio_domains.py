@@ -235,6 +235,8 @@ class DomainsThread(threading.Thread):
                         if data.get("tag", False):
                             try:
                                 deployment = get(data.get("tag"), False)
+                                if c is None:
+                                    raise Error("RethinkDB cursor is None")
                             except:
                                 continue
 
@@ -250,35 +252,35 @@ class DomainsThread(threading.Thread):
                             elif event == "add":
                                 socketio.emit(
                                     "deploymentdesktop_add",
-                                    json.dumps(
-                                        _parse_deployment_desktop(
-                                            data, deployment["user"]
-                                        )
-                                    ),
+                                    json.dumps(_parse_deployment_desktop(data)),
                                     namespace="/userspace",
                                     room=(
                                         lambda x: (x.append(deployment["user"]), x)[1]
                                     )(deployment["co_owners"]),
                                 )
 
-                            if event == "update" or (
-                                c["old_val"]
-                                and c["new_val"]
-                                and c["old_val"].get("tag_visible")
-                                != c["new_val"].get("tag_visible")
-                            ):
-                                socketio.emit(
-                                    "deploymentdesktop_update",
-                                    json.dumps(
-                                        _parse_deployment_desktop(
-                                            data, deployment["user"]
-                                        )
-                                    ),
-                                    namespace="/userspace",
-                                    room=(
-                                        lambda x: (x.append(deployment["user"]), x)[1]
-                                    )(deployment["co_owners"]),
-                                )
+                            try:
+                                if event == "update" or (
+                                    c is not None
+                                    and c.get("old_val") is not None
+                                    and c.get("new_val") is not None
+                                    and c["old_val"].get("tag_visible") is not None
+                                    and c["new_val"].get("tag_visible") is not None
+                                    and c["old_val"].get("tag_visible")
+                                    != c["new_val"].get("tag_visible")
+                                ):
+                                    socketio.emit(
+                                        "deploymentdesktop_update",
+                                        json.dumps(_parse_deployment_desktop(data)),
+                                        namespace="/userspace",
+                                        room=(
+                                            lambda x: (x.append(deployment["user"]), x)[
+                                                1
+                                            ]
+                                        )(deployment["co_owners"]),
+                                    )
+                            except:
+                                pass
 
                             # Event to deployment view (list of desktops)
                             socketio.emit(

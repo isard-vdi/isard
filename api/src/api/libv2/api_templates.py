@@ -13,6 +13,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from ..libv2.caches import get_document
 from ..libv2.validators import _validate_item
 from ..views.decorators import ownsDomainId
 from .api_cards import ApiCards
@@ -215,26 +216,24 @@ class ApiTemplates:
         return new_template_id
 
     def Get(self, template_id):
-        try:
-            with app.app_context():
-                return (
-                    r.table("domains")
-                    .get(template_id)
-                    .pluck(
-                        "id",
-                        "name",
-                        "icon",
-                        "image",
-                        "description",
-                        "allowed",
-                        "guest_properties",
-                        "create_dict",
-                        "status",
-                    )
-                    .run(db.conn)
-                )
-        except:
+        template = get_document(
+            "domains",
+            template_id,
+            [
+                "id",
+                "name",
+                "icon",
+                "image",
+                "description",
+                "allowed",
+                "guest_properties",
+                "create_dict",
+                "status",
+            ],
+        )
+        if template is None:
             raise Error("not_found", "Template id not found", traceback.format_exc())
+        return template
 
     def UpdateTemplate(self, template_id, data):
         with app.app_context():

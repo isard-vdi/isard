@@ -1246,6 +1246,7 @@
             "file-downloaded": "Fichero descargado",
             "creating-deployment": "Creando despliegue",
             "recreating-deployment": "Recreando despliegue",
+            "deployment-recreated": "Despliegue recreado",
             "deleting-deployment": "Eliminando despliegue",
             "making-visible-deployment": "Haciendo el despliegue visible",
             "making-invisible-deployment": "Haciendo el despliegue invisible",

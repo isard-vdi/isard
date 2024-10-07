@@ -16,6 +16,7 @@ from api import app
 r = RethinkDB()
 import logging as log
 
+from .caches import get_document
 from .flask_rethink import RDB
 
 db = RDB(app)
@@ -23,7 +24,6 @@ db.init_app(app)
 
 from datetime import datetime
 
-from flask import request
 from isardvdi_common.api_exceptions import Error
 
 from ..libv2.api_logging import (
@@ -54,7 +54,7 @@ class ApiDesktopsCommon:
             direct_protocol = False
 
         viewer_txt = isardviewer.viewer_data(
-            desktop_id, protocol=protocol, get_cookie=get_cookie, admin_role=admin_role
+            desktop_id, protocol=protocol, admin_role=admin_role
         )
 
         with app.app_context():
@@ -220,22 +220,18 @@ class ApiDesktopsCommon:
         )
 
     def get_domain_hardware(self, domain_id):
-        with app.app_context():
-            hardware = (
-                r.table("domains")
-                .get(domain_id)
-                .pluck({"create_dict": {"hardware", "reservables"}})
-                .run(db.conn)["create_dict"]
-            )
+        hardware_db = get_document("domains", domain_id, ["create_dict"])
+        hardware = {"hardware": hardware_db["hardware"]}
+        if hardware_db.get("reservables"):
+            hardware["reservables"] = hardware_db["reservables"]
         if "isos" in hardware["hardware"]:
             isos = hardware["hardware"]["isos"]
             hardware["hardware"]["isos"] = []
             # Loop instead of a get_all query to keep the isos array order
             for iso in isos:
-                with app.app_context():
-                    hardware["hardware"]["isos"].append(
-                        r.table("media").get(iso["id"]).pluck("id", "name").run(db.conn)
-                    )
+                hardware["hardware"]["isos"].append(
+                    get_document("media", iso["id"], ["id", "name"])
+                )
         if "floppies" in hardware["hardware"]:
             with app.app_context():
                 hardware["hardware"]["floppies"] = list(

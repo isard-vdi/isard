@@ -1372,6 +1372,7 @@
             "file-downloaded": "Fitxer descarregat",
             "creating-deployment": "Creant desplegament",
             "recreating-deployment": "Recreant desplegament",
+            "deployment-recreated": "Desplegament recreat",
             "deleting-deployment": "Esborrant desplegament",
             "making-visible-deployment": "Fent el desplegament visible",
             "making-invisible-deployment": "Fent el desplegament invisible",

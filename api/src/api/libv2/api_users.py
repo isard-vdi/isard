@@ -34,6 +34,7 @@ from api import app
 
 from .api_storage import remove_category_from_storage_pool
 from .bookings.api_booking import Bookings
+from .caches import get_cached_user_with_names
 
 apib = Bookings()
 
@@ -366,12 +367,8 @@ class ApiUsers:
         }
 
     def Get(self, user_id, get_quota=False):
-        try:
-            user = get_user(user_id)
-            user["category_name"] = get_category(user["category"])["name"]
-            user["group_name"] = get_group(user["group"])["name"]
-            user["role_name"] = get_role(user["role"])["name"]
-        except:
+        user = get_cached_user_with_names(user_id)
+        if user is None:
             raise Error(
                 "not_found",
                 "Not found user_id " + user_id,
@@ -379,6 +376,36 @@ class ApiUsers:
             )
         if get_quota:
             user = {**user, **quotas.Get(user_id)}
+        return user
+
+    def get_user_full_data(self, user_id):
+        with app.app_context():
+            try:
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                            "role_name": r.table("roles").get(d["role"])["name"],
+                            "secondary_groups_data": r.table("groups")
+                            .get_all(r.args(d["secondary_groups"]))
+                            .pluck("id", "name")
+                            .coerce_to("array"),
+                        }
+                    )
+                    .without("password")
+                    .run(db.conn)
+                )
+            except:
+                raise Error(
+                    "not_found",
+                    "Not found user_id " + user_id,
+                    traceback.format_exc(),
+                )
         return user
 
     def GetByProviderCategoryUID(self, provider, category, uid):

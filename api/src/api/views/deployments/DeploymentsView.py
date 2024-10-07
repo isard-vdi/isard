@@ -237,7 +237,9 @@ def api_v3_deployment_edit_users(payload, deployment_id):
     users = api_deployments.get_selected_users(payload, data["allowed"], "", "")
     quotas.deployment_update(users, payload["user_id"])
 
-    api_deployments.edit_deployment_users(payload, deployment_id, data.get("allowed"))
+    api_deployments.edit_deployment_users(
+        payload, deployment_id, data.get("allowed"), users
+    )
     return (
         json.dumps({}),
         200,

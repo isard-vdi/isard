@@ -28,7 +28,6 @@ import threading
 
 from .. import socketio
 from ..libv2.deployments.api_deployments import get
-from .helpers import _parse_deployment_booking
 
 threads = {}
 

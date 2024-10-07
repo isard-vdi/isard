@@ -14,6 +14,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2 import api_sessions
+from ..libv2.caches import get_document
 
 r = RethinkDB()
 import traceback
@@ -403,15 +404,8 @@ def ownsDomainId(payload, domain_id):
     if payload.get("role_id", "") == "admin":
         return True
 
-    try:
-        with app.app_context():
-            domain = (
-                r.table("domains")
-                .get(domain_id)
-                .pluck("user", "category", "tag")
-                .run(db.conn)
-            )
-    except:
+    domain = get_document("domains", domain_id, ["user", "category", "tag"])
+    if domain is None:
         raise Error(
             "not_found", "Desktop not found", traceback.format_exc(), "not_found"
         )
@@ -427,9 +421,8 @@ def ownsDomainId(payload, domain_id):
 
     # User is manager and the desktop is from its categories
     if payload["role_id"] == "manager":
-        with app.app_context():
-            if payload.get("category_id", "") == domain["category"]:
-                return True
+        if payload.get("category_id", "") == domain["category"]:
+            return True
 
     raise Error(
         "unauthorized",
@@ -468,8 +461,7 @@ def ownsMediaId(payload, media_id):
 def ownsDeploymentId(payload, deployment_id, check_co_owners=True):
     if payload["role_id"] == "admin":
         return True
-    with app.app_context():
-        deployment = r.table("deployments").get(deployment_id).run(db.conn)
+    deployment = get_document("deployments", deployment_id)
     if check_co_owners:
         if deployment and (
             deployment["user"] == payload["user_id"]
@@ -480,13 +472,7 @@ def ownsDeploymentId(payload, deployment_id, check_co_owners=True):
         if deployment and deployment["user"] == payload["user_id"]:
             return True
     if payload["role_id"] == "manager":
-        with app.app_context():
-            deployment_category = (
-                r.table("users")
-                .get(deployment["user"])
-                .pluck("category")
-                .run(db.conn)["category"]
-            )
+        deployment_category = get_document("users", deployment["user"], ["category"])
         if deployment_category == payload["category_id"]:
             return True
 
