@@ -18,7 +18,7 @@ plugins:
     out: pkg/gen/proto/python
   - protoc_builtin: pyi
     out: pkg/gen/proto/python
-  - remote: buf.build/grpc/python:v1.62.1
+  - remote: buf.build/grpc/python:v1.66.2
     out: pkg/gen/proto/python
   - local: protoc-gen-python_betterproto
     out: pkg/gen/proto/python_old
