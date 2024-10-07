@@ -1,4 +1,4 @@
-FROM alpine:3.20
+FROM alpine:edge
 
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache go python3 npm protoc
