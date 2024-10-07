@@ -1,25 +1,26 @@
-version: v1
+version: v2
 managed:
   enabled: true
-  go_package_prefix:
-    default: gitlab.com/isard/isardvdi/pkg/gen/proto/go
+  override:
+    - file_option: go_package_prefix
+      value: gitlab.com/isard/isardvdi/pkg/gen/proto/go
 plugins:
-  - name: doc
+  - local: protoc-gen-doc
     out: pkg/gen/proto/docs
     opt: markdown,index.md,source_relative
-  - name: go
+  - local: protoc-gen-go
     out: pkg/gen/proto/go
     opt: paths=source_relative
-  - name: go-grpc
+  - local: protoc-gen-go-grpc
     out: pkg/gen/proto/go
     opt: paths=source_relative
-  - plugin: python
+  - protoc_builtin: python
     out: pkg/gen/proto/python
-  - plugin: pyi
+  - protoc_builtin: pyi
     out: pkg/gen/proto/python
-  - plugin: buf.build/grpc/python:v1.62.1
+  - remote: buf.build/grpc/python:v1.62.1
     out: pkg/gen/proto/python
-  - plugin: python_betterproto
+  - local: protoc-gen-python_betterproto
     out: pkg/gen/proto/python_old
-  - plugin: es
+  - local: protoc-gen-es
     out: pkg/gen/proto/js

@@ -138,7 +138,7 @@ check-old-frontend:
 check-protobuf:
   stage: lint
   image:
-    name: bufbuild/buf:1.31.0
+    name: bufbuild/buf:1.44.0
     entrypoint: [""]
   script:
     - buf lint
