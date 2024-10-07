@@ -7,7 +7,7 @@ RUN go install github.com/bufbuild/buf/cmd/buf@v1.34.0 && \
     go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.2 && \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.4.0 && \
     go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v1.5.1 && \
-    go install github.com/ogen-go/ogen/cmd/ogen@v1.2.2 && \
+    go install github.com/ogen-go/ogen/cmd/ogen@v1.4.1 && \
     go install github.com/vektra/mockery/v2@v2.40.3 && \
     cp ~/go/bin/* /usr/bin/
 RUN python3 -m venv /venv && \
