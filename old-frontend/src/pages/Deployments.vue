@@ -99,7 +99,21 @@
         </div>
       </template>
     </IsardTable>
-    <AllowedModal @updateAllowed="updateUsers" />
+    <AllowedModal @updateAllowed="updateUsers">
+      <template #subtitle>
+        <b-alert
+          show
+          variant="danger"
+          class="mx-4"
+        >
+          <b-icon
+            class="mr-2"
+            icon="exclamation-triangle-fill"
+          />
+          {{ $t(`views.deployment.alloweds-warning`) }}
+        </b-alert>
+      </template>
+    </AllowedModal>
   </b-container>
 </template>
 <script>

@@ -822,7 +822,8 @@
                     "delete": "Delete",
                     "co-owners": "Update co-owners"
                 }
-            }
+            },
+            "alloweds-warning": "WARNING! Removing users from this deployment will also remove their associated desktops."
         },
         "direct-viewer": {
             "title": "Desktop viewers access:",

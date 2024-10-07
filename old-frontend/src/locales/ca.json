@@ -605,7 +605,8 @@
           "delete": "Esborrar",
           "co-owners": "Actualitzar copropietaris"
         }
-      }
+      },
+      "alloweds-warning": "AVÍS! Eliminar usuaris d'aquest desplegament també eliminarà els seus escriptoris associats"
     },
     "direct-viewer": {
       "title": "Accés a visors de l'escriptori:",
