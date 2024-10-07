@@ -446,13 +446,7 @@ export default {
       })
     },
     recreateDesktop (context, data) {
-      axios.post(`${apiV3Segment}/domain/${data.id}/recreate_disk`).then(response => {
-        axios.put(`${apiV3Segment}/desktop/update_storage_id/${data.id}`, { storage_id: response.data.new_id }).then(response => {
-        }).catch(e => {
-          ErrorUtils.handleErrors(e, this._vm.$snotify)
-        })
-      }
-      ).catch(e => {
+      axios.post(`${apiV3Segment}/domain/${data.id}/recreate_disk`).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     }
