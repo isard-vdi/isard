@@ -568,6 +568,40 @@ function socketio_on(){
         }
     });
 
+    $("#modalMigrateUser #send").on("click", function (e) {
+        var form = $('#modalMigrateUserForm');
+        form.parsley().validate();
+        if (form.parsley().isValid()) {
+            data = form.serializeObject();
+            var notice = new PNotify({});
+            $.ajax({
+                type: "PUT",
+                url: "/api/v3/admin/user/migrate/" + data['id'] + "/" + data['target_user'],
+                data: {},
+                contentType: "application/json",
+            }).done(function () {
+                $('.modal').modal('hide');
+                notice.update({
+                    title: `Processing...`,
+                    text: `Migrating user`,
+                    hide: false,
+                    opacity: 1,
+                    icon: 'fa fa-spinner fa-pulse'
+                });
+            }).fail(function (data) {
+                notice.update({
+                    title: "ERROR migrating user",
+                    text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-cross',
+                    opacity: 1,
+                    type: 'error'
+                });
+            });
+        }
+    })
+
     $("#modalPasswdUser #send").on('click', function(e){
         var form = $('#modalPasswdUserForm');
         form.parsley().validate();
@@ -1020,6 +1054,33 @@ function initUsersSockets () {
         });
         users_table.ajax.reload()
     });
+
+    socket.on('user_action', function (data) {
+        PNotify.removeAll();
+        var data = JSON.parse(data);
+        if (data.status === 'failed') {
+            new PNotify({
+                title: `ERROR: ${data.action} on ${data.count} user(s)`,
+                text: data.msg,
+                hide: true,
+                delay: 5000,
+                icon: 'fa fa-warning',
+                opacity: 1,
+                type: 'error'
+            });
+        } else if (data.status === 'completed') {
+            users_table.ajax.reload();
+            new PNotify({
+                title: `Action Succeeded: ${data.action}`,
+                text: `The action "${data.action}" completed on ${data.count} user(s).`,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success'
+            });
+        }
+    });
 }
 
 function actionsUserDetail(){
@@ -1261,6 +1322,79 @@ function actionsUserDetail(){
                 }
             });
         }).on('pnotify.cancel', function() {});
+    });
+
+    $('.btn-migrate').on('click', function () {
+        var closest = $(this).closest("div");
+        var id = closest.attr("data-pk");
+        var rowData = users_table.row("#" + id).data();
+        var category = rowData.category_name;
+        let modal = "#modalMigrateUser"
+        $(modal + " #modalMigrateUserForm select").empty();
+        $(modal + ' #modalMigrateUserForm #id').val(id);
+        $(modal + ' h5 .category-name').text(rowData.category_name);
+        $.ajax({
+            type: "POST",
+            url: "/api/v3/admin/user/delete/check",
+            data: JSON.stringify({ "ids": [id] }),
+            contentType: "application/json"
+        }).done(function (items) {
+            $(modal + ' #send').prop('disabled', false)
+            $(modal).modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
+            // Filter out items that do not belong to the user being migrated (deployed desktops)
+            items.desktops = items.desktops.filter(function (item) { return item.user == id });
+            populateDeleteModalTable(items.desktops, $(modal + ' #table_modal_delete_desktops'), ["name", "persistent"]);
+            populateDeleteModalTable(items.templates, $(modal + ' #table_modal_delete_templates'), ["name", "duplicate_parent_template"]);
+            populateDeleteModalTable(items.deployments, $(modal + ' #table_modal_delete_deployments'), ['name']);
+            populateDeleteModalTable(items.media, $(modal + ' #table_modal_delete_media'), ['name']);
+            $(modal + ' #target-user').select2({
+                minimumInputLength: 2,
+                dropdownParent: $(modal + "Form"),
+                placeholder: 'Select a user from category ' + rowData.category_name,
+                ajax: {
+                    type: "POST",
+                    url: '/api/v3/admin/allowed/term/users/',
+                    dataType: 'json',
+                    contentType: "application/json",
+                    delay: 250,
+                    data: function (params) {
+                        return JSON.stringify({
+                            term: params.term,
+                            pluck: ['id', 'name'],
+                        });
+                    },
+                    processResults: function (data) {
+                        // Filter out users with category_name that does not match 'category'
+                        userData = data.filter(function (item) {
+                            return item.category_name === category;
+                        });
+                        // Filter out users with role 'user' if the user being migrated is not role 'user'
+                        if (rowData.role != 'user') {
+                            userData = userData.filter(function (item) {
+                                return item.role != 'user';
+                            });
+                        }
+                        // Filter out users with role 'admin' if the user being migrated is not role 'admin'
+                        if (rowData.role != 'admin') {
+                            userData = userData.filter(function (item) {
+                                return item.role != 'admin';
+                            });
+                        }
+                        return {
+                            results: $.map(userData, function (item, i) {
+                                return {
+                                    text: item.name + ' [' + item['uid'] + '] ',
+                                    id: item.id
+                                }
+                            })
+                        };
+                    }
+                },
+            })
+        });
     });
 
     $('.btn-impersonate').on('click', function () {

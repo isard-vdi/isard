@@ -384,10 +384,11 @@ function showAndHideByCheckbox (checkboxSelector, divSelector) {
   })
 }
 
-function populateDeleteModalTable(values, table) {
+function populateDeleteModalTable(values, table, columns=null) {
     var tbody = table.find('tbody');
     tbody.empty();
     if (values.length > 0) {
+        if (!columns) {
         $.each(values, function (index, value) {
             let row = `<tr>
                 <td>${value['name']}</td>`
@@ -399,6 +400,22 @@ function populateDeleteModalTable(values, table) {
             row += '</tr>'
             return tbody.append(row);
         });
+        } else {
+            $.each(values, function (index, value) {
+                let row = `<tr>`
+                $.each(columns, function (k, v) {
+                    let val = value[v];
+                    if (v === "persistent") {
+                        val = val == false ? "No" : "Yes";
+                    } else if (v === "duplicate_parent_template") {
+                        val = val ? "Yes" : "No";
+                    }
+                    row += `<td>${val}</td>`;
+                });
+                row += '</tr>'
+                return tbody.append(row);
+            });
+        }
     } else {
         tbody.append(`<tr class="active"><td colspan="2" style="text-align:center;">No items</td></tr>`)
     }

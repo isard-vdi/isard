@@ -67,3 +67,12 @@ def notify_desktop(desktop_id, type, msg_code, params={}):
         namespace="/userspace",
         room=desktop_id,
     )
+
+
+def notify_admins(event, data={}):
+    socketio.emit(
+        event,
+        json.dumps(data),
+        namespace="/administrators",
+        room="admins",
+    )

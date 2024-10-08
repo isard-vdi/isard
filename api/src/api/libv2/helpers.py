@@ -934,6 +934,7 @@ def TemplateTreeList(template_id):
                 "group": d["group"],
                 "username": d["username"],
                 "user_name": d["user_name"],
+                "persistent": d.get("persistent"),
             }
         )
     return domains
@@ -947,7 +948,7 @@ def GetAllTemplateDerivates(template_id, user_id=None):
         template = (
             r.table("domains")
             .get(template_id)
-            .pluck("user", "name", "category", "group")
+            .pluck("user", "name", "category", "group", "duplicate_parent_template")
             .merge(
                 lambda d: {
                     "username": r.table("users").get(d["user"])["username"],
@@ -975,6 +976,7 @@ def GetAllTemplateDerivates(template_id, user_id=None):
             "group": template["group"],
             "username": template["username"],
             "user_name": template["user_name"],
+            "duplicate_parent_template": template.get("duplicate_parent_template"),
         }
     ]
     if user_id:
@@ -1002,6 +1004,8 @@ def GetAllTemplateDerivates(template_id, user_id=None):
                         "group": t["group"],
                         "username": t["username"],
                         "user_name": t["user_name"],
+                        "duplicate_parent_template": t.get("duplicate_parent_template"),
+                        "persistent": t.get("persistent"),
                     }
                 )
             else:
@@ -1038,6 +1042,7 @@ def _derivated(template_id):
                 "group",
                 "category",
                 "kind",
+                "persistent",
             )
             .merge(
                 lambda d: {

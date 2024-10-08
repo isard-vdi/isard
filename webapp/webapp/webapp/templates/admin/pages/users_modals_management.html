@@ -2149,23 +2149,21 @@
                     <div class="row">
                         <div class="x_panel">
                             <div class="x_title">
-                                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Role name and description
-                                </h4>
+                                <h4><i class="fa fa-exchange" aria-hidden="true"></i> Migrate User</h4>
                                 <div class="clearfix"></div>
                             </div>
-                            <div class="col-md-4 col-sm-4 col-xs-12">
-                                <label class="control-label" for="name">Name <span class="required">*</span>
-                                </label>
-                                <input id="name" class="roundbox" maxlength="50"
-                                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 50]"
-                                    name="name" placeholder="Role name" data-parsley-trigger="change" required
-                                    type="text" style="width:100%">
+                            <div class="col-md-12 col-sm-12 col-xs-12">
+                                <label class="control-label" for="migrateUser">Migrate User <span class="required">*</span></label>
+                                <select id="migrateUser" class="roundbox" name="migrateUser" data-parsley-trigger="change" required
+                                    style="width:100%">
+                                    <option value="">Select User</option>
+                                </select>
                             </div>
-                            <div class="col-md-8 col-sm-8 col-xs-12">
-                                <label class="control-label" for="description">Description</label>
-                                <input id="description" class="roundbox" name="description"
-                                    data-parsley-length="[0, 255]" data-parsley-trigger="change" maxlength="255"
-                                    placeholder="Role description" type="text" style="width:100%">
+                            <div class="col-md-12 col-sm-12 col-xs-12">
+                                <p class="text-danger">
+                                    <i class="fa fa-exclamation-triangle" aria-hidden="true"></i> Migrating the user will transfer
+                                    all their resources to the new user. This action is not reversible.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -2187,6 +2185,146 @@
                     </li>
                 </ul>
             </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="modalMigrateUser" tabindex="-1" role="dialog" aria-labelledby="modalMigrateUser"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-exchange"></i> Migrate user
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalMigrateUserForm" class="form-inline form-label-left">
+                    <div class="x_content">
+                <h5>Migrate within category: <b><span class="category-name"></span></b></h5>
+                    </div>
+                    <input hidden id="id" name="id" />
+                    <div class="row">
+                        <div class="col-md-12 col-sm-12 col-xs-12">
+                            <div class="x_panel">
+                                <div class="x_title col-md-12">
+                                    <h4><i class="fa fa-user"></i> User's resources</h4>
+                                </div>
+                                <div class="item form-group col-md-6">
+                                    <h4><i class="fa fa-desktop"></i> Desktops</h4>
+                                    <div class="table-wrapper">
+                                        <table id="table_modal_delete_desktops" class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th style="width:35%;">Persistent</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="item form-group col-md-6">
+                                    <h4><i class="fa fa-cube"></i> Templates</h4>
+                                    <div class="table-wrapper">
+                                        <table id="table_modal_delete_templates" class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th style="width:35%;">Duplicate</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="x_panel">
+                                <div class="item form-group col-md-6">
+                                    <h4><i class="fa fa-tv"></i> Deployments</h4>
+                                    <div class="table-wrapper">
+                                        <table id="table_modal_delete_deployments" class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="item form-group col-md-6">
+                                    <h4> <i class="fa fa-circle-o"></i> Media</h4>
+                                    <div class="table-wrapper">
+                                        <table id="table_modal_delete_media" class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 col-sm-12 col-xs-12">
+                            <div class="x_panel">
+                                <div class="x_title">
+                                    <h4><i class="fa fa-exchange"></i> Migrate resources to another user</h4>
+                                    <div class="clearfix"></div>
+                                    <div class="alert alert-info col-md-12 col-sm-12 col-xs-12">
+                                        <ul>
+                                            <li>Any running desktops will be stopped.</li>
+                                            <li>The user's recycle bin will be emptied.</li>
+                                            <li>The user's bookings will be deleted.</li>
+                                            <li>Non-persistent desktops will be DELETED</li>
+                                            <li>The list of coworkers in deployments will be deleted.</li>
+                                            <li>Desktops belonging to other users in migrated deployments will remain intact.</li>
+                                            <li>Resources not allowed for the <b>new</b> user will be removed or restricted.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                   
+                                    <!-- <div class="alert alert-danger col-md-12 col-sm-12 col-xs-12"><i
+                                            class="fa fa-warning"></i> This action is irreversible.</div> -->
+                                <div class="col-md-12 col-sm-12 col-xs-12">
+                                    <label class="control-label" for="group">Migrate resources to this user:</label>
+                                    <select style="width:100%" id="target-user" name="target_user" class="form-control"
+                                        required placeholer="Select one user">
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    </li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-success">Migrate user</button>
+                    </li>
+                </ul>
+            </div>
+
+
+
         </div>
     </div>
 </div>
