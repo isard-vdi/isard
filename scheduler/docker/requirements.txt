@@ -1,5 +1,5 @@
 Flask==2.3.3
-Flask-Cors==3.0.10
+Flask-Cors==5.0.0
 gevent-websocket==0.10.1
 Flask-SocketIO==5.1.0
 rethinkdb==2.4.10.post1
