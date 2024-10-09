@@ -287,7 +287,9 @@
                 "unit": "Mida unitat personal / Mida total unitat personal (MB)",
                 "deployments_total": "Desplegaments creats / Total de desplegaments",
                 "deployment_desktops": "Maxim d'escriptoris per desplegament",
-                "started_deployment_desktops": "Escriptoris iniciats per desplegament"
+                "started_deployment_desktops": {
+                    "title": "Escriptoris de desplegament arrencats / Total escriptoris de desplegament arrencats"
+                }
             },
             "reset-vpn": "Restablir VPN"
         },
