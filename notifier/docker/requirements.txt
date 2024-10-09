@@ -4,7 +4,7 @@ gevent==23.9.1
 pydantic~=2.4
 PyJWT==2.8.0
 requests==2.31.0
-rethinkdb==2.4.9
+rethinkdb==2.4.10.post1
 rq~=1.14
 spectree~=1.2
 waitress~=2.1
