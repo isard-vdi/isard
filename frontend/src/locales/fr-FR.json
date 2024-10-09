@@ -1,7 +1,8 @@
 {
-    "router": {
-        "titles": {
-            "home": "Accueil"
-        }
+  "router": {
+    "titles": {
+      "home": "Accueil",
+      "login": "Se connecter"
     }
+  }
 }
