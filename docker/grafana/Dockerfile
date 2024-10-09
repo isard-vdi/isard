@@ -1,4 +1,4 @@
-FROM registry.gitlab.com/isard/grafana:v11.1.0
+FROM registry.gitlab.com/isard/grafana:v11.2.2
 
 USER root
 
