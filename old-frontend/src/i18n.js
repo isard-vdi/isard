@@ -17,6 +17,17 @@ function loadLocaleMessages () {
   return messages
 }
 
+const NewLocaleToOldLocale = {
+  en: 'en-US',
+  ca: 'ca-ES',
+  eu: 'eu-ES',
+  es: 'es-ES'
+}
+
+export function getLocaleCode (locale) {
+  return NewLocaleToOldLocale[locale] || locale
+}
+
 export default new VueI18n({
   locale: getLocale(),
   fallbackLocale: 'en',
@@ -24,7 +35,7 @@ export default new VueI18n({
 })
 
 function getLocale () {
-  const sessionCookie = localStorage.language
+  const sessionCookie = localStorage.language ? localStorage.language.split('_')[0].split('-')[0] : undefined
   if (StringUtils.isNullOrUndefinedOrEmpty(sessionCookie)) {
     const lang = navigator.language || navigator.browserLanguage || (navigator.languages || ['en'])[0]
     return lang.split('_')[0].split('-')[0]

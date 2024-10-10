@@ -19,6 +19,7 @@
 <script>
 import { mapActions } from 'vuex'
 import moment from 'moment'
+import { getLocaleCode } from '@/i18n'
 
 export default {
   props: {
@@ -48,7 +49,7 @@ export default {
       if (this.saveLanguage) {
         this.saveNewLanguage()
       }
-      localStorage.language = lang
+      localStorage.language = getLocaleCode(lang)
       this.$i18n.locale = lang
       moment.locale(lang)
     }

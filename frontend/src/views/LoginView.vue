@@ -510,6 +510,7 @@ watch(error, (newErr) => {
 watch(config, (newCfg) => {
   if (newCfg?.locale?.default) {
     setLocale(newCfg.locale.default as Locale)
+    localStorage.language = newCfg.locale.default
   }
 })
 

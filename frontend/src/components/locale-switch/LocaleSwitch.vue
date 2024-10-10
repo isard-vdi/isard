@@ -14,6 +14,7 @@ const locale = defineModel<Locale>({
   default: i18n.global.locale.value as Locale,
   set(newLocale) {
     setLocale(newLocale)
+    localStorage.language = newLocale
 
     return newLocale
   }
