@@ -16,9 +16,12 @@ rm -rf pkg/gen
 rm -rf frontend/src/gen
 rm -f ./*/**/testing_*_mock.go
 
+mkdir -p /tmp/go
+export HOME=/tmp
+export GOPATH=/tmp/go
+
 # Protobuf
 source /venv/bin/activate
-export HOME=/tmp
 buf generate
 
 # Notifier OAS

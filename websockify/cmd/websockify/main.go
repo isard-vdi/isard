@@ -6,12 +6,10 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"gitlab.com/isard/isardvdi-sdk-go"
 )
@@ -41,9 +39,20 @@ var upgrader = websocket.Upgrader{
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	tkn, err := url.QueryUnescape(vars["token"])
+	tkn := r.PathValue("token")
+	if tkn == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	port, err := strconv.Atoi(r.PathValue("port"))
 	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	hyper := r.PathValue("hyper")
+	if hyper == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -59,15 +68,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	port, err := strconv.Atoi(vars["port"])
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
 	if err := cli.UserOwnsDesktop(r.Context(), &isardvdi.UserOwnsDesktopOpts{
 		ProxyVideo:     r.Host,
-		ProxyHyperHost: vars["hyper"],
+		ProxyHyperHost: hyper,
 		Port:           port,
 	}); err != nil {
 		if errors.Is(err, isardvdi.ErrForbidden) {
@@ -88,8 +91,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	defer wsConn.Close()
 
-	tcpAddr := vars["hyper"] + ":" + vars["port"]
-	tcpConn, err := net.Dial("tcp", tcpAddr)
+	tcpConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", hyper, port))
 	if err != nil {
 		log.Printf("tcp connection: %v", err)
 		return
@@ -179,11 +181,9 @@ func connQuality(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	r := mux.NewRouter()
-	r.HandleFunc("/conn-quality", connQuality)
-	r.HandleFunc("/{hyper}/{port:[0-9]+}/{token}", handler)
+	http.HandleFunc("/conn-quality", connQuality)
+	http.HandleFunc("/{hyper}/{port}/{token}", handler)
 
-	http.Handle("/", r)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("listen at port 8080: %v", err)
 	}

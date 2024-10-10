@@ -13,9 +13,12 @@ COPY go.sum /build
 
 RUN go mod download
 
-COPY . /build
+COPY pkg /build/pkg
+COPY websockify /build/websockify
 
-RUN go build -o websockify main.go
+WORKDIR /build/websockify
+
+RUN CGO_ENABLED=0 go build -o bin/websockify cmd/websockify/main.go
 
 
 #
@@ -23,11 +26,10 @@ RUN go build -o websockify main.go
 # 
 FROM ${GOLANG_RUN_IMAGE}
 
-MAINTAINER isard <info@isardvdi.com>
-
 RUN apk -U upgrade --no-cache
 
-COPY --from=build /build/websockify /
+COPY --from=build /build/websockify/bin/websockify /websockify
+
+USER nobody
 
 CMD [ "/websockify" ]
-USER nobody
