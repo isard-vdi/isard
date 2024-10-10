@@ -191,6 +191,7 @@ tables = [
     "storage_pool",
     "notification_tmpls",
     "system_events",
+    "bookings",
 ]
 
 
@@ -4738,6 +4739,20 @@ password:s:%s"""
     BOOKINGS TABLE UPGRADES
     """
 
+    def bookings(self, version):
+        table = "bookings"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+        if version == 148:
+            try:
+                r.table(table).index_create("item_type").run(self.conn)
+                r.table(table).index_wait("item_type").run(self.conn)
+            except Exception as e:
+                print(e)
+
+    """
+    BOOKINGS PRIORITY TABLE UPGRADES
+    """
+
     def bookings_priority(self, version):
         table = "bookings_priority"
         log.info("UPGRADING " + table + " VERSION " + str(version))
@@ -4844,13 +4859,6 @@ password:s:%s"""
         #         ).update({"allowed": new_allowed}).run(self.conn)
         #     except Exception as e:
         #         print(e)
-
-        if version == 148:
-            try:
-                r.table(table).index_create("item_type").run(self.conn)
-                r.table(table).index_wait("item_type").run(self.conn)
-            except Exception as e:
-                print(e)
 
     """
     CATEGORIES TABLE UPGRADES
