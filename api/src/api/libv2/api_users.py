@@ -2097,12 +2097,13 @@ class ApiUsers:
         return user
 
     def process_migrate_user(self, user_id, target_user_id):
+        user_data = get_new_user_data(target_user_id)
         try:
-
-            self.migrate_user(user_id, target_user_id)
+            self.migrate_user(user_id, user_data)
             notify_admins(
                 "user_action",
                 {"action": "migrate", "count": 1, "status": "completed"},
+                category=user_data["new_user"]["category"],
             )
         except Error as e:
             app.logger.error(e)
@@ -2117,6 +2118,7 @@ class ApiUsers:
                     "msg": error_message,
                     "status": "failed",
                 },
+                category=user_data["new_user"]["category"],
             )
         except Exception:
             app.logger.error(traceback.format_exc())
@@ -2130,9 +2132,8 @@ class ApiUsers:
                 },
             )
 
-    def migrate_user(self, user_id, target_user_id):
+    def migrate_user(self, user_id, user_data):
         user_resources = self.get_resources(user_id)
-        user_data = get_new_user_data(target_user_id)
         if user_resources["domains"]:
             self.change_owner_domains(user_resources["domains"], user_data, user_id)
         if user_resources["media"]:

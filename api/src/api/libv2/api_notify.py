@@ -69,10 +69,17 @@ def notify_desktop(desktop_id, type, msg_code, params={}):
     )
 
 
-def notify_admins(event, data={}):
+def notify_admins(event, data={}, category=None):
     socketio.emit(
         event,
         json.dumps(data),
         namespace="/administrators",
         room="admins",
     )
+    if category:
+        socketio.emit(
+            event,
+            json.dumps(data),
+            namespace="/administrators",
+            room=category,
+        )
