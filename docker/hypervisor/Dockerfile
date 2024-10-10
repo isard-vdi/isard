@@ -153,7 +153,7 @@ RUN mkdir -p /etc/pki/libvirt-spice
 RUN mkdir /root/.ssh
 
 # Add needed sources
-COPY docker/hypervisor/networks/ /etc/libvirt/qemu/networks/
+COPY docker/hypervisor/networks/ /opt/default_networks
 
 # Api
 COPY docker/hypervisor/requirements.txt requirements.txt
