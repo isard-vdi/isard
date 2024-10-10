@@ -463,7 +463,7 @@ class Quotas:
             limits_error,
         )
 
-    def media_create(self, user_id, media_size=False):
+    def media_create(self, user_id, media_size=False, quantity=1):
         try:
             with app.app_context():
                 user = (
@@ -528,7 +528,7 @@ class Quotas:
         self.check_field_quotas_and_limits(
             user,
             "isos",
-            1,
+            quantity,
             quota_error,
             group_quantity,
             category_quantity,
@@ -1375,7 +1375,7 @@ class Quotas:
 
         return desktop
 
-    def deployment_create(self, users, owner_id):
+    def deployment_create(self, users, owner_id, quantity=1):
         try:
             with app.app_context():
                 user = (
@@ -1441,7 +1441,7 @@ class Quotas:
         self.check_field_quotas_and_limits(
             user,
             "deployments_total",
-            1,
+            quantity,
             quota_error,
             group_quantity,
             category_quantity,

@@ -1250,3 +1250,27 @@ def admin_user_reset_vpn(payload, user_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/admin/user/migrate/<user_id>/<target_user_id>", methods=["PUT"])
+@is_admin_or_manager
+def admin_user_migrate(payload, user_id, target_user_id):
+    ownsUserId(payload, user_id)
+    ownsUserId(payload, target_user_id)
+    if users.Get(user_id)["category"] != users.Get(target_user_id)["category"]:
+        raise Error(
+            "precondition_required",
+            "Can't migrate users from different categories",
+        )
+    if payload["role_id"] != "admin":
+        if users.Get(user_id)["role"] == "admin":
+            raise Error(
+                "forbidden",
+                "Not allowed to migrate to an admin user",
+            )
+    gevent.spawn(users.process_migrate_user, user_id, target_user_id)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
