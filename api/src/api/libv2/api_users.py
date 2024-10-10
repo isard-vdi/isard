@@ -2224,6 +2224,11 @@ class ApiUsers:
         if user_data["payload"]["role_id"] == "user":
             raise Error("bad_request", 'Role "user" can not own deployments.')
 
+        # check deployment create quota, ignore number of users in the deployment
+        quotas.deployment_create(
+            [], user_data["new_user"]["user"], len(deployments_ids)
+        )
+
         # remove old_user_id from co_owners
         with app.app_context():
             # for each deployment old_user_id is in co_owners, remove old_user_id from co_owners
