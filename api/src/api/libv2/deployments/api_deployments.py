@@ -449,7 +449,7 @@ def create_deployment_desktops(deployment_tag, desktop_data, users):
     ApiDesktopsPersistent().NewFromTemplateTh(desktops, deployment)
 
 
-def edit_deployment_users(payload, deployment_id, allowed, users):
+def edit_deployment_users(payload, deployment_id, allowed):
     deployment = get_document("deployments", deployment_id)
     if not deployment:
         raise Error(
