@@ -2138,10 +2138,7 @@ class ApiUsers:
             self.change_owner_domains(user_resources["domains"], user_data, user_id)
         if user_resources["media"]:
             self.change_owner_media(user_resources["media"], user_data)
-        if user_resources["deployments"]:
-            self.change_owner_deployments(
-                user_resources["deployments"], user_data, user_id
-            )
+        self.change_owner_deployments(user_resources["deployments"], user_data, user_id)
         rb_ids = get_user_recycle_bin_ids(user_id, "recycled")
         for rb_id in rb_ids:
             rb_delete_queue.enqueue({"recycle_bin_id": rb_id, "user_id": user_id})
@@ -2220,30 +2217,36 @@ class ApiUsers:
 
     def change_owner_deployments(self, deployments_ids, user_data, old_user_id):
         # TODO: change allowed to false if the target user is on a different category
-
-        # check if the new owner is role user
-        if user_data["payload"]["role_id"] == "user":
-            raise Error("bad_request", 'Role "user" can not own deployments.')
-
-        # check deployment create quota, ignore number of users in the deployment
-        quotas.deployment_create(
-            [], user_data["new_user"]["user"], len(deployments_ids)
-        )
-
-        # remove old_user_id from co_owners
         with app.app_context():
             # for each deployment old_user_id is in co_owners, remove old_user_id from co_owners
             r.table("deployments").get_all(old_user_id, index="co_owners").update(
                 {"co_owners": r.row["co_owners"].difference([old_user_id])}
             ).run(db.conn)
 
-        # change owner
-        for i in range(0, len(deployments_ids), 100):
-            batch_deployments_ids = deployments_ids[i : i + 100]
-            with app.app_context():
-                r.table("deployments").get_all(r.args(batch_deployments_ids)).update(
-                    {"user": user_data["new_user"]["user"], "co_owners": r.literal([])}
-                ).run(db.conn)
+        if deployments_ids:
+            # check if the new owner is role user
+            if user_data["payload"]["role_id"] == "user":
+                raise Error("bad_request", 'Role "user" can not own deployments.')
+
+            # check deployment create quota, ignore number of users in the deployment
+            quotas.deployment_create(
+                [], user_data["new_user"]["user"], len(deployments_ids)
+            )
+
+            # change owner
+            for i in range(0, len(deployments_ids), 100):
+                batch_deployments_ids = deployments_ids[i : i + 100]
+                with app.app_context():
+                    r.table("deployments").get_all(
+                        r.args(batch_deployments_ids)
+                    ).update(
+                        {
+                            "user": user_data["new_user"]["user"],
+                            "co_owners": r.literal([]),
+                        }
+                    ).run(
+                        db.conn
+                    )
 
 
 def validate_email_jwt(user_id, email, minutes=60):
