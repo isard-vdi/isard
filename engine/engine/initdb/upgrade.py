@@ -19,7 +19,10 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 147
+release_version = 148
+# release 148: Add booking_id, kind_booking, kind_valid_booking index to domains table
+#              Add item_type index to bookings table
+#              Update desktops without booking_id to booking_id False
 # release 147: Add new virtio video model
 # release 146: Add template index to authentication table
 # release 145: Change default QoS values
@@ -2918,6 +2921,42 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 148:
+            try:
+                r.table(table).index_create("booking_id").run(self.conn)
+                r.table(table).index_wait("booking_id").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "kind_booking",
+                    [r.row["kind"], r.row["booking_id"]],
+                ).run(self.conn)
+                r.table(table).index_wait("kind_booking").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).get_all("desktop", index="kind").filter(
+                    r.row.has_fields("booking_id").not_()
+                ).update({"booking_id": False}).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "kind_valid_booking",
+                    lambda doc: r.branch(
+                        doc["booking_id"] != False,
+                        doc["kind"],
+                        None,
+                    ),
+                ).run(self.conn)
+                r.table(table).index_wait("kind_valid_booking").run(self.conn)
+            except Exception as e:
+                print(e)
         return True
 
     """
@@ -4805,6 +4844,13 @@ password:s:%s"""
         #         ).update({"allowed": new_allowed}).run(self.conn)
         #     except Exception as e:
         #         print(e)
+
+        if version == 148:
+            try:
+                r.table(table).index_create("item_type").run(self.conn)
+                r.table(table).index_wait("item_type").run(self.conn)
+            except Exception as e:
+                print(e)
 
     """
     CATEGORIES TABLE UPGRADES

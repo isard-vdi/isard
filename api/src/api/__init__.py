@@ -114,6 +114,11 @@ socketio = SocketIO(
 
 import logging as log
 
+from api.libv2.bookings.api_booking import check_all_bookings
+
+check_all_bookings()
+
+
 """'
 Import all views
 """

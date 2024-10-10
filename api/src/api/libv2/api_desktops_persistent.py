@@ -272,6 +272,7 @@ class ApiDesktopsPersistent:
             "tag": False,
             "tag_name": False,
             "tag_visible": False,
+            "booking_id": False,
         }
         if deployment_tag_dict:
             new_desktop = {**new_desktop, **deployment_tag_dict}
@@ -648,6 +649,7 @@ class ApiDesktopsPersistent:
             "tag": False,
             "tag_name": False,
             "tag_visible": False,
+            "booking_id": False,
         }
 
         res = quotas.limit_user_hardware_allowed(payload, domain["create_dict"])
