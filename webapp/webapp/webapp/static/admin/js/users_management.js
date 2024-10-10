@@ -1368,9 +1368,13 @@ function actionsUserDetail(){
                     },
                     processResults: function (data) {
                         // Filter out users with category_name that does not match 'category'
-                        userData = data.filter(function (item) {
-                            return item.category_name === category;
-                        });
+                        if ($('meta[id=user_data]').data('role') != 'admin') {
+                            userData = data;
+                        } else {
+                            userData = data.filter(function (item) {
+                                return item.category_name === category;
+                            });
+                        }
                         // Filter out users with role 'user' if the user being migrated is not role 'user'
                         if (rowData.role != 'user') {
                             userData = userData.filter(function (item) {
@@ -1378,7 +1382,7 @@ function actionsUserDetail(){
                             });
                         }
                         // Filter out users with role 'admin' if the user being migrated is not role 'admin'
-                        if (rowData.role != 'admin') {
+                        if ($('meta[id=user_data]').data('role') != 'admin') {
                             userData = userData.filter(function (item) {
                                 return item.role != 'admin';
                             });
