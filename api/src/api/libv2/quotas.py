@@ -41,9 +41,11 @@ class Quotas:
                 .pluck("id", "name", "category", "group", "quota")
                 .run(db.conn)
             )
+        with app.app_context():
             group = (
                 r.table("groups").get(user["group"]).pluck("name", "quota").run(db.conn)
             )
+        with app.app_context():
             category = (
                 r.table("categories")
                 .get(user["category"])
@@ -79,9 +81,11 @@ class Quotas:
                 .pluck("id", "name", "category", "group", "quota")
                 .run(db.conn)
             )
+        with app.app_context():
             group = (
                 r.table("groups").get(user["group"]).pluck("name", "quota").run(db.conn)
             )
+        with app.app_context():
             category = (
                 r.table("categories")
                 .get(user["category"])
@@ -89,7 +93,8 @@ class Quotas:
                 .run(db.conn)
             )
 
-            # Used
+        # Used
+        with app.app_context():
             user_desktops = (
                 r.table("domains")
                 .get_all(
@@ -100,6 +105,7 @@ class Quotas:
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             user_volatile = (
                 r.table("domains")
                 .get_all(["desktop", user_id], index="kind_user")
@@ -107,6 +113,7 @@ class Quotas:
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             user_templates = (
                 r.table("domains")
                 .get_all(["template", user_id, False], index="kind_user_tag")
@@ -114,20 +121,23 @@ class Quotas:
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             user_media = (
                 r.table("media")
                 .get_all(["Downloaded", user_id], index="status_user")
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             user_deployments = (
                 r.table("deployments")
                 .get_all(user_id, index="user")
                 .count()
                 .run(db.conn)
             )
-            user_deployment_desktops = 0
+        user_deployment_desktops = 0
 
+        with app.app_context():
             user_total_storage_size = (
                 (
                     r.table("storage")
@@ -143,6 +153,7 @@ class Quotas:
                 )
             ) / 1073741824
 
+        with app.app_context():
             user_total_media_size = (
                 r.table("media")
                 .get_all(["Downloaded", user_id], index="status_user")
@@ -150,7 +161,7 @@ class Quotas:
                 .run(db.conn)
             ) / 1073741824
 
-            user_total_size = user_total_storage_size + user_total_media_size
+        user_total_size = user_total_storage_size + user_total_media_size
 
         used = {
             "desktops": user_desktops,
@@ -275,6 +286,7 @@ class Quotas:
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             category_quantity = (
                 r.table("domains")
                 .get_all(["desktop", user["category"]], index="kind_category")
@@ -526,33 +538,35 @@ class Quotas:
         # Check media size restrictions
         if media_size:
             # Get the group used disk size in GB
-            group_total_size = (
-                r.table("users")
-                .get_all(user["group"], index="group")
-                .eq_join(
-                    [r.row["id"], "ready"], r.table("storage"), index="user_status"
-                )
-                .sum(
-                    lambda right: right["right"]["qemu-img-info"][
-                        "actual-size"
-                    ].default(0)
-                )
-                .run(db.conn)
-            ) / 1073741824
+            with app.app_context():
+                group_total_size = (
+                    r.table("users")
+                    .get_all(user["group"], index="group")
+                    .eq_join(
+                        [r.row["id"], "ready"], r.table("storage"), index="user_status"
+                    )
+                    .sum(
+                        lambda right: right["right"]["qemu-img-info"][
+                            "actual-size"
+                        ].default(0)
+                    )
+                    .run(db.conn)
+                ) / 1073741824
             # Get the category used disk size in GB
-            category_total_size = (
-                r.table("users")
-                .get_all(user["category"], index="category")
-                .eq_join(
-                    [r.row["id"], "ready"], r.table("storage"), index="user_status"
-                )
-                .sum(
-                    lambda right: right["right"]["qemu-img-info"][
-                        "actual-size"
-                    ].default(0)
-                )
-                .run(db.conn)
-            ) / 1073741824
+            with app.app_context():
+                category_total_size = (
+                    r.table("users")
+                    .get_all(user["category"], index="category")
+                    .eq_join(
+                        [r.row["id"], "ready"], r.table("storage"), index="user_status"
+                    )
+                    .sum(
+                        lambda right: right["right"]["qemu-img-info"][
+                            "actual-size"
+                        ].default(0)
+                    )
+                    .run(db.conn)
+                ) / 1073741824
             quota_error = {
                 "error_description": user["name"]
                 + " disk size quota exceeded for creating new media",
@@ -692,8 +706,8 @@ class Quotas:
 
         started_deployment_desktops = 0
 
-        with app.app_context():
-            try:
+        try:
+            with app.app_context():
                 started_deployment_desktops += (
                     r.table("domains")
                     .get_all(
@@ -723,10 +737,11 @@ class Quotas:
                     .count()
                     .run(db.conn)
                 )
-            except ReqlNonExistenceError:
-                pass
+        except ReqlNonExistenceError:
+            pass
 
-            try:
+        try:
+            with app.app_context():
                 started_deployment_desktops += (
                     r.table("domains")
                     .get_all(
@@ -756,8 +771,8 @@ class Quotas:
                     .count()
                     .run(db.conn)
                 )
-            except ReqlNonExistenceError:
-                pass
+        except ReqlNonExistenceError:
+            pass
 
         return started_deployment_desktops
 
@@ -858,8 +873,8 @@ class Quotas:
                     )
                     .run(db.conn)
                 )
-                if user["role"] == "admin":
-                    return desktop
+            if user["role"] == "admin":
+                return desktop
         except:
             raise Error("not_found", "User not found")
 
@@ -981,25 +996,27 @@ class Quotas:
             )
 
             # Get the group used disk size
-            total_size = (
-                r.table("users")
-                .get_all(user["group"], index="group")
-                .eq_join(
-                    [r.row["id"], "ready"], r.table("storage"), index="user_status"
+            with app.app_context():
+                total_size = (
+                    r.table("users")
+                    .get_all(user["group"], index="group")
+                    .eq_join(
+                        [r.row["id"], "ready"], r.table("storage"), index="user_status"
+                    )
+                    .sum(
+                        lambda right: right["right"]["qemu-img-info"][
+                            "actual-size"
+                        ].default(0)
+                    )
+                    .run(db.conn)
                 )
-                .sum(
-                    lambda right: right["right"]["qemu-img-info"][
-                        "actual-size"
-                    ].default(0)
+            with app.app_context():
+                total_media_size = (
+                    r.table("media")
+                    .get_all(user["group"], index="group")
+                    .sum(lambda size: size["progress"]["total_bytes"].default(0))
+                    .run(db.conn)
                 )
-                .run(db.conn)
-            )
-            total_media_size = (
-                r.table("media")
-                .get_all(user["group"], index="group")
-                .sum(lambda size: size["progress"]["total_bytes"].default(0))
-                .run(db.conn)
-            )
             # Add 1GB to the desktop and parsing to GB to check if starting it would exceed the group quota
             user_quota_data["used"]["total_size"] = (
                 total_size + total_media_size
@@ -1075,21 +1092,27 @@ class Quotas:
         )
 
         # Get the category used disk size
-        total_size = (
-            r.table("users")
-            .get_all(user["category"], index="category")
-            .eq_join([r.row["id"], "ready"], r.table("storage"), index="user_status")
-            .sum(
-                lambda right: right["right"]["qemu-img-info"]["actual-size"].default(0)
+        with app.app_context():
+            total_size = (
+                r.table("users")
+                .get_all(user["category"], index="category")
+                .eq_join(
+                    [r.row["id"], "ready"], r.table("storage"), index="user_status"
+                )
+                .sum(
+                    lambda right: right["right"]["qemu-img-info"][
+                        "actual-size"
+                    ].default(0)
+                )
+                .run(db.conn)
             )
-            .run(db.conn)
-        )
-        total_media_size = (
-            r.table("media")
-            .get_all(user["category"], index="category")
-            .sum(lambda size: size["progress"]["total_bytes"].default(0))
-            .run(db.conn)
-        )
+        with app.app_context():
+            total_media_size = (
+                r.table("media")
+                .get_all(user["category"], index="category")
+                .sum(lambda size: size["progress"]["total_bytes"].default(0))
+                .run(db.conn)
+            )
         # Add 1GB to the desktop and parsing to GB to check if starting it would exceed the category quota
         user_quota_data["used"]["total_size"] = (
             total_size + total_media_size
@@ -1142,8 +1165,8 @@ class Quotas:
                     )
                     .run(db.conn)
                 )
-                if user["role"] == "admin":
-                    return desktop
+            if user["role"] == "admin":
+                return desktop
         except:
             raise Error("not_found", "User not found")
 
@@ -1217,25 +1240,27 @@ class Quotas:
             )
 
             # Get the group used disk size
-            total_size = (
-                r.table("users")
-                .get_all(user["group"], index="group")
-                .eq_join(
-                    [r.row["id"], "ready"], r.table("storage"), index="user_status"
+            with app.app_context():
+                total_size = (
+                    r.table("users")
+                    .get_all(user["group"], index="group")
+                    .eq_join(
+                        [r.row["id"], "ready"], r.table("storage"), index="user_status"
+                    )
+                    .sum(
+                        lambda right: right["right"]["qemu-img-info"][
+                            "actual-size"
+                        ].default(0)
+                    )
+                    .run(db.conn)
                 )
-                .sum(
-                    lambda right: right["right"]["qemu-img-info"][
-                        "actual-size"
-                    ].default(0)
+            with app.app_context():
+                total_media_size = (
+                    r.table("media")
+                    .get_all(user["group"], index="group")
+                    .sum(lambda size: size["progress"]["total_bytes"].default(0))
+                    .run(db.conn)
                 )
-                .run(db.conn)
-            )
-            total_media_size = (
-                r.table("media")
-                .get_all(user["group"], index="group")
-                .sum(lambda size: size["progress"]["total_bytes"].default(0))
-                .run(db.conn)
-            )
             # Add 1GB to the desktop and parsing to GB to check if starting it would exceed the group quota
             user_quota_data["used"]["total_size"] = (
                 total_size + total_media_size
@@ -1311,21 +1336,27 @@ class Quotas:
         )
 
         # Get the category used disk size
-        total_size = (
-            r.table("users")
-            .get_all(user["category"], index="category")
-            .eq_join([r.row["id"], "ready"], r.table("storage"), index="user_status")
-            .sum(
-                lambda right: right["right"]["qemu-img-info"]["actual-size"].default(0)
+        with app.app_context():
+            total_size = (
+                r.table("users")
+                .get_all(user["category"], index="category")
+                .eq_join(
+                    [r.row["id"], "ready"], r.table("storage"), index="user_status"
+                )
+                .sum(
+                    lambda right: right["right"]["qemu-img-info"][
+                        "actual-size"
+                    ].default(0)
+                )
+                .run(db.conn)
             )
-            .run(db.conn)
-        )
-        total_media_size = (
-            r.table("media")
-            .get_all(user["category"], index="category")
-            .sum(lambda size: size["progress"]["total_bytes"].default(0))
-            .run(db.conn)
-        )
+        with app.app_context():
+            total_media_size = (
+                r.table("media")
+                .get_all(user["category"], index="category")
+                .sum(lambda size: size["progress"]["total_bytes"].default(0))
+                .run(db.conn)
+            )
         # Add 1GB to the desktop and parsing to GB to check if starting it would exceed the category quota
         user_quota_data["used"]["total_size"] = (
             total_size + total_media_size
@@ -1382,6 +1413,7 @@ class Quotas:
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             category_quantity = (
                 r.table("deployments")
                 .eq_join("user", r.table("users"))
@@ -1576,15 +1608,16 @@ class Quotas:
             interfaces_requested = create_dict["hardware"]["interfaces"]
             for interface_requested in interfaces_requested:
                 if interface_requested["id"] not in interfaces_allowed:
-                    limited["interfaces"]["old_value"].append(
-                        {
-                            "id": interface_requested["id"],
-                            "name": r.table("interfaces")
-                            .get(interface_requested["id"])
-                            .pluck("name")
-                            .run(db.conn)["name"],
-                        }
-                    )
+                    with app.app_context():
+                        limited["interfaces"]["old_value"].append(
+                            {
+                                "id": interface_requested["id"],
+                                "name": r.table("interfaces")
+                                .get(interface_requested["id"])
+                                .pluck("name")
+                                .run(db.conn)["name"],
+                            }
+                        )
 
             create_dict["hardware"]["interfaces"] = [
                 x
@@ -1596,12 +1629,13 @@ class Quotas:
                 del limited["interfaces"]
 
             if not len(create_dict["hardware"]["interfaces"]):
-                limited["interfaces"]["new_value"] = [
-                    r.table("interfaces")
-                    .get("default")
-                    .pluck("id", "name")
-                    .run(db.conn),
-                ]
+                with app.app_context():
+                    limited["interfaces"]["new_value"] = [
+                        r.table("interfaces")
+                        .get("default")
+                        .pluck("id", "name")
+                        .run(db.conn),
+                    ]
                 create_dict["hardware"]["interfaces"] = ["default"]
 
         if len(create_dict["hardware"].get("videos", [])):
@@ -1609,25 +1643,30 @@ class Quotas:
             for video in create_dict["hardware"]["videos"]:
                 if video not in videos:
                     if "videos" not in limited:
-                        limited["videos"] = {
-                            "old_value": [
-                                {
-                                    "id": video,
-                                    "name": r.table("videos")
-                                    .get(video)
-                                    .pluck("name")
-                                    .run(db.conn)["name"],
-                                }
-                            ],
-                            "new_value": [],
-                        }
+                        with app.app_context():
+                            limited["videos"] = {
+                                "old_value": [
+                                    {
+                                        "id": video,
+                                        "name": r.table("videos")
+                                        .get(video)
+                                        .pluck("name")
+                                        .run(db.conn)["name"],
+                                    }
+                                ],
+                                "new_value": [],
+                            }
                     else:
                         limited["videos"]["old_value"].append(video)
                     create_dict["hardware"]["videos"].remove(video)
             if not len(create_dict["hardware"]["videos"]):
-                limited["videos"]["new_value"] = [
-                    r.table("videos").get("default").pluck("id", "name").run(db.conn),
-                ]
+                with app.app_context():
+                    limited["videos"]["new_value"] = [
+                        r.table("videos")
+                        .get("default")
+                        .pluck("id", "name")
+                        .run(db.conn),
+                    ]
                 create_dict["hardware"]["videos"] = ["default"]
 
         if len(create_dict["hardware"].get("graphics", [])):
@@ -1635,25 +1674,30 @@ class Quotas:
             for graphic in create_dict["hardware"]["graphics"]:
                 if graphic not in graphics:
                     if "graphics" not in limited:
-                        limited["graphics"] = {
-                            "old_value": [
-                                {
-                                    "id": graphic,
-                                    "name": r.table("graphics")
-                                    .get(graphic)
-                                    .pluck("name")
-                                    .run(db.conn)["name"],
-                                }
-                            ],
-                            "new_value": [],
-                        }
+                        with app.app_context():
+                            limited["graphics"] = {
+                                "old_value": [
+                                    {
+                                        "id": graphic,
+                                        "name": r.table("graphics")
+                                        .get(graphic)
+                                        .pluck("name")
+                                        .run(db.conn)["name"],
+                                    }
+                                ],
+                                "new_value": [],
+                            }
                     else:
                         limited["graphics"]["old_value"].append(graphic)
                     create_dict["hardware"]["graphics"].remove(graphic)
             if not len(create_dict["hardware"]["graphics"]):
-                limited["graphics"]["new_value"] = [
-                    r.table("graphics").get("default").pluck("id", "name").run(db.conn),
-                ]
+                with app.app_context():
+                    limited["graphics"]["new_value"] = [
+                        r.table("graphics")
+                        .get("default")
+                        .pluck("id", "name")
+                        .run(db.conn),
+                    ]
                 create_dict["hardware"]["graphics"] = ["default"]
 
         if len(create_dict["hardware"].get("isos", [])):
@@ -1668,18 +1712,19 @@ class Quotas:
             for iso in create_dict["hardware"]["isos"]:
                 if iso["id"] not in [i["id"] for i in isos]:
                     if "isos" not in limited:
-                        limited["isos"] = {
-                            "old_value": [
-                                {
-                                    "id": iso["id"],
-                                    "name": r.table("media")
-                                    .get(iso["id"])
-                                    .pluck("name")
-                                    .run(db.conn)["name"],
-                                }
-                            ],
-                            "new_value": [],
-                        }
+                        with app.app_context():
+                            limited["isos"] = {
+                                "old_value": [
+                                    {
+                                        "id": iso["id"],
+                                        "name": r.table("media")
+                                        .get(iso["id"])
+                                        .pluck("name")
+                                        .run(db.conn)["name"],
+                                    }
+                                ],
+                                "new_value": [],
+                            }
                     else:
                         limited["isos"]["old_value"].append(iso)
                     create_dict["hardware"]["isos"].remove(iso)
@@ -1696,18 +1741,19 @@ class Quotas:
             for floppy in create_dict["hardware"]["floppies"]:
                 if floppy["id"] not in [f["id"] for f in floppies]:
                     if "floppies" not in limited:
-                        limited["floppies"] = {
-                            "old_value": [
-                                {
-                                    "id": floppy["id"],
-                                    "name": r.table("media")
-                                    .get(floppy["id"])
-                                    .pluck("name")
-                                    .run(db.conn)["name"],
-                                }
-                            ],
-                            "new_value": [],
-                        }
+                        with app.app_context():
+                            limited["floppies"] = {
+                                "old_value": [
+                                    {
+                                        "id": floppy["id"],
+                                        "name": r.table("media")
+                                        .get(floppy["id"])
+                                        .pluck("name")
+                                        .run(db.conn)["name"],
+                                    }
+                                ],
+                                "new_value": [],
+                            }
                     else:
                         limited["floppies"]["old_value"].append(floppy)
                     create_dict["hardware"]["floppies"].remove(floppy)
@@ -1717,25 +1763,27 @@ class Quotas:
             for boot_order in create_dict["hardware"]["boot_order"]:
                 if boot_order not in boot_orders:
                     if "boot_order" not in limited:
-                        limited["boot_order"] = {
-                            "old_value": [
-                                {
-                                    "id": boot_order,
-                                    "name": r.table("boots")
-                                    .get(boot_order)
-                                    .pluck("name")
-                                    .run(db.conn)["name"],
-                                }
-                            ],
-                            "new_value": [],
-                        }
+                        with app.app_context():
+                            limited["boot_order"] = {
+                                "old_value": [
+                                    {
+                                        "id": boot_order,
+                                        "name": r.table("boots")
+                                        .get(boot_order)
+                                        .pluck("name")
+                                        .run(db.conn)["name"],
+                                    }
+                                ],
+                                "new_value": [],
+                            }
                     else:
                         limited["boot_order"]["old_value"].append(boot_order)
                     create_dict["hardware"]["boot_order"].remove(boot_order)
             if not len(create_dict["hardware"]["boot_order"]):
-                limited["boot_order"]["new_value"] = [
-                    r.table("boots").get("disk").pluck("id", "name").run(db.conn),
-                ]
+                with app.app_context():
+                    limited["boot_order"]["new_value"] = [
+                        r.table("boots").get("disk").pluck("id", "name").run(db.conn),
+                    ]
                 create_dict["hardware"]["boot_order"] = ["disk"]
 
         # if create_dict["hardware"].get("qos_id"):
@@ -1755,28 +1803,30 @@ class Quotas:
             for reservables_vgpu in create_dict["reservables"]["vgpus"]:
                 if reservables_vgpu not in reservables_vgpus:
                     if "vgpus" not in limited:
-                        limited["vgpus"] = {
-                            "old_value": [
-                                {
-                                    "id": reservables_vgpu,
-                                    "name": r.table("reservables_vgpus")
-                                    .get(reservables_vgpu)
-                                    .pluck("name")
-                                    .run(db.conn)["name"],
-                                }
-                            ],
-                            "new_value": [],
-                        }
+                        with app.app_context():
+                            limited["vgpus"] = {
+                                "old_value": [
+                                    {
+                                        "id": reservables_vgpu,
+                                        "name": r.table("reservables_vgpus")
+                                        .get(reservables_vgpu)
+                                        .pluck("name")
+                                        .run(db.conn)["name"],
+                                    }
+                                ],
+                                "new_value": [],
+                            }
                     else:
                         limited["vgpus"]["old_value"].append(reservables_vgpu)
                     create_dict["reservables"]["vgpus"].remove(reservables_vgpu)
             if not len(create_dict["reservables"]["vgpus"]):
-                limited["vgpus"]["new_value"] = [
-                    r.table("reservables_vgpus")
-                    .get("None")
-                    .pluck("id", "name")
-                    .run(db.conn),
-                ]
+                with app.app_context():
+                    limited["vgpus"]["new_value"] = [
+                        r.table("reservables_vgpus")
+                        .get("None")
+                        .pluck("id", "name")
+                        .run(db.conn),
+                    ]
                 create_dict["reservables"]["vgpus"] = None
 
         if limited == {}:

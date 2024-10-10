@@ -56,14 +56,17 @@ class QuotasProcess:
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             templates = (
                 r.table("domains")
                 .get_all(["template", user_id], index="kind_user")
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             isos = r.table("media").get_all(user_id, index="user").count().run(db.conn)
-            try:
+        try:
+            with app.app_context():
                 starteds = (
                     r.table("domains")
                     .get_all(["Started", user_id], index="status_user")
@@ -84,16 +87,18 @@ class QuotasProcess:
                     )
                     .run(db.conn)
                 )
-            except r.ReqlNonExistenceError:
-                starteds = {"count": 0, "memory": 0, "vcpus": 0}
+        except r.ReqlNonExistenceError:
+            starteds = {"count": 0, "memory": 0, "vcpus": 0}
+        with app.app_context():
             deployments = (
                 r.table("deployments")
                 .get_all(user["id"], index="user")
                 .count()
                 .run(db.conn)
             )
-            deployment_desktops = 0
+        deployment_desktops = 0
 
+        with app.app_context():
             started_deployment_desktops = (
                 r.table("domains")
                 .get_all(
@@ -287,19 +292,22 @@ class QuotasProcess:
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             templates = (
                 r.table("domains")
                 .get_all(["template", category["id"]], index="kind_category")
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             isos = (
                 r.table("media")
                 .get_all(category["id"], index="category")
                 .count()
                 .run(db.conn)
             )
-            try:
+        try:
+            with app.app_context():
                 starteds = (
                     r.table("domains")
                     .get_all(["Started", category["id"]], index="status_category")
@@ -320,9 +328,10 @@ class QuotasProcess:
                     )
                     .run(db.conn)
                 )
-            except r.ReqlNonExistenceError:
-                starteds = {"count": 0, "memory": 0, "vcpus": 0}
+        except r.ReqlNonExistenceError:
+            starteds = {"count": 0, "memory": 0, "vcpus": 0}
 
+        with app.app_context():
             users = (
                 r.table("users")
                 .get_all(category["id"], index="category")
@@ -330,6 +339,7 @@ class QuotasProcess:
                 .run(db.conn)
             )
 
+        with app.app_context():
             deployments = (
                 r.table("deployments")
                 .eq_join("user", r.table("users"))
@@ -449,19 +459,22 @@ class QuotasProcess:
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             templates = (
                 r.table("domains")
                 .get_all(["template", group["id"]], index="kind_group")
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             isos = (
                 r.table("media")
                 .get_all(group["id"], index="group")
                 .count()
                 .run(db.conn)
             )
-            try:
+        try:
+            with app.app_context():
                 starteds = (
                     r.table("domains")
                     .get_all(["Started", group["id"]], index="status_group")
@@ -482,8 +495,9 @@ class QuotasProcess:
                     )
                     .run(db.conn)
                 )
-            except r.ReqlNonExistenceError:
-                starteds = {"count": 0, "memory": 0, "vcpus": 0}
+        except r.ReqlNonExistenceError:
+            starteds = {"count": 0, "memory": 0, "vcpus": 0}
+        with app.app_context():
             users = (
                 r.table("users")
                 .get_all(group["id"], index="group")
@@ -491,6 +505,7 @@ class QuotasProcess:
                 .run(db.conn)
             )
 
+        with app.app_context():
             deployments = (
                 r.table("deployments")
                 .eq_join("user", r.table("users"))
@@ -594,19 +609,22 @@ class QuotasProcess:
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             templates = (
                 r.table("domains")
                 .get_all(["template", category_id], index="kind_category")
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             isos = (
                 r.table("media")
                 .get_all(category_id, index="category")
                 .count()
                 .run(db.conn)
             )
-            try:
+        try:
+            with app.app_context():
                 starteds = (
                     r.table("domains")
                     .get_all(["Started", category_id], index="status_category")
@@ -627,14 +645,16 @@ class QuotasProcess:
                     )
                     .run(db.conn)
                 )
-            except r.ReqlNonExistenceError:
-                starteds = {"count": 0, "memory": 0, "vcpus": 0}
+        except r.ReqlNonExistenceError:
+            starteds = {"count": 0, "memory": 0, "vcpus": 0}
+        with app.app_context():
             users = (
                 r.table("users")
                 .get_all(category_id, index="category")
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             deployments = (
                 r.table("deployments")
                 .eq_join("user", r.table("users"))
@@ -659,14 +679,17 @@ class QuotasProcess:
             desktops = (
                 r.table("domains").get_all("desktop", index="kind").count().run(db.conn)
             )
+        with app.app_context():
             templates = (
                 r.table("domains")
                 .get_all("template", index="kind")
                 .count()
                 .run(db.conn)
             )
+        with app.app_context():
             isos = r.table("media").count().run(db.conn)
-            try:
+        try:
+            with app.app_context():
                 starteds = (
                     r.table("domains")
                     .get_all("Started", index="status")
@@ -687,9 +710,11 @@ class QuotasProcess:
                     )
                     .run(db.conn)
                 )
-            except r.ReqlNonExistenceError:
-                starteds = {"count": 0, "memory": 0, "vcpus": 0}
+        except r.ReqlNonExistenceError:
+            starteds = {"count": 0, "memory": 0, "vcpus": 0}
+        with app.app_context():
             users = r.table("users").count().run(db.conn)
+        with app.app_context():
             deployments = r.table("deployments").count().run(db.conn)
 
         return {
@@ -1002,6 +1027,7 @@ class QuotasProcess:
                 .without("password", "vpn", "user_storage")
                 .run(db.conn)
             )
+        with app.app_context():
             group = r.table("groups").get(user["group"]).run(db.conn)
         limits = group["limits"]
         if limits == False:
