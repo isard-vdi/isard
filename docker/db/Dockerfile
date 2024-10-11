@@ -1,4 +1,4 @@
-FROM rethinkdb:2.4.4-bookworm-slim
+FROM rethinkdb:2.4.3
 
 RUN apt-get update && \
     apt-get install -y \
@@ -14,7 +14,7 @@ RUN apt-get update && \
         /var/lib/cache \
         /var/lib/log
 RUN pip3 install --no-cache-dir --break-system-packages \
-    rethinkdb==2.4.10.post1
+    rethinkdb==2.4.9
 
 COPY docker/db/run.sh /run.sh
 

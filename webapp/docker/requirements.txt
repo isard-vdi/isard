@@ -4,7 +4,7 @@ Flask-Login==0.6.3
 gevent==23.9.1
 PyJWT==2.8.0
 requests==2.31.0
-rethinkdb==2.4.10.post1
+rethinkdb==2.4.9
 waitress~=2.1
 simple-colors~=0.1.5
 python-json-logger~=2.0.7
