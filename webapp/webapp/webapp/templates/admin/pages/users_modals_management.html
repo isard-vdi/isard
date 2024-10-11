@@ -10,10 +10,15 @@
         white-space: nowrap;
     }
 
-    #modalDeleteUserForm .table-wrapper, #modalDeleteGroupForm .table-wrapper, #modalDeleteCategoryForm .table-wrapper {
+    #modalDeleteUserForm .table-wrapper, #modalDeleteGroupForm .table-wrapper, #modalDeleteCategoryForm .table-wrapper, #modalMigrateUserForm .table-wrapper{
         overflow-y: scroll;
         overflow-x: hidden;
-        max-height: 443px;
+        max-height: 232px;
+    }
+
+    #modalMigrateUser .collapse-link {
+        cursor: pointer;
+        margin-left: 20px;
     }
 </style>
 <div class="modal fade" id="modalAddUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
@@ -2208,99 +2213,107 @@
             <div class="modal-body">
                 <form id="modalMigrateUserForm" class="form-inline form-label-left">
                     <div class="x_content">
-                <h5>Migrate within category: <b><span class="category-name"></span></b></h5>
+                        <h5>Migrate within category: <b><span class="category-name"></span></b></h5>
                     </div>
                     <input hidden id="id" name="id" />
-                    <div class="row">
-                        <div class="col-md-12 col-sm-12 col-xs-12">
-                            <div class="x_panel">
+                    <div class="x_panel">
+                        <div class="row">
+                            <div class="col-md-12 col-sm-12 col-xs-12">
                                 <div class="x_title col-md-12">
-                                    <h4><i class="fa fa-user"></i> User's resources</h4>
+                                    <h4><i class="fa fa-user"></i> User's resources<li style="list-style: none;" class="pull-right"></li>
+                                            <a class="collapse-link"><i class="fa fa-info"></i> More
+                                                information (Click to expand)</a>
+                                        </li>
+                                    </h4>
                                 </div>
-                                <div class="item form-group col-md-6">
-                                    <h4><i class="fa fa-desktop"></i> Desktops</h4>
-                                    <div class="table-wrapper">
-                                        <table id="table_modal_delete_desktops" class="table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Name</th>
-                                                    <th style="width:35%;">Persistent</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody></tbody>
-                                        </table>
+                                <div class="x_content" style="display:none;">
+                                    <div class="item form-group col-md-6">
+                                        <h4><i class="fa fa-desktop"></i> Desktops</h4>
+                                        <div class="table-wrapper">
+                                            <table id="table_modal_delete_desktops" class="table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th style="width:35%;">Persistent</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="item form-group col-md-6">
+                                        <h4><i class="fa fa-cube"></i> Templates</h4>
+                                        <div class="table-wrapper">
+                                            <table id="table_modal_delete_templates" class="table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th style="width:35%;">Duplicate</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="item form-group col-md-6">
-                                    <h4><i class="fa fa-cube"></i> Templates</h4>
-                                    <div class="table-wrapper">
-                                        <table id="table_modal_delete_templates" class="table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Name</th>
-                                                    <th style="width:35%;">Duplicate</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody></tbody>
-                                        </table>
+                                <div class="x_content" style="display:none;">
+                                    <div class="item form-group col-md-6">
+                                        <h4><i class="fa fa-tv"></i> Deployments</h4>
+                                        <div class="table-wrapper">
+                                            <table id="table_modal_delete_deployments" class="table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                            <div class="x_panel">
-                                <div class="item form-group col-md-6">
-                                    <h4><i class="fa fa-tv"></i> Deployments</h4>
-                                    <div class="table-wrapper">
-                                        <table id="table_modal_delete_deployments" class="table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Name</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody></tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                                <div class="item form-group col-md-6">
-                                    <h4> <i class="fa fa-circle-o"></i> Media</h4>
-                                    <div class="table-wrapper">
-                                        <table id="table_modal_delete_media" class="table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Name</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody></tbody>
-                                        </table>
+                                    <div class="item form-group col-md-6">
+                                        <h4> <i class="fa fa-circle-o"></i> Media</h4>
+                                        <div class="table-wrapper">
+                                            <table id="table_modal_delete_media" class="table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-12 col-sm-12 col-xs-12">
-                            <div class="x_panel">
-                                <div class="x_title">
+                        <div class="row">
+                            <div class="col-md-12 col-sm-12 col-xs-12">
+                                <div class="x_title col-md-12">
                                     <h4><i class="fa fa-exchange"></i> Migrate resources to another user</h4>
-                                    <div class="clearfix"></div>
-                                    <div class="alert alert-info col-md-12 col-sm-12 col-xs-12">
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12 col-sm-12 col-xs-12">
                                         <ul>
                                             <li>Any running desktops will be stopped.</li>
                                             <li>The user's recycle bin will be emptied.</li>
                                             <li>The user's bookings will be deleted.</li>
                                             <li>Non-persistent desktops will be DELETED</li>
                                             <li>The list of coworkers in deployments will be deleted.</li>
-                                            <li>Desktops belonging to other users in migrated deployments will remain intact.</li>
-                                            <li>Resources not allowed for the <b>new</b> user will be removed or restricted.</li>
+                                            <li>Desktops belonging to other users in migrated deployments will remain
+                                                intact.</li>
+                                            <li>Resources not allowed for the <b>new</b> user will be removed or
+                                                restricted.</li>
                                         </ul>
                                     </div>
                                 </div>
-                                   
-                                    <!-- <div class="alert alert-danger col-md-12 col-sm-12 col-xs-12"><i
-                                            class="fa fa-warning"></i> This action is irreversible.</div> -->
+            
+            
+                                <!-- <div class="alert alert-danger col-md-12 col-sm-12 col-xs-12"><i
+                                                        class="fa fa-warning"></i> This action is irreversible.</div> -->
                                 <div class="col-md-12 col-sm-12 col-xs-12">
                                     <label class="control-label" for="group">Migrate resources to this user:</label>
-                                    <select style="width:100%" id="target-user" name="target_user" class="form-control"
-                                        required placeholer="Select one user">
+                                    <select style="width:100%" id="target-user" name="target_user" class="form-control" required
+                                        placeholer="Select one user">
                                     </select>
                                 </div>
                             </div>
@@ -2322,9 +2335,6 @@
                     </li>
                 </ul>
             </div>
-
-
-
         </div>
     </div>
 </div>
