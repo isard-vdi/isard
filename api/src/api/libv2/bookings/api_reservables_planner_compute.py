@@ -135,7 +135,7 @@ def remove_existing_item_bookings(plans, item_type, item_id, start=None, end=Non
     query = r.table("bookings").get_all(item_id, index="item_id")
     if start and end:
         query = query.filter(
-            lambda booking: booking["start"] < end & booking["end"] > start
+            lambda booking: (booking["start"] < end) & (booking["end"] > start)
         )
 
     with app.app_context():
