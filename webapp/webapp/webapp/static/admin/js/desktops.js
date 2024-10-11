@@ -46,7 +46,10 @@ columns = [
         }
     },
         {
-        "data": "persistent", "render": function (data) {
+        "data": "persistent", "render": function (data, type) {
+            if (type === 'filter') {
+                return data ? 'true' : 'false'
+            }
             if (data == false) {
                 return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
             } else {
