@@ -1,7 +1,7 @@
 bcrypt==3.2.0
 Flask==2.3.3
 Flask-Login==0.6.3
-rethinkdb==2.4.9
+rethinkdb==2.4.10.post1
 lxml~=4.6
 # paramiko~=3.4.0 error reading banner with gpus
 paramiko~=3.2.0
