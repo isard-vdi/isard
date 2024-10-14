@@ -51,7 +51,7 @@ def _validate_alloweds(alloweds):
 
 def check_user_duplicated_domain_name(name, user_id, kind="desktop", item_id=None):
     with app.app_context():
-        if (
+        user_domains_with_name = (
             r.table("domains")
             .get_all([kind, user_id], index="kind_user")
             .filter(
@@ -59,16 +59,16 @@ def check_user_duplicated_domain_name(name, user_id, kind="desktop", item_id=Non
             )
             .count()
             .run(db.conn)
-            > 0
-        ):
-            user_name = get_document("users", user_id, ["name"])
-            raise Error(
-                "conflict",
-                "User " + user_name + " already has " + kind + " with name " + name,
-                traceback.format_exc(),
-                description_code=(
-                    "new_desktop_name_exists"
-                    if kind == "desktop"
-                    else "new_template_name_exists"
-                ),
-            )
+        )
+    if user_domains_with_name > 0:
+        user_name = get_document("users", user_id, ["name"])
+        raise Error(
+            "conflict",
+            "User " + user_name + " already has " + kind + " with name " + name,
+            traceback.format_exc(),
+            description_code=(
+                "new_desktop_name_exists"
+                if kind == "desktop"
+                else "new_template_name_exists"
+            ),
+        )
