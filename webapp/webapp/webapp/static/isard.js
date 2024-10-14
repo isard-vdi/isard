@@ -384,40 +384,61 @@ function showAndHideByCheckbox (checkboxSelector, divSelector) {
   })
 }
 
-function populateDeleteModalTable(values, table, columns=null) {
+function populateDeleteModalTable(values, table, columns = null) {
     var tbody = table.find('tbody');
     tbody.empty();
     if (values.length > 0) {
-        if (!columns) {
-        $.each(values, function (index, value) {
-            let row = `<tr>
-                <td>${value['name']}</td>`
-            if (value['user_name']) {
-                row += `<td>${value['user_name']} [${value['username']}]</td>`
-            } else if (value['username']) {
-                row += `<td>${value['username']}</td>`
-            }
-            row += '</tr>'
-            return tbody.append(row);
-        });
-        } else {
-            $.each(values, function (index, value) {
-                let row = `<tr>`
-                $.each(columns, function (k, v) {
-                    let val = value[v];
-                    if (v === "persistent") {
-                        val = val == false ? "No" : "Yes";
-                    } else if (v === "duplicate_parent_template") {
-                        val = val ? "Yes" : "No";
-                    }
-                    row += `<td>${val}</td>`;
-                });
-                row += '</tr>'
-                return tbody.append(row);
-            });
+        if ($.fn.DataTable.isDataTable(table)) {
+            table.DataTable().clear().destroy();
         }
+        let initOptions = {
+            "data": values,
+            "language": {
+                "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+            },
+            "searching": false,
+            "ordering": false,
+            "paging": values.length > 5,
+            "lengthChange": false,
+            "pageLength": 5,
+            'autoWidth': false,
+            "info": false,
+        }
+        if (!columns) {
+            initOptions["columns"] = [
+                { 'data': 'name' },
+                {
+                    'data': 'user_name',
+                    'render': function (data, type, row) {
+                        if (row.user_name) {
+                            return `${row.user_name} [${row.username}]`;
+                        } else if (row.username) {
+                            return row.username;
+                        }
+                        return '';
+                    }
+                }
+            ]
+            table.DataTable(initOptions)
+        } else {
+            initOptions["columns"] = columns.map(function (column) {
+                return {
+                    'data': column,
+                    'render': function (data, type, row) {
+                        if (column === "persistent") {
+                            return data == false ? "No" : "Yes";
+                        } else if (column === "duplicate_parent_template") {
+                            return data ? "Yes" : "No";
+                        }
+                        return data !== undefined ? data : '';
+                    }
+                };
+            });
+            table.DataTable(initOptions);
+        }
+        table.DataTable().columns.adjust()
     } else {
-        tbody.append(`<tr class="active"><td colspan="2" style="text-align:center;">No items</td></tr>`)
+        tbody.append(`<tr class="active"><td colspan="2" style="text-align:center;">No items</td></tr>`);
     }
 }
 

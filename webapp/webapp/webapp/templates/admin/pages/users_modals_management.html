@@ -10,12 +10,6 @@
         white-space: nowrap;
     }
 
-    #modalDeleteUserForm .table-wrapper, #modalDeleteGroupForm .table-wrapper, #modalDeleteCategoryForm .table-wrapper, #modalMigrateUserForm .table-wrapper{
-        overflow-y: scroll;
-        overflow-x: hidden;
-        max-height: 232px;
-    }
-
     #modalMigrateUser .collapse-link {
         cursor: pointer;
         margin-left: 20px;
@@ -2193,6 +2187,7 @@
         </div>
     </div>
 </div>
+
 <div class="modal fade" id="modalMigrateUser" tabindex="-1" role="dialog" aria-labelledby="modalMigrateUser"
     aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -2306,11 +2301,7 @@
                                         </ul>
                                     </div>
                                 </div>
-            
-            
-                                <!-- <div class="alert alert-danger col-md-12 col-sm-12 col-xs-12"><i
-                                                        class="fa fa-warning"></i> This action is irreversible.</div> -->
-                                <div class="col-md-12 col-sm-12 col-xs-12">
+                                    <div class="col-md-12 col-sm-12 col-xs-12">
                                     <label class="control-label" for="group">Migrate resources to this user:</label>
                                     <select style="width:100%" id="target-user" name="target_user" class="form-control" required
                                         placeholer="Select one user">
