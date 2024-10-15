@@ -251,25 +251,27 @@ def get_cached_deployment_desktops(deployment_id):
 
 @cached(cache=TTLCache(maxsize=200, ttl=5))
 def get_cached_desktop_bookings(desktop_id):
-    booking = (
-        r.table("bookings")
-        .get_all(["desktop", desktop_id], index="item_type-id")
-        .filter(lambda b: b["end"] > r.now())
-        .order_by("start")
-        .run(db.conn)
-    )
+    with app.app_context():
+        booking = (
+            r.table("bookings")
+            .get_all(["desktop", desktop_id], index="item_type-id")
+            .filter(lambda b: b["end"] > r.now())
+            .order_by("start")
+            .run(db.conn)
+        )
     return booking
 
 
 @cached(cache=TTLCache(maxsize=200, ttl=5))
 def get_cached_deployment_bookings(deployment_id):
-    booking = (
-        r.table("bookings")
-        .get_all(["deployment", deployment_id], index="item_type-id")
-        .filter(lambda b: b["end"] > r.now())
-        .order_by("start")
-        .run(db.conn)
-    )
+    with app.app_context():
+        booking = (
+            r.table("bookings")
+            .get_all(["deployment", deployment_id], index="item_type-id")
+            .filter(lambda b: b["end"] > r.now())
+            .order_by("start")
+            .run(db.conn)
+        )
     return booking
 
 
