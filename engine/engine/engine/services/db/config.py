@@ -6,14 +6,6 @@ from engine.services.log import logs
 from rethinkdb import r
 
 
-def get_config():
-    r_conn = new_rethink_connection()
-    rtable = r.table("config")
-    config = rtable.get(1).run(r_conn)
-    close_rethink_connection(r_conn)
-    return config
-
-
 def get_config_branch(key):
     r_conn = new_rethink_connection()
     rtable = r.table("config")
