@@ -69,67 +69,68 @@ def get_ferrary(id):
     return results["ferrary"]
 
 
+def get_hyp_viewer_info(hyp_id):
+    r_conn = new_rethink_connection()
+    h = (
+        r.table("hypervisors")
+        .get(hyp_id)
+        .pluck("hypervisors_pools", "viewer", "id")
+        .run(r_conn)
+    )
+    hp = (
+        r.table("hypervisors_pools")
+        .get(h["hypervisors_pools"][0])
+        .pluck("viewer")
+        .run(r_conn)
+    )
+    close_rethink_connection(r_conn)
+    return {"viewer": h["viewer"], "tls": hp["viewer"]}
+
+
+def update_domain_viewer_passwd(domain_id, passwd):
+    r_conn = new_rethink_connection()
+    r.table("domains").get(domain_id).update({"viewer": {"passwd": passwd}}).run(r_conn)
+    close_rethink_connection(r_conn)
+
+
 def update_domain_viewer_started_values(
     domain_id,
-    hyp_id=False,
+    hyp_id,
+    hyp_viewer,
+    hyp_tls,
     spice=False,
     spice_tls=False,
     vnc=False,
     vnc_websocket=False,
-    passwd=False,
     status=None,
     detail=None,
 ):
     r_conn = new_rethink_connection()
-
-    update_dict = {}
-
-    if hyp_id is not False:
-        try:
-            h = (
-                r.table("hypervisors")
-                .get(hyp_id)
-                .pluck("hypervisors_pools", "viewer", "id")
-                .run(r_conn)
-            )
-            hp = (
-                r.table("hypervisors_pools")
-                .get(h["hypervisors_pools"][0])
-                .pluck("viewer")
-                .run(r_conn)
-            )
-            update_dict = {
-                "viewer": {
-                    "static": h["viewer"]["static"],
-                    "proxy_video": h["viewer"]["proxy_video"],
-                    "html5_ext_port": h["viewer"]["html5_ext_port"],
-                    "spice_ext_port": h["viewer"]["spice_ext_port"],
-                    "proxy_hyper_host": h["viewer"]["proxy_hyper_host"],
-                    "base_port": int(spice),
-                    "ports": [int(spice), int(spice_tls), int(vnc), int(vnc_websocket)],
-                    "client_addr": False,
-                    "client_since": False,
-                    "tls": hp["viewer"],
-                }
+    try:
+        update_dict = {
+            "viewer": {
+                "static": hyp_viewer["static"],
+                "proxy_video": hyp_viewer["proxy_video"],
+                "html5_ext_port": hyp_viewer["html5_ext_port"],
+                "spice_ext_port": hyp_viewer["spice_ext_port"],
+                "proxy_hyper_host": hyp_viewer["proxy_hyper_host"],
+                "base_port": int(spice),
+                "ports": [int(spice), int(spice_tls), int(vnc), int(vnc_websocket)],
+                "client_addr": False,
+                "client_since": False,
+                "tls": hyp_tls,
             }
-            if status is not None:
-                log.info(f"status: {status}")
-                update_dict["status"] = status
-                update_dict["detail"] = json.dumps(detail)
-                update_dict["hyp_started"] = hyp_id
-        except Exception as e:
-            logs.exception_id.debug("0040")
-            log.error("hypervisor withouth viewer dict or pool withough viewer dict")
-            log.error(e)
-            close_rethink_connection(r_conn)
-            return
-    if passwd is not False:
-        if update_dict.get("viewer") is None:
-            update_dict["viewer"] = {}
-        update_dict["viewer"]["passwd"] = passwd
-    if len(update_dict):
-        results = r.table("domains").get(domain_id).update(update_dict).run(r_conn)
-        return results
+        }
+        if status is not None:
+            log.info(f"status: {status}")
+            update_dict["status"] = status
+            update_dict["detail"] = json.dumps(detail)
+            update_dict["hyp_started"] = hyp_id
+        r.table("domains").get(domain_id).update(update_dict).run(r_conn)
+    except Exception as e:
+        log.error(
+            f"exception in update_domain_viewer_started_values for domain {domain_id}: {e}"
+        )
     close_rethink_connection(r_conn)
 
 

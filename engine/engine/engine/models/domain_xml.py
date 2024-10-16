@@ -26,9 +26,8 @@ from engine.services.db import (
     get_interface,
     get_qos_disk_iotune,
     remove_fieds_when_stopped,
-    update_domain_dict_create_dict,
     update_domain_dict_hardware,
-    update_domain_viewer_started_values,
+    update_domain_viewer_passwd,
     update_table_field,
 )
 from engine.services.db.downloads import get_media
@@ -1800,10 +1799,12 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     update_domain_dict_hardware(id_domain, x.vm_dict, xml=xml)
     if "viewer_passwd" in x.__dict__.keys():
         # update password in database
-        update_domain_viewer_started_values(id_domain, passwd=x.viewer_passwd)
+        update_domain_viewer_passwd(id_domain, passwd=x.viewer_passwd)
         log.debug(
             "updated viewer password {} in domain {}".format(x.viewer_passwd, id_domain)
         )
+    else:
+        log.error("viewer password not found in domain {}".format(id_domain))
 
     xml = x.return_xml()
     # log.debug('#####################################################')
