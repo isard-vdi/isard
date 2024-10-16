@@ -36,7 +36,6 @@ import urllib
 from isardvdi_common.api_exceptions import Error
 from rethinkdb.errors import ReqlNonExistenceError
 
-from ..libv2.caches import get_document
 from ..libv2.flask_rethink import RDB
 from ..libv2.utils import parse_delta
 
@@ -126,11 +125,22 @@ class isardViewer:
                     f"Unable to get viewer for inexistent desktop {id}",
                     description_code="unable_to_get_viewer_inexistent",
                 )
-
+        if domain.get("status") not in ["Started", "Shutting-down"]:
+            raise Error(
+                "precondition_required",
+                f'Unable to get viewer for non started ({domain.get("status")}) desktop {id}',
+                description_code="unable_to_get_viewer",
+            )
         if not domain.get("viewer", {}).get("base_port"):
             raise Error(
                 "bad_request",
                 f"Desktop {id} does not have a viewer (base_port). Is it really started? Actual status: {domain.get('status')}",
+                description_code="unable_to_get_viewer",
+            )
+        if not domain.get("viewer", {}).get("passwd"):
+            raise Error(
+                "bad_request",
+                f"Desktop {id} does not have a viewer (passwd). Is it really started? Actual status: {domain.get('status')}",
                 description_code="unable_to_get_viewer",
             )
         if not protocol in ["file-spice", "browser-vnc"] and not domain["status"] in [
