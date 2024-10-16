@@ -1160,7 +1160,7 @@ class UiActions(object):
             update_domain_status(
                 "Updating",
                 id_domain,
-                detail="xml and hardware dict updated, waiting to test if domain start paused in hypervisor",
+                detail="xml and hardware dict going to be updated",
             )
             domain = get_table_fields(
                 "domains",
@@ -1203,20 +1203,25 @@ class UiActions(object):
                         detail="DomainXML can not parse and modify xml to start",
                     )
                     return False
-
-                self.start_paused_domain_from_xml(
-                    xml=xml,
-                    id_domain=id_domain,
-                    pool_id=pool_id,
-                    forced_hyp=domain.get("forced_hyp"),
-                    favourite_hyp=domain.get("favourite_hyp"),
-                    reservables=domain.get("create_dict", {}).get("reservables", {}),
+                # Avoid starting domain when updating
+                # self.start_paused_domain_from_xml(
+                #     xml=xml,
+                #     id_domain=id_domain,
+                #     pool_id=pool_id,
+                #     forced_hyp=domain.get("forced_hyp"),
+                #     favourite_hyp=domain.get("favourite_hyp"),
+                #     reservables=domain.get("create_dict", {}).get("reservables", {}),
+                # )
+                update_domain_status(
+                    "Stopped",
+                    id_domain,
+                    detail="Updated hardware",
                 )
             else:
                 update_domain_status(
                     "Stopped",
                     id_domain,
-                    detail="Created",
+                    detail="Updated hardware",
                 )
 
                 return True
