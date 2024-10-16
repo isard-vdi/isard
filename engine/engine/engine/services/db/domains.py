@@ -171,8 +171,7 @@ def unknown_started_domains(
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     results = (
-        rtable.get_all("Started", index="status")
-        .filter({"kind": kind})
+        rtable.get_all([kind, "Started"], index="kind_status")
         .update({"status": "Unknown", "detail": detail})
         .run(r_conn)
     )
