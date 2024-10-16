@@ -15,7 +15,6 @@ from engine.services.db import (
     new_rethink_connection,
 )
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
-from engine.services.db.domains_status import stop_last_domain_status
 from engine.services.lib.storage import (
     update_domain_createdict_qemu_img_info,
     update_storage_deleted_domain,
@@ -378,7 +377,6 @@ def update_domain_status(
                 logs.main.error("Traceback: \n .{}".format(traceback.format_exc()))
                 logs.main.error("Exception message: {}".format(e))
         if status == "Stopped":
-            stop_last_domain_status(id_domain)
             remove_fieds_when_stopped(id_domain, conn=r_conn)
 
         if status == "Failed":

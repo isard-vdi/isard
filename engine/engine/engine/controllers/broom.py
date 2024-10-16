@@ -23,10 +23,6 @@ from engine.services.db import (
     update_table_field,
     update_vgpu_info_if_stopped,
 )
-from engine.services.db.domains_status import (
-    get_last_domain_status,
-    insert_db_domain_status,
-)
 from engine.services.db.hypervisors_status import (
     get_last_hyp_status,
     insert_db_hyp_status,
