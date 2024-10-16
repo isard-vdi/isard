@@ -108,11 +108,13 @@ class Scheduler:
                         r.table("bookings")
                         .get_all(item_id, index="item_id")
                         .filter(
-                            lambda plan: plan["end"]
-                            > r.now() & plan["reservables"]["vgpus"]
-                            == desktop.get("create_dict", {})
-                            .get("reservables", {})
-                            .get("vgpus")
+                            lambda plan: (plan["end"] > r.now())
+                            & (
+                                plan["reservables"]["vgpus"]
+                                == desktop.get("create_dict", {})
+                                .get("reservables", {})
+                                .get("vgpus")
+                            )
                         )
                         .order_by("start")
                         .run(db.conn)
@@ -125,11 +127,13 @@ class Scheduler:
                         r.table("bookings")
                         .get_all(item_id, index="item_id")
                         .filter(
-                            lambda plan: plan["end"]
-                            > r.now() & plan["reservables"]["vgpus"]
-                            == desktop.get("create_dict", {})
-                            .get("reservables", {})
-                            .get("vgpus")
+                            lambda plan: (plan["end"] > r.now())
+                            & (
+                                plan["reservables"]["vgpus"]
+                                == desktop.get("create_dict", {})
+                                .get("reservables", {})
+                                .get("vgpus")
+                            )
                         )
                         .order_by("start")
                         .run(db.conn)
