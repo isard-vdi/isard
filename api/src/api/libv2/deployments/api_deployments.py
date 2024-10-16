@@ -125,6 +125,7 @@ def lists(user_id):
             # Template does no exist anymore
             with app.app_context():
                 r.table("deployments").get(deployment["id"]).delete().run(db.conn)
+                invalidate_cache("deployments", deployment["id"])
             continue
         parsed_deployments.append(
             {**deployment, **_parse_deployment_booking(deployment)}
@@ -140,18 +141,15 @@ def get(deployment_id, desktops=True):
             "Deployment id not found: " + str(deployment_id),
             description_code="not_found",
         )
-    deployment["totalDesktops"] = len(get_cached_deployment_desktops(deployment_id))
+    deployment_desktops = get_cached_deployment_desktops(deployment_id)
+    deployment["totalDesktops"] = len(deployment_desktops)
     deployment["visibleDesktops"] = len(
-        [
-            desktop
-            for desktop in get_cached_deployment_desktops(deployment_id)
-            if desktop["tag_visible"] == True
-        ]
+        [desktop for desktop in deployment_desktops if desktop["tag_visible"] is True]
     )
     deployment["startedDesktops"] = len(
         [
             desktop
-            for desktop in get_cached_deployment_desktops(deployment_id)
+            for desktop in deployment_desktops
             if desktop["status"]
             in [
                 "Started",
@@ -162,19 +160,12 @@ def get(deployment_id, desktops=True):
             ]
         ]
     )
-    deployment["description"] = get_document(
-        "deployments", deployment_id, ["create_dict"]
-    ).get("description")
-    deployment["visible"] = get_document(
-        "deployments", deployment_id, ["create_dict"]
-    ).get("tag_visible")
+    deployment["description"] = deployment.get("create_dict", {}).get("description")
+    deployment["visible"] = deployment.get("create_dict", {}).get("tag_visible")
+    deployment["desktop_name"] = deployment.get("create_dict", {}).get("name")
     deployment["template"] = get_document(
-        "domains",
-        get_document("deployments", deployment_id, ["create_dict"]).get("template"),
-    ).get("name")
-    deployment["desktop_name"] = get_document(
-        "deployments", deployment_id, ["create_dict"]
-    ).get("name")
+        "domains", deployment.get("create_dict", {}).get("template"), ["name"]
+    )
     del deployment["create_dict"]
 
     deployment = {
@@ -586,7 +577,7 @@ def edit_deployment(payload, deployment_id, data):
             invalidate_cache("domains", domain)
             data["hardware"]["interfaces"] = deployment_interfaces
 
-    # Otherwise the rest of the hardware can be update at once
+    # Otherwise the rest of the hardware can be updated at once
     else:
         data["hardware"].pop("interfaces")
         with app.app_context():
@@ -606,18 +597,21 @@ def edit_deployment(payload, deployment_id, data):
 
 
 def checkDesktopsStarted(deployment_id):
-    with app.app_context():
-        started_desktops = (
-            r.table("domains")
-            .get_all(deployment_id, index="tag")
-            .filter(
-                lambda desktop: r.not_(
-                    r.expr(["Stopped", "Failed", "Unknown"]).contains(desktop["status"])
-                )
-            )
-            .count()
-            .run(db.conn)
-        )
+    deployment_desktops = get_cached_deployment_desktops(deployment_id)
+    started_desktops = len(
+        [
+            desktop
+            for desktop in deployment_desktops
+            if desktop["status"]
+            in [
+                "Started",
+                "Starting",
+                "StartingPaused",
+                "CreatingAndStarting",
+                "Shutting-down",
+            ]
+        ]
+    )
     if started_desktops > 0:
         raise Error(
             "precondition_required",
