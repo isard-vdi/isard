@@ -2014,34 +2014,3 @@ class hyp(object):
                 }
                 update_actual_stats_domain(id_domain, s, means)
             # for (h in )
-
-    def get_eval_statistics(self):
-        cpu_percent_free = 100 - self.stats_hyp_now.get("cpu_load", 0)
-        ram_percent_free = 100 - self.stats_hyp_now.get("mem_load_rate", 0)
-        data = {
-            "cpu_percent_free": cpu_percent_free,
-            "ram_percent_free": ram_percent_free,
-            "domains": list(self.stats_domains_now.keys()),
-        }
-        return data
-
-    def get_ux_eval_statistics(self, domain_id):
-        """
-        :param domain_id:
-        :return: data {"ram_hyp_usage", "cpu_hyp_usage", "cpu_hyp_iowait", "cpu_usage"} when they are available
-
-        fields = ['num_domains', 'vcpus', 'vcpu_cpu_rate', 'cpu_load', 'cpu_iowait',
-                      'mem_load_rate', 'mem_free_gb', 'mem_cached_rate',
-                      'mem_balloon_rate', 'mem_domains_gb','mem_domains_max_gb',
-                      'disk_wr', 'disk_rd', 'disk_wr_reqs', 'disk_rd_reqs',
-                      'net_tx', 'net_rx', ]
-        self.stats_hyp_now.get('mem_load_rate')
-        """
-        data = {}
-        data["ram_hyp_usage"] = self.stats_hyp_now.get("mem_load_rate")
-        data["cpu_hyp_usage"] = self.stats_hyp_now.get("cpu_load")
-        data["cpu_hyp_iowait"] = self.stats_hyp_now.get("cpu_iowait")
-        domain_stats = self.stats_domains_now.get(domain_id)
-        if domain_stats:
-            data["cpu_usage"] = domain_stats.get("cpu_load")
-        return data

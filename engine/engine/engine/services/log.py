@@ -76,7 +76,6 @@ class Logs(object):
             "status",
             "changes",
             "downloads",
-            "eval",
             "hmlog",
             "exception_id",
             "main",
