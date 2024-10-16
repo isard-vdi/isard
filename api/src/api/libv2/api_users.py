@@ -2023,8 +2023,8 @@ class ApiUsers:
                 r.table("users")
                 .get_all(category, index="category")
                 .filter(
-                    lambda user: user["email"].eq(email)
-                    & user["email_verified"].ne(None)
+                    lambda user: (user["email"].eq(email))
+                    & (user["email_verified"].ne(None))
                 )
                 .pluck("id")["id"]
                 .run(db.conn)

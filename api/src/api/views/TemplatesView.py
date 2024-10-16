@@ -235,6 +235,7 @@ def api_v3_user_templates(payload):
 @has_token
 def api_v3_user_templates_allowed(payload, kind):
     only_in_allowed = False
+    query_filter = {}
     if kind == "shared":
         query_filter = (
             lambda templates: r.not_(templates["user"] == payload["user_id"])
@@ -243,7 +244,7 @@ def api_v3_user_templates_allowed(payload, kind):
         only_in_allowed = True
     elif kind == "all":
         query_filter = {"enabled": True}
-    templates = allowed.get_items_allowed(
+    templates_allowed = allowed.get_items_allowed(
         payload=payload,
         table="domains",
         query_pluck=[
@@ -268,7 +269,7 @@ def api_v3_user_templates_allowed(payload, kind):
         only_in_allowed=only_in_allowed,
     )
     return (
-        json.dumps(templates),
+        json.dumps(templates_allowed),
         200,
         {"Content-Type": "application/json"},
     )
