@@ -13,6 +13,7 @@ from engine.models.hyp import hyp
 from engine.services.db import (
     get_hyp_hostname_from_id,
     get_hyp_status,
+    get_hyp_viewer_info,
     update_db_hyp_info,
     update_domain_status,
     update_domain_viewer_started_values,
@@ -58,6 +59,7 @@ class HypWorkerThread(threading.Thread):
         self.q_event_register = q_event_register
         self.h = False
         self.error = False
+        self.viewer = get_hyp_viewer_info(hyp_id)
 
     def run(self):
         self.tid = get_tid()
@@ -401,7 +403,9 @@ class HypWorkerThread(threading.Thread):
                                 dom_id = action["id_domain"]
                                 update_domain_viewer_started_values(
                                     dom_id,
-                                    hyp_id=hyp_id,
+                                    hyp_id=self.hyp_id,
+                                    hyp_viewer=self.viewer.get("viewer", {}),
+                                    hyp_tls=self.viewer.get("tls", {}),
                                     spice=spice,
                                     spice_tls=spice_tls,
                                     vnc=vnc,
