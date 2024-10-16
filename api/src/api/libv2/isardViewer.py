@@ -94,29 +94,38 @@ class isardViewer:
 
     def viewer_data(
         self,
-        desktop_id,
+        id,
         protocol="browser-vnc",
+        default_viewer=False,
+        get_cookie=True,
+        get_dict=False,
+        domain=False,
+        user_id=False,
         admin_role=False,
     ):
-        domain = get_document(
-            "domains",
-            desktop_id,
-            [
-                "id",
-                "name",
-                "viewer",
-                "status",
-                "viewer",
-                "guest_properties",
-                "category",
-            ],
-        )
-        if domain is None:
-            raise Error(
-                "not_found",
-                f"Unable to get viewer for inexistent desktop {id}",
-                description_code="unable_to_get_viewer_inexistent",
-            )
+        if not domain:
+            try:
+                with app.app_context():
+                    domain = (
+                        r.table("domains")
+                        .get(id)
+                        .pluck(
+                            "id",
+                            "name",
+                            "status",
+                            "viewer",
+                            "guest_properties",
+                            "user",
+                            "category",
+                        )
+                        .run(db.conn)
+                    )
+            except ReqlNonExistenceError:
+                raise Error(
+                    "not_found",
+                    f"Unable to get viewer for inexistent desktop {id}",
+                    description_code="unable_to_get_viewer_inexistent",
+                )
 
         if not domain.get("viewer", {}).get("base_port"):
             raise Error(
