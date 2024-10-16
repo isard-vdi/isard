@@ -14,7 +14,6 @@ from time import sleep
 
 from engine.models.domain_xml import (
     BUS_TYPES,
-    DomainXML,
     populate_dict_hardware_from_create_dict,
     recreate_xml_if_gpu,
     recreate_xml_if_start_paused,
@@ -39,15 +38,12 @@ from engine.services.db import (
     update_domain_dict_hardware,
     update_domain_force_update,
     update_domain_forced_hyp,
-    update_domain_hyp_started,
-    update_domain_hyp_stopped,
     update_domain_status,
     update_origin_and_parents_to_new_template,
     update_table_field,
     update_vgpu_uuid_domain_action,
 )
 from engine.services.db.storage_pool import get_category_storage_pool_id
-from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import (
     add_cmds_if_custom,
     create_cmd_disk_from_scratch,
@@ -85,7 +81,6 @@ class UiActions(object):
     def __init__(self, manager):
         log.info("Backend uiactions created")
         self.manager = manager
-        self.round_robin_index_non_persistent = 0
 
     def action_from_api(self, action, parameters):
         if action == "start_domain":
@@ -124,11 +119,6 @@ class UiActions(object):
             )
             return False
 
-        # memory = domain.get("create_dict", {}).get("hardware", {}).get("memory", 0)
-        # if type(memory) is int or type(memory) is float:
-        #     memory_in_gb = memory / 1024 / 1024
-        # else:
-        #     memory_in_gb = 0
         if domain["kind"] != "desktop":
             log.error(
                 f"DANGER, domain {id_domain} ({domain['name']}) is a template and can't be started"
