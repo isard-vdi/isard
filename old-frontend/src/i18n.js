@@ -21,7 +21,8 @@ const NewLocaleToOldLocale = {
   en: 'en-US',
   ca: 'ca-ES',
   eu: 'eu-ES',
-  es: 'es-ES'
+  es: 'es-ES',
+  fr: 'fr-FR'
 }
 
 export function getLocaleCode (locale) {
