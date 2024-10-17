@@ -1,614 +1,619 @@
 {
-    "views": {
-        "register": {
-            "title": "Inscription",
-            "register": "S’inscrire",
-            "code": "Code d’inscription",
-            "errors": {
-                "500": "Erreur du serveur",
-                "401": "La session a expiré",
-                "404": "Code introuvable"
-            }
+  "views": {
+    "register": {
+      "title": "Inscription",
+      "register": "S’inscrire",
+      "code": "Code d’inscription",
+      "errors": {
+        "500": "Erreur du serveur",
+        "401": "La session a expiré",
+        "404": "Code introuvable"
+      }
+    },
+    "select-template": {
+      "which-template": "Quel bureau voulez-vous utiliser ?",
+      "no-templates": {
+        "subtitle": "Si vous pensez qu’il s’agit d’une erreur, veuillez contacter l’administrateur",
+        "title": "Il n’y a pas de modèles pour cet utilisateur"
+      },
+      "notification": {
+        "downloaded": {
+          "description": "Le bureau a été téléchargé avec succès",
+          "title": "Téléchargé"
         },
-        "select-template": {
-            "which-template": "Quel bureau voulez-vous utiliser ?",
-            "no-templates": {
-                "subtitle": "Si vous pensez qu’il s’agit d’une erreur, veuillez contacter l’administrateur",
-                "title": "Il n’y a pas de modèles pour cet utilisateur"
-            },
-            "notification": {
-                "downloaded": {
-                    "description": "Le bureau a été téléchargé avec succès",
-                    "title": "Téléchargé"
-                },
-                "loading": {
-                    "description": "En attente d’une réponse du serveur",
-                    "title": "Chargement"
-                }
-            },
-            "loading": "Chargement des modèles",
-            "not-found": {
-                "back": "Revenir au début",
-                "title": "Nous n’avons pas trouvé l’adresse demandée"
-            },
-            "maintenance": {
-                "sorry": "Désolé pour le désagrément",
-                "the-service": "Le service sera à nouveau disponible dans quelques minutes",
-                "title": "Actuellement, le service Isard est en maintenance"
-            },
-            "login": {
-                "other-logins": "Ou connectez-vous avec",
-                "form": {
-                    "login": "Se connecter",
-                    "pwd": "Mot de passe",
-                    "usr": "Nom d’utilisateur",
-                    "select-category": "Veuillez sélectionner une option"
-                },
-                "title": "Se connecter",
-                "admin": "Administration",
-                "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
-                "powered-by": "Propulsé par"
-            },
-            "error": {
-                "codes": {
-                    "500": "Erreur inattendue",
-                    "403": "Vous ne disposez pas des autorisations nécessaires pour accéder à cette page",
-                    "401": "Votre groupe ne dispose pas des autorisations nécessaires pour accéder à cette page"
-                },
-                "title": "Erreur",
-                "delete-error": {
-                    "description": "Nous n’avons pas pu supprimer le bureau virtuel en raison d’une erreur",
-                    "title": "Erreur"
-                },
-                "stop-timeout": {
-                    "description": "Le bureau s’arrête ; ceci peut prendre quelques minutes",
-                    "title": "Délai d’expiration"
-                },
-                "stop-error": {
-                    "description": "Nous n’avons pas pu arrêter le bureau virtuel en raison d’une erreur",
-                    "title": "Erreur"
-                },
-                "open-error": {
-                    "description": "Nous n’avons pas pu ouvrir le bureau virtuel en raison d’une erreur",
-                    "title": "Erreur"
-                },
-                "start-timeout": {
-                    "description": "Le bureau démarre ; ceci peut prendre quelques minutes",
-                    "title": "Délai d’expiration"
-                },
-                "start-quota": {
-                    "description": "Vous utilisez trop de postes de travail en même temps",
-                    "title": "Erreur"
-                },
-                "start-error": {
-                    "description": "Nous n’avons pas pu créer le bureau virtuel en raison d’une erreur",
-                    "title": "Erreur"
-                },
-                "create-quota": {
-                    "description": "Vous avez trop de bureaux",
-                    "title": "Erreur"
-                },
-                "create-error": {
-                    "description": "Nous n’avons pas pu créer le bureau virtuel en raison d’une erreur",
-                    "title": "Erreur"
-                },
-                "create-timeout": {
-                    "description": "Le bureau est en cours de création, ceci peut prendre quelques minutes",
-                    "title": "Délai d’expiration"
-                }
-            },
-            "status": {
-                "notCreated": {
-                    "action": "Créer"
-                },
-                "stopped": {
-                    "action": "Démarrer",
-                    "text": "Arrêté"
-                },
-                "started": {
-                    "action": "Arrêter",
-                    "text": "Démarré"
-                },
-                "failed": {
-                    "text": "Échec",
-                    "action": "Redémarrer"
-                },
-                "waitingip": {
-                    "action": "Arrêter",
-                    "text": "En attente de l’IP"
-                },
-                "shutting-down": {
-                    "action": "Arrêt en cours",
-                    "text": "Arrêt en cours"
-                },
-                "working": {
-                    "action": "en exécution",
-                    "text": "En attente"
-                },
-                "readyCreation": {
-                    "text": "Prêt pour la création"
-                },
-                "downloading": {
-                    "text": "Téléchargement"
-                }
-            },
-            "remove": "Retirer",
-            "viewer-name": {
-                "browser-vnc": "Navigateur",
-                "file-spice": "SPICE",
-                "file-rdpvpn": "RDP VPN",
-                "browser-rdp": "Navigateur RDP",
-                "file-rdpgw": "RDP"
-            },
-            "viewers": "Visionneuses",
-            "volatile": "Bureaux temporaires",
-            "volatile-compact": "Temporaires",
-            "persistent": "Bureaux permanents",
-            "persistent-compact": "Permanents",
-            "template": "Modèle",
-            "no-desktops-filtered": {
-                "title": "Il n'y a pas de bureaux à afficher avec les filtres actuels",
-                "subtitle": "Vous pouvez créer un nouveau bureau en cliquant sur le bouton en haut à droite"
-            },
-            "no-desktops": {
-                "subtitle": "Vous pouvez créer un nouveau bureau en cliquant sur le bouton en haut à droite",
-                "title": "Il n'y a pas de bureaux à afficher avec les filtres actuels"
-            }
-        },
-        "not-found": {
-            "back": "Revenir au début",
-            "title": "Nous n’avons pas pu trouver l’adresse demandée"
-        },
-        "maintenance": {
-            "sorry": "Désolé pour le désagrément",
-            "the-service": "Le service sera de nouveau disponible dans quelques minutes",
-            "title": "Actuellement, le service Isard est en maintenance",
-            "go-login": "Aller à la connexion"
-        },
-        "error": {
-            "codes": {
-                "500": "Erreur inattendue",
-                "403": "Vous n’avez pas l’autorisation d’accéder à cette page",
-                "401": "Votre groupe n’a pas l’autorisation d’accéder à cette page"
-            },
-            "title": "Erreur",
-            "go-home": "Retour à l’accueil"
-        },
-        "login": {
-            "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
-            "powered-by": "Propulsé par {isardvdi}",
-            "other-logins": "Ou se connecter avec",
-            "form": {
-                "login": "Se connecter",
-                "pwd": "Mot de passe",
-                "usr": "Nom d’utilisateur",
-                "select-category": "Veuillez sélectionner une option"
-            },
-            "title": "Se connecter",
-            "errors": {
-                "500": "Erreur du serveur",
-                "401": "Nom d’utilisateur ou mot de passe incorrect",
-                "generic": "Une erreur est survenue"
-            }
-        },
-        "deployment": {
-            "no-started-desktops": {
-                "title": "Il n’y a pas de postes de travail démarrés dans ce déploiement"
-            },
-            "desktop": {
-                "not-available": "Bureau non disponible"
-            },
-            "visibility": {
-                "visible": "Visible",
-                "not-visible": "Non visible"
-            }
-        },
-        "deployments": {
-            "no-deployments": {
-                "title": "Il n’y a aucun déploiement de cet utilisateur",
-                "subtitle": "Si vous pensez que ceci est une erreur, veuillez contacter l’administrateur"
-            },
-            "buttons": {
-                "make-visible": {
-                    "title": "Rendre visible"
-                },
-                "recreate": {
-                    "title": "Recréer"
-                },
-                "delete": {
-                    "title": "Supprimer"
-                }
-            },
-            "table-header": {
-                "actions": "Actions",
-                "name": "Nom",
-                "visible": "Visible",
-                "template": "Modèle",
-                "description": "Description"
-            }
-        },
-        "cancel": "Annuler",
-        "direct-viewer": {
-            "local-client-help": "Instructions d'installation pour le client local",
-            "title": "Visionneur direct",
-            "help": {
-                "rdp": {
-                    "close-guide": "Fermer le guide",
-                    "here": "ici."
-                },
-                "spice": {
-                    "close-guide": "Fermer le guide",
-                    "install": "Installer",
-                    "other-windows-versions": "autres version de Windows"
-                }
-            }
-        },
-        "templates": {
-            "table-header": {
-                "actions": "Actions",
-                "name": "Nom",
-                "description": "Description"
-            }
+        "loading": {
+          "description": "En attente d’une réponse du serveur",
+          "title": "Chargement"
         }
-    },
-    "components": {
-        "navbar": {
-            "admin": "Administration",
-            "vpn": {
-                "downloadvpn-error": {
-                    "description": "Nous n’avons pas pu télécharger le fichier de configuration du RPV en raison d’une erreur",
-                    "title": "Erreur"
-                },
-                "downloaded": {
-                    "description": "Le fichier de configuration RPV a bien été téléchargé",
-                    "title": "Téléchargé"
-                },
-                "download": "RPV"
-            },
-            "help": "Aide",
-            "deployments": "Déploiements",
-            "profile": "Profil",
-            "bookings": {
-                "summary": "Résumé",
-                "planning": "Planning"
-            },
-            "templates": "Modèles",
-            "desktops": "Bureaux",
-            "media": "Média"
+      },
+      "loading": "Chargement des modèles",
+      "not-found": {
+        "back": "Revenir au début",
+        "title": "Nous n’avons pas trouvé l’adresse demandée"
+      },
+      "maintenance": {
+        "sorry": "Désolé pour le désagrément",
+        "the-service": "Le service sera à nouveau disponible dans quelques minutes",
+        "title": "Actuellement, le service Isard est en maintenance"
+      },
+      "login": {
+        "other-logins": "Ou connectez-vous avec",
+        "form": {
+          "login": "Se connecter",
+          "pwd": "Mot de passe",
+          "usr": "Nom d’utilisateur",
+          "select-category": "Veuillez sélectionner une option"
         },
-        "not-found": {
-            "home": "Retour",
-            "title": "L’adresse demandée n’a pas été trouvée"
+        "title": "Se connecter",
+        "admin": "Administration",
+        "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
+        "powered-by": "Propulsé par"
+      },
+      "error": {
+        "codes": {
+          "500": "Erreur inattendue",
+          "403": "Vous ne disposez pas des autorisations nécessaires pour accéder à cette page",
+          "401": "Votre groupe ne dispose pas des autorisations nécessaires pour accéder à cette page"
         },
-        "help": {
-            "text": {
-                "linux": "Avec le système d’exploitation Linux, vous devez exécuter les commandes suivantes :",
-                "android": "Avec le système d’exploitation Android, vous devez installer l’application suivante :",
-                "windows": "Avec le système d’exploitation Windows, vous devez télécharger et installer l’un des exécutables suivants :",
-                "ios": "Avec le système d’exploitation iOS, vous devez installer l’application suivante :",
-                "macos": "macOS est une plateforme non prise en charge. Vous devez utiliser l’option du navigateur"
-            },
-            "spice-client-required": "Une application externe est requise.",
-            "worse-performance": "mais la performance est moins bonne",
-            "no-install": "Il n’y a pas besoin d’installer de programme externe, {worse-performance}. Vous devez simplement cliquer sur le bouton et cela ouvrira le bureau virtuel dans un nouvel onglet",
-            "use-browser": "Utiliser le navigateur",
-            "once-installed": "Une fois installé, cliquez sur le bouton « client local » qui téléchargera le fichier de bureau virtuel",
-            "other-windows-versions": "autres versions Windows",
-            "install": "Installer",
-            "best-performance": "C’est l’option avec la meilleure performance",
-            "local-client": "Utiliser le client local (recommandé)",
-            "close-guide": "Fermer le guide",
-            "title": "Aide"
+        "title": "Erreur",
+        "delete-error": {
+          "description": "Nous n’avons pas pu supprimer le bureau virtuel en raison d’une erreur",
+          "title": "Erreur"
         },
-        "title": {
-            "logo-alt": "Logo"
+        "stop-timeout": {
+          "description": "Le bureau s’arrête ; ceci peut prendre quelques minutes",
+          "title": "Délai d’expiration"
         },
-        "desktop-cards": {
-            "table-header": {
-                "viewers": "Visionneuses",
-                "action": "Action",
-                "description": "Description",
-                "state": "État",
-                "name": "Nom",
-                "desktop-size": "Taille"
-            },
-            "no-info-default": "Aucune description disponible",
-            "actions": {
-                "delete": "Supprimer"
-            },
-            "filter-label": "Filtrer",
-            "notification-bar": {
-                "next-booking": "Prochaine réservation"
-            }
+        "stop-error": {
+          "description": "Nous n’avons pas pu arrêter le bureau virtuel en raison d’une erreur",
+          "title": "Erreur"
         },
-        "rdp-modal": {
-            "button-refresh": "Actualiser",
-            "title": {
-                "error": "Erreur du client",
-                "unstable": "Instable",
-                "disconnected": "Déconnecté",
-                "connecting": "Connexion en cours"
-            },
-            "message": {
-                "error": "Erreur de connexion",
-                "unstable": "Le serveur de connexion réseau semble instable",
-                "disconnected": "Vous avez été déconnecté·e",
-                "connecting": "Connexion au serveur…"
-            }
+        "open-error": {
+          "description": "Nous n’avons pas pu ouvrir le bureau virtuel en raison d’une erreur",
+          "title": "Erreur"
         },
-        "statusbar": {
-            "checkbox-text": "Seulement les démarrés",
-            "desktops-started": "Bureaux démarrés",
-            "new-desktop": "Nouveau bureau",
-            "checkbox-text-short": "Démarrés",
-            "select": "Sélectionner",
-            "cancel": "Annuler",
-            "upload-file": "Envoyer un fichier",
-            "deployment": {
-                "buttons": {
-                    "make-not-visible": {
-                        "title": "Rendre non visible"
-                    },
-                    "delete": {
-                        "title": "Supprimer le déploiement"
-                    },
-                    "make-visible": {
-                        "title": "Rendre visible"
-                    }
-                }
-            }
+        "start-timeout": {
+          "description": "Le bureau démarre ; ceci peut prendre quelques minutes",
+          "title": "Délai d’expiration"
         },
-        "deployment-desktop-list": {
-            "actions": {
-                "delete": "Supprimer"
-            },
-            "table-header": {
-                "user": "Utilisateur",
-                "state": "État",
-                "group": "Groupe",
-                "action": "Action"
-            },
-            "filter-label": "Filtre"
+        "start-quota": {
+          "description": "Vous utilisez trop de postes de travail en même temps",
+          "title": "Erreur"
         },
-        "profile": {
-            "info": {
-                "role": "Rôle",
-                "group": "Groupe",
-                "name": "Nom",
-                "category": "Catégorie",
-                "email": "E-mail",
-                "authentication": "Authentification"
-            },
-            "change-password": "Changer le mot de passe",
-            "language": "Langage"
+        "start-error": {
+          "description": "Nous n’avons pas pu créer le bureau virtuel en raison d’une erreur",
+          "title": "Erreur"
         },
-        "bookings": {
-            "item": {
-                "event-titles": {
-                    "available": "Disponible",
-                    "unavailable": "Non disponible"
-                },
-                "split-labels": {
-                    "availability": "Disponibilité",
-                    "bookings": "Réservations"
-                },
-                "modal": {
-                    "edit": {
-                        "button": "Enregistrer les modifications"
-                    },
-                    "start-date": "Date de début",
-                    "start-time": "Heure de début",
-                    "end-date": "Date de fin",
-                    "end-time": "Heure de fin",
-                    "profile": "Profil",
-                    "delete": {
-                        "button": "Supprimer"
-                    },
-                    "title": "Titre",
-                    "create": {
-                        "modal-title": "Ajouter une réservation",
-                        "button": "Ajouter une réservation"
-                    }
-                },
-                "enough-units": "Suffisant unités",
-                "units": "unités",
-                "status-bar": {
-                    "buttons": {
-                        "add-booking": "Ajouter une réservation"
-                    }
-                }
-            }
+        "create-quota": {
+          "description": "Vous avez trop de bureaux",
+          "title": "Erreur"
         },
-        "select-search": {
-            "empty": "Aucune option disponible"
+        "create-error": {
+          "description": "Nous n’avons pas pu créer le bureau virtuel en raison d’une erreur",
+          "title": "Erreur"
+        },
+        "create-timeout": {
+          "description": "Le bureau est en cours de création, ceci peut prendre quelques minutes",
+          "title": "Délai d’expiration"
         }
+      },
+      "status": {
+        "notCreated": {
+          "action": "Créer"
+        },
+        "stopped": {
+          "action": "Démarrer",
+          "text": "Arrêté"
+        },
+        "started": {
+          "action": "Arrêter",
+          "text": "Démarré"
+        },
+        "failed": {
+          "text": "Échec",
+          "action": "Redémarrer"
+        },
+        "waitingip": {
+          "action": "Arrêter",
+          "text": "En attente de l’IP"
+        },
+        "shutting-down": {
+          "action": "Arrêt en cours",
+          "text": "Arrêt en cours"
+        },
+        "working": {
+          "action": "en exécution",
+          "text": "En attente"
+        },
+        "readyCreation": {
+          "text": "Prêt pour la création"
+        },
+        "downloading": {
+          "text": "Téléchargement"
+        }
+      },
+      "remove": "Retirer",
+      "viewer-name": {
+        "browser-vnc": "Navigateur",
+        "file-spice": "SPICE",
+        "file-rdpvpn": "RDP VPN",
+        "browser-rdp": "Navigateur RDP",
+        "file-rdpgw": "RDP"
+      },
+      "viewers": "Visionneuses",
+      "volatile": "Bureaux temporaires",
+      "volatile-compact": "Temporaires",
+      "persistent": "Bureaux permanents",
+      "persistent-compact": "Permanents",
+      "template": "Modèle",
+      "no-desktops-filtered": {
+        "title": "Il n'y a pas de bureaux à afficher avec les filtres actuels",
+        "subtitle": "Vous pouvez créer un nouveau bureau en cliquant sur le bouton en haut à droite"
+      },
+      "no-desktops": {
+        "subtitle": "Vous pouvez créer un nouveau bureau en cliquant sur le bouton en haut à droite",
+        "title": "Il n'y a pas de bureaux à afficher avec les filtres actuels"
+      }
     },
-    "errors": {
-        "generic_error": "Une erreur s'est produite",
-        "desktop_new_user_quota_exceeded": "Le quota d'utilisateurs pour la création de bureau est dépassé",
-        "desktop_new_group_quota_exceeded": "La limite du groupe de création de bureau est dépassée",
-        "desktop_new_category_quota_exceeded": "La limite de catégorie de création de bureau est dépassée",
-        "desktop_start_user_quota_exceeded": "Le quota de bureaux démarrés pour cet utilisateur est dépassé",
-        "desktop_start_category_quota_exceeded": "La limite de postes de travail démarrés pour la catégorie est dépassée",
-        "desktop_start_vcpu_quota_exceeded": "le quota de vCPU pour cet utilisateur est épuisé",
-        "desktop_start_group_memory_quota_exceeded": "La limite de mémoire pour ce groupe a été dépassée",
-        "desktop_start_category_memory_quota_exceeded": "La limite de mémoire pour cette catégorie a été dépassée",
-        "category_generic_exception": "Échec lors de la récupération de la catégorie",
-        "desktop_start_category_vcpu_quota_exceeded": "La limite de vCPU pour cette catégorie a été dépassée",
-        "desktop_start_memory_quota_exceeded": "Le quota de mémoire pour cet utilisateur a été dépassé",
-        "user_new_category_cuota_exceeded": "La limite de création d'utilisateurs pour cette catégorie est dépassée",
-        "template_new_not_created": "Échec lors de la création du modèle",
-        "get_generic_exception": "Échec lors de la récupération des données",
-        "templates_get_error": "Échec lors de la récupération des modèles",
-        "viewer_not_started": "Le visualiseur n'a pas été lancé",
-        "login_failed": "Échec de la connexion",
-        "user_new_generic_exception": "Échec lors de la création de l'utilisateur",
-        "user_delete_generic_exception": "Échec lors de la suppression de l'utilisateur",
-        "user_new_group_cuota_exceeded": "La limite de la création d'utilisateur pour ce groupe est dépassée",
-        "username_exists": "Un utilisateur existe déjà pour ce même nom d'utilisateur",
-        "update_generic_exception": "Échec lors de la mise à jour",
-        "register_generic_exception": "Échec lors du processus d'enregistrement",
-        "undefined_error": "Une erreur est survenue",
-        "bad_request": "Les paramètres de la requête sont invalides",
-        "bad_request_title": "Erreur de la requête",
-        "desktop_new_template_forbidden": "Erreur de permission durant la création du bureau",
-        "quota_general_exception": "Une erreur concernant le quota des utilisateurs est survenue",
-        "desktops_get_error": "Échec lors de la récupération des bureaux",
-        "user_disabled": "L'utilisateur est désactivé",
-        "template_new_user_quota_exceeded": "Le quota d'utilisateurs pour la création de modèles est dépassé",
-        "template_new_group_quota_exceeded": "Limite de groupe de création de modèle dépassée",
-        "forbidden": "Une erreur s'est produite concernant les autorisations de ressources",
-        "desktop_action_failed": "Erreur lors de l'exécution de l'action sur le bureau",
-        "template_new_category_quota_exceeded": "La limite de catégorie de création de modèle est dépassée",
-        "desktop_start_timeout": "Un délai d'attente s'est produit au démarrage du bureau",
-        "desktop_stop_timeout": "Un dépassement de délai s'est produit lors de l'arrêt du bureau"
+    "not-found": {
+      "back": "Revenir au début",
+      "title": "Nous n’avons pas pu trouver l’adresse demandée"
     },
-    "validations": {
-        "maxLengthValue": "Le champ {property} a {model} caractères, mais sa longueur maximale doit être de {max}.",
-        "inputFormat": "Les caractères valides sont les lettres, les chiffres, la virgule, le point, -, _",
-        "required": "{property} est requis.",
-        "minLengthValue": "Le champ {property} a {model} caractères, mais sa longueur minimale doit être de {min}.",
-        "url": "Le champ {property} doit être une URL.",
-        "sameAs": "Le champ {property} doit avoir la même valeur que le champ {property2}.",
-        "undefined": "Non défini",
-        "URLFormat": "Cela doit commencer par \"https://\".",
-        "email": "Le champ {property} doit être une adresse e-mail valide."
+    "maintenance": {
+      "sorry": "Désolé pour le désagrément",
+      "the-service": "Le service sera de nouveau disponible dans quelques minutes",
+      "title": "Actuellement, le service Isard est en maintenance",
+      "go-login": "Aller à la connexion"
     },
-    "forms": {
-        "new-desktop": {
-            "title": "Créer un nouveau bureau :",
-            "filter": "Filtre",
-            "template-table-column-headers": {
-                "name": "Nom",
-                "user": "Utilisateur",
-                "selected": "Sélectionné",
-                "description": "Description",
-                "category": "Catégorie",
-                "group": "Groupe",
-                "image": "Image"
-            },
-            "desktop-template": "Modèle",
-            "section-title-template": "Sélectionnez un modèle :",
-            "filter-placeholder": "Tapez pour rechercher",
-            "section-title-advanced": "Options avancées"
+    "error": {
+      "codes": {
+        "500": "Erreur inattendue",
+        "403": "Vous n’avez pas l’autorisation d’accéder à cette page",
+        "401": "Votre groupe n’a pas l’autorisation d’accéder à cette page"
+      },
+      "title": "Erreur",
+      "go-home": "Retour à l’accueil"
+    },
+    "login": {
+      "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
+      "powered-by": "Propulsé par {isardvdi}",
+      "other-logins": "Ou se connecter avec",
+      "form": {
+        "login": "Se connecter",
+        "pwd": "Mot de passe",
+        "usr": "Nom d’utilisateur",
+        "select-category": "Veuillez sélectionner une option"
+      },
+      "title": "Se connecter",
+      "errors": {
+        "500": "Erreur du serveur",
+        "401": "Nom d’utilisateur ou mot de passe incorrect",
+        "generic": "Une erreur est survenue"
+      }
+    },
+    "deployment": {
+      "no-started-desktops": {
+        "title": "Il n’y a pas de postes de travail démarrés dans ce déploiement"
+      },
+      "desktop": {
+        "not-available": "Bureau non disponible"
+      },
+      "visibility": {
+        "visible": "Visible",
+        "not-visible": "Non visible"
+      }
+    },
+    "deployments": {
+      "no-deployments": {
+        "title": "Il n’y a aucun déploiement de cet utilisateur",
+        "subtitle": "Si vous pensez que ceci est une erreur, veuillez contacter l’administrateur"
+      },
+      "buttons": {
+        "make-visible": {
+          "title": "Rendre visible"
         },
-        "domain": {
-            "info": {
-                "name": "Nom",
-                "description": "Description"
-            },
-            "hardware": {
-                "memory": "Mémoire (GB)",
-                "videos": "Vidéos"
-            },
-            "media": {
-                "title": "Média"
-            },
-            "viewers": {
-                "guest": {
-                    "password": "Mot de passe"
-                }
-            }
+        "recreate": {
+          "title": "Recréer"
         },
-        "clear": "Effacer",
-        "cancel": "Annuler",
-        "submit": "Soumettre",
-        "create": "Créer",
-        "registration": {
-            "code": "Code d'enregistrement"
+        "delete": {
+          "title": "Supprimer"
+        }
+      },
+      "table-header": {
+        "actions": "Actions",
+        "name": "Nom",
+        "visible": "Visible",
+        "template": "Modèle",
+        "description": "Description"
+      }
+    },
+    "cancel": "Annuler",
+    "direct-viewer": {
+      "local-client-help": "Instructions d'installation pour le client local",
+      "title": "Visionneur direct",
+      "help": {
+        "rdp": {
+          "close-guide": "Fermer le guide",
+          "here": "ici."
         },
-        "allowed": {
-            "groups": "Groupes :",
-            "users": "Utilisateurs :",
-            "title": "Permis",
-            "placeholder": "Tapez au moins 2 lettres pour la recherche.",
-            "modal": {
-                "buttons": {
-                    "update": "Mettre à jour"
-                },
-                "title": "Mise à jour autorisée"
-            }
+        "spice": {
+          "close-guide": "Fermer le guide",
+          "install": "Installer",
+          "other-windows-versions": "autres version de Windows"
+        }
+      }
+    },
+    "templates": {
+      "table-header": {
+        "actions": "Actions",
+        "name": "Nom",
+        "description": "Description"
+      }
+    }
+  },
+  "components": {
+    "navbar": {
+      "admin": "Administration",
+      "vpn": {
+        "downloadvpn-error": {
+          "description": "Nous n’avons pas pu télécharger le fichier de configuration du RPV en raison d’une erreur",
+          "title": "Erreur"
         },
-        "new-deployment": {
-            "desktop": {
-                "name": "Nom du bureau",
-                "description": "Description du bureau",
-                "template": "Modèle"
-            },
-            "filter": "Filtre",
-            "template-table-column-headers": {
-                "selected": "Sélectionné",
-                "image": "Image",
-                "name": "Nom",
-                "description": "Description",
-                "category": "Catégorie",
-                "user": "Utilisateur",
-                "group": "Groupe"
-            },
-            "title": "Créer un nouveau déploiement :",
-            "name": "Nom de déploiement",
-            "visible": "Visible aux utilisateurs",
-            "section-title-template": "Sélectionner un modèle :",
-            "error": {
-                "groups": "Au moins un groupe doit être sélectionné",
-                "users": "Au moins un utilisateur doit être sélectionné",
-                "groups-users": "Au moins un utilisateur ou un groupe doit être sélectionné"
-            },
-            "filter-placeholder": "Rechercher"
+        "downloaded": {
+          "description": "Le fichier de configuration RPV a bien été téléchargé",
+          "title": "Téléchargé"
+        },
+        "download": "RPV"
+      },
+      "help": "Aide",
+      "deployments": "Déploiements",
+      "profile": "Profil",
+      "bookings": {
+        "summary": "Résumé",
+        "planning": "Planning"
+      },
+      "templates": "Modèles",
+      "desktops": "Bureaux",
+      "media": "Média"
+    },
+    "not-found": {
+      "home": "Retour",
+      "title": "L’adresse demandée n’a pas été trouvée"
+    },
+    "help": {
+      "text": {
+        "linux": "Avec le système d’exploitation Linux, vous devez exécuter les commandes suivantes :",
+        "android": "Avec le système d’exploitation Android, vous devez installer l’application suivante :",
+        "windows": "Avec le système d’exploitation Windows, vous devez télécharger et installer l’un des exécutables suivants :",
+        "ios": "Avec le système d’exploitation iOS, vous devez installer l’application suivante :",
+        "macos": "macOS est une plateforme non prise en charge. Vous devez utiliser l’option du navigateur"
+      },
+      "spice-client-required": "Une application externe est requise.",
+      "worse-performance": "mais la performance est moins bonne",
+      "no-install": "Il n’y a pas besoin d’installer de programme externe, {worse-performance}. Vous devez simplement cliquer sur le bouton et cela ouvrira le bureau virtuel dans un nouvel onglet",
+      "use-browser": "Utiliser le navigateur",
+      "once-installed": "Une fois installé, cliquez sur le bouton « client local » qui téléchargera le fichier de bureau virtuel",
+      "other-windows-versions": "autres versions Windows",
+      "install": "Installer",
+      "best-performance": "C’est l’option avec la meilleure performance",
+      "local-client": "Utiliser le client local (recommandé)",
+      "close-guide": "Fermer le guide",
+      "title": "Aide"
+    },
+    "title": {
+      "logo-alt": "Logo"
+    },
+    "desktop-cards": {
+      "table-header": {
+        "viewers": "Visionneuses",
+        "action": "Action",
+        "description": "Description",
+        "state": "État",
+        "name": "Nom",
+        "desktop-size": "Taille"
+      },
+      "no-info-default": "Aucune description disponible",
+      "actions": {
+        "delete": "Supprimer"
+      },
+      "filter-label": "Filtrer",
+      "notification-bar": {
+        "next-booking": "Prochaine réservation"
+      }
+    },
+    "rdp-modal": {
+      "button-refresh": "Actualiser",
+      "title": {
+        "error": "Erreur du client",
+        "unstable": "Instable",
+        "disconnected": "Déconnecté",
+        "connecting": "Connexion en cours"
+      },
+      "message": {
+        "error": "Erreur de connexion",
+        "unstable": "Le serveur de connexion réseau semble instable",
+        "disconnected": "Vous avez été déconnecté·e",
+        "connecting": "Connexion au serveur…"
+      }
+    },
+    "statusbar": {
+      "checkbox-text": "Seulement les démarrés",
+      "desktops-started": "Bureaux démarrés",
+      "new-desktop": "Nouveau bureau",
+      "checkbox-text-short": "Démarrés",
+      "select": "Sélectionner",
+      "cancel": "Annuler",
+      "upload-file": "Envoyer un fichier",
+      "deployment": {
+        "buttons": {
+          "make-not-visible": {
+            "title": "Rendre non visible"
+          },
+          "delete": {
+            "title": "Supprimer le déploiement"
+          },
+          "make-visible": {
+            "title": "Rendre visible"
+          }
+        }
+      }
+    },
+    "deployment-desktop-list": {
+      "actions": {
+        "delete": "Supprimer"
+      },
+      "table-header": {
+        "user": "Utilisateur",
+        "state": "État",
+        "group": "Groupe",
+        "action": "Action"
+      },
+      "filter-label": "Filtre"
+    },
+    "profile": {
+      "info": {
+        "role": "Rôle",
+        "group": "Groupe",
+        "name": "Nom",
+        "category": "Catégorie",
+        "email": "E-mail",
+        "authentication": "Authentification"
+      },
+      "change-password": "Changer le mot de passe",
+      "language": "Langage"
+    },
+    "bookings": {
+      "item": {
+        "event-titles": {
+          "available": "Disponible",
+          "unavailable": "Non disponible"
+        },
+        "split-labels": {
+          "availability": "Disponibilité",
+          "bookings": "Réservations"
+        },
+        "modal": {
+          "edit": {
+            "button": "Enregistrer les modifications"
+          },
+          "start-date": "Date de début",
+          "start-time": "Heure de début",
+          "end-date": "Date de fin",
+          "end-time": "Heure de fin",
+          "profile": "Profil",
+          "delete": {
+            "button": "Supprimer"
+          },
+          "title": "Titre",
+          "create": {
+            "modal-title": "Ajouter une réservation",
+            "button": "Ajouter une réservation"
+          }
+        },
+        "enough-units": "Suffisant unités",
+        "units": "unités",
+        "status-bar": {
+          "buttons": {
+            "add-booking": "Ajouter une réservation"
+          }
+        }
+      }
+    },
+    "select-search": {
+      "empty": "Aucune option disponible"
+    }
+  },
+  "errors": {
+    "generic_error": "Une erreur s'est produite",
+    "desktop_new_user_quota_exceeded": "Le quota d'utilisateurs pour la création de bureau est dépassé",
+    "desktop_new_group_quota_exceeded": "La limite du groupe de création de bureau est dépassée",
+    "desktop_new_category_quota_exceeded": "La limite de catégorie de création de bureau est dépassée",
+    "desktop_start_user_quota_exceeded": "Le quota de bureaux démarrés pour cet utilisateur est dépassé",
+    "desktop_start_category_quota_exceeded": "La limite de postes de travail démarrés pour la catégorie est dépassée",
+    "desktop_start_vcpu_quota_exceeded": "le quota de vCPU pour cet utilisateur est épuisé",
+    "desktop_start_group_memory_quota_exceeded": "La limite de mémoire pour ce groupe a été dépassée",
+    "desktop_start_category_memory_quota_exceeded": "La limite de mémoire pour cette catégorie a été dépassée",
+    "category_generic_exception": "Échec lors de la récupération de la catégorie",
+    "desktop_start_category_vcpu_quota_exceeded": "La limite de vCPU pour cette catégorie a été dépassée",
+    "desktop_start_memory_quota_exceeded": "Le quota de mémoire pour cet utilisateur a été dépassé",
+    "user_new_category_cuota_exceeded": "La limite de création d'utilisateurs pour cette catégorie est dépassée",
+    "template_new_not_created": "Échec lors de la création du modèle",
+    "get_generic_exception": "Échec lors de la récupération des données",
+    "templates_get_error": "Échec lors de la récupération des modèles",
+    "viewer_not_started": "Le visualiseur n'a pas été lancé",
+    "login_failed": "Échec de la connexion",
+    "user_new_generic_exception": "Échec lors de la création de l'utilisateur",
+    "user_delete_generic_exception": "Échec lors de la suppression de l'utilisateur",
+    "user_new_group_cuota_exceeded": "La limite de la création d'utilisateur pour ce groupe est dépassée",
+    "username_exists": "Un utilisateur existe déjà pour ce même nom d'utilisateur",
+    "update_generic_exception": "Échec lors de la mise à jour",
+    "register_generic_exception": "Échec lors du processus d'enregistrement",
+    "undefined_error": "Une erreur est survenue",
+    "bad_request": "Les paramètres de la requête sont invalides",
+    "bad_request_title": "Erreur de la requête",
+    "desktop_new_template_forbidden": "Erreur de permission durant la création du bureau",
+    "quota_general_exception": "Une erreur concernant le quota des utilisateurs est survenue",
+    "desktops_get_error": "Échec lors de la récupération des bureaux",
+    "user_disabled": "L'utilisateur est désactivé",
+    "template_new_user_quota_exceeded": "Le quota d'utilisateurs pour la création de modèles est dépassé",
+    "template_new_group_quota_exceeded": "Limite de groupe de création de modèle dépassée",
+    "forbidden": "Une erreur s'est produite concernant les autorisations de ressources",
+    "desktop_action_failed": "Erreur lors de l'exécution de l'action sur le bureau",
+    "template_new_category_quota_exceeded": "La limite de catégorie de création de modèle est dépassée",
+    "desktop_start_timeout": "Un délai d'attente s'est produit au démarrage du bureau",
+    "desktop_stop_timeout": "Un dépassement de délai s'est produit lors de l'arrêt du bureau"
+  },
+  "validations": {
+    "maxLengthValue": "Le champ {property} a {model} caractères, mais sa longueur maximale doit être de {max}.",
+    "inputFormat": "Les caractères valides sont les lettres, les chiffres, la virgule, le point, -, _",
+    "required": "{property} est requis.",
+    "minLengthValue": "Le champ {property} a {model} caractères, mais sa longueur minimale doit être de {min}.",
+    "url": "Le champ {property} doit être une URL.",
+    "sameAs": "Le champ {property} doit avoir la même valeur que le champ {property2}.",
+    "undefined": "Non défini",
+    "URLFormat": "Cela doit commencer par \"https://\".",
+    "email": "Le champ {property} doit être une adresse e-mail valide."
+  },
+  "forms": {
+    "new-desktop": {
+      "title": "Créer un nouveau bureau :",
+      "filter": "Filtre",
+      "template-table-column-headers": {
+        "name": "Nom",
+        "user": "Utilisateur",
+        "selected": "Sélectionné",
+        "description": "Description",
+        "category": "Catégorie",
+        "group": "Groupe",
+        "image": "Image"
+      },
+      "desktop-template": "Modèle",
+      "section-title-template": "Sélectionnez un modèle :",
+      "filter-placeholder": "Tapez pour rechercher",
+      "section-title-advanced": "Options avancées"
+    },
+    "domain": {
+      "info": {
+        "name": "Nom",
+        "description": "Description"
+      },
+      "hardware": {
+        "memory": "Mémoire (GB)",
+        "videos": "Vidéos"
+      },
+      "media": {
+        "title": "Média"
+      },
+      "viewers": {
+        "guest": {
+          "password": "Mot de passe"
+        }
+      }
+    },
+    "clear": "Effacer",
+    "cancel": "Annuler",
+    "submit": "Soumettre",
+    "create": "Créer",
+    "registration": {
+      "code": "Code d'enregistrement"
+    },
+    "allowed": {
+      "groups": "Groupes :",
+      "users": "Utilisateurs :",
+      "title": "Permis",
+      "placeholder": "Tapez au moins 2 lettres pour la recherche.",
+      "modal": {
+        "buttons": {
+          "update": "Mettre à jour"
+        },
+        "title": "Mise à jour autorisée"
+      }
+    },
+    "new-deployment": {
+      "desktop": {
+        "name": "Nom du bureau",
+        "description": "Description du bureau",
+        "template": "Modèle"
+      },
+      "filter": "Filtre",
+      "template-table-column-headers": {
+        "selected": "Sélectionné",
+        "image": "Image",
+        "name": "Nom",
+        "description": "Description",
+        "category": "Catégorie",
+        "user": "Utilisateur",
+        "group": "Groupe"
+      },
+      "title": "Créer un nouveau déploiement :",
+      "name": "Nom de déploiement",
+      "visible": "Visible aux utilisateurs",
+      "section-title-template": "Sélectionner un modèle :",
+      "error": {
+        "groups": "Au moins un groupe doit être sélectionné",
+        "users": "Au moins un utilisateur doit être sélectionné",
+        "groups-users": "Au moins un utilisateur ou un groupe doit être sélectionné"
+      },
+      "filter-placeholder": "Rechercher"
+    },
+    "password": {
+      "modal": {
+        "buttons": {
+          "update": "Mettre à jour"
         },
         "password": {
-            "modal": {
-                "buttons": {
-                    "update": "Mettre à jour"
-                },
-                "password": {
-                    "label": "Mot de passe",
-                    "placeholder": "Mot de passe"
-                },
-                "title": "Changer le mot de passe",
-                "confirmation-password": {
-                    "placeholder": "Confirmer le mot de passe",
-                    "label": "Confirmation du mot de passe"
-                },
-                "warning": "Votre mot de passe a expiré. Vous devez le changer pour continuer"
-            }
+          "label": "Mot de passe",
+          "placeholder": "Mot de passe"
         },
-        "new-template": {
-            "title": "Créer un nouveau modèle",
-            "name": "Nom",
-            "description": "Description",
-            "enabled": "Actif",
-            "disabled": "Désactivé"
+        "title": "Changer le mot de passe",
+        "confirmation-password": {
+          "placeholder": "Confirmer le mot de passe",
+          "label": "Confirmation du mot de passe"
         },
-        "new-media": {
-            "url": "URL",
-            "title": "Créer un nouveau média :",
-            "description": "Description",
-            "name": "Nom du média",
-            "select-type": "Sélectionnez une option s'il vous plaît"
-        },
-        "duplicate": "Dupliquer",
-        "filter-placeholder": "Tapez pour rechercher",
-        "duplicate-template": {
-            "title": "Dupliquer le modèle"
-        }
+        "warning": "Votre mot de passe a expiré. Vous devez le changer pour continuer"
+      }
     },
-    "messages": {
-        "yes": "Oui",
-        "no": "Non",
-        "title": {
-            "delete": "Supprimer"
-        },
-        "info": {
-            "deleting-desktop": "Suppression du bureau",
-            "opening-desktop": "Ouverture du bureau",
-            "creating-desktop": "Création du bureau",
-            "file-downloaded": "Fichier téléchargé",
-            "deleting-event": "Suppression de l'événement",
-            "editing-event": "Modification de l'événement",
-            "creating-event": "Création de l'événement",
-            "missing-data": "Données manquantes"
-        },
-        "loading": "Chargement"
+    "new-template": {
+      "title": "Créer un nouveau modèle",
+      "name": "Nom",
+      "description": "Description",
+      "enabled": "Actif",
+      "disabled": "Désactivé"
+    },
+    "new-media": {
+      "url": "URL",
+      "title": "Créer un nouveau média :",
+      "description": "Description",
+      "name": "Nom du média",
+      "select-type": "Sélectionnez une option s'il vous plaît"
+    },
+    "duplicate": "Dupliquer",
+    "filter-placeholder": "Tapez pour rechercher",
+    "duplicate-template": {
+      "title": "Dupliquer le modèle"
     }
+  },
+  "messages": {
+    "yes": "Oui",
+    "no": "Non",
+    "title": {
+      "delete": "Supprimer"
+    },
+    "info": {
+      "deleting-desktop": "Suppression du bureau",
+      "opening-desktop": "Ouverture du bureau",
+      "creating-desktop": "Création du bureau",
+      "file-downloaded": "Fichier téléchargé",
+      "deleting-event": "Suppression de l'événement",
+      "editing-event": "Modification de l'événement",
+      "creating-event": "Création de l'événement",
+      "missing-data": "Données manquantes"
+    },
+    "loading": "Chargement"
+  },
+  "router": {
+    "titles": {
+      "login": "Se connecter"
+    }
+  }
 }

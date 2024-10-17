@@ -505,7 +505,10 @@
                 "unit": "Tamaño unidad personal / Tamaño total unidad personal (MB)",
                 "deployments_total": "Despliegues creados / Total de despliegues",
                 "deployment_desktops": "Maximo de escritorios por despliegue",
-                "started_deployment_desktops": "Escritorios de despliegue arrancados"
+                "started_deployment_desktops": {
+                    "title": "Escritorios de despliegue arrancados",
+                    "description": "Cantidad total de escritorios de despliegues que puede arrancar el usuario"
+                }
             },
             "reset-vpn": "Restaurar VPN"
         },

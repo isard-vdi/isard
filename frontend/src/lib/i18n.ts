@@ -10,7 +10,8 @@ export enum Locale {
   English = 'en-US',
   Català = 'ca-ES',
   Euskara = 'eu-ES',
-  Español = 'es-ES'
+  Español = 'es-ES',
+  Français = 'fr-FR'
 }
 
 const localesWithoutRegion = (() => {
@@ -37,7 +38,8 @@ export const i18n = createI18n<[MessageSchema], `${Locale}`, false>({
     [Locale.English]: enUS,
     [Locale.Català]: emptyLocale,
     [Locale.Euskara]: emptyLocale,
-    [Locale.Español]: emptyLocale
+    [Locale.Español]: emptyLocale,
+    [Locale.Français]: emptyLocale
   }
 })
 

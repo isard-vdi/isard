@@ -506,7 +506,7 @@
                 "deployment_desktops": "Max desktops per deployment",
                 "started_deployment_desktops": {
                     "title": "Running deployment desktops / Total running deployment desktops", 
-                    "description": "Ammount of desktops running started by the owner of a deployment"
+                    "description": "Ammount of deployment desktops that the user can start"
                 }
             },
             "reset-vpn": "Reset VPN"
