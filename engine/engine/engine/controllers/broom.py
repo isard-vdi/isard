@@ -97,7 +97,7 @@ class ThreadBroom(threading.Thread):
                         ) = get_hyp_hostname_from_id(hyp_id)
                         if hostname is False:
                             logs.broom.error(
-                                "hyp {} with id has not hostname or is nos in database".format(
+                                "hyp {} with id has not hostname or is not in database".format(
                                     hyp_id
                                 )
                             )
@@ -142,40 +142,35 @@ class ThreadBroom(threading.Thread):
                                     status_and_detail,
                                 ) in d_domains_status_from_hyp.items():
                                     if domain_id not in DB_DOMAINS_ID_STARTED_WITH_HYP:
-                                        # starting with _debug_ not destroyed by broom
-                                        if (
-                                            os.environ.get("LOG_LEVEL") != "DEBUG"
-                                            and domain_id.find("_debug_") != 0
-                                        ):
-                                            # Not in debug, destroy if domain not found in database
-                                            db_domain = get_domain(domain_id)
-                                            if db_domain is None:
-                                                try:
-                                                    domain_handler = (
-                                                        h.conn.lookupByName(domain_id)
-                                                    )
-                                                    domain_handler.destroy()
-                                                    domains_destroyed.append(domain_id)
-                                                    logs.broom.error(
-                                                        f"broom destroyed domain not in database {domain_id} in hypervisor {hyp_id}"
-                                                    )
-                                                except Exception as e:
-                                                    logs.broom.error(
-                                                        f"EXCEPTION when try to destroy domain not in database {domain_id} in hypervisor {hyp_id} with exception: {e}"
-                                                    )
-                                        else:
-                                            logs.broom.info(
-                                                f"domain debugging: domain_id"
+                                        db_domain = get_domain(domain_id)
+                                        if db_domain is None:
+                                            try:
+                                                domain_handler = h.conn.lookupByName(
+                                                    domain_id
+                                                )
+                                                domain_handler.destroy()
+                                                domains_destroyed.append(domain_id)
+                                                logs.broom.error(
+                                                    f"broom destroyed domain not in database {domain_id} in hypervisor {hyp_id}"
+                                                )
+                                            except Exception as e:
+                                                logs.broom.error(
+                                                    f"EXCEPTION when try to destroy domain not in database {domain_id} in hypervisor {hyp_id} with exception: {e}"
+                                                )
+                                        if db_domain.get("status") not in [
+                                            "Started",
+                                            "Shutting-down",
+                                            "Stopping",
+                                        ]:
+                                            logs.broom.warning(
+                                                f"broom find domain {domain_id} with status {db_domain.get('status')} started in hypervisor {hyp_id} and updated status and hyp_started in database"
                                             )
-                                            domains_debugging.append(domain_id)
-                                    else:
-                                        # We know the actual status of the domain in hypervisor
-                                        update_domain_hyp_started(
-                                            domain_id,
-                                            hyp_id,
-                                            "hyp_started updated by broom",
-                                            status_and_detail["status"],
-                                        )
+                                            update_domain_hyp_started(
+                                                domain_id,
+                                                hyp_id,
+                                                "hyp_started updated by broom",
+                                                "Started",
+                                            )
 
                                 # remove domains destroyed by broom
                                 [
