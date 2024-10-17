@@ -406,60 +406,67 @@ def new_dict_from_raw_dict_stats(raw_values, round_digits=6):
     return d
 
 
-domain_state_cause_codes = """libvirt.VIR_DOMAIN_NOSTATE_UNKNOWN
-libvirt.VIR_DOMAIN_RUNNING_BOOTED
-libvirt.VIR_DOMAIN_RUNNING_CRASHED
-libvirt.VIR_DOMAIN_RUNNING_FROM_SNAPSHOT
-libvirt.VIR_DOMAIN_RUNNING_MIGRATED
-libvirt.VIR_DOMAIN_RUNNING_MIGRATION_CANCELED
-libvirt.VIR_DOMAIN_RUNNING_RESTORED
-libvirt.VIR_DOMAIN_RUNNING_SAVE_CANCELED
-libvirt.VIR_DOMAIN_RUNNING_UNKNOWN
-libvirt.VIR_DOMAIN_RUNNING_UNPAUSED
-libvirt.VIR_DOMAIN_RUNNING_WAKEUP
-libvirt.VIR_DOMAIN_BLOCKED_UNKNOWN
-libvirt.VIR_DOMAIN_PAUSED_CRASHED
-libvirt.VIR_DOMAIN_PAUSED_DUMP
-libvirt.VIR_DOMAIN_PAUSED_FROM_SNAPSHOT
-libvirt.VIR_DOMAIN_PAUSED_IOERROR
-libvirt.VIR_DOMAIN_PAUSED_MIGRATION
-libvirt.VIR_DOMAIN_PAUSED_SAVE
-libvirt.VIR_DOMAIN_PAUSED_SHUTTING_DOWN
-libvirt.VIR_DOMAIN_PAUSED_SNAPSHOT
-libvirt.VIR_DOMAIN_PAUSED_STARTING_UP
-libvirt.VIR_DOMAIN_PAUSED_UNKNOWN
-libvirt.VIR_DOMAIN_PAUSED_USER
-libvirt.VIR_DOMAIN_PAUSED_WATCHDOG
-libvirt.VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN
-libvirt.VIR_DOMAIN_SHUTDOWN_DEFAULT
-libvirt.VIR_DOMAIN_SHUTDOWN_GUEST_AGENT
-libvirt.VIR_DOMAIN_SHUTDOWN_INITCTL
-libvirt.VIR_DOMAIN_SHUTDOWN_PARAVIRT
-libvirt.VIR_DOMAIN_SHUTDOWN_SIGNAL
-libvirt.VIR_DOMAIN_SHUTDOWN_UNKNOWN
-libvirt.VIR_DOMAIN_SHUTDOWN_USER
-libvirt.VIR_DOMAIN_SHUTOFF_CRASHED
-libvirt.VIR_DOMAIN_SHUTOFF_DESTROYED
-libvirt.VIR_DOMAIN_SHUTOFF_FAILED
-libvirt.VIR_DOMAIN_SHUTOFF_FROM_SNAPSHOT
-libvirt.VIR_DOMAIN_SHUTOFF_MIGRATED
-libvirt.VIR_DOMAIN_SHUTOFF_SAVED
-libvirt.VIR_DOMAIN_SHUTOFF_SHUTDOWN
-libvirt.VIR_DOMAIN_SHUTOFF_UNKNOWN
-libvirt.VIR_DOMAIN_CRASHED_UNKNOWN
-libvirt.VIR_DOMAIN_CRASHED_PANICKED
-libvirt.VIR_DOMAIN_PMSUSPENDED_DISK_UNKNOWN
-libvirt.VIR_DOMAIN_PMSUSPENDED_UNKNOWN"""
+# Mappings from state number to string representation
+state_mapping = {
+    0: "libvirt.VIR_DOMAIN_NOSTATE",
+    1: "libvirt.VIR_DOMAIN_RUNNING",
+    2: "libvirt.VIR_DOMAIN_BLOCKED",
+    3: "libvirt.VIR_DOMAIN_PAUSED",
+    4: "libvirt.VIR_DOMAIN_SHUTDOWN",
+    5: "libvirt.VIR_DOMAIN_SHUTOFF",
+    6: "libvirt.VIR_DOMAIN_CRASHED",
+    7: "libvirt.VIR_DOMAIN_PMSUSPENDED",
+}
 
-domain_state_codes = """libvirt.VIR_DOMAIN_NOSTATE
-libvirt.VIR_DOMAIN_RUNNING
-libvirt.VIR_DOMAIN_BLOCKED
-libvirt.VIR_DOMAIN_PAUSED
-libvirt.VIR_DOMAIN_SHUTDOWN
-libvirt.VIR_DOMAIN_SHUTOFF
-libvirt.VIR_DOMAIN_CRASHED
-libvirt.VIR_DOMAIN_PMSUSPENDED"""
+# Mappings from cause number to string representation
+cause_mapping = {
+    0: "libvirt.VIR_DOMAIN_NOSTATE_UNKNOWN",
+    1: "libvirt.VIR_DOMAIN_RUNNING_BOOTED",
+    2: "libvirt.VIR_DOMAIN_RUNNING_CRASHED",
+    3: "libvirt.VIR_DOMAIN_RUNNING_FROM_SNAPSHOT",
+    4: "libvirt.VIR_DOMAIN_RUNNING_MIGRATED",
+    5: "libvirt.VIR_DOMAIN_RUNNING_MIGRATION_CANCELED",
+    6: "libvirt.VIR_DOMAIN_RUNNING_RESTORED",
+    7: "libvirt.VIR_DOMAIN_RUNNING_SAVE_CANCELED",
+    8: "libvirt.VIR_DOMAIN_RUNNING_UNKNOWN",
+    9: "libvirt.VIR_DOMAIN_RUNNING_UNPAUSED",
+    10: "libvirt.VIR_DOMAIN_RUNNING_WAKEUP",
+    11: "libvirt.VIR_DOMAIN_BLOCKED_UNKNOWN",
+    12: "libvirt.VIR_DOMAIN_PAUSED_CRASHED",
+    13: "libvirt.VIR_DOMAIN_PAUSED_DUMP",
+    14: "libvirt.VIR_DOMAIN_PAUSED_FROM_SNAPSHOT",
+    15: "libvirt.VIR_DOMAIN_PAUSED_IOERROR",
+    16: "libvirt.VIR_DOMAIN_PAUSED_MIGRATION",
+    17: "libvirt.VIR_DOMAIN_PAUSED_SAVE",
+    18: "libvirt.VIR_DOMAIN_PAUSED_SHUTTING_DOWN",
+    19: "libvirt.VIR_DOMAIN_PAUSED_SNAPSHOT",
+    20: "libvirt.VIR_DOMAIN_PAUSED_STARTING_UP",
+    21: "libvirt.VIR_DOMAIN_PAUSED_UNKNOWN",
+    22: "libvirt.VIR_DOMAIN_PAUSED_USER",
+    23: "libvirt.VIR_DOMAIN_PAUSED_WATCHDOG",
+    24: "libvirt.VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN",
+    25: "libvirt.VIR_DOMAIN_SHUTDOWN_DEFAULT",
+    26: "libvirt.VIR_DOMAIN_SHUTDOWN_GUEST_AGENT",
+    27: "libvirt.VIR_DOMAIN_SHUTDOWN_INITCTL",
+    28: "libvirt.VIR_DOMAIN_SHUTDOWN_PARAVIRT",
+    29: "libvirt.VIR_DOMAIN_SHUTDOWN_SIGNAL",
+    30: "libvirt.VIR_DOMAIN_SHUTDOWN_UNKNOWN",
+    31: "libvirt.VIR_DOMAIN_SHUTDOWN_USER",
+    32: "libvirt.VIR_DOMAIN_SHUTOFF_CRASHED",
+    33: "libvirt.VIR_DOMAIN_SHUTOFF_DESTROYED",
+    34: "libvirt.VIR_DOMAIN_SHUTOFF_FAILED",
+    35: "libvirt.VIR_DOMAIN_SHUTOFF_FROM_SNAPSHOT",
+    36: "libvirt.VIR_DOMAIN_SHUTOFF_MIGRATED",
+    37: "libvirt.VIR_DOMAIN_SHUTOFF_SAVED",
+    38: "libvirt.VIR_DOMAIN_SHUTOFF_SHUTDOWN",
+    39: "libvirt.VIR_DOMAIN_SHUTOFF_UNKNOWN",
+    40: "libvirt.VIR_DOMAIN_CRASHED_UNKNOWN",
+    41: "libvirt.VIR_DOMAIN_CRASHED_PANICKED",
+    42: "libvirt.VIR_DOMAIN_PMSUSPENDED_DISK_UNKNOWN",
+    43: "libvirt.VIR_DOMAIN_PMSUSPENDED_UNKNOWN",
+}
 
+# Create the dictionary to store state information and cause codes
 dict_domain_libvirt_state_to_isard_state = {
     "running": "Started",
     "locked": "Failed",
@@ -472,16 +479,22 @@ dict_domain_libvirt_state_to_isard_state = {
 }
 
 dict_state = {}
-for a in domain_state_codes.split():
+for a in state_mapping.values():
     dict_state[a] = {"code": a.split("_")[-1].lower(), "cause": {}}
-    for b in domain_state_cause_codes.split():
+    for b in cause_mapping.values():
         if b.find(a) >= 0:
             dict_state[a]["cause"][b] = b.split("_")[-1].lower()
 
 
+# Function to convert state_number and cause_number into string representations
 def state_and_cause_to_str(state_number, cause_number):
-    state_str = dict_state[state_number]["code"]
-    cause_str = dict_state[state_number]["cause"][cause_number]
+    try:
+        state_str = dict_state[state_mapping[state_number]]["code"]
+        cause_str = dict_state[state_mapping[state_number]]["cause"][
+            cause_mapping[cause_number]
+        ]
+    except KeyError:
+        return "unknown_state", "unknown_cause"
     return state_str, cause_str
 
 
