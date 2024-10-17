@@ -1039,7 +1039,8 @@ class ApiUsers:
         user_delete(agent_id, user_id, delete_user)
 
     def get_resources(self, user_id):
-        domains = []
+        desktops = []
+        templates = []
         deployments = []
         media = []
         with app.app_context():
@@ -1047,15 +1048,24 @@ class ApiUsers:
                 r.table("deployments").get_all(user_id, index="user")["id"].run(db.conn)
             )
         with app.app_context():
-            domains = list(
-                r.table("domains").get_all(user_id, index="user")["id"].run(db.conn)
+            desktops = list(
+                r.table("domains")
+                .get_all(["desktop", user_id], index="kind_user")["id"]
+                .run(db.conn)
+            )
+        with app.app_context():
+            templates = list(
+                r.table("domains")
+                .get_all(["template", user_id], index="kind_user")["id"]
+                .run(db.conn)
             )
         with app.app_context():
             media = list(
                 r.table("media").get_all(user_id, index="user")["id"].run(db.conn)
             )
         return {
-            "domains": domains,
+            "desktops": desktops,
+            "templates": templates,
             "deployments": deployments,
             "media": media,
         }
@@ -2142,8 +2152,10 @@ class ApiUsers:
 
     def migrate_user(self, user_id, user_data):
         user_resources = self.get_resources(user_id)
-        if user_resources["domains"]:
-            self.change_owner_domains(user_resources["domains"], user_data, user_id)
+        if user_resources["desktops"]:
+            self.change_owner_desktops(user_resources["desktops"], user_data, user_id)
+        if user_resources["templates"]:
+            self.change_owner_templates(user_resources["templates"], user_data)
         if user_resources["media"]:
             self.change_owner_media(user_resources["media"], user_data)
         self.change_owner_deployments(user_resources["deployments"], user_data, user_id)
@@ -2151,7 +2163,7 @@ class ApiUsers:
         for rb_id in rb_ids:
             rb_delete_queue.enqueue({"recycle_bin_id": rb_id, "user_id": user_id})
 
-    def change_owner_domains(self, domain_ids, user_data, user_id):
+    def change_owner_domains(self, domain_ids, user_data):
         # Get desktop data
         domain_data_list = []
         for i in range(0, len(domain_ids), 100):
@@ -2169,34 +2181,9 @@ class ApiUsers:
 
         # TODO: change allowed to false if the target user is on a different category
 
-        # check template quota and if new owner is role user
-        if any(domain["kind"] == "template" for domain in domain_data_list):
-            if user_data["payload"]["role_id"] == "user":
-                raise Error("bad_request", 'Role "user" can not own templates.')
-            quotas.template_create(
-                user_data["new_user"]["user"],
-                len(
-                    [
-                        domain
-                        for domain in domain_data_list
-                        if domain["kind"] == "template"
-                    ]
-                ),
-            )
-
-        desktop_ids = [
-            domain["id"] for domain in domain_data_list if domain["kind"] == "desktop"
-        ]
-        desktops_stop(desktop_ids)
-        quotas.desktop_create(user_data["new_user"]["user"], len(desktop_ids))
-
         for domain in domain_data_list:
             revoke_hardware_permissions(domain, user_data["payload"])
             change_storage_ownership(domain, user_data["new_user"]["user"])
-
-        # delete old bookings
-        with app.app_context():
-            r.table("bookings").get_all(user_id, index="user_id").delete().run(db.conn)
 
         # change owner
         for i in range(0, len(domain_ids), 100):
@@ -2208,6 +2195,23 @@ class ApiUsers:
                 r.table("domains").get_all(r.args(batch_domain_ids)).update(
                     {**user_data["new_user"], "booking_id": False}
                 ).run(db.conn)
+
+    def change_owner_desktops(self, desktop_ids, user_data, user_id):
+        desktops_stop(desktop_ids)
+        quotas.desktop_create(user_data["new_user"]["user"], len(desktop_ids))
+        # delete old bookings
+        with app.app_context():
+            r.table("bookings").get_all(user_id, index="user_id").delete().run(db.conn)
+        self.change_owner_domains(desktop_ids, user_data)
+
+    def change_owner_templates(self, template_ids, user_data):
+        if user_data["payload"]["role_id"] == "user":
+            raise Error("bad_request", 'Role "user" can not own templates.')
+        quotas.template_create(
+            user_data["new_user"]["user"],
+            len(template_ids),
+        )
+        self.change_owner_domains(template_ids, user_data)
 
     def change_owner_media(self, media_ids, user_data):
         # TODO: change allowed to false if the target user is on a different category
