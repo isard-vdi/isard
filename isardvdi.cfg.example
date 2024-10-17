@@ -1,4 +1,4 @@
-# Isard main config v2.16.0
+# Isard main config v2.17.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -11,7 +11,8 @@
 ##  - video-standalone: services to access to desktops
 ##  - storage: service to manage desktops disks
 ##  - web: services to manage desktops
-##  - monitor: monitoring only host (grafana/loki/influxdb)
+##  - monitor: monitoring only host (grafana/loki/prometheus)
+##  - web+monitor: web and monitor flavours combined
 ##  - backupninja: standalone backups
 ##  - check: standalone check service
 ##  - nextcloud: starts an standalone IsardVDI Nextcloud Personal Units [EXPERIMENTAL]
