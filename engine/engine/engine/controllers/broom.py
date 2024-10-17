@@ -349,9 +349,9 @@ class ThreadBroom(threading.Thread):
                                     state_str, cause = state_and_cause_to_str(
                                         state_libvirt[0], state_libvirt[1]
                                     )
-                                    status = dict_domain_libvirt_state_to_isard_state(
+                                    status = dict_domain_libvirt_state_to_isard_state[
                                         state_str
-                                    )
+                                    ]
                                     logs.broom.debug(
                                         "DOMAIN: {} ACTIVE IN HYPERVISOR: {} WITH STATUS: {}".format(
                                             domain_id, hyp_started, status
