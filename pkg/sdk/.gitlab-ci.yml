@@ -1,0 +1,10 @@
+stages:
+  - lint
+  - unit-test
+  - release
+
+include:
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/commits@main
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/release@main
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/yaml@main
+  - component: $CI_SERVER_FQDN/isard/ci-cd-components/go@main
