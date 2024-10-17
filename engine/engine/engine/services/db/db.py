@@ -201,9 +201,10 @@ def update_table_field(table, id_doc, field, value, merge_dict=True, soft=False)
     return result
 
 
-def update_table_dict(table, id_doc, dict):
+def update_table_dict(table, id_doc, dict, soft=False):
+    durability = "hard" if soft is False else "soft"
     r_conn = new_rethink_connection()
-    result = r.table(table).get(id_doc).update(dict).run(r_conn)
+    result = r.table(table).get(id_doc).update(dict, durability=durability).run(r_conn)
     close_rethink_connection(r_conn)
     return result
 
