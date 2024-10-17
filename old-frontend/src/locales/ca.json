@@ -288,7 +288,8 @@
                 "deployments_total": "Desplegaments creats / Total de desplegaments",
                 "deployment_desktops": "Maxim d'escriptoris per desplegament",
                 "started_deployment_desktops": {
-                    "title": "Escriptoris de desplegament arrencats / Total escriptoris de desplegament arrencats"
+                    "title": "Escriptoris de desplegament arrencats / Total escriptoris de desplegament arrencats",
+                    "description": "Quantitat total d'escriptoris de desplegaments que pot arrencar l'usuari"
                 }
             },
             "reset-vpn": "Restablir VPN"
