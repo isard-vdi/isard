@@ -4,5 +4,54 @@
       "home": "Accueil",
       "login": "Se connecter"
     }
+  },
+  "views": {
+    "login": {
+      "separator": "Autres accès",
+      "select-category": "Sélectionnez une catégorie"
+    }
+  },
+  "layouts": {
+    "login": {
+      "title": "Se connecter",
+      "works-with": "Fonctionne avec"
+    }
+  },
+  "components": {
+    "login": {
+      "login-provider-form": {
+        "category": "Catégorie",
+        "username": "Nom d'utilisateur",
+        "password": "Mot de passe",
+        "forgot-password": "Mot de passe oublié?",
+        "login": "Se connecter"
+      },
+      "login-provider-external": {
+        "default-text": {
+          "saml": "Se connecter avec SAML",
+          "google": "Se connecter avec Google"
+        }
+      },
+      "login-categories-dropdown": {
+        "placeholder": "Sélectionnez une catégorie",
+        "not-found": "Aucune catégorie trouvée"
+      },
+      "login-category-select": {
+        "logged-in-as": "Connecté en tant que {name}",
+        "logout": "Se déconnecter"
+      }
+    }
+  },
+  "authentication": {
+    "login": {
+      "errors": {
+        "unknown": "Une erreur s'est produite",
+        "missing_category": "Sélectionner une catégorie est nécessaire",
+        "invalid_credentials": "Nom d'utilisateur ou mot de passe incorrect",
+        "user_disabled": "L'utilisateur est désactivé",
+        "user_disallowed": "L'utilisateur ne peut pas utiliser IsardVDI",
+        "rate_limit": "Trop de tentatives de connexion. Réessayez dans {time}"
+      }
+    }
   }
 }
