@@ -126,6 +126,13 @@ MONITOR_STANDALONE_PARTS="
 	monitor
 	monitor-proxy
 "
+WEB_MONITOR_KEY="web+monitor"
+# We remove the stats part, since it's already in the web parts. Also the proxy, since web already has one
+WEB_MONITOR_PARTS="
+	$WEB_PARTS
+	$(echo "$MONITOR_STANDALONE_PARTS" | sed -e '/stats/d' -e '/monitor-proxy/d')
+"
+
 BACKUPNINJA_STANDALONE_KEY="backupninja"
 BACKUPNINJA_STANDALONE_PARTS="
 	network
@@ -373,6 +380,9 @@ create_docker_compose_file(){
 			;;
 		$MONITOR_STANDALONE_KEY)
 			parts=$MONITOR_STANDALONE_PARTS
+			;;
+		$WEB_MONITOR_KEY)
+			parts=$WEB_MONITOR_PARTS
 			;;
 		$BACKUPNINJA_STANDALONE_KEY)
 			parts=$BACKUPNINJA_STANDALONE_PARTS
