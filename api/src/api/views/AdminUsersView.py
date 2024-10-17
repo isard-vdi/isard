@@ -1236,6 +1236,7 @@ def admin_user_auto_register(payload):
         data["group_id"],
         photo=payload["photo"],
         email=payload["email"],
+        secondary_groups=data["secondary_groups"],
     )
 
     return json.dumps({"id": user_id}), 200, {"Content-Type": "application/json"}

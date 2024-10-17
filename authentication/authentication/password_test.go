@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/isard/isardvdi-sdk-go"
 	"gitlab.com/isard/isardvdi/authentication/authentication"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -15,12 +14,12 @@ import (
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
 	"go.nhat.io/grpcmock"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
@@ -116,7 +115,7 @@ func TestResetPassword(t *testing.T) {
 	require := require.New(t)
 
 	cases := map[string]struct {
-		PrepareAPI      func(*apiMock.Client)
+		PrepareAPI      func(*sdk.MockSdk)
 		PrepareDB       func(*r.Mock)
 		PrepareSessions func(*grpcmock.Server)
 		PrepareToken    func() string
@@ -125,7 +124,7 @@ func TestResetPassword(t *testing.T) {
 		ExpectedErr     string
 	}{
 		"should work as expected with a login token": {
-			PrepareAPI: func(c *apiMock.Client) {
+			PrepareAPI: func(c *sdk.MockSdk) {
 				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "f0kt3Rf").Return(nil)
 			},
 			PrepareDB: func(m *r.Mock) {
@@ -167,7 +166,7 @@ func TestResetPassword(t *testing.T) {
 			RemoteAddr: "127.0.0.1",
 		},
 		"should work as expected with a password reset token": {
-			PrepareAPI: func(c *apiMock.Client) {
+			PrepareAPI: func(c *sdk.MockSdk) {
 				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "f0kt3Rf").Return(nil)
 			},
 			PrepareDB: func(m *r.Mock) {
@@ -192,8 +191,8 @@ func TestResetPassword(t *testing.T) {
 			Password: "f0kt3Rf",
 		},
 		"should return an API error if there's an error calling the API": {
-			PrepareAPI: func(c *apiMock.Client) {
-				err := isardvdi.ErrBadRequest
+			PrepareAPI: func(c *sdk.MockSdk) {
+				err := sdk.ErrBadRequest
 				description := "Password must have at least 1 special characters: !@#$%^&*()-_=+[]{}|;:'\",.<>/?"
 				err.Description = &description
 				descriptionCode := "password_special_characters"
@@ -226,7 +225,7 @@ func TestResetPassword(t *testing.T) {
 
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
-			apiMock := &apiMock.Client{}
+			apiMock := sdk.NewMockSdk(t)
 			dbMock := r.NewMock()
 
 			if tc.PrepareAPI != nil {

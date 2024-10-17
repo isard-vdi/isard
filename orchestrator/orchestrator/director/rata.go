@@ -6,10 +6,10 @@ import (
 	"math"
 	"time"
 
-	"gitlab.com/isard/isardvdi-sdk-go"
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/log"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/rs/zerolog"
 )
@@ -26,12 +26,12 @@ type Rata struct {
 	cfg    cfg.DirectorRata
 	dryRun bool
 
-	apiCli isardvdi.Interface
+	apiCli sdk.Interface
 
 	log *zerolog.Logger
 }
 
-func NewRata(cfg cfg.DirectorRata, dryRun bool, log *zerolog.Logger, apiCli isardvdi.Interface) *Rata {
+func NewRata(cfg cfg.DirectorRata, dryRun bool, log *zerolog.Logger, apiCli sdk.Interface) *Rata {
 	return &Rata{
 		cfg:    cfg,
 		dryRun: dryRun,
@@ -54,12 +54,12 @@ func (r *Rata) minCPU() int {
 	return getCurrentHourlyLimit(r.cfg.MinCPUHourly, time.Now())
 }
 
-func (r *Rata) hyperMinRAM(h *isardvdi.OrchestratorHypervisor) int {
+func (r *Rata) hyperMinRAM(h *sdk.OrchestratorHypervisor) int {
 	return r.cfg.HyperMinRAM + (h.MinFreeMemGB * 1024) // we want it as MB, not GB
 }
 
 // minRAM is the minimum MB of RAM that need to be free in the pool. If it's zero, it's not going to use it
-func (r *Rata) minRAM(hypers []*isardvdi.OrchestratorHypervisor) int {
+func (r *Rata) minRAM(hypers []*sdk.OrchestratorHypervisor) int {
 	if r.cfg.MinRAMHourly != nil {
 		return getCurrentHourlyLimit(r.cfg.MinRAMHourly, time.Now())
 	}
@@ -92,12 +92,12 @@ func (r *Rata) minRAM(hypers []*isardvdi.OrchestratorHypervisor) int {
 	return 0
 }
 
-func (r *Rata) hyperMaxRAM(h *isardvdi.OrchestratorHypervisor) int {
+func (r *Rata) hyperMaxRAM(h *sdk.OrchestratorHypervisor) int {
 	return r.cfg.HyperMaxRAM + (h.MinFreeMemGB * 1024) // we want it as MB, not GB
 }
 
 // maxRAM is the maximum MB of RAM that can to be free in the pool. If it's zero, it's not going to use it
-func (r *Rata) maxRAM(hypers []*isardvdi.OrchestratorHypervisor) int {
+func (r *Rata) maxRAM(hypers []*sdk.OrchestratorHypervisor) int {
 	if r.cfg.MaxRAMHourly != nil {
 		return getCurrentHourlyLimit(r.cfg.MaxRAMHourly, time.Now())
 	}
@@ -129,17 +129,17 @@ func (r *Rata) maxRAM(hypers []*isardvdi.OrchestratorHypervisor) int {
 	return 0
 }
 
-func (r *Rata) classifyHypervisors(hypers []*isardvdi.OrchestratorHypervisor) ([]*isardvdi.OrchestratorHypervisor, []*isardvdi.OrchestratorHypervisor, []*isardvdi.OrchestratorHypervisor) {
+func (r *Rata) classifyHypervisors(hypers []*sdk.OrchestratorHypervisor) ([]*sdk.OrchestratorHypervisor, []*sdk.OrchestratorHypervisor, []*sdk.OrchestratorHypervisor) {
 	// hypersToAcknowledge are the hypervisors that need to be taken into account for all the calculations by this director
-	hypersToAcknowledge := []*isardvdi.OrchestratorHypervisor{}
+	hypersToAcknowledge := []*sdk.OrchestratorHypervisor{}
 	// hypersToHandle are the hypervisors that can be handled by this director
-	hypersToHandle := []*isardvdi.OrchestratorHypervisor{}
+	hypersToHandle := []*sdk.OrchestratorHypervisor{}
 	// hypersOnDeadRow are the hypervisors that we can handle and are on the dead row
-	hypersOnDeadRow := []*isardvdi.OrchestratorHypervisor{}
+	hypersOnDeadRow := []*sdk.OrchestratorHypervisor{}
 
 	for _, h := range hypers {
 		// Check if we need to acknowledge the hypervisor
-		if h.Status == isardvdi.HypervisorStatusOnline &&
+		if h.Status == sdk.HypervisorStatusOnline &&
 			!h.Buffering &&
 			!h.GPUOnly {
 
@@ -193,8 +193,8 @@ func (r *Rata) bestHyperToCreate(hypersAvail []*operationsv1.ListHypervisorsResp
 
 // TODO: CPU
 // TODO: Capabilities
-func (r *Rata) bestHyperToPardon(hypersOnDeadRow []*isardvdi.OrchestratorHypervisor, ramAvail, minCPU, minRAM int) *isardvdi.OrchestratorHypervisor {
-	var hyperToPardon *isardvdi.OrchestratorHypervisor
+func (r *Rata) bestHyperToPardon(hypersOnDeadRow []*sdk.OrchestratorHypervisor, ramAvail, minCPU, minRAM int) *sdk.OrchestratorHypervisor {
+	var hyperToPardon *sdk.OrchestratorHypervisor
 
 	for _, h := range hypersOnDeadRow {
 		enoughRAM := ramAvail+h.RAM.Free > minRAM
@@ -215,7 +215,7 @@ func (r *Rata) bestHyperToPardon(hypersOnDeadRow []*isardvdi.OrchestratorHypervi
 	return hyperToPardon
 }
 
-func (r *Rata) bestHyperToDestroy(hypersToHandle []*isardvdi.OrchestratorHypervisor) *isardvdi.OrchestratorHypervisor {
+func (r *Rata) bestHyperToDestroy(hypersToHandle []*sdk.OrchestratorHypervisor) *sdk.OrchestratorHypervisor {
 	for _, h := range hypersToHandle {
 		// Check if we need to kill the hypervisor (because it's time to kill it or it has 0 desktops started)
 		if !h.DestroyTime.IsZero() && (h.DestroyTime.Before(time.Now()) || h.DesktopsStarted == 0) {
@@ -228,12 +228,12 @@ func (r *Rata) bestHyperToDestroy(hypersToHandle []*isardvdi.OrchestratorHypervi
 
 // TODO: CPU
 // TODO: Capabilities
-func (r *Rata) bestHyperToMoveInDeadRow(hypersToAcknowledge, hypersToHandle []*isardvdi.OrchestratorHypervisor, ramAvail int) *isardvdi.OrchestratorHypervisor {
-	var deadRow *isardvdi.OrchestratorHypervisor
+func (r *Rata) bestHyperToMoveInDeadRow(hypersToAcknowledge, hypersToHandle []*sdk.OrchestratorHypervisor, ramAvail int) *sdk.OrchestratorHypervisor {
+	var deadRow *sdk.OrchestratorHypervisor
 
 	for _, h := range hypersToHandle {
 		// Calc limits as if the hypervisor was removed
-		reducedHypersToAcknowledge := make([]*isardvdi.OrchestratorHypervisor, len(hypersToAcknowledge))
+		reducedHypersToAcknowledge := make([]*sdk.OrchestratorHypervisor, len(hypersToAcknowledge))
 		copy(reducedHypersToAcknowledge, hypersToAcknowledge)
 
 		for i, hyp := range reducedHypersToAcknowledge {
@@ -271,7 +271,7 @@ func (r *Rata) bestHyperToMoveInDeadRow(hypersToAcknowledge, hypersToHandle []*i
 }
 
 // TODO: Start a smaller available hypervisor in order to scale down afterwards
-func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*isardvdi.OrchestratorHypervisor) (*operationsv1.CreateHypervisorsRequest, *operationsv1.DestroyHypervisorsRequest, []string, []string, error) {
+func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*sdk.OrchestratorHypervisor) (*operationsv1.CreateHypervisorsRequest, *operationsv1.DestroyHypervisorsRequest, []string, []string, error) {
 	operationsHypersAvail := []*operationsv1.ListHypervisorsResponseHypervisor{}
 availHypersLoop:
 	for _, h := range operationsHypers {
@@ -356,7 +356,7 @@ availHypersLoop:
 	return nil, nil, nil, nil, nil
 }
 
-func (r *Rata) ExtraOperations(ctx context.Context, hypers []*isardvdi.OrchestratorHypervisor) error {
+func (r *Rata) ExtraOperations(ctx context.Context, hypers []*sdk.OrchestratorHypervisor) error {
 	_, hypersToManage, _ := r.classifyHypervisors(hypers)
 	for _, h := range hypersToManage {
 		// Don't run extra operations on hypervisors on the dead row

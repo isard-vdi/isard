@@ -2,14 +2,14 @@ package log
 
 import (
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi-sdk-go"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 )
 
 type ModelHypervisor struct {
-	h *isardvdi.OrchestratorHypervisor
+	h *sdk.OrchestratorHypervisor
 }
 
-func NewModelHypervisor(h *isardvdi.OrchestratorHypervisor) ModelHypervisor {
+func NewModelHypervisor(h *sdk.OrchestratorHypervisor) ModelHypervisor {
 	return ModelHypervisor{h}
 }
 
@@ -30,10 +30,10 @@ func (m ModelHypervisor) MarshalZerologObject(e *zerolog.Event) {
 }
 
 type ModelResourceLoad struct {
-	r isardvdi.OrchestratorResourceLoad
+	r sdk.OrchestratorResourceLoad
 }
 
-func NewModelResourceLoad(r isardvdi.OrchestratorResourceLoad) ModelResourceLoad {
+func NewModelResourceLoad(r sdk.OrchestratorResourceLoad) ModelResourceLoad {
 	return ModelResourceLoad{r}
 }
 
@@ -42,10 +42,10 @@ func (r ModelResourceLoad) MarshalZerologObject(e *zerolog.Event) {
 }
 
 type ModelGPUs struct {
-	gpus []*isardvdi.OrchestratorHypervisorGPU
+	gpus []*sdk.OrchestratorHypervisorGPU
 }
 
-func NewModelGPUs(gpus []*isardvdi.OrchestratorHypervisorGPU) ModelGPUs {
+func NewModelGPUs(gpus []*sdk.OrchestratorHypervisorGPU) ModelGPUs {
 	return ModelGPUs{gpus}
 }
 
@@ -56,10 +56,10 @@ func (g ModelGPUs) MarshalZerologArray(a *zerolog.Array) {
 }
 
 type ModelGPU struct {
-	g *isardvdi.OrchestratorHypervisorGPU
+	g *sdk.OrchestratorHypervisorGPU
 }
 
-func NewModelGPU(g *isardvdi.OrchestratorHypervisorGPU) ModelGPU {
+func NewModelGPU(g *sdk.OrchestratorHypervisorGPU) ModelGPU {
 	return ModelGPU{g}
 }
 
@@ -74,10 +74,10 @@ func (g ModelGPU) MarshalZerologObject(e *zerolog.Event) {
 }
 
 type ModelHypervisors struct {
-	hyps []*isardvdi.OrchestratorHypervisor
+	hyps []*sdk.OrchestratorHypervisor
 }
 
-func NewModelHypervisors(hyps []*isardvdi.OrchestratorHypervisor) ModelHypervisors {
+func NewModelHypervisors(hyps []*sdk.OrchestratorHypervisor) ModelHypervisors {
 	return ModelHypervisors{hyps}
 }
 
@@ -88,10 +88,10 @@ func (m ModelHypervisors) MarshalZerologArray(a *zerolog.Array) {
 }
 
 type ModelBooking struct {
-	b *isardvdi.OrchestratorGPUBooking
+	b *sdk.OrchestratorGPUBooking
 }
 
-func NewModelBooking(b *isardvdi.OrchestratorGPUBooking) ModelBooking {
+func NewModelBooking(b *sdk.OrchestratorGPUBooking) ModelBooking {
 	return ModelBooking{b}
 }
 
@@ -115,10 +115,10 @@ func (b ModelBooking) MarshalZerologObject(e *zerolog.Event) {
 }
 
 type ModelBookings struct {
-	b []*isardvdi.OrchestratorGPUBooking
+	b []*sdk.OrchestratorGPUBooking
 }
 
-func NewModelBookings(b []*isardvdi.OrchestratorGPUBooking) ModelBookings {
+func NewModelBookings(b []*sdk.OrchestratorGPUBooking) ModelBookings {
 	return ModelBookings{b}
 }
 

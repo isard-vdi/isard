@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"sync"
 
-	"gitlab.com/isard/isardvdi-sdk-go"
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
@@ -16,6 +15,7 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/jwt"
 	"gitlab.com/isard/isardvdi/pkg/log"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 )
 
 func main() {
@@ -26,14 +26,14 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	api, err := isardvdi.NewClient(&isardvdi.Cfg{
+	api, err := sdk.NewClient(&sdk.Cfg{
 		Host: cfg.Orchestrator.APIAddress,
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("create API client")
 	}
 
-	api.SetBeforeRequestHook(func(c *isardvdi.Client) error {
+	api.SetBeforeRequestHook(func(c *sdk.Client) error {
 		tkn, err := jwt.SignAPIJWT(cfg.Orchestrator.APISecret)
 		if err != nil {
 			return fmt.Errorf("sign JWT token for calling the API: %w", err)

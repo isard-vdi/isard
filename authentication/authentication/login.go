@@ -46,7 +46,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 	p := a.Provider(prv)
 
 	// Log in
-	g, u, redirect, ss, lErr := p.Login(ctx, categoryID, args)
+	g, secondary, u, redirect, ss, lErr := p.Login(ctx, categoryID, args)
 	if lErr != nil {
 		a.Log.Info().Str("prv", p.String()).Err(lErr).Msg("login failed")
 
@@ -65,7 +65,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 	// Continue with the login process, passing the redirect path that has been
 	// requested by the user
-	return a.startLogin(ctx, remoteAddr, p, g, u, *args.Redirect)
+	return a.startLogin(ctx, remoteAddr, p, g, secondary, u, *args.Redirect)
 }
 
 func (a *Authentication) Callback(ctx context.Context, ss string, args provider.CallbackArgs, remoteAddr string) (string, string, error) {
@@ -78,7 +78,7 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args provider.
 	p := a.Provider(claims.Provider)
 
 	// Callback
-	g, u, redirect, ss, cErr := p.Callback(ctx, claims, args)
+	g, secondary, u, redirect, ss, cErr := p.Callback(ctx, claims, args)
 	if cErr != nil {
 		a.Log.Info().Str("prv", p.String()).Err(cErr).Msg("callback failed")
 
@@ -94,10 +94,10 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args provider.
 		return ss, redirect, nil
 	}
 
-	return a.startLogin(ctx, remoteAddr, p, g, u, redirect)
+	return a.startLogin(ctx, remoteAddr, p, g, secondary, u, redirect)
 }
 
-func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p provider.Provider, g *model.Group, data *types.ProviderUserData, redirect string) (string, string, error) {
+func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p provider.Provider, g *model.Group, secondary []*model.Group, data *types.ProviderUserData, redirect string) (string, string, error) {
 	u := data.ToUser()
 
 	uExists, err := u.Exists(ctx, a.DB)
@@ -120,19 +120,24 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		}
 
 		// Automatic group registration!
-		gExists, err := g.Exists(ctx, a.DB)
-		if err != nil {
-			return "", "", fmt.Errorf("check if group exists: %w", err)
-		}
+		for _, group := range append(secondary, g) {
+			gExists, err := group.Exists(ctx, a.DB)
+			if err != nil {
+				return "", "", fmt.Errorf("check if group exists: %w", err)
+			}
 
-		if !gExists {
-			if err := a.registerGroup(g); err != nil {
-				return "", "", fmt.Errorf("auto register group: %w", err)
+			if !gExists {
+				if err := a.registerGroup(group); err != nil {
+					return "", "", fmt.Errorf("auto register group: %w", err)
+				}
 			}
 		}
 
 		// Set the user group to the new group created
 		u.Group = g.ID
+		for _, group := range secondary {
+			u.SecondaryGroups = append(u.SecondaryGroups, group.ID)
+		}
 
 		// Automatic registration!
 		if err := a.registerUser(u); err != nil {
@@ -293,5 +298,5 @@ func (a *Authentication) finishCategorySelect(ctx context.Context, remoteAddr, c
 	u := &claims.User
 	u.Category = categoryID
 
-	return a.startLogin(ctx, remoteAddr, a.Provider(claims.User.Provider), nil, u, redirect)
+	return a.startLogin(ctx, remoteAddr, a.Provider(claims.User.Provider), nil, []*model.Group{}, u, redirect)
 }

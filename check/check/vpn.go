@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/isard/isardvdi-sdk-go"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 	"gitlab.com/isard/isardvdi/pkg/ssh"
 	stdSSH "golang.org/x/crypto/ssh"
 )
 
-func (c *Check) testVPN(ctx context.Context, cli isardvdi.Interface, sshCli *stdSSH.Client, ip string) error {
+func (c *Check) testVPN(ctx context.Context, cli sdk.Interface, sshCli *stdSSH.Client, ip string) error {
 	vpn, err := cli.UserVPN(ctx)
 	if err != nil {
 		return fmt.Errorf("get the VPN file: %w", err)

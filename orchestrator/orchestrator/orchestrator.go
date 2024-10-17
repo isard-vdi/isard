@@ -12,7 +12,7 @@ import (
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 
-	"gitlab.com/isard/isardvdi-sdk-go"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/rs/zerolog"
 )
@@ -31,7 +31,7 @@ type Orchestrator struct {
 	checkCli      checkv1.CheckServiceClient
 	apiAddress    string
 	apiSecret     string
-	apiCli        isardvdi.Interface
+	apiCli        sdk.Interface
 
 	scaleMux sync.Mutex
 	scaling  bool
@@ -54,7 +54,7 @@ type NewOrchestratorOpts struct {
 	CheckCfg cfg.Check
 	CheckCli checkv1.CheckServiceClient
 
-	APICli isardvdi.Interface
+	APICli sdk.Interface
 }
 
 func New(cfg *NewOrchestratorOpts) *Orchestrator {

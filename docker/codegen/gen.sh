@@ -40,3 +40,4 @@ openapi_ts api
 
 # Go mocks
 mockery
+cd pkg/sdk && mockery && cd -

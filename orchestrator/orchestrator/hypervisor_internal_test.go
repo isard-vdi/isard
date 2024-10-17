@@ -6,24 +6,23 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"gitlab.com/isard/isardvdi-sdk-go"
-	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 )
 
 func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 	assert := assert.New(t)
 
-	api := &apiMock.Client{}
+	api := sdk.NewMockSdk(t)
 	o := &Orchestrator{
 		apiCli: api,
 	}
 
 	cases := map[string]struct {
-		PrepareAPI  func(*apiMock.Client)
+		PrepareAPI  func(*sdk.MockSdk)
 		ExpectedErr string
 	}{
 		// "should work as expected": {
-		// 	PrepareAPI: func(c *apiMock.Client) {
+		// 	PrepareAPI: func(c *sdk.MockSdk) {
 		// 		f := false
 		// 		t := true
 		// 		id := "theHyper"
@@ -40,11 +39,11 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 		// 	},
 		// },
 		"should not do anything if there are no operations to do": {
-			PrepareAPI: func(c *apiMock.Client) {
+			PrepareAPI: func(c *sdk.MockSdk) {
 				f := false
 				t := true
 
-				c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.Hypervisor{{
+				c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.Hypervisor{{
 					Buffering: &f,
 				}, {
 					Buffering:  &t,
@@ -75,17 +74,17 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 	assert := assert.New(t)
 
-	api := &apiMock.Client{}
+	api := sdk.NewMockSdk(t)
 	o := &Orchestrator{
 		apiCli: api,
 	}
 
 	cases := map[string]struct {
-		PrepareAPI  func(*apiMock.Client)
+		PrepareAPI  func(*sdk.MockSdk)
 		ExpectedErr string
 	}{
 		// "should work as expected": {
-		// 	PrepareAPI: func(c *apiMock.Client) {
+		// 	PrepareAPI: func(c *sdk.MockSdk) {
 		// 		f := false
 		// 		t := true
 		// 		id := "theHyper"
@@ -102,11 +101,11 @@ func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 		// 	},
 		// },
 		"should not do anything if there are no operations to do": {
-			PrepareAPI: func(c *apiMock.Client) {
+			PrepareAPI: func(c *sdk.MockSdk) {
 				f := false
 				t := true
 
-				c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.Hypervisor{{
+				c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.Hypervisor{{
 					Buffering: &f,
 				}, {
 					Buffering:  &t,

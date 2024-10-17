@@ -13,12 +13,12 @@ import (
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
 	"go.nhat.io/grpcmock"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
@@ -31,7 +31,7 @@ func TestLogin(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareDB       func(*r.Mock)
-		PrepareAPI      func(*apiMock.Client)
+		PrepareAPI      func(*sdk.MockSdk)
 		PrepareSessions func(*grpcmock.Server)
 
 		RemoteAddr  string
@@ -96,6 +96,7 @@ func TestLogin(t *testing.T) {
 					"category":                 "default",
 					"role":                     "user",
 					"group":                    "default-default",
+					"secondary_groups":         []string{},
 					"name":                     "Néfix Estrada",
 					"email":                    "nefix@example.org",
 					"email_verified":           r.MockAnything(),
@@ -107,7 +108,7 @@ func TestLogin(t *testing.T) {
 					Updated: 1,
 				}, nil)
 			},
-			PrepareAPI: func(c *apiMock.Client) {
+			PrepareAPI: func(c *sdk.MockSdk) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
@@ -186,6 +187,7 @@ func TestLogin(t *testing.T) {
 					"category":                 "default",
 					"role":                     "user",
 					"group":                    "default-default",
+					"secondary_groups":         []string{},
 					"name":                     "Néfix Estrada",
 					"email":                    "nefix@example.org",
 					"email_verified":           r.MockAnything(),
@@ -197,7 +199,7 @@ func TestLogin(t *testing.T) {
 					Updated: 1,
 				}, nil)
 			},
-			PrepareAPI: func(c *apiMock.Client) {
+			PrepareAPI: func(c *sdk.MockSdk) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
@@ -275,6 +277,7 @@ func TestLogin(t *testing.T) {
 					"category":                 "default",
 					"role":                     "user",
 					"group":                    "default-default",
+					"secondary_groups":         []string{},
 					"name":                     "Néfix Estrada",
 					"email":                    "nefix@example.org",
 					"email_verified":           r.MockAnything(),
@@ -286,7 +289,7 @@ func TestLogin(t *testing.T) {
 					Updated: 1,
 				}, nil)
 			},
-			PrepareAPI: func(c *apiMock.Client) {
+			PrepareAPI: func(c *sdk.MockSdk) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
@@ -458,7 +461,7 @@ func TestLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *apiMock.Client) {
+			PrepareAPI: func(c *sdk.MockSdk) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
 			},
 			Provider:   "form",
@@ -521,7 +524,7 @@ func TestLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *apiMock.Client) {
+			PrepareAPI: func(c *sdk.MockSdk) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
 			},
@@ -588,7 +591,7 @@ func TestLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI: func(c *apiMock.Client) {
+			PrepareAPI: func(c *sdk.MockSdk) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
@@ -642,7 +645,7 @@ func TestLogin(t *testing.T) {
 			dbMock := r.NewMock()
 			tc.PrepareDB(dbMock)
 
-			apiMock := &apiMock.Client{}
+			apiMock := sdk.NewMockSdk(t)
 			if tc.PrepareAPI != nil {
 				tc.PrepareAPI(apiMock)
 			}

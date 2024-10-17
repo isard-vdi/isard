@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
@@ -40,8 +41,8 @@ type CallbackArgs struct {
 }
 
 type Provider interface {
-	Login(ctx context.Context, categoryID string, args LoginArgs) (g *model.Group, u *types.ProviderUserData, redirect string, tkn string, err *ProviderError)
-	Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (g *model.Group, u *types.ProviderUserData, redirect string, tkn string, err *ProviderError)
+	Login(ctx context.Context, categoryID string, args LoginArgs) (g *model.Group, secondary []*model.Group, u *types.ProviderUserData, redirect string, tkn string, err *ProviderError)
+	Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (g *model.Group, secondary []*model.Group, u *types.ProviderUserData, redirect string, tkn string, err *ProviderError)
 	AutoRegister(u *model.User) bool
 	String() string
 	Healthcheck() error
@@ -83,15 +84,15 @@ func (Unknown) String() string {
 	return types.ProviderUnknown
 }
 
-func (Unknown) Login(context.Context, string, LoginArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
-	return nil, nil, "", "", &ProviderError{
+func (Unknown) Login(context.Context, string, LoginArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+	return nil, nil, nil, "", "", &ProviderError{
 		User:   ErrUnknownIDP,
 		Detail: errors.New("unknown provider"),
 	}
 }
 
-func (Unknown) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
-	return nil, nil, "", "", &ProviderError{
+func (Unknown) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+	return nil, nil, nil, "", "", &ProviderError{
 		User:   ErrUnknownIDP,
 		Detail: errors.New("unknown provider"),
 	}
@@ -197,7 +198,7 @@ type guessGroupOpts struct {
 	DefaultGroup string
 }
 
-func guessGroup(opts guessGroupOpts, u *types.ProviderUserData, rawGroups []string) (*model.Group, *ProviderError) {
+func guessGroup(ctx context.Context, sess r.QueryExecutor, opts guessGroupOpts, u *types.ProviderUserData, rawGroups []string) (*model.Group, []*model.Group, *ProviderError) {
 	groups := []*model.Group{}
 	for _, g := range rawGroups {
 		match := matchRegexMultiple(opts.ReGroup, g)
@@ -208,13 +209,40 @@ func guessGroup(opts guessGroupOpts, u *types.ProviderUserData, rawGroups []stri
 
 	if len(groups) == 0 {
 		if opts.DefaultGroup == "" {
-			return nil, &ProviderError{
+			return nil, []*model.Group{}, &ProviderError{
 				User:   ErrInvalidCredentials,
 				Detail: errors.New("emtpy user group, no default"),
 			}
 		}
 
-		groups = append(groups, genExternalGroup(opts.Provider, u.Category, opts.DefaultGroup))
+		return genExternalGroup(opts.Provider, u.Category, opts.DefaultGroup), []*model.Group{}, nil
+	}
+
+	primary, err := guessPrimaryGroup(ctx, sess, groups)
+	if err != nil {
+		return nil, nil, &ProviderError{
+			User:   ErrInternal,
+			Detail: fmt.Errorf("guess primary group: %s", err),
+		}
+	}
+
+	secondary := slices.DeleteFunc(groups, func(g *model.Group) bool {
+		return primary.Category == g.Category &&
+			primary.ExternalAppID == g.ExternalAppID &&
+			primary.ExternalGID == g.ExternalGID
+	})
+
+	return primary, secondary, nil
+}
+
+func guessPrimaryGroup(ctx context.Context, sess r.QueryExecutor, groups []*model.Group) (*model.Group, error) {
+	existingGroups, err := model.GroupsExistsWithExternal(ctx, sess, groups)
+	if err != nil {
+		return nil, fmt.Errorf("check if groups already exist: %w", err)
+	}
+
+	if len(existingGroups) > 0 {
+		return existingGroups[0], nil
 	}
 
 	return groups[0], nil

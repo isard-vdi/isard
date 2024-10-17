@@ -14,7 +14,7 @@ import (
 
 	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi-sdk-go"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -49,7 +49,7 @@ type Authentication struct {
 	BaseURL *url.URL
 
 	DB       r.QueryExecutor
-	API      isardvdi.Interface
+	API      sdk.Interface
 	Notifier notifier.Invoker
 	Sessions sessionsv1.SessionsServiceClient
 
@@ -57,7 +57,7 @@ type Authentication struct {
 	saml      *samlsp.Middleware
 }
 
-func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli isardvdi.Interface, notifierCli notifier.Invoker, sessionsCli sessionsv1.SessionsServiceClient) *Authentication {
+func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Interface, notifierCli notifier.Invoker, sessionsCli sessionsv1.SessionsServiceClient) *Authentication {
 	a := &Authentication{
 		Log:    log,
 		Secret: cfg.Authentication.Secret,

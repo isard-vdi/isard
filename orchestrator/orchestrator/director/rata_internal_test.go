@@ -7,16 +7,16 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"gitlab.com/isard/isardvdi-sdk-go"
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
+	"gitlab.com/isard/isardvdi/pkg/sdk"
 )
 
 func TestMinRAM(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		Hypers                  []*isardvdi.OrchestratorHypervisor
+		Hypers                  []*sdk.OrchestratorHypervisor
 		MinRAM                  int
 		MinRAMHourly            map[time.Weekday]map[time.Time]int
 		MinRAMLimitPercent      int
@@ -44,7 +44,7 @@ func TestMinRAM(t *testing.T) {
 		"should apply the percentage correctly using a fixed margin": {
 			MinRAMLimitPercent: 200,
 			MinRAMLimitMargin:  300,
-			Hypers: []*isardvdi.OrchestratorHypervisor{
+			Hypers: []*sdk.OrchestratorHypervisor{
 				{
 					ID:           "1",
 					MinFreeMemGB: 2,
@@ -63,7 +63,7 @@ func TestMinRAM(t *testing.T) {
 					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 1312,
 				},
 			},
-			Hypers: []*isardvdi.OrchestratorHypervisor{
+			Hypers: []*sdk.OrchestratorHypervisor{
 				{
 					ID:           "1",
 					MinFreeMemGB: 3,
@@ -76,9 +76,9 @@ func TestMinRAM(t *testing.T) {
 			Expected: (3*1024)*1.5 + (2*1024)*1.5 + 1312,
 		},
 		"regression test #1": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{{
+			Hypers: []*sdk.OrchestratorHypervisor{{
 				ID:                  "bm-e4-01",
-				Status:              isardvdi.HypervisorStatusOnline,
+				Status:              sdk.HypervisorStatusOnline,
 				OnlyForced:          false,
 				Buffering:           false,
 				DestroyTime:         time.Time{},
@@ -87,19 +87,19 @@ func TestMinRAM(t *testing.T) {
 				GPUOnly:             false,
 				DesktopsStarted:     57,
 				MinFreeMemGB:        190,
-				CPU: isardvdi.OrchestratorResourceLoad{
+				CPU: sdk.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  6,
 					Free:  94,
 				},
-				RAM: isardvdi.OrchestratorResourceLoad{
+				RAM: sdk.OrchestratorResourceLoad{
 					Total: 2051961,
 					Used:  305801,
 					Free:  1746160,
 				},
 			}, {
 				ID:                  "bm-e2-02",
-				Status:              isardvdi.HypervisorStatusOnline,
+				Status:              sdk.HypervisorStatusOnline,
 				OnlyForced:          false,
 				Buffering:           false,
 				DestroyTime:         time.Time{},
@@ -108,12 +108,12 @@ func TestMinRAM(t *testing.T) {
 				GPUOnly:             false,
 				DesktopsStarted:     23,
 				MinFreeMemGB:        47,
-				CPU: isardvdi.OrchestratorResourceLoad{
+				CPU: sdk.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  7,
 					Free:  93,
 				},
-				RAM: isardvdi.OrchestratorResourceLoad{
+				RAM: sdk.OrchestratorResourceLoad{
 					Total: 515855,
 					Used:  160998,
 					Free:  354856,
@@ -127,9 +127,9 @@ func TestMinRAM(t *testing.T) {
 			Expected: ((47*1024 + 51200) * 1.5) + ((190*1024 + 51200) * 1.5) + 1,
 		},
 		"regression test #2": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{{
+			Hypers: []*sdk.OrchestratorHypervisor{{
 				ID:                  "bm-e2-02",
-				Status:              isardvdi.HypervisorStatusOnline,
+				Status:              sdk.HypervisorStatusOnline,
 				OnlyForced:          false,
 				Buffering:           false,
 				DestroyTime:         time.Time{},
@@ -138,12 +138,12 @@ func TestMinRAM(t *testing.T) {
 				GPUOnly:             false,
 				DesktopsStarted:     23,
 				MinFreeMemGB:        47,
-				CPU: isardvdi.OrchestratorResourceLoad{
+				CPU: sdk.OrchestratorResourceLoad{
 					Total: 100,
 					Used:  7,
 					Free:  93,
 				},
-				RAM: isardvdi.OrchestratorResourceLoad{
+				RAM: sdk.OrchestratorResourceLoad{
 					Total: 515855,
 					Used:  160998,
 					Free:  354856,
@@ -181,7 +181,7 @@ func TestMaxRAM(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		Hypers                  []*isardvdi.OrchestratorHypervisor
+		Hypers                  []*sdk.OrchestratorHypervisor
 		MaxRAM                  int
 		MaxRAMHourly            map[time.Weekday]map[time.Time]int
 		MaxRAMLimitPercent      int
@@ -207,7 +207,7 @@ func TestMaxRAM(t *testing.T) {
 		"should apply the percentage correctly using a fixed margin": {
 			MaxRAMLimitPercent: 200,
 			MaxRAMLimitMargin:  300,
-			Hypers: []*isardvdi.OrchestratorHypervisor{
+			Hypers: []*sdk.OrchestratorHypervisor{
 				{
 					ID:           "1",
 					MinFreeMemGB: 2,
@@ -226,7 +226,7 @@ func TestMaxRAM(t *testing.T) {
 					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 1312,
 				},
 			},
-			Hypers: []*isardvdi.OrchestratorHypervisor{
+			Hypers: []*sdk.OrchestratorHypervisor{
 				{
 					ID:           "1",
 					MinFreeMemGB: 3,
@@ -261,120 +261,120 @@ func TestClassifyHypervisors(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		Hypers                []*isardvdi.OrchestratorHypervisor
-		ExpectedToAcknowledge []*isardvdi.OrchestratorHypervisor
-		ExpectedToHandle      []*isardvdi.OrchestratorHypervisor
-		ExpectedOnDeadRow     []*isardvdi.OrchestratorHypervisor
+		Hypers                []*sdk.OrchestratorHypervisor
+		ExpectedToAcknowledge []*sdk.OrchestratorHypervisor
+		ExpectedToHandle      []*sdk.OrchestratorHypervisor
+		ExpectedOnDeadRow     []*sdk.OrchestratorHypervisor
 	}{
 		"should classify the hypervisors correctly": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{
+			Hypers: []*sdk.OrchestratorHypervisor{
 				{
 					ID:     "hyper1",
-					Status: isardvdi.HypervisorStatusOnline,
+					Status: sdk.HypervisorStatusOnline,
 				},
 				{
 					ID:                  "hyper2",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OrchestratorManaged: true,
 				},
 				{
 					ID:                  "hyper3",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OrchestratorManaged: true,
 					DestroyTime:         time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC),
 				},
 			},
-			ExpectedToAcknowledge: []*isardvdi.OrchestratorHypervisor{
+			ExpectedToAcknowledge: []*sdk.OrchestratorHypervisor{
 				{
 					ID:     "hyper1",
-					Status: isardvdi.HypervisorStatusOnline,
+					Status: sdk.HypervisorStatusOnline,
 				},
 				{
 					ID:                  "hyper2",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OrchestratorManaged: true,
 				},
 				{
 					ID:                  "hyper3",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OrchestratorManaged: true,
 					DestroyTime:         time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC),
 				},
 			},
-			ExpectedToHandle: []*isardvdi.OrchestratorHypervisor{
+			ExpectedToHandle: []*sdk.OrchestratorHypervisor{
 				{
 					ID:                  "hyper2",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OrchestratorManaged: true,
 				},
 				{
 					ID:                  "hyper3",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OrchestratorManaged: true,
 					DestroyTime:         time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC),
 				},
 			},
-			ExpectedOnDeadRow: []*isardvdi.OrchestratorHypervisor{
+			ExpectedOnDeadRow: []*sdk.OrchestratorHypervisor{
 				{
 					ID:                  "hyper3",
-					Status:              isardvdi.HypervisorStatusOnline,
+					Status:              sdk.HypervisorStatusOnline,
 					OrchestratorManaged: true,
 					DestroyTime:         time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC),
 				},
 			},
 		},
 		"should ignore the offline hypervisors": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{{
+			Hypers: []*sdk.OrchestratorHypervisor{{
 				ID:     "offline",
-				Status: isardvdi.HypervisorStatusOffline,
+				Status: sdk.HypervisorStatusOffline,
 			}},
-			ExpectedToAcknowledge: []*isardvdi.OrchestratorHypervisor{},
-			ExpectedToHandle:      []*isardvdi.OrchestratorHypervisor{},
-			ExpectedOnDeadRow:     []*isardvdi.OrchestratorHypervisor{},
+			ExpectedToAcknowledge: []*sdk.OrchestratorHypervisor{},
+			ExpectedToHandle:      []*sdk.OrchestratorHypervisor{},
+			ExpectedOnDeadRow:     []*sdk.OrchestratorHypervisor{},
 		},
 		"should ignore buffering hypervisors": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{{
+			Hypers: []*sdk.OrchestratorHypervisor{{
 				ID:        "buffering",
-				Status:    isardvdi.HypervisorStatusOnline,
+				Status:    sdk.HypervisorStatusOnline,
 				Buffering: true,
 			}},
-			ExpectedToAcknowledge: []*isardvdi.OrchestratorHypervisor{},
-			ExpectedToHandle:      []*isardvdi.OrchestratorHypervisor{},
-			ExpectedOnDeadRow:     []*isardvdi.OrchestratorHypervisor{},
+			ExpectedToAcknowledge: []*sdk.OrchestratorHypervisor{},
+			ExpectedToHandle:      []*sdk.OrchestratorHypervisor{},
+			ExpectedOnDeadRow:     []*sdk.OrchestratorHypervisor{},
 		},
 		"should ignore GPU only hypervisors": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{{
+			Hypers: []*sdk.OrchestratorHypervisor{{
 				ID:      "gpu only",
-				Status:  isardvdi.HypervisorStatusOnline,
+				Status:  sdk.HypervisorStatusOnline,
 				GPUOnly: true,
 			}},
-			ExpectedToAcknowledge: []*isardvdi.OrchestratorHypervisor{},
-			ExpectedToHandle:      []*isardvdi.OrchestratorHypervisor{},
-			ExpectedOnDeadRow:     []*isardvdi.OrchestratorHypervisor{},
+			ExpectedToAcknowledge: []*sdk.OrchestratorHypervisor{},
+			ExpectedToHandle:      []*sdk.OrchestratorHypervisor{},
+			ExpectedOnDeadRow:     []*sdk.OrchestratorHypervisor{},
 		},
 		"should not add only forced hypervisors to the acknowledge list": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{{
+			Hypers: []*sdk.OrchestratorHypervisor{{
 				ID:         "only forced",
-				Status:     isardvdi.HypervisorStatusOnline,
+				Status:     sdk.HypervisorStatusOnline,
 				OnlyForced: true,
 			}},
-			ExpectedToAcknowledge: []*isardvdi.OrchestratorHypervisor{},
-			ExpectedToHandle:      []*isardvdi.OrchestratorHypervisor{},
-			ExpectedOnDeadRow:     []*isardvdi.OrchestratorHypervisor{},
+			ExpectedToAcknowledge: []*sdk.OrchestratorHypervisor{},
+			ExpectedToHandle:      []*sdk.OrchestratorHypervisor{},
+			ExpectedOnDeadRow:     []*sdk.OrchestratorHypervisor{},
 		},
 		"should not add a non orchestrator managed hypervisor to the handle list": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{{
+			Hypers: []*sdk.OrchestratorHypervisor{{
 				ID:                  "unmanaged",
-				Status:              isardvdi.HypervisorStatusOnline,
+				Status:              sdk.HypervisorStatusOnline,
 				OrchestratorManaged: false,
 			}},
-			ExpectedToAcknowledge: []*isardvdi.OrchestratorHypervisor{{
+			ExpectedToAcknowledge: []*sdk.OrchestratorHypervisor{{
 				ID:                  "unmanaged",
-				Status:              isardvdi.HypervisorStatusOnline,
+				Status:              sdk.HypervisorStatusOnline,
 				OrchestratorManaged: false,
 			}},
-			ExpectedToHandle:  []*isardvdi.OrchestratorHypervisor{},
-			ExpectedOnDeadRow: []*isardvdi.OrchestratorHypervisor{},
+			ExpectedToHandle:  []*sdk.OrchestratorHypervisor{},
+			ExpectedOnDeadRow: []*sdk.OrchestratorHypervisor{},
 		},
 	}
 
@@ -458,44 +458,44 @@ func TestBestHyperToPardon(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		DeadRow  []*isardvdi.OrchestratorHypervisor
+		DeadRow  []*sdk.OrchestratorHypervisor
 		RAMAvail int
 		MinCPU   int
 		MinRAM   int
-		Expected *isardvdi.OrchestratorHypervisor
+		Expected *sdk.OrchestratorHypervisor
 	}{
 		"should return the hypervisor that has the longest dead row sentence": {
-			DeadRow: []*isardvdi.OrchestratorHypervisor{{
+			DeadRow: []*sdk.OrchestratorHypervisor{{
 				ID:          "smol :3",
 				DestroyTime: time.Date(9999, 1, 1, 1, 1, 1, 1, time.UTC),
 			}, {
 				ID:          "life sentence",
 				DestroyTime: time.Date(8888, 1, 1, 1, 1, 1, 1, time.UTC),
-				RAM: isardvdi.OrchestratorResourceLoad{
+				RAM: sdk.OrchestratorResourceLoad{
 					Total: 9999,
 					Free:  999,
 				},
 			}, {
 				ID:          "short sentence",
 				DestroyTime: time.Now(),
-				RAM: isardvdi.OrchestratorResourceLoad{
+				RAM: sdk.OrchestratorResourceLoad{
 					Total: 10,
 					Free:  9,
 				},
 			}},
 			MinRAM:   2,
 			RAMAvail: 1,
-			Expected: &isardvdi.OrchestratorHypervisor{
+			Expected: &sdk.OrchestratorHypervisor{
 				ID:          "life sentence",
 				DestroyTime: time.Date(8888, 1, 1, 1, 1, 1, 1, time.UTC),
-				RAM: isardvdi.OrchestratorResourceLoad{
+				RAM: sdk.OrchestratorResourceLoad{
 					Total: 9999,
 					Free:  999,
 				},
 			},
 		},
 		"should ensure that the hypervisor meets the minimum RAM requirements": {
-			DeadRow: []*isardvdi.OrchestratorHypervisor{{
+			DeadRow: []*sdk.OrchestratorHypervisor{{
 				ID: "smol :3",
 			}},
 			MinRAM:   1,
@@ -520,11 +520,11 @@ func TestBestHyperToDestroy(t *testing.T) {
 	now := time.Now()
 
 	cases := map[string]struct {
-		Hypers   []*isardvdi.OrchestratorHypervisor
-		Expected *isardvdi.OrchestratorHypervisor
+		Hypers   []*sdk.OrchestratorHypervisor
+		Expected *sdk.OrchestratorHypervisor
 	}{
 		"should work correctly": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{
+			Hypers: []*sdk.OrchestratorHypervisor{
 				{
 					ID: "not to destroy",
 				},
@@ -534,14 +534,14 @@ func TestBestHyperToDestroy(t *testing.T) {
 					DestroyTime:     now.Add(-1 * time.Hour),
 				},
 			},
-			Expected: &isardvdi.OrchestratorHypervisor{
+			Expected: &sdk.OrchestratorHypervisor{
 				ID:              "to destroy",
 				DesktopsStarted: 1000,
 				DestroyTime:     now.Add(-1 * time.Hour),
 			},
 		},
 		"should remove a desktop with a destroy time and 0 desktops": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{
+			Hypers: []*sdk.OrchestratorHypervisor{
 				{
 					ID: "not to destroy",
 				},
@@ -551,7 +551,7 @@ func TestBestHyperToDestroy(t *testing.T) {
 					DestroyTime:     now.Add(1 * time.Hour),
 				},
 			},
-			Expected: &isardvdi.OrchestratorHypervisor{
+			Expected: &sdk.OrchestratorHypervisor{
 				ID:              "to destroy",
 				DesktopsStarted: 0,
 				DestroyTime:     now.Add(1 * time.Hour),
@@ -573,8 +573,8 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		HypersToAcknowledge []*isardvdi.OrchestratorHypervisor
-		HypersToManage      []*isardvdi.OrchestratorHypervisor
+		HypersToAcknowledge []*sdk.OrchestratorHypervisor
+		HypersToManage      []*sdk.OrchestratorHypervisor
 		RAMAvail            int
 		MinRAM              int
 		MaxRAM              int
@@ -582,50 +582,50 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 		MinRAMLimitMargin   int
 		MaxRAMLimitPercent  int
 		MaxRAMLimitMargin   int
-		Expected            *isardvdi.OrchestratorHypervisor
+		Expected            *sdk.OrchestratorHypervisor
 	}{
 		"should work correctly": {
-			HypersToAcknowledge: []*isardvdi.OrchestratorHypervisor{
+			HypersToAcknowledge: []*sdk.OrchestratorHypervisor{
 				{
 					ID: "smol :3",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 1,
 						Free:  1,
 					},
 				},
 				{
 					ID: "to sentence",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 2,
 						Free:  2,
 					},
 				},
 				{
 					ID: "GIGANTIC",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 10,
 						Free:  10,
 					},
 				},
 			},
-			HypersToManage: []*isardvdi.OrchestratorHypervisor{
+			HypersToManage: []*sdk.OrchestratorHypervisor{
 				{
 					ID: "smol :3",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 1,
 						Free:  1,
 					},
 				},
 				{
 					ID: "to sentence",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 2,
 						Free:  2,
 					},
 				},
 				{
 					ID: "GIGANTIC",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 10,
 						Free:  10,
 					},
@@ -634,26 +634,26 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 			MinRAM:   10,
 			MaxRAM:   12,
 			RAMAvail: 13,
-			Expected: &isardvdi.OrchestratorHypervisor{
+			Expected: &sdk.OrchestratorHypervisor{
 				ID: "to sentence",
-				RAM: isardvdi.OrchestratorResourceLoad{
+				RAM: sdk.OrchestratorResourceLoad{
 					Total: 2,
 					Free:  2,
 				},
 			},
 		},
 		"should work correctly with only forced hypevisors": {
-			HypersToAcknowledge: []*isardvdi.OrchestratorHypervisor{
+			HypersToAcknowledge: []*sdk.OrchestratorHypervisor{
 				{
 					ID: "smol :3",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 1,
 						Free:  1,
 					},
 				},
 				{
 					ID: "normal",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 2,
 						Free:  2,
 					},
@@ -661,23 +661,23 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 				{
 					ID:         "GIGANTIC",
 					OnlyForced: true,
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 10,
 						Free:  10,
 					},
 				},
 			},
-			HypersToManage: []*isardvdi.OrchestratorHypervisor{
+			HypersToManage: []*sdk.OrchestratorHypervisor{
 				{
 					ID: "smol :3",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 1,
 						Free:  1,
 					},
 				},
 				{
 					ID: "normal",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 2,
 						Free:  2,
 					},
@@ -685,7 +685,7 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 				{
 					ID:         "GIGANTIC",
 					OnlyForced: true,
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 10,
 						Free:  10,
 					},
@@ -694,43 +694,43 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 			MinRAM:   1,
 			MaxRAM:   2,
 			RAMAvail: 3,
-			Expected: &isardvdi.OrchestratorHypervisor{
+			Expected: &sdk.OrchestratorHypervisor{
 				ID:         "GIGANTIC",
 				OnlyForced: true,
-				RAM: isardvdi.OrchestratorResourceLoad{
+				RAM: sdk.OrchestratorResourceLoad{
 					Total: 10,
 					Free:  10,
 				},
 			},
 		},
 		"should not return any hypervisor if by removing it we don't meet the minRAM requirement": {
-			HypersToAcknowledge: []*isardvdi.OrchestratorHypervisor{
+			HypersToAcknowledge: []*sdk.OrchestratorHypervisor{
 				{
 					ID: "smol :3",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 1,
 						Free:  1,
 					},
 				},
 				{
 					ID: "can't sentence",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 2,
 						Free:  2,
 					},
 				},
 			},
-			HypersToManage: []*isardvdi.OrchestratorHypervisor{
+			HypersToManage: []*sdk.OrchestratorHypervisor{
 				{
 					ID: "smol :3",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 1,
 						Free:  1,
 					},
 				},
 				{
 					ID: "can't sentence",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 2,
 						Free:  2,
 					},
@@ -741,10 +741,10 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 			RAMAvail: 3,
 		},
 		"should ignore hypervisors already in the dead row": {
-			HypersToAcknowledge: []*isardvdi.OrchestratorHypervisor{
+			HypersToAcknowledge: []*sdk.OrchestratorHypervisor{
 				{
 					ID: "smol :3",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 1,
 						Free:  1,
 					},
@@ -752,16 +752,16 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 				{
 					ID:          "to ignore",
 					DestroyTime: time.Now(),
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 2,
 						Free:  2,
 					},
 				},
 			},
-			HypersToManage: []*isardvdi.OrchestratorHypervisor{
+			HypersToManage: []*sdk.OrchestratorHypervisor{
 				{
 					ID: "smol :3",
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 1,
 						Free:  1,
 					},
@@ -769,7 +769,7 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 				{
 					ID:          "to ignore",
 					DestroyTime: time.Now(),
-					RAM: isardvdi.OrchestratorResourceLoad{
+					RAM: sdk.OrchestratorResourceLoad{
 						Total: 2,
 						Free:  2,
 					},
@@ -780,39 +780,39 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 			RAMAvail: 1,
 		},
 		"regression test #1": {
-			HypersToAcknowledge: []*isardvdi.OrchestratorHypervisor{{
+			HypersToAcknowledge: []*sdk.OrchestratorHypervisor{{
 				ID:                  "bm-e4-01",
-				Status:              isardvdi.HypervisorStatusOnline,
+				Status:              sdk.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
 				DesktopsStarted:     10,
 				MinFreeMemGB:        190,
-				RAM: isardvdi.OrchestratorResourceLoad{
+				RAM: sdk.OrchestratorResourceLoad{
 					Total: 2051961,
 					Used:  67556,
 					Free:  1984404,
 				},
 			}, {
 				ID:                  "bm-e2-02",
-				Status:              isardvdi.HypervisorStatusOnline,
+				Status:              sdk.HypervisorStatusOnline,
 				DesktopsStarted:     2,
 				OnlyForced:          false,
 				OrchestratorManaged: false,
 				MinFreeMemGB:        47,
-				RAM: isardvdi.OrchestratorResourceLoad{
+				RAM: sdk.OrchestratorResourceLoad{
 					Total: 515855,
 					Used:  65620,
 					Free:  450234,
 				},
 			}},
-			HypersToManage: []*isardvdi.OrchestratorHypervisor{{
+			HypersToManage: []*sdk.OrchestratorHypervisor{{
 				ID:                  "bm-e4-01",
-				Status:              isardvdi.HypervisorStatusOnline,
+				Status:              sdk.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
 				DesktopsStarted:     10,
 				MinFreeMemGB:        190,
-				RAM: isardvdi.OrchestratorResourceLoad{
+				RAM: sdk.OrchestratorResourceLoad{
 					Total: 2051961,
 					Used:  67556,
 					Free:  1984404,
@@ -823,14 +823,14 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 			MinRAMLimitMargin:  1,
 			MaxRAMLimitPercent: 150,
 			MaxRAMLimitMargin:  112640,
-			Expected: &isardvdi.OrchestratorHypervisor{
+			Expected: &sdk.OrchestratorHypervisor{
 				ID:                  "bm-e4-01",
-				Status:              isardvdi.HypervisorStatusOnline,
+				Status:              sdk.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
 				DesktopsStarted:     10,
 				MinFreeMemGB:        190,
-				RAM: isardvdi.OrchestratorResourceLoad{
+				RAM: sdk.OrchestratorResourceLoad{
 					Total: 2051961,
 					Used:  67556,
 					Free:  1984404,

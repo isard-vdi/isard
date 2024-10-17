@@ -60,9 +60,9 @@ func formCheckRequiredArgs(args LoginArgs) error {
 	return nil
 }
 
-func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	if err := formCheckRequiredArgs(args); err != nil {
-		return nil, nil, "", "", &ProviderError{
+		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
 			Detail: err,
 		}
@@ -71,7 +71,7 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	if f.limits != nil {
 		// Check if the user is rate limited
 		if err := f.limits.IsRateLimited(*args.FormUsername, categoryID, f.String()); err != nil {
-			return nil, nil, "", "", &ProviderError{
+			return nil, nil, nil, "", "", &ProviderError{
 				User:   errors.New("user is currently rate limited"),
 				Detail: err,
 			}
@@ -82,18 +82,18 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	var invCreds *ProviderError
 
 	if f.cfg.Local.Enabled {
-		g, u, redirect, ss, err := f.providers[types.ProviderLocal].Login(ctx, categoryID, args)
+		g, secondary, u, redirect, ss, err := f.providers[types.ProviderLocal].Login(ctx, categoryID, args)
 		if err == nil {
 			if f.limits != nil {
 				// Clean the user rate limits record because the user has logged in correctly
 				f.limits.CleanRateLimit(*args.FormUsername, categoryID, f.String())
 			}
 
-			return g, u, redirect, ss, nil
+			return g, secondary, u, redirect, ss, nil
 		}
 
 		if !errors.Is(err, ErrInvalidCredentials) {
-			return g, u, redirect, ss, err
+			return g, secondary, u, redirect, ss, err
 		}
 
 		invCreds = err
@@ -101,18 +101,18 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 	}
 
 	if f.cfg.LDAP.Enabled {
-		g, u, redirect, ss, err := f.providers[types.ProviderLDAP].Login(ctx, categoryID, args)
+		g, secondary, u, redirect, ss, err := f.providers[types.ProviderLDAP].Login(ctx, categoryID, args)
 		// Clean the user rate limits record because the user has logged in correctly
 		if err == nil {
 			if f.limits != nil {
 				f.limits.CleanRateLimit(*args.FormUsername, categoryID, f.String())
 			}
 
-			return g, u, redirect, ss, nil
+			return g, secondary, u, redirect, ss, nil
 		}
 
 		if !errors.Is(err, ErrInvalidCredentials) {
-			return g, u, redirect, ss, err
+			return g, secondary, u, redirect, ss, err
 		}
 
 		invCreds = err
@@ -123,24 +123,24 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 		if f.limits != nil {
 			// Record the failed attempt and return an error if the user has been rate limited
 			if err := f.limits.RecordFailedAttempt(*args.FormUsername, categoryID, f.String()); err != nil {
-				return nil, nil, "", "", &ProviderError{
+				return nil, nil, nil, "", "", &ProviderError{
 					User:   errors.New("user is currently rate limited"),
 					Detail: err,
 				}
 			}
 		}
 
-		return nil, nil, "", "", invCreds
+		return nil, nil, nil, "", "", invCreds
 	}
 
-	return nil, nil, "", "", &ProviderError{
+	return nil, nil, nil, "", "", &ProviderError{
 		User:   ErrUnknownIDP,
 		Detail: errors.New("no active provider was found for the form login"),
 	}
 }
 
-func (f *Form) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
-	return nil, nil, "", "", &ProviderError{
+func (f *Form) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+	return nil, nil, nil, "", "", &ProviderError{
 		User:   errInvalidIDP,
 		Detail: errors.New("the local provider doesn't support the callback operation"),
 	}
