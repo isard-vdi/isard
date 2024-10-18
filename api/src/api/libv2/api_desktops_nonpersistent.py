@@ -15,6 +15,7 @@ r = RethinkDB()
 import logging as log
 import traceback
 
+from ..libv2.api_scheduler import Scheduler
 from ..libv2.quotas import Quotas
 from .api_desktop_events import (
     desktop_non_persistent_delete,
@@ -34,8 +35,14 @@ from ..libv2.isardViewer import isardViewer
 from .validators import _validate_item
 
 isardviewer = isardViewer()
+scheduler = Scheduler()
 
-from .helpers import _check, _parse_media_info, parse_domain_insert
+from .helpers import (
+    _check,
+    _parse_media_info,
+    gen_payload_from_user,
+    parse_domain_insert,
+)
 
 
 class ApiDesktopsNonPersistent:
@@ -79,6 +86,8 @@ class ApiDesktopsNonPersistent:
         desktop_id = self._nonpersistent_desktop_from_tmpl(user_id, template_id)
 
         desktop_start(desktop_id)
+        payload = gen_payload_from_user(user_id)
+        scheduler.add_desktop_timeouts(payload, desktop_id)
         return desktop_id
 
     def _nonpersistent_desktop_from_tmpl(self, user_id, template_id):
