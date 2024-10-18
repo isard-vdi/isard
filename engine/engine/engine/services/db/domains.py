@@ -49,7 +49,6 @@ def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
         "Creating",
         "CreatingAndStarting",
         "CreatingDiskFromScratch",
-        "CreatingFromBuilder",
     ]
     r_conn = new_rethink_connection()
     rtable = r.table("domains")

@@ -595,35 +595,17 @@ class Engine(object):
                         # verificar que realmente es una template
                         # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
 
-                    if new_domain is True and new_status == "CreatingFromBuilder":
-                        ui.creating_disk_from_virtbuilder(domain_id)
-
                     if (
-                        (
-                            old_status in ["CreatingDisk", "CreatingDiskFromScratch"]
-                            and new_status == "CreatingDomain"
-                        )
-                        or (
-                            new_domain is True
-                            and new_status == "CreatingDomainFromDisk"
-                        )
-                        or (
-                            old_status == "RunningVirtBuilder"
-                            and new_status == "CreatingDomainFromBuilder"
-                        )
+                        old_status in ["CreatingDisk", "CreatingDiskFromScratch"]
+                        and new_status == "CreatingDomain"
+                    ) or (
+                        new_domain is True and new_status == "CreatingDomainFromDisk"
                     ):
                         logs.changes.debug(
                             "llamo a creating_and_test_xml con domain id {}".format(
                                 domain_id
                             )
                         )
-                        if new_status == "CreatingDomainFromBuilder":
-                            ui.creating_and_test_xml_start(
-                                domain_id,
-                                creating_from_create_dict=True,
-                                xml_from_virt_install=True,
-                                ssl=True,
-                            )
                         if (
                             new_status == "CreatingDomain"
                             or new_status == "CreatingDomainFromDisk"
