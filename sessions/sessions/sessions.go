@@ -27,6 +27,7 @@ var (
 type Interface interface {
 	New(ctx context.Context, userID string, remoteAddr string) (*model.Session, error)
 	Get(ctx context.Context, id string, remoteAddr string) (*model.Session, error)
+	GetUserSession(ctx context.Context, userID string) (*model.Session, error)
 	Renew(ctx context.Context, id string, remoteAddr string) (*model.SessionTime, error)
 	Revoke(ctx context.Context, id string) error
 }
@@ -119,6 +120,24 @@ func (s *Sessions) Get(ctx context.Context, id, remoteAddr string) (*model.Sessi
 
 	if sess.Time.ExpirationTime.Before(time.Now()) {
 		return nil, ErrSessionExpired
+	}
+
+	return sess, nil
+}
+
+func (s *Sessions) GetUserSession(ctx context.Context, userID string) (*model.Session, error) {
+	if userID == "" {
+		return nil, ErrMissingUserID
+	}
+
+	usr := &model.User{ID: userID}
+	if err := usr.Load(ctx, s.redis); err != nil {
+		return nil, fmt.Errorf("load user: %w", err)
+	}
+
+	sess := &model.Session{ID: usr.SessionID}
+	if err := sess.Load(ctx, s.redis); err != nil {
+		return nil, fmt.Errorf("load session: %w", err)
 	}
 
 	return sess, nil

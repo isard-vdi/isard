@@ -39,6 +39,7 @@ from ..libv2.api_admin import (
     admin_table_update,
 )
 from ..libv2.api_allowed import ApiAllowed
+from ..libv2.api_sessions import revoke_user_session
 from ..libv2.api_users import (
     ApiUsers,
     Password,
@@ -452,6 +453,7 @@ def api_v3_admin_user_delete(payload):
                 "forbidden", "Can not delete your own user", traceback.format_exc()
             )
     for user in data["user"]:
+        revoke_user_session(user)
         users.Delete(user, payload["user_id"], data["delete_user"])
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
@@ -1270,6 +1272,18 @@ def admin_user_migrate(payload, user_id, target_user_id):
                 "Not allowed to migrate to an admin user",
             )
     gevent.spawn(users.process_migrate_user, user_id, target_user_id)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/user/<user_id>/logout", methods=["PUT"])
+@is_admin_or_manager
+def admin_user_logout(payload, user_id):
+    ownsUserId(payload, user_id)
+    revoke_user_session(user_id)
     return (
         json.dumps({}),
         200,

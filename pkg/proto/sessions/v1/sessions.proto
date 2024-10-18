@@ -10,6 +10,8 @@ service SessionsService {
     rpc New(NewRequest) returns (NewResponse) {}
     // Get returns a session
     rpc Get(GetRequest) returns (GetResponse) {}
+    // GetUserSession returns the session of a user
+    rpc GetUserSession(GetUserSessionRequest) returns (GetUserSessionResponse) {}
     //  Renew renews a session expire time
     rpc Renew(RenewRequest) returns (RenewResponse) {}
     // Revoke revokes a session to avoid it being used
@@ -58,6 +60,30 @@ message GetResponse {
 
 // GetResponseTime contains all the information related with the lifespan of the session
 message GetResponseTime {
+    // max_time is the time when the session will expire and won't be able to be renewed
+    google.protobuf.Timestamp max_time  = 1;
+    //  max_renew_time is the time when the session won't be able to be renewed
+    google.protobuf.Timestamp max_renew_time  = 2;
+    // expiration_time is the time when the session will expire if it's not renewed
+    google.protobuf.Timestamp expiration_time  = 3;
+}
+
+// GetUserSessionRequest is the request for the GetUserSession method
+message GetUserSessionRequest {
+    // user_id is the ID of the user
+    string user_id = 1;
+}
+
+// GetUserSessionResponse is the response for the GetUserSession method
+message GetUserSessionResponse {
+    // id is the ID of the session
+    string id = 1;
+    // time contains all the information related with the lifespan of the session
+    GetUserSessionResponseTime time = 2;
+}
+
+// GetUserSessionResponseTime contains all the information related with the lifespan of the session
+message GetUserSessionResponseTime {
     // max_time is the time when the session will expire and won't be able to be renewed
     google.protobuf.Timestamp max_time  = 1;
     //  max_renew_time is the time when the session won't be able to be renewed
