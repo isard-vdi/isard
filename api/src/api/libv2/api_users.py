@@ -34,6 +34,7 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.recycle_bin import RecycleBinDeleteQueue
+from .api_sessions import revoke_user_session
 from .api_storage import remove_category_from_storage_pool
 from .bookings.api_booking import Bookings
 from .caches import get_cached_user_with_names
@@ -830,6 +831,9 @@ class ApiUsers:
         return user_id
 
     def Update(self, user_ids, data):
+        for user_id in user_ids:
+            revoke_user_session(user_id)
+
         if data.get("password"):
             for user_id in user_ids:
                 self.change_password(data["password"], user_id)
@@ -873,6 +877,9 @@ class ApiUsers:
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
         for user_id in user_ids:
+            # second revoke to ensure changes are applied if the user logs in again during the update
+            revoke_user_session(user_id)
+
             isard_user_storage_update_user(
                 user_id=user_id,
                 email=data.get("email"),

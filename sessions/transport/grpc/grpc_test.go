@@ -189,6 +189,98 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestGetUserSession(t *testing.T) {
+	assert := assert.New(t)
+
+	now := time.Now()
+
+	cases := map[string]struct {
+		PrepareSessions func(*sessions.MockSessions)
+		Req             *sessionsv1.GetUserSessionRequest
+		ExpectedRsp     *sessionsv1.GetUserSessionResponse
+		ExpectedErr     string
+	}{
+		"should work as expected": {
+			PrepareSessions: func(sm *sessions.MockSessions) {
+				sm.On("GetUserSession", mock.AnythingOfType("context.backgroundCtx"), "UserID").
+					Return(&model.Session{
+						ID:     "SessionID",
+						UserID: "UserID",
+						Time: &model.SessionTime{
+							MaxTime:        now,
+							MaxRenewTime:   now,
+							ExpirationTime: now,
+						},
+					}, nil)
+			},
+			Req: &sessionsv1.GetUserSessionRequest{
+				UserId: "UserID",
+			},
+			ExpectedRsp: &sessionsv1.GetUserSessionResponse{
+				Id: "SessionID",
+				Time: &sessionsv1.GetUserSessionResponseTime{
+					MaxTime:        timestamppb.New(now),
+					MaxRenewTime:   timestamppb.New(now),
+					ExpirationTime: timestamppb.New(now),
+				},
+			},
+		},
+		"should return an InvalidArgument status if the user ID is missing": {
+			PrepareSessions: func(sm *sessions.MockSessions) {
+				sm.On("GetUserSession", mock.AnythingOfType("context.backgroundCtx"), "").
+					Return(&model.Session{}, sessions.ErrMissingUserID)
+			},
+			Req: &sessionsv1.GetUserSessionRequest{
+				UserId: "",
+			},
+			ExpectedErr: status.Error(codes.InvalidArgument, sessions.ErrMissingUserID.Error()).Error(),
+		},
+		"should return an NotFound status if the session is not found": {
+			PrepareSessions: func(sm *sessions.MockSessions) {
+				sm.On("GetUserSession", mock.AnythingOfType("context.backgroundCtx"), "UserID").
+					Return(&model.Session{}, redis.ErrNotFound)
+			},
+			Req: &sessionsv1.GetUserSessionRequest{
+				UserId: "UserID",
+			},
+			ExpectedErr: status.Error(codes.NotFound, redis.ErrNotFound.Error()).Error(),
+		},
+		"should return an Internal status if an unexpected error occurs": {
+			PrepareSessions: func(sm *sessions.MockSessions) {
+				sm.On("GetUserSession", mock.AnythingOfType("context.backgroundCtx"), "UserID").
+					Return(&model.Session{}, errors.New("unexpected error"))
+			},
+			Req: &sessionsv1.GetUserSessionRequest{
+				UserId: "UserID",
+			},
+			ExpectedErr: status.Error(codes.Internal, fmt.Errorf("get user session: %w", errors.New("unexpected error")).Error()).Error(),
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			log := zerolog.New(os.Stdout)
+
+			sessionsMock := &sessions.MockSessions{}
+
+			tc.PrepareSessions(sessionsMock)
+
+			srv := grpc.NewSessionsServer(&log, nil, "", sessionsMock)
+
+			rsp, err := srv.GetUserSession(context.Background(), tc.Req)
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			assert.Equal(tc.ExpectedRsp, rsp)
+
+			sessionsMock.AssertExpectations(t)
+		})
+	}
+}
+
 func TestRenew(t *testing.T) {
 	assert := assert.New(t)
 

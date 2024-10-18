@@ -1458,13 +1458,66 @@ function actionsUserDetail(){
             });
         }).on('pnotify.cancel', function() {});
     });
+
+    $('.btn-revoke').on('click', function () {
+        var closest = $(this).closest("div");
+        var id = closest.attr("data-pk");
+        var name = closest.attr("data-name");
+        new PNotify({
+            title: 'Confirmation Needed',
+            text: "Are you sure you want to log out " + name + "?",
+            hide: false,
+            opacity: 0.9,
+            confirm: {
+                confirm: true
+            },
+            buttons: {
+                closer: false,
+                sticker: false
+            },
+            history: {
+                history: false
+            },
+            addclass: 'pnotify-center'
+        }).get().on('pnotify.confirm', function () {
+            $.ajax({
+                type: "PUT",
+                url: "/api/v3/admin/user/" + id + "/logout",
+            }).done(function (data) {
+                new PNotify({
+                    title: "Logged out",
+                    text: name + " logged out successfully",
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: "success"
+                });
+            }).fail(function (data) {
+                new PNotify({
+                    title: "ERROR logging out",
+                    text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-cross',
+                    opacity: 1,
+                    type: 'error'
+                });
+            });
+        }).on('pnotify.cancel', function () { });
+    });
 };
 
 function renderUsersDetailPannel ( d ) {
-    if(d.username == 'admin'){
+    if(d.id == 'local-default-admin-admin'){
         $('.template-detail-users .btn-delete').hide()
     }else{
         $('.template-detail-users .btn-delete').show()
+    }
+    if ($('meta[id=user_data]').attr('data-role') == 'manager' && d.role == 'admin') {
+        $('.template-detail-users .btn-revoke').hide()
+    } else {
+        $('.template-detail-users .btn-revoke').show()
     }
 
     $newPanel = $template.clone();

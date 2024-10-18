@@ -101,6 +101,30 @@ func (s *SessionsServer) Get(ctx context.Context, req *sessionsv1.GetRequest) (*
 	}, nil
 }
 
+func (s *SessionsServer) GetUserSession(ctx context.Context, req *sessionsv1.GetUserSessionRequest) (*sessionsv1.GetUserSessionResponse, error) {
+	sess, err := s.sessions.GetUserSession(ctx, req.GetUserId())
+	if err != nil {
+		if errors.Is(err, sessions.ErrMissingUserID) {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+
+		if errors.Is(err, redis.ErrNotFound) {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+
+		return nil, status.Error(codes.Internal, fmt.Errorf("get user session: %w", err).Error())
+	}
+
+	return &sessionsv1.GetUserSessionResponse{
+		Id: sess.ID,
+		Time: &sessionsv1.GetUserSessionResponseTime{
+			MaxTime:        timestamppb.New(sess.Time.MaxTime),
+			MaxRenewTime:   timestamppb.New(sess.Time.MaxRenewTime),
+			ExpirationTime: timestamppb.New(sess.Time.ExpirationTime),
+		},
+	}, nil
+}
+
 func (s *SessionsServer) Renew(ctx context.Context, req *sessionsv1.RenewRequest) (*sessionsv1.RenewResponse, error) {
 	sess, err := s.sessions.Renew(ctx, req.GetId(), req.GetRemoteAddr())
 	if err != nil {

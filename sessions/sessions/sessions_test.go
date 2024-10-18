@@ -607,6 +607,119 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestGetUserSession(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	now := time.Now()
+
+	cases := map[string]struct {
+		PrepareRedis func(redismock.ClientMock)
+		UserID       string
+		CheckSession func(*model.Session)
+		ExpectedErr  string
+	}{
+		"should return the session if the session is still valid": {
+			PrepareRedis: func(m redismock.ClientMock) {
+				usr := &model.User{
+					ID:        "79d4df90-fd30-46b6-b439-70b70f335dbe",
+					SessionID: "c6b064b1-e27c-4482-b2a2-d9133f03b3a1",
+				}
+
+				ub, err := json.Marshal(usr)
+				require.NoError(err)
+				m.ExpectGet("user:79d4df90-fd30-46b6-b439-70b70f335dbe").SetVal(string(ub))
+
+				sess := &model.Session{
+					ID:         "c6b064b1-e27c-4482-b2a2-d9133f03b3a1",
+					UserID:     "79d4df90-fd30-46b6-b439-70b70f335dbe",
+					RemoteAddr: "127.0.0.1",
+					Time: &model.SessionTime{
+						MaxTime:        now.Add(8 * time.Hour),
+						MaxRenewTime:   now.Add(30 * time.Minute),
+						ExpirationTime: now.Add(5 * time.Minute),
+					},
+				}
+
+				sb, err := json.Marshal(sess)
+				require.NoError(err)
+				m.ExpectGet("session:c6b064b1-e27c-4482-b2a2-d9133f03b3a1").SetVal(string(sb))
+			},
+			UserID: "79d4df90-fd30-46b6-b439-70b70f335dbe",
+			CheckSession: func(sess *model.Session) {
+				assert.Equal("79d4df90-fd30-46b6-b439-70b70f335dbe", sess.UserID)
+				assert.True(sess.Time.MaxTime.Before(now.Add(8*time.Hour + 1*time.Minute)))
+				assert.True(sess.Time.MaxTime.After(now.Add(7*time.Hour + 59*time.Minute)))
+				assert.True(sess.Time.MaxRenewTime.Before(now.Add(30*time.Minute + 1*time.Minute)))
+				assert.True(sess.Time.MaxRenewTime.After(now.Add(30*time.Minute - 1*time.Minute)))
+				assert.True(sess.Time.ExpirationTime.Before(now.Add(5*time.Minute + 1*time.Minute)))
+				assert.True(sess.Time.ExpirationTime.After(now.Add(5*time.Minute - 1*time.Minute)))
+			},
+		},
+		"should return an error if the user ID is missing": {
+			PrepareRedis: func(m redismock.ClientMock) {},
+			UserID:       "",
+			ExpectedErr:  sessions.ErrMissingUserID.Error(),
+		},
+		"should return an error if there's an error loading the user": {
+			PrepareRedis: func(m redismock.ClientMock) {
+				m.ExpectGet("user:this is an ID").SetErr(errors.New("random error"))
+			},
+			UserID:      "this is an ID",
+			ExpectedErr: "load user: get: random error",
+		},
+		"should return an error if there's an error loading the session": {
+			PrepareRedis: func(m redismock.ClientMock) {
+				usr := &model.User{
+					ID:        "79d4df90-fd30-46b6-b439-70b70f335dbe",
+					SessionID: "c6b064b1-e27c-4482-b2a2-d9133f03b3a1",
+				}
+
+				ub, err := json.Marshal(usr)
+				require.NoError(err)
+				m.ExpectGet("user:79d4df90-fd30-46b6-b439-70b70f335dbe").SetVal(string(ub))
+
+				m.ExpectGet("session:c6b064b1-e27c-4482-b2a2-d9133f03b3a1").SetErr(errors.New("random error"))
+			},
+			UserID:      "79d4df90-fd30-46b6-b439-70b70f335dbe",
+			ExpectedErr: "load session: get: random error",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			log := zerolog.New(os.Stdout)
+			cfg := cfg.New()
+			cfg.Sessions.MaxTime = 8 * time.Hour
+			cfg.Sessions.MaxRenewTime = 30 * time.Minute
+			cfg.Sessions.ExpirationTime = 5 * time.Minute
+			cfg.Sessions.RemoteAddrControl = true
+
+			redis, redisMock := redismock.NewClientMock()
+			tc.PrepareRedis(redisMock)
+
+			s := sessions.Init(ctx, &log, cfg.Sessions, redis)
+
+			sess, err := s.GetUserSession(ctx, tc.UserID)
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			if tc.CheckSession == nil {
+				assert.Nil(sess)
+			} else {
+				tc.CheckSession(sess)
+			}
+
+			assert.NoError(redisMock.ExpectationsWereMet())
+		})
+	}
+}
+
 func TestRenew(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)

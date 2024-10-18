@@ -25,10 +25,16 @@ from sessions.v1 import sessions_pb2
 
 from api import app
 
+## Session errors
+no_session = Error("unauthorized", "No session provided")
+expired_session = Error("unauthorized", "Session expired")
+invalid_session = Error("internal_server", "Invalid session")
+invalid_user = Error("unauthorized", "Invalid user")
+
 
 def get(session_id, remote_addr):
     if not session_id:
-        raise Error("unauthorized", "No session provided")
+        raise no_session
 
     try:
         return app.sessions_client.Get(
@@ -40,6 +46,45 @@ def get(session_id, remote_addr):
             grpc.StatusCode.NOT_FOUND,
             grpc.StatusCode.UNAUTHENTICATED,
         ]:
-            raise Error("unauthorized", "Session expired")
+            raise expired_session
 
-        raise Error("internal_server", "Invalid session")
+        raise invalid_session
+
+
+def get_user_session_id(user_id):
+    try:
+        return app.sessions_client.GetUserSession(
+            sessions_pb2.GetUserSessionRequest(user_id=user_id)
+        )
+
+    except grpc.RpcError as rpc_error:
+        if rpc_error.code() in [
+            grpc.StatusCode.NOT_FOUND,
+        ]:
+            raise expired_session
+        elif rpc_error.code() in [
+            grpc.StatusCode.INVALID_ARGUMENT,
+        ]:
+            raise invalid_user
+
+        raise invalid_session
+
+
+def revoke_user_session(user_id):
+    try:
+        try:
+            session_id = get_user_session_id(user_id).id
+        except Error as e:
+            if e in [expired_session, invalid_user]:
+                return
+            raise e
+
+        return app.sessions_client.Revoke(sessions_pb2.RevokeRequest(id=session_id))
+
+    except grpc.RpcError as rpc_error:
+        if rpc_error.code() in [
+            grpc.StatusCode.NOT_FOUND,
+        ]:
+            pass
+
+        raise invalid_session
