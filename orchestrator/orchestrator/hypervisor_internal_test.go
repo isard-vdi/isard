@@ -4,40 +4,36 @@ import (
 	"context"
 	"testing"
 
+	"gitlab.com/isard/isardvdi/pkg/sdk"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"gitlab.com/isard/isardvdi/pkg/sdk"
 )
 
 func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 	assert := assert.New(t)
 
-	api := sdk.NewMockSdk(t)
-	o := &Orchestrator{
-		apiCli: api,
-	}
-
 	cases := map[string]struct {
 		PrepareAPI  func(*sdk.MockSdk)
 		ExpectedErr string
 	}{
-		// "should work as expected": {
-		// 	PrepareAPI: func(c *sdk.MockSdk) {
-		// 		f := false
-		// 		t := true
-		// 		id := "theHyper"
+		"should work as expected": {
+			PrepareAPI: func(c *sdk.MockSdk) {
+				f := false
+				t := true
+				id := "theHyper"
 
-		// 		c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.Hypervisor{{
-		// 			Buffering: &f,
-		// 		}, {
-		// 			ID:         &id,
-		// 			Buffering:  &t,
-		// 			OnlyForced: &t,
-		// 		}}, nil)
+				c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.Hypervisor{{
+					Buffering: &f,
+				}, {
+					ID:         &id,
+					Buffering:  &t,
+					OnlyForced: &t,
+				}}, nil)
 
-		// 		c.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "theHyper", false).Return(nil)
-		// 	},
-		// },
+				c.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "theHyper", false).Return(nil)
+			},
+		},
 		"should not do anything if there are no operations to do": {
 			PrepareAPI: func(c *sdk.MockSdk) {
 				f := false
@@ -55,6 +51,11 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			api := sdk.NewMockSdk(t)
+			o := &Orchestrator{
+				apiCli: api,
+			}
+
 			tc.PrepareAPI(api)
 
 			err := o.openBufferingHypervisor(context.Background())
@@ -74,32 +75,27 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 	assert := assert.New(t)
 
-	api := sdk.NewMockSdk(t)
-	o := &Orchestrator{
-		apiCli: api,
-	}
-
 	cases := map[string]struct {
 		PrepareAPI  func(*sdk.MockSdk)
 		ExpectedErr string
 	}{
-		// "should work as expected": {
-		// 	PrepareAPI: func(c *sdk.MockSdk) {
-		// 		f := false
-		// 		t := true
-		// 		id := "theHyper"
+		"should work as expected": {
+			PrepareAPI: func(c *sdk.MockSdk) {
+				f := false
+				t := true
+				id := "theHyper"
 
-		// 		c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.Hypervisor{{
-		// 			Buffering: &f,
-		// 		}, {
-		// 			ID:         &id,
-		// 			Buffering:  &t,
-		// 			OnlyForced: &f,
-		// 		}}, nil)
+				c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*sdk.Hypervisor{{
+					Buffering: &f,
+				}, {
+					ID:         &id,
+					Buffering:  &t,
+					OnlyForced: &f,
+				}}, nil)
 
-		// 		c.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "theHyper", true).Return(nil)
-		// 	},
-		// },
+				c.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "theHyper", true).Return(nil)
+			},
+		},
 		"should not do anything if there are no operations to do": {
 			PrepareAPI: func(c *sdk.MockSdk) {
 				f := false
@@ -117,6 +113,11 @@ func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			api := sdk.NewMockSdk(t)
+			o := &Orchestrator{
+				apiCli: api,
+			}
+
 			tc.PrepareAPI(api)
 
 			err := o.closeBufferingHypervisor(context.Background())
