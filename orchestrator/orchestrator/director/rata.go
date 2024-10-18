@@ -382,8 +382,13 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*sdk.OrchestratorHy
 
 				// Remove the hypervisor from only forced if the hypervisor has availiable resources
 			case true:
-				if r.cfg.HyperMaxCPU != 0 && (h.CPU.Free > r.cfg.HyperMaxCPU) ||
-					r.cfg.HyperMaxRAM != 0 && (h.RAM.Free > r.hyperMaxRAM(h)) {
+				// Don't touch hypervisors without desktops, they are probably going to
+				// be killed
+				if h.DesktopsStarted != 0 &&
+					// If the hypervisor has now enough free CPU
+					(r.cfg.HyperMaxCPU != 0 && (h.CPU.Free > r.cfg.HyperMaxCPU) ||
+						// If the hypervisor has now enough free RAM
+						r.cfg.HyperMaxRAM != 0 && (h.RAM.Free > r.hyperMaxRAM(h))) {
 
 					if r.dryRun {
 						r.log.Info().Bool("DRY_RUN", true).Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_max_cpu", r.cfg.HyperMaxCPU).Int("hyper_max_ram", r.hyperMaxRAM(h)).Msg("remove hypervisor from only_forced")
