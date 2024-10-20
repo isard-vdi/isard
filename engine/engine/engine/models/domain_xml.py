@@ -1158,13 +1158,6 @@ class DomainXML(object):
                 "defaultMode", "insecure"
             )
 
-    def clean_xml_for_test(self, new_name, new_disk):
-        self.new_domain_uuid()
-        self.set_name(new_name)
-        self.set_vdisk(new_disk)
-        self.new_random_mac()
-        self.spice_remove_passwd_nossl()
-
     def remove_branch(self, xpath, index=0):
         self.tree.xpath(xpath)[index].getparent().remove(self.tree.xpath(xpath)[index])
 

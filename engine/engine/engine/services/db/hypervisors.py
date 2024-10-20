@@ -21,51 +21,12 @@ def get_hypervisor(hyp_id):
     rtable = r.table("hypervisors")
     try:
         out = rtable.get(hyp_id).run(r_conn)
-    # except ReqlNonExistenceError:
-    #     close_rethink_connection(r_conn)
-    #     return None
     except:
         close_rethink_connection(r_conn)
         return None
 
     close_rethink_connection(r_conn)
     return out
-
-
-def get_hyps_ready_to_start():
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-
-    l = list(
-        rtable.filter({"enabled": True, "status": "ReadyToStart"})
-        .pluck("id", "hostname", "hypervisors_pools")
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
-
-    hyps_hostnames = {d["id"]: d["hostname"] for d in l}
-
-    return hyps_hostnames
-
-
-def get_hypers_disk_operations():
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-
-    hypers_ids = [
-        d["id"]
-        for d in list(
-            rtable.filter({"enabled": True, "capabilities": {"disk_operations": True}})
-            .pluck("id")
-            .run(r_conn)
-        )
-    ]
-
-    close_rethink_connection(r_conn)
-
-    return hypers_ids
-
-    pass
 
 
 def update_hyp_thread_status(thread_type, hyp_id, status):
@@ -280,56 +241,6 @@ def get_hyp_hostnames_online():
         return dict()
 
 
-# def update_hyp_enable(hyp_id, enable=True):
-#     """
-#     NOT USED
-#     :param hyp_id:
-#     :param enable:
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#     # out={}
-#     # for hyp_id in argv:
-#     #     o = rtable.get(hyp_id).\
-#     #          update({'enabled':enable}).\
-#     #          run(r_conn)
-#     #     out[hyp_id] = o
-#     out = rtable.get(hyp_id). \
-#         update({'enabled': enable}). \
-#         run(r_conn)
-#     close_rethink_connection(r_conn)
-#     return out
-
-
-# def update_hyp_capability(hyp_id, capability, enable=True):
-#     """
-#     NOT USED
-#     :param hyp_id:
-#     :param capability:
-#     :param enable:
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#
-#     out = rtable.get(hyp_id). \
-#         update({'capabilities': {capability: enable}}). \
-#         run(r_conn)
-#     close_rethink_connection(r_conn)
-#     return out
-
-
-def update_hyp_only_forced(hyp_id, only_forced=True):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    if only_forced != True:
-        only_forced = False
-    out = rtable.get(hyp_id).update({"only_forced": only_forced}).run(r_conn)
-    close_rethink_connection(r_conn)
-    return out
-
-
 def update_uri_hyp(hyp_id, uri):
     r_conn = new_rethink_connection()
     rtable = r.table("hypervisors")
@@ -357,19 +268,6 @@ def get_hyp_info(hyp_id):
             return out["info"]
 
     return out.get("info", False)
-
-
-def get_hyp_default_gpu_models(hyp_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    try:
-        out = rtable.get(hyp_id).pluck("default_gpu_models").run(r_conn)
-    except ReqlNonExistenceError:
-        close_rethink_connection(r_conn)
-        return {}
-
-    close_rethink_connection(r_conn)
-    return out.get("default_gpu_models", {})
 
 
 def get_hyp_status(hyp_id):
@@ -476,20 +374,6 @@ def get_hypers_enabled_with_capabilities_status():
     return hypers
 
 
-def get_hypers_not_forced_disk_operations():
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-
-    hypers = list(
-        rtable.filter({"enabled": True, "status": "Online", "only_forced": False})[
-            "id"
-        ].run(r_conn)
-    )
-
-    close_rethink_connection(r_conn)
-    return hypers
-
-
 def get_hyp_hostname_user_port_from_id(id):
     r_conn = new_rethink_connection()
     l = r.table("hypervisors").get(id).pluck("hostname", "user", "port").run(r_conn)
@@ -520,159 +404,6 @@ def update_all_hyps_status(reset_status="Offline", reset_thread_status="Stopped"
     )
     close_rethink_connection(r_conn)
     return results
-
-
-def get_hyps_with_status(list_status, not_=False, empty=False):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    if not_ == True:
-        l = list(
-            rtable.filter({"enabled": True})
-            .filter(lambda d: r.not_(r.expr(list_status).contains(d["status"])))
-            .run(r_conn)
-        )
-    else:
-        l = list(
-            rtable.filter({"enabled": True})
-            .filter(lambda d: r.expr(list_status).contains(d["status"]))
-            .run(r_conn)
-        )
-
-    if empty == True:
-        nostatus = list(
-            rtable.filter({"enabled": True})
-            .filter(lambda n: ~n.has_fields("status"))
-            .run(r_conn)
-        )
-        l = l + nostatus
-
-    close_rethink_connection(r_conn)
-    return l
-
-
-def update_hypervisor_failed_connection(id, fail_connected_reason=""):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    rtable.get(id).update({"detail": str(fail_connected_reason)}).run(r_conn)
-    # if len(fail_connected_reason) > 0:
-    #     rtable.get(id).update({'detail':fail_connected_reason}).run(r_conn)
-    # else:
-    #     rtable.get(id).replace(r.row.without('fail_connected_reason')).run(r_conn)
-    close_rethink_connection(r_conn)
-
-
-# def initialize_db_status_hyps():
-#     """
-#     NOT USED
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#
-#     # all hyps to offline
-#     rtable.filter({'enabled': False}). \
-#         update({'status': 'Offline'}). \
-#         run(r_conn)
-#     rtable.filter({'enabled': True}). \
-#         update({'status': 'Offline'}). \
-#         run(r_conn)
-#     # return only enabled
-#     l = list(rtable.filter({'enabled': True}). \
-#              pluck(['id', 'hostname']).
-#              run(r_conn))
-#
-#     close_rethink_connection(r_conn)
-#     if len(l) > 0:
-#         hyps_hostnames = {d['id']: d['hostname'] for d in l}
-#
-#         return hyps_hostnames
-#     else:
-#         return dict()
-
-
-# def insert_hyp(id,
-#                hostname,
-#                enable=True,
-#                status='Offline',
-#                hypervisors_pools=['default'],
-#                user='root',
-#                port='22'):
-#     """
-#     NOT USED
-#     :param id:
-#     :param hostname:
-#     :param enable:
-#     :param status:
-#     :param hypervisors_pools:
-#     :param user:
-#     :param port:
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#
-#     rtable.insert({'id': id,
-#                    'hostname': hostname,
-#                    'enabled': enable,
-#                    'status': status,
-#                    'hypervisors_pools': pools,
-#                    'user': user,
-#                    'port': port,
-#                    'detail': 'new hypervisor created'}). \
-#         run(r_conn)
-#     close_rethink_connection(r_conn)
-
-
-# def add_hypers_to_pool(id_pool, *id_hypers):
-#     """
-#     NOT USED
-#     :param id_pool:
-#     :param id_hypers:
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#     return_operations = []
-#     for id_hyp in id_hypers:
-#         old_pool = rtable.get(id_hyp).pluck('hypervisors_pools').run(r_conn)
-#         if len(old_pool) == 0:
-#             pools = [id_pool]
-#         else:
-#             pools = old_pool['hypervisors_pools']
-#         if id_pool not in pools:
-#             pools.append(id_pool)
-#         return_operations.append(rtable.filter({'id': id_hyp}). \
-#                                  update({'hypervisors_pools': pools}). \
-#                                  run(r_conn))
-#
-#     close_rethink_connection(r_conn)
-#     return return_operations
-
-
-# def del_hypers_from_pool(id_pool, *id_hypers):
-#     """
-#     NOT USED
-#     :param id_pool:
-#     :param id_hypers:
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#     return_operations = []
-#     for id_hyp in id_hypers:
-#         old_pool = rtable.get(id_hyp).pluck('hypervisors_pools').run(r_conn)
-#         if len(old_pool) == 0:
-#             pools = [id_pool]
-#         else:
-#             pools = old_pool['hypervisors_pools']
-#             if id_pool in pools:
-#                 pools.remove(id_pool)
-#                 return_operations.append(rtable.filter({'id': id_hyp}). \
-#                                          update({'hypervisors_pools': pools}). \
-#                                          run(r_conn))
-#
-#     close_rethink_connection(r_conn)
-#     return return_operations
 
 
 def get_pool_hypers_conf(id_pool="default"):
@@ -1052,76 +783,6 @@ def get_hypers_in_pool(
     return hyps_to_start, hyps_only_forced, hyps_all
 
 
-def get_hypers_info(
-    id_pool="default", pluck=None, exclude_only_forced=False, exclude_gpu_only=False
-):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    l_only_forced = []
-    l_gpu_only = []
-    if exclude_only_forced is True:
-        l_only_forced = list(
-            rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
-            .filter({"status": "Online", "only_forced": True})
-            .pluck("id")
-            .run(r_conn)
-        )
-
-    if exclude_gpu_only is True:
-        l_gpu_only = list(
-            rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
-            .filter({"status": "Online", "gpu_only": True})
-            .pluck("id")
-            .run(r_conn)
-        )
-
-    l_hyp_id_exclude = [a["id"] for a in l_only_forced] + [a["id"] for a in l_gpu_only]
-
-    if not pluck:
-        l_all = list(
-            rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
-            .filter({"status": "Online"})
-            .run(r_conn)
-        )
-    else:
-        l_all = list(
-            rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
-            .filter({"status": "Online"})
-            .pluck(pluck)
-            .run(r_conn)
-        )
-    close_rethink_connection(r_conn)
-    results = [a for a in l_all if a["id"] not in l_hyp_id_exclude]
-    return results
-
-
-# def delete_hyp(hyp_id):
-#     """
-#     NOT USED
-#     :param hyp_id:
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#
-#     results = rtable.get(hyp_id).delete().run(r_conn)
-#     close_rethink_connection(r_conn)
-
-
-# def list_all_hyps():
-#     """
-#     NOT USED
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#
-#     results = rtable.run(r_conn)
-#     l = list(results)
-#     close_rethink_connection(r_conn)
-#     return l
-
-
 def update_db_hyp_info(id, hyp_info):
     r_conn = new_rethink_connection()
     rtable = r.table("hypervisors")
@@ -1280,55 +941,6 @@ def update_vgpu_created(vgpu_id, profile, uuid64, created=True):
     return result
 
 
-def update_vgpu_started(vgpu_id, profile, uuid64, domain_id):
-    now = int(time.time())
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
-    result = (
-        rtable.get(vgpu_id)
-        .update(
-            {
-                "mdevs": {
-                    profile: {
-                        uuid64: {
-                            "domain_started": {"timestamp": now, "domain_id": domain_id}
-                        }
-                    }
-                }
-            }
-        )
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
-    return result
-
-
-def update_vgpu_reserved(vgpu_id, profile, uuid64, domain_id):
-    now = int(time.time())
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
-    result = (
-        rtable.get(vgpu_id)
-        .update(
-            {
-                "mdevs": {
-                    profile: {
-                        uuid64: {
-                            "domain_reserved": {
-                                "timestamp": now,
-                                "domain_id": domain_id,
-                            }
-                        }
-                    }
-                }
-            }
-        )
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
-    return result
-
-
 def get_vgpu(vgpu_id):
     r_conn = new_rethink_connection()
     rtable = r.table("vgpus")
@@ -1392,64 +1004,3 @@ def get_vgpu_actual_profile(vgpu_id):
     if len(data):
         return data["subitem_id"].split("-")[-1]
     return None
-
-
-def get_hyp(hyp_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-
-    out = rtable.get(hyp_id).run(r_conn)
-    close_rethink_connection(r_conn)
-    return out
-
-
-@rethink
-def get_storage_pool_hypervisor_ids(connection, storage_pool_id):
-    return [
-        hypervisor["id"]
-        for hypervisor in r.table("hypervisors")
-        .filter(r.row["storage_pools"].contains(storage_pool_id))
-        .pluck("id")
-        .run(connection)
-    ]
-
-
-def flatten(S):
-    if S == []:
-        return S
-    if isinstance(S[0], list):
-        return flatten(S[0]) + flatten(S[1:])
-    return S[:1] + flatten(S[1:])
-
-
-@rethink
-def get_domains_started_from_vgpus_table(connection):
-    rtable = r.table("vgpus")
-    l_vgpus = list(rtable.run(connection))
-    wow = [
-        b
-        for b in [
-            [
-                i
-                for i in [
-                    [
-                        {
-                            "hyp_id": l["hyp_id"],
-                            "model": l["model"],
-                            "gpu_id": l["id"],
-                            "profile": profile,
-                            "mdev": a,
-                            "domain_id": v["domain_started"],
-                        }
-                        for a, v in d.items()
-                        if v["domain_started"] != False
-                    ]
-                    for profile, d in l["mdevs"].items()
-                ]
-                if len(i) > 0
-            ]
-            for l in l_vgpus
-        ]
-        if len(b) > 0
-    ]
-    return flatten(wow)

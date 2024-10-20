@@ -11,22 +11,6 @@ def get_media(id_media):
     return d
 
 
-def get_downloads_in_progress():
-    r_conn = new_rethink_connection()
-    try:
-        d = (
-            r.table("media")
-            .get_all(r.args(["DownloadStarting", "Downloading"]), index="status")
-            .pluck("id", "path", "isard-web", "status")
-            .run(r_conn)
-        )
-    except r.ReqlNonExistenceError:
-        d = []
-
-    close_rethink_connection(r_conn)
-    return d
-
-
 def update_status_table(table, status, id_table, detail=""):
     r_conn = new_rethink_connection()
     detail = str(detail)

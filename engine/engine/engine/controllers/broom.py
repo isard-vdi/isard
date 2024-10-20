@@ -3,11 +3,10 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
-# coding=utf-8
 
+import os
 import threading
 import traceback
-from collections import OrderedDict
 from time import sleep, time
 
 from engine.config import POLLING_INTERVAL_TRANSITIONAL_STATES
@@ -23,16 +22,7 @@ from engine.services.db import (
     update_table_field,
     update_vgpu_info_if_stopped,
 )
-from engine.services.db.domains_status import (
-    get_last_domain_status,
-    insert_db_domain_status,
-)
-from engine.services.db.hypervisors_status import (
-    get_last_hyp_status,
-    insert_db_hyp_status,
-)
 from engine.services.lib.functions import (
-    calcule_disk_net_domain_load,
     dict_domain_libvirt_state_to_isard_state,
     get_tid,
     state_and_cause_to_str,
@@ -58,48 +48,44 @@ class ThreadBroom(threading.Thread):
                     interval += 0.1
                     if self.stop is True:
                         break
-                if disk_interval >= 30:
+                if disk_interval >= 300:
                     disk_interval = 0
                 disk_interval += 1
                 if self.manager.check_actions_domains_enabled() is False:
                     continue
 
+                """
+                DB DOMAINS TRANSITIONAL STATES
+                """
                 l = get_domains_with_transitional_status(also_started=True)
 
-                list_domains_without_hyp = [
-                    d for d in l if "hyp_started" not in d.keys()
+                DB_DOMAINS_WITHOUT_HYP = [d for d in l if "hyp_started" not in d.keys()]
+                DB_DOMAINS_STARTED_WITH_HYP = [
+                    d for d in l if "hyp_started" in d.keys()
                 ]
-                list_domains = [d for d in l if "hyp_started" in d.keys()]
-                ids_domains_started_in_db_with_hypervisor = [
-                    a["id"] for a in list_domains
+                DB_DOMAINS_ID_STARTED_WITH_HYP = [
+                    a["id"] for a in DB_DOMAINS_STARTED_WITH_HYP
                 ]
                 # ids_domains_started_in_db_without_hypervisor = [
-                #     a["id"] for a in list_domains_without_hyp
+                #     a["id"] for a in DB_DOMAINS_WITHOUT_HYP
                 # ]
 
-                for d in list_domains_without_hyp:
+                for db_domain in DB_DOMAINS_WITHOUT_HYP:
                     logs.broom.error(
                         "DOMAIN {} WITH STATUS {} without HYPERVISOR".format(
-                            d["id"], d["status"]
+                            db_domain["id"], db_domain["status"]
                         )
                     )
                     update_domain_status(
                         "Unknown",
-                        d["id"],
-                        detail="starting or stoping status witouth hypervisor",
+                        db_domain["id"],
+                        detail="starting or stoping status without hypervisor",
                     )
 
-                # hyps_with_hyp_started = set(
-                #     [
-                #         d["hyp_started"]
-                #         for d in list_domains
-                #         if type(d["hyp_started"]) is str
-                #     ]
-                # )
-                hyps_to_try = list(get_hyp_hostnames_online().keys())
+                HYPERS_ONLINE = list(get_hyp_hostnames_online().keys())
 
                 hyps_domain_started = {}
-                for hyp_id in hyps_to_try:
+                for hyp_id in HYPERS_ONLINE:
                     try:
                         (
                             hostname,
@@ -111,13 +97,37 @@ class ThreadBroom(threading.Thread):
                         ) = get_hyp_hostname_from_id(hyp_id)
                         if hostname is False:
                             logs.broom.error(
-                                "hyp {} with id has not hostname or is nos in database".format(
+                                "hyp {} with id has not hostname or is not in database".format(
                                     hyp_id
                                 )
                             )
                         else:
                             h = hyp(hyp_id, hostname, user=user, port=port)
                             if h.connected:
+                                # Update the current hypervisor memory and CPU usage in the DB
+                                try:
+                                    h.get_system_stats()
+                                    update_table_field(
+                                        "hypervisors",
+                                        hyp_id,
+                                        "stats",
+                                        h.stats,
+                                        soft=True,
+                                    )
+                                except Exception as e:
+                                    logs.broom.error(
+                                        "HYPERVISOR {} libvirt stats connection failed"
+                                    )
+
+                                # Update the current hypervisor storage usage in the DB
+                                if disk_interval == 1:
+                                    update_table_dict(
+                                        "hypervisors",
+                                        hyp_id,
+                                        {"mountpoints": h.get_storage_used()},
+                                        soft=True,
+                                    )
+
                                 hyps_domain_started[hyp_id] = {}
                                 hyps_domain_started[hyp_id]["hyp"] = h
                                 d_domains_status_from_hyp = h.get_domains()
@@ -128,54 +138,38 @@ class ThreadBroom(threading.Thread):
                                 domains_destroyed = []
                                 domains_debugging = []
                                 for (
-                                    id_domain,
-                                    status,
+                                    domain_id,
+                                    status_and_detail,
                                 ) in d_domains_status_from_hyp.items():
-                                    if (
-                                        id_domain
-                                        not in ids_domains_started_in_db_with_hypervisor
-                                    ):
-                                        if (
-                                            id_domain
-                                            not in ids_domains_started_in_db_with_hypervisor
-                                        ):
-                                            # starting with _debug_ not destroyed by broom
-                                            if id_domain.find("_debug_") != 0:
-                                                d_domain = get_domain(id_domain)
-                                                if d_domain is None:
-                                                    try:
-                                                        domain_handler = (
-                                                            h.conn.lookupByName(
-                                                                id_domain
-                                                            )
-                                                        )
-                                                        domain_handler.destroy()
-                                                        domains_destroyed.append(
-                                                            id_domain
-                                                        )
-                                                        logs.broom.error(
-                                                            f"broom destroyed domain not in database {id_domain} in hypervisor {hyp_id}"
-                                                        )
-                                                    except Exception as e:
-                                                        logs.broom.error(
-                                                            f"EXCEPTION when try to destroy domain not in database {id_domain} in hypervisor {hyp_id} with exception: {e}"
-                                                        )
-                                            else:
-                                                logs.broom.info(
-                                                    f"domain debugging: id_domain"
+                                    if domain_id not in DB_DOMAINS_ID_STARTED_WITH_HYP:
+                                        db_domain = get_domain(domain_id)
+                                        if db_domain is None:
+                                            try:
+                                                domain_handler = h.conn.lookupByName(
+                                                    domain_id
                                                 )
-                                                domains_debugging.append(id_domain)
-                                        else:
-                                            status_domain = [
-                                                d["status"]
-                                                for d in list_domains_without_hyp
-                                                if d["id"] == id_domain
-                                            ][0]
+                                                domain_handler.destroy()
+                                                domains_destroyed.append(domain_id)
+                                                logs.broom.error(
+                                                    f"broom destroyed domain not in database {domain_id} in hypervisor {hyp_id}"
+                                                )
+                                            except Exception as e:
+                                                logs.broom.error(
+                                                    f"EXCEPTION when try to destroy domain not in database {domain_id} in hypervisor {hyp_id} with exception: {e}"
+                                                )
+                                        if db_domain.get("status") not in [
+                                            "Started",
+                                            "Shutting-down",
+                                            "Stopping",
+                                        ]:
+                                            logs.broom.warning(
+                                                f"broom find domain {domain_id} with status {db_domain.get('status')} started in hypervisor {hyp_id} and updated status and hyp_started in database"
+                                            )
                                             update_domain_hyp_started(
-                                                id_domain,
+                                                domain_id,
                                                 hyp_id,
                                                 "hyp_started updated by broom",
-                                                status_domain,
+                                                "Started",
                                             )
 
                                 # remove domains destroyed by broom
@@ -193,27 +187,6 @@ class ThreadBroom(threading.Thread):
                                     "active_domains"
                                 ] = d_domains_status_from_hyp
 
-                                # Update the current hypervisor memory and CPU usage in the DB
-                                try:
-                                    h.get_system_stats()
-                                    update_table_field(
-                                        "hypervisors",
-                                        hyp_id,
-                                        "stats",
-                                        h.stats,
-                                        soft=True,
-                                    )
-                                except Exception as e:
-                                    logs.broom.error(
-                                        "HYPERVISOR {} libvirt stats connection failed"
-                                    )
-
-                                if disk_interval == 1:
-                                    update_table_dict(
-                                        "hypervisors",
-                                        hyp_id,
-                                        {"mountpoints": h.get_storage_used()},
-                                    )
                             else:
                                 hyps_domain_started[hyp_id] = {}
                                 logs.broom.error(
@@ -236,59 +209,55 @@ class ThreadBroom(threading.Thread):
                 ## DOMAINS ACTIVE EN HYPERVISOR THAT ARE STOPPED, FAILED, UNKNOWN IN DATABASE...
                 for hyp_id, d in hyps_domain_started.items():
                     if d.get("active_domains"):
-                        for id_domain, d_status in d["active_domains"].items():
-                            if (
-                                id_domain
-                                not in ids_domains_started_in_db_with_hypervisor
-                            ) and (
-                                id_domain
-                                not in ids_domains_started_in_db_with_hypervisor
-                            ):
-                                d_domain = get_domain(id_domain)
-                                if d_domain is None:
+                        for domain_id, d_status in d["active_domains"].items():
+                            domain_status = d_status["status"]
+                            domain_status_detail = d_status["detail"]
+                            if domain_id not in DB_DOMAINS_ID_STARTED_WITH_HYP:
+                                db_domain = get_domain(domain_id)
+                                if db_domain is None:
                                     logs.broom.error(
-                                        "CRITICAL, if domain is not in database, must be destroyed previously by broom"
+                                        "CRITICAL, if domain is not in database, must have been destroyed previously by broom, will do it next loop"
                                     )
                                     continue
-                                if d_status["status"] == "Started":
+                                if domain_status == "Started":
                                     logs.broom.error(
-                                        f"broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
+                                        f"broom find domain {domain_id} with status {domain_status} in hypervisor {hyp_id} and updated status and hyp_started in databse"
                                     )
-                                    if d_domain["status"] not in ["ForceDeleting"]:
+                                    if db_domain["status"] not in ["ForceDeleting"]:
                                         update_domain_hyp_started(
-                                            id_domain,
+                                            domain_id,
                                             hyp_id,
                                             "State and hyp_started updated by broom",
-                                            d_status["status"],
+                                            domain_status,
                                         )
-                                elif d_status["status"] == "Paused":
-                                    if d_status["detail"] == "paused on user request":
+                                elif domain_status == "Paused":
+                                    if domain_status_detail == "paused on user request":
                                         logs.broom.error(
-                                            f"broom find domain {id_domain} with status {d_status['status']} with detail {d_status['detail']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
+                                            f"broom find domain {domain_id} with status {domain_status} with detail {domain_status_detail} in hypervisor {hyp_id} and updated status and hyp_started in databse"
                                         )
-                                        if d_domain["status"] not in [
+                                        if db_domain["status"] not in [
                                             "Stopped",
                                             "ForceDeleting",
                                         ]:
                                             update_domain_hyp_started(
-                                                id_domain,
+                                                domain_id,
                                                 hyp_id,
                                                 "State and hyp_started updated by broom",
-                                                d_status["status"],
+                                                domain_status,
                                             )
                                     else:
                                         logs.broom.info(
-                                            f"broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id} with detail {d_status['detail']} , domain starting-paused?"
+                                            f"broom find domain {domain_id} with status {domain_status} in hypervisor {hyp_id} with detail {domain_status_detail} , domain starting-paused?"
                                         )
                                 else:
                                     logs.broom.error(
-                                        f"CRITICAL: STATUS FROM LIBVIRT IS NOT STARTED OR PAUSED!! broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id}"
+                                        f"CRITICAL: STATUS FROM LIBVIRT IS NOT STARTED OR PAUSED!! broom find domain {domain_id} with status {domain_status} in hypervisor {hyp_id}"
                                     )
                                     logs.broom.error(
-                                        f"CRITICAL: broom not update strange status {id_domain} with status {d_status['status']} in hypervisor {hyp_id}"
+                                        f"CRITICAL: broom not update strange status {domain_id} with status {domain_status} in hypervisor {hyp_id}"
                                     )
 
-                for d in list_domains_without_hyp:
+                for d in DB_DOMAINS_WITHOUT_HYP:
                     domain_id = d["id"]
                     status = d["status"]
                     if status == "Stopping":
@@ -303,7 +272,7 @@ class ThreadBroom(threading.Thread):
                             detail="Stopped by broom thread because has not hypervisor",
                         )
 
-                for d in list_domains:
+                for d in DB_DOMAINS_STARTED_WITH_HYP:
                     domain_id = d["id"]
                     status = d["status"]
                     hyp_started = d["hyp_started"]
@@ -383,7 +352,7 @@ class ThreadBroom(threading.Thread):
                                     )
                                     update_vgpu_info_if_stopped(domain_id)
                             elif status == "Resetting":
-                                if int(time()) - int(d["accessed"]) > 20:
+                                if int(time()) - int(d["accessed"]) > 60:
                                     logs.broom.debug(
                                         "DOMAIN: {} STATUS RESETTING IN HYPERVISOR: {}".format(
                                             domain_id, hyp_started
@@ -419,8 +388,8 @@ class ThreadBroom(threading.Thread):
                     else:
                         if len(hyps_domain_started) > 0:
                             logs.broom.error(
-                                "hyp_started: {} NOT IN hyps_domain_started keys:".format(
-                                    hyp_started
+                                "domain {} has an hyp_started: {} NOT IN hyps_domain_started keys:".format(
+                                    domain_id, hyp_started
                                 )
                             )
             except Exception as e:

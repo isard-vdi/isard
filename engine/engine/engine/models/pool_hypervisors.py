@@ -19,7 +19,6 @@ status_to_delete = [
     "Creating",
     "CreatingAndStarting",
     "CreatingDiskFromScratch",
-    "CreatingFromBuilder",
 ]
 status_to_failed = ["Updating", "Deleting"]
 status_to_stopped = ["Starting"]

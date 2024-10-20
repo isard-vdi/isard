@@ -956,7 +956,6 @@ def clean_intermediate_status(reason="engine is restarting", only_domain_id=None
     #     "Creating",
     #     "CreatingAndStarting",
     #     "CreatingDiskFromScratch",
-    #     "CreatingFromBuilder",
     # ]
     # status_to_failed = [
     #     "Updating",

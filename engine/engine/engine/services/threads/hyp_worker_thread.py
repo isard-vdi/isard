@@ -350,12 +350,14 @@ class HypWorkerThread(threading.Thread):
                     try:
                         dom = self.h.conn.createXML(action["xml"])
                     except libvirtError as e:
-                        if str(e)[-17:].find("is already active") == 0:
+                        if "already exists with uuid" in str(e):
                             logs.workers.error(
-                                "Domain {dom_id} has to be started, but when worker want to start it, it is already active!! Someone started this domain in this hyper manually or engine has a bug"
+                                "Domain {} set to Starting status, but when worker want to start it, it is already active!! Fixed to Started in database".format(
+                                    action["id_domain"]
+                                )
                             )
                             update_domain_status(
-                                id_domain=dom_id,
+                                id_domain=action["id_domain"],
                                 status="Started",
                                 hyp_id=hyp_id,
                                 detail="Ups, domain already active",
@@ -371,7 +373,7 @@ class HypWorkerThread(threading.Thread):
                                 ),
                             )
                             logs.workers.info(
-                                "exception in starting domain {}: ".format(e)
+                                "exception 01 in start_domain action {}: ".format(e)
                             )
                     else:
                         try:
@@ -387,7 +389,7 @@ class HypWorkerThread(threading.Thread):
                                 ),
                             )
                             logs.workers.info(
-                                "exception in starting domain {}: ".format(e)
+                                "exception 02 in start_domain action {}: ".format(e)
                             )
                         else:
                             try:
@@ -444,7 +446,7 @@ class HypWorkerThread(threading.Thread):
                                     ),
                                 )
                                 logs.workers.debug(
-                                    "exception in starting domain {}: ".format(e)
+                                    "exception 03 in start_domain action {}: ".format(e)
                                 )
 
                                 if action.get("nvidia_uid", False) is not False:
