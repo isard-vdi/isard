@@ -1,4 +1,4 @@
-# Isard main config v2.21.0
+# Isard main config v2.22.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -455,6 +455,21 @@ HAPROXY_LOGGING=.
 ## If this is set to true, the hypervisor will be used as a "buffer" when
 ## the orchestrator needs to scale up
 #BUFFERING_HYPER=false
+
+# Hypervisor Traffic Prioritization Configuration
+## This section controls the traffic prioritization for different types of traffic:
+## - Engine, Desktop videos, Guest browsing, Other traffics
+## If these variables are not set, the script will automatically attempt to determine
+## your bandwidth using a speed test (via speedtest-cli).
+## Note:
+## - Make sure the values you set don't exceed your real available connection limits.
+## - Traffic prioritization will not work effectively if the configured bandwidth limits
+##   exceed the actual available speeds of your connection.
+## Example: Uncomment and set your limits if desired or to completely disable tc
+#DISABLE_TRAFFIC_PRIORITIZATION=false
+#NETWORK_MAX_DOWNLOAD_BANDWIDTH=800   # Example: Set max download speed to 800 Mbps
+#NETWORK_MAX_UPLOAD_BANDWIDTH=200     # Example: Set max upload speed to 200 Mbps
+
 
 # ------ Database host -------------------------------------------------------
 ## Where is the database reacheable?

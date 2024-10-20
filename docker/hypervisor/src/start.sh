@@ -116,6 +116,9 @@ do
    iptables -I FORWARD -d "$WHITELIST_IPTABLES" -o eth0 -j ACCEPT
 done
 
+echo "---> Applying Video Traffic Prioritization..."
+/src/tc/tc_video.sh
+
 python3 /src/lib/check-cert.py &
 
 if [ -z "$HYPER_ENABLED" ] || [ "$HYPER_ENABLED" == "true" ]
