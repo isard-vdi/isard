@@ -16,15 +16,16 @@ func TestMinRAM(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		Hypers                  []*sdk.OrchestratorHypervisor
-		MinRAM                  int
-		MinRAMHourly            map[time.Weekday]map[time.Time]int
-		MinRAMLimitPercent      int
-		MinRAMLimitMargin       int
-		MinRAMLimitMarginHourly map[time.Weekday]map[time.Time]int
-		HyperMinRAM             int
-		HyperMaxRAM             int
-		Expected                int
+		Hypers                   []*sdk.OrchestratorHypervisor
+		MinRAM                   int
+		MinRAMHourly             map[time.Weekday]map[time.Time]int
+		MinRAMLimitPercent       int
+		MinRAMLimitPercentHourly map[time.Weekday]map[time.Time]int
+		MinRAMLimitMargin        int
+		MinRAMLimitMarginHourly  map[time.Weekday]map[time.Time]int
+		HyperMinRAM              int
+		HyperMaxRAM              int
+		Expected                 int
 	}{
 		"should return 0 if it's not configured": {
 			Expected: 0,
@@ -156,6 +157,29 @@ func TestMinRAM(t *testing.T) {
 
 			Expected: ((47*1024 + 51200) * 1.5) + 1,
 		},
+		"should get the limit percent hourly if configured": {
+			MinRAMLimitPercentHourly: map[time.Weekday]map[time.Time]int{
+				time.Monday: {
+					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 150,
+				},
+			},
+			MinRAMLimitMarginHourly: map[time.Weekday]map[time.Time]int{
+				time.Monday: {
+					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 1312,
+				},
+			},
+			Hypers: []*sdk.OrchestratorHypervisor{
+				{
+					ID:           "1",
+					MinFreeMemGB: 3,
+				},
+				{
+					ID:           "2",
+					MinFreeMemGB: 2,
+				},
+			},
+			Expected: (3*1024)*1.5 + (2*1024)*1.5 + 1312,
+		},
 	}
 
 	for name, tc := range cases {
@@ -163,13 +187,14 @@ func TestMinRAM(t *testing.T) {
 			log := zerolog.New(os.Stdout)
 
 			rata := NewRata(cfg.DirectorRata{
-				MinRAM:                  tc.MinRAM,
-				MinRAMHourly:            tc.MinRAMHourly,
-				MinRAMLimitPercent:      tc.MinRAMLimitPercent,
-				MinRAMLimitMargin:       tc.MinRAMLimitMargin,
-				MinRAMLimitMarginHourly: tc.MinRAMLimitMarginHourly,
-				HyperMinRAM:             tc.HyperMinRAM,
-				HyperMaxRAM:             tc.HyperMaxRAM,
+				MinRAM:                   tc.MinRAM,
+				MinRAMHourly:             tc.MinRAMHourly,
+				MinRAMLimitPercent:       tc.MinRAMLimitPercent,
+				MinRAMLimitPercentHourly: tc.MinRAMLimitPercentHourly,
+				MinRAMLimitMargin:        tc.MinRAMLimitMargin,
+				MinRAMLimitMarginHourly:  tc.MinRAMLimitMarginHourly,
+				HyperMinRAM:              tc.HyperMinRAM,
+				HyperMaxRAM:              tc.HyperMaxRAM,
 			}, false, &log, nil)
 
 			assert.Equal(tc.Expected, rata.minRAM(tc.Hypers))
@@ -181,13 +206,14 @@ func TestMaxRAM(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		Hypers                  []*sdk.OrchestratorHypervisor
-		MaxRAM                  int
-		MaxRAMHourly            map[time.Weekday]map[time.Time]int
-		MaxRAMLimitPercent      int
-		MaxRAMLimitMargin       int
-		MaxRAMLimitMarginHourly map[time.Weekday]map[time.Time]int
-		Expected                int
+		Hypers                   []*sdk.OrchestratorHypervisor
+		MaxRAM                   int
+		MaxRAMHourly             map[time.Weekday]map[time.Time]int
+		MaxRAMLimitPercent       int
+		MaxRAMLimitPercentHourly map[time.Weekday]map[time.Time]int
+		MaxRAMLimitMargin        int
+		MaxRAMLimitMarginHourly  map[time.Weekday]map[time.Time]int
+		Expected                 int
 	}{
 		"should return 0 if it's not configured": {
 			Expected: 0,
@@ -238,6 +264,29 @@ func TestMaxRAM(t *testing.T) {
 			},
 			Expected: (3*1024)*1.5 + (2*1024)*1.5 + 1312,
 		},
+		"should get the limit percent hourly if configured": {
+			MaxRAMLimitPercentHourly: map[time.Weekday]map[time.Time]int{
+				time.Monday: {
+					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 150,
+				},
+			},
+			MaxRAMLimitMarginHourly: map[time.Weekday]map[time.Time]int{
+				time.Monday: {
+					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 1312,
+				},
+			},
+			Hypers: []*sdk.OrchestratorHypervisor{
+				{
+					ID:           "1",
+					MinFreeMemGB: 3,
+				},
+				{
+					ID:           "2",
+					MinFreeMemGB: 2,
+				},
+			},
+			Expected: (3*1024)*1.5 + (2*1024)*1.5 + 1312,
+		},
 	}
 
 	for name, tc := range cases {
@@ -245,11 +294,12 @@ func TestMaxRAM(t *testing.T) {
 			log := zerolog.New(os.Stdout)
 
 			rata := NewRata(cfg.DirectorRata{
-				MaxRAM:                  tc.MaxRAM,
-				MaxRAMHourly:            tc.MaxRAMHourly,
-				MaxRAMLimitPercent:      tc.MaxRAMLimitPercent,
-				MaxRAMLimitMargin:       tc.MaxRAMLimitMargin,
-				MaxRAMLimitMarginHourly: tc.MaxRAMLimitMarginHourly,
+				MaxRAM:                   tc.MaxRAM,
+				MaxRAMHourly:             tc.MaxRAMHourly,
+				MaxRAMLimitPercent:       tc.MaxRAMLimitPercent,
+				MaxRAMLimitPercentHourly: tc.MaxRAMLimitPercentHourly,
+				MaxRAMLimitMargin:        tc.MaxRAMLimitMargin,
+				MaxRAMLimitMarginHourly:  tc.MaxRAMLimitMarginHourly,
 			}, false, &log, nil)
 
 			assert.Equal(tc.Expected, rata.maxRAM(tc.Hypers))
