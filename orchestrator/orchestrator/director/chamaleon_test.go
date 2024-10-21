@@ -24,6 +24,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 		PrepareAPI                func(*sdk.MockSdk)
 		ExpectedErr               string
 		ExpectedRemoveDeadRow     []string
+		ExpectedRemoveOnlyForced  []string
 		ExpectedCreateHypervisor  *operationsv1.CreateHypervisorsRequest
 		ExpectedAddDeadRow        []string
 		ExpectedDestroyHypervisor *operationsv1.DestroyHypervisorsRequest
@@ -813,7 +814,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 
 			chamaleon := director.NewChamaleon(&log, api)
 
-			create, destroy, removeDeadRow, addDeadRow, err := chamaleon.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)
+			scale, err := chamaleon.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
@@ -821,10 +822,11 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				assert.NoError(err)
 			}
 
-			assert.Equal(tc.ExpectedRemoveDeadRow, removeDeadRow)
-			assert.Equal(tc.ExpectedCreateHypervisor, create)
-			assert.Equal(tc.ExpectedAddDeadRow, addDeadRow)
-			assert.Equal(tc.ExpectedDestroyHypervisor, destroy)
+			assert.Equal(tc.ExpectedRemoveDeadRow, scale.HypersToRemoveFromDeadRow)
+			assert.Equal(tc.ExpectedRemoveOnlyForced, scale.HypersToRemoveFromOnlyForced)
+			assert.Equal(tc.ExpectedCreateHypervisor, scale.Create)
+			assert.Equal(tc.ExpectedAddDeadRow, scale.HypersToAddToDeadRow)
+			assert.Equal(tc.ExpectedDestroyHypervisor, scale.Destroy)
 		})
 	}
 }

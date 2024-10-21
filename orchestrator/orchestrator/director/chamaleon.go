@@ -17,6 +17,8 @@ const (
 	DirectorTypeChamaleon = "chamaleon"
 )
 
+var _ Director = &Chamaleon{}
+
 type Chamaleon struct {
 	apiCli sdk.Interface
 
@@ -34,7 +36,7 @@ func (c *Chamaleon) String() string {
 	return DirectorTypeChamaleon
 }
 
-func (c *Chamaleon) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*sdk.OrchestratorHypervisor) (*operationsv1.CreateHypervisorsRequest, *operationsv1.DestroyHypervisorsRequest, []string, []string, error) {
+func (c *Chamaleon) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*sdk.OrchestratorHypervisor) (NeedToScaleHypervisorsResult, error) {
 	operationsHypersAvail := []*operationsv1.ListHypervisorsResponseHypervisor{}
 availHypersLoop:
 	for _, h := range operationsHypers {
@@ -90,7 +92,7 @@ availHypersLoop:
 
 	bookings, err := c.apiCli.OrchestratorGPUBookingList(ctx)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("get bookings list: %w", err)
+		return NeedToScaleHypervisorsResult{}, fmt.Errorf("get bookings list: %w", err)
 	}
 
 	c.log.Debug().Array("bookings", log.NewModelBookings(bookings)).Object("total_units", log.NewModelMapStrInt(totalUnits)).Msg("available resources")
@@ -117,20 +119,24 @@ availHypersLoop:
 
 			if len(hypersToPardon) != 0 {
 				c.log.Info().Array("ids", log.NewModelStrArray(hypersToPardon)).Object("total_units", log.NewModelMapStrInt(totalUnits)).Object("req_units", log.NewModelMapStrInt(reqHypersUnits)).Str("scaling", "up").Msg("cancel hypervisors destruction")
-				return nil, nil, hypersToPardon, nil, nil
+				return NeedToScaleHypervisorsResult{
+					HypersToRemoveFromDeadRow: hypersToPardon,
+				}, nil
 			}
 		}
 
 		// If we don't have hypers on the dead row, create the best hypervisor combination
 		ids, err := chamaleonBestHypersToCreate(operationsHypersAvail, reqHypersUnits)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return NeedToScaleHypervisorsResult{}, err
 		}
 
 		c.log.Info().Array("ids", log.NewModelStrArray(ids)).Object("total_units", log.NewModelMapStrInt(totalUnits)).Object("req_units", log.NewModelMapStrInt(reqHypersUnits)).Str("scaling", "up").Msg("create hypervisors to scale up")
-		return &operationsv1.CreateHypervisorsRequest{
-			Ids: ids,
-		}, nil, nil, nil, nil
+		return NeedToScaleHypervisorsResult{
+			Create: &operationsv1.CreateHypervisorsRequest{
+				Ids: ids,
+			},
+		}, nil
 	}
 
 	// Check for scale down
@@ -151,17 +157,21 @@ availHypersLoop:
 	deadRow := chamaleonBestHypersToDestroy(hypersAvail, totalUnits, bookings)
 	if len(deadRow) != 0 {
 		c.log.Info().Array("ids", log.NewModelStrArray(deadRow)).Object("total_units", log.NewModelMapStrInt(totalUnits)).Object("req_units", log.NewModelMapStrInt(reqHypersUnits)).Str("scaling", "down").Msg("set hypervisors to destroy")
-		return nil, nil, nil, deadRow, nil
+		return NeedToScaleHypervisorsResult{
+			HypersToAddToDeadRow: deadRow,
+		}, nil
 	}
 
 	if len(hypersToDestroy) != 0 {
 		c.log.Info().Array("ids", log.NewModelStrArray(hypersToDestroy)).Str("scaling", "down").Msg("destroy hypervisors")
-		return nil, &operationsv1.DestroyHypervisorsRequest{
-			Ids: hypersToDestroy,
-		}, nil, nil, nil
+		return NeedToScaleHypervisorsResult{
+			Destroy: &operationsv1.DestroyHypervisorsRequest{
+				Ids: hypersToDestroy,
+			},
+		}, nil
 	}
 
-	return nil, nil, nil, nil, nil
+	return NeedToScaleHypervisorsResult{}, nil
 }
 
 func chamaleonMaximumBookings(times ...sdk.OrchestratorGPUBookingTime) sdk.OrchestratorGPUBookingTime {

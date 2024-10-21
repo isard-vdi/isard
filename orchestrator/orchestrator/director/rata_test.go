@@ -34,6 +34,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		RataHyperMaxRAM           int
 		ExpectedErr               string
 		ExpectedRemoveDeadRow     []string
+		ExpectedRemoveOnlyForced  []string
 		ExpectedCreateHypervisor  *operationsv1.CreateHypervisorsRequest
 		ExpectedAddDeadRow        []string
 		ExpectedDestroyHypervisor *operationsv1.DestroyHypervisorsRequest
@@ -80,7 +81,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Ids: []string{"testing"},
 			},
 		},
-		"if some hyperviosrs are offline, buffer, GPU only, or only forced don't cound them": {
+		"if some hyperviosrs are offline, buffer, GPU only, or only forced don't count them": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
 				Id:    "testing",
 				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
@@ -495,6 +496,33 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 
 			ExpectedAddDeadRow: []string{"bm-e4-01"},
 		},
+		"should remove an hypervisor from only forced if it has enough resources instead of scaling up": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
+			Hypers: []*sdk.OrchestratorHypervisor{{
+				ID:         "1",
+				Status:     sdk.HypervisorStatusOnline,
+				OnlyForced: false,
+				RAM: sdk.OrchestratorResourceLoad{
+					Total: 500,
+					Used:  400,
+					Free:  100,
+				},
+			}, {
+				ID:                  "2",
+				Status:              sdk.HypervisorStatusOnline,
+				DestroyTime:         time.Time{},
+				DesktopsStarted:     0,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				RAM: sdk.OrchestratorResourceLoad{
+					Total: 700,
+					Used:  100,
+					Free:  600,
+				},
+			}},
+			RataMinRAM:               300,
+			ExpectedRemoveOnlyForced: []string{"2"},
+		},
 	}
 
 	for name, tc := range cases {
@@ -514,7 +542,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				HyperMaxRAM:        tc.RataHyperMaxRAM,
 			}, false, &log, nil)
 
-			create, destroy, removeDeadRow, addDeadRow, err := rata.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)
+			scale, err := rata.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
@@ -522,10 +550,11 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				assert.NoError(err)
 			}
 
-			assert.Equal(tc.ExpectedRemoveDeadRow, removeDeadRow)
-			assert.Equal(tc.ExpectedCreateHypervisor, create)
-			assert.Equal(tc.ExpectedAddDeadRow, addDeadRow)
-			assert.Equal(tc.ExpectedDestroyHypervisor, destroy)
+			assert.Equal(tc.ExpectedRemoveDeadRow, scale.HypersToRemoveFromDeadRow)
+			assert.Equal(tc.ExpectedRemoveOnlyForced, scale.HypersToRemoveFromOnlyForced)
+			assert.Equal(tc.ExpectedCreateHypervisor, scale.Create)
+			assert.Equal(tc.ExpectedAddDeadRow, scale.HypersToAddToDeadRow)
+			assert.Equal(tc.ExpectedDestroyHypervisor, scale.Destroy)
 		})
 	}
 }

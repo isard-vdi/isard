@@ -31,7 +31,7 @@ func TestStart(t *testing.T) {
 		PrepareAPI        func(context.CancelFunc, *sdk.MockSdk)
 		CfgRata           cfg.DirectorRata
 	}{
-		"should remove an hypervisor from only forced if it's available, instead of scaling up": {
+		"should remove an hypervisor from the dead row if it's available, instead of scaling up": {
 			PrepareOperations: func(s *grpcmock.Server) {
 				s.ExpectUnary("operations.v1.OperationsService/ListHypervisors").Return(&operationsv1.ListHypervisorsResponse{
 					Hypervisors: []*operationsv1.ListHypervisorsResponseHypervisor{{
@@ -133,11 +133,11 @@ func TestStart(t *testing.T) {
 					Status:              sdk.HypervisorStatusOnline,
 					OnlyForced:          true,
 					Buffering:           false,
-					DestroyTime:         time.Time{},
+					DestroyTime:         time.Now().Add(1 * time.Hour),
 					BookingsEndTime:     time.Time{},
 					OrchestratorManaged: true,
 					GPUOnly:             false,
-					DesktopsStarted:     0,
+					DesktopsStarted:     30,
 					MinFreeMemGB:        200,
 					CPU: sdk.OrchestratorResourceLoad{
 						Total: 100,
@@ -152,12 +152,10 @@ func TestStart(t *testing.T) {
 				}}
 
 				m.On("OrchestratorHypervisorList", mock.AnythingOfType("*context.cancelCtx")).Return(hypers, nil)
-				m.On("AdminHypervisorOnlyForced", mock.AnythingOfType("*context.cancelCtx"), "bm-e4-15", false).Run(func(args mock.Arguments) {
+				m.On("OrchestratorHypervisorRemoveFromDeadRow", mock.AnythingOfType("*context.timerCtx"), "bm-e4-15").Run(func(args mock.Arguments) {
 					hypers[2].OnlyForced = false
+					hypers[2].DestroyTime = time.Time{}
 				}).Return(nil)
-				m.On("OrchestratorHypervisorAddToDeadRow", mock.AnythingOfType("*context.timerCtx"), "bm-e4-12").Run(func(args mock.Arguments) {
-					cancel()
-				}).Return(time.Now(), nil)
 			},
 			CfgRata: cfg.DirectorRata{
 				MinRAMLimitPercent: 150,
@@ -499,6 +497,140 @@ func TestStart(t *testing.T) {
 				MinRAMLimitMargin:  0,
 				MaxRAMLimitPercent: 150,
 				MaxRAMLimitMargin:  0,
+				HyperMinRAM:        41200,
+				HyperMaxRAM:        102400,
+			},
+		},
+		"should remove an hypervisor from only forced instead of scaling up": {
+			PrepareOperations: func(s *grpcmock.Server) {
+				s.ExpectUnary("operations.v1.OperationsService/ListHypervisors").Return(&operationsv1.ListHypervisorsResponse{
+					Hypervisors: []*operationsv1.ListHypervisorsResponseHypervisor{{
+						Id:    "bm-e4-12",
+						Cpu:   128,
+						Ram:   2097152,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
+					}, {
+						Id:    "bm-e4-15",
+						Cpu:   128,
+						Ram:   2097152,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
+					}, {
+						Id:    "bm-e4-16",
+						Cpu:   128,
+						Ram:   2097152,
+						State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_DESTROY,
+					}},
+				})
+			},
+			PrepareAPI: func(cancel context.CancelFunc, m *sdk.MockSdk) {
+				hypers := []*sdk.OrchestratorHypervisor{{
+					ID:                  "bm-e4-12",
+					Status:              sdk.HypervisorStatusOnline,
+					OnlyForced:          false,
+					Buffering:           false,
+					DestroyTime:         time.Time{},
+					BookingsEndTime:     time.Time{},
+					OrchestratorManaged: true,
+					GPUOnly:             false,
+					DesktopsStarted:     234,
+					MinFreeMemGB:        200,
+					CPU: sdk.OrchestratorResourceLoad{
+						Total: 100,
+						Used:  27,
+						Free:  73,
+					},
+					RAM: sdk.OrchestratorResourceLoad{
+						Total: 2051898,
+						Used:  1216615,
+						Free:  835282,
+					},
+				}, {
+					ID:                  "gpu-a10-2",
+					Status:              sdk.HypervisorStatusOnline,
+					OnlyForced:          false,
+					Buffering:           false,
+					DestroyTime:         time.Time{},
+					BookingsEndTime:     time.Time{},
+					OrchestratorManaged: false,
+					GPUOnly:             false,
+					DesktopsStarted:     70,
+					MinFreeMemGB:        100,
+					CPU: sdk.OrchestratorResourceLoad{
+						Total: 100,
+						Used:  30,
+						Free:  70,
+					},
+					RAM: sdk.OrchestratorResourceLoad{
+						Total: 1031700,
+						Used:  461632,
+						Free:  570067,
+					},
+					GPUs: []*sdk.OrchestratorHypervisorGPU{{
+						ID:         "gpu-a10-2-pci_0000_31_00_0",
+						Brand:      "NVIDIA",
+						Model:      "A10",
+						Profile:    "2Q",
+						TotalUnits: 12,
+						FreeUnits:  12,
+						UsedUnits:  0,
+					}, {
+						ID:         "gpu-a10-2-pci_0000_ca_00_0",
+						Brand:      "NVIDIA",
+						Model:      "A10",
+						Profile:    "4Q",
+						TotalUnits: 6,
+						FreeUnits:  6,
+						UsedUnits:  0,
+					}, {
+						ID:         "gpu-a10-2-pci_0000_b1_00_0",
+						Brand:      "NVIDIA",
+						Model:      "A10",
+						Profile:    "2Q",
+						TotalUnits: 12,
+						FreeUnits:  12,
+						UsedUnits:  0,
+					}, {
+						ID:         "gpu-a10-2-pci_0000_17_00_0",
+						Brand:      "NVIDIA",
+						Model:      "A10",
+						Profile:    "4Q",
+						TotalUnits: 6,
+						FreeUnits:  6,
+						UsedUnits:  0,
+					}},
+				}, {
+					ID:                  "bm-e4-15",
+					Status:              sdk.HypervisorStatusOnline,
+					OnlyForced:          true,
+					Buffering:           false,
+					DestroyTime:         time.Time{},
+					BookingsEndTime:     time.Time{},
+					OrchestratorManaged: true,
+					GPUOnly:             false,
+					DesktopsStarted:     0,
+					MinFreeMemGB:        200,
+					CPU: sdk.OrchestratorResourceLoad{
+						Total: 100,
+						Used:  1,
+						Free:  99,
+					},
+					RAM: sdk.OrchestratorResourceLoad{
+						Total: 2051898,
+						Used:  10727,
+						Free:  2041170,
+					},
+				}}
+
+				m.On("OrchestratorHypervisorList", mock.AnythingOfType("*context.cancelCtx")).Return(hypers, nil)
+				m.On("AdminHypervisorOnlyForced", mock.AnythingOfType("*context.timerCtx"), "bm-e4-15", false).Run(func(args mock.Arguments) {
+					hypers[2].OnlyForced = false
+				}).Return(nil)
+			},
+			CfgRata: cfg.DirectorRata{
+				MinRAMLimitPercent: 150,
+				MinRAMLimitMargin:  1126400,
+				MaxRAMLimitPercent: 150,
+				MaxRAMLimitMargin:  1331200,
 				HyperMinRAM:        41200,
 				HyperMaxRAM:        102400,
 			},

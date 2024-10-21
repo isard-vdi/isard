@@ -92,7 +92,7 @@ func TestGetCurrentHourlyLimit(t *testing.T) {
 		},
 		"should panic if it's empty": {
 			Limit: map[time.Weekday]map[time.Time]int{},
-			Panic: "invalid rata director hourly minimum",
+			Panic: "invalid director hourly minimum",
 		},
 		"should pick the closest limit, if there's no previous limit": {
 			Limit: map[time.Weekday]map[time.Time]int{

@@ -14,9 +14,17 @@ var ErrNoHypervisorAvailable = errors.New("no hypervisor with the required resou
 
 var Available = []string{DirectorTypeRata, DirectorTypeChamaleon}
 
+type NeedToScaleHypervisorsResult struct {
+	Create                       *operationsv1.CreateHypervisorsRequest
+	Destroy                      *operationsv1.DestroyHypervisorsRequest
+	HypersToRemoveFromDeadRow    []string
+	HypersToAddToDeadRow         []string
+	HypersToRemoveFromOnlyForced []string
+}
+
 type Director interface {
 	// NeedToScaleHypervisors states if there's a scale needed to be done.
-	NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*sdk.OrchestratorHypervisor) (create *operationsv1.CreateHypervisorsRequest, remove *operationsv1.DestroyHypervisorsRequest, hyperToRemoveFromDeadRow []string, hyperToAddToDeadRow []string, err error)
+	NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*sdk.OrchestratorHypervisor) (NeedToScaleHypervisorsResult, error)
 	// ExtraOperations is a place for running infrastructure operations that don't fit in the other functions but are required
 	ExtraOperations(ctx context.Context, hypers []*sdk.OrchestratorHypervisor) error
 	String() string
@@ -81,5 +89,5 @@ func getCurrentHourlyLimit(limit map[time.Weekday]map[time.Time]int, now time.Ti
 		}
 	}
 
-	panic("invalid rata director hourly minimum")
+	panic("invalid director hourly minimum")
 }

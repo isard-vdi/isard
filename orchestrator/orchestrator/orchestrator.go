@@ -11,7 +11,6 @@ import (
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
-
 	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/rs/zerolog"
@@ -122,7 +121,7 @@ func (o *Orchestrator) Start(ctx context.Context) {
 					o.log.Error().Err(err).Msg("cleanup zombie hypervisors")
 				}
 
-				create, destroy, removeDeadRow, addDeadRow, err := o.director.NeedToScaleHypervisors(ctx, operationsHypers.Hypervisors, hypers)
+				scale, err := o.director.NeedToScaleHypervisors(ctx, operationsHypers.Hypervisors, hypers)
 				if err != nil {
 					o.log.Error().Err(err).Msg("check if there are hypervisors that need to scale")
 					continue
@@ -131,39 +130,48 @@ func (o *Orchestrator) Start(ctx context.Context) {
 				timeout, cancel := context.WithTimeout(ctx, o.operationsTimeout)
 				defer cancel()
 
-				if len(removeDeadRow) != 0 {
+				if len(scale.HypersToRemoveFromDeadRow) != 0 {
 					if o.dryRun {
-						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(removeDeadRow)).Msg("cancel hypervisors destruction")
+						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(scale.HypersToRemoveFromDeadRow)).Msg("cancel hypervisors destruction")
 
 					} else {
-						go o.removeHypervisorsFromDeadRow(timeout, removeDeadRow)
+						go o.removeHypervisorsFromDeadRow(timeout, scale.HypersToRemoveFromDeadRow)
 					}
 				}
 
-				if create != nil {
+				if len(scale.HypersToRemoveFromOnlyForced) != 0 {
 					if o.dryRun {
-						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(create.Ids)).Msg("create hypervisor")
+						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(scale.HypersToRemoveFromOnlyForced)).Msg("unlimit hypervisors")
 
 					} else {
-						go o.createHypervisors(timeout, create)
+						go o.removeHypervisorsFromOnlyForced(timeout, scale.HypersToRemoveFromOnlyForced)
 					}
 				}
 
-				if len(addDeadRow) != 0 {
+				if scale.Create != nil {
 					if o.dryRun {
-						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(addDeadRow)).Msg("set hypervisors to destroy")
+						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(scale.Create.Ids)).Msg("create hypervisor")
 
 					} else {
-						go o.addHypervisorsToDeadRow(timeout, addDeadRow)
+						go o.createHypervisors(timeout, scale.Create)
 					}
 				}
 
-				if destroy != nil {
+				if len(scale.HypersToAddToDeadRow) != 0 {
 					if o.dryRun {
-						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(destroy.Ids)).Msg("destroy hypervisors")
+						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(scale.HypersToAddToDeadRow)).Msg("set hypervisors to destroy")
 
 					} else {
-						go o.destroyHypervisors(timeout, destroy)
+						go o.addHypervisorsToDeadRow(timeout, scale.HypersToAddToDeadRow)
+					}
+				}
+
+				if scale.Destroy != nil {
+					if o.dryRun {
+						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(scale.Destroy.Ids)).Msg("destroy hypervisors")
+
+					} else {
+						go o.destroyHypervisors(timeout, scale.Destroy)
 					}
 				}
 			}
