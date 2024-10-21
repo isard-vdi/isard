@@ -940,8 +940,19 @@ def TemplateTreeList(template_id):
     return domains
 
 
+def GetTemplateDerivatives(template_id, user_id=None):
+    """
+    Get all derivatives of a template. The template itself is _excluded_ from the list.
+    """
+    all_domains_id = GetTemplateWithAllDerivatives(template_id, user_id)
+    return [item for item in all_domains_id if item["id"] != template_id]
+
+
 # This is the function to be called
-def GetAllTemplateDerivates(template_id, user_id=None):
+def GetTemplateWithAllDerivatives(template_id, user_id=None):
+    """
+    Get all derivatives of a template. The template itself is _included_ in the list.
+    """
     levels = {}
     derivated = TemplateTreeList(template_id)
     with app.app_context():
