@@ -1356,8 +1356,9 @@ function actionsUserDetail(){
                 backdrop: 'static',
                 keyboard: false
             }).modal('show');
-            // Filter out items that do not belong to the user being migrated (deployed desktops)
+            // Filter out items that do not belong to the user being migrated (deployed desktops and dependant templates)
             items.desktops = items.desktops.filter(function (item) { return item.user == id });
+            items.templates = items.templates.filter(function (item) { return item.user == id });
             const resourceTypes = [
                 { type: 'desktops', columns: ["name", "persistent"] },
                 { type: 'templates', columns: ["name", "duplicate_parent_template"] },

@@ -29,8 +29,7 @@ from ..libv2.caches import (
 )
 from ..libv2.isardViewer import isardViewer
 from ..libv2.quotas import Quotas
-from ..libv2.validators import check_user_duplicated_domain_name
-from ..views.decorators import checkDuplicate, ownsDomainId, ownsMediaId
+from ..views.decorators import checkDuplicates, checkDuplicatesDomains
 from .flask_rethink import RDB
 
 r = RethinkDB()
@@ -744,86 +743,174 @@ def gen_new_mac():
         sem.release()
 
 
+## change owner (individual resources)
+
+
 def change_owner_desktop(user_id, desktop_id):
-    data = change_owner_domain_data(desktop_id, user_id)
-    desktop_data = data["domain_data"]
-    user_data = data["user_data"]
-
-    # check if it's associated with a deployment
-    if desktop_data.get("tag"):
-        raise Error(
-            "forbidden",
-            "Changing ownership is not permitted for deployed desktops.",
-        )
-    quotas.desktop_create(user_data["new_user"]["user"])
-
-    desktops_stop([desktop_data["id"]])
-    change_storage_ownership(desktop_data, user_id)
-    revoke_hardware_permissions(desktop_data, user_data["payload"])
-
     with app.app_context():
-        if not _check(
-            r.table("domains")
-            .get(desktop_id)
-            .update(user_data["new_user"], return_changes=True)
-            .run(db.conn),
-            "replaced",
-        ):
-            raise Error("bad_request", "No new owner data provided")
+        desktop_data = (
+            r.table("domains").get(desktop_id).pluck("name", "user").run(db.conn)
+        )
+    user_data = get_new_user_data(user_id)
+    change_owner_desktops([desktop_id], user_data, desktop_data["user"])
 
 
 def change_owner_template(user_id, template_id):
-    data = change_owner_domain_data(template_id, user_id)
-    template_data = data["domain_data"]
-    user_data = data["user_data"]
-
-    if user_data["payload"]["role_id"] == "user":
-        raise Error("forbidden", 'Role "user" can not own templates')
-    quotas.template_create(user_data["new_user"]["user"])
-
-    change_storage_ownership(template_data, user_id)
-    revoke_hardware_permissions(template_data, user_data["payload"])
-
-    with app.app_context():
-        if not _check(
-            r.table("domains")
-            .get(template_id)
-            .update(user_data["new_user"], return_changes=True)
-            .run(db.conn),
-            "replaced",
-        ):
-            raise Error("bad_request", "No new owner data provided")
+    user_data = get_new_user_data(user_id)
+    change_owner_templates([template_id], user_data)
 
 
 def change_owner_media(user_id, media_id):
     user_data = get_new_user_data(user_id)
+    change_owner_medias([media_id], user_data)
 
-    with app.app_context():
-        media_data = (
-            r.table("media").get(media_id).pluck("category", "name").run(db.conn)
-        )
+
+## change owner (bulk resources)
+
+
+def change_owner_domains(domain_ids, user_data, kind):
+    # Get desktop data
+    domain_data_list = []
+    for i in range(0, len(domain_ids), 100):
+        batch_domain_ids = domain_ids[i : i + 100]
+        with app.app_context():
+            batch_domain_data = (
+                r.table("domains")
+                .get_all(r.args(batch_domain_ids))
+                .pluck("create_dict", "kind", "tag", "name", "id", "category", "name")
+                .run(db.conn)
+            )
+        domain_data_list.extend(batch_domain_data)
+
+    checkDuplicatesDomains(
+        kind,
+        [domain["name"] for domain in domain_data_list],
+        user=user_data["new_user"]["user"],
+    )
 
     ## if new owner is from another category, delete
     # permissions of groups and users of old category
-    if user_data["new_user"]["category"] is not media_data["category"]:
+    if user_data["new_user"]["category"] is not domain_data_list[0]["category"]:
         user_data["new_user"]["allowed"] = {
             "categories": False,
             "groups": False,
             "users": False,
         }
 
-    quotas.media_create(user_data["new_user"]["user"])
-    checkDuplicate("media", media_data["name"], user=user_data["new_user"]["user"])
+    for domain in domain_data_list:
+        revoke_hardware_permissions(domain, user_data["payload"])
+        change_storage_ownership(domain, user_data["new_user"]["user"])
 
+    # change owner
+    for i in range(0, len(domain_ids), 100):
+        batch_domain_ids = domain_ids[i : i + 100]
+        with app.app_context():
+            r.table("domains").get_all(r.args(batch_domain_ids)).filter(
+                {"persistent": False}
+            ).delete().run(db.conn)
+            r.table("domains").get_all(r.args(batch_domain_ids)).update(
+                {**user_data["new_user"], "booking_id": False}
+            ).run(db.conn)
+
+
+def change_owner_desktops(desktop_ids, user_data, desktop_user_id):
+    desktops_stop(desktop_ids)
+    quotas.desktop_create(user_data["new_user"]["user"], len(desktop_ids))
+    # delete old bookings
     with app.app_context():
-        if not _check(
+        r.table("bookings").get_all(desktop_user_id, index="user_id").delete().run(
+            db.conn
+        )
+    change_owner_domains(desktop_ids, user_data, "desktop")
+
+
+def change_owner_templates(template_ids, user_data):
+    if user_data["payload"]["role_id"] == "user":
+        raise Error("bad_request", 'Role "user" can not own templates.')
+    quotas.template_create(
+        user_data["new_user"]["user"],
+        len(template_ids),
+    )
+    change_owner_domains(template_ids, user_data, "template")
+
+
+def change_owner_medias(media_ids, user_data):
+    # TODO: change allowed to false if the target user is on a different category
+
+    # check duplicate name
+    with app.app_context():
+        media_data = list(
             r.table("media")
-            .get(media_id)
-            .update(user_data["new_user"], return_changes=True)
-            .run(db.conn),
-            "replaced",
-        ):
-            raise Error("bad_request", "No new owner data provided")
+            .get_all(r.args(media_ids))
+            .pluck("name", "category")
+            .run(db.conn)
+        )
+    checkDuplicates(
+        "media",
+        [media["name"] for media in media_data],
+        user=user_data["new_user"]["user"],
+    )
+
+    # check media quota
+    quotas.media_create(user_data["new_user"]["user"], quantity=len(media_ids))
+
+    ## if new owner is from another category, delete
+    # permissions of groups and users of old category
+    if user_data["new_user"]["category"] is not media_data[0]["category"]:
+        user_data["new_user"]["allowed"] = {
+            "categories": False,
+            "groups": False,
+            "users": False,
+        }
+
+    # change owner
+    for i in range(0, len(media_ids), 100):
+        batch_media_ids = media_ids[i : i + 100]
+        with app.app_context():
+            r.table("media").get_all(r.args(batch_media_ids)).update(
+                user_data["new_user"]
+            ).run(db.conn)
+
+
+def change_owner_deployments(deployments_ids, user_data, old_user_id):
+    # TODO: change allowed to false if the target user is on a different category
+    with app.app_context():
+        deployments_data = list(
+            r.table("deployments")
+            .get_all(r.args(deployments_ids))
+            .pluck("name")
+            .run(db.conn)
+        )
+    checkDuplicates(
+        "deployments",
+        [deployment["name"] for deployment in deployments_data],
+        user=user_data["new_user"]["user"],
+    )
+    if deployments_ids:
+        # check if the new owner is role user
+        if user_data["payload"]["role_id"] == "user":
+            raise Error("bad_request", 'Role "user" can not own deployments.')
+
+        # check deployment create quota, ignore number of users in the deployment
+        quotas.deployment_create(
+            [], user_data["new_user"]["user"], len(deployments_ids)
+        )
+        with app.app_context():
+            # for each deployment old_user_id is in co_owners, remove old_user_id from co_owners
+            r.table("deployments").get_all(old_user_id, index="co_owners").update(
+                {"co_owners": r.row["co_owners"].difference([old_user_id])}
+            ).run(db.conn)
+
+        # change owner
+        for i in range(0, len(deployments_ids), 100):
+            batch_deployments_ids = deployments_ids[i : i + 100]
+            with app.app_context():
+                r.table("deployments").get_all(r.args(batch_deployments_ids)).update(
+                    {
+                        "user": user_data["new_user"]["user"],
+                        "co_owners": r.literal([]),
+                    }
+                ).run(db.conn)
 
 
 def get_new_user_data(user_id):
@@ -1099,12 +1186,13 @@ def _duplicated(template_id):
 def wait_status(
     desktops_ids, current_status, wait_seconds=0, interval_seconds=2, raise_exc=False
 ):
-    desktops_status = list(
-        r.table("domains")
-        .get_all(r.args(desktops_ids))
-        .pluck("status")["status"]
-        .run(db.conn)
-    )
+    with app.app_context():
+        desktops_status = list(
+            r.table("domains")
+            .get_all(r.args(desktops_ids))
+            .pluck("status")["status"]
+            .run(db.conn)
+        )
     if wait_seconds == 0:
         return desktops_status
     seconds = 0

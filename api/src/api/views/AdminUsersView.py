@@ -25,7 +25,6 @@ import time
 import traceback
 
 import gevent
-from ..libv2.helpers import get_new_user_data
 from flask import request
 from flask_login import logout_user
 from isardvdi_common.api_exceptions import Error
@@ -48,6 +47,7 @@ from ..libv2.api_users import (
     get_user_full_data,
     user_exists,
 )
+from ..libv2.helpers import get_new_user_data
 from ..libv2.quotas import Quotas
 from ..libv2.quotas_process import QuotasProcess
 from ..libv2.users import *
@@ -1292,30 +1292,53 @@ def admin_user_logout(payload, user_id):
     )
 
 
-# @app.route(
-#     "/api/v3/admin/user/migrate/resource/<resource>/<user_id>/<target_user_id>",
-#     methods=["PUT"],
-# )
-# @is_admin_or_manager
-# def admin_user_migrate_resource(payload, resource, user_id, target_user_id):
-#     ownsUserId(payload, user_id)
-#     if resource not in ["desktop", "template", "media", "deployments"]:
-#         raise Error(
-#             "bad_request",
-#             "Resource must be one of domains, media, deployments",
-#         )
-#     resource_list = users.get_resources(user_id)[resource]
-#     user_data = get_new_user_data(target_user_id)
+@app.route(
+    "/api/v3/admin/user/migrate/resource/desktop/<user_id>/<target_user_id>",
+    methods=["PUT"],
+)
+@is_admin_or_manager
+def admin_user_migrate_desktop(payload, user_id, target_user_id):
+    ownsUserId(payload, user_id)
+    resource_list = users.get_resources(user_id)["desktop"]
+    user_data = get_new_user_data(target_user_id)
+    users.change_owner_desktops(resource_list, user_data, user_id)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
 
-#     if resource == "domains":
-#         users.change_owner_domains(resource_list, user_data, user_id)
-#     if resource == "media":
-#         users.change_owner_media(resource_list, user_data)
-#     if resource == "deployments":
-#         users.change_owner_deployments(resource_list, user_data, user_id)
 
-#     return (
-#         json.dumps({}),
-#         200,
-#         {"Content-Type": "application/json"},
-#     )
+@app.route(
+    "/api/v3/admin/user/migrate/resource/template/<user_id>/<target_user_id>",
+    methods=["PUT"],
+)
+@is_admin_or_manager
+def admin_user_migrate_template(payload, user_id, target_user_id):
+    ownsUserId(payload, user_id)
+    resource_list = users.get_resources(user_id)["template"]
+    user_data = get_new_user_data(target_user_id)
+    users.change_owner_templates(resource_list, user_data, user_id)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route(
+    "/api/v3/admin/user/migrate/resource/media/<user_id>/<target_user_id>",
+    methods=["PUT"],
+)
+@is_admin_or_manager
+def admin_user_migrate_media(payload, user_id, target_user_id):
+    ownsUserId(payload, user_id)
+    resource_list = users.get_resources(user_id)["media"]
+    user_data = get_new_user_data(target_user_id)
+    users.change_owner_media(resource_list, user_data)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route(
+    "/api/v3/admin/user/migrate/resource/deployments/<user_id>/<target_user_id>",
+    methods=["PUT"],
+)
+@is_admin_or_manager
+def admin_user_migrate_deployments(payload, user_id, target_user_id):
+    ownsUserId(payload, user_id)
+    resource_list = users.get_resources(user_id)["deployments"]
+    user_data = get_new_user_data(target_user_id)
+    users.change_owner_deployments(resource_list, user_data, user_id)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}

@@ -49,6 +49,8 @@ from ..helpers import (
     _check,
     _parse_deployment_booking,
     _parse_deployment_desktop,
+    change_owner_deployments,
+    get_new_user_data,
     parse_domain_insert,
     parse_domain_update,
 )
@@ -980,66 +982,21 @@ def update_co_owners(deployment_id, co_owners: list):
         )
 
 
-def update_owner(payload, deployment_id, owner_id):
-    deployment = get_document("deployments", deployment_id)
-    if deployment is None:
-        raise Error(
-            "not_found",
-            f"Not found deployment id to update owner: {deployment_id}",
-            description_code="not_found",
-        )
-    owner = get_document("users", owner_id)
-    if owner is None:
-        raise Error(
-            "not_found",
-            f"Not found owner id to update owner: {owner_id}",
-            description_code="not_found",
-        )
-
-    if deployment.get("user") == owner_id:
-        raise Error(
-            "bad_request",
-            "Owner is already the same as the new owner",
-            description_code="already_owner",
-        )
-
-    if owner.get("role") not in ["admin", "manager", "advanced"]:
-        raise Error(
-            "bad_request",
-            f"New owner for deployment {deployment_id} is a user",
-            description_code="new_owner_is_user",
-        )
-
+def change_owner_deployment(payload, deployment_id, owner_id):
+    deployment_user = get_document("deployments", deployment_id, ["user"])
+    category = get_document("users", deployment_user, ["category"])
+    user_data = get_new_user_data(owner_id)
     if (
-        owner.get("category") != deployment.get("category")
-        and owner.get("role") != "admin"
+        user_data["new_user"].get("category") != category
+        and user_data["new_user"].get("role") != "admin"
     ):
         edit_deployment_users(
             payload,
             deployment_id,
             _validate_item("allowed", {"allowed": {}})["allowed"],
         )
-
-    try:
-        co_owners = deployment.get("co_owners")
-        if owner_id in deployment.get("co_owners"):
-            co_owners.remove(owner_id)
-        co_owners.append(deployment.get("user"))
-
-        with app.app_context():
-            r.table("deployments").get(deployment_id).update(
-                {
-                    "co_owners": co_owners,
-                    "user": owner_id,
-                }
-            ).run(db.conn)
-        invalidate_cache("deployments", deployment_id)
-    except:
-        raise Error(
-            "internal_server",
-            f"Unable to update owner for deployment: {deployment_id}",
-            description_code="unable_to_update",
-        )
+    invalidate_cache("deployments", deployment_id)
+    change_owner_deployments([deployment_id], user_data, deployment_user)
 
 
 def get_deployment_permissions(deployment_id):
