@@ -81,7 +81,7 @@ from .api_admin import (
 )
 from .api_notify import notify_admin, notify_admins
 from .helpers import (
-    GetAllTemplateDerivates,
+    GetTemplateWithAllDerivatives,
     _check,
     _parse_desktop,
     _random_password,
@@ -1202,7 +1202,7 @@ class ApiUsers:
             )
         domains_derivated = []
         for template in templates:
-            domains_derivated = domains_derivated + GetAllTemplateDerivates(
+            domains_derivated = domains_derivated + GetTemplateWithAllDerivatives(
                 template["id"]
             )
         desktops = desktops + list(

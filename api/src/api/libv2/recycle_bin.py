@@ -35,7 +35,7 @@ from ..libv2.api_user_storage import (
 from ..libv2.quotas import Quotas
 from .bookings.api_booking import Bookings
 from .flask_rethink import RDB
-from .helpers import GetAllTemplateDerivates, desktops_stop
+from .helpers import GetTemplateWithAllDerivatives, desktops_stop
 
 quotas = Quotas()
 
@@ -1405,7 +1405,7 @@ class RecycleBinTemplate(RecycleBinDomain):
                 template = r.table("domains").get(template_id).run(db.conn)
             self._add_item_name(template["name"])
             # Get template ids tree
-            data = GetAllTemplateDerivates(template_id, user_id=self.agent_id)
+            data = GetTemplateWithAllDerivatives(template_id, user_id=self.agent_id)
         domains = [
             {
                 "id": t["id"],
