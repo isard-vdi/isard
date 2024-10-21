@@ -8,6 +8,7 @@ import queue
 import threading
 import time
 
+import requests
 from engine.models.domain_xml import DomainXML
 from engine.models.hyp import hyp
 from engine.services.db import (
@@ -46,6 +47,19 @@ from libvirt import (
     VIR_ERR_NO_DOMAIN,
     libvirtError,
 )
+
+ITEMS_STATUS_MAP = {
+    "start_paused_domain": "Checking",
+    "start_domain": "Starting",
+    "shutdown_domain": "Shutting down",
+    "stop_domain": "Stopping",
+    "reset_domain": "Starting",
+    "create_disk": "Creating disk",
+    "delete_disk": "Deleting disk",
+    "add_media_hot": "Adding media",
+    "killall_curl": "Canceling download",
+    "delete_media": "Deleting media",
+}
 
 
 class HypWorkerThread(threading.Thread):
@@ -664,6 +678,7 @@ class HypWorkerThread(threading.Thread):
                     # time.sleep(0.1)
                     ## TRY DOMAIN
 
+                self.update_desktops_queue(self.get_queue_items())
             except queue.Empty:
                 try:
                     self.h.conn.isAlive()
@@ -756,3 +771,42 @@ class HypWorkerThread(threading.Thread):
                     self.hyp_id, e
                 )
             )
+
+    def get_queue_items(self):
+        # Get the list with this format {“desktop_id”: “UUID-UUID…”, “event”: “Starting”, “position”: 14}
+        items = list(self.queue_actions.queue)
+        # Order them by their priority and then by the order in the queue
+        sorted_items = sorted(items, key=lambda x: (x[0], x[1]))
+        positioned_items = [
+            {
+                "priority": item[0],
+                "order_in_queue": item[1],
+                "event": item[2]["type"],
+                "desktop_id": item[2]["id_domain"],
+                "position": idx
+                + 1,  # Adding 1 to make position human-readable (1-based index)
+            }
+            for idx, item in enumerate(sorted_items)
+        ]
+
+    def update_desktops_queue(self, positioned_items):
+        parsed_positioned_items = [
+            {
+                "desktop_id": item["desktop_id"],
+                "event": ITEMS_STATUS_MAP.get(item[2]["type"], "Unknown"),
+                "position": item["position"],
+            }
+            for item in positioned_items
+            if item[2]["type"] in ITEMS_STATUS_MAP.keys()
+        ]
+
+        try:
+            requests.put(
+                f"http://isard-api:5000/api/v3/notify/desktops/queue",
+                json=parsed_positioned_items,
+                timeout=0.0000000001,
+            )
+        except requests.exceptions.ReadTimeout:
+            pass
+        except Exception as e:
+            logs.workers.error(f"Error updating desktops queue: {e}")
