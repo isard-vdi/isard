@@ -448,6 +448,16 @@ def templates_delete(template_id, agent_id):
         rcb.delete_storage(agent_id)
 
 
+def template_delete_children(template_id, agent_id, permanent=False):
+    rcb = RecycleBinTemplate(user_id=agent_id)
+    rcb.add(template_id=template_id, exclude_template=True)
+
+    max_time = get_recicle_delete_time()
+    # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
+    if max_time == "0" or permanent:
+        rcb.delete_storage(agent_id)
+
+
 def desktops_non_persistent_delete(user_id, template):
     with app.app_context():
         r.table("domains").get_all(user_id, index="user").filter(

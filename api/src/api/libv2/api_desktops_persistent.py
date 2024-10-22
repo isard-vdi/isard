@@ -34,7 +34,11 @@ from api import app
 
 from ..libv2.bookings.api_reservables_planner_compute import payload_priority
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
-from .api_desktop_events import desktop_start, desktop_updating
+from .api_desktop_events import (
+    desktop_start,
+    desktop_updating,
+    template_delete_children,
+)
 
 r = RethinkDB()
 
@@ -173,6 +177,7 @@ class ApiDesktopsPersistent:
         deployment_tag_dict=False,
         new_data=None,
         image=None,
+        insert=True,
     ):
         template = get_document("domains", template_id)
         if not template:
@@ -289,9 +294,9 @@ class ApiDesktopsPersistent:
                 **new_desktop["create_dict"],
                 **{"reservables": create_dict["reservables"]},
             }
-
-        with app.app_context():
-            r.table("domains").insert(new_desktop).run(db.conn)
+        if insert:
+            with app.app_context():
+                r.table("domains").insert(new_desktop).run(db.conn)
         if image:
             image_data = image
             if not image_data.get("file"):
@@ -302,88 +307,45 @@ class ApiDesktopsPersistent:
 
     def convertTemplateToDesktop(self, payload, data):
         data = _validate_item("template_to_desktop", data)
+        with app.app_context():
+            template = r.table("domains").get(data["template_id"]).run(db.conn)
 
-        try:
-            with app.app_context():
-                domain = r.table("domains").get(data["domain_id"]).run(db.conn)
+        check_user_duplicated_domain_name(data["name"], template["user"], "desktop")
 
-            query_prefix = r.table("domains").get(data["domain_id"])
+        ## Delete children if any
+        template_delete_children(
+            data["template_id"], payload["user_id"], permanent=True
+        )
 
-            ## Set status to maintenance
-            with app.app_context():
-                query_prefix.update(
-                    {
-                        "status": "Maintenance",
-                        "detail": '"Started converting template to desktop"',
-                    }
-                ).run(db.conn)
-
-            ## Delete children if any
-            if data.get("children"):
-                try:
-                    children = data.get("children")
-                    desktops_delete(
-                        agent_id=payload["user_id"],
-                        desktops_ids=children,
-                        permanent=True,
-                    )
-                except:
-                    raise Error(
-                        "internal_server",
-                        "Template to desktop unable to delete children from template",
-                        traceback.format_exc(),
-                        description_code="template_to_desktop_delete_children",
-                    )
-
-            ## Delete deployments if any
-            deployments = templates.get_deployments_with_template(data["domain_id"])
-            if deployments:
-                for dp in deployments:
-                    with app.app_context():
-                        r.table("deployments").get(dp["id"]).delete().run(db.conn)
-
-            ## Check that the domain doesn't have an empty parents list
-            ### Empty list or None in a desktop breaks helpers.py line 229
-            if domain.get("parents") == []:
+        ## Delete deployments if any
+        deployments = templates.get_deployments_with_template(data["template_id"])
+        if deployments:
+            for dp in deployments:
                 with app.app_context():
-                    query_prefix.replace(lambda row: row.without("parents")).run(
-                        db.conn
-                    )
+                    r.table("deployments").get(dp["id"]).delete().run(db.conn)
 
-            ## Check if the domain name is duplicated and change it
-            if domain.get("name") != data["name"]:
-                check_user_duplicated_domain_name(
-                    data["name"], domain["user"], "desktop"
-                )
-                with app.app_context():
-                    query_prefix.update({"name": data["name"]}).run(db.conn)
-            else:
-                check_user_duplicated_domain_name(
-                    domain["name"], domain["user"], "desktop"
-                )
+        desktop_data = self.NewFromTemplate(
+            data["name"],
+            template["description"],
+            data["template_id"],
+            template["user"],
+            data["template_id"],
+            insert=False,
+        )
+        # We are updating the domain
+        desktop_data["status"] = "Updating"
+        # # We use the same storage, as status _Updating_ does not generate a new one
+        desktop_data["create_dict"]["hardware"]["disks"] = template["create_dict"][
+            "hardware"
+        ]["disks"]
+        # # We use the same XML, as status _Updating_ does not generate a new one
+        desktop_data["xml"] = template["xml"]
 
-            ## Change kind from template to desktop
-            with app.app_context():
-                query_prefix.update({"kind": "desktop"}).run(db.conn)
-
-            ## Change status to stopped and change detail
-            with app.app_context():
-                query_prefix.update(
-                    {
-                        "status": "Stopped",
-                        "detail": '"Template converted to desktop"',
-                    }
-                ).run(db.conn)
-
-        except:
-            raise Error(
-                "internal_server",
-                "Unable to convert template to desktop",
-                traceback.format_exc(),
-                description_code="template_to_desktop_convert",
+        with app.app_context():
+            r.table("domains").get(data["template_id"]).update(desktop_data).run(
+                db.conn
             )
-
-        return data["domain_id"]
+        return desktop_data
 
     def BulkDesktops(self, payload, data):
         selected = data["allowed"]

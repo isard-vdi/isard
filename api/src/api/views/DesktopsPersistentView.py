@@ -423,63 +423,56 @@ def api_v3_desktop_update_storage_id(payload, desktop_id):
     )
 
 
-# @app.route("/api/v3/template/to/desktop", methods=["POST"])
-# @is_admin_or_manager_or_advanced
-# def api_v3_template_to_desktop(payload):
-#     """
-#     Endpoint to turn a template into a desktop
+@app.route("/api/v3/template/to/desktop", methods=["POST"])
+@is_admin_or_manager_or_advanced
+def api_v3_template_to_desktop(payload):
+    """
+    Endpoint to turn a template into a desktop
 
-#     :param payload: Data from JWT
-#     :type payload: dict
-#     :return: JSON response
-#     """
-#     try:
-#         data = request.get_json(force=True)
-#     except:
-#         raise Error(
-#             "bad_request",
-#             "Template to desktop incorrect body data",
-#             traceback.format_exc(),
-#             description_code="template_to_desktop_incorrect_body_data",
-#         )
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: JSON response
+    """
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request",
+            "Template to desktop incorrect body data",
+            traceback.format_exc(),
+            description_code="template_to_desktop_incorrect_body_data",
+        )
 
-#     data = _validate_item("template_to_desktop", data)
+    data = _validate_item("template_to_desktop", data)
+    ownsDomainId(payload, data["template_id"])
 
-#     tree = admin.Gettemplate_tree_list(data["domain_id"], payload["user_id"])[0]
-#     derivates = templates.check_children(payload, tree)
+    tree = admin.GetTemplateTreeList(data["template_id"], payload["user_id"])[0]
+    derivates = templates.check_children(payload, tree)
 
-#     if derivates["pending"]:
-#         raise Error(
-#             "precondition_required",
-#             "Template to desktop pending derivates",
-#             traceback.format_exc(),
-#             description_code="template_to_desktop_pending_derivates",
-#         )
-#     else:
-#         child_ids = []
+    if derivates["pending"]:
+        raise Error(
+            "precondition_required",
+            "Template to desktop pending derivates",
+            traceback.format_exc(),
+            description_code="template_to_desktop_pending_derivates",
+        )
 
-#         def get_children_ids(children):
-#             for child in children:
-#                 child_ids.append(child["id"])
-#                 if child.get("children"):
-#                     get_children_ids(child["children"])
+    if data["name"] == None or data["template_id"] == None:
+        raise Error(
+            "bad_request",
+            "Template to desktop bad body data",
+            traceback.format_exc(),
+            description_code="template_to_desktop_bad_body_data",
+        )
 
-#         get_children_ids(tree["children"])
+    quotas.desktop_create(payload["user_id"], 1)
+    check_storage_pool_availability(payload.get("category_id"))
 
 #         data["children"] = child_ids
 
-#     if data["name"] == None or data["domain_id"] == None:
-#         raise Error(
-#             "bad_request",
-#             "Template to desktop bad body data",
-#             traceback.format_exc(),
-#             description_code="template_to_desktop_bad_body_data",
-#         )
-
-#     ownsDomainId(payload, data["domain_id"])
-#     quotas.desktop_create(payload["user_id"], 1)
-#     check_storage_pool_availability(payload.get("category_id"))
-
-#     desktops.convertTemplateToDesktop(payload, data)
-
-#     return json.dumps({}), 200, {"Content-Type": "application/json"}
+    return (
+        json.dumps(desktops.convertTemplateToDesktop(payload, data)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+    return json.dumps({}), 200, {"Content-Type": "application/json"}

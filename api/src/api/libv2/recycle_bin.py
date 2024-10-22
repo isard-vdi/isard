@@ -1387,10 +1387,7 @@ class RecycleBinTemplate(RecycleBinDomain):
     def __init__(self, id=None, user_id=None):
         super().__init__(id, item_type="template", user_id=user_id)
 
-    def add(
-        self,
-        template_id=None,
-    ):
+    def add(self, template_id=None, exclude_template=False):
         """
         Adds a recycle bin entry for templates.
 

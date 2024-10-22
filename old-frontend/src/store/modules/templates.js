@@ -171,7 +171,7 @@ export default {
     },
     ConvertToDesktop (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.converting-template'))
-      axios.post(`${apiV3Segment}/template/to/desktop`, { domain_id: data.templateId, name: data.name }).catch(e => {
+      axios.post(`${apiV3Segment}/template/to/desktop`, { template_id: data.templateId, name: data.name }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       }).then(() => {
         context.dispatch('fetchTemplates')
