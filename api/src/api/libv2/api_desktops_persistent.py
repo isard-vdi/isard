@@ -73,6 +73,7 @@ from .api_desktop_events import (
 )
 from .caches import get_document
 from .helpers import (
+    GetTemplateDerivatives,
     _check,
     _get_reservables,
     _parse_media_info,
@@ -311,6 +312,17 @@ class ApiDesktopsPersistent:
             template = r.table("domains").get(data["template_id"]).run(db.conn)
 
         check_user_duplicated_domain_name(data["name"], template["user"], "desktop")
+
+        # TODO: Stop derivated running desktops
+
+        ## check if template is a duplicate from another
+        if templates.is_duplicate(data["template_id"]):
+            raise Error(
+                "bad_request",
+                "Template to desktop is a duplicate from another template",
+                traceback.format_exc(),
+                description_code="template_to_desktop_duplicate",
+            )
 
         ## Delete children if any
         template_delete_children(

@@ -951,7 +951,8 @@
         "convert": {
           "title": {
             "warning": "Aviso de dependencia",
-            "ok": "Convertir plantilla '{name}' en escritorio"
+            "ok": "Convertir plantilla '{name}' en escritorio",
+            "duplicate": "Aviso de duplicada"
           },
           "warning": {
             "title": "Para poder convertir esta plantilla a escritorio es necesario que la plantilla no tenga elementos derivados.",
@@ -959,7 +960,8 @@
             "delete": "Los siguientes recursos de tu propiedad se eliminarán en caso de convertir a escritorio. Esta acción es irreversible.",
             "footer": "No puedes convertir esta plantilla en un escritorio. Contacta con tu administrador.",
             "confirm": "Entiendo que todos estos elementos se eliminarán y quiero continuar.",
-            "confirm-unchecked": "Debes marcar esta casilla para continuar."
+            "confirm-unchecked": "Debes marcar esta casilla para continuar.",
+            "duplicate": "Esta plantilla es duplicada de otra plantilla y no se puede convertir en un escritorio. Contacta con tu administrador."
           },
           "info": {
             "title": "Los siguientes cambios se realizarán en esta plantilla:",
@@ -1435,7 +1437,9 @@
     "desktops_not_stopped": "Los escritorios asociados a este almacenamiento deben estar parados para realizar esta acción",
     "increase_desktops_not_stopped": "El escritorio asociado a este almacenamiento debe estar parado para incrementar el tamaño del disco",
     "increase_storage_has_derivatives": "El almacenamiento es de una plantilla y no se puede incrementar",
-    "hypervisors_not_available": "No se ha podido iniciar el escritorio. El sistema puede estar sobrecargado. Inténtelo de nuevo más tarde."
+    "hypervisors_not_available": "No se ha podido iniciar el escritorio. El sistema puede estar sobrecargado. Inténtelo de nuevo más tarde.",
+    "duplicate": "Esta plantilla es duplicada de otra plantilla y no se puede convertir en un escritorio. Contacta con tu administrador.",
+    "convert_template_with_derivatives": "Esta plantilla tiene dependencias y no puede ser convertida a escritorio. Contacta con tu administrador."
   },
   "router": {
     "titles": {

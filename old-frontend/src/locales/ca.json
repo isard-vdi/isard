@@ -721,7 +721,8 @@
         "convert": {
           "title": {
             "warning": "Avís de dependència",
-            "ok": "Convertir plantilla '{name}' en escriptori"
+            "ok": "Convertir plantilla '{name}' en escriptori",
+            "duplicate": "Avís de duplicada"
           },
           "warning": {
             "title": "Per poder convertir aquesta plantilla a escriptori és necessari que la plantilla no tingui elements derivats.",
@@ -729,7 +730,8 @@
             "delete": "Els següents recursos de la teva propietat s'eliminaran en cas de convertir a escriptori. Aquesta acció és irreversible.",
             "footer": "No pots convertir aquesta plantilla a escriptori. Contacta amb el teu administrador.",
             "confirm": "Entenc que tots aquests elements seran eliminats i vull continuar.",
-            "confirm-unchecked": "Heu de marcar aquesta casella per a continuar"
+            "confirm-unchecked": "Heu de marcar aquesta casella per a continuar",
+            "duplicate": "Aquesta plantilla és una duplicada d'una altra plantilla i no es pot convertir a escriptori. Contacta amb el teu administrador."
           },
           "info": {
             "title": "Els següents canvis es faran a aquesta plantilla:",
@@ -1336,7 +1338,9 @@
     "desktops_not_stopped": "Els escriptoris associats a aquest emmagatzematge han d'estar aturats per realitzar aquesta acció",
     "increase_desktops_not_stopped": "L'escriptori associat a aquest emmagatzematge ha d'estar aturat per incrementar la mida del disc",
     "increase_storage_has_derivatives": "L'emmagatzematge és d'una plantilla i no es pot incrementar",
-    "hypervisors_not_available": "No s'ha pogut iniciar l'escriptori. El sistema pot estar sobrecarregat. Torni-ho a provar més tard."
+    "hypervisors_not_available": "No s'ha pogut iniciar l'escriptori. El sistema pot estar sobrecarregat. Torni-ho a provar més tard.",
+    "duplicate": "Aquesta plantilla és duplicada d'una altra plantilla i no es pot convertir a escriptori. Contacta amb el teu administrador.",
+    "convert_template_with_derivatives": "Aquesta plantilla té dependències i no pot ser convertida a escriptori. Contacta amb el teu administrador."
   },
   "messages": {
     "title": {
