@@ -246,6 +246,28 @@ func (o *Orchestrator) addHypervisorsToDeadRow(ctx context.Context, ids []string
 	}
 }
 
+func (o *Orchestrator) removeHypervisorsFromOnlyForced(ctx context.Context, ids []string) {
+	o.scaleMux.Lock()
+	defer o.scaleMux.Unlock()
+
+	o.wg.Add(1)
+	defer o.wg.Done()
+
+	o.scaling = true
+	defer func() {
+		o.scaling = false
+	}()
+
+	for _, id := range ids {
+		if err := o.apiCli.AdminHypervisorOnlyForced(ctx, id, false); err != nil {
+			o.log.Error().Str("id", id).Err(err).Msg("unlimit hypervisor")
+			return
+		}
+
+		o.log.Info().Str("id", id).Msg("hypervisor unlimited")
+	}
+}
+
 func (o *Orchestrator) bufferingHypervisorOperation(ctx context.Context, onlyForced bool) error {
 	hypers, err := o.apiCli.HypervisorList(ctx)
 	if err != nil {

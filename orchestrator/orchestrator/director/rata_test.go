@@ -34,6 +34,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		RataHyperMaxRAM           int
 		ExpectedErr               string
 		ExpectedRemoveDeadRow     []string
+		ExpectedRemoveOnlyForced  []string
 		ExpectedCreateHypervisor  *operationsv1.CreateHypervisorsRequest
 		ExpectedAddDeadRow        []string
 		ExpectedDestroyHypervisor *operationsv1.DestroyHypervisorsRequest
@@ -80,7 +81,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Ids: []string{"testing"},
 			},
 		},
-		"if some hyperviosrs are offline, buffer, GPU only, or only forced don't cound them": {
+		"if some hyperviosrs are offline, buffer, GPU only, or only forced don't count them": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
 				Id:    "testing",
 				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
@@ -495,6 +496,33 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 
 			ExpectedAddDeadRow: []string{"bm-e4-01"},
 		},
+		"should remove an hypervisor from only forced if it has enough resources instead of scaling up": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
+			Hypers: []*sdk.OrchestratorHypervisor{{
+				ID:         "1",
+				Status:     sdk.HypervisorStatusOnline,
+				OnlyForced: false,
+				RAM: sdk.OrchestratorResourceLoad{
+					Total: 500,
+					Used:  400,
+					Free:  100,
+				},
+			}, {
+				ID:                  "2",
+				Status:              sdk.HypervisorStatusOnline,
+				DestroyTime:         time.Time{},
+				DesktopsStarted:     0,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				RAM: sdk.OrchestratorResourceLoad{
+					Total: 700,
+					Used:  100,
+					Free:  600,
+				},
+			}},
+			RataMinRAM:               300,
+			ExpectedRemoveOnlyForced: []string{"2"},
+		},
 	}
 
 	for name, tc := range cases {
@@ -514,7 +542,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				HyperMaxRAM:        tc.RataHyperMaxRAM,
 			}, false, &log, nil)
 
-			create, destroy, removeDeadRow, addDeadRow, err := rata.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)
+			scale, err := rata.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
@@ -522,10 +550,11 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				assert.NoError(err)
 			}
 
-			assert.Equal(tc.ExpectedRemoveDeadRow, removeDeadRow)
-			assert.Equal(tc.ExpectedCreateHypervisor, create)
-			assert.Equal(tc.ExpectedAddDeadRow, addDeadRow)
-			assert.Equal(tc.ExpectedDestroyHypervisor, destroy)
+			assert.Equal(tc.ExpectedRemoveDeadRow, scale.HypersToRemoveFromDeadRow)
+			assert.Equal(tc.ExpectedRemoveOnlyForced, scale.HypersToRemoveFromOnlyForced)
+			assert.Equal(tc.ExpectedCreateHypervisor, scale.Create)
+			assert.Equal(tc.ExpectedAddDeadRow, scale.HypersToAddToDeadRow)
+			assert.Equal(tc.ExpectedDestroyHypervisor, scale.Destroy)
 		})
 	}
 }
@@ -587,6 +616,7 @@ func TestRataExtraOperations(t *testing.T) {
 				ID:                  "first",
 				Status:              sdk.HypervisorStatusOffline,
 				OrchestratorManaged: true,
+				DesktopsStarted:     1312,
 				RAM: sdk.OrchestratorResourceLoad{
 					Free: 10,
 				},
@@ -595,6 +625,7 @@ func TestRataExtraOperations(t *testing.T) {
 				OnlyForced:          true,
 				Status:              sdk.HypervisorStatusOnline,
 				OrchestratorManaged: true,
+				DesktopsStarted:     1312,
 				RAM: sdk.OrchestratorResourceLoad{
 					Free: 200,
 				},
@@ -810,6 +841,171 @@ func TestRataExtraOperations(t *testing.T) {
 			},
 			HyperMinRAM: 92160,
 			HyperMaxRAM: 153600,
+		},
+		"should not remove an hypervisor from only forced if it has no desktops (will be removed by NeedsToScaleHypervisors)": {
+			PrepareAPI: func(*sdk.MockSdk) {},
+			Hypers: []*sdk.OrchestratorHypervisor{{
+				ID:                  "gpu-a10-01",
+				Status:              sdk.HypervisorStatusOnline,
+				OnlyForced:          false,
+				Buffering:           false,
+				DestroyTime:         time.Time{},
+				BookingsEndTime:     time.Time{},
+				OrchestratorManaged: false,
+				GPUOnly:             false,
+				DesktopsStarted:     60,
+				MinFreeMemGB:        100,
+				CPU: sdk.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  17,
+					Free:  83,
+				},
+				RAM: sdk.OrchestratorResourceLoad{
+					Total: 1031694,
+					Used:  519912,
+					Free:  511782,
+				},
+				GPUs: []*sdk.OrchestratorHypervisorGPU{{
+					ID:         "gpu-a10-01-pci_0000_ca_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "2Q",
+					TotalUnits: 12,
+					FreeUnits:  12,
+					UsedUnits:  0,
+				}, {
+					ID:         "gpu-a10-01-pci_0000_17_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "2Q",
+					TotalUnits: 12,
+					FreeUnits:  12,
+					UsedUnits:  0,
+				}, {
+					ID:         "gpu-a10-01-pci_0000_31_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "6Q",
+					TotalUnits: 6,
+					FreeUnits:  6,
+					UsedUnits:  0,
+				}, {}, {
+					ID:         "gpu-a10-01-pci_0000_b1_00_0",
+					Brand:      "NVIDIA",
+					Model:      "A10",
+					Profile:    "6Q",
+					TotalUnits: 6,
+					FreeUnits:  6,
+					UsedUnits:  0,
+				}},
+			}, {
+				ID:                  "bm-e2-11",
+				Status:              sdk.HypervisorStatusOnline,
+				OnlyForced:          true,
+				Buffering:           false,
+				DestroyTime:         time.Time{},
+				BookingsEndTime:     time.Time{},
+				OrchestratorManaged: true,
+				GPUOnly:             false,
+				DesktopsStarted:     0,
+				MinFreeMemGB:        50,
+				CPU: sdk.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  2,
+					Free:  98,
+				},
+				RAM: sdk.OrchestratorResourceLoad{
+					Total: 515850,
+					Used:  3538,
+					Free:  512311,
+				},
+			}, {
+				ID:                  "bm-e2-12",
+				Status:              sdk.HypervisorStatusOnline,
+				OnlyForced:          false,
+				Buffering:           false,
+				DestroyTime:         time.Time{},
+				BookingsEndTime:     time.Time{},
+				OrchestratorManaged: true,
+				GPUOnly:             false,
+				DesktopsStarted:     55,
+				MinFreeMemGB:        50,
+				CPU: sdk.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  18,
+					Free:  81,
+				},
+				RAM: sdk.OrchestratorResourceLoad{
+					Total: 515849,
+					Used:  335477,
+					Free:  180372,
+				},
+			}, {
+				ID:                  "bm-e4-12",
+				Status:              sdk.HypervisorStatusOnline,
+				OnlyForced:          false,
+				Buffering:           false,
+				DestroyTime:         time.Time{},
+				BookingsEndTime:     time.Time{},
+				OrchestratorManaged: true,
+				GPUOnly:             false,
+				DesktopsStarted:     202,
+				MinFreeMemGB:        200,
+				CPU: sdk.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  14,
+					Free:  86,
+				},
+				RAM: sdk.OrchestratorResourceLoad{
+					Total: 2051891,
+					Used:  1300091,
+					Free:  751799,
+				},
+			}, {
+				ID:                  "bm-e4-16",
+				Status:              sdk.HypervisorStatusOnline,
+				OnlyForced:          true,
+				Buffering:           false,
+				DestroyTime:         time.Now(),
+				BookingsEndTime:     time.Time{},
+				OrchestratorManaged: true,
+				GPUOnly:             false,
+				DesktopsStarted:     156,
+				MinFreeMemGB:        200,
+				CPU: sdk.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  11,
+					Free:  89,
+				},
+				RAM: sdk.OrchestratorResourceLoad{
+					Total: 2051891,
+					Used:  1118939,
+					Free:  932951,
+				},
+			}, {
+				ID:                  "e4-21",
+				Status:              sdk.HypervisorStatusOnline,
+				OnlyForced:          true,
+				Buffering:           false,
+				DestroyTime:         time.Now(),
+				BookingsEndTime:     time.Time{},
+				OrchestratorManaged: true,
+				GPUOnly:             false,
+				DesktopsStarted:     240,
+				MinFreeMemGB:        200,
+				CPU: sdk.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  17,
+					Free:  83,
+				},
+				RAM: sdk.OrchestratorResourceLoad{
+					Total: 2051891,
+					Used:  1466408,
+					Free:  585482,
+				},
+			}},
+			HyperMinRAM: 41200,
+			HyperMaxRAM: 102400,
 		},
 	}
 

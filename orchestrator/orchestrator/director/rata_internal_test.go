@@ -265,63 +265,65 @@ func TestClassifyHypervisors(t *testing.T) {
 		ExpectedToAcknowledge []*sdk.OrchestratorHypervisor
 		ExpectedToHandle      []*sdk.OrchestratorHypervisor
 		ExpectedOnDeadRow     []*sdk.OrchestratorHypervisor
+		ExpectedLimited       []*sdk.OrchestratorHypervisor
 	}{
 		"should classify the hypervisors correctly": {
-			Hypers: []*sdk.OrchestratorHypervisor{
-				{
-					ID:     "hyper1",
-					Status: sdk.HypervisorStatusOnline,
-				},
-				{
-					ID:                  "hyper2",
-					Status:              sdk.HypervisorStatusOnline,
-					OrchestratorManaged: true,
-				},
-				{
-					ID:                  "hyper3",
-					Status:              sdk.HypervisorStatusOnline,
-					OrchestratorManaged: true,
-					DestroyTime:         time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC),
-				},
-			},
-			ExpectedToAcknowledge: []*sdk.OrchestratorHypervisor{
-				{
-					ID:     "hyper1",
-					Status: sdk.HypervisorStatusOnline,
-				},
-				{
-					ID:                  "hyper2",
-					Status:              sdk.HypervisorStatusOnline,
-					OrchestratorManaged: true,
-				},
-				{
-					ID:                  "hyper3",
-					Status:              sdk.HypervisorStatusOnline,
-					OrchestratorManaged: true,
-					DestroyTime:         time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC),
-				},
-			},
-			ExpectedToHandle: []*sdk.OrchestratorHypervisor{
-				{
-					ID:                  "hyper2",
-					Status:              sdk.HypervisorStatusOnline,
-					OrchestratorManaged: true,
-				},
-				{
-					ID:                  "hyper3",
-					Status:              sdk.HypervisorStatusOnline,
-					OrchestratorManaged: true,
-					DestroyTime:         time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC),
-				},
-			},
-			ExpectedOnDeadRow: []*sdk.OrchestratorHypervisor{
-				{
-					ID:                  "hyper3",
-					Status:              sdk.HypervisorStatusOnline,
-					OrchestratorManaged: true,
-					DestroyTime:         time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC),
-				},
-			},
+			Hypers: []*sdk.OrchestratorHypervisor{{
+				ID:     "hyper1",
+				Status: sdk.HypervisorStatusOnline,
+			}, {
+				ID:                  "hyper2",
+				Status:              sdk.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+			}, {
+				ID:                  "hyper3",
+				Status:              sdk.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				OnlyForced:          true,
+				DestroyTime:         time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC),
+			}, {
+				ID:                  "hyper4",
+				Status:              sdk.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				OnlyForced:          true,
+			}},
+			ExpectedToAcknowledge: []*sdk.OrchestratorHypervisor{{
+				ID:     "hyper1",
+				Status: sdk.HypervisorStatusOnline,
+			}, {
+				ID:                  "hyper2",
+				Status:              sdk.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+			}},
+			ExpectedToHandle: []*sdk.OrchestratorHypervisor{{
+				ID:                  "hyper2",
+				Status:              sdk.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+			}, {
+				ID:                  "hyper3",
+				Status:              sdk.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				OnlyForced:          true,
+				DestroyTime:         time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC),
+			}, {
+				ID:                  "hyper4",
+				Status:              sdk.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				OnlyForced:          true,
+			}},
+			ExpectedOnDeadRow: []*sdk.OrchestratorHypervisor{{
+				ID:                  "hyper3",
+				Status:              sdk.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				OnlyForced:          true,
+				DestroyTime:         time.Date(1, 2, 3, 4, 5, 6, 7, time.UTC),
+			}},
+			ExpectedLimited: []*sdk.OrchestratorHypervisor{{
+				ID:                  "hyper4",
+				Status:              sdk.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				OnlyForced:          true,
+			}},
 		},
 		"should ignore the offline hypervisors": {
 			Hypers: []*sdk.OrchestratorHypervisor{{
@@ -331,6 +333,7 @@ func TestClassifyHypervisors(t *testing.T) {
 			ExpectedToAcknowledge: []*sdk.OrchestratorHypervisor{},
 			ExpectedToHandle:      []*sdk.OrchestratorHypervisor{},
 			ExpectedOnDeadRow:     []*sdk.OrchestratorHypervisor{},
+			ExpectedLimited:       []*sdk.OrchestratorHypervisor{},
 		},
 		"should ignore buffering hypervisors": {
 			Hypers: []*sdk.OrchestratorHypervisor{{
@@ -341,6 +344,7 @@ func TestClassifyHypervisors(t *testing.T) {
 			ExpectedToAcknowledge: []*sdk.OrchestratorHypervisor{},
 			ExpectedToHandle:      []*sdk.OrchestratorHypervisor{},
 			ExpectedOnDeadRow:     []*sdk.OrchestratorHypervisor{},
+			ExpectedLimited:       []*sdk.OrchestratorHypervisor{},
 		},
 		"should ignore GPU only hypervisors": {
 			Hypers: []*sdk.OrchestratorHypervisor{{
@@ -351,6 +355,7 @@ func TestClassifyHypervisors(t *testing.T) {
 			ExpectedToAcknowledge: []*sdk.OrchestratorHypervisor{},
 			ExpectedToHandle:      []*sdk.OrchestratorHypervisor{},
 			ExpectedOnDeadRow:     []*sdk.OrchestratorHypervisor{},
+			ExpectedLimited:       []*sdk.OrchestratorHypervisor{},
 		},
 		"should not add only forced hypervisors to the acknowledge list": {
 			Hypers: []*sdk.OrchestratorHypervisor{{
@@ -361,6 +366,7 @@ func TestClassifyHypervisors(t *testing.T) {
 			ExpectedToAcknowledge: []*sdk.OrchestratorHypervisor{},
 			ExpectedToHandle:      []*sdk.OrchestratorHypervisor{},
 			ExpectedOnDeadRow:     []*sdk.OrchestratorHypervisor{},
+			ExpectedLimited:       []*sdk.OrchestratorHypervisor{},
 		},
 		"should not add a non orchestrator managed hypervisor to the handle list": {
 			Hypers: []*sdk.OrchestratorHypervisor{{
@@ -375,6 +381,7 @@ func TestClassifyHypervisors(t *testing.T) {
 			}},
 			ExpectedToHandle:  []*sdk.OrchestratorHypervisor{},
 			ExpectedOnDeadRow: []*sdk.OrchestratorHypervisor{},
+			ExpectedLimited:   []*sdk.OrchestratorHypervisor{},
 		},
 	}
 
@@ -384,11 +391,12 @@ func TestClassifyHypervisors(t *testing.T) {
 
 			rata := NewRata(cfg.DirectorRata{}, false, &log, nil)
 
-			hypersToAcknowledge, hypersToHandle, hypersOnDeadRow := rata.classifyHypervisors(tc.Hypers)
+			hypersToAcknowledge, hypersToHandle, hypersOnDeadRow, hypersLimited := rata.classifyHypervisors(tc.Hypers)
 
 			assert.Equal(tc.ExpectedToAcknowledge, hypersToAcknowledge)
 			assert.Equal(tc.ExpectedToHandle, hypersToHandle)
 			assert.Equal(tc.ExpectedOnDeadRow, hypersOnDeadRow)
+			assert.Equal(tc.ExpectedLimited, hypersLimited)
 		})
 	}
 }
