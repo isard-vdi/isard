@@ -395,7 +395,7 @@ def set_current_booking(desktop):
         booking = (
             r.table("bookings")
             .get_all([item_type, item_id], index="item_type-id")
-            .filter(lambda b: (b["start"]) < ((r.now()) & (b["end"] > r.now())))
+            .filter(lambda b: ((b["start"]) < r.now()) & (b["end"] > r.now()))
             .order_by("start")
             .run(db.conn)
         )
@@ -403,7 +403,7 @@ def set_current_booking(desktop):
             booking = (
                 r.table("bookings")
                 .get_all(["deployment", desktop.get("tag")], index="item_type-id")
-                .filter(lambda b: (b["start"]) < ((r.now()) & (b["end"] > r.now())))
+                .filter(lambda b: ((b["start"]) < r.now()) & (b["end"] > r.now()))
                 .order_by("start")
                 .run(db.conn)
             )
