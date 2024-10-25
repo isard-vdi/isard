@@ -1,563 +1,564 @@
 {
-    "views": {
-        "maintenance": {
-            "the-service": "Isard wird in wenigen Minuten wieder verfügbar sein",
-            "title": "Derzeit wird Isard gewartet",
-            "sorry": "Entschuldigung für die Unannehmlichkeiten",
-            "go-login": "Zur Anmeldung gehen"
-        },
-        "select-template": {
-            "no-templates": {
-                "subtitle": "Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich an den Administrator",
-                "title": "Es gibt keine Vorlagen für diesen Benutzer"
-            },
-            "notification": {
-                "downloaded": {
-                    "description": "Die Arbeitsoberfläche wurde erfolgreich heruntergeladen",
-                    "title": "Heruntergeladen"
-                },
-                "loading": {
-                    "description": "Warten auf Serverantwort",
-                    "title": "Wird geladen"
-                }
-            },
-            "which-template": "Welche Arbeitsoberfläche wollen Sie verwenden?",
-            "loading": "Laden von Vorlagen",
-            "status": {
-                "stopped": {
-                    "action": "Starten",
-                    "text": "Angehalten"
-                },
-                "started": {
-                    "action": "Anhalten",
-                    "text": "Gestartet"
-                },
-                "failed": {
-                    "text": "Fehlgeschlagen",
-                    "action": "Neu starten"
-                },
-                "notCreated": {
-                    "action": "Erstellen"
-                },
-                "waitingip": {
-                    "action": "Stoppen",
-                    "text": "Warten auf IP"
-                },
-                "shutting-down": {
-                    "action": "Stopp erzwingen",
-                    "text": "Wird gestoppt"
-                },
-                "working": {
-                    "action": "wird ausgeführt",
-                    "text": "Ausstehend"
-                },
-                "readyCreation": {
-                    "text": "Bereit für die Erstellung"
-                },
-                "downloading": {
-                    "text": "Wird heruntergeladen"
-                }
-            },
-            "error": {
-                "delete-error": {
-                    "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht löschen",
-                    "title": "Fehler"
-                },
-                "stop-timeout": {
-                    "description": "Die Arbeitsoberfläche wird angehalten, dies kann einige Minuten dauern",
-                    "title": "Zeitüberschreitung"
-                },
-                "stop-error": {
-                    "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht anhalten",
-                    "title": "Fehler"
-                },
-                "open-error": {
-                    "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht öffnen",
-                    "title": "Fehler"
-                },
-                "start-timeout": {
-                    "description": "Die Arbeitsoberfläche startet, dies kann einige Minuten dauern",
-                    "title": "Zeitüberschreitung"
-                },
-                "start-quota": {
-                    "description": "Sie benutzen zu viele Arbeitsoberflächen gleichzeitig",
-                    "title": "Fehler"
-                },
-                "start-error": {
-                    "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht starten",
-                    "title": "Fehler"
-                },
-                "create-quota": {
-                    "description": "Sie haben zu viele Arbeitsoberflächen",
-                    "title": "Fehler"
-                },
-                "create-error": {
-                    "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht erstellen",
-                    "title": "Fehler"
-                },
-                "create-timeout": {
-                    "description": "Die Arbeitoberfläche wird erstellt, dies kann ein paar Minuten dauern",
-                    "title": "Zeitüberschreitung"
-                }
-            },
-            "remove": "Entfernen",
-            "volatile": "Temporäre Arbeitsoberflächen",
-            "volatile-compact": "Temporäre",
-            "template": "Vorlage",
-            "persistent": "Dauerhafte Arbeitsoberflächen",
-            "persistent-compact": "Dauerhafte",
-            "viewer-name": {
-                "file-spice": "SPICE",
-                "browser-vnc": "Browser",
-                "file-rdpvpn": "RDP VPN",
-                "browser-rdp": "RDP-Browser"
-            },
-            "viewers": "Bildbetrachter",
-            "no-desktops-filtered": {
-                "subtitle": "Sie können eine neue Arbeitoberfläche mit der Schaltfläche oben rechts erstellen",
-                "title": "Es gibt keine Arbeitoberfläche, die mit den aktuellen Filtern angezeigt werden können"
-            },
-            "no-desktops": {
-                "title": "Es gibt keine Arbeitoberfläche, die mit den aktuellen Filtern angezeigt werden können",
-                "subtitle": "Sie können eine neue Arbeitoberfläche mit der Schaltfläche oben rechts erstellen"
-            }
-        },
-        "error": {
-            "codes": {
-                "500": "Unerwarteter Fehler",
-                "403": "Sie haben keine Berechtigung, auf diese Seite zuzugreifen",
-                "401": "Ihre Gruppe hat keine Berechtigung zum Zugriff auf diese Seite"
-            },
-            "title": "Fehler",
-            "go-home": "Zu Startseite"
-        },
-        "not-found": {
-            "title": "Wir konnten die gewünschte Adresse nicht finden",
-            "back": "Zurück zum Start"
-        },
-        "register": {
-            "code": "Registrierungscode",
-            "title": "Registrierung",
-            "register": "Registrieren",
-            "errors": {
-                "500": "Serverfehler",
-                "401": "Sitzung abgelaufen",
-                "404": "Code nicht gefunden"
-            }
-        },
-        "login": {
-            "other-logins": "Oder anmelden mit",
-            "form": {
-                "login": "Anmelden",
-                "pwd": "Passwort",
-                "usr": "Benutzername",
-                "select-category": "Bitte wählen Sie eine Option"
-            },
-            "title": "Anmelden",
-            "isard-logo-alt": "Das IsardVDI-Logo ist ein Gämsenkopf.",
-            "powered-by": "Angetrieben von {isardvdi}",
-            "errors": {
-                "500": "Serverfehler",
-                "401": "Falscher Benutzername oder falsches Passwort",
-                "generic": "Ein Fehler ist aufgetreten"
-            }
-        },
-        "deployment": {
-            "desktop": {
-                "not-available": "Arbeitoberfläche nicht verfügbar"
-            },
-            "no-started-desktops": {
-                "title": "Bei dieser Verteilung gibt es keine gestarteten Arbeitoberfläche"
-            }
-        },
-        "deployments": {
-            "no-deployments": {
-                "subtitle": "Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich bitte an den Administrator",
-                "title": "Es gibt keine Verteilungen von diesem Benutzer"
-            }
-        },
-        "cancel": "Abbrechen"
+  "views": {
+    "maintenance": {
+      "the-service": "Isard wird in wenigen Minuten wieder verfügbar sein",
+      "title": "Derzeit wird Isard gewartet",
+      "sorry": "Entschuldigung für die Unannehmlichkeiten",
+      "go-login": "Zur Anmeldung gehen"
     },
-    "components": {
-        "navbar": {
-            "admin": "Verwaltung",
-            "vpn": {
-                "downloadvpn-error": {
-                    "description": "Wir konnten die VPN-Konfigurationsdatei aufgrund eines Fehlers nicht herunterladen",
-                    "title": "Fehler"
-                },
-                "downloaded": {
-                    "description": "Die VPN-Konfigurationsdatei wurde erfolgreich heruntergeladen",
-                    "title": "Heruntergeladen"
-                },
-                "download": "VPN"
-            },
-            "help": "Hilfe",
-            "deployments": "Verteilungen",
-            "desktops": "Desktops",
-            "bookings": {
-                "text": "Buchungen",
-                "summary": "Zusammenfassung",
-                "planning": "Planung"
-            },
-            "logout": "Ausloggen",
-            "profile": "Profil",
-            "media": "Medien",
-            "templates": "Vorlagen",
-            "storage": "Speicher"
+    "select-template": {
+      "no-templates": {
+        "subtitle": "Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich an den Administrator",
+        "title": "Es gibt keine Vorlagen für diesen Benutzer"
+      },
+      "notification": {
+        "downloaded": {
+          "description": "Die Arbeitsoberfläche wurde erfolgreich heruntergeladen",
+          "title": "Heruntergeladen"
         },
-        "not-found": {
-            "title": "Die angeforderte Adresse wurde nicht gefunden",
-            "home": "Zurück"
-        },
-        "help": {
-            "text": {
-                "linux": "Unter dem Betriebssystem Linux müssen Sie die folgenden Befehle ausführen:",
-                "android": "Mit dem Betriebssystem Android müssen Sie die folgende Anwendung installieren:",
-                "windows": "Unter dem Betriebssystem Windows müssen Sie eine der folgenden ausführbaren Dateien herunterladen und installieren:",
-                "ios": "Unter dem Betriebssystem iOS müssen Sie die folgende Anwendung installieren:",
-                "macos": "macOS ist eine nicht unterstützte Plattform. Sie müssen die Browseroption verwenden"
-            },
-            "spice-client-required": "Eine externe Anwendung ist erforderlich.",
-            "once-installed": "Klicken Sie nach der Installation auf die Schaltfläche „Lokaler Client“, um die Virtuelle-Arbeitsoberfläche-Datei herunterzuladen",
-            "worse-performance": "aber die Leistung ist schlechter",
-            "no-install": "Es ist nicht erforderlich, ein externes Programm zu installieren, {worse-performance}. Sie müssen nur auf die Schaltfläche klicken, um die virtuelle Arbeitsoberfläche in einer neuen Registerkarte zu öffnen",
-            "use-browser": "Den Browser verwenden",
-            "other-windows-versions": "andere Windows-Versionen",
-            "install": "Installieren",
-            "best-performance": "Es ist die Option mit der besten Leistung",
-            "local-client": "Lokalen Client verwenden (empfohlen)",
-            "close-guide": "Anleitung schließen",
-            "title": "Hilfe"
-        },
-        "title": {
-            "logo-alt": "Logo"
-        },
-        "desktop-cards": {
-            "table-header": {
-                "viewers": "Bildbetrachter",
-                "action": "Aktion",
-                "description": "Beschreibung",
-                "state": "Zustand",
-                "name": "Name",
-                "desktop-size": "Größe"
-            },
-            "no-info-default": "Keine Beschreibung vorhanden",
-            "actions": {
-                "delete": "Löschen",
-                "template": "Zur Vorlage machen",
-                "edit": "bearbeiten",
-                "direct-link": "direkter Link",
-                "booking": "Zeitplan"
-            },
-            "filter-label": "Filtern",
-            "notification-bar": {
-                "next-booking": "Nächste Buchung"
-            }
-        },
-        "rdp-modal": {
-            "button-refresh": "Aktualisieren",
-            "title": {
-                "error": "Client-Fehler",
-                "unstable": "Instabil",
-                "disconnected": "Getrennt",
-                "connecting": "Verbindung wird herstellt"
-            },
-            "message": {
-                "error": "Verbindungsfehler",
-                "unstable": "Der Netzwerkverbindungsserver scheint instabil zu sein",
-                "disconnected": "Ihre Verbindung wurde getrennt",
-                "connecting": "Verbindung zum Server wird hergestellt …"
-            }
-        },
-        "statusbar": {
-            "checkbox-text": "Nur gestartet",
-            "desktops-started": "Arbeitoberfläche gestartet",
-            "new-desktop": "Neue Arbeitoberfläche",
-            "checkbox-text-short": "Gestartet",
-            "upload-file": "Datei hochladen",
-            "cancel": "Abbrechen",
-            "select": "Auswählen",
-            "deployment": {
-                "buttons": {
-                    "make-not-visible": {
-                        "title": "Unsichtbar machen"
-                    },
-                    "videowall": {
-                        "title": "Zur Videowand gehen"
-                    },
-                    "make-visible": {
-                        "title": "Sichtbar machen"
-                    },
-                    "allowed": {
-                        "title": "Nutzer bearbeiten"
-                    }
-                }
-            },
-            "new-media": "Neues Medium",
-            "recycle-bin": {
-                "title": "Papierkorb",
-                "buttons": {
-                    "info": {
-                        "title": "Mehr Informationen"
-                    },
-                    "delete": {
-                        "title": "Entfernen"
-                    },
-                    "restore": {
-                        "title": "Wiederherstellen"
-                    }
-                },
-                "back": "Zurück zum Papierkorb"
-            },
-            "recycle-bins": {
-                "empty-recycle-bin": "Papierkorb leeren"
-            }
-        },
-        "select-search": {
-            "empty": "Keine Optionen verfügbar"
-        },
-        "bookings": {
-            "item": {
-                "split-labels": {
-                    "bookings": "Buchungen",
-                    "availability": "Verfügbarkeit"
-                },
-                "modal": {
-                    "title": "Titel",
-                    "start-date": "Startdatum",
-                    "start-time": "Startzeit",
-                    "profile": "Profil",
-                    "end-time": "Endzeit",
-                    "create": {
-                        "button": "Buchung hinzufügen",
-                        "modal-title": "Buchung hinzufügen"
-                    },
-                    "edit": {
-                        "modal-title": "Buchung bearbeiten"
-                    },
-                    "end-date": "Enddatum",
-                    "select-profile": "Bitte wähle ein Profil aus"
-                },
-                "event-titles": {
-                    "unavailable": "Nicht verfügbar",
-                    "overridable": "Überschreibbar",
-                    "available": "Verfügbar"
-                },
-                "status-bar": {
-                    "buttons": {
-                        "add-booking": "Buchung hinzufügen"
-                    },
-                    "max-time": "Maximale Buchungszeit",
-                    "max-items": "Maximale Buchungen"
-                },
-                "units": "Einheiten"
-            }
-        },
-        "deployment-desktop-list": {
-            "table-header": {
-                "user": "Nutzer",
-                "group": "Gruppe",
-                "action": "Aktion",
-                "viewers": "Zuschauer",
-                "state": "Status"
-            },
-            "filter-label": "Filter"
+        "loading": {
+          "description": "Warten auf Serverantwort",
+          "title": "Wird geladen"
         }
-    },
-    "forms": {
-        "new-desktop": {
-            "template-table-column-headers": {
-                "name": "Name",
-                "category": "Kategorie",
-                "selected": "Ausgewählt",
-                "group": "Gruppe",
-                "description": "Beschreibung",
-                "user": "Benutzer",
-                "image": "Bild"
-            },
-            "filter-placeholder": "Tippen, um zu suchen",
-            "title": "Neue Arbeitoberfläche erstellen:",
-            "section-title-template": "Wählen Sie eine Vorlage aus:",
-            "desktop-template": "Vorlage",
-            "filter": "Filter",
-            "desktop-name": "Arbeitoberflächename",
-            "desktop-description": "Arbeitoberflächenbeschreibung",
-            "section-title-advanced": "Erweiterte Optionen"
+      },
+      "which-template": "Welche Arbeitsoberfläche wollen Sie verwenden?",
+      "loading": "Laden von Vorlagen",
+      "status": {
+        "stopped": {
+          "action": "Starten",
+          "text": "Angehalten"
         },
-        "domain": {
-            "info": {
-                "description": "Beschreibung",
-                "name": "Name",
-                "title": "Information"
-            },
-            "viewers": {
-                "guest": {
-                    "username": "Benutzername",
-                    "password": "Passwort",
-                    "warning": "WARNUNG: Das Gast-Passwort wird im Klartext gespeichert!",
-                    "title": "RDP-Anmeldung"
-                },
-                "title": "Betrachter",
-                "fullscreen-enabled": "Vollbild aktiviert",
-                "fullscreen-disabled": "Vollbild deaktiviert"
-            },
-            "hardware": {
-                "memory": "Speicher (GB)",
-                "title": "Hardware",
-                "videos": "Videos",
-                "vcpus": "vCPUS",
-                "warning": "WARNUNG: Diese Hardware wurde aufgrund von Benutzerberechtigungen geändert:",
-                "interfaces": "Netzwerke",
-                "disk-size": "Festplattengröße (GB)",
-                "boot": "Hochfahren",
-                "disk-bus": "Festplatten-Interface"
-            },
-            "image": {
-                "title": "Bild"
-            },
-            "media": {
-                "title": "Medien",
-                "floppies": "Disketten",
-                "placeholder": "Geben Sie mindestens 2 Buchstaben ein, um zu suchen."
-            },
-            "bookables": {
-                "vgpus": "Grafikkarte"
-            }
+        "started": {
+          "action": "Anhalten",
+          "text": "Gestartet"
         },
-        "create": "Erstellen",
-        "submit": "Einreichen",
-        "clear": "Löschen",
-        "cancel": "Abbrechen",
-        "registration": {
-            "code": "Registrierungs-Code"
+        "failed": {
+          "text": "Fehlgeschlagen",
+          "action": "Neu starten"
         },
-        "new-deployment": {
-            "desktop": {
-                "name": "Name des Desktops",
-                "description": "Beschreibung des Desktops",
-                "title": "Neue Desktop-Daten:",
-                "template": "Vorlage"
-            },
-            "not-visible": "Nicht sichtbar für Nutzer",
-            "section-title-template": "Wähle eine Vorlage aus:",
-            "filter": "Filter",
-            "template-table-column-headers": {
-                "selected": "Ausgewählt",
-                "category": "Kategorie",
-                "group": "Gruppe",
-                "user": "Nutzer",
-                "image": "Bild",
-                "name": "Name",
-                "description": "Beschreibung"
-            },
-            "visible": "Sichtbar für Nutzer",
-            "filter-placeholder": "Zum Suchen Text eintippen",
-            "title": "Neue Verteilung erstellen:",
-            "name": "Name der Verteilung",
-            "error": {
-                "groups": "Mindestens eine Gruppe muss selektiert sein",
-                "groups-users": "Mindestens ein Nutzer oder eine Gruppe muss ausgewählt werden",
-                "users": "Mindestens ein Nutzer muss ausgewählt werden"
-            }
+        "notCreated": {
+          "action": "Erstellen"
         },
-        "filter-placeholder": "Tippe zum suchen",
-        "allowed": {
-            "title": "Erlaubt",
-            "modal": {
-                "title": "Aktualisierung erlaubt",
-                "buttons": {
-                    "update": "Aktualisierung"
-                }
-            },
-            "groups": "Gruppen:",
-            "users": "Benutzer:",
-            "placeholder": "Gib zum Suchen mindestens 2 Buchstaben ein.",
-            "empty": "Überprüft und leer wird an alle weitergegeben."
+        "waitingip": {
+          "action": "Stoppen",
+          "text": "Warten auf IP"
         },
-        "new-template": {
-            "title": "Neue Vorlage erstellen",
-            "name": "Name",
-            "description": "Beschreibung",
-            "enabled": "Aktiviert",
-            "disabled": "Deaktiviert"
+        "shutting-down": {
+          "action": "Stopp erzwingen",
+          "text": "Wird gestoppt"
         },
-        "password": {
-            "modal": {
-                "title": "Passwort ändern",
-                "password": {
-                    "label": "Passwort",
-                    "placeholder": "Passwort"
-                },
-                "buttons": {
-                    "update": "Aktualisieren"
-                },
-                "confirmation-password": {
-                    "label": "Passwortbestätigung",
-                    "placeholder": "Bestätige das Passwort"
-                },
-                "current-password": {
-                    "label": "Geben Sie Ihr aktuelles Passwort ein:",
-                    "placeholder": "Aktuelles Passwort"
-                }
-            }
+        "working": {
+          "action": "wird ausgeführt",
+          "text": "Ausstehend"
         },
-        "new-media": {
-            "title": "Neues Medium erstellen:",
-            "url": "URL",
-            "type": "Typ",
-            "name": "Medienname",
-            "description": "Beschreibung",
-            "select-type": "Bitte eine Option auswählen"
+        "readyCreation": {
+          "text": "Bereit für die Erstellung"
         },
-        "edit": {
-            "title": "'{name}' bearbeiten"
-        },
-        "duplicate-template": {
-            "title": "Vorlage duplizieren"
-        },
-        "show-pages": "Zeigen",
-        "email": {
-            "modal": {
-                "change-validate-address": "Ändern oder Bestätigen Ihrer E-Mail-Adresse",
-                "title": "E-Mail-Änderung/Validierung",
-                "email": {
-                    "label": "Email",
-                    "placeholder": "Email"
-                },
-                "buttons": {
-                    "verify": "E-Mail aktualisieren und verifizieren"
-                }
-            }
-        },
-        "direct-link": {
-            "modal": {
-                "enable": "Direkten Viewer-Zugang ermöglichen"
-            }
+        "downloading": {
+          "text": "Wird heruntergeladen"
         }
-    },
-    "errors": {
-        "desktop_new_user_quota_exceeded": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
-        "desktop_new_group_quota_exceeded": "Quote für Arbeitoberfläche-Erstellungsgruppe überschritten",
-        "desktop_new_category_quota_exceeded": "Quote für Arbeitoberfläche-Erstellungskategorie überschritten",
-        "generic_error": "Ein Fehler ist aufgetreten"
-    },
-    "validations": {
-        "maxLengthValue": "Das Feld {property} hat {model} Zeichen, darf aber maximal {max} lang sein.",
-        "inputFormat": "Gültige Zeichen sind Buchstaben, Zahlen, Komma, Punkt, -, _",
-        "required": "{property} ist erforderlich.",
-        "minLengthValue": "Das Feld {property} hat {model} Zeichen, muss aber eine Mindestlänge von {min} haben.",
-        "sameAs": "Das Feld {property} muss den gleichen Wert wie {property2} haben.",
-        "url": "Das Feld {property} muss eine URL sein.",
-        "undefined": "Nicht definiert",
-        "email": "Das {property} Feld muss eine gültige E-Mail Adresse sein.",
-        "URLFormat": "Es muss mit \"https://\" beginnen."
-    },
-    "messages": {
-        "no": "Nein",
-        "yes": "Ja",
-        "title": {
-            "delete": "Löschen"
+      },
+      "error": {
+        "delete-error": {
+          "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht löschen",
+          "title": "Fehler"
+        },
+        "stop-timeout": {
+          "description": "Die Arbeitsoberfläche wird angehalten, dies kann einige Minuten dauern",
+          "title": "Zeitüberschreitung"
+        },
+        "stop-error": {
+          "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht anhalten",
+          "title": "Fehler"
+        },
+        "open-error": {
+          "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht öffnen",
+          "title": "Fehler"
+        },
+        "start-timeout": {
+          "description": "Die Arbeitsoberfläche startet, dies kann einige Minuten dauern",
+          "title": "Zeitüberschreitung"
+        },
+        "start-quota": {
+          "description": "Sie benutzen zu viele Arbeitsoberflächen gleichzeitig",
+          "title": "Fehler"
+        },
+        "start-error": {
+          "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht starten",
+          "title": "Fehler"
+        },
+        "create-quota": {
+          "description": "Sie haben zu viele Arbeitsoberflächen",
+          "title": "Fehler"
+        },
+        "create-error": {
+          "description": "Wir konnten die virtuelle Arbeitsoberfläche aufgrund eines Fehlers nicht erstellen",
+          "title": "Fehler"
+        },
+        "create-timeout": {
+          "description": "Die Arbeitoberfläche wird erstellt, dies kann ein paar Minuten dauern",
+          "title": "Zeitüberschreitung"
         }
+      },
+      "remove": "Entfernen",
+      "volatile": "Temporäre Arbeitsoberflächen",
+      "volatile-compact": "Temporäre",
+      "template": "Vorlage",
+      "persistent": "Dauerhafte Arbeitsoberflächen",
+      "persistent-compact": "Dauerhafte",
+      "viewer-name": {
+        "file-spice": "SPICE",
+        "browser-vnc": "Browser",
+        "file-rdpvpn": "RDP VPN",
+        "browser-rdp": "RDP-Browser"
+      },
+      "viewers": "Bildbetrachter",
+      "no-desktops-filtered": {
+        "subtitle": "Sie können eine neue Arbeitoberfläche mit der Schaltfläche oben rechts erstellen",
+        "title": "Es gibt keine Arbeitoberfläche, die mit den aktuellen Filtern angezeigt werden können"
+      },
+      "no-desktops": {
+        "title": "Es gibt keine Arbeitoberfläche, die mit den aktuellen Filtern angezeigt werden können",
+        "subtitle": "Sie können eine neue Arbeitoberfläche mit der Schaltfläche oben rechts erstellen"
+      }
+    },
+    "error": {
+      "codes": {
+        "500": "Unerwarteter Fehler",
+        "403": "Sie haben keine Berechtigung, auf diese Seite zuzugreifen",
+        "401": "Ihre Gruppe hat keine Berechtigung zum Zugriff auf diese Seite"
+      },
+      "title": "Fehler",
+      "go-home": "Zu Startseite"
+    },
+    "not-found": {
+      "title": "Wir konnten die gewünschte Adresse nicht finden",
+      "back": "Zurück zum Start"
+    },
+    "register": {
+      "code": "Registrierungscode",
+      "title": "Registrierung",
+      "register": "Registrieren",
+      "errors": {
+        "500": "Serverfehler",
+        "401": "Sitzung abgelaufen",
+        "404": "Code nicht gefunden"
+      }
+    },
+    "login": {
+      "other-logins": "Oder anmelden mit",
+      "form": {
+        "login": "Anmelden",
+        "pwd": "Passwort",
+        "usr": "Benutzername",
+        "select-category": "Bitte wählen Sie eine Option"
+      },
+      "title": "Anmelden",
+      "isard-logo-alt": "Das IsardVDI-Logo ist ein Gämsenkopf.",
+      "powered-by": "Angetrieben von {isardvdi}",
+      "errors": {
+        "500": "Serverfehler",
+        "401": "Falscher Benutzername oder falsches Passwort",
+        "generic": "Ein Fehler ist aufgetreten"
+      }
+    },
+    "deployment": {
+      "desktop": {
+        "not-available": "Arbeitoberfläche nicht verfügbar"
+      },
+      "no-started-desktops": {
+        "title": "Bei dieser Verteilung gibt es keine gestarteten Arbeitoberfläche"
+      }
+    },
+    "deployments": {
+      "no-deployments": {
+        "subtitle": "Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich bitte an den Administrator",
+        "title": "Es gibt keine Verteilungen von diesem Benutzer"
+      }
+    },
+    "cancel": "Abbrechen"
+  },
+  "components": {
+    "navbar": {
+      "admin": "Verwaltung",
+      "vpn": {
+        "downloadvpn-error": {
+          "description": "Wir konnten die VPN-Konfigurationsdatei aufgrund eines Fehlers nicht herunterladen",
+          "title": "Fehler"
+        },
+        "downloaded": {
+          "description": "Die VPN-Konfigurationsdatei wurde erfolgreich heruntergeladen",
+          "title": "Heruntergeladen"
+        },
+        "download": "VPN"
+      },
+      "help": "Hilfe",
+      "deployments": "Verteilungen",
+      "desktops": "Desktops",
+      "bookings": {
+        "text": "Buchungen",
+        "summary": "Zusammenfassung",
+        "planning": "Planung"
+      },
+      "logout": "Ausloggen",
+      "profile": "Profil",
+      "media": "Medien",
+      "templates": "Vorlagen",
+      "storage": "Speicher"
+    },
+    "not-found": {
+      "title": "Die angeforderte Adresse wurde nicht gefunden",
+      "home": "Zurück"
+    },
+    "help": {
+      "text": {
+        "linux": "Unter dem Betriebssystem Linux müssen Sie die folgenden Befehle ausführen:",
+        "android": "Mit dem Betriebssystem Android müssen Sie die folgende Anwendung installieren:",
+        "windows": "Unter dem Betriebssystem Windows müssen Sie eine der folgenden ausführbaren Dateien herunterladen und installieren:",
+        "ios": "Unter dem Betriebssystem iOS müssen Sie die folgende Anwendung installieren:",
+        "macos": "macOS ist eine nicht unterstützte Plattform. Sie müssen die Browseroption verwenden"
+      },
+      "spice-client-required": "Eine externe Anwendung ist erforderlich.",
+      "once-installed": "Klicken Sie nach der Installation auf die Schaltfläche „Lokaler Client“, um die Virtuelle-Arbeitsoberfläche-Datei herunterzuladen",
+      "worse-performance": "aber die Leistung ist schlechter",
+      "no-install": "Es ist nicht erforderlich, ein externes Programm zu installieren, {worse-performance}. Sie müssen nur auf die Schaltfläche klicken, um die virtuelle Arbeitsoberfläche in einer neuen Registerkarte zu öffnen",
+      "use-browser": "Den Browser verwenden",
+      "other-windows-versions": "andere Windows-Versionen",
+      "install": "Installieren",
+      "best-performance": "Es ist die Option mit der besten Leistung",
+      "local-client": "Lokalen Client verwenden (empfohlen)",
+      "close-guide": "Anleitung schließen",
+      "title": "Hilfe"
+    },
+    "title": {
+      "logo-alt": "Logo"
+    },
+    "desktop-cards": {
+      "table-header": {
+        "viewers": "Bildbetrachter",
+        "action": "Aktion",
+        "description": "Beschreibung",
+        "state": "Zustand",
+        "name": "Name",
+        "desktop-size": "Größe"
+      },
+      "no-info-default": "Keine Beschreibung vorhanden",
+      "actions": {
+        "delete": "Löschen",
+        "template": "Zur Vorlage machen",
+        "edit": "bearbeiten",
+        "direct-link": "direkter Link",
+        "booking": "Zeitplan"
+      },
+      "filter-label": "Filtern",
+      "notification-bar": {
+        "next-booking": "Nächste Buchung"
+      }
+    },
+    "rdp-modal": {
+      "button-refresh": "Aktualisieren",
+      "title": {
+        "error": "Client-Fehler",
+        "unstable": "Instabil",
+        "disconnected": "Getrennt",
+        "connecting": "Verbindung wird herstellt"
+      },
+      "message": {
+        "error": "Verbindungsfehler",
+        "unstable": "Der Netzwerkverbindungsserver scheint instabil zu sein",
+        "disconnected": "Ihre Verbindung wurde getrennt",
+        "connecting": "Verbindung zum Server wird hergestellt …"
+      }
+    },
+    "statusbar": {
+      "checkbox-text": "Nur gestartet",
+      "desktops-started": "Arbeitoberfläche gestartet",
+      "new-desktop": "Neue Arbeitoberfläche",
+      "checkbox-text-short": "Gestartet",
+      "upload-file": "Datei hochladen",
+      "cancel": "Abbrechen",
+      "select": "Auswählen",
+      "deployment": {
+        "buttons": {
+          "make-not-visible": {
+            "title": "Unsichtbar machen"
+          },
+          "videowall": {
+            "title": "Zur Videowand gehen"
+          },
+          "make-visible": {
+            "title": "Sichtbar machen"
+          },
+          "allowed": {
+            "title": "Nutzer bearbeiten"
+          }
+        }
+      },
+      "new-media": "Neues Medium",
+      "recycle-bin": {
+        "title": "Papierkorb",
+        "buttons": {
+          "info": {
+            "title": "Mehr Informationen"
+          },
+          "delete": {
+            "title": "Entfernen"
+          },
+          "restore": {
+            "title": "Wiederherstellen"
+          }
+        },
+        "back": "Zurück zum Papierkorb"
+      },
+      "recycle-bins": {
+        "empty-recycle-bin": "Papierkorb leeren"
+      }
+    },
+    "select-search": {
+      "empty": "Keine Optionen verfügbar"
+    },
+    "bookings": {
+      "item": {
+        "split-labels": {
+          "bookings": "Buchungen",
+          "availability": "Verfügbarkeit"
+        },
+        "modal": {
+          "title": "Titel",
+          "start-date": "Startdatum",
+          "start-time": "Startzeit",
+          "profile": "Profil",
+          "end-time": "Endzeit",
+          "create": {
+            "button": "Buchung hinzufügen",
+            "modal-title": "Buchung hinzufügen"
+          },
+          "edit": {
+            "modal-title": "Buchung bearbeiten"
+          },
+          "end-date": "Enddatum",
+          "select-profile": "Bitte wähle ein Profil aus"
+        },
+        "event-titles": {
+          "unavailable": "Nicht verfügbar",
+          "overridable": "Überschreibbar",
+          "available": "Verfügbar"
+        },
+        "status-bar": {
+          "buttons": {
+            "add-booking": "Buchung hinzufügen"
+          },
+          "max-time": "Maximale Buchungszeit",
+          "max-items": "Maximale Buchungen"
+        },
+        "units": "Einheiten"
+      }
+    },
+    "deployment-desktop-list": {
+      "table-header": {
+        "user": "Nutzer",
+        "group": "Gruppe",
+        "action": "Aktion",
+        "viewers": "Zuschauer",
+        "state": "Status"
+      },
+      "filter-label": "Filter"
     }
+  },
+  "forms": {
+    "new-desktop": {
+      "template-table-column-headers": {
+        "name": "Name",
+        "category": "Kategorie",
+        "selected": "Ausgewählt",
+        "group": "Gruppe",
+        "description": "Beschreibung",
+        "user": "Benutzer",
+        "image": "Bild"
+      },
+      "filter-placeholder": "Tippen, um zu suchen",
+      "title": "Neue Arbeitoberfläche erstellen:",
+      "section-title-template": "Wählen Sie eine Vorlage aus:",
+      "desktop-template": "Vorlage",
+      "filter": "Filter",
+      "desktop-name": "Arbeitoberflächename",
+      "desktop-description": "Arbeitoberflächenbeschreibung",
+      "section-title-advanced": "Erweiterte Optionen"
+    },
+    "domain": {
+      "info": {
+        "description": "Beschreibung",
+        "name": "Name",
+        "title": "Information"
+      },
+      "viewers": {
+        "guest": {
+          "username": "Benutzername",
+          "password": "Passwort",
+          "warning": "WARNUNG: Das Gast-Passwort wird im Klartext gespeichert!",
+          "title": "RDP-Anmeldung"
+        },
+        "title": "Betrachter",
+        "fullscreen-enabled": "Vollbild aktiviert",
+        "fullscreen-disabled": "Vollbild deaktiviert"
+      },
+      "hardware": {
+        "memory": "Speicher (GB)",
+        "title": "Hardware",
+        "videos": "Videos",
+        "vcpus": "vCPUS",
+        "warning": "WARNUNG: Diese Hardware wurde aufgrund von Benutzerberechtigungen geändert:",
+        "interfaces": "Netzwerke",
+        "disk-size": "Festplattengröße (GB)",
+        "boot": "Hochfahren",
+        "disk-bus": "Festplatten-Interface"
+      },
+      "image": {
+        "title": "Bild"
+      },
+      "media": {
+        "title": "Medien",
+        "floppies": "Disketten",
+        "placeholder": "Geben Sie mindestens 2 Buchstaben ein, um zu suchen."
+      },
+      "bookables": {
+        "vgpus": "Grafikkarte"
+      }
+    },
+    "create": "Erstellen",
+    "submit": "Einreichen",
+    "clear": "Löschen",
+    "cancel": "Abbrechen",
+    "registration": {
+      "code": "Registrierungs-Code"
+    },
+    "new-deployment": {
+      "desktop": {
+        "name": "Name des Desktops",
+        "description": "Beschreibung des Desktops",
+        "title": "Neue Desktop-Daten:",
+        "template": "Vorlage"
+      },
+      "not-visible": "Nicht sichtbar für Nutzer",
+      "section-title-template": "Wähle eine Vorlage aus:",
+      "filter": "Filter",
+      "template-table-column-headers": {
+        "selected": "Ausgewählt",
+        "category": "Kategorie",
+        "group": "Gruppe",
+        "user": "Nutzer",
+        "image": "Bild",
+        "name": "Name",
+        "description": "Beschreibung"
+      },
+      "visible": "Sichtbar für Nutzer",
+      "filter-placeholder": "Zum Suchen Text eintippen",
+      "title": "Neue Verteilung erstellen:",
+      "name": "Name der Verteilung",
+      "error": {
+        "groups": "Mindestens eine Gruppe muss selektiert sein",
+        "groups-users": "Mindestens ein Nutzer oder eine Gruppe muss ausgewählt werden",
+        "users": "Mindestens ein Nutzer muss ausgewählt werden"
+      }
+    },
+    "filter-placeholder": "Tippe zum suchen",
+    "allowed": {
+      "title": "Erlaubt",
+      "modal": {
+        "title": "Aktualisierung erlaubt",
+        "buttons": {
+          "update": "Aktualisierung"
+        }
+      },
+      "groups": "Gruppen:",
+      "users": "Benutzer:",
+      "placeholder": "Gib zum Suchen mindestens 2 Buchstaben ein.",
+      "empty": "Überprüft und leer wird an alle weitergegeben."
+    },
+    "new-template": {
+      "title": "Neue Vorlage erstellen",
+      "name": "Name",
+      "description": "Beschreibung",
+      "enabled": "Aktiviert",
+      "disabled": "Deaktiviert"
+    },
+    "password": {
+      "modal": {
+        "title": "Passwort ändern",
+        "password": {
+          "label": "Passwort",
+          "placeholder": "Passwort"
+        },
+        "buttons": {
+          "update": "Aktualisieren"
+        },
+        "confirmation-password": {
+          "label": "Passwortbestätigung",
+          "placeholder": "Bestätige das Passwort"
+        },
+        "current-password": {
+          "label": "Geben Sie Ihr aktuelles Passwort ein:",
+          "placeholder": "Aktuelles Passwort"
+        },
+        "warning": "Ihr Passwort ist abgelaufen. Sie müssen es ändern, um fortzufahren"
+      }
+    },
+    "new-media": {
+      "title": "Neues Medium erstellen:",
+      "url": "URL",
+      "type": "Typ",
+      "name": "Medienname",
+      "description": "Beschreibung",
+      "select-type": "Bitte eine Option auswählen"
+    },
+    "edit": {
+      "title": "'{name}' bearbeiten"
+    },
+    "duplicate-template": {
+      "title": "Vorlage duplizieren"
+    },
+    "show-pages": "Zeigen",
+    "email": {
+      "modal": {
+        "change-validate-address": "Ändern oder Bestätigen Ihrer E-Mail-Adresse",
+        "title": "E-Mail-Änderung/Validierung",
+        "email": {
+          "label": "Email",
+          "placeholder": "Email"
+        },
+        "buttons": {
+          "verify": "E-Mail aktualisieren und verifizieren"
+        }
+      }
+    },
+    "direct-link": {
+      "modal": {
+        "enable": "Direkten Viewer-Zugang ermöglichen"
+      }
+    }
+  },
+  "errors": {
+    "desktop_new_user_quota_exceeded": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
+    "desktop_new_group_quota_exceeded": "Quote für Arbeitoberfläche-Erstellungsgruppe überschritten",
+    "desktop_new_category_quota_exceeded": "Quote für Arbeitoberfläche-Erstellungskategorie überschritten",
+    "generic_error": "Ein Fehler ist aufgetreten"
+  },
+  "validations": {
+    "maxLengthValue": "Das Feld {property} hat {model} Zeichen, darf aber maximal {max} lang sein.",
+    "inputFormat": "Gültige Zeichen sind Buchstaben, Zahlen, Komma, Punkt, -, _",
+    "required": "{property} ist erforderlich.",
+    "minLengthValue": "Das Feld {property} hat {model} Zeichen, muss aber eine Mindestlänge von {min} haben.",
+    "sameAs": "Das Feld {property} muss den gleichen Wert wie {property2} haben.",
+    "url": "Das Feld {property} muss eine URL sein.",
+    "undefined": "Nicht definiert",
+    "email": "Das {property} Feld muss eine gültige E-Mail Adresse sein.",
+    "URLFormat": "Es muss mit \"https://\" beginnen."
+  },
+  "messages": {
+    "no": "Nein",
+    "yes": "Ja",
+    "title": {
+      "delete": "Löschen"
+    }
+  }
 }
