@@ -445,7 +445,7 @@ def api_v3_desktop_update_storage_id(payload, desktop_id):
 
 #     data = _validate_item("template_to_desktop", data)
 
-#     tree = admin.GetTemplateTreeList(data["domain_id"], payload["user_id"])[0]
+#     tree = admin.Gettemplate_tree_list(data["domain_id"], payload["user_id"])[0]
 #     derivates = templates.check_children(payload, tree)
 
 #     if derivates["pending"]:
