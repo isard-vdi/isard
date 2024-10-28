@@ -128,6 +128,7 @@ Import all views
 from .views import (
     AdminDomainsView,
     AdminDownloadsView,
+    AdminLoginConfigView,
     AdminMediaView,
     AdminNotificationsView,
     AdminResourcesView,

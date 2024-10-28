@@ -18,11 +18,11 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from cachetools import TTLCache, cached
 from rethinkdb import RethinkDB
 
 from api import app
 
+from .caches import config_cache
 from .flask_rethink import RDB
 
 r = RethinkDB()
@@ -30,7 +30,30 @@ db = RDB(app)
 db.init_app(app)
 
 
-@cached(cache=TTLCache(maxsize=20, ttl=60))
-def get_login_config():
+def update_login_notification(data):
+    config_cache.clear()
     with app.app_context():
-        return r.table("config").get(1).run(db.conn).get("login", {})
+        return (
+            r.table("config")
+            .get(1)
+            .update(
+                {
+                    "login": {
+                        "notification_cover": data.get("cover", None),
+                        "notification_form": data.get("form", None),
+                    }
+                }
+            )
+            .run(db.conn)
+        )
+
+
+def enable_login_notification(type, enable: bool):
+    config_cache.clear()
+    with app.app_context():
+        return (
+            r.table("config")
+            .get(1)
+            .update({"login": {f"notification_{type}": {"enabled": enable}}})
+            .run(db.conn)
+        )

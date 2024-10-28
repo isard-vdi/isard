@@ -1,0 +1,29 @@
+enabled:
+  type: boolean
+icon:
+  type: string
+  maxlength: 50
+  coerce: sanitize
+title:
+  type: string
+  maxlength: 150
+  coerce: sanitize
+description:
+  type: string
+  maxlength: 500
+  coerce: sanitize
+button:
+  type: dict
+  schema:
+    text:
+      type: string
+      maxlength: 50
+      coerce: sanitize
+    url:
+      type: string
+    extra_styles:
+      type: string
+      coerce: sanitize
+extra_styles:
+  type: string
+  coerce: sanitize

@@ -13,7 +13,7 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.api_users import ApiUsers
-from ..libv2.login import get_login_config
+from ..libv2.caches import get_config
 
 users = ApiUsers()
 
@@ -72,7 +72,7 @@ def api_v3_category_custom_url(category_id):
 @app.route("/api/v3/login_config", methods=["GET"])
 def api_v3_login_config():
     return (
-        json.dumps(get_login_config()),
+        json.dumps(get_config().get("login", {})),
         200,
         {"Content-Type": "application/json"},
     )
