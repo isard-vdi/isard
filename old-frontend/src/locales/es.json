@@ -1,1484 +1,1484 @@
 {
-    "validations": {
-        "required": "El campo {property} es obligatorio.",
-        "sameAs": "El campo {property} ha de tener el mismo valor que {property2}.",
-        "minLengthValue": "El campo {property} es de {model} caracteres, el minimo es {min}.",
-        "maxLengthValue": "El campo {property} es de {model} caracteres, el máximo es {max}.",
-        "inputFormat": "Los caracteres validos son letras, numeros, coma, punto, -, _",
-        "URLFormat": "Debe comenzar con \"https://\".",
-        "url": "El campo {property} debe ser una dirección web.",
-        "undefined": "No definido",
-        "email": "El campo {property} debe ser una dirección de correo electrónico válida."
+  "validations": {
+    "required": "El campo {property} es obligatorio.",
+    "sameAs": "El campo {property} ha de tener el mismo valor que {property2}.",
+    "minLengthValue": "El campo {property} es de {model} caracteres, el minimo es {min}.",
+    "maxLengthValue": "El campo {property} es de {model} caracteres, el máximo es {max}.",
+    "inputFormat": "Los caracteres validos son letras, numeros, coma, punto, -, _",
+    "URLFormat": "Debe comenzar con \"https://\".",
+    "url": "El campo {property} debe ser una dirección web.",
+    "undefined": "No definido",
+    "email": "El campo {property} debe ser una dirección de correo electrónico válida."
+  },
+  "forms": {
+    "allowed": {
+      "title": "Permisos",
+      "groups": "Grupos:",
+      "users": "Usuarios:",
+      "placeholder": "Escribe almenos 2 carácteres para buscar.",
+      "modal": {
+        "title": "Actualizar permisos",
+        "buttons": {
+          "update": "Actualizar"
+        }
+      },
+      "empty": "Marcado y vacío lo compartirá con todos."
     },
-    "forms": {
-        "allowed": {
-            "title": "Permisos",
-            "groups": "Grupos:",
-            "users": "Usuarios:",
-            "placeholder": "Escribe almenos 2 carácteres para buscar.",
-            "modal": {
-                "title": "Actualizar permisos",
-                "buttons": {
-                    "update": "Actualizar"
-                }
-            },
-            "empty": "Marcado y vacío lo compartirá con todos."
-        },
+    "password": {
+      "modal": {
+        "title": "Reestablecer contraseña",
+        "warning": "La contraseña ha caducado. Debe ser cambiada por una nueva para poder continuar",
         "password": {
-            "modal": {
-                "title": "Cambiar la contraseña",
-                "warning": "La contraseña ha caducado. Debe ser cambiada por una nueva para poder continuar",
-                "password": {
-                    "label": "Contraseña",
-                    "placeholder": "Contraseña"
-                },
-                "confirmation-password": {
-                    "label": "Confirmación de la contraseña",
-                    "placeholder": "Confirma la contraseña"
-                },
-                "current-password": {
-                    "label": "Introduce tu contraseña actual:",
-                    "placeholder": "Contraseña actual"
-                },
-                "buttons": {
-                    "update": "Actualizar"
-                }
-            }
+          "label": "Contraseña",
+          "placeholder": "Contraseña"
         },
+        "confirmation-password": {
+          "label": "Confirmación de la contraseña",
+          "placeholder": "Confirma la contraseña"
+        },
+        "current-password": {
+          "label": "Introduce tu contraseña actual:",
+          "placeholder": "Contraseña actual"
+        },
+        "buttons": {
+          "update": "Actualizar"
+        }
+      }
+    },
+    "email": {
+      "modal": {
+        "title": "Cambio / Validación del correo electrónico",
+        "change-validate-address": "Cambiar o validar el correo electrónico",
         "email": {
-            "modal": {
-                "title": "Cambio / Validación del correo electrónico",
-                "change-validate-address": "Cambiar o validar el correo electrónico",
-                "email": {
-                    "label": "Correo electrónico",
-                    "placeholder": "Correo electrónico"
-                },
-                "buttons": {
-                    "verify": "Actualizar y validar correo electrónico"
-                }
-            }
+          "label": "Correo electrónico",
+          "placeholder": "Correo electrónico"
         },
-        "registration": {
-            "code": "Código de registro"
-        },
-        "new-desktop": {
-            "title": "Nuevo escritorio:",
-            "section-title-template": "Selecciona una plantilla:",
-            "section-title-os-template": "Perfil hardware:",
-            "section-title-advanced": "Opciones avanzadas",
-            "desktop-template": "Plantilla",
-            "filter": "Filtrar",
-            "filter-placeholder": "Escribe para buscar",
-            "template-table-column-headers": {
-                "selected": "Seleccionado",
-                "image": "Imagen",
-                "name": "Nombre",
-                "description": "Descripción",
-                "category": "Categoría",
-                "group": "Grupo",
-                "user": "Usuario"
-            }
-        },
-        "new-template": {
-            "title": "Crear nueva plantilla",
-            "name": "Nombre",
-            "description": "Descripción",
-            "enabled": "Habilitada",
-            "disabled": "Deshabilitada"
-        },
-        "duplicate-template": {
-            "title": "Duplicar plantilla"
-        },
-        "new-deployment": {
-            "title": "Crear nuevo despliegue:",
-            "name": "Nombre del despliegue",
-            "visible": "Visible para los usuarios",
-            "not-visible": "No visible para los usuarios",
-            "section-title-template": "Seleccionar una plantilla:",
-            "desktop": {
-                "title": "Datos del nuevo escritorio:",
-                "name": "Nombre del escritorio",
-                "description": "Descripción del escritorio",
-                "template": "Plantilla"
-            },
-            "filter": "Filtro",
-            "filter-placeholder": "Escribe para buscar",
-            "template-table-column-headers": {
-                "selected": "Seleccionado",
-                "image": "Imagen",
-                "name": "Nombre",
-                "description": "Descripción",
-                "category": "Categoría",
-                "group": "Grupo",
-                "user": "Usuario"
-            },
-            "user-permissions": {
-                "title": "Permisos de usuario",
-                "recreate": {
-                    "title": "Recrear escritorio",
-                    "description": "Permite a los usuarios reiniciar su escritorio a su estado original."
-                }
-            },
-            "error": {
-                "groups": "Se debe escoger como mínimo un grupo",
-                "users": "Se debe escoger como mínimo un usuario",
-                "groups-users": "Se debe escoger como mínimo un usuario o un grupo"
-            }
-        },
-        "edit-deployment": {
-            "desktop": {
-                "title": "Editar escritorios del despliegue"
-            }
-        },
-        "new-media": {
-            "title": "Crear nuevo medio:",
-            "url": "Dirección web",
-            "type": "Tipo",
-            "name": "Nombre del medio",
-            "description": "Descripción",
-            "select-type": "Por favor, seleccione una opción"
-        },
-        "edit": {
-            "title": "Editar '{name}'"
-        },
-        "domain": {
-            "info": {
-                "title": "Información",
-                "name": "Nombre",
-                "description": "Descripción"
-            },
-            "viewers": {
-                "title": "Visores",
-                "fullscreen-disabled": "Pantalla completa desactivada",
-                "fullscreen-enabled": "Pantalla completa activada",
-                "guest": {
-                    "title": "Login RDP",
-                    "warning": "ATENCIÓN: La contraseña se guardará como texto plano!!",
-                    "username": "Usuario",
-                    "password": "Contraseña"
-                }
-            },
-            "hardware": {
-                "warning": "ATENCIÓN: El siguiente hardware se modificó por permisos:",
-                "title": "Hardware",
-                "vcpus": "vCPUS",
-                "memory": "Memoria (GB)",
-                "videos": "Videos",
-                "boot": "Boot",
-                "disk-bus": "Bus de disco",
-                "interfaces": "Redes",
-                "disk-size": "Tamaño del disco (GB)"
-            },
-            "bookables": {
-                "title": "Reservables",
-                "vgpus": "GPU"
-            },
-            "media": {
-                "title": "Media",
-                "isos": "Isos",
-                "floppies": "Disquetes",
-                "placeholder": "Escribe almenos 2 carácteres para buscar."
-            },
-            "image": {
-                "title": "Imagen"
-            }
-        },
-        "direct-link": {
-            "modal": {
-                "title": "Enlace al visor directo",
-                "enable": "Habilitar acceso mediante visor directo"
-            }
-        },
-        "increase": {
-            "modal": {
-                "title": "Incrementa el espacio del disco",
-                "buttons": {
-                    "update": "Actualizar"
-                }
-            },
-            "errors": {
-                "too-small": "El nuevo tamaño debe ser mayor que el tamaño actual"
-            },
-            "current-size": "Tamaño actual:",
-            "new-size": "Nuevo tamaño:",
-            "priority": "Prioridad",
-            "priority-options": {
-                "low": "Baja",
-                "medium": "Media",
-                "high": "Alta"
-            }
-        },
-        "filter-placeholder": "Escribe para buscar",
-        "clear": "Limpia",
-        "cancel": "Cancela",
-        "submit": "Envía",
-        "create": "Crea",
-        "duplicate": "Duplicar",
-        "show-pages": "Mostrar"
-    },
-    "components": {
-        "select-search": {
-            "empty": "No hay opciones disponibles"
-        },
-        "navbar": {
-            "desktops": "Escritorios",
-            "help": "Ayuda",
-            "vpn": {
-                "download": "VPN",
-                "downloaded": {
-                    "title": "Descargado",
-                    "description": "El archivo de configuración de la VPN se ha descargado correctamente"
-                },
-                "downloadvpn-error": {
-                    "title": "Error",
-                    "description": "No se ha podido descargar el archivo de configuración de la VPN debido a un error"
-                }
-            },
-            "admin": "Administración",
-            "deployments": "Despliegues",
-            "templates": "Plantillas",
-            "bookings": {
-                "text": "Reservas",
-                "summary": "Resumen",
-                "planning": "Planificación"
-            },
-            "logout": "Cerrar sesión",
-            "profile": "Perfil",
-            "media": "Medios",
-            "viewers": "Visores",
-            "storage": "Almacenamiento"
-        },
-        "statusbar": {
-            "desktops-started": "Escritorios arrancados",
-            "checkbox-text": "Solo arrancados",
-            "checkbox-text-short": "Arrancados",
-            "new-desktop": "Nuevo Escritorio",
-            "new-deployment": "Nuevo despliegue",
-            "new-media": "Nuevo medio",
-            "upload-file": "Subir Fichero",
-            "cancel": "Cancelar",
-            "select": "Selecciona",
-            "deployment": {
-                "back": "Volver a despliegues",
-                "buttons": {
-                    "start": {
-                        "title": "Iniciar todos los escritorios del despliegue"
-                    },
-                    "stop": {
-                        "title": "Parar todos los escritorios del despliegue"
-                    },
-                    "videowall": {
-                        "title": "Ir a videowall"
-                    },
-                    "make-visible": {
-                        "title": "Hacer visible"
-                    },
-                    "make-not-visible": {
-                        "title": "Hacer invisible"
-                    },
-                    "recreate": {
-                        "title": "Recrear despliegue"
-                    },
-                    "download-direct-viewer": {
-                        "title": "Descargar fichero de visores directos"
-                    },
-                    "delete": {
-                        "title": "Eliminar despliegue"
-                    },
-                    "edit": {
-                        "title": "Editar despliegue"
-                    },
-                    "allowed": {
-                        "title": "Editar usuarios"
-                    },
-                    "co-owners": {
-                        "title": "Editar copropietarios"
-                    }
-                }
-            },
-            "videowall": {
-                "back": "Volver al despliegue"
-            },
-            "recycle-bins": {
-                "max-time": "Los elementos de la papelera de reciclaje se eliminarán definitivamente después de: {time}.",
-                "immediately": "La papelera de reciclaje se mantendrá vacía, los elementos se eliminan definitivamente de manera inmediata.",
-                "empty-recycle-bin": "Vaciar papelera de reciclaje"
-            },
-            "recycle-bin": {
-                "title": "Papelera de reciclaje",
-                "back": "Volver a la papelera",
-                "buttons": {
-                    "restore": {
-                        "title": "Restaurar"
-                    },
-                    "delete": {
-                        "title": "Eliminar"
-                    },
-                    "info": {
-                        "title": "Más información"
-                    }
-                }
-            }
-        },
-        "desktop-cards": {
-            "actions": {
-                "delete": "Borrar",
-                "template": "Convertir en plantilla",
-                "booking": "Reservar",
-                "edit": "Editar",
-                "direct-link": "Enlace directo",
-                "recreate": "Recrear"
-            },
-            "table-header": {
-                "name": "Nombre",
-                "state": "Estado",
-                "description": "Descripción",
-                "desktop-size": "Tamaño",
-                "action": "Acción",
-                "viewers": "Visores",
-                "last": "Último acceso"
-            },
-            "notification-bar": {
-                "next-booking": "Próxima reserva",
-                "no-next-booking": "El escritorio con vGPU no está reservado!",
-                "shutdown": "Apagado automático a las {date}",
-                "booking-ends": "La reserva acaba a las "
-            },
-            "no-info-default": "No hay descripción disponible",
-            "open-with": "Acceder con visor",
-            "storage-operation": {
-                "increase": "El tamaño de disco de este escritorio está siendo incrementado",
-                "virt_win_reg": "Se está editando el registro",
-                "move": "El disco de este escritorio se está moviendo"
-            },
-            "filter-label": "Filtrar"
-        },
-        "deployment-desktop-list": {
-            "actions": {
-                "delete": "Borrar",
-                "hide": "Hacer invisible",
-                "show": "Hacer visible"
-            },
-            "table-header": {
-                "user": "Usuario",
-                "state": "Estado",
-                "group": "Grupo",
-                "action": "Acción",
-                "viewers": "Visores",
-                "last": "Último acceso"
-            },
-            "filter-label": "Filtro"
-        },
-        "help": {
-            "close-guide": "Cerrar la guía",
-            "local-client": "Utilizar el cliente local (recomendado)",
-            "best-performance": "Es la opción con el mejor rendimiento",
-            "install": "Instalar",
-            "other-windows-versions": "otras versiones de Windows",
-            "once-installed": "Una vez instalado, tienes que hacer clic en el botón de «cliente local», y se descargará el fichero del escritorio virtual",
-            "use-browser": "Utilizar el navegador",
-            "no-install": "No es necesario instalar ningún aplicativo externo, {worse-performance}. Simplemente tienes que hacer clic en el botón y se abrirá el escritorio virtual en una pestaña nueva",
-            "worse-performance": "pero el rendimiento será peor",
-            "spice-client-required": "Es necesario instalar un aplicativo externo.",
-            "text": {
-                "macos": "macOS es una plataforma sin soporte, se tiene que utilizar el navegador",
-                "ios": "En el sistema operativo iOS se tiene que instalar el aplicativo siguiente:",
-                "windows": "En el sistema operativo Windows se tiene que descargar y ejecutar uno los siguientes instaladores:",
-                "android": "En el sistema operativo Android se tiene que instalar el siguiente aplicativo:",
-                "linux": "En el sistema operativo Linux se tienen que ejecutar las siguientes órdenes:"
-            }
-        },
-        "not-found": {
-            "title": "No hemos encontrado la dirección solicitada",
-            "home": "Volver al inicio"
-        },
-        "title": {
-            "logo-alt": "Logotipo"
-        },
-        "rdp-modal": {
-            "message": {
-                "connecting": "Conectando con el servidor…",
-                "disconnected": "Se ha perdido la conexión",
-                "unstable": "La conexión con el servidor es inestable",
-                "error": "Error de conexión",
-                "cookie-error": "No se ha encontrado la cookie necesaria para realizar la conexión",
-                "cookie-expired": "La cookie necesaria para realizar la conexión ha caducado"
-            },
-            "title": {
-                "connecting": "Conectando",
-                "disconnected": "Desconectado",
-                "unstable": "Inestable",
-                "error": "Error"
-            },
-            "button-refresh": "Recargar"
-        },
-        "bookings": {
-            "item": {
-                "event-titles": {
-                    "available": "Disponible",
-                    "unavailable": "No disponible",
-                    "overridable": "Sobreescribible"
-                },
-                "enough-units": "Suficientes unidades",
-                "units": "unidades",
-                "split-labels": {
-                    "availability": "Disponibilidad",
-                    "bookings": "Reservas"
-                },
-                "status-bar": {
-                    "buttons": {
-                        "add-booking": "Añadir reserva"
-                    },
-                    "forbid-time": "Antelación requerida",
-                    "max-time": "Tiempo máximo de reserva",
-                    "max-items": "Máximo de reservas"
-                },
-                "modal": {
-                    "title": "Título",
-                    "start-date": "Fecha de inicio",
-                    "start-time": "Hora de inicio",
-                    "end-date": "Fecha de finalización",
-                    "end-time": "Hora de finalización",
-                    "profile": "Perfil",
-                    "select-profile": "Por favor seleccione un perfil",
-                    "create": {
-                        "modal-title": "Añadir reserva",
-                        "button": "Añadir reserva"
-                    },
-                    "edit": {
-                        "modal-title": "Editar reserva",
-                        "button": "Guardar cambios"
-                    },
-                    "view": {
-                        "modal-title": "Ver reserva"
-                    },
-                    "delete": {
-                        "button": "Eliminar"
-                    }
-                },
-                "new-planning": {
-                    "bookable-type": "Tipus de reservable",
-                    "bookable-item": "Nom del reservable"
-                }
-            },
-            "errors": {
-                "forbid": "Necesitas más antelación para crear esta reserva",
-                "maximum-time": "No puedes crear una reserva de tanta duración",
-                "end-before-start": "La reserva no puede terminar antes de su fecha de inicio",
-                "minimum-time": "La reserva ha de durar como mínimo 5 minutos",
-                "past-booking": "No se puede crear una reserva en el pasado"
-            },
-            "summary": {
-                "title": "Todas tus reservas"
-            }
-        },
-        "profile": {
-            "change-password": "Cambiar la contraseña",
-            "change-email": "Cambiar / Verificar correo electrónico",
-            "info": {
-                "name": "Nombre",
-                "email": "Email",
-                "authentication": "Autenticación",
-                "role": "Rol",
-                "category": "Categoría",
-                "group": "Grupo",
-                "user-storage": "Almacenamiento de usuario"
-            },
-            "language": "Idioma",
-            "quota": {
-                "title": "Restricción aplicada: {restriction}",
-                "restrictions": {
-                    "user_quota": "Cuota de usuario",
-                    "group_quota": "Cuota de grupo",
-                    "category_quota": "Cuota de categoría"
-                },
-                "desktops": "Escritorios creados / Total de escritorios",
-                "volatile": "Escritorios temporales creados / Escritorios temporales totales",
-                "media": "Medios creados / Total de medios",
-                "memory": "Memoria utilizada / Total de memoria (GB)",
-                "running": "Escritorios arrancados / Total de escritorios arrancados",
-                "templates": "Plantillas creadas / Total de plantillas",
-                "vcpus": "Vcpus utilitzadas / Total de vcpus",
-                "total-disk-size": "Tamaño de disco utilizado / Total de tamaño de disco",
-                "total-media-size": "Tamaño de medios utilizado / Total de tamaño de medios",
-                "total-size": "Tamaño utilizado / Total de tamaño",
-                "unit": "Tamaño unidad personal / Tamaño total unidad personal (MB)",
-                "deployments_total": "Despliegues creados / Total de despliegues",
-                "deployment_desktops": "Maximo de escritorios por despliegue",
-                "started_deployment_desktops": {
-                    "title": "Escritorios de despliegue arrancados",
-                    "description": "Cantidad total de escritorios de despliegues que puede arrancar el usuario"
-                }
-            },
-            "reset-vpn": "Restaurar VPN"
-        },
-        "start-now-modal": {
-            "title": "Iniciar ahora",
-            "profile": "Perfil",
-            "select-profile": "Selecciona el perfil que se utilizará",
-            "end-date": "Fecha de finalización",
-            "end-time": "Hora de finalización",
-            "select-end-date": "Selecciona hasta cuando se utilizará",
-            "button": "Iniciar escritorio"
-        },
-        "cant-start-now-modal": {
-            "title": {
-                "available-profile": "El modelo de tarjeta gráfica de este escritorio ({profile}) no está disponible en este momento",
-                "no-available-profile": "No hay ningún otro modelo de tarjeta gráfica disponible en este momento"
-            },
-            "change-desktop-gpu": {
-                "text": "Se puede modificar a un modelo de tarjeta gráfica disponible ahora e iniciarlo (puede afectar al rendimiento del escritorio)",
-                "button": "Cambiar e iniciar"
-            },
-            "go-to-bookings": {
-                "text": "Reservar el escritorio con el modelo de tarjeta gráfica actual consultando su planificación",
-                "button": "Reservar escritorio"
-            }
+        "buttons": {
+          "verify": "Actualizar y validar correo electrónico"
         }
+      }
     },
-    "views": {
-        "cancel": "Cancelar",
-        "error": {
-            "codes": {
-                "403": {
-                    "title": "Acceso denegado.",
-                    "subtitle": "No dispones de permisos suficientes para acceder a este contenido.",
-                    "home": "Para encontrar alternativas puedes ir ",
-                    "logout": "Puedes intentar cerrar la sesión e iniciarla de nuevo "
-                },
-                "500": {
-                    "title": "Error inesperado.",
-                    "subtitle": "No se ha podido acceder al contenido solicitado.",
-                    "home": "Para encontrar alternativas puedes ir ",
-                    "logout": "Puedes intentar cerrar la sesión e iniciarla de nuevo "
-                }
-            },
-            "here": "aquí."
-        },
-        "login": {
-            "title": "Iniciar Sesión",
-            "form": {
-                "select-category": "Por favor, seleccione una opción",
-                "usr": "Nombre de usuario",
-                "pwd": "Contraseña",
-                "login": "Iniciar sesión",
-                "forgot-password": "Has olvidado la contraseña?"
-            },
-            "errors": {
-                "401": "Usuario o password incorrecto",
-                "429": "Se han producido demasiados intentos de inicio de sesión. Vuelva a intentarlo a {time}",
-                "500": "Error en el servidor",
-                "generic": "Se ha producido un error"
-            },
-            "other-logins": "O iniciar sesión con",
-            "powered-by": "Funciona con {isardvdi}",
-            "isard-logo-alt": "El logotipo de IsardVDI es la cabeza de un rebeco."
-        },
-        "select-category": {
-            "title": "Selecciona una categoría para iniciar sesión",
-            "maintenance": "Esta categoría se encuentra en mantenimiento en estos momentos",
-            "subtitle": "Sesión iniciada como {user}",
-            "logout": "Cerrar sesión"
-        },
-        "maintenance": {
-            "title": "Actualmente, el servicio de Isard se encuentra en mantenimiento",
-            "the-service": "El servicio volverá a estar disponible en un rato",
-            "sorry": "Disculpen las molestias",
-            "go-login": "Ir a inicio de sesión"
-        },
-        "not-found": {
-            "title": "Algo fue mal.",
-            "subtitle": "El contenido que buscabas parece no estar aquí.",
-            "home": "Para encontrar alternativas puedes ir ",
-            "here": "aquí."
-        },
-        "register": {
-            "title": "Registro",
-            "code": "Código de registro",
-            "register": "Registrarse",
-            "errors": {
-                "401": "Sesión expirada",
-                "403": "El dominio de correo electrónico que estás intentando utilizar no está autorizado para tu categoría.",
-                "404": "Código no encontrado",
-                "409": "El usuario ya existe",
-                "500": "Error en el servidor"
-            }
-        },
-        "select-template": {
-            "template": "Plantilla",
-            "loading": "Cargando plantillas",
-            "no-templates": {
-                "title": "No hay ninguna plantilla para éste usuario",
-                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
-            },
-            "no-desktops": {
-                "title": "No hay ningún escritorio para éste usuario",
-                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
-            },
-            "no-desktops-filtered": {
-                "title": "No hay escritorios para mostrar con los filtros actuales",
-                "subtitle": "Podéis crear un escritorio nuevo con el botón superior derecho"
-            },
-            "no-templates-filtered": {
-                "title": "No hay plantillas para mostrar con los filtros actuales"
-            },
-            "which-template": "¿Qué escritorio quieres usar?",
-            "persistent": "Escritorios persistentes",
-            "persistent-compact": "Persistentes",
-            "volatile": "Escritorios temporales",
-            "volatile-compact": "Temporales",
-            "viewers": "Visores",
-            "viewer-name": {
-                "file-spice": "SPICE",
-                "browser-vnc": "VNC en navegador",
-                "file-rdpvpn": "RDP VPN",
-                "browser-rdp": "RDP en navegador",
-                "file-rdpgw": "RDP"
-            },
-            "remove": "Eliminar",
-            "notification": {
-                "loading": {
-                    "title": "Cargando",
-                    "description": "Esperando la respuesta del servidor"
-                },
-                "downloaded": {
-                    "title": "Descargado",
-                    "description": "El escritorio se ha descargado correctamente"
-                }
-            },
-            "error": {
-                "create-error": {
-                    "title": "Error",
-                    "description": "No se ha podido crear el escritorio virtual debido a un error"
-                },
-                "create-quota": {
-                    "title": "Error",
-                    "description": "Dispones de demasiados escritorios"
-                },
-                "create-timeout": {
-                    "title": "Tiempo excedido",
-                    "description": "El escritorio se está creando, puede tardar varios minutos"
-                },
-                "start-error": {
-                    "title": "Error",
-                    "description": "No se ha podido iniciar el escritorio virtual debido a un error"
-                },
-                "start-quota": {
-                    "title": "Error",
-                    "description": "Estás ejecutando demasiados escritorios al mismo tiempo"
-                },
-                "start-timeout": {
-                    "title": "Tiempo excedido",
-                    "description": "El escritorio se está iniciando, puede tardar varios minutos"
-                },
-                "open-error": {
-                    "title": "Error",
-                    "description": "No se ha podido abrir el escritorio virtual debido a un error"
-                },
-                "stop-error": {
-                    "title": "Error",
-                    "description": "No se ha podido parar el escritorio virtual debido a un error"
-                },
-                "stop-timeout": {
-                    "title": "Tiempo excedido",
-                    "description": "El escritorio se está parando, puede tardar varios minutos"
-                },
-                "delete-error": {
-                    "title": "Error",
-                    "description": "No se ha podido eliminar el escritorio virtual debido a un error"
-                }
-            },
-            "status": {
-                "notCreated": {
-                    "action": "Crear"
-                },
-                "creating": {
-                    "text": "Creando",
-                    "action": "Creando"
-                },
-                "failed": {
-                    "text": "Fallido",
-                    "action": "Reintentar"
-                },
-                "started": {
-                    "text": "Iniciado",
-                    "action": "Parar"
-                },
-                "starting": {
-                    "text": "Iniciando",
-                    "action": "Iniciando"
-                },
-                "stopped": {
-                    "text": "Parado",
-                    "action": "Iniciar"
-                },
-                "stopping": {
-                    "text": "Parando",
-                    "action": "Parando"
-                },
-                "waitingip": {
-                    "text": "Esperando IP",
-                    "action": "Parar"
-                },
-                "readyCreation": {
-                    "text": "Listo para crear"
-                },
-                "working": {
-                    "text": "Esperando",
-                    "action": "trabajando"
-                },
-                "shutting-down": {
-                    "text": "Apagando",
-                    "action": "Forzar parada"
-                },
-                "downloading": {
-                    "text": "Descargando"
-                },
-                "forcedeleting": {
-                    "text": "Borrando",
-                    "action": "Borrando"
-                },
-                "paused": {
-                    "text": "Pausado",
-                    "action": "Parar"
-                },
-                "reset": {
-                    "text": "Reiniciar",
-                    "action": "Reiniciando"
-                },
-                "updating": {
-                    "text": "Procesando",
-                    "action": "Procesando"
-                },
-                "maintenance": {
-                    "text": "En mantenimiento",
-                    "action": "Cancelar operación"
-                }
-            }
-        },
-        "deployments": {
-            "no-deployments": {
-                "title": "No existen deployments de este usuario",
-                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
-            },
-            "table-header": {
-                "name": "Nombre",
-                "visible": "Visible",
-                "started-desktops": "Arrancados",
-                "visible-desktops": "Visibles",
-                "total-desktops": "Total",
-                "actions": "Acciones",
-                "template": "Plantilla",
-                "desktop-name": "Nombre del escritorio",
-                "description": "Descripción"
-            }
-        },
-        "deployment": {
-            "no-started-desktops": {
-                "title": "Este despliegue no tiene ningún escritorio iniciado"
-            },
-            "desktop": {
-                "not-available": "Escritorio no disponible",
-                "desktops": "Escritorios",
-                "started": "Iniciados",
-                "visible": "Visibles"
-            },
-            "visibility-warning": "Los escritorios de este despliegue son {visibility}.",
-            "visibility": {
-                "visible": "Visibles",
-                "not-visible": "No visibles"
-            },
-            "modal": {
-                "title": {
-                    "make-visible": "Hacer que el despliegue '{name}' sea visible",
-                    "make-invisible": "Hacer que el despliegue '{name}' sea invisible",
-                    "download-csv": "Descargar CSV de visores directos de '{name}'",
-                    "delete": "Eliminar despliegue",
-                    "co-owners": "Editar copropietarios de '{name}'"
-                },
-                "body": {
-                    "text": "Esta acción es irreversible y se perderán todos los datos asociados.",
-                    "send-to-recycle-bin": "Enviar despliegue a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente).",
-                    "invisible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en este despliegue. El procedimiento los hará todos invisibles para los usuarios.",
-                    "visible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en este despliegue. El procedimiento los hará todos invisibles para los usuarios.",
-                    "co-owner-warning-delete": "Los copropietarios no pueden eliminar despliegues. Por favor, contacta con el propietario para eliminar este despliegue.",
-                    "warning-co-owner": "Como copropietario no estás autorizado para realizar esta acción. Por favor, contacta con el propietario de este despliegue.",
-                    "co-owners-warning": "AVISO! Los usuarios establecidos como copropietarios tendrán los mismos permisos que el propietario, excepto para cambiar los propietarios y borrar el despliegue.",
-                    "co-owners-label": "Copropietarios:",
-                    "owner-label": "Propietario: {owner}"
-                },
-                "option": {
-                    "dont-stop-desktops": "Hacer invisible este despliegue para los usuarios y permitir el uso de los escritorios hasta que se paren",
-                    "stop-desktops": "Hacer invisible este despliegue para los usuarios y parar todos los escritorios",
-                    "make-visible": "Hacer visible este despliegue para que los usuarios tengan acceso a los escritorios",
-                    "keep-csv": "Mantener los enlaces y descargar el fichero CSV",
-                    "reset-csv": "Reestablecer los enlaces del despliegue (los enlaces generados previamente no estarán disponibles) y descargar el fichero CSV"
-                },
-                "confirmation": {
-                    "stop": "Parar escritorios",
-                    "dont-stop": "No parar escritorios",
-                    "make-visible": "Hacer visible",
-                    "keep-csv": "Mantener URLs y descargar CSV",
-                    "reset-csv": "Reestablecer URLs y descargar CSV",
-                    "delete": "Eliminar",
-                    "co-owners": "Actualizar copropietarios"
-                }
-            }
-        },
-        "deployment-desktop-list": {
-            "actions": {
-                "delete": "Eliminar"
-            },
-            "table-header": {
-                "user": "Usuario",
-                "state": "Estado",
-                "group": "Grupo",
-                "action": "Acción",
-                "viewers": "Visores"
-            },
-            "filter-label": "Filtro"
-        },
-        "direct-viewer": {
-            "title": "Acceso a los visores del escritorio:",
-            "file": {
-                "title": "Acceder con aplicación",
-                "subtitle": "Es necesario tener instalado programario específico (más fluido)"
-            },
-            "browser": {
-                "title": "Acceder desde este navegador",
-                "subtitle": "No requiere instalar nada en el ordenador"
-            },
-            "waitingip": "Esperando a que el escritorio esté arrancado",
-            "description": {
-                "vnc": "Acceder al escritorio directamente desde este navegador",
-                "rdp": "Acceder al escritorio directamente desde este navegador (requiere el usuario y la contraseña de windows del escritorio)",
-                "spice": "Acceder al escritorio mediante un fichero que debe abrirse con el programa remote-viewer",
-                "rdpgw": "Windows incorpora la aplicación necesaria para su uso"
-            },
-            "help": {
-                "spice": {
-                    "spice-help": "Instrucciones de instalación de SPICE",
-                    "local-client": "Utilizar el cliente local (recomendado)",
-                    "best-performance": "Es la opción con el mejor rendimiento",
-                    "spice-client-required": "pero requiere instalar un aplicativo externo.",
-                    "generic-text": "En el siguiente enlace se puede consultar enlaces de descarga e instrucciones para instalarlo:",
-                    "download-install": "Descarga de software de visores",
-                    "once-installed": "Después de la instalación, haz clic en el botón «SPICE», y se descargará el archivo del escritorio virtual.",
-                    "close-guide": "Cerrar la guía"
-                },
-                "rdp": {
-                    "rdp-help": "Instrucciones de instalación de RDP",
-                    "local-client": "Utilizar el cliente RDP (recomendado)",
-                    "included": "Windows incorpora la aplicación necesaria para utilizarlo,",
-                    "client-required": "pero otros sistemas operativos podrían requerir la instalación de un aplicativo externo. Consulta las instrucciones de instalación:",
-                    "download-install": "Descarga de software de visores",
-                    "once-installed": "Después de la instalación, haz clic en el botón 'RDP', que descargará el archivo del escritorio virtual.",
-                    "close-guide": "Cerrar la guía"
-                }
-            },
-            "reset-modal": {
-                "title": "Reiniciar escritorio",
-                "option": {
-                    "reset-desktop": "Forzar un reinicio del escritorio es una acción peligrosa. Es el equivalente a quitarle la corriente mientras está en marcha. Si puedes, páralo desde dentro de un visor."
-                },
-                "confirmation": {
-                    "reset-desktop": "Forzar reinicio del escritorio"
-                }
-            }
-        },
-        "templates": {
-            "tabs": {
-                "templates": "Tus plantillas",
-                "templates-compact": "Tuyas",
-                "shared-templates": "Plantillas compartidas contigo",
-                "shared-templates-compact": "Compartido"
-            },
-            "no-templates": {
-                "title": "No hay plantillas para este usuario",
-                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
-            },
-            "no-shared-templates": {
-                "title": "No hay plantillas compartidas con este usuario",
-                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
-            },
-            "table-header": {
-                "name": "Nombre",
-                "description": "Descripción",
-                "actions": "Acciones",
-                "template-size": "Tamaño"
-            },
-            "buttons": {
-                "allowed": {
-                    "title": "Cambiar permisos"
-                },
-                "disable": {
-                    "title": "Deshabilitar"
-                },
-                "enable": {
-                    "title": "Habilitar"
-                },
-                "edit": {
-                    "title": "Editar"
-                },
-                "duplicate": {
-                    "title": "Duplicar plantilla"
-                },
-                "delete": {
-                    "title": "Eliminar plantilla"
-                },
-                "convert": {
-                    "title": "Convertir plantilla en escritorio"
-                }
-            },
-            "modal": {
-                "delete": {
-                    "title": "Aviso de dependencia",
-                    "warning": {
-                        "pending": "AVISO! Algunas plantillas y escritorios dependen de esta plantilla, los cuales NO son de tu propiedad.",
-                        "delete": "AVISO! Estas plantillas y escritorios dependen de esta plantilla y también serán eliminados.",
-                        "footer": "No puedes eliminar esta plantilla. Contacta con tu administrador."
-                    },
-                    "button": {
-                        "delete": "Eliminar plantilla"
-                    },
-                    "table-header": {
-                        "kind": "Tipo",
-                        "name": "Nombre",
-                        "user": "Usuario"
-                    }
-                },
-                "convert": {
-                    "title": {
-                        "warning": "Aviso de dependencia",
-                        "ok": "Convertir plantilla '{name}' en escritorio"
-                    },
-                    "warning": {
-                        "title": "Para poder convertir esta plantilla a escritorio es necesario que la plantilla no tenga elementos derivados.",
-                        "pending": "La plantilla seleccionada tiene {ammount} plantillas, escritorios o despliegues de otros usuarios que dependen de esta plantilla. Contacta con tu administrador.",
-                        "delete": "Los siguientes recursos de tu propiedad se eliminarán en caso de convertir a escritorio. Esta acción es irreversible.",
-                        "footer": "No puedes convertir esta plantilla en un escritorio. Contacta con tu administrador.",
-                        "confirm": "Entiendo que todos estos elementos se eliminarán y quiero continuar.",
-                        "confirm-unchecked": "Debes marcar esta casilla para continuar."
-                    },
-                    "info": {
-                        "title": "Los siguientes cambios se realizarán en esta plantilla:",
-                        "delete": "Todos los elementos que dependen de '{name}' serán eliminados",
-                        "rename": "'{oldName}' se renombrará a '{newName}'",
-                        "kind": "'{name}' se convertirá de plantilla a escritorio"
-                    },
-                    "button": {
-                        "apply": "Convertir plantilla"
-                    },
-                    "table-header": {
-                        "kind": "Tipo",
-                        "name": "Nombre",
-                        "user": "Usuario"
-                    },
-                    "rename": {
-                        "title": "Tu plantilla '{name}' se convertirá en un escritorio",
-                        "label": "Puedes renombrarla ahora si lo deseas: "
-                    }
-                }
-            }
-        },
-        "media": {
-            "tabs": {
-                "media": "Tus medios",
-                "media-compact": "Tuyos",
-                "shared-media": "Medios compartidos contigo",
-                "shared-media-compact": "Compartido"
-            },
-            "no-media": {
-                "title": "No hay medios para este usuario",
-                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
-            },
-            "no-shared-media": {
-                "title": "No hay medios compartidos con este usuario",
-                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
-            },
-            "table-header": {
-                "name": "Nombre",
-                "description": "Descripción",
-                "category": "Categoría",
-                "group": "Grupo",
-                "user": "Usuario",
-                "status": "Estado",
-                "progress-size": "Progreso / Tamaño",
-                "actions": "Acciones"
-            },
-            "buttons": {
-                "allowed": {
-                    "title": "Cambiar permisos"
-                },
-                "delete": {
-                    "title": "Eliminar medio"
-                },
-                "new-desktop": {
-                    "title": "Crear nuevo escritorio"
-                },
-                "download": {
-                    "title": "Descargar medio"
-                },
-                "stop-download": {
-                    "title": "Parar descarga"
-                }
-            },
-            "status": {
-                "downloading": "Descargando",
-                "faileddeleted": "Descarga fallida",
-                "downloadfailed": "Descarga fallida",
-                "downloadaaborting": "Abortando descarga",
-                "downloadstarting": "Iniciando descarga",
-                "resetdownloading": "Reiniciando descarga",
-                "downloaded": "Descargado",
-                "deleting": "Borrando",
-                "maintenance": "Mantenimiento",
-                "downloadaborting": "Abortando descarga",
-                "downloadfailedinvalidformat": "Formato no válido"
-            },
-            "delete-media": {
-                "title": "Borrar medio",
-                "warning": "Este medio se eliminará de los siguientes escritorios. En caso de estar iniciados se pararán.",
-                "table-header": {
-                    "name": "Nombre",
-                    "user": "Usuario",
-                    "kind": "Tipo"
-                }
-            }
-        },
-        "storage": {
-            "no-storage": {
-                "title": "No hay discos para este usuario",
-                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
-            },
-            "table-header": {
-                "domains": "Escritorios/plantillas",
-                "quantity-domains": "№ escritorios/plantillas",
-                "actual-size": "Tamaño ocupado",
-                "virtual-size": "Tamaño total",
-                "percentage": "% Cuota",
-                "last": "Último acceso",
-                "actions": "Acciones"
-            },
-            "buttons": {
-                "increase": {
-                    "title": "Incrementa el espacio del disco"
-                }
-            }
-        },
-        "recycle-bin": {
-            "title": {
-                "deployment": "Depliegue '{name}' eliminado en fecha {date}",
-                "desktop": "Escritorio '{name}' eliminado en fecha {date}",
-                "template": "Plantilla '{name}' eliminada en fecha {date}",
-                "bulk": "Varios escritorios eliminados en fecha {date}",
-                "user": "Usuario eliminado en fecha {date}"
-            },
-            "desktops": {
-                "title": "Escritorios",
-                "table-header": {
-                    "id": "Id",
-                    "name": "Nombre del escritorio",
-                    "user": "Propietario",
-                    "category": "Categoría",
-                    "group": "Grupo",
-                    "accessed": "Último acceso"
-                }
-            },
-            "templates": {
-                "title": "Plantillas",
-                "table-header": {
-                    "id": "Id",
-                    "name": "Nombre de la plantilla",
-                    "user": "Propietario",
-                    "category": "Categoría",
-                    "group": "Grupo",
-                    "accessed": "Último acceso"
-                }
-            },
-            "deployments": {
-                "title": "Despliegues",
-                "table-header": {
-                    "id": "Id",
-                    "name": "Nombre del despliegue",
-                    "desktop-name": "Nombre del escritorio",
-                    "user": "Propietario",
-                    "category": "Categoría",
-                    "group": "Grupo"
-                }
-            },
-            "storages": {
-                "title": "Almacenamiento",
-                "table-header": {
-                    "id": "Id",
-                    "path": "Ruta",
-                    "status": "Estado",
-                    "format": "Formato",
-                    "size": "Tamaño",
-                    "used": "Utilizado",
-                    "parent": "Padre",
-                    "user": "Usuario",
-                    "category": "Categoría",
-                    "domains": "Dominios"
-                }
-            },
-            "modal": {
-                "title": {
-                    "delete": "Eliminar entrada definitivamente",
-                    "restore": "Restaurar entrada",
-                    "empty": "Vaciar papelera de reciclaje"
-                },
-                "option": {
-                    "delete": "Esta acción es irreversible y se perderán todos los datos asociados. ¿Seguro que desea eliminarla?",
-                    "restore": "Se recuperarán los datos asociados (afectará en caso de tener cuotas aplicadas). ¿Seguro que desea restaurarla?",
-                    "empty": "Se vaciará la papelera de reciclaje. Esta acción es irreversible y se perderán todos los datos asociados. ¿Seguro que desea eliminarla?"
-                },
-                "confirmation": {
-                    "delete": "Eliminar",
-                    "restore": "Restaurar",
-                    "empty": "Vaciar"
-                }
-            }
-        },
-        "recycle-bins": {
-            "title": "Papelera de reciclaje",
-            "no-recycle-bin": {
-                "title": "No hay elementos eliminados de este usuario",
-                "subtitle": "Mueve los elementos que no necesites a la papelera de reciclaje. Se eliminarán definitivamente después de {time}."
-            },
-            "table-header": {
-                "id": "Id",
-                "accessed": "Eliminado en fecha",
-                "size": "Tamaño",
-                "type": "Tipo",
-                "name": "Nombre",
-                "agent-name": "Eliminado por",
-                "status": "Estado",
-                "desktops": "Escritorios",
-                "templates": "Plantillas",
-                "deployments": "Despliegues",
-                "actions": "Acciones"
-            },
-            "status": {
-                "recycled": "Reciclado"
-            },
-            "item-type": {
-                "desktop": "Escritorio",
-                "deployment": "Despliegue",
-                "template": "Plantilla",
-                "bulk": "Múltiples eliminaciones",
-                "user": "Usuario"
-            }
-        },
-        "desktop": {
-            "modal": {
-                "title": {
-                    "delete": "Eliminar escritorio"
-                },
-                "body": {
-                    "text": "Esta acción es irreversible y se perderán todos los datos asociados.",
-                    "send-to-recycle-bin": "Enviar escritorio a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente)."
-                },
-                "confirmation": {
-                    "delete": "Eliminar"
-                }
-            }
-        },
-        "forgot-password": {
-            "title": "Reestablecer contraseña",
-            "label": "Correo electrónico",
-            "placeholder": "Correo electrónico",
-            "description": "Requiere una dirección de correo electrónico verificada por IsardVDI",
-            "reset-password": "Reestablecer contraseña",
-            "email-sent": "Se ha enviado un correo electrónico a la dirección proporcionada para la recuperación de la contraseña. or favor, revisa tu bandeja de entrada y sigue las instrucciones. Redirigiendo al inicio de sesión en {seconds} segundos."
-        },
-        "reset-password": {
-            "password-reset": "La contraseña se ha actualizado correctamente. Redirigiendo al inicio de sesión en {seconds} segundos."
-        },
-        "verify-email": {
-            "title": "Verificación de correo electrónico",
-            "label": "Correo electrónico",
-            "placeholder": "Correo electrónico",
-            "description": "La dirección de correo electrónico será verificada por IsardVDI",
-            "send-verify-email": "Enviar correo de verificación",
-            "email-sent": "Se ha enviado un correo electrónico a la dirección proporcionada para su verificación. Por favor, revisa tu bandeja de entrada y sigue las instrucciones. Redirigiendo al inicio de sesión en {seconds} segundos.",
-            "email-verified": "El correo electrónico se ha verificado correctamente. Redirigiendo al inicio de sesión en {seconds} segundos.",
-            "email-error": "El código de validación proporcionado ha caducado. Redirigiendo al inicio de sesión en {seconds} segundos."
-        },
-        "disclaimer": {
-            "title": "Aviso legal",
-            "reject": "Rechazar",
-            "accept": "Aceptar",
-            "disclaimer-accepted": "Se ha aceptado el aviso legal. Redirigiendo al inicio de sesión en {seconds} segundos."
+    "registration": {
+      "code": "Código de registro"
+    },
+    "new-desktop": {
+      "title": "Nuevo escritorio:",
+      "section-title-template": "Selecciona una plantilla:",
+      "section-title-os-template": "Perfil hardware:",
+      "section-title-advanced": "Opciones avanzadas",
+      "desktop-template": "Plantilla",
+      "filter": "Filtrar",
+      "filter-placeholder": "Escribe para buscar",
+      "template-table-column-headers": {
+        "selected": "Seleccionado",
+        "image": "Imagen",
+        "name": "Nombre",
+        "description": "Descripción",
+        "category": "Categoría",
+        "group": "Grupo",
+        "user": "Usuario"
+      }
+    },
+    "new-template": {
+      "title": "Crear nueva plantilla",
+      "name": "Nombre",
+      "description": "Descripción",
+      "enabled": "Habilitada",
+      "disabled": "Deshabilitada"
+    },
+    "duplicate-template": {
+      "title": "Duplicar plantilla"
+    },
+    "new-deployment": {
+      "title": "Crear nuevo despliegue:",
+      "name": "Nombre del despliegue",
+      "visible": "Visible para los usuarios",
+      "not-visible": "No visible para los usuarios",
+      "section-title-template": "Seleccionar una plantilla:",
+      "desktop": {
+        "title": "Datos del nuevo escritorio:",
+        "name": "Nombre del escritorio",
+        "description": "Descripción del escritorio",
+        "template": "Plantilla"
+      },
+      "filter": "Filtro",
+      "filter-placeholder": "Escribe para buscar",
+      "template-table-column-headers": {
+        "selected": "Seleccionado",
+        "image": "Imagen",
+        "name": "Nombre",
+        "description": "Descripción",
+        "category": "Categoría",
+        "group": "Grupo",
+        "user": "Usuario"
+      },
+      "user-permissions": {
+        "title": "Permisos de usuario",
+        "recreate": {
+          "title": "Recrear escritorio",
+          "description": "Permite a los usuarios reiniciar su escritorio a su estado original."
         }
+      },
+      "error": {
+        "groups": "Se debe escoger como mínimo un grupo",
+        "users": "Se debe escoger como mínimo un usuario",
+        "groups-users": "Se debe escoger como mínimo un usuario o un grupo"
+      }
     },
-    "messages": {
-        "title": {
-            "delete": "Borrar"
-        },
-        "confirmation": {
-            "create-nonpersistent": "ATENCIÓN! Este escritorio es temporal. Al pararlo se eliminarán todos sus datos. Crear escritorio?",
-            "visible-deployment": "Los escritorios serán visibles",
-            "recreate-deployment": "Los escritorios eliminados de '{name}' se recrearán, continuar?",
-            "edit-deployment": "Los escritorios de '{name}' se editarán, continuar?",
-            "delete-deployment": "'{name}' se borrará, continuar?",
-            "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?",
-            "start-deployment-desktops": "Los escritorios de '{name}' se iniciarán, continuar?",
-            "stop-deployment-desktops": "Los escritorios de '{name}' se pararán, continuar?",
-            "delete-event": "La reserva '{name}' se borrará, ¿continuar?",
-            "disable-template": "'{name}' será invisible para sus usuarios y todos los escritorios temporales derivados (si existen) se eliminarán. ¿Continuar?",
-            "enable-template": "'{name}' será visible para sus usuarios, ¿desea continuar?",
-            "delete-media": "El medio '{name}' se borrará, continuar?",
-            "edit-domain": "El hardware de '{name}' se limitará y sus datos se modificarán, continuar?",
-            "new-deployment": "Se crearán {quantity} escritorios, uno por cada usuario seleccionado. Continuar?",
-            "go-to-profile": "Ver cuota",
-            "go-to-bookings": "Reservar escritorio",
-            "change-desktop-gpu": "Modificar el perfil del escritorio",
-            "reset-vpn": "Reestablecer claves de VPN? Se tendrá que descargar un nuevo archivo VPN",
-            "cancel-operation": "¿Cancelar la operación de disco en curso? Esto podría dejar el disco en un estado inconsistente",
-            "recreate-desktop": "'{name}' se recreará, esto eliminará todos los cambios que hayas hecho. ¿Continuar?"
-        },
-        "ok": "De acuerdo",
-        "yes": "Si",
-        "no": "No",
-        "cancel": "Cancelar",
-        "info": {
-            "deleting-desktop": "Borrando escritorio",
-            "opening-desktop": "Abriendo escritorio",
-            "creating-desktop": "Creando escritorio",
-            "file-downloaded": "Fichero descargado",
-            "creating-deployment": "Creando despliegue",
-            "recreating-deployment": "Recreando despliegue",
-            "deployment-recreated": "Despliegue recreado",
-            "deleting-deployment": "Eliminando despliegue",
-            "making-visible-deployment": "Haciendo el despliegue visible",
-            "making-invisible-deployment": "Haciendo el despliegue invisible",
-            "making-visible-desktop": "Haciendo el escritorio visible",
-            "making-invisible-desktop": "Haciendo el escritorio invisible",
-            "starting-desktops": "Iniciando los escritorios del despliegue",
-            "stopping-desktops": "Parando los escritorios del despliegue",
-            "creating-template": "Creando plantilla",
-            "new-template-stop": "Para crear una plantilla es necesario que el escritorio esté parado",
-            "no-availability-event": "No hay disponibilidad en el rango seleccionado",
-            "not-created-event": "No se ha creado el evento",
-            "missing-data": "Faltan datos",
-            "deleting-event": "Borrando el evento",
-            "disable-template": "Haciendo la plantilla invisible",
-            "creating-event": "Creando el evento",
-            "editing-event": "Editando el evento",
-            "enable-template": "Haciendo la plantilla visible",
-            "creating-media": "Creando medio",
-            "image-uploaded": "Imagen subida correctamente",
-            "editing": "Editando",
-            "edit-desktop-stop": "Para editar un escritorio es necesario que esté parado",
-            "deleting-media": "Borrando medio",
-            "downloading-media": "Descargando medio",
-            "stopping-download": "Parando la descarga",
-            "counting-desktops": "Contado cuántos escritorios se crearán",
-            "new-template-server": "No se puede crear una plantilla de servidor",
-            "edit-desktop-server": "No se puede editar un servidor",
-            "delete-desktop-stop": "Para eliminar un escritorio es necesario que esté parado",
-            "wireguard-network-added": "Se ha añadido la red wireguard ya que es necesaria para los visores RDP",
-            "wireguard-viewers-removed": "Los visores RDP se han eliminado ya que requieren la red wireguard",
-            "wireguard-network-required": "No se pueden seleccionar visores RDP ya que la red wireguard es necesaria. Contacta con el administrador para utilizar la red wireguard",
-            "deleting-template": "Eliminando plantilla",
-            "retry-desktop": "Comprobando el estado del escritorio",
-            "restoring-recycle-bin": "Restaurando entrada",
-            "deleting-recycle-bin": "Eliminando entrada",
-            "warning-desktop-waiting-ip": "Aún no se puede abrir el visor seleccionado. Espere por favor...",
-            "reset-vpn": "Claves VPN restauradas",
-            "video-default": "Se ha cambiado el parámetro 'Videos' del escritorio a 'Default', dado que no hay ningún perfil de GPU asignado",
-            "cancelling-operation": "Cancelando operación de disco en curso",
-            "recreate-desktop-stop": "Para recrear un escritorio es necesario que esté parado",
-            "increasing-storage": "Incrementando tamaño de disco. Esto podría tomar unos momentos",
-            "converting-template": "Convertiendo la plantilla a escritorio"
-        },
-        "loading": "Cargando"
+    "edit-deployment": {
+      "desktop": {
+        "title": "Editar escritorios del despliegue"
+      }
     },
-    "errors": {
-        "desktop_new_user_quota_exceeded": "Has excedido tu cuota de creación de escritorios. Es necesario que elimines algún escritorio para crear otro.",
-        "desktop_new_group_limit_exceeded": "Se ha excedido el límite de creación de escritorios del grupo",
-        "desktop_new_category_limit_exceeded": "Se ha excedido el límite de creación de escritorios de la categoría",
-        "desktop_start_user_quota_exceeded": "Has excedido tu cuota de cuota de escritorios arrancados. Es necesario que pares otros escritorios para poder arrancar más.",
-        "desktop_start_group_limit_exceeded": "Se ha excedido el límite de escritorios arrancados del grupo",
-        "desktop_start_category_limit_exceeded": "Se ha excedido el límite de escritorios arrancados de la categoría",
-        "desktop_start_vcpu_quota_exceeded": "Has excedido tu cuota de vCPU. Es necesario que pares otros escritorios para poder arrancar más o editar este escritorio y reducir sus CPUs",
-        "desktop_start_group_vcpu_limit_exceeded": "Se ha excedido el límite de vCPU del grupo",
-        "desktop_start_category_vcpu_limit_exceeded": "Se ha excedido el límite de vCPU de la categoría",
-        "desktop_start_memory_quota_exceeded": "Has excedido tu cuota de memoria. Es necesario que pares otros escritorios para poder arrancar más o editar este escritorio y reducir su memoria.",
-        "desktop_start_group_memory_limit_exceeded": "Se ha excedido el límite de memoria del grupo",
-        "desktop_start_category_memory_limit_exceeded": "Se ha excedido el límite de memoria de la categoría",
-        "desktop_start_incorrect_body_data": "Datos incorrectos para arrancar el escritorio",
-        "desktop_incorrect_body_data": "Datos incorrectos para crear el escritorio",
-        "user_new_category_cuota_exceeded": "Se ha excedido el límite de creación de usuarios de la categoría",
-        "user_new_group_cuota_exceeded": "Se ha excedido el límite de creación de usuarios del grupo",
-        "template_new_user_quota_exceeded": "Has excedido la cuota de plantillas del usuario. Es necesario que elimines o deshabilites alguna plantilla para poder crear o habilitar más.",
-        "template_new_group_limit_exceeded": "Se ha excedido el límite de creación de plantillas del grupo",
-        "template_new_category_limit_exceeded": "Se ha excedido el límite de creación de plantillas de la categoría",
-        "media_new_user_quota_exceeded": "Has excedido tu cuota de creación de medios. Es necesario que elimines algún medio para poder crear más.",
-        "media_new_group_limit_exceeded": "Se ha excedido el límite de creación de medios del grupo",
-        "group_total_size_limit_exceeded": "Se ha excedido el límite de tamaño de disco del grupo",
-        "category_total_size_limit_exceeded": "Se ha excedido el límite de tamaño de disco de la categoría",
-        "media_new_category_limit_exceeded": "Se ha excedido el límite de creación de medios de la categoría",
-        "media_should_not_be_downloading": "El medio no tiene que estar descargandose",
-        "media_url_not_found": "No se ha encontrado la dirección proporcionada",
-        "media_url_not_valid": "La dirección proporcionada no es válida",
-        "media_url_bad_format": "El formato de la dirección proporcionada no es válido",
-        "deployment_new_user_quota_exceeded": "Has excedido tu cuota de creación de despliegues. Es necesario que elimines algún despliegue para poder crear más.",
-        "deployments_new_group_limit_exceeded": "Se ha excedido el límite de creación de despliegues del grupo",
-        "deployments_new_category_limit_exceeded": "Se ha excedido el límite de creación de despliegues de la categoría",
-        "deployment_desktop_new_user_quota_exceeded": "Has excedido la cuota de escritorios para este despliegue. Es necesario que reduzcas la cantidad de escritorios en ese despliegue para poder crearlo.",
-        "deployment_start_user_quota_exceeded": "Has excedido tu cuota de cuota de escritorios arrancados de despliegues. Es necesario que pares otros escritorios de despliegues para poder arrancar más.",
-        "total_size_quota_exceeded": "Has excedido tu cuota de tamaño de disco. Es necesario que elimines un escritorio, una plantilla o un medio para liberar espacio.",
-        "quota_general_exception": "Se ha producido un error relacionado con las cuotas de usuario",
-        "desktop_new_template_forbidden": "Error de permisos creando el escritorio",
-        "username_exists": "Ya existe un usuario con el mismo nombre",
-        "login_failed": "Error durante el login",
-        "forbidden": "Error de permisos sobre el recurso",
-        "not_found": "No encontrado",
-        "category_generic_exception": "Error recuperando la categoría",
-        "register_generic_exception": "Error durante el proceso de registro",
-        "update_generic_exception": "Error durante la actualización",
-        "desktop_action_failed": "Error ejecutando la acción en el escritorio",
-        "template_new_not_created": "Error creando la plantilla",
-        "get_generic_exception": "Error recuperando los datos",
-        "user_new_generic_exception": "Error creando el usuario",
-        "user_delete_generic_exception": "Error borrando el usuario",
-        "templates_get_error": "Error recuperando el template",
-        "desktops_get_error": "Error recuperando el escritorio",
-        "viewer_not_started": "El viewer no está arrancado",
-        "desktop_start_timeout": "Tiempo excedido arrancando el escritorio",
-        "desktop_stop_timeout": "Tiempo excedido parando el escritorio",
-        "bad_request": "Los parametros de la petición son incorrectos",
-        "bad_request_title": "Error en la petición",
-        "undefined_error": "Se ha producido un error",
-        "generic_error": "Se ha producido un error",
-        "booking_new_event_start_error": "La hora de inicio no es válida",
-        "booking_new_event_end_error": "La hora de finalización no es válida",
-        "booking_new_event_overlap_error": "El evento se solapa",
-        "unable_to_update": "No se ha podido actualizar la base de datos.",
-        "unable_to_insert": "No se ha podido introducir en la base de datos.",
-        "conflict": "Conflicto",
-        "conflict_title": "Conflicto",
-        "missing_required_data": "Faltan campos requerido",
-        "not_enough_rights_media": "Se necesitan más permisos para acceder a este medio",
-        "not_enough_rights_desktop": "Se necesitan más permisos para acceder a este escritorio",
-        "incorrect_viewer_body_data": "Datos incorrectos en el visor del escritorio",
-        "unable_to_get_viewer_started": "No es posible obtener el visor de un escritorio que no está arrancado",
-        "user_disabled": "El usuario está deshabilitado",
-        "deployment_desktop_new_group_limit_exceeded": "Se ha excedido el límite de creación de escritorios del grupo '{group}'",
-        "deployment_desktop_new_category_limit_exceeded": "Se ha excedido el límite de creación de escritorios de la categoria '{category}'",
-        "unable_to_stop_desktop_from": "No se puede parar el escritorio desde su estado",
-        "unable_to_start_desktop_from": "No se puede arrancar un escritorio desde su estado",
-        "deployment_stop": "Para realizar esta acción es necesario que los escritorios del despliegue estén parados",
-        "desktop_not_booked": "Para arrancar el escritorio debe estar reservado",
-        "desktop_not_booked_until": "No se puede arrancar el escritorio hasta su próxima reserva: {start}",
-        "booking_does_not_fit_date": "La reserva no se ajusta a la fecha solicitada",
-        "booking_desktop_delete_stop": "Para eliminar esta reserva el escritorio debe estar parado",
-        "booking_deployment_delete_stop": "Para eliminar esta reserva es necesario que los escritorios del despliegue estén parados",
-        "booking_max_items_exceeded": "Se ha excedido el máximo de reservas del usuario",
-        "unable_to_get_viewer_inexistent": "No se puede obtener un visor para un escritorio inexistente",
-        "unable_to_parse_string": "No se puede analizar la cadena",
-        "new_desktop_name_exists": "Ya existe un escritorio con el mismo nombre para este usuario",
-        "new_template_name_exists": "Ya existe una plantilla con el mismo nombre para este usuario",
-        "desktop_same_id": "Ya existe un escritorio con este mismo identificador",
-        "unable_to_change_hypervisor_status": "No se puede cambiar el estado del hipervisor",
-        "unknown_extension": "Se omite el archivo cargado por tener una extensión desconocida",
-        "unable_to_process_vpnfile": "No se puede procesar el archivo de la VPN",
-        "desktop_is_not_visible": "Actualmente el escritorio no es visible para este usuario.",
-        "invalid_end_date": "Fecha de finalización no válida",
-        "invalid_start_date": "Fecha de inicio no válida",
-        "table_not_allowed": "No se puede cambiar el propietario de la tabla",
-        "unable_to_get_domain_jumperurl": "No es posible obtener el enlace al visor directo ya que el dominio no existe",
-        "desktop_transition_initial_status_incorrect": "El estado inicial de la transición del escritorio es incorrecto",
-        "unable_to_gen_enrollment_code": "No se puede generar el código de inscripción",
-        "unable_to_reset_domain_jumperurl": "No se puede restablecer el dominio jumperurl ya que el dominio no existe",
-        "hypervisor_transition_initial_status_incorrect": "Estado inicial de transición del hipervisor incorrecto",
-        "viewer_protocol_not_implemented": "Protocolo de visualización no implementado",
-        "template_already_exists": "El identificador de la plantilla ya existe: ",
-        "unable_to_parse_media": "No se puede analizar la información del medio",
-        "unable_to_change_desktop_status": "No se puede cambiar el estado del escritorio",
-        "duplicated_name": "Nombre duplicado",
-        "unable_to_get_deployment_desktops": "No se pueden obtener los escritorios del despliegue",
-        "new_template_bad_body_data": "Datos de nueva plantilla incorrectos",
-        "get_vnc_viewer_data_error": "Error interno al obtener datos del visor VNC",
-        "only_works_rdp": "Modo 'Only GPU' solamente funciona con visores RDP",
-        "current_plan_doesnt_match": "No hay ninguna GPU disponible con el perfil del escritorio",
-        "needs_deployment_booking": "Ahora mismo no se puede arrancar el escritorio, contacta con el propietario del despliegue para que cree una reserva",
-        "not_enough_advanced_time": "No hay suficiente antelación para arrancar el escritorio",
-        "no_wireguard_keys": "Todavía no hay claves de wireguard en la configuración de la aplicación web. Inténtelo de nuevo pasados unos segundos...",
-        "one_viewer_minimum": "Se ha de seleccionar mínimo un visor",
-        "template_failed": "Debido a un error la plantilla no se puede utilizar para crear un nuevo escritorio, por favor contacta con el administrador",
-        "desktop_storage_does_not_exist": "Debido a un error el escritorio no se puede utilizar, por favor elimínalo o contacta con el administrador",
-        "media_invalid": "El archivo descargado no es un formato de medios válido. Debería ser eliminado, ya que no se puede utilizar",
-        "desktop_storage_not_ready": "El almacenamiento del escritorio no está listo",
-        "vpn_missing_itemid": "Falta el identificador del elemento en la VPN",
-        "no_reservables": "El ítem no tiene reservables",
-        "incorrect_new_plan_body_data": "Datos de nuevo plan incorrectos",
-        "cant_edit_booked_deployment": "No se pueden editar los reservables un despliegue con reservas planeadas",
-        "temporal_new_reservable": "No se puede crear un escritorio temporal de una plantilla con reservables",
-        "password_character_length": "La contraseña debe tener al menos {num} caracter(es)",
-        "password_uppercase": "La contraseña debe tener al menos {num} caracter(es) en mayúscula",
-        "password_lowercase": "La contraseña debe tener al menos {num} caracter(es) en minúscula",
-        "password_digits": "La contraseña debe tener al menos {num} número(s)",
-        "password_special_characters": "La contraseña debe tener al menos {num} caracter(es) especiales: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
-        "password_already_used": "Esta contraseña ya se ha utilizado anteriormente",
-        "password_username": "La contraseña no puede contener el nombre de usuario",
-        "wrong_password_entered": "Contraseña incorrecta",
-        "not_verified": "La dirección de correo no ha sido validada",
-        "user_not_found": "No existe ningún usuario con el correo electrónico proporcionado",
-        "invalid_token": "Token no válido",
-        "old_passwords": "La contraseña actual no puede ser ninguna de las últimas {num} contraseñas",
-        "no_storage_pool_available": "En estos momentos no está disponible la creación de recursos. Espere e inténtelo de nuevo.",
-        "bookings_max_time_reached": "El usuario ha alcanzado el tiempo máximo de escritorios reservables",
-        "desktops_not_stopped": "Los escritorios asociados a este almacenamiento deben estar parados para realizar esta acción",
-        "increase_desktops_not_stopped": "El escritorio asociado a este almacenamiento debe estar parado para incrementar el tamaño del disco",
-        "increase_storage_has_derivatives": "El almacenamiento es de una plantilla y no se puede incrementar",
-        "hypervisors_not_available": "No se ha podido iniciar el escritorio. El sistema puede estar sobrecargado. Inténtelo de nuevo más tarde."
+    "new-media": {
+      "title": "Crear nuevo medio:",
+      "url": "Dirección web",
+      "type": "Tipo",
+      "name": "Nombre del medio",
+      "description": "Descripción",
+      "select-type": "Por favor, seleccione una opción"
     },
-    "router": {
-        "titles": {
-            "desktops": "Escritorios",
-            "new_desktop": "Nuevo escritorio",
-            "images": "Imágenes",
-            "booking": "Reservas",
-            "planning": "Planificación",
-            "templates": "Plantillas",
-            "new_template": "Nueva plantilla",
-            "duplicate_template": "Duplicar plantilla",
-            "deployments": "Despliegues",
-            "new_deployment": "Nuevo despliegue",
-            "deployment_videowall": "Videowall de despliegues",
-            "deployment": "Despliegue",
-            "profile": "Perfil",
-            "media": "Medios",
-            "new_media": "Nuevo medio",
-            "login": "Iniciar sesión",
-            "register": "Registrar",
-            "error": "Error",
-            "not_found": "No encontrado",
-            "maintenance": "Mantenimiento",
-            "direct_viewer": "Visor directo",
-            "edit-domain": "Editar dominio",
-            "storage": "Almacenamiento",
-            "edit-deployment": "Editar despliegue",
-            "recycleBins": "Papelera de reciclaje",
-            "password": "Cambiar contraseña",
-            "recycleBin": "Papelera de reciclaje",
-            "email": "Verificar correo electrónico",
-            "forgot-password": "Reestablecer contraseña",
-            "disclaimer": "Aviso legal",
-            "select_category": "Selecciona una categoría"
+    "edit": {
+      "title": "Editar '{name}'"
+    },
+    "domain": {
+      "info": {
+        "title": "Información",
+        "name": "Nombre",
+        "description": "Descripción"
+      },
+      "viewers": {
+        "title": "Visores",
+        "fullscreen-disabled": "Pantalla completa desactivada",
+        "fullscreen-enabled": "Pantalla completa activada",
+        "guest": {
+          "title": "Login RDP",
+          "warning": "ATENCIÓN: La contraseña se guardará como texto plano!!",
+          "username": "Usuario",
+          "password": "Contraseña"
         }
+      },
+      "hardware": {
+        "warning": "ATENCIÓN: El siguiente hardware se modificó por permisos:",
+        "title": "Hardware",
+        "vcpus": "vCPUS",
+        "memory": "Memoria (GB)",
+        "videos": "Videos",
+        "boot": "Boot",
+        "disk-bus": "Bus de disco",
+        "interfaces": "Redes",
+        "disk-size": "Tamaño del disco (GB)"
+      },
+      "bookables": {
+        "title": "Reservables",
+        "vgpus": "GPU"
+      },
+      "media": {
+        "title": "Media",
+        "isos": "Isos",
+        "floppies": "Disquetes",
+        "placeholder": "Escribe almenos 2 carácteres para buscar."
+      },
+      "image": {
+        "title": "Imagen"
+      }
     },
-    "message-modal": {
-        "title": "Información importante",
-        "messages": {
-            "desktop-time-limit": "El escritorio '{name}' se apagará automáticamente a las {date}.",
-            "searching-resources": "Estamos buscando recursos para el escritorio. Se iniciará en breves minutos, por favor espere."
+    "direct-link": {
+      "modal": {
+        "title": "Enlace al visor directo",
+        "enable": "Habilitar acceso mediante visor directo"
+      }
+    },
+    "increase": {
+      "modal": {
+        "title": "Incrementa el espacio del disco",
+        "buttons": {
+          "update": "Actualizar"
         }
+      },
+      "errors": {
+        "too-small": "El nuevo tamaño debe ser mayor que el tamaño actual"
+      },
+      "current-size": "Tamaño actual:",
+      "new-size": "Nuevo tamaño:",
+      "priority": "Prioridad",
+      "priority-options": {
+        "low": "Baja",
+        "medium": "Media",
+        "high": "Alta"
+      }
+    },
+    "filter-placeholder": "Escribe para buscar",
+    "clear": "Limpia",
+    "cancel": "Cancela",
+    "submit": "Envía",
+    "create": "Crea",
+    "duplicate": "Duplicar",
+    "show-pages": "Mostrar"
+  },
+  "components": {
+    "select-search": {
+      "empty": "No hay opciones disponibles"
+    },
+    "navbar": {
+      "desktops": "Escritorios",
+      "help": "Ayuda",
+      "vpn": {
+        "download": "VPN",
+        "downloaded": {
+          "title": "Descargado",
+          "description": "El archivo de configuración de la VPN se ha descargado correctamente"
+        },
+        "downloadvpn-error": {
+          "title": "Error",
+          "description": "No se ha podido descargar el archivo de configuración de la VPN debido a un error"
+        }
+      },
+      "admin": "Administración",
+      "deployments": "Despliegues",
+      "templates": "Plantillas",
+      "bookings": {
+        "text": "Reservas",
+        "summary": "Resumen",
+        "planning": "Planificación"
+      },
+      "logout": "Cerrar sesión",
+      "profile": "Perfil",
+      "media": "Medios",
+      "viewers": "Visores",
+      "storage": "Almacenamiento"
+    },
+    "statusbar": {
+      "desktops-started": "Escritorios arrancados",
+      "checkbox-text": "Solo arrancados",
+      "checkbox-text-short": "Arrancados",
+      "new-desktop": "Nuevo Escritorio",
+      "new-deployment": "Nuevo despliegue",
+      "new-media": "Nuevo medio",
+      "upload-file": "Subir Fichero",
+      "cancel": "Cancelar",
+      "select": "Selecciona",
+      "deployment": {
+        "back": "Volver a despliegues",
+        "buttons": {
+          "start": {
+            "title": "Iniciar todos los escritorios del despliegue"
+          },
+          "stop": {
+            "title": "Parar todos los escritorios del despliegue"
+          },
+          "videowall": {
+            "title": "Ir a videowall"
+          },
+          "make-visible": {
+            "title": "Hacer visible"
+          },
+          "make-not-visible": {
+            "title": "Hacer invisible"
+          },
+          "recreate": {
+            "title": "Recrear despliegue"
+          },
+          "download-direct-viewer": {
+            "title": "Descargar fichero de visores directos"
+          },
+          "delete": {
+            "title": "Eliminar despliegue"
+          },
+          "edit": {
+            "title": "Editar despliegue"
+          },
+          "allowed": {
+            "title": "Editar usuarios"
+          },
+          "co-owners": {
+            "title": "Editar copropietarios"
+          }
+        }
+      },
+      "videowall": {
+        "back": "Volver al despliegue"
+      },
+      "recycle-bins": {
+        "max-time": "Los elementos de la papelera de reciclaje se eliminarán definitivamente después de: {time}.",
+        "immediately": "La papelera de reciclaje se mantendrá vacía, los elementos se eliminan definitivamente de manera inmediata.",
+        "empty-recycle-bin": "Vaciar papelera de reciclaje"
+      },
+      "recycle-bin": {
+        "title": "Papelera de reciclaje",
+        "back": "Volver a la papelera",
+        "buttons": {
+          "restore": {
+            "title": "Restaurar"
+          },
+          "delete": {
+            "title": "Eliminar"
+          },
+          "info": {
+            "title": "Más información"
+          }
+        }
+      }
+    },
+    "desktop-cards": {
+      "actions": {
+        "delete": "Borrar",
+        "template": "Convertir en plantilla",
+        "booking": "Reservar",
+        "edit": "Editar",
+        "direct-link": "Enlace directo",
+        "recreate": "Recrear"
+      },
+      "table-header": {
+        "name": "Nombre",
+        "state": "Estado",
+        "description": "Descripción",
+        "desktop-size": "Tamaño",
+        "action": "Acción",
+        "viewers": "Visores",
+        "last": "Último acceso"
+      },
+      "notification-bar": {
+        "next-booking": "Próxima reserva",
+        "no-next-booking": "El escritorio con vGPU no está reservado!",
+        "shutdown": "Apagado automático a las {date}",
+        "booking-ends": "La reserva acaba a las "
+      },
+      "no-info-default": "No hay descripción disponible",
+      "open-with": "Acceder con visor",
+      "storage-operation": {
+        "increase": "El tamaño de disco de este escritorio está siendo incrementado",
+        "virt_win_reg": "Se está editando el registro",
+        "move": "El disco de este escritorio se está moviendo"
+      },
+      "filter-label": "Filtrar"
+    },
+    "deployment-desktop-list": {
+      "actions": {
+        "delete": "Borrar",
+        "hide": "Hacer invisible",
+        "show": "Hacer visible"
+      },
+      "table-header": {
+        "user": "Usuario",
+        "state": "Estado",
+        "group": "Grupo",
+        "action": "Acción",
+        "viewers": "Visores",
+        "last": "Último acceso"
+      },
+      "filter-label": "Filtro"
+    },
+    "help": {
+      "close-guide": "Cerrar la guía",
+      "local-client": "Utilizar el cliente local (recomendado)",
+      "best-performance": "Es la opción con el mejor rendimiento",
+      "install": "Instalar",
+      "other-windows-versions": "otras versiones de Windows",
+      "once-installed": "Una vez instalado, tienes que hacer clic en el botón de «cliente local», y se descargará el fichero del escritorio virtual",
+      "use-browser": "Utilizar el navegador",
+      "no-install": "No es necesario instalar ningún aplicativo externo, {worse-performance}. Simplemente tienes que hacer clic en el botón y se abrirá el escritorio virtual en una pestaña nueva",
+      "worse-performance": "pero el rendimiento será peor",
+      "spice-client-required": "Es necesario instalar un aplicativo externo.",
+      "text": {
+        "macos": "MacOS es una plataforma sin soporte, se tiene que utilizar el navegador",
+        "ios": "En el sistema operativo iOS se tiene que instalar el aplicativo siguiente:",
+        "windows": "En el sistema operativo Windows se tiene que descargar y ejecutar uno los siguientes instaladores:",
+        "android": "En el sistema operativo Android se tiene que instalar el siguiente aplicativo:",
+        "linux": "En el sistema operativo Linux se tienen que ejecutar las siguientes órdenes:"
+      }
+    },
+    "not-found": {
+      "title": "No hemos encontrado la dirección solicitada",
+      "home": "Volver al inicio"
+    },
+    "title": {
+      "logo-alt": "Logotipo"
+    },
+    "rdp-modal": {
+      "message": {
+        "connecting": "Conectando con el servidor…",
+        "disconnected": "Se ha perdido la conexión",
+        "unstable": "La conexión con el servidor es inestable",
+        "error": "Error de conexión",
+        "cookie-error": "No se ha encontrado la cookie necesaria para realizar la conexión",
+        "cookie-expired": "La cookie necesaria para realizar la conexión ha caducado"
+      },
+      "title": {
+        "connecting": "Conectando",
+        "disconnected": "Desconectado",
+        "unstable": "Inestable",
+        "error": "Error"
+      },
+      "button-refresh": "Recargar"
     },
     "bookings": {
-        "max_time_reached": "Se ha llegado al tiempo máximo de reservas"
+      "item": {
+        "event-titles": {
+          "available": "Disponible",
+          "unavailable": "No disponible",
+          "overridable": "Sobreescribible"
+        },
+        "enough-units": "Suficientes unidades",
+        "units": "unidades",
+        "split-labels": {
+          "availability": "Disponibilidad",
+          "bookings": "Reservas"
+        },
+        "status-bar": {
+          "buttons": {
+            "add-booking": "Añadir reserva"
+          },
+          "forbid-time": "Antelación requerida",
+          "max-time": "Tiempo máximo de reserva",
+          "max-items": "Máximo de reservas"
+        },
+        "modal": {
+          "title": "Título",
+          "start-date": "Fecha de inicio",
+          "start-time": "Hora de inicio",
+          "end-date": "Fecha de finalización",
+          "end-time": "Hora de finalización",
+          "profile": "Perfil",
+          "select-profile": "Por favor seleccione un perfil",
+          "create": {
+            "modal-title": "Añadir reserva",
+            "button": "Añadir reserva"
+          },
+          "edit": {
+            "modal-title": "Editar reserva",
+            "button": "Guardar cambios"
+          },
+          "view": {
+            "modal-title": "Ver reserva"
+          },
+          "delete": {
+            "button": "Eliminar"
+          }
+        },
+        "new-planning": {
+          "bookable-type": "Tipus de reservable",
+          "bookable-item": "Nom del reservable"
+        }
+      },
+      "errors": {
+        "forbid": "Necesitas más antelación para crear esta reserva",
+        "maximum-time": "No puedes crear una reserva de tanta duración",
+        "end-before-start": "La reserva no puede terminar antes de su fecha de inicio",
+        "minimum-time": "La reserva ha de durar como mínimo 5 minutos",
+        "past-booking": "No se puede crear una reserva en el pasado"
+      },
+      "summary": {
+        "title": "Todas tus reservas"
+      }
+    },
+    "profile": {
+      "change-password": "Cambiar la contraseña",
+      "change-email": "Cambiar / Verificar correo electrónico",
+      "info": {
+        "name": "Nombre",
+        "email": "Email",
+        "authentication": "Autenticación",
+        "role": "Rol",
+        "category": "Categoría",
+        "group": "Grupo",
+        "user-storage": "Almacenamiento de usuario"
+      },
+      "language": "Idioma",
+      "quota": {
+        "title": "Restricción aplicada: {restriction}",
+        "restrictions": {
+          "user_quota": "Cuota de usuario",
+          "group_quota": "Cuota de grupo",
+          "category_quota": "Cuota de categoría"
+        },
+        "desktops": "Escritorios creados / Total de escritorios",
+        "volatile": "Escritorios temporales creados / Escritorios temporales totales",
+        "media": "Medios creados / Total de medios",
+        "memory": "Memoria utilizada / Total de memoria (GB)",
+        "running": "Escritorios arrancados / Total de escritorios arrancados",
+        "templates": "Plantillas creadas / Total de plantillas",
+        "vcpus": "Vcpus utilitzadas / Total de vcpus",
+        "total-disk-size": "Tamaño de disco utilizado / Total de tamaño de disco",
+        "total-media-size": "Tamaño de medios utilizado / Total de tamaño de medios",
+        "total-size": "Tamaño utilizado / Total de tamaño",
+        "unit": "Tamaño unidad personal / Tamaño total unidad personal (MB)",
+        "deployments_total": "Despliegues creados / Total de despliegues",
+        "deployment_desktops": "Maximo de escritorios por despliegue",
+        "started_deployment_desktops": {
+          "title": "Escritorios de despliegue arrancados",
+          "description": "Cantidad total de escritorios de despliegues que puede arrancar el usuario"
+        }
+      },
+      "reset-vpn": "Restaurar VPN"
+    },
+    "start-now-modal": {
+      "title": "Iniciar ahora",
+      "profile": "Perfil",
+      "select-profile": "Selecciona el perfil que se utilizará",
+      "end-date": "Fecha de finalización",
+      "end-time": "Hora de finalización",
+      "select-end-date": "Selecciona hasta cuando se utilizará",
+      "button": "Iniciar escritorio"
+    },
+    "cant-start-now-modal": {
+      "title": {
+        "available-profile": "El modelo de tarjeta gráfica de este escritorio ({profile}) no está disponible en este momento",
+        "no-available-profile": "No hay ningún otro modelo de tarjeta gráfica disponible en este momento"
+      },
+      "change-desktop-gpu": {
+        "text": "Se puede modificar a un modelo de tarjeta gráfica disponible ahora e iniciarlo (puede afectar al rendimiento del escritorio)",
+        "button": "Cambiar e iniciar"
+      },
+      "go-to-bookings": {
+        "text": "Reservar el escritorio con el modelo de tarjeta gráfica actual consultando su planificación",
+        "button": "Reservar escritorio"
+      }
     }
+  },
+  "views": {
+    "cancel": "Cancelar",
+    "error": {
+      "codes": {
+        "403": {
+          "title": "Acceso denegado.",
+          "subtitle": "No dispones de permisos suficientes para acceder a este contenido.",
+          "home": "Para encontrar alternativas puedes ir ",
+          "logout": "Puedes intentar cerrar la sesión e iniciarla de nuevo "
+        },
+        "500": {
+          "title": "Error inesperado.",
+          "subtitle": "No se ha podido acceder al contenido solicitado.",
+          "home": "Para encontrar alternativas puedes ir ",
+          "logout": "Puedes intentar cerrar la sesión e iniciarla de nuevo "
+        }
+      },
+      "here": "aquí."
+    },
+    "login": {
+      "title": "Iniciar Sesión",
+      "form": {
+        "select-category": "Por favor, seleccione una opción",
+        "usr": "Nombre de usuario",
+        "pwd": "Contraseña",
+        "login": "Iniciar sesión",
+        "forgot-password": "Has olvidado la contraseña?"
+      },
+      "errors": {
+        "401": "Usuario o password incorrecto",
+        "429": "Se han producido demasiados intentos de inicio de sesión. Vuelva a intentarlo a {time}",
+        "500": "Error en el servidor",
+        "generic": "Se ha producido un error"
+      },
+      "other-logins": "O iniciar sesión con",
+      "powered-by": "Funciona con {isardvdi}",
+      "isard-logo-alt": "El logotipo de IsardVDI es la cabeza de un rebeco."
+    },
+    "select-category": {
+      "title": "Selecciona una categoría para iniciar sesión",
+      "maintenance": "Esta categoría se encuentra en mantenimiento en estos momentos",
+      "subtitle": "Sesión iniciada como {user}",
+      "logout": "Cerrar sesión"
+    },
+    "maintenance": {
+      "title": "Actualmente, el servicio de Isard se encuentra en mantenimiento",
+      "the-service": "El servicio volverá a estar disponible en un rato",
+      "sorry": "Disculpen las molestias",
+      "go-login": "Ir a inicio de sesión"
+    },
+    "not-found": {
+      "title": "Algo fue mal.",
+      "subtitle": "El contenido que buscabas parece no estar aquí.",
+      "home": "Para encontrar alternativas puedes ir ",
+      "here": "aquí."
+    },
+    "register": {
+      "title": "Registro",
+      "code": "Código de registro",
+      "register": "Registrarse",
+      "errors": {
+        "401": "Sesión expirada",
+        "403": "El dominio de correo electrónico que estás intentando utilizar no está autorizado para tu categoría.",
+        "404": "Código no encontrado",
+        "409": "El usuario ya existe",
+        "500": "Error en el servidor"
+      }
+    },
+    "select-template": {
+      "template": "Plantilla",
+      "loading": "Cargando plantillas",
+      "no-templates": {
+        "title": "No hay ninguna plantilla para éste usuario",
+        "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+      },
+      "no-desktops": {
+        "title": "No hay ningún escritorio para éste usuario",
+        "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+      },
+      "no-desktops-filtered": {
+        "title": "No hay escritorios para mostrar con los filtros actuales",
+        "subtitle": "Podéis crear un escritorio nuevo con el botón superior derecho"
+      },
+      "no-templates-filtered": {
+        "title": "No hay plantillas para mostrar con los filtros actuales"
+      },
+      "which-template": "¿Qué escritorio quieres usar?",
+      "persistent": "Escritorios persistentes",
+      "persistent-compact": "Persistentes",
+      "volatile": "Escritorios temporales",
+      "volatile-compact": "Temporales",
+      "viewers": "Visores",
+      "viewer-name": {
+        "file-spice": "SPICE",
+        "browser-vnc": "VNC en navegador",
+        "file-rdpvpn": "RDP VPN",
+        "browser-rdp": "RDP en navegador",
+        "file-rdpgw": "RDP"
+      },
+      "remove": "Eliminar",
+      "notification": {
+        "loading": {
+          "title": "Cargando",
+          "description": "Esperando la respuesta del servidor"
+        },
+        "downloaded": {
+          "title": "Descargado",
+          "description": "El escritorio se ha descargado correctamente"
+        }
+      },
+      "error": {
+        "create-error": {
+          "title": "Error",
+          "description": "No se ha podido crear el escritorio virtual debido a un error"
+        },
+        "create-quota": {
+          "title": "Error",
+          "description": "Dispones de demasiados escritorios"
+        },
+        "create-timeout": {
+          "title": "Tiempo excedido",
+          "description": "El escritorio se está creando, puede tardar varios minutos"
+        },
+        "start-error": {
+          "title": "Error",
+          "description": "No se ha podido iniciar el escritorio virtual debido a un error"
+        },
+        "start-quota": {
+          "title": "Error",
+          "description": "Estás ejecutando demasiados escritorios al mismo tiempo"
+        },
+        "start-timeout": {
+          "title": "Tiempo excedido",
+          "description": "El escritorio se está iniciando, puede tardar varios minutos"
+        },
+        "open-error": {
+          "title": "Error",
+          "description": "No se ha podido abrir el escritorio virtual debido a un error"
+        },
+        "stop-error": {
+          "title": "Error",
+          "description": "No se ha podido parar el escritorio virtual debido a un error"
+        },
+        "stop-timeout": {
+          "title": "Tiempo excedido",
+          "description": "El escritorio se está parando, puede tardar varios minutos"
+        },
+        "delete-error": {
+          "title": "Error",
+          "description": "No se ha podido eliminar el escritorio virtual debido a un error"
+        }
+      },
+      "status": {
+        "notCreated": {
+          "action": "Crear"
+        },
+        "creating": {
+          "text": "Creando",
+          "action": "Creando"
+        },
+        "failed": {
+          "text": "Fallido",
+          "action": "Reintentar"
+        },
+        "started": {
+          "text": "Iniciado",
+          "action": "Parar"
+        },
+        "starting": {
+          "text": "Iniciando",
+          "action": "Iniciando"
+        },
+        "stopped": {
+          "text": "Parado",
+          "action": "Iniciar"
+        },
+        "stopping": {
+          "text": "Parando",
+          "action": "Parando"
+        },
+        "waitingip": {
+          "text": "Esperando IP",
+          "action": "Parar"
+        },
+        "readyCreation": {
+          "text": "Listo para crear"
+        },
+        "working": {
+          "text": "Esperando",
+          "action": "trabajando"
+        },
+        "shutting-down": {
+          "text": "Apagando",
+          "action": "Forzar parada"
+        },
+        "downloading": {
+          "text": "Descargando"
+        },
+        "forcedeleting": {
+          "text": "Borrando",
+          "action": "Borrando"
+        },
+        "paused": {
+          "text": "Pausado",
+          "action": "Parar"
+        },
+        "reset": {
+          "text": "Reiniciar",
+          "action": "Reiniciando"
+        },
+        "updating": {
+          "text": "Procesando",
+          "action": "Procesando"
+        },
+        "maintenance": {
+          "text": "En mantenimiento",
+          "action": "Cancelar operación"
+        }
+      }
+    },
+    "deployments": {
+      "no-deployments": {
+        "title": "No existen despliegues de este usuario",
+        "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+      },
+      "table-header": {
+        "name": "Nombre",
+        "visible": "Visible",
+        "started-desktops": "Arrancados",
+        "visible-desktops": "Visibles",
+        "total-desktops": "Total",
+        "actions": "Acciones",
+        "template": "Plantilla",
+        "desktop-name": "Nombre del escritorio",
+        "description": "Descripción"
+      }
+    },
+    "deployment": {
+      "no-started-desktops": {
+        "title": "Este despliegue no tiene ningún escritorio iniciado"
+      },
+      "desktop": {
+        "not-available": "Escritorio no disponible",
+        "desktops": "Escritorios",
+        "started": "Iniciados",
+        "visible": "Visibles"
+      },
+      "visibility-warning": "Los escritorios de este despliegue son {visibility}.",
+      "visibility": {
+        "visible": "Visibles",
+        "not-visible": "No visibles"
+      },
+      "modal": {
+        "title": {
+          "make-visible": "Hacer que el despliegue '{name}' sea visible",
+          "make-invisible": "Hacer que el despliegue '{name}' sea invisible",
+          "download-csv": "Descargar CSV de visores directos de '{name}'",
+          "delete": "Eliminar despliegue",
+          "co-owners": "Editar copropietarios de '{name}'"
+        },
+        "body": {
+          "text": "Esta acción es irreversible y se perderán todos los datos asociados.",
+          "send-to-recycle-bin": "Enviar despliegue a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente).",
+          "invisible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en este despliegue. El procedimiento los hará todos invisibles para los usuarios.",
+          "visible-warning": "Hay {visible} escritorios visibles y {invisible} invisibles en este despliegue. El procedimiento los hará todos invisibles para los usuarios.",
+          "co-owner-warning-delete": "Los copropietarios no pueden eliminar despliegues. Por favor, contacta con el propietario para eliminar este despliegue.",
+          "warning-co-owner": "Como copropietario no estás autorizado para realizar esta acción. Por favor, contacta con el propietario de este despliegue.",
+          "co-owners-warning": "AVISO! Los usuarios establecidos como copropietarios tendrán los mismos permisos que el propietario, excepto para cambiar los propietarios y borrar el despliegue.",
+          "co-owners-label": "Copropietarios:",
+          "owner-label": "Propietario: {owner}"
+        },
+        "option": {
+          "dont-stop-desktops": "Hacer invisible este despliegue para los usuarios y permitir el uso de los escritorios hasta que se paren",
+          "stop-desktops": "Hacer invisible este despliegue para los usuarios y parar todos los escritorios",
+          "make-visible": "Hacer visible este despliegue para que los usuarios tengan acceso a los escritorios",
+          "keep-csv": "Mantener los enlaces y descargar el fichero CSV",
+          "reset-csv": "Reestablecer los enlaces del despliegue (los enlaces generados previamente no estarán disponibles) y descargar el fichero CSV"
+        },
+        "confirmation": {
+          "stop": "Parar escritorios",
+          "dont-stop": "No parar escritorios",
+          "make-visible": "Hacer visible",
+          "keep-csv": "Mantener URLs y descargar CSV",
+          "reset-csv": "Reestablecer URLs y descargar CSV",
+          "delete": "Eliminar",
+          "co-owners": "Actualizar copropietarios"
+        }
+      }
+    },
+    "deployment-desktop-list": {
+      "actions": {
+        "delete": "Eliminar"
+      },
+      "table-header": {
+        "user": "Usuario",
+        "state": "Estado",
+        "group": "Grupo",
+        "action": "Acción",
+        "viewers": "Visores"
+      },
+      "filter-label": "Filtro"
+    },
+    "direct-viewer": {
+      "title": "Acceso a los visores del escritorio:",
+      "file": {
+        "title": "Acceder con aplicación",
+        "subtitle": "Es necesario tener instalado programario específico (más fluido)"
+      },
+      "browser": {
+        "title": "Acceder desde este navegador",
+        "subtitle": "No requiere instalar nada en el ordenador"
+      },
+      "waitingip": "Esperando a que el escritorio esté arrancado",
+      "description": {
+        "vnc": "Acceder al escritorio directamente desde este navegador",
+        "rdp": "Acceder al escritorio directamente desde este navegador (requiere el usuario y la contraseña de windows del escritorio)",
+        "spice": "Acceder al escritorio mediante un fichero que debe abrirse con el programa remote-viewer",
+        "rdpgw": "Windows incorpora la aplicación necesaria para su uso"
+      },
+      "help": {
+        "spice": {
+          "spice-help": "Instrucciones de instalación de SPICE",
+          "local-client": "Utilizar el cliente local (recomendado)",
+          "best-performance": "Es la opción con el mejor rendimiento",
+          "spice-client-required": "pero requiere instalar un aplicativo externo.",
+          "generic-text": "En el siguiente enlace se puede consultar enlaces de descarga e instrucciones para instalarlo:",
+          "download-install": "Descarga de software de visores",
+          "once-installed": "Después de la instalación, haz clic en el botón «SPICE», y se descargará el archivo del escritorio virtual.",
+          "close-guide": "Cerrar la guía"
+        },
+        "rdp": {
+          "rdp-help": "Instrucciones de instalación de RDP",
+          "local-client": "Utilizar el cliente RDP (recomendado)",
+          "included": "Windows incorpora la aplicación necesaria para utilizarlo,",
+          "client-required": "pero otros sistemas operativos podrían requerir la instalación de un aplicativo externo. Consulta las instrucciones de instalación:",
+          "download-install": "Descarga de software de visores",
+          "once-installed": "Después de la instalación, haz clic en el botón 'RDP', que descargará el archivo del escritorio virtual.",
+          "close-guide": "Cerrar la guía"
+        }
+      },
+      "reset-modal": {
+        "title": "Reiniciar escritorio",
+        "option": {
+          "reset-desktop": "Forzar un reinicio del escritorio es una acción peligrosa. Es el equivalente a quitarle la corriente mientras está en marcha. Si puedes, páralo desde dentro de un visor."
+        },
+        "confirmation": {
+          "reset-desktop": "Forzar reinicio del escritorio"
+        }
+      }
+    },
+    "templates": {
+      "tabs": {
+        "templates": "Tus plantillas",
+        "templates-compact": "Tuyas",
+        "shared-templates": "Plantillas compartidas contigo",
+        "shared-templates-compact": "Compartido"
+      },
+      "no-templates": {
+        "title": "No hay plantillas para este usuario",
+        "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+      },
+      "no-shared-templates": {
+        "title": "No hay plantillas compartidas con este usuario",
+        "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+      },
+      "table-header": {
+        "name": "Nombre",
+        "description": "Descripción",
+        "actions": "Acciones",
+        "template-size": "Tamaño"
+      },
+      "buttons": {
+        "allowed": {
+          "title": "Cambiar permisos"
+        },
+        "disable": {
+          "title": "Deshabilitar"
+        },
+        "enable": {
+          "title": "Habilitar"
+        },
+        "edit": {
+          "title": "Editar"
+        },
+        "duplicate": {
+          "title": "Duplicar plantilla"
+        },
+        "delete": {
+          "title": "Eliminar plantilla"
+        },
+        "convert": {
+          "title": "Convertir plantilla en escritorio"
+        }
+      },
+      "modal": {
+        "delete": {
+          "title": "Aviso de dependencia",
+          "warning": {
+            "pending": "AVISO! Algunas plantillas y escritorios dependen de esta plantilla, los cuales NO son de tu propiedad.",
+            "delete": "AVISO! Estas plantillas y escritorios dependen de esta plantilla y también serán eliminados.",
+            "footer": "No puedes eliminar esta plantilla. Contacta con tu administrador."
+          },
+          "button": {
+            "delete": "Eliminar plantilla"
+          },
+          "table-header": {
+            "kind": "Tipo",
+            "name": "Nombre",
+            "user": "Usuario"
+          }
+        },
+        "convert": {
+          "title": {
+            "warning": "Aviso de dependencia",
+            "ok": "Convertir plantilla '{name}' en escritorio"
+          },
+          "warning": {
+            "title": "Para poder convertir esta plantilla a escritorio es necesario que la plantilla no tenga elementos derivados.",
+            "pending": "La plantilla seleccionada tiene {ammount} plantillas, escritorios o despliegues de otros usuarios que dependen de esta plantilla. Contacta con tu administrador.",
+            "delete": "Los siguientes recursos de tu propiedad se eliminarán en caso de convertir a escritorio. Esta acción es irreversible.",
+            "footer": "No puedes convertir esta plantilla en un escritorio. Contacta con tu administrador.",
+            "confirm": "Entiendo que todos estos elementos se eliminarán y quiero continuar.",
+            "confirm-unchecked": "Debes marcar esta casilla para continuar."
+          },
+          "info": {
+            "title": "Los siguientes cambios se realizarán en esta plantilla:",
+            "delete": "Todos los elementos que dependen de '{name}' serán eliminados",
+            "rename": "'{oldName}' se renombrará a '{newName}'",
+            "kind": "'{name}' se convertirá de plantilla a escritorio"
+          },
+          "button": {
+            "apply": "Convertir plantilla"
+          },
+          "table-header": {
+            "kind": "Tipo",
+            "name": "Nombre",
+            "user": "Usuario"
+          },
+          "rename": {
+            "title": "Tu plantilla '{name}' se convertirá en un escritorio",
+            "label": "Puedes renombrarla ahora si lo deseas: "
+          }
+        }
+      }
+    },
+    "media": {
+      "tabs": {
+        "media": "Tus medios",
+        "media-compact": "Tuyos",
+        "shared-media": "Medios compartidos contigo",
+        "shared-media-compact": "Compartido"
+      },
+      "no-media": {
+        "title": "No hay medios para este usuario",
+        "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+      },
+      "no-shared-media": {
+        "title": "No hay medios compartidos con este usuario",
+        "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+      },
+      "table-header": {
+        "name": "Nombre",
+        "description": "Descripción",
+        "category": "Categoría",
+        "group": "Grupo",
+        "user": "Usuario",
+        "status": "Estado",
+        "progress-size": "Progreso / Tamaño",
+        "actions": "Acciones"
+      },
+      "buttons": {
+        "allowed": {
+          "title": "Cambiar permisos"
+        },
+        "delete": {
+          "title": "Eliminar medio"
+        },
+        "new-desktop": {
+          "title": "Crear nuevo escritorio"
+        },
+        "download": {
+          "title": "Descargar medio"
+        },
+        "stop-download": {
+          "title": "Parar descarga"
+        }
+      },
+      "status": {
+        "downloading": "Descargando",
+        "faileddeleted": "Descarga fallida",
+        "downloadfailed": "Descarga fallida",
+        "downloadaaborting": "Abortando descarga",
+        "downloadstarting": "Iniciando descarga",
+        "resetdownloading": "Reiniciando descarga",
+        "downloaded": "Descargado",
+        "deleting": "Borrando",
+        "maintenance": "Mantenimiento",
+        "downloadaborting": "Cancelando la descarga",
+        "downloadfailedinvalidformat": "Formato no válido"
+      },
+      "delete-media": {
+        "title": "Borrar medio",
+        "warning": "Este medio se eliminará de los siguientes escritorios. En caso de estar iniciados se pararán.",
+        "table-header": {
+          "name": "Nombre",
+          "user": "Usuario",
+          "kind": "Tipo"
+        }
+      }
+    },
+    "storage": {
+      "no-storage": {
+        "title": "No hay discos para este usuario",
+        "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+      },
+      "table-header": {
+        "domains": "Escritorios/plantillas",
+        "quantity-domains": "№ escritorios/plantillas",
+        "actual-size": "Tamaño ocupado",
+        "virtual-size": "Tamaño total",
+        "percentage": "% Cuota",
+        "last": "Último acceso",
+        "actions": "Acciones"
+      },
+      "buttons": {
+        "increase": {
+          "title": "Incrementa el espacio del disco"
+        }
+      }
+    },
+    "recycle-bin": {
+      "title": {
+        "deployment": "Depliegue '{name}' eliminado en fecha {date}",
+        "desktop": "Escritorio '{name}' eliminado en fecha {date}",
+        "template": "Plantilla '{name}' eliminada en fecha {date}",
+        "bulk": "Varios escritorios eliminados en fecha {date}",
+        "user": "Usuario eliminado en fecha {date}"
+      },
+      "desktops": {
+        "title": "Escritorios",
+        "table-header": {
+          "id": "Id",
+          "name": "Nombre del escritorio",
+          "user": "Propietario",
+          "category": "Categoría",
+          "group": "Grupo",
+          "accessed": "Último acceso"
+        }
+      },
+      "templates": {
+        "title": "Plantillas",
+        "table-header": {
+          "id": "Id",
+          "name": "Nombre de la plantilla",
+          "user": "Propietario",
+          "category": "Categoría",
+          "group": "Grupo",
+          "accessed": "Último acceso"
+        }
+      },
+      "deployments": {
+        "title": "Despliegues",
+        "table-header": {
+          "id": "Id",
+          "name": "Nombre del despliegue",
+          "desktop-name": "Nombre del escritorio",
+          "user": "Propietario",
+          "category": "Categoría",
+          "group": "Grupo"
+        }
+      },
+      "storages": {
+        "title": "Almacenamiento",
+        "table-header": {
+          "id": "Id",
+          "path": "Ruta",
+          "status": "Estado",
+          "format": "Formato",
+          "size": "Tamaño",
+          "used": "Utilizado",
+          "parent": "Padre",
+          "user": "Usuario",
+          "category": "Categoría",
+          "domains": "Dominios"
+        }
+      },
+      "modal": {
+        "title": {
+          "delete": "Eliminar entrada definitivamente",
+          "restore": "Restaurar entrada",
+          "empty": "Vaciar papelera de reciclaje"
+        },
+        "option": {
+          "delete": "Esta acción es irreversible y se perderán todos los datos asociados. ¿Seguro que desea eliminarla?",
+          "restore": "Se recuperarán los datos asociados (afectará en caso de tener cuotas aplicadas). ¿Seguro que desea restaurarla?",
+          "empty": "Se vaciará la papelera de reciclaje. Esta acción es irreversible y se perderán todos los datos asociados. ¿Seguro que desea eliminarla?"
+        },
+        "confirmation": {
+          "delete": "Eliminar",
+          "restore": "Restaurar",
+          "empty": "Vaciar"
+        }
+      }
+    },
+    "recycle-bins": {
+      "title": "Papelera de reciclaje",
+      "no-recycle-bin": {
+        "title": "No hay elementos eliminados de este usuario",
+        "subtitle": "Mueve los elementos que no necesites a la papelera de reciclaje. Se eliminarán definitivamente después de {time}."
+      },
+      "table-header": {
+        "id": "Id",
+        "accessed": "Eliminado en fecha",
+        "size": "Tamaño",
+        "type": "Tipo",
+        "name": "Nombre",
+        "agent-name": "Eliminado por",
+        "status": "Estado",
+        "desktops": "Escritorios",
+        "templates": "Plantillas",
+        "deployments": "Despliegues",
+        "actions": "Acciones"
+      },
+      "status": {
+        "recycled": "Reciclado"
+      },
+      "item-type": {
+        "desktop": "Escritorio",
+        "deployment": "Despliegue",
+        "template": "Plantilla",
+        "bulk": "Múltiples eliminaciones",
+        "user": "Usuario"
+      }
+    },
+    "desktop": {
+      "modal": {
+        "title": {
+          "delete": "Eliminar escritorio"
+        },
+        "body": {
+          "text": "Esta acción es irreversible y se perderán todos los datos asociados.",
+          "send-to-recycle-bin": "Enviar escritorio a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente)."
+        },
+        "confirmation": {
+          "delete": "Eliminar"
+        }
+      }
+    },
+    "forgot-password": {
+      "title": "Reestablecer contraseña",
+      "label": "Correo electrónico",
+      "placeholder": "Correo electrónico",
+      "description": "Requiere una dirección de correo electrónico verificada por IsardVDI",
+      "reset-password": "Reestablecer contraseña",
+      "email-sent": "Se ha enviado un correo electrónico a la dirección indicada para recuperar la contraseña. Por favor, compruebe su bandeja de entrada y siga las instrucciones. Redirigiendo al inicio de sesión en {seconds} segundos."
+    },
+    "reset-password": {
+      "password-reset": "La contraseña se ha restablecido correctamente. Redirigiendo al inicio de sesión en {seconds} segundos."
+    },
+    "verify-email": {
+      "title": "Verificación de correo electrónico",
+      "label": "Correo electrónico",
+      "placeholder": "Correo electrónico",
+      "description": "La dirección de correo electrónico será verificada por IsardVDI",
+      "send-verify-email": "Enviar correo de verificación",
+      "email-sent": "Se ha enviado un correo electrónico a la dirección proporcionada para su verificación. Por favor, revisa tu bandeja de entrada y sigue las instrucciones. Redirigiendo al inicio de sesión en {seconds} segundos.",
+      "email-verified": "El correo electrónico se ha verificado correctamente. Redirigiendo al inicio de sesión en {seconds} segundos.",
+      "email-error": "El código de validación proporcionado ha caducado. Redirigiendo al inicio de sesión en {seconds} segundos."
+    },
+    "disclaimer": {
+      "title": "Aviso legal",
+      "reject": "Rechazar",
+      "accept": "Aceptar",
+      "disclaimer-accepted": "Se ha aceptado el aviso legal. Redirigiendo al inicio de sesión en {seconds} segundos."
+    }
+  },
+  "messages": {
+    "title": {
+      "delete": "Borrar"
+    },
+    "confirmation": {
+      "create-nonpersistent": "ATENCIÓN! Este escritorio es temporal. Al pararlo se eliminarán todos sus datos. Crear escritorio?",
+      "visible-deployment": "Los escritorios serán visibles",
+      "recreate-deployment": "Los escritorios eliminados de '{name}' se recrearán, continuar?",
+      "edit-deployment": "Los escritorios de '{name}' se editarán, continuar?",
+      "delete-deployment": "'{name}' se borrará, continuar?",
+      "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?",
+      "start-deployment-desktops": "Los escritorios de '{name}' se iniciarán, continuar?",
+      "stop-deployment-desktops": "Los escritorios de '{name}' se pararán, continuar?",
+      "delete-event": "La reserva '{name}' se borrará, ¿continuar?",
+      "disable-template": "'{name}' será invisible para sus usuarios y todos los escritorios temporales derivados (si existen) se eliminarán. ¿Continuar?",
+      "enable-template": "'{name}' será visible para sus usuarios, ¿desea continuar?",
+      "delete-media": "El medio '{name}' se borrará, continuar?",
+      "edit-domain": "El hardware de '{name}' se limitará y sus datos se modificarán, continuar?",
+      "new-deployment": "Se crearán {quantity} escritorios, uno por cada usuario seleccionado. Continuar?",
+      "go-to-profile": "Ver cuota",
+      "go-to-bookings": "Reservar escritorio",
+      "change-desktop-gpu": "Modificar el perfil del escritorio",
+      "reset-vpn": "Reestablecer claves de VPN? Se tendrá que descargar un nuevo archivo VPN",
+      "cancel-operation": "¿Cancelar la operación de disco en curso? Esto podría dejar el disco en un estado inconsistente",
+      "recreate-desktop": "'{name}' se recreará, esto eliminará todos los cambios que hayas hecho. ¿Continuar?"
+    },
+    "ok": "De acuerdo",
+    "yes": "Si",
+    "no": "No",
+    "cancel": "Cancelar",
+    "info": {
+      "deleting-desktop": "Borrando escritorio",
+      "opening-desktop": "Abriendo escritorio",
+      "creating-desktop": "Creando escritorio",
+      "file-downloaded": "Fichero descargado",
+      "creating-deployment": "Creando despliegue",
+      "recreating-deployment": "Recreando despliegue",
+      "deployment-recreated": "Despliegue recreado",
+      "deleting-deployment": "Eliminando despliegue",
+      "making-visible-deployment": "Haciendo el despliegue visible",
+      "making-invisible-deployment": "Haciendo el despliegue invisible",
+      "making-visible-desktop": "Haciendo el escritorio visible",
+      "making-invisible-desktop": "Haciendo el escritorio invisible",
+      "starting-desktops": "Iniciando los escritorios del despliegue",
+      "stopping-desktops": "Parando los escritorios del despliegue",
+      "creating-template": "Creando plantilla",
+      "new-template-stop": "Para crear una plantilla es necesario que el escritorio esté parado",
+      "no-availability-event": "No hay disponibilidad en el rango seleccionado",
+      "not-created-event": "No se ha creado el evento",
+      "missing-data": "Faltan datos",
+      "deleting-event": "Borrando el evento",
+      "disable-template": "Haciendo la plantilla invisible",
+      "creating-event": "Creando el evento",
+      "editing-event": "Editando el evento",
+      "enable-template": "Haciendo la plantilla visible",
+      "creating-media": "Creando medio",
+      "image-uploaded": "Imagen subida correctamente",
+      "editing": "Editando",
+      "edit-desktop-stop": "Para editar un escritorio es necesario que esté parado",
+      "deleting-media": "Borrando medio",
+      "downloading-media": "Descargando medio",
+      "stopping-download": "Parando la descarga",
+      "counting-desktops": "Contado cuántos escritorios se crearán",
+      "new-template-server": "No se puede crear una plantilla de servidor",
+      "edit-desktop-server": "No se puede editar un servidor",
+      "delete-desktop-stop": "Para eliminar un escritorio es necesario que esté parado",
+      "wireguard-network-added": "Se ha añadido la red wireguard ya que es necesaria para los visores RDP",
+      "wireguard-viewers-removed": "Los visores RDP se han eliminado ya que requieren la red wireguard",
+      "wireguard-network-required": "No se pueden seleccionar visores RDP ya que la red wireguard es necesaria. Contacta con el administrador para utilizar la red wireguard",
+      "deleting-template": "Eliminando plantilla",
+      "retry-desktop": "Comprobando el estado del escritorio",
+      "restoring-recycle-bin": "Restaurando entrada",
+      "deleting-recycle-bin": "Eliminando entrada",
+      "warning-desktop-waiting-ip": "Aún no se puede abrir el visor seleccionado. Espere por favor...",
+      "reset-vpn": "Claves VPN restauradas",
+      "video-default": "Se ha cambiado el parámetro 'Videos' del escritorio a 'Default', dado que no hay ningún perfil de GPU asignado",
+      "cancelling-operation": "Cancelando operación de disco en curso",
+      "recreate-desktop-stop": "Para recrear un escritorio es necesario que esté parado",
+      "increasing-storage": "Incrementando tamaño de disco. Esto podría tomar unos momentos",
+      "converting-template": "Convertiendo la plantilla a escritorio"
+    },
+    "loading": "Cargando"
+  },
+  "errors": {
+    "desktop_new_user_quota_exceeded": "Has excedido tu cuota de creación de escritorios. Es necesario que elimines algún escritorio para crear otro.",
+    "desktop_new_group_limit_exceeded": "Se ha excedido el límite de creación de escritorios del grupo",
+    "desktop_new_category_limit_exceeded": "Se ha excedido el límite de creación de escritorios de la categoría",
+    "desktop_start_user_quota_exceeded": "Has excedido tu cuota de cuota de escritorios arrancados. Es necesario que pares otros escritorios para poder arrancar más.",
+    "desktop_start_group_limit_exceeded": "Se ha excedido el límite de escritorios arrancados del grupo",
+    "desktop_start_category_limit_exceeded": "Se ha excedido el límite de escritorios arrancados de la categoría",
+    "desktop_start_vcpu_quota_exceeded": "Has excedido tu cuota de vCPU. Es necesario que pares otros escritorios para poder arrancar más o editar este escritorio y reducir sus CPUs",
+    "desktop_start_group_vcpu_limit_exceeded": "Se ha excedido el límite de vCPU del grupo",
+    "desktop_start_category_vcpu_limit_exceeded": "Se ha excedido el límite de vCPU de la categoría",
+    "desktop_start_memory_quota_exceeded": "Has excedido tu cuota de memoria. Es necesario que pares otros escritorios para poder arrancar más o editar este escritorio y reducir su memoria.",
+    "desktop_start_group_memory_limit_exceeded": "Se ha excedido el límite de memoria del grupo",
+    "desktop_start_category_memory_limit_exceeded": "Se ha excedido el límite de memoria de la categoría",
+    "desktop_start_incorrect_body_data": "Datos incorrectos para arrancar el escritorio",
+    "desktop_incorrect_body_data": "Datos incorrectos para crear el escritorio",
+    "user_new_category_cuota_exceeded": "Se ha excedido el límite de creación de usuarios de la categoría",
+    "user_new_group_cuota_exceeded": "Se ha excedido el límite de creación de usuarios del grupo",
+    "template_new_user_quota_exceeded": "Has excedido la cuota de plantillas del usuario. Es necesario que elimines o deshabilites alguna plantilla para poder crear o habilitar más.",
+    "template_new_group_limit_exceeded": "Se ha excedido el límite de creación de plantillas del grupo",
+    "template_new_category_limit_exceeded": "Se ha excedido el límite de creación de plantillas de la categoría",
+    "media_new_user_quota_exceeded": "Has excedido tu cuota de creación de medios. Es necesario que elimines algún medio para poder crear más.",
+    "media_new_group_limit_exceeded": "Se ha excedido el límite de creación de medios del grupo",
+    "group_total_size_limit_exceeded": "Se ha excedido el límite de tamaño de disco del grupo",
+    "category_total_size_limit_exceeded": "Se ha excedido el límite de tamaño de disco de la categoría",
+    "media_new_category_limit_exceeded": "Se ha excedido el límite de creación de medios de la categoría",
+    "media_should_not_be_downloading": "El medio no tiene que estar descargandose",
+    "media_url_not_found": "No se ha encontrado la dirección proporcionada",
+    "media_url_not_valid": "La dirección proporcionada no es válida",
+    "media_url_bad_format": "El formato de la dirección proporcionada no es válido",
+    "deployment_new_user_quota_exceeded": "Has excedido tu cuota de creación de despliegues. Es necesario que elimines algún despliegue para poder crear más.",
+    "deployments_new_group_limit_exceeded": "Se ha excedido el límite de creación de despliegues del grupo",
+    "deployments_new_category_limit_exceeded": "Se ha excedido el límite de creación de despliegues de la categoría",
+    "deployment_desktop_new_user_quota_exceeded": "Has excedido la cuota de escritorios para este despliegue. Es necesario que reduzcas la cantidad de escritorios en ese despliegue para poder crearlo.",
+    "deployment_start_user_quota_exceeded": "Has excedido tu cuota de cuota de escritorios arrancados de despliegues. Es necesario que pares otros escritorios de despliegues para poder arrancar más.",
+    "total_size_quota_exceeded": "Has excedido tu cuota de tamaño de disco. Es necesario que elimines un escritorio, una plantilla o un medio para liberar espacio.",
+    "quota_general_exception": "Se ha producido un error relacionado con las cuotas de usuario",
+    "desktop_new_template_forbidden": "Error de permisos creando el escritorio",
+    "username_exists": "Ya existe un usuario con el mismo nombre",
+    "login_failed": "Error durante el login",
+    "forbidden": "Error de permisos sobre el recurso",
+    "not_found": "No encontrado",
+    "category_generic_exception": "Error recuperando la categoría",
+    "register_generic_exception": "Error durante el proceso de registro",
+    "update_generic_exception": "Error durante la actualización",
+    "desktop_action_failed": "Error ejecutando la acción en el escritorio",
+    "template_new_not_created": "Error creando la plantilla",
+    "get_generic_exception": "Error recuperando los datos",
+    "user_new_generic_exception": "Error creando el usuario",
+    "user_delete_generic_exception": "Error borrando el usuario",
+    "templates_get_error": "Error recuperando el template",
+    "desktops_get_error": "Error recuperando el escritorio",
+    "viewer_not_started": "El viewer no está arrancado",
+    "desktop_start_timeout": "Tiempo excedido arrancando el escritorio",
+    "desktop_stop_timeout": "Tiempo excedido parando el escritorio",
+    "bad_request": "Los parametros de la petición son incorrectos",
+    "bad_request_title": "Error en la petición",
+    "undefined_error": "Se ha producido un error",
+    "generic_error": "Se ha producido un error",
+    "booking_new_event_start_error": "La hora de inicio no es válida",
+    "booking_new_event_end_error": "La hora de finalización no es válida",
+    "booking_new_event_overlap_error": "El evento se solapa",
+    "unable_to_update": "No se ha podido actualizar la base de datos.",
+    "unable_to_insert": "No se ha podido introducir en la base de datos.",
+    "conflict": "Conflicto",
+    "conflict_title": "Conflicto",
+    "missing_required_data": "Faltan campos requerido",
+    "not_enough_rights_media": "Se necesitan más permisos para acceder a este medio",
+    "not_enough_rights_desktop": "Se necesitan más permisos para acceder a este escritorio",
+    "incorrect_viewer_body_data": "Datos incorrectos en el visor del escritorio",
+    "unable_to_get_viewer_started": "No es posible obtener el visor de un escritorio que no está arrancado",
+    "user_disabled": "El usuario está deshabilitado",
+    "deployment_desktop_new_group_limit_exceeded": "Se ha excedido el límite de creación de escritorios del grupo '{group}'",
+    "deployment_desktop_new_category_limit_exceeded": "Se ha excedido el límite de creación de escritorios de la categoria '{category}'",
+    "unable_to_stop_desktop_from": "No se puede parar el escritorio desde su estado",
+    "unable_to_start_desktop_from": "No se puede arrancar un escritorio desde su estado",
+    "deployment_stop": "Para realizar esta acción es necesario que los escritorios del despliegue estén parados",
+    "desktop_not_booked": "Para arrancar el escritorio debe estar reservado",
+    "desktop_not_booked_until": "No se puede arrancar el escritorio hasta su próxima reserva: {start}",
+    "booking_does_not_fit_date": "La reserva no se ajusta a la fecha solicitada",
+    "booking_desktop_delete_stop": "Para eliminar esta reserva el escritorio debe estar parado",
+    "booking_deployment_delete_stop": "Para eliminar esta reserva es necesario que los escritorios del despliegue estén parados",
+    "booking_max_items_exceeded": "Se ha excedido el máximo de reservas del usuario",
+    "unable_to_get_viewer_inexistent": "No se puede obtener un visor para un escritorio inexistente",
+    "unable_to_parse_string": "No se puede analizar la cadena",
+    "new_desktop_name_exists": "Ya existe un escritorio con el mismo nombre para este usuario",
+    "new_template_name_exists": "Ya existe una plantilla con el mismo nombre para este usuario",
+    "desktop_same_id": "Ya existe un escritorio con este mismo identificador",
+    "unable_to_change_hypervisor_status": "No se puede cambiar el estado del hipervisor",
+    "unknown_extension": "Se omite el archivo cargado por tener una extensión desconocida",
+    "unable_to_process_vpnfile": "No se puede procesar el archivo de la VPN",
+    "desktop_is_not_visible": "Actualmente el escritorio no es visible para este usuario.",
+    "invalid_end_date": "Fecha de finalización no válida",
+    "invalid_start_date": "Fecha de inicio no válida",
+    "table_not_allowed": "No se puede cambiar el propietario de la tabla",
+    "unable_to_get_domain_jumperurl": "No es posible obtener el enlace al visor directo ya que el dominio no existe",
+    "desktop_transition_initial_status_incorrect": "El estado inicial de la transición del escritorio es incorrecto",
+    "unable_to_gen_enrollment_code": "No se puede generar el código de inscripción",
+    "unable_to_reset_domain_jumperurl": "No se puede restablecer el dominio jumperurl ya que el dominio no existe",
+    "hypervisor_transition_initial_status_incorrect": "Estado inicial de transición del hipervisor incorrecto",
+    "viewer_protocol_not_implemented": "Protocolo de visualización no implementado",
+    "template_already_exists": "El identificador de la plantilla ya existe: ",
+    "unable_to_parse_media": "No se puede analizar la información del medio",
+    "unable_to_change_desktop_status": "No se puede cambiar el estado del escritorio",
+    "duplicated_name": "Nombre duplicado",
+    "unable_to_get_deployment_desktops": "No se pueden obtener los escritorios del despliegue",
+    "new_template_bad_body_data": "Datos de nueva plantilla incorrectos",
+    "get_vnc_viewer_data_error": "Error interno al obtener datos del visor VNC",
+    "only_works_rdp": "Modo 'Only GPU' solamente funciona con visores RDP",
+    "current_plan_doesnt_match": "No hay ninguna GPU disponible con el perfil del escritorio",
+    "needs_deployment_booking": "Ahora mismo no se puede arrancar el escritorio, contacta con el propietario del despliegue para que cree una reserva",
+    "not_enough_advanced_time": "No hay suficiente antelación para arrancar el escritorio",
+    "no_wireguard_keys": "Todavía no hay claves de wireguard en la configuración de la aplicación web. Inténtelo de nuevo pasados unos segundos...",
+    "one_viewer_minimum": "Se ha de seleccionar mínimo un visor",
+    "template_failed": "Debido a un error la plantilla no se puede utilizar para crear un nuevo escritorio, por favor contacta con el administrador",
+    "desktop_storage_does_not_exist": "Debido a un error el escritorio no se puede utilizar, por favor elimínalo o contacta con el administrador",
+    "media_invalid": "El archivo descargado no es un formato de medios válido. Debería ser eliminado, ya que no se puede utilizar",
+    "desktop_storage_not_ready": "El almacenamiento del escritorio no está listo",
+    "vpn_missing_itemid": "Falta el identificador del elemento en la VPN",
+    "no_reservables": "El ítem no tiene reservables",
+    "incorrect_new_plan_body_data": "Datos de nuevo plan incorrectos",
+    "cant_edit_booked_deployment": "No se pueden editar los reservables un despliegue con reservas planeadas",
+    "temporal_new_reservable": "No se puede crear un escritorio temporal de una plantilla con reservables",
+    "password_character_length": "La contraseña debe tener al menos {num} caracter(es)",
+    "password_uppercase": "La contraseña debe tener al menos {num} caracter(es) en mayúscula",
+    "password_lowercase": "La contraseña debe tener al menos {num} caracter(es) en minúscula",
+    "password_digits": "La contraseña debe tener al menos {num} número(s)",
+    "password_special_characters": "La contraseña debe tener al menos {num} caracter(es) especiales: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
+    "password_already_used": "Esta contraseña ya se ha utilizado anteriormente",
+    "password_username": "La contraseña no puede contener el nombre de usuario",
+    "wrong_password_entered": "Contraseña incorrecta",
+    "not_verified": "La dirección de correo no ha sido validada",
+    "user_not_found": "No existe ningún usuario con el correo electrónico proporcionado",
+    "invalid_token": "Token no válido",
+    "old_passwords": "La contraseña actual no puede ser ninguna de las últimas {num} contraseñas",
+    "no_storage_pool_available": "En estos momentos no está disponible la creación de recursos. Espere e inténtelo de nuevo.",
+    "bookings_max_time_reached": "El usuario ha alcanzado el tiempo máximo de escritorios reservables",
+    "desktops_not_stopped": "Los escritorios asociados a este almacenamiento deben estar parados para realizar esta acción",
+    "increase_desktops_not_stopped": "El escritorio asociado a este almacenamiento debe estar parado para incrementar el tamaño del disco",
+    "increase_storage_has_derivatives": "El almacenamiento es de una plantilla y no se puede incrementar",
+    "hypervisors_not_available": "No se ha podido iniciar el escritorio. El sistema puede estar sobrecargado. Inténtelo de nuevo más tarde."
+  },
+  "router": {
+    "titles": {
+      "desktops": "Escritorios",
+      "new_desktop": "Nuevo escritorio",
+      "images": "Imágenes",
+      "booking": "Reservas",
+      "planning": "Planificación",
+      "templates": "Plantillas",
+      "new_template": "Nueva plantilla",
+      "duplicate_template": "Duplicar plantilla",
+      "deployments": "Despliegues",
+      "new_deployment": "Nuevo despliegue",
+      "deployment_videowall": "Videowall de despliegues",
+      "deployment": "Despliegue",
+      "profile": "Perfil",
+      "media": "Medios",
+      "new_media": "Nuevo medio",
+      "login": "Iniciar sesión",
+      "register": "Registrar",
+      "error": "Error",
+      "not_found": "No encontrado",
+      "maintenance": "Mantenimiento",
+      "direct_viewer": "Visor directo",
+      "edit-domain": "Editar dominio",
+      "storage": "Almacenamiento",
+      "edit-deployment": "Editar despliegue",
+      "recycleBins": "Papelera de reciclaje",
+      "password": "Cambiar contraseña",
+      "recycleBin": "Papelera de reciclaje",
+      "email": "Verificar correo electrónico",
+      "forgot-password": "Reestablecer contraseña",
+      "disclaimer": "Aviso legal",
+      "select_category": "Selecciona una categoría"
+    }
+  },
+  "message-modal": {
+    "title": "Información importante",
+    "messages": {
+      "desktop-time-limit": "El escritorio '{name}' se apagará automáticamente a las {date}.",
+      "searching-resources": "Estamos buscando recursos para el escritorio. Se iniciará en breves minutos, por favor espere."
+    }
+  },
+  "bookings": {
+    "max_time_reached": "Se ha llegado al tiempo máximo de reservas"
+  }
 }
