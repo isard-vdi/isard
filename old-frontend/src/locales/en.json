@@ -380,7 +380,7 @@
             "worse-performance": "but the performance is worse",
             "spice-client-required": "An external application is required.",
             "text": {
-                "macos": "macOS is an unsupported platform. You need to use the browser option",
+                "macos": "MacOS is an unsupported platform. You need to use the browser option",
                 "ios": "On the operative system iOS, you need to install the following application:",
                 "windows": "On the operative system Windows, you need to download and install one of the following executable:",
                 "android": "On the operative system Android, you need to instal the following application:",
