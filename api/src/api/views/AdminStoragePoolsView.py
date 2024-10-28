@@ -22,6 +22,7 @@
 import json
 
 from flask import request
+from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.storage_pool import StoragePool
 
 from api import app
@@ -65,8 +66,10 @@ def admin_storage_pools_get(payload):
 @app.route("/api/v3/admin/storage_pool/<storage_pool_id>", methods=["GET"])
 @is_admin
 def admin_storage_pool_get(payload, storage_pool_id):
+    storage_pool = get_storage_pool(storage_pool_id)
+    storage_pool["is_default"] = storage_pool_id == DEFAULT_STORAGE_POOL_ID
     return (
-        json.dumps(get_storage_pool(storage_pool_id)),
+        json.dumps(storage_pool),
         200,
         {"Content-Type": "application/json"},
     )
@@ -76,9 +79,10 @@ def admin_storage_pool_get(payload, storage_pool_id):
 @is_admin_or_manager
 def admin_storage_pool_get_by_path(payload):
     path = request.get_json()["path"]
-    storage_pool_id = StoragePool.get_by_path(path)[0].id
+    storage_pool = get_storage_pool(StoragePool.get_by_path(path)[0].id)
+    storage_pool["is_default"] = storage_pool["id"] == DEFAULT_STORAGE_POOL_ID
     return (
-        json.dumps(get_storage_pool(storage_pool_id)),
+        json.dumps(storage_pool),
         200,
         {"Content-Type": "application/json"},
     )

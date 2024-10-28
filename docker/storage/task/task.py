@@ -275,7 +275,7 @@ def check_backing_filename():
     return result
 
 
-def move(origin_path, destination_path, rsync=False):
+def move(origin_path, destination_path, method):
     """
     Move disk.
 
@@ -288,19 +288,22 @@ def move(origin_path, destination_path, rsync=False):
     :return: Exit code of rsync command or 0 if rsync is False
     :rtype: int
     """
-    if not rsync:
+    if method == "mv":
         rename(origin_path, destination_path)
         return 0
-    return run_with_progress(
-        [
-            "rsync",
-            "--remove-source-files",
-            "--info=progress,flist0",
-            origin_path,
-            destination_path,
-        ],
-        extract_progress_from_rsync_output,
-    )
+    elif method == "rsync":
+        return run_with_progress(
+            [
+                "rsync",
+                "--remove-source-files",
+                "--info=progress,flist0",
+                origin_path,
+                destination_path,
+            ],
+            extract_progress_from_rsync_output,
+        )
+    else:
+        raise ValueError(f"Invalid move method: {method}")
 
 
 def move_delete(path):

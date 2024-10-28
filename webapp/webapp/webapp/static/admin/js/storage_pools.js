@@ -91,7 +91,7 @@ $(document).ready(function () {
         data: null,
         title: "Action",
         render: function (data, type, full, meta) {
-          if (data.id == "00000000-0000-0000-0000-000000000000") {
+          if (data.is_default) {
             return '<button id="btn-edit" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
           } else {
             return data.enabled ?
@@ -134,14 +134,14 @@ $(document).ready(function () {
     row = storage_pools_table.row(tr)
     switch ($(this).attr('id')) {
       case 'btn-details':
-        storage_pools_table.rows('.shown').every(function () {
-          this.child.hide();
-          $(this.node()).removeClass('shown');
-        });
         if (row.child.isShown()) {
           row.child.hide();
           tr.removeClass('shown');
         } else {
+          storage_pools_table.rows('.shown').every(function () {
+            this.child.hide();
+            $(this.node()).removeClass('shown');
+          });
           tr.addClass('shown');
           row.child(renderStoragePoolsPaths(row.data())).show();
         }
@@ -150,11 +150,11 @@ $(document).ready(function () {
         modalAllowedsFormShow("storage_pool", data);
         break;
       case 'btn-edit':
-        var isDefault = data.id == "00000000-0000-0000-0000-000000000000";
+        var isDefault = isDefaultPool(data.id);
+        $("#modalEditStoragePool #modalEdit #category").attr("disabled", isDefault);
         $("#modalEditStoragePool #modalEdit #name").attr("disabled", isDefault);
         $("#modalEditStoragePool #modalEdit #description").attr("disabled", isDefault);
         $("#modalEditStoragePool #modalEdit #mountpoint").attr("disabled", isDefault);
-        $("#modalEditStoragePool #modalEdit #category").attr("disabled", isDefault);
         
         $("#modalEditStoragePool #modalEdit")[0].reset();
         $('#modalEdit #pathsTableEdit tbody').html('');
@@ -181,58 +181,16 @@ $(document).ready(function () {
         $('#modalEdit #startable').iCheck(data.startable ? 'check' : 'uncheck').iCheck('update');
         $('#modalEdit #read').iCheck(data.read ? 'check' : 'uncheck').iCheck('update');
         $('#modalEdit #write').iCheck(data.write ? 'check' : 'uncheck').iCheck('update');
-        if(data.id == "00000000-0000-0000-0000-000000000000"){
-          $("#modalEdit #category").attr("disabled", true);
-        } else {
-          $("#modalEdit #category").attr("disabled", false);
-        }
-
+        
         const pathsTableEdit = $('#modalEdit #pathsTableEdit tbody')[0];
         paths = data.paths;
 
         for (const type in paths) {
-          var title = '';
-          if (type === 'desktop') {
-            title = `<i class="fa fa-desktop fa-1x"></i><b id="${type}"> Desktops</b>`;
-          } else if (type === 'template') {
-            title = `<i class="fa fa-cubes fa-1x"></i><b id="${type}"> Templates</b>`;
-          } else if (type === 'media') {
-            title = `<i class="fa fa-circle-o fa-1x"></i><b id="${type}"> Media</b>`;
-          } else if (type === 'volatile') {
-            title = `<i class="fa fa-clock-o fa-1x"></i><b id="${type}"> Volatile</b>`;
-          } else {
-            title = `<b id="${type}">${type}</b>`;
-          }
+          title = `<i class="fa ${getTypeDefaultValue(type).icon} fa-1x"></i><b id="${type}"> ${getTypeDefaultValue(type).title}</b>`;
           const pathArray = paths[type];
           if (pathArray.length == 0) {
-            var row = `                    
-              <tr id="${type}">
-              <td>
-                <div class="checkbox"><label class="">
-                    <div class="icheckbox_flat-green" style="position: relative;">
-                      <input checked type="checkbox" name="default-${type}" data-type="${type}" class="flat default-cb" style="position: absolute; opacity: 0;">
-                      <ins class="iCheck-helper"
-                        style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                      </ins>
-                    </div>
-                  </label>
-                </div>
-              </td>
-              <td id="type">${title}</td>
-              <td>
-                <span class="path_base"></span><input id="path" name="${type}-path" value="${type=='desktop'? "groups" : type}" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
-              </td>
-              <td><input id="weight" name="${type}-weight" type="number" value="100"></td>
-              <td>
-                <input id="modalAdd-addrow-${type}" type="button" value="+" onclick="addRow('${type}', 'modalAdd')"/>
-                <input class="modalAdd-delrow-${type}" type="button" value="-" onclick="delRow('${type}', 'modalAdd')"/>
-              </td>
-            </tr>
-            <tr>
-              <td colspan="100%" style="border-top: 3px solid rgb(221, 221, 221);"></td>
-            </tr>`
+            var row = renderNewRow(type, null) + `<tr><td colspan="100%" style="border-top: 3px solid rgb(221, 221, 221);"></td></tr>`;
             $('#modalEdit #pathsTableEdit tbody').append(row);
-
             addDefaultCheckboxListeners("#modalEdit", $('#modalEdit #'+ type +' .default-cb'));
             $('#modalEdit #'+ type +' .default-cb').iCheck('check').iCheck('update').trigger('ifChecked');
           }
@@ -249,7 +207,7 @@ $(document).ready(function () {
             const weightCell = row.insertCell(3);
             const buttonAddDelCell = row.insertCell(4);
             checkboxCell.innerHTML = "";
-            if (i==0) {
+            if (i == 0) {
               checkboxCell.innerHTML = `<div class="checkbox"><label class="">
                                             <div class="icheckbox_flat-green" style="position: relative;">
                                               <input type="checkbox" name="default-${type}" data-type="${type}" class="flat default-cb" style="position: absolute; opacity: 0;">
@@ -259,15 +217,20 @@ $(document).ready(function () {
                                             </div>
                                           </label>
                                         </div>`
-              addDefaultCheckboxListeners("#modalEdit", $("#modalEdit .checkbox .default-cb"));
+              addDefaultCheckboxListeners("#modalEdit", $(checkboxCell).find("input"));
             }
+            pathText = "";
+            if (isDefault) {
+              pathText = pathObj.path.split(getTypeDefaultValue(type).path + "/")[1];
+              pathText = pathText ? pathText : "";
 
+            } else {
+              pathText = pathObj.path;
+            }
             typeCell.innerHTML = title;
-            pathObj.path = pathObj.path.split("/")[pathObj.path.split("/").length-1]
-
-            pathCell.innerHTML = `<span class="path_base"></span><input id="path" name="${type}-path" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text" value="${pathObj.path}">`;
+            pathCell.innerHTML = `<span class="path_base"></span><input id="path" name="${type}-path" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ\/ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text" value="${pathText}">`;
             weightCell.innerHTML = `<input id="weight" name="${type}-weight" type="number" value="${pathObj.weight}">`;
-            buttonAddDelCell.innerHTML = `<input id='modalEdit-addrow-${type}' type='button' value='+' onclick='addRow("${type}", "modalEdit")'/> \
+            buttonAddDelCell.innerHTML = `<input id='modalEdit-addrow-${type}' type='button' value='+' onclick='addRow("${type}", "modalEdit", ${isDefault})'/> \
                                           <input class='modalEdit-delrow-${type}' type='button' value='-' onclick='delRow("${type}", "modalEdit")'/>`;
 
             if (i === pathArray.length - 1) {
@@ -276,7 +239,25 @@ $(document).ready(function () {
               additionalCell.setAttribute('colspan', '100%');
               additionalCell.style.borderTop = '3px solid rgb(221, 221, 221)';
             }
-          }
+          }  
+        }
+
+        if (isDefault) {
+          $("#modalEdit #category").attr("disabled", true);
+          $("#modalEditStoragePool #modalEdit .checkbox").remove();
+          $.each($("#modalEdit #pathsTableEdit tr input"), function () {
+            if ($(this).attr("name")) {
+              var type = $(this).attr("name").split("-")[0];
+              $(this).siblings("span").text(getTypeDefaultValue(type).path);
+              if ($(this).val().length == 0) {
+                $(this).remove();
+              } else {
+                $(this).siblings("span").text(getTypeDefaultValue(type).path + "/");
+              }
+            }
+          });
+        } else {
+          $("#modalEdit #category").attr("disabled", false);
         }
        break;
       case 'btn-enable':
@@ -343,7 +324,8 @@ $(document).ready(function () {
         }).on('pnotify.cancel', function() {});
         break;
       case 'btn-delete':
-        if(data.id == "00000000-0000-0000-0000-000000000000"){
+        isDefault = isDefaultPool(data.id);
+        if(isDefault){
           return new PNotify({
             title: "ERROR deleting pool",
             text: "Default pool can't be removed",
@@ -440,23 +422,10 @@ function renderStoragePoolsPaths(data) {
   return $newPanel;
 
   function createDetailPanel(type, paths, category) {
-    if (type == "desktop") {
-      icon = "fa fa-desktop fa-1x";
-      typeName = "<b>Desktops</b>";
-    } else if (type == "media") {
-      icon = "fa fa-circle-o fa-1x";
-      typeName = "<b>Media</b>";
-    } else if (type == "template") {
-      icon = "fa fa-cubes fa-1x";
-      typeName = "<b>Templates</b>";
-    } else if (type == "volatile") {
-      icon = "fa fa-laptop fa-1x";
-      typeName = "<b>Volatile</b>";
-    }
     $.each(paths, function (index, path) {
       $pathsTBody.append(
         $('<tr>').append(
-          $('<td>').append($('<i>').addClass(icon)).append(' ').append(typeName),
+          $('<td>').append($('<i class="fa">').addClass(getTypeDefaultValue(type).icon)).append(' ').append(`<b> ${getTypeDefaultValue(type).title}</b>`),
           $('<td>').text(`${data.mountpoint}/${category ? category["id"] + "/" : ""}${path.path}`),
           $('<td>').text(path.weight)
         )
@@ -465,25 +434,16 @@ function renderStoragePoolsPaths(data) {
   }
 }
 
-function addRow(type, modal) {
-  var currentRow = ""
-  if (modal == "modalAdd") {
-    currentRow = document.getElementById(`modalAdd-addrow-${type}`).parentNode.parentNode;
-  } else if (modal == "modalEdit") {
-    currentRow = document.getElementById(`modalAdd-addrow-${type}`).parentNode.parentNode;
-  }
-  var newRow = currentRow.cloneNode(true);
-  $(newRow).find(".checkbox").remove();
+function addRow(type, modal, isDefault) {
+  var currentRow = document.getElementById(`${modal}-addrow-${type}`).parentNode.parentNode;
+  var newRow = document.createElement("tr");
+  newRow.setAttribute("id", type)
+  newRow.innerHTML = renderNewRow(type, isDefault);
   currentRow.parentNode.insertBefore(newRow, currentRow.nextSibling);
 }
 
 function delRow(type, modal) {
-  var currentRow = ""
-  if (modal == "modalAdd") {
-    currentRow = $(`.modalAdd-delrow-${type}`).parent().parent().last();
-  } else if (modal == "modalEdit") {
-    currentRow = $(`.modalEdit-delrow-${type}`).parent().parent().last();
-  }
+  currentRow = $(`.${modal}-delrow-${type}`).parent().parent().last();
   currentRow.remove();
 }
 
@@ -498,21 +458,29 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
     data["allowed"] = {"roles": false, "categories": false, "groups": false, "users": false}
     e.preventDefault();
     var pathsTableAdd = {};
+    var isDefault = isDefaultPool(data.id);
 
     $('#pathsTableAdd tbody tr').each(function () {
       var type = $(this).attr("id");
-      var weight = parseInt($(this).find('#weight').val());
-      var path = $(this).find('#path').val();
-      if (!pathsTableAdd[type]) {
-        pathsTableAdd[type] = [];
-      }
-      if (data["default-" + type] != 'on') {
-        pathsTableAdd[type].push({
-          'path': path,
-          'weight': weight
-        });
+      if (type) {
+        var weight = parseInt($(this).find('#weight').val());
+        var path = $(this).find('#path').val();
+        if (!path) path = "";
+        if (!pathsTableAdd[type]) {
+          pathsTableAdd[type] = [];
+        }
+        if (isDefault){
+          path = (getTypeDefaultValue(type).path + "/" + path).replace(/\/$/, '')
+        }
+        if (data["default-" + type] != 'on') {
+          pathsTableAdd[type].push({
+            'path': path,
+            'weight': weight
+          });
+        }
       }
     });
+
     for (let key in data) {
       if (key.endsWith("-weight") || key.endsWith("-path")) {
         delete data[key];
@@ -574,14 +542,20 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
 
     e.preventDefault();
     var pathsTableEdit = {};
+    isDefault = isDefaultPool(data.id)
     $('#pathsTableEdit tbody tr').each(function() {
       if($(this).attr("id") != undefined){
         var type = $(this).attr("id");
         var weight = parseInt($(this).find('#weight').val());
         var path = $(this).find('#path').val();
+        if (!path) path = "";
         if (!pathsTableEdit[type]) {
           pathsTableEdit[type] = [];
         }
+        if (isDefault){
+          path = (getTypeDefaultValue(type).path + "/" + path).replace(/\/$/, '')
+        }
+
         if (data["default-" + type] != 'on') {
           pathsTableEdit[type].push({
             'path': path,
@@ -600,7 +574,7 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
     data["paths"] = pathsTableEdit
     data["mountpoint"] = form.find(".path_base_mountpoint").text() + data.mountpoint;
 
-    if (data.id == "00000000-0000-0000-0000-000000000000") {
+    if (isDefault) {
       new PNotify({
         title: "WARNING. You're about to edit the default pool",
         type: "warning",
@@ -694,10 +668,11 @@ function addPath(path, mountpoint) {
 }
 
 function addDefaultCheckboxListeners(modal, checkbox) {
+  $(checkbox).parent().show();
   $(checkbox).iCheck({
     checkboxClass: 'icheckbox_flat-green',
-    radioClass: 'iradio_flat-green'
   });
+  $(checkbox).attr("disabled", false);
   checkbox.on('ifChecked', function() {
     $(modal + ` .table-wrapper tr#${$(this).data("type")} input`).attr("disabled", true)
     $($(this)).attr("disabled", false);
@@ -705,4 +680,63 @@ function addDefaultCheckboxListeners(modal, checkbox) {
   checkbox.on('ifUnchecked', function() {
     $(modal + ` .table-wrapper tr#${$(this).data("type")} input`).attr("disabled", false);
   })
+}
+
+function getTypeDefaultValue(type) {
+  const valueMap = {
+    "desktop": {
+      "path": "groups",
+      "icon": "fa-desktop",
+      "title": "Desktop"
+    },
+    "media": {
+      "path": "media",
+      "icon": "fa-circle-o",
+      "title": "Media"
+    },
+    "template" : {
+      "path": "templates",
+      "icon": "fa-cubes",
+      "title": "Template"
+    },
+    "volatile" : {
+      "path": "volatile",
+      "icon": "fa-clock-o",
+      "title": "Volatile"
+    }
+  };
+  return valueMap[type];
+}
+
+function renderNewRow(type, defaultPool) {
+  const typeData = getTypeDefaultValue(type);
+  return `<tr id="${type}">
+    <td>
+          <div class="icheckbox_flat-green" style="position:relative;display:none;">
+            <input type="checkbox" name="default-${type}" data-type="${type}" class="flat default-cb" style="position: absolute; opacity: 0;">
+          </div>
+        </label>
+      </div>
+    </td>
+    <td id="type"><i class="fa ${typeData.icon} fa-1x"></i><b> ${typeData.title}</b></td>
+    <td>
+      <span class="path_base">${defaultPool ? typeData.path + "/" : ""}</span><input id="path" name="${type}-path" value="${typeData.path}" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ\/ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
+    </td>
+    <td><input id="weight" name="${type}-weight" type="number" value="100"></td>
+    <td>
+      <input id="modalAdd-addrow-${type}" type="button" value="+" onclick="addRow('${type}', 'modalAdd', ${defaultPool})"/>
+      <input class="modalAdd-delrow-${type}" type="button" value="-" onclick="delRow('${type}', 'modalAdd')"/>
+    </td>
+  </tr>`
+}
+
+function isDefaultPool(poolId) {
+  $.ajax({
+    type: "GET",
+    url: "/api/v3/admin/storage_pool/" + poolId,
+    contentType: "application/json",
+    success: function (data) {
+      return data.is_default;
+    },
+  });
 }

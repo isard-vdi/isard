@@ -714,10 +714,12 @@ def storage_update_parent(payload, storage_id):
     return jsonify(storage.task)
 
 
-@app.route("/api/v3/storage/<path:storage_id>/path/<path:path>", methods=["PUT"])
-@app.route("/api/v3/storage/<path:storage_id>/path/<path:path>/rsync", methods=["PUT"])
+@app.route(
+    "/api/v3/storage/<path:storage_id>/path/<path:path>/priority/<priority>/<method>",
+    methods=["PUT"],
+)
 @has_token
-def storage_move(payload, storage_id, path):
+def storage_move(payload, storage_id, path, priority="low", method="mv"):
     """
     Endpoint to move a storage to another path
 
@@ -751,42 +753,56 @@ def storage_move(payload, storage_id, path):
             error="conflict",
             description=f"Used as backing file for {', '.join([storage.id for storage in storage.children])}",
         )
+    if payload["role_id"] != "admin":
+        priority = "low"
+    else:
+        if priority not in ["low", "default", "high"]:
+            raise Error(
+                error="bad_request",
+                description=f"Priority must be low, default or high",
+            )
+    if method not in ["mv", "rsync"]:
+        raise Error(
+            error="bad_request",
+            description=f"Method must be mv or rsync",
+        )
     if not _check_domains_status(storage_id):
         raise Error(
             "precondition_required",
             "All desktops must be 'Stopped' for storage operations.",
             description_code="desktops_not_stopped",
         )
-
     storage_domains = get_storage_derivatives(storage.id)
-    desktops.set_desktops_maintenance(
-        payload, storage_id, "move", domains=storage_domains
-    )
-    storage.status = "maintenance"
+    if len(storage_domains) > 1:
+        raise Error("precondition_required", "Unable to move storage with derivatives")
 
     storage_pool_origin = StoragePool.get_best_for_action(
         "move", path=storage.directory_path
     )
+    desktops.set_desktops_maintenance(
+        payload, storage.id, "move", domains=storage_domains
+    )
+    storage.status = "maintenance"
+
     if storage_pool_origin == storage_pool_destination:
         queue = storage_pool_origin.id
     else:
         storage_pool_ids = [storage_pool_origin.id, storage_pool_destination.id]
         storage_pool_ids.sort()
         queue = ":".join(storage_pool_ids)
-    rsync = request.url_rule.rule.endswith("/rsync")
     move_job_kwargs = {
         "kwargs": {
             "origin_path": storage.path,
             "destination_path": f"{path}/{storage.id}.{storage.type}",
-            "rsync": rsync,
+            "method": method,
         }
     }
-    if rsync:
+    if method == "rsync":
         move_job_kwargs["timeout"] = 3600
     try:
         storage.create_task(
             user_id=storage.user_id,
-            queue=f"storage.{queue}.default",
+            queue=f"storage.{queue}.{priority}",
             task="move",
             job_kwargs=move_job_kwargs,
             dependents=[
@@ -814,7 +830,7 @@ def storage_move(payload, storage_id, path):
                                                 "storage": [storage.id],
                                             },
                                             "Stopped": {
-                                                "domain": [storage_domains],
+                                                "domain": storage_domains,
                                             },
                                         },
                                     },
@@ -824,7 +840,7 @@ def storage_move(payload, storage_id, path):
                         {
                             "queue": "core",
                             "task": "domains_update",
-                            "job_kwargs": {"domain_list": storage_domains},
+                            "job_kwargs": {"kwargs": {"domain_list": storage_domains}},
                         },
                     ],
                 },

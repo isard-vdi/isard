@@ -12,10 +12,6 @@
     max-width: 315px;
   }
 
-  .table-wrapper tbody td input#path{
-    width: 100%;
-  }
-
   .modal-body form > .x_panel {
     margin-bottom: 0px;
   }
@@ -45,7 +41,7 @@
                 <div class="col-md-4 col-xs-12">
                   <label class="control-label" for="name">Name <span class="required">*</span>
                   </label>
-                  <input id="name" name="name" placeholder="Pool name" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change" required type="text" style="width:100%">
+                  <input id="name" name="name" placeholder="Pool name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change" required type="text" style="width:100%">
                 </div>
 
                 <div class="col-md-8 col-xs-12">
@@ -59,7 +55,7 @@
                   <label class="control-label" for="mountpoint">Mountpoint <span class="required">*</span>
                   </label>
                   <div><span class="path_base_mountpoint"></span><input id="mountpoint" name="mountpoint" placeholder="mountpoint" class="roundbox" maxlength="40"
-                    pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change"
+                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change"
                     required type="text">
                   </div>
                 </div>
@@ -96,7 +92,7 @@
                       </td>
                       <td id="type"><i class="fa fa-desktop fa-1x"></i><b> Desktops</b></td>
                       <td>
-                        <span class="path_base"></span><input id="path" name="desktop-path" value="groups" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
+                        <span class="path_base"></span><input id="path" name="desktop-path" value="desktops" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ\/ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="desktop-weight" type="number" value="100"></td>
                       <td>
@@ -121,7 +117,7 @@
                       </td>
                       <td id="type"><i class="fa fa-circle-o fa-1x"></i><b> Media</b></td>
                       <td>
-                        <span class="path_base"></span><input id="path" name="media-path" value="media" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
+                        <span class="path_base"></span><input id="path" name="media-path" value="media" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ\/ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="media-weight" type="number" value="100"></td>
                       <td>
@@ -146,7 +142,7 @@
                       </td>
                       <td id="type"><i class="fa fa-cubes fa-1x"></i><b> Templates</b></td>
                       <td>
-                        <span class="path_base"></span><input id="path" name="template-path" value="templates" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
+                        <span class="path_base"></span><input id="path" name="template-path" value="templates" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ\/ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="template-weight" type="number" value="100"></td>
                       <td>
@@ -171,7 +167,7 @@
                       </td>
                       <td id="type"><i class="fa fa-clock-o fa-1x"></i><b> Volatile</b></td>
                       <td>
-                        <span class="path_base"></span><input id="path" name="volatile-path" value="volatile" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
+                        <span class="path_base"></span><input id="path" name="volatile-path" value="volatile" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ\/ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="volatile-weight" type="number" value="100"></td>
                       <td>
@@ -264,7 +260,7 @@
                 <div class="col-md-4 col-xs-12">
                   <label class="control-label" for="name">Name <span class="required">*</span>
                   </label>
-                  <input id="name" name="name" placeholder="Pool name" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change" required type="text" style="width:100%">
+                  <input id="name" name="name" placeholder="Pool name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change" required type="text" style="width:100%">
                 </div>
 
                 <div class="col-md-8 col-xs-12">
@@ -278,7 +274,7 @@
                   <label class="control-label" for="mountpoint">Mountpoint <span class="required">*</span>
                   </label>
                   <div><span class="path_base_mountpoint"></span><input id="mountpoint" name="mountpoint" placeholder="mountpoint" class="roundbox" maxlength="40"
-                    pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change"
+                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change"
                     type="text">
                   </div>
                 </div>
