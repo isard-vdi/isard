@@ -70,7 +70,12 @@ func (r *Rata) minRAM(hypers []*sdk.OrchestratorHypervisor) int {
 		return r.cfg.MinRAM
 	}
 
-	if r.cfg.MinRAMLimitPercent != 0 {
+	limitPercent := r.cfg.MinRAMLimitPercent
+	if r.cfg.MinRAMLimitPercentHourly != nil {
+		limitPercent = getCurrentHourlyLimit(r.cfg.MinRAMLimitPercentHourly, time.Now())
+	}
+
+	if limitPercent != 0 {
 		margin := 0
 		if r.cfg.MinRAMLimitMarginHourly != nil {
 			margin = getCurrentHourlyLimit(r.cfg.MinRAMLimitMarginHourly, time.Now())
@@ -84,7 +89,7 @@ func (r *Rata) minRAM(hypers []*sdk.OrchestratorHypervisor) int {
 		}
 
 		// Apply the limit percentage
-		minRAM = int(math.Round((float64(r.cfg.MinRAMLimitPercent) / 100.0) * float64(minRAM)))
+		minRAM = int(math.Round((float64(limitPercent) / 100.0) * float64(minRAM)))
 		// Sum the extra margin
 		minRAM += margin
 
@@ -108,7 +113,12 @@ func (r *Rata) maxRAM(hypers []*sdk.OrchestratorHypervisor) int {
 		return r.cfg.MaxRAM
 	}
 
-	if r.cfg.MaxRAMLimitPercent != 0 {
+	limitPercent := r.cfg.MaxRAMLimitPercent
+	if r.cfg.MaxRAMLimitPercentHourly != nil {
+		limitPercent = getCurrentHourlyLimit(r.cfg.MaxRAMLimitPercentHourly, time.Now())
+	}
+
+	if limitPercent != 0 {
 		margin := 0
 		if r.cfg.MaxRAMLimitMarginHourly != nil {
 			margin = getCurrentHourlyLimit(r.cfg.MaxRAMLimitMarginHourly, time.Now())
@@ -122,7 +132,7 @@ func (r *Rata) maxRAM(hypers []*sdk.OrchestratorHypervisor) int {
 			maxRAM += r.hyperMaxRAM(h)
 		}
 
-		maxRAM = int(math.Round((float64(r.cfg.MaxRAMLimitPercent) / 100.0) * float64(maxRAM)))
+		maxRAM = int(math.Round((float64(limitPercent) / 100.0) * float64(maxRAM)))
 		maxRAM += margin
 
 		return maxRAM
