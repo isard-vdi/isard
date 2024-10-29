@@ -28,7 +28,8 @@ export const desktopStates = {
   downloading: 'downloading',
   paused: 'paused',
   updating: 'updating',
-  maintenance: 'maintenance'
+  maintenance: 'maintenance',
+  creating: 'creating'
 }
 
 export const status = {

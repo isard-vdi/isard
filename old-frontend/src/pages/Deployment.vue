@@ -92,12 +92,12 @@
         <div class="d-flex justify-content-center align-items-center">
           <!-- STATE DOT -->
           <div
-            v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.updating].includes(getItemState(data.item))"
+            v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.updating, desktopStates.not_created].includes(getItemState(data.item))"
             :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"
           />
           <!-- SPINNER -->
           <b-spinner
-            v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.updating].includes(getItemState(data.item))"
+            v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.updating, desktopStates.creating].includes(getItemState(data.item))"
             small
             class="align-self-center mr-2 spinner-loading"
           />
@@ -235,7 +235,15 @@ export default {
     })
 
     const desktopsBadge = computed(() => {
-      return i18n.t('views.deployment.desktop.desktops') + ': ' + deployment.value.desktops.length
+      const desktopsCreating = deployment.value.desktops.filter(d => [desktopStates.creating].includes(d.state.toLowerCase())).length
+      if (desktopsCreating !== 0) {
+        return i18n.t('views.deployment.desktop.desktops-total-creating', {
+          total: deployment.value.desktops.length,
+          creating: desktopsCreating
+        })
+      } else {
+        return i18n.t('views.deployment.desktop.desktops') + ': ' + deployment.value.desktops.length
+      }
     })
     const startedBadge = computed(() => {
       return i18n.t('views.deployment.desktop.started') + ': ' + deployment.value.desktops.filter(d => [desktopStates.started, desktopStates.waitingip].includes(d.state.toLowerCase())).length
@@ -251,6 +259,8 @@ export default {
     const canStart = (desktop) => {
       if (desktop.needsBooking) {
         return desktop.bookingId
+      } else if ([desktopStates.creating].includes(desktop.state.toLowerCase())) {
+        return false
       } else {
         return true
       }

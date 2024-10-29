@@ -780,6 +780,7 @@
             "desktop": {
                 "not-available": "Desktop not available",
                 "desktops": "Desktops",
+                "desktops-total-creating": "Desktops: {total} total, {creating} creating",
                 "started": "Started",
                 "visible": "Visible"
             },
