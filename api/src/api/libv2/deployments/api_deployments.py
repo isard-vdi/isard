@@ -618,6 +618,14 @@ def checkDesktopsStarted(deployment_id):
             "The deployment " + str(deployment_id) + " desktops must be stopped ",
             description_code="deployment_stop",
         )
+    if any(
+        [desktop["status"].startswith("Creating") for desktop in deployment_desktops]
+    ):
+        raise Error(
+            "precondition_required",
+            "The deployment " + str(deployment_id) + " are being created",
+            description_code="deployment_stop",
+        )
 
 
 def delete(deployment_id):
