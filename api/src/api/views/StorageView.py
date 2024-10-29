@@ -67,7 +67,7 @@ def check_storage_existence_and_permissions(payload, storage_id):
     :type storage_id: str
     """
     if not Storage.exists(storage_id):
-        raise Error(error="not_found", description="Storage not found")
+        raise Error(error="not_found", description=f"Storage {storage_id} not found")
     ownsStorageId(payload, storage_id)
 
 
@@ -732,57 +732,75 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    check_storage_existence_and_permissions(payload, storage_id)
-    path = f"/{path}"
-    storage_pool_destination = StoragePool.get_best_for_action("move", path=path)
-    if not storage_pool_destination:
-        raise Error(error="not_found", description="Path not found")
-    storage = Storage(storage_id)
-    if not storage.user_id:
-        raise Error("not_found", description_code="storage_not_found")
-    if storage.status != "ready":
-        raise Error(
-            error="precondition_required",
-            description="Storage not ready",
-            description_code="storage_not_ready",
-        )
-    if storage.directory_path == path:
-        raise Error(error="bad_request", description="Storage already in path")
-    if storage.children:
-        raise Error(
-            error="conflict",
-            description=f"Used as backing file for {', '.join([storage.id for storage in storage.children])}",
-        )
+    # Check parameters
     if payload["role_id"] != "admin":
         priority = "low"
     else:
         if priority not in ["low", "default", "high"]:
             raise Error(
                 error="bad_request",
-                description=f"Priority must be low, default or high",
+                description=f"Priority {priority} must be low, default or high",
             )
     if method not in ["mv", "rsync"]:
         raise Error(
             error="bad_request",
             description=f"Method must be mv or rsync",
         )
-    if not _check_domains_status(storage_id):
+
+    # Storage move checks
+    check_storage_existence_and_permissions(payload, storage_id)
+    storage_derivatives = get_storage_derivatives(storage_id)
+    if len(storage_derivatives) > 1:
         raise Error(
             "precondition_required",
-            "All desktops must be 'Stopped' for storage operations.",
-            description_code="desktops_not_stopped",
+            "Unable to move storage with derivatives",
+            description_code="storage_has_derivatives",
         )
-    storage_domains = get_storage_derivatives(storage.id)
-    if len(storage_domains) > 1:
-        raise Error("precondition_required", "Unable to move storage with derivatives")
+
+    path = f"/{path}"  # Why this?? if not path.startswith("/"): ??
+    storage_pool_destination = StoragePool.get_best_for_action("move", path=path)
+    if storage_pool_destination is None:
+        raise Error(
+            error="not_found",
+            description=f"Destination storage pool for path {path} not found to execute move operation",
+        )
+    storage = Storage(storage_id)
+    if storage.directory_path == path:
+        raise Error(
+            error="bad_request",
+            description=f"Storage {storage.id} already in destination pool path {path} to execute move operation",
+        )
+    if storage.status != "ready":
+        raise Error(
+            error="precondition_required",
+            description=f"Storage {storage.id} not ready ({storage.status}) to execute move operation",
+            description_code="storage_not_ready",
+        )
+    if storage.children:
+        raise Error(
+            error="conflict",
+            description=f"Storage {storage.id} used as backing file for {', '.join([storage.id for storage in storage.children])} to execute move operation",
+        )
+
+    # Storage domains checks
+    ## Only one domain can be attached to an storage now, but we iterate
+    for domain in storage.domains:
+        if domain.status != "Stopped":
+            raise Error(
+                "precondition_required",
+                f"Domain {domain.id} must be 'Stopped' for it's storage move operation.",
+                description_code="desktops_not_stopped",
+            )
+
+    # We can create move action
+    for domain in storage.domains:
+        domain.status = "Maintenance"
+        domain.current_action = "move"
+    storage.status = "maintenance"
 
     storage_pool_origin = StoragePool.get_best_for_action(
         "move", path=storage.directory_path
     )
-    desktops.set_desktops_maintenance(
-        payload, storage.id, "move", domains=storage_domains
-    )
-    storage.status = "maintenance"
 
     if storage_pool_origin == storage_pool_destination:
         queue = storage_pool_origin.id
@@ -800,6 +818,7 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
     if method == "rsync":
         move_job_kwargs["timeout"] = 3600
     try:
+        storage_domains_ids = [domain.id for domain in storage.domains]
         storage.create_task(
             user_id=storage.user_id,
             queue=f"storage.{queue}.{priority}",
@@ -830,7 +849,7 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
                                                 "storage": [storage.id],
                                             },
                                             "Stopped": {
-                                                "domain": storage_domains,
+                                                "domain": storage_domains_ids,
                                             },
                                         },
                                     },
@@ -840,7 +859,9 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
                         {
                             "queue": "core",
                             "task": "domains_update",
-                            "job_kwargs": {"kwargs": {"domain_list": storage_domains}},
+                            "job_kwargs": {
+                                "kwargs": {"domain_list": storage_domains_ids}
+                            },
                         },
                     ],
                 },

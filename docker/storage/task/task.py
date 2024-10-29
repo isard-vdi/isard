@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import base64
+import shutil
 import tempfile
 from json import loads
 from os import environ, mkdir, remove, rename
@@ -289,7 +290,7 @@ def move(origin_path, destination_path, method):
     :rtype: int
     """
     if method == "mv":
-        rename(origin_path, destination_path)
+        shutil.move(origin_path, destination_path)
         return 0
     elif method == "rsync":
         return run_with_progress(
