@@ -126,5 +126,6 @@ class StoragePool(RethinkCustomBase):
             storage_pools = cls.get_all()
         # This should not happen, but just in case we'll get one
         if not len(storage_pools):
-            return cls.get_all()[0]
+            # return cls.get_all()[0]
+            return None
         return choice(storage_pools)
