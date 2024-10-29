@@ -286,7 +286,8 @@
                         "title": "Delete deployment"
                     },
                     "edit": {
-                        "title": "Edit deployment"
+                        "title": "Edit deployment",
+                        "disabled": "This deployment cannot be edited at the moment"
                     },
                     "allowed": {
                         "title": "Edit users"

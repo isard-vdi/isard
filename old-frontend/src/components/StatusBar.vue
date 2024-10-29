@@ -248,7 +248,8 @@
             </b-button>
             <b-button
               class="rounded-circle btn btn-blue px-2 mr-2"
-              :title="$t('components.statusbar.deployment.buttons.edit.title')"
+              :title="canEditDeployment ? $t('components.statusbar.deployment.buttons.edit.disabled') : $t('components.statusbar.deployment.buttons.edit.title')"
+              :disabled="canEditDeployment"
               @click="editDeployment()"
             >
               <b-icon
@@ -560,6 +561,11 @@ export default {
       $store.dispatch('editDeploymentUsers', { id: deployment.value.id, allowed: allowed })
     }
 
+    const canEditDeployment = computed(() => {
+      const allowedStatus = ['stopped', 'failed', 'unknown']
+      return !deployment.value.desktops.every(desktop => allowedStatus.includes(desktop.state.toLowerCase()))
+    })
+
     const editDeployment = () => {
       $store.dispatch('goToEditDeployment', deployment.value.id)
     }
@@ -670,6 +676,7 @@ export default {
       showAllowedModal,
       showOwnersModal,
       updateUsers,
+      canEditDeployment,
       editDeployment,
       deleteDeployment,
       recreateDeployment,
