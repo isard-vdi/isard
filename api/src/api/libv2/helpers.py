@@ -905,8 +905,8 @@ def change_owner_domain_data(domain_id, user_id):
     return {"user_data": user_data, "domain_data": domain_data}
 
 
-# This has no recursion. Call GetTemplateTreeList
-def TemplateTreeList(template_id):
+# This has no recursion. Call Gettemplate_tree_list
+def template_tree_list(template_id):
     # Get derivated from this template (and derivated from itself)
     derivated = _derivated(template_id)
 
@@ -940,21 +940,21 @@ def TemplateTreeList(template_id):
     return domains
 
 
-def GetTemplateDerivatives(template_id, user_id=None):
+def get_template_derivatives(template_id, user_id=None):
     """
     Get all derivatives of a template. The template itself is _excluded_ from the list.
     """
-    all_domains_id = GetTemplateWithAllDerivatives(template_id, user_id)
+    all_domains_id = get_template_with_all_derivatives(template_id, user_id)
     return [item for item in all_domains_id if item["id"] != template_id]
 
 
 # This is the function to be called
-def GetTemplateWithAllDerivatives(template_id, user_id=None):
+def get_template_with_all_derivatives(template_id, user_id=None):
     """
     Get all derivatives of a template. The template itself is _included_ in the list.
     """
     levels = {}
-    derivated = TemplateTreeList(template_id)
+    derivated = template_tree_list(template_id)
     with app.app_context():
         template = (
             r.table("domains")
@@ -1028,11 +1028,11 @@ def GetTemplateWithAllDerivatives(template_id, user_id=None):
     return all_domains_id
 
 
-# Call GetTemplateTreeList. This is a subfunction only.
-def TemplateTreeRecursion(template_id, levels):
+# Call Gettemplate_tree_list. This is a subfunction only.
+def template_tree_recursion(template_id, levels):
     nodes = [dict(n) for n in levels.get(template_id, [])]
     for n in nodes:
-        children = TemplateTreeRecursion(n["id"], levels)
+        children = template_tree_recursion(n["id"], levels)
         if children:
             n["children"] = children
     return nodes

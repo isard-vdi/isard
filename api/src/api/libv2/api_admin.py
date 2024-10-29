@@ -747,9 +747,9 @@ class ApiAdmin:
             )
 
     # This is the function to be called
-    def GetTemplateTreeList(self, template_id, user_id):
+    def Gettemplate_tree_list(self, template_id, user_id):
         levels = {}
-        derivated = self.TemplateTreeList(template_id, user_id)
+        derivated = self.template_tree_list(template_id, user_id)
         for n in derivated:
             levels.setdefault(
                 (
@@ -759,7 +759,7 @@ class ApiAdmin:
                 ),
                 [],
             ).append(n)
-        recursion = self.TemplateTreeRecursion(template_id, levels)
+        recursion = self.template_tree_recursion(template_id, levels)
         with app.app_context():
             user = r.table("users").get(user_id).pluck("id", "role").run(db.conn)
             d = (
@@ -817,11 +817,11 @@ class ApiAdmin:
         ]
         return root
 
-    # Call GetTemplateTreeList. This is a subfunction only.
-    def TemplateTreeRecursion(self, template_id, levels):
+    # Call Gettemplate_tree_list. This is a subfunction only.
+    def template_tree_recursion(self, template_id, levels):
         nodes = [dict(n) for n in levels.get(template_id, [])]
         for n in nodes:
-            children = self.TemplateTreeRecursion(n["id"], levels)
+            children = self.template_tree_recursion(n["id"], levels)
             if children:
                 n["children"] = children
         return nodes
@@ -889,8 +889,8 @@ class ApiAdmin:
             derivated_from_duplicated += self._derivated(d["id"])
         return duplicated_from_original + derivated_from_duplicated
 
-    # This has no recursion. Call GetTemplateTreeList
-    def TemplateTreeList(self, template_id, user_id):
+    # This has no recursion. Call Gettemplate_tree_list
+    def template_tree_list(self, template_id, user_id):
         with app.app_context():
             user = (
                 r.table("users")

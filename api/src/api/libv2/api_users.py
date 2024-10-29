@@ -81,13 +81,13 @@ from .api_admin import (
 )
 from .api_notify import notify_admin, notify_admins
 from .helpers import (
-    GetTemplateWithAllDerivatives,
     _check,
     _parse_desktop,
     _random_password,
     change_storage_ownership,
     gen_payload_from_user,
     get_new_user_data,
+    get_template_with_all_derivatives,
     revoke_hardware_permissions,
 )
 from .validators import _validate_item
@@ -1202,7 +1202,7 @@ class ApiUsers:
             )
         domains_derivated = []
         for template in templates:
-            domains_derivated = domains_derivated + GetTemplateWithAllDerivatives(
+            domains_derivated = domains_derivated + get_template_with_all_derivatives(
                 template["id"]
             )
         desktops = desktops + list(

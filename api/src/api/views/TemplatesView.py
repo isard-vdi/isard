@@ -154,7 +154,7 @@ def api_v3_template(payload, template_id):
 def api_v3_template_delete(payload, template_id):
     ownsDomainId(payload, template_id)
     template = templates.Get(template_id)
-    tree = admin.GetTemplateTreeList(template["id"], payload["user_id"])[0]
+    tree = admin.Gettemplate_tree_list(template["id"], payload["user_id"])[0]
 
     derivates = templates.check_children(payload, tree)
 
@@ -279,7 +279,7 @@ def api_v3_user_templates_allowed(payload, kind):
 @is_admin_or_manager_or_advanced
 def api_v3_template_delete_tree(payload, template_id):
     template = templates.Get(template_id)
-    tree = admin.GetTemplateTreeList(template["id"], payload["user_id"])[0]
+    tree = admin.Gettemplate_tree_list(template["id"], payload["user_id"])[0]
 
     derivates = templates.check_children(payload, tree)
     deployments = templates.get_deployments_with_template(
