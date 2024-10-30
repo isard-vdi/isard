@@ -731,7 +731,8 @@
             "footer": "No pots convertir aquesta plantilla a escriptori. Contacta amb el teu administrador.",
             "confirm": "Entenc que tots aquests elements seran eliminats i vull continuar.",
             "confirm-unchecked": "Heu de marcar aquesta casella per a continuar",
-            "duplicate": "Aquesta plantilla és una duplicada d'una altra plantilla i no es pot convertir a escriptori. Contacta amb el teu administrador."
+            "duplicate": "Aquesta plantilla és una duplicada d'una altra plantilla i no es pot convertir a escriptori. Contacta amb el teu administrador.",
+            "recyclebin": "Si hi ha elements a la paperera de reciclatge que depenen d'aquesta plantilla, seran eliminats permanentment."
           },
           "info": {
             "title": "Els següents canvis es faran a aquesta plantilla:",

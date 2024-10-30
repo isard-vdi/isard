@@ -333,16 +333,18 @@ class ApiDesktopsPersistent:
             insert=False,
         )
         # We are updating the domain
-        desktop_data["status"] = "Updating"
-        # # We use the same storage, as status _Updating_ does not generate a new one
-        desktop_data["create_dict"]["hardware"]["disks"] = template["create_dict"][
-            "hardware"
-        ]["disks"]
-        # # We use the same XML, as status _Updating_ does not generate a new one
-        desktop_data["xml"] = template["xml"]
-        # # We use the template parents
-        desktop_data["parents"] = template["parents"]
-
+        new_desktop_data = {
+            "status": "Updating",
+            "create_dict": {
+                "hardware": {"disks": template["create_dict"]["hardware"]["disks"]}
+            },
+            "xml": template["xml"],
+            "parents": template["parents"] if template["parents"] else [None],
+        }
+        # Merge the new data with the existing desktop_data
+        desktop_data = {**desktop_data, **new_desktop_data}
+        # Permanently delete dependants in recycle bin
+        delete_dependants_recycle_bin_from_templates([template["id"]])
 
         with app.app_context():
             r.table("domains").get(data["template_id"]).update(desktop_data).run(

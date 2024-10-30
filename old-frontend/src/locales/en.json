@@ -949,7 +949,8 @@
                         "footer": "You cannot convert this template into a desktop. Please contact the administrator.",
                         "confirm": "I'm aware that all these items will be deleted and I want proceed.",
                         "confirm-unchecked": "You must check this box to proceed.",
-                        "duplicate": "This template is a duplicate of another template and cannot be converted to a desktop. Please contact the administrator."
+                        "duplicate": "This template is a duplicate of another template and cannot be converted to a desktop. Please contact the administrator.",
+                        "recyclebin": "If you have recycle bin entries that depend on this template, they will be permanently deleted."
                     },
                     "info": {
                         "title": "The following changes will be made to this template:",

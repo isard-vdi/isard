@@ -634,6 +634,32 @@ def add_log(
         )
 
 
+def get_template_dependant_recycle_bin_entries(templates, index):
+    with app.app_context():
+        return list(
+            r.table("recycle_bin")
+            .get_all(r.args(templates), index=index)
+            .filter(lambda rb: rb["status"] == "recycled")
+            .pluck({"id", "agent_id"})
+            .distinct()
+            .run(db.conn)
+        )
+
+
+def delete_dependants_recycle_bin_from_templates(templates):
+    """
+    Permanent delete the recycle bin entries that contain storages that are dependant on a list of templates
+    """
+    dependent_storages = get_template_dependant_recycle_bin_entries(
+        templates, "parents"
+    ) + get_template_dependant_recycle_bin_entries(
+        templates, "duplicate_parent_template"
+    )
+    unique_rcb_templates = list({rcb["id"]: rcb for rcb in dependent_storages}.values())
+    for rcb in unique_rcb_templates:
+        RecycleBin(rcb["id"]).delete_storage(rcb["agent_id"])
+
+
 class RecycleBin(object):
     id = None
     status = None
@@ -1387,7 +1413,7 @@ class RecycleBinTemplate(RecycleBinDomain):
     def __init__(self, id=None, user_id=None):
         super().__init__(id, item_type="template", user_id=user_id)
 
-    def add(self, template_id=None, exclude_template=False):
+    def add(self, template_id=None):
         """
         Adds a recycle bin entry for templates.
 

@@ -961,7 +961,8 @@
             "footer": "No puedes convertir esta plantilla en un escritorio. Contacta con tu administrador.",
             "confirm": "Entiendo que todos estos elementos se eliminarán y quiero continuar.",
             "confirm-unchecked": "Debes marcar esta casilla para continuar.",
-            "duplicate": "Esta plantilla es duplicada de otra plantilla y no se puede convertir en un escritorio. Contacta con tu administrador."
+            "duplicate": "Esta plantilla es duplicada de otra plantilla y no se puede convertir en un escritorio. Contacta con tu administrador.",
+            "recyclebin": "Si hay elementos en la papelera de reciclaje que dependen de esta plantilla, serán eliminados permanentemente."
           },
           "info": {
             "title": "Los siguientes cambios se realizarán en esta plantilla:",

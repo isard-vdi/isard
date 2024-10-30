@@ -19,6 +19,9 @@
             icon="info-circle-fill"
           />
           {{ $t(`views.templates.modal.convert.rename.title`, {name : $store.getters.getTemplateName}) }}
+          <p class="text-info">
+            {{ $t(`views.templates.modal.convert.warning.recyclebin`) }}
+          </p>
         </span>
 
         <b-form
