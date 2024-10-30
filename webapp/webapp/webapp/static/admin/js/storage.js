@@ -1009,12 +1009,15 @@ function createDatatable(tableId, status, initCompleteFn = null) {
       {
         title: 'Last',
         data: 'last',
-        render: function (last) {
-          try {
-            return moment.unix(last.time).fromNow();
-          } catch {
-            return "N/A";
+        render: function (last, type, full, meta) {
+          if (type == "display" || type === 'filter') {
+            try {
+              return moment.unix(last.time).fromNow();
+            } catch {
+              return "N/A";
+            }
           }
+          return last.time
         }
       },
       {
