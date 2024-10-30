@@ -254,8 +254,7 @@ $(document).ready(function () {
                 "className": 'actions-control',
                 "orderable": false,
                 "data": null,
-                "defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
-                                    <button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
+                "defaultContent": '<button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
                 //~ <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
 
             },
@@ -266,9 +265,6 @@ $(document).ready(function () {
     $('#table-qos-net').find(' tbody').on('click', 'button', function () {
         var data = qosnet_table.row($(this).parents('tr')).data();
         switch ($(this).attr('id')) {
-            case 'btn-alloweds':
-                modalAllowedsFormShow('qos_net', data)
-                break;
             case 'btn-edit':
                 $("#modalQosNetForm")[0].reset();
                 $('#modalQosNet').modal({
