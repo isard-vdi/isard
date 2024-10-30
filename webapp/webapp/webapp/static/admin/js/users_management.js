@@ -11,6 +11,14 @@ var current_category = ''
 $(document).ready(function() {
     $('.collapsed').find('.x_content').css('display', 'none');
     $('.collapse-link ').find('i').toggleClass('fa-chevron-up fa-chevron-down');
+    $("#modalMigrateUser .collapse-link").on("click", function () {
+      $(this).hide();
+      if ($(this).attr("id") == "show-details-button") {
+        $("#modalMigrateUser #hide-details-button").show();
+      } else if ($(this).attr("id") == "hide-details-button") {
+        $("#modalMigrateUser #show-details-button").show();
+      }
+    });
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
 function socketio_on(){
@@ -1332,7 +1340,11 @@ function actionsUserDetail(){
         let modal = "#modalMigrateUser"
         $(modal + " #modalMigrateUserForm select").empty();
         $(modal + ' #modalMigrateUserForm #id').val(id);
-        $(modal + ' h5 .category-name').text(rowData.category_name);
+        $(modal + ' #modalMigrateUserForm #show-details-button').show();
+        $(modal + ' #modalMigrateUserForm #hide-details-button').hide();
+        $(modal + ' #modalMigrateUserForm #resources-tables').hide();
+        $(modal + ' #modalMigrateUserForm span#user-name').text(rowData.name);
+        $(modal + ' h4 .category-name').text(rowData.category_name);
         $.ajax({
             type: "POST",
             url: "/api/v3/admin/user/delete/check",
@@ -1344,12 +1356,28 @@ function actionsUserDetail(){
                 backdrop: 'static',
                 keyboard: false
             }).modal('show');
-            // Filter out items that do not belong to the user being migrated (deployed desktops)
+            // Filter out items that do not belong to the user being migrated (deployed desktops and dependant templates)
             items.desktops = items.desktops.filter(function (item) { return item.user == id });
-            populateDeleteModalTable(items.desktops, $(modal + ' #table_modal_delete_desktops'), ["name", "persistent"]);
-            populateDeleteModalTable(items.templates, $(modal + ' #table_modal_delete_templates'), ["name", "duplicate_parent_template"]);
-            populateDeleteModalTable(items.deployments, $(modal + ' #table_modal_delete_deployments'), ['name']);
-            populateDeleteModalTable(items.media, $(modal + ' #table_modal_delete_media'), ['name']);
+            items.templates = items.templates.filter(function (item) { return item.user == id });
+            const resourceTypes = [
+                { type: 'desktops', columns: ["name", "persistent"] },
+                { type: 'templates', columns: ["name", "duplicate_parent_template"] },
+                { type: 'deployments', columns: ["name"] },
+                { type: 'media', columns: ["name"] }
+            ];
+            $.each(resourceTypes, function (_,resource) {
+                const itemsCount = items[resource.type].length;
+                const table = `${modal} #table_modal_delete_${resource.type}`;
+                const qtySpan = `${modal} #modalMigrateUserForm #resources-summary .qty-${resource.type}`;
+                populateDeleteModalTable(items[resource.type], $(table), resource.columns);
+                if (itemsCount) {
+                    $(qtySpan).parent().parent().show();
+                    $(qtySpan).text(itemsCount);
+                } else {
+                    $(qtySpan).parent().parent().hide();
+                }
+            });
+
             $(modal + ' #target-user').select2({
                 minimumInputLength: 2,
                 dropdownParent: $(modal + "Form"),

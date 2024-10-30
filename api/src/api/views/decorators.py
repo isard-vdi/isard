@@ -672,6 +672,55 @@ def checkDuplicate(
         )
 
 
+def checkDuplicates(item_table, item_names, user, item_id=None, ignore_deleted=False):
+    query = (
+        r.table(item_table)
+        .get_all(r.args(item_names), index="name")
+        .filter(lambda item: (item["id"] != item_id))
+    )
+    if user:
+        query = query.filter({"user": user})
+    if ignore_deleted:
+        query = query.filter(lambda item: item["status"] != "deleted")
+    with app.app_context():
+        items = list(query.run(db.conn))
+    if items:
+        raise Error(
+            "conflict",
+            'Items with these names: "'
+            + ", ".join([item["name"] for item in items])
+            + '" already exist in '
+            + item_table,
+            traceback.format_exc(),
+            description_code="duplicated_name",
+        )
+
+
+def checkDuplicatesDomains(
+    kind, domain_names, user, item_id=None, ignore_deleted=False
+):
+    query = (
+        r.table("domains")
+        .get_all([r.args(domain_names), user], index="name_user")
+        .filter(lambda item: (item["id"] != item_id) and item["kind"] == kind)
+    )
+    if user:
+        query = query.filter({"user": user})
+    if ignore_deleted:
+        query = query.filter(lambda item: item["status"] != "deleted")
+    with app.app_context():
+        items = list(query.run(db.conn))
+    if items:
+        raise Error(
+            "conflict",
+            'Items with these names: "'
+            + ", ".join([item["name"] for item in items])
+            + '" already exist in domains',
+            traceback.format_exc(),
+            description_code="duplicated_name",
+        )
+
+
 def checkDuplicateUser(item_uid, category, provider):
     query = r.table("users").get_all(
         [item_uid, category, provider], index="uid_category_provider"

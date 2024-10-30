@@ -25,7 +25,6 @@ import uuid
 from datetime import datetime, timedelta
 
 import bcrypt
-import gevent
 import pytz
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
@@ -42,12 +41,7 @@ from .recycle_bin import get_user_recycle_bin_ids
 
 apib = Bookings()
 
-from .api_desktop_events import (
-    category_delete,
-    desktops_stop,
-    group_delete,
-    user_delete,
-)
+from .api_desktop_events import category_delete, group_delete, user_delete
 from .quotas import Quotas
 
 quotas = Quotas()
@@ -84,7 +78,10 @@ from .helpers import (
     _check,
     _parse_desktop,
     _random_password,
-    change_storage_ownership,
+    change_owner_deployments,
+    change_owner_desktops,
+    change_owner_medias,
+    change_owner_templates,
     gen_payload_from_user,
     get_new_user_data,
     get_template_with_all_derivatives,
@@ -1038,8 +1035,9 @@ class ApiUsers:
         change_user_items_owner("media", user_id)
         user_delete(agent_id, user_id, delete_user)
 
-    def get_resources(self, user_id):
-        domains = []
+    def get_user_resources(self, user_id):
+        desktops = []
+        templates = []
         deployments = []
         media = []
         with app.app_context():
@@ -1047,15 +1045,24 @@ class ApiUsers:
                 r.table("deployments").get_all(user_id, index="user")["id"].run(db.conn)
             )
         with app.app_context():
-            domains = list(
-                r.table("domains").get_all(user_id, index="user")["id"].run(db.conn)
+            desktops = list(
+                r.table("domains")
+                .get_all(["desktop", user_id], index="kind_user")["id"]
+                .run(db.conn)
+            )
+        with app.app_context():
+            templates = list(
+                r.table("domains")
+                .get_all(["template", user_id], index="kind_user")["id"]
+                .run(db.conn)
             )
         with app.app_context():
             media = list(
                 r.table("media").get_all(user_id, index="user")["id"].run(db.conn)
             )
         return {
-            "domains": domains,
+            "desktops": desktops,
+            "templates": templates,
             "deployments": deployments,
             "media": media,
         }
@@ -2141,120 +2148,17 @@ class ApiUsers:
             )
 
     def migrate_user(self, user_id, user_data):
-        user_resources = self.get_resources(user_id)
-        if user_resources["domains"]:
-            self.change_owner_domains(user_resources["domains"], user_data, user_id)
+        user_resources = self.get_user_resources(user_id)
+        if user_resources["desktops"]:
+            change_owner_desktops(user_resources["desktops"], user_data, user_id)
+        if user_resources["templates"]:
+            change_owner_templates(user_resources["templates"], user_data)
         if user_resources["media"]:
-            self.change_owner_media(user_resources["media"], user_data)
-        self.change_owner_deployments(user_resources["deployments"], user_data, user_id)
+            change_owner_medias(user_resources["media"], user_data)
+        change_owner_deployments(user_resources["deployments"], user_data, user_id)
         rb_ids = get_user_recycle_bin_ids(user_id, "recycled")
         for rb_id in rb_ids:
             rb_delete_queue.enqueue({"recycle_bin_id": rb_id, "user_id": user_id})
-
-    def change_owner_domains(self, domain_ids, user_data, user_id):
-        # Get desktop data
-        domain_data_list = []
-        for i in range(0, len(domain_ids), 100):
-            batch_domain_ids = domain_ids[i : i + 100]
-            with app.app_context():
-                batch_domain_data = (
-                    r.table("domains")
-                    .get_all(r.args(batch_domain_ids))
-                    .pluck(
-                        "create_dict", "kind", "tag", "name", "id", "category", "name"
-                    )
-                    .run(db.conn)
-                )
-            domain_data_list.extend(batch_domain_data)
-
-        # TODO: change allowed to false if the target user is on a different category
-
-        # check template quota and if new owner is role user
-        if any(domain["kind"] == "template" for domain in domain_data_list):
-            if user_data["payload"]["role_id"] == "user":
-                raise Error("bad_request", 'Role "user" can not own templates.')
-            quotas.template_create(
-                user_data["new_user"]["user"],
-                len(
-                    [
-                        domain
-                        for domain in domain_data_list
-                        if domain["kind"] == "template"
-                    ]
-                ),
-            )
-
-        desktop_ids = [
-            domain["id"] for domain in domain_data_list if domain["kind"] == "desktop"
-        ]
-        desktops_stop(desktop_ids)
-        quotas.desktop_create(user_data["new_user"]["user"], len(desktop_ids))
-
-        for domain in domain_data_list:
-            revoke_hardware_permissions(domain, user_data["payload"])
-            change_storage_ownership(domain, user_data["new_user"]["user"])
-
-        # delete old bookings
-        with app.app_context():
-            r.table("bookings").get_all(user_id, index="user_id").delete().run(db.conn)
-
-        # change owner
-        for i in range(0, len(domain_ids), 100):
-            batch_domain_ids = domain_ids[i : i + 100]
-            with app.app_context():
-                r.table("domains").get_all(r.args(batch_domain_ids)).filter(
-                    {"persistent": False}
-                ).delete().run(db.conn)
-                r.table("domains").get_all(r.args(batch_domain_ids)).update(
-                    {**user_data["new_user"], "booking_id": False}
-                ).run(db.conn)
-
-    def change_owner_media(self, media_ids, user_data):
-        # TODO: change allowed to false if the target user is on a different category
-
-        # check media quota
-        quotas.media_create(user_data["new_user"]["user"], quantity=len(media_ids))
-
-        # change owner
-        for i in range(0, len(media_ids), 100):
-            batch_media_ids = media_ids[i : i + 100]
-            with app.app_context():
-                r.table("media").get_all(r.args(batch_media_ids)).update(
-                    user_data["new_user"]
-                ).run(db.conn)
-
-    def change_owner_deployments(self, deployments_ids, user_data, old_user_id):
-        # TODO: change allowed to false if the target user is on a different category
-        with app.app_context():
-            # for each deployment old_user_id is in co_owners, remove old_user_id from co_owners
-            r.table("deployments").get_all(old_user_id, index="co_owners").update(
-                {"co_owners": r.row["co_owners"].difference([old_user_id])}
-            ).run(db.conn)
-
-        if deployments_ids:
-            # check if the new owner is role user
-            if user_data["payload"]["role_id"] == "user":
-                raise Error("bad_request", 'Role "user" can not own deployments.')
-
-            # check deployment create quota, ignore number of users in the deployment
-            quotas.deployment_create(
-                [], user_data["new_user"]["user"], len(deployments_ids)
-            )
-
-            # change owner
-            for i in range(0, len(deployments_ids), 100):
-                batch_deployments_ids = deployments_ids[i : i + 100]
-                with app.app_context():
-                    r.table("deployments").get_all(
-                        r.args(batch_deployments_ids)
-                    ).update(
-                        {
-                            "user": user_data["new_user"]["user"],
-                            "co_owners": r.literal([]),
-                        }
-                    ).run(
-                        db.conn
-                    )
 
 
 def validate_email_jwt(user_id, email, minutes=60):
