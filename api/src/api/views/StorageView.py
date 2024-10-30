@@ -14,6 +14,9 @@ from isardvdi_common.storage import Storage
 from isardvdi_common.storage_pool import StoragePool
 from isardvdi_common.task import Task
 from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
+from rethinkdb import RethinkDB
+
+r = RethinkDB()
 
 from api import app
 
@@ -23,6 +26,7 @@ MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024
 from api import socketio
 
 from ..libv2.api_admin import ApiAdmin
+from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 from ..libv2.api_storage import (
     _check_domains_status,
     get_disks_ids_by_status,
@@ -33,6 +37,7 @@ from ..libv2.api_storage import (
 )
 from ..libv2.quotas import Quotas
 
+desktops = ApiDesktopsPersistent()
 quotas = Quotas()
 from .decorators import (
     canPerformActionDeployment,
@@ -45,6 +50,11 @@ from .decorators import (
 )
 
 admins = ApiAdmin()
+
+from ..libv2.flask_rethink import RDB
+
+db = RDB(app)
+db.init_app(app)
 
 
 def check_storage_existence_and_permissions(payload, storage_id):
@@ -83,17 +93,6 @@ def set_storage_maintenance(payload, storage_id):
         )
     storage.status = "maintenance"
     return storage
-
-
-def set_desktops_maintenance(payload, storage_id, action):
-    domains = get_storage_derivatives(storage_id)
-
-    for domain_id in domains:
-        ownsDomainId(payload, domain_id)
-    for domain_id in domains:
-        domain = Domain(domain_id)
-        domain.status = "Maintenance"
-        domain.current_action = action
 
 
 @app.route("/api/v3/storage/priority/<priority>", methods=["POST"])
@@ -439,7 +438,9 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
     storage = Storage(storage_id)
     if not storage.user_id:
         raise Error("not_found", description_code="storage_not_found")
-    if len(get_storage_derivatives(storage_id)) > 1:
+
+    storage_domains = get_storage_derivatives(storage.id)
+    if len(storage_domains) > 1:
         raise Error(
             "precondition_required",
             "Unable to edit Windows registry of storage with derivatives",
@@ -451,9 +452,9 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
             description_code="desktops_not_stopped",
         )
 
-    set_desktops_maintenance(payload, storage_id, "virt_win_reg")
-    set_storage_maintenance(payload, storage_id)
-    storage_domains = get_storage_derivatives(storage.id)
+    desktops.set_desktops_maintenance(
+        payload, storage_id, "virt_win_reg", domains=storage_domains
+    )
 
     try:
         storage.create_task(
@@ -757,9 +758,11 @@ def storage_move(payload, storage_id, path):
             description_code="desktops_not_stopped",
         )
 
-    set_desktops_maintenance(payload, storage_id, "move")
-    storage.status = "maintenance"
     storage_domains = get_storage_derivatives(storage.id)
+    desktops.set_desktops_maintenance(
+        payload, storage_id, "move", domains=storage_domains
+    )
+    storage.status = "maintenance"
 
     storage_pool_origin = StoragePool.get_best_for_action(
         "move", path=storage.directory_path
@@ -1033,7 +1036,6 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
     ):
         raise Error("bad_request", "Disk size quota exceeded")
 
-    storage = Storage(storage_id)
     storage_domains = get_storage_derivatives(storage_id)
     if len(storage_domains) > 1:
         raise Error(
@@ -1048,7 +1050,9 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
             description_code="desktops_not_stopped",
         )
 
-    set_desktops_maintenance(payload, storage_id, "increase")
+    desktops.set_desktops_maintenance(
+        payload, storage_id, "increase", domains=storage_domains
+    )
     set_storage_maintenance(payload, storage_id)
 
     socketio.emit(
@@ -1301,7 +1305,7 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
             description_code="desktops_not_stopped",
         )
 
-    set_desktops_maintenance(payload, storage_id, "recreate")
+    desktops.set_desktops_maintenance(payload, storage_id, "recreate")
     storage_orig = set_storage_maintenance(payload, storage_id)
 
     if request.is_json:
