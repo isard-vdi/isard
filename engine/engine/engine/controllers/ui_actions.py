@@ -704,7 +704,10 @@ class UiActions(object):
 
                 disk = dict_new_template["create_dict"]["hardware"]["disks"][i]
                 create_storage(
-                    disk, dict_domain.get("user"), force_parent=None, perms=["r"]
+                    disk,
+                    dict_new_template.get("user"),
+                    force_parent=None,
+                    perms=["r"],
                 )
                 update_table_field("domains", id_domain, "create_dict", create_dict)
 
