@@ -4,6 +4,7 @@ services:
     volumes:
     - ${BUILD_ROOT_PATH}/docker/static/spice-web-client:/usr/share/nginx/html/static/spice-web-client
     - ${BUILD_ROOT_PATH}/docker/static/noVNC:/usr/share/nginx/html/static/noVNC
+
   isard-frontend-dev:
     container_name: isard-frontend-dev
     image: oven/bun:1.1.24-alpine
@@ -14,7 +15,9 @@ services:
     networks:
       isard-network:
     working_dir: /usr/local/src/isard-frontend/
-    command: sh -c "bun install && bun run dev --host"
+    command: sh -c "apk add npm && bun install && (bun run storybook --no-open & bun run dev --host)"
+    ports:
+      - "6006:6006"
     volumes:
     - ${BUILD_ROOT_PATH}/frontend/:/usr/local/src/isard-frontend/
 
