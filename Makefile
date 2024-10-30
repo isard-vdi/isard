@@ -51,3 +51,10 @@ test-e2e:
 	-w "/frontend" \
 	mcr.microsoft.com/playwright:v1.38.0-jammy yarn playwright test
 
+.PHONY: shell
+shell:
+	docker exec -it ${CONTAINER} /bin/ash
+
+.PHONY: shell-user
+shell-user:
+	docker exec -u "$$(id -u):$$(id -g)" -it ${CONTAINER} /bin/ash
