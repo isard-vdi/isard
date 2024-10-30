@@ -141,7 +141,7 @@ def api_v3_admin_domains_xml(payload, domain_id):
 def api_v3_admin_desktops_tree_list(payload, id):
     user_id = payload["user_id"]
     return (
-        json.dumps(admins.Gettemplate_tree_list(id, user_id)),
+        json.dumps(admins.get_template_tree_list(id, user_id)),
         200,
         {"Content-Type": "application/json"},
     )

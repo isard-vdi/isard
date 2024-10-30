@@ -764,7 +764,7 @@ class ApiAdmin:
             )
 
     # This is the function to be called
-    def Gettemplate_tree_list(self, template_id, user_id):
+    def get_template_tree_list(self, template_id, user_id):
         levels = {}
         derivated = self.template_tree_list(template_id, user_id)
         for n in derivated:
@@ -834,7 +834,7 @@ class ApiAdmin:
         ]
         return root
 
-    # Call Gettemplate_tree_list. This is a subfunction only.
+    # Call get_template_tree_list. This is a subfunction only.
     def template_tree_recursion(self, template_id, levels):
         nodes = [dict(n) for n in levels.get(template_id, [])]
         for n in nodes:
@@ -906,7 +906,7 @@ class ApiAdmin:
             derivated_from_duplicated += self._derivated(d["id"])
         return duplicated_from_original + derivated_from_duplicated
 
-    # This has no recursion. Call Gettemplate_tree_list
+    # This has no recursion. Call get_template_tree_list
     def template_tree_list(self, template_id, user_id):
         with app.app_context():
             user = (

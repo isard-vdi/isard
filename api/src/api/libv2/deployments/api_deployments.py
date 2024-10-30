@@ -439,7 +439,7 @@ def create_deployment_desktops(deployment_tag, desktop_data, users):
             }
         )
     deployment = get_document("deployments", deployment_tag["tag"])
-    ApiDesktopsPersistent().NewFromTemplateTh(desktops, deployment)
+    ApiDesktopsPersistent().new_from_templateTh(desktops, deployment)
 
 
 def edit_deployment_users(payload, deployment_id, allowed):
