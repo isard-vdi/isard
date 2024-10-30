@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 149
+release_version = 150
+# release 150: Fix storage users to match domain users
 # release 149: Add multi desktop ids and kind index
 # release 148: Add booking_id, kind_booking, kind_valid_booking index to domains table
 #              Add item_type index to bookings table
@@ -4654,6 +4655,55 @@ password:s:%s"""
                 r.db("isard").table("storage").filter(
                     lambda storage: storage.has_fields("status").not_()
                 ).delete().run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 150:
+            try:
+                print(
+                    "--- Starting retrieval of storages and its matching domain... ---"
+                )
+                start = datetime.datetime.now()
+                storages = list(
+                    r.db("isard")
+                    .table("storage")
+                    .eq_join("id", r.db("isard").table("domains"), index="storage_ids")
+                    .filter(
+                        lambda result: result.has_fields(
+                            {"right": "duplicate_parent_template"}
+                        ).not_()
+                    )
+                    .pluck(
+                        {"left": {"id": True, "user_id": True}, "right": {"user": True}}
+                    )
+                    .run(self.conn)
+                )
+
+                print(datetime.datetime.now() - start)
+                print(f"Query finished in {datetime.datetime.now() - start}")
+                print(f"Found {len(storages)} storages")
+
+                storage_user_not_match_domain_user = list(
+                    filter(
+                        lambda item: item["left"]["user_id"] != item["right"]["user"],
+                        storages,
+                    )
+                )
+                print(
+                    f"--- Found {len(storage_user_not_match_domain_user)} storages that the owner does not match the domain owner. Updating storages... ---"
+                )
+
+                for item in storage_user_not_match_domain_user:
+                    print(f"Updating storage {item['left']['id']}...")
+                    r.db("isard").table("storage").get(item["left"]["id"]).update(
+                        {
+                            "user_id": item["right"]["user"],
+                        }
+                    ).run(self.conn)
+                print(
+                    f"--- Storages update finished in {datetime.datetime.now() - start} ---"
+                )
+
             except Exception as e:
                 print(e)
 
