@@ -16,6 +16,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from ..libv2.api_notify import notify_admins
 from ..libv2.load_validator_schemas import IsardValidator
 
 r = RethinkDB()
@@ -172,13 +173,6 @@ def get_storage_domains(storage_id):
             .pluck("id", "kind", "name")
             .run(db.conn)
         )
-
-
-def get_domain_storage(domain_id):
-    with app.app_context():
-        r.table("domains").get(domain_id).pluck(
-            {"create_dict": {"hardware": {"disks": {"storage_id": True}}}}
-        ).eq_join().run(db.conn)
 
 
 def get_media_domains(media_ids):
@@ -507,3 +501,44 @@ def _check_domains_status(storage_id):
         if domain_status not in ["Stopped"]:
             return False
     return True
+
+
+def process_check_backing_chain(storages_ids, user_id):
+    try:
+        for storage_id in storages_ids:
+            storage = Storage(storage_id)
+            storage.check_backing_chain(user_id=user_id)
+        notify_admins(
+            "storage_action",
+            {
+                "action": "check_backing_chain",
+                "count": len(storages_ids),
+                "status": "completed",
+            },
+        )
+    except Error as e:
+        app.logger.error(e)
+        error_message = str(e)
+        if isinstance(e.args, tuple) and len(e.args) > 1:
+            error_message = e.args[1]
+        notify_admins(
+            "storage_action",
+            {
+                "action": "check_backing_chain",
+                "count": len(storages_ids),
+                "msg": error_message,
+                "status": "failed",
+            },
+        )
+
+    except Exception as e:
+        app.logger.error(traceback.format_exc())
+        notify_admins(
+            "storage_action",
+            {
+                "action": "check_backing_chain",
+                "count": len(storages_ids),
+                "msg": "Something went wrong",
+                "status": "failed",
+            },
+        )

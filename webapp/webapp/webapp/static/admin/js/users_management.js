@@ -645,28 +645,33 @@ function socketio_on(){
         if (form.parsley().isValid()) {
             var formData = form.serializeObject()
             user = $('#modalDeleteUserForm #id').val().split(',');
-            var notice = new PNotify({
-                text: 'Deleting user(s)...',
-                hide: false,
-                opacity: 1,
-                icon: 'fa fa-spinner fa-pulse'
-            })
-
+            var notice = new PNotify({})
             $.ajax({
                 type: 'DELETE',
                 url: '/api/v3/admin/user',
                 data: JSON.stringify({ 'user': user, 'delete_user': formData['delete-user'] == 'true' }),
                 contentType: 'application/json',
                 error: function (data) {
-                    notice.update({
-                        title: 'ERROR deleting user(s)',
-                        text: data.responseJSON && data.responseJSON.description ? data.responseJSON.description : 'Something went wrong.',
-                        type: 'error',
-                        hide: true,
-                        icon: 'fa fa-warning',
-                        delay: 5000,
-                        opacity: 1
-                    })
+                    if (data.responseJSON && data.responseJSON.exceptions) {
+                        const exceptionsList = data.responseJSON.exceptions.map(exception => `<li>${exception}</li>`).join('');
+                        notice.update({
+                            title: "ERROR deleting user(s)",
+                            text: `<ul>${exceptionsList}</ul>`,
+                            hide: true,
+                            delay: 3000,
+                            icon: 'fa fa-alert-sign',
+                            opacity: 1,
+                            type: 'error'
+                        });
+                    } else {
+                        notice.update({
+                            title: "ERROR deleting user(s)",
+                            text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                            hide: false,
+                            opacity: 1,
+                            icon: 'fa fa-spinner fa-pulse'
+                        })
+                    }
                 },
                 success: function (data) {
                     $('form').each(function () {
@@ -674,13 +679,11 @@ function socketio_on(){
                     })
                     $('.modal').modal('hide')
                     notice.update({
-                        title: 'Deleted',
-                        text: 'User(s) deleted successfully',
-                        hide: true,
-                        delay: 2000,
-                        icon: '',
+                        title: `Processing...`,
+                        text: `Deleting ${user.length} user(s)`,
+                        hide: false,
                         opacity: 1,
-                        type: 'success'
+                        icon: 'fa fa-spinner fa-pulse'
                     })
                 }
             })
@@ -1067,28 +1070,27 @@ function initUsersSockets () {
         PNotify.removeAll();
         var data = JSON.parse(data);
         if (data.status === 'failed') {
-            new PNotify({
-                title: `ERROR: ${data.action} on ${data.count} user(s)`,
-                text: data.msg,
-                hide: true,
-                delay: 5000,
-                icon: 'fa fa-warning',
-                opacity: 1,
-                type: 'error'
-            });
+          new PNotify({
+            title: `ERROR: ${data.action} on ${data.count} user(s)`,
+            text: data.msg,
+            hide: false,
+            icon: 'fa fa-warning',
+            opacity: 1,
+            type: 'error'
+          });
         } else if (data.status === 'completed') {
-            users_table.ajax.reload();
-            new PNotify({
-                title: `Action Succeeded: ${data.action}`,
-                text: `The action "${data.action}" completed on ${data.count} user(s).`,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'success'
-            });
+          users_table.ajax.reload();
+          new PNotify({
+            title: `Action Succeeded: ${data.action}`,
+            text: `The action "${data.action}" completed on ${data.count} user(s).`,
+            hide: true,
+            delay: 4000,
+            icon: 'fa fa-success',
+            opacity: 1,
+            type: 'success'
+          });
         }
-    });
+      });
 }
 
 function actionsUserDetail(){

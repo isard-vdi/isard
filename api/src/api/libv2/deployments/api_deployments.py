@@ -598,22 +598,19 @@ def edit_deployment(payload, deployment_id, data):
             ).run(db.conn)
 
 
-def checkDesktopsStarted(deployment_id):
-    deployment_desktops = get_cached_deployment_desktops(deployment_id)
-    started_desktops = len(
-        [
-            desktop
-            for desktop in deployment_desktops
-            if desktop["status"]
-            in [
-                "Started",
-                "Starting",
-                "StartingPaused",
-                "CreatingAndStarting",
-                "Shutting-down",
-            ]
-        ]
-    )
+def check_desktops_started(deployment_id):
+    with app.app_context():
+        started_desktops = (
+            r.table("domains")
+            .get_all(deployment_id, index="tag")
+            .filter(
+                lambda desktop: r.not_(
+                    r.expr(["Stopped", "Failed", "Unknown"]).contains(desktop["status"])
+                )
+            )
+            .count()
+            .run(db.conn)
+        )
     if started_desktops > 0:
         raise Error(
             "precondition_required",
@@ -737,7 +734,7 @@ def stop(deployment_id):
             description_code="not_found" + str(deployment_id),
         )
 
-    desktops_stop(domains_ids, force=True, wait_seconds=30)
+    desktops_stop(domains_ids, force=True)
 
 
 def visible(deployment_id, stop_started_domains=True):
@@ -774,7 +771,7 @@ def visible(deployment_id, stop_started_domains=True):
                 .get_all(deployment_id, index="tag")["id"]
                 .run(db.conn)
             )
-        desktops_stop(desktops_ids, force=True, wait_seconds=5)
+            desktops_stop(desktops_ids, force=True)
 
 
 def user_visible(id):

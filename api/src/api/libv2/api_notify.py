@@ -76,10 +76,3 @@ def notify_admins(event, data={}, category=None):
         namespace="/administrators",
         room="admins",
     )
-    if category:
-        socketio.emit(
-            event,
-            json.dumps(data),
-            namespace="/administrators",
-            room=category,
-        )

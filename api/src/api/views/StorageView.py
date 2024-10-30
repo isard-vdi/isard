@@ -17,6 +17,8 @@ from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
 
 from api import app
 
+from ..libv2.api_desktop_events import desktops_stop
+
 MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024
 from api import socketio
 
@@ -1141,7 +1143,7 @@ def storage_stop_all_desktops(payload, storage_id):
     domains = [
         domain.id for domain in Storage(storage_id).domains if domain.kind == "desktop"
     ]
-    admins.MultipleActions("domains", "stopping", domains, payload["user_id"])
+    desktops_stop(domains, force=True)
     return jsonify({}), 200
 
 

@@ -489,8 +489,8 @@ class Actions:
     def recycle_bin_delete(**kwargs):
         max_delete_period = int(kwargs.get("max_delete_period"))
         category = kwargs.get("category")
-        api_client.put(
-            "/recycle_bin/delete/",
+        api_client.delete(
+            "/recycle_bin/",
             {"max_delete_period": max_delete_period, "category": category},
         )
 
@@ -499,7 +499,7 @@ class Actions:
 
     def recycle_bin_delete_admin(**kwargs):
         max_delete_period = int(kwargs.get("max_delete_period"))
-        api_client.put("/recycle_bin/delete/", {"max_delete_period": max_delete_period})
+        api_client.delete("/recycle_bin/", {"max_delete_period": max_delete_period})
 
     # def recycle_bin_old_entries_action_archive(**kwargs):
     #     return []

@@ -162,31 +162,14 @@ def api_v3_admin_desktop_template_tree(payload, desktop_id):
 @is_admin_or_manager
 def admin_multiple_actions_domains(payload):
     dict = request.get_json(force=True)
-    selected_desktops = admins.CheckField("domains", "kind", "desktop", dict["ids"])
-    for id in dict.get("ids"):
-        ownsDomainId(payload, id)
-    res = admins.MultipleActions(
-        "domains", dict["action"], selected_desktops, payload["user_id"]
+    for d_id in dict.get("ids"):
+        ownsDomainId(payload, d_id)
+    admins.multiple_actions(dict["action"], dict.get("ids"), payload["user_id"])
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
     )
-    if res is True:
-        json_data = json.dumps(
-            {
-                "title": "Processing",
-                "text": "Actions will be processed",
-                "type": "success",
-            }
-        )
-        http_code = 200
-    else:
-        json_data = json.dumps(
-            {
-                "title": "Error",
-                "text": res,
-                "type": "error",
-            }
-        )
-        http_code = 409
-    return json_data, http_code, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/templates/delete/<template_id>", methods=["DELETE"])
@@ -318,8 +301,8 @@ def logs_desktops_old_entries_delete(payload):
         try:
             admin_table_delete_list("logs_desktops", old_logs)
             socketio.emit(
-                "logs_desktops_action_completed",
-                json.dumps({"action": "delete_all"}),
+                "logs_desktops_action",
+                json.dumps({"action": "delete_all", "status": "completed"}),
                 namespace="/administrators",
                 room="admins",
             )
@@ -330,11 +313,12 @@ def logs_desktops_old_entries_delete(payload):
                 error_message = e.args[1]
 
             socketio.emit(
-                "logs_desktops_action_failed",
+                "logs_desktops_action",
                 json.dumps(
                     {
                         "action": "delete_all",
                         "msg": error_message,
+                        "status": "failed",
                     }
                 ),
                 namespace="/administrators",
@@ -343,11 +327,12 @@ def logs_desktops_old_entries_delete(payload):
         except Exception as e:
             app.logger.error(traceback.format_exc())
             socketio.emit(
-                "logs_desktops_action_failed",
+                "logs_desktops_action",
                 json.dumps(
                     {
                         "action": "delete_all",
                         "msg": "Something went wrong",
+                        "status": "failed",
                     }
                 ),
                 namespace="/administrators",
@@ -372,8 +357,8 @@ def logs_desktops_old_entries_delete_all(payload):
         try:
             admin_table_delete_list("logs_desktops", old_logs)
             socketio.emit(
-                "logs_desktops_action_completed",
-                json.dumps({"action": "delete_all"}),
+                "logs_desktops_action",
+                json.dumps({"action": "delete_all", "status": "completed"}),
                 namespace="/administrators",
                 room="admins",
             )
@@ -384,11 +369,12 @@ def logs_desktops_old_entries_delete_all(payload):
                 error_message = e.args[1]
 
             socketio.emit(
-                "logs_desktops_action_failed",
+                "logs_desktops_action",
                 json.dumps(
                     {
                         "action": "delete_all",
                         "msg": error_message,
+                        "status": "failed",
                     }
                 ),
                 namespace="/administrators",
@@ -397,11 +383,12 @@ def logs_desktops_old_entries_delete_all(payload):
         except Exception as e:
             app.logger.error(traceback.format_exc())
             socketio.emit(
-                "logs_desktops_action_failed",
+                "logs_desktops_action",
                 json.dumps(
                     {
                         "action": "delete_all",
                         "msg": "Something went wrong",
+                        "status": "failed",
                     }
                 ),
                 namespace="/administrators",
@@ -510,8 +497,8 @@ def logs_users_old_entries_delete(payload):
         try:
             admin_table_delete_list("logs_users", old_logs)
             socketio.emit(
-                "logs_users_action_completed",
-                json.dumps({"action": "delete_all"}),
+                "logs_users_action",
+                json.dumps({"action": "delete_all", "status": "completed"}),
                 namespace="/administrators",
                 room="admins",
             )
@@ -522,11 +509,12 @@ def logs_users_old_entries_delete(payload):
                 error_message = e.args[1]
 
             socketio.emit(
-                "logs_users_action_failed",
+                "logs_users_action",
                 json.dumps(
                     {
                         "action": "delete_all",
                         "msg": error_message,
+                        "status": "failed",
                     }
                 ),
                 namespace="/administrators",
@@ -535,11 +523,12 @@ def logs_users_old_entries_delete(payload):
         except Exception as e:
             app.logger.error(traceback.format_exc())
             socketio.emit(
-                "logs_users_action_failed",
+                "logs_users_action",
                 json.dumps(
                     {
                         "action": "delete_all",
                         "msg": "Something went wrong",
+                        "status": "failed",
                     }
                 ),
                 namespace="/administrators",
@@ -564,8 +553,8 @@ def logs_users_old_entries_delete_all(payload):
         try:
             admin_table_delete_list("logs_users", old_logs)
             socketio.emit(
-                "logs_users_action_completed",
-                json.dumps({"action": "delete_all"}),
+                "logs_users_action",
+                json.dumps({"action": "delete_all", "status": "completed"}),
                 namespace="/administrators",
                 room="admins",
             )
@@ -576,11 +565,12 @@ def logs_users_old_entries_delete_all(payload):
                 error_message = e.args[1]
 
             socketio.emit(
-                "logs_users_action_failed",
+                "logs_users_action",
                 json.dumps(
                     {
                         "action": "delete_all",
                         "msg": error_message,
+                        "status": "failed",
                     }
                 ),
                 namespace="/administrators",
@@ -589,11 +579,12 @@ def logs_users_old_entries_delete_all(payload):
         except Exception as e:
             app.logger.error(traceback.format_exc())
             socketio.emit(
-                "logs_users_action_failed",
+                "logs_users_action",
                 json.dumps(
                     {
                         "action": "delete_all",
                         "msg": "Something went wrong",
+                        "status": "failed",
                     }
                 ),
                 namespace="/administrators",

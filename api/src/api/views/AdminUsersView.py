@@ -25,11 +25,12 @@ import time
 import traceback
 
 import gevent
+from api.libv2.api_notify import notify_admins
 from flask import request
 from flask_login import logout_user
 from isardvdi_common.api_exceptions import Error
 
-from api import app
+from api import app, socketio
 
 from .. import socketio
 from ..libv2.api_admin import (
@@ -434,28 +435,76 @@ def api_v3_admin_create_users_bulk(payload):
 
 @app.route("/api/v3/admin/user", methods=["DELETE"])
 @has_token
-def api_v3_admin_user_delete(payload):
+def api_v3_admin_users_delete(payload):
     data = request.get_json()
+    exceptions = []
 
     for user in data["user"]:
-        ownsUserId(payload, user)
+        try:
+            ownsUserId(payload, user)
+            user = users.Get(user)
+            if (
+                user["username"] == "admin"
+                and user["group"] == "default-default"
+                and user["category"] == "default"
+            ):
+                raise Error(
+                    "forbidden",
+                    "Can not delete default admin",
+                    traceback.format_exc(),
+                )
+            elif user["id"] == payload["user_id"]:
+                raise Error(
+                    "forbidden",
+                    "Can not delete your own user",
+                    traceback.format_exc(),
+                )
+        except Error as e:
+            exceptions.append(e.args[1])
 
-        user = users.Get(user)
-        if (
-            user["username"] == "admin"
-            and user["group"] == "default-default"
-            and user["category"] == "default"
-        ):
-            raise Error(
-                "forbidden", "Can not delete default admin", traceback.format_exc()
+    if exceptions:
+        return (
+            json.dumps({"exceptions": exceptions}),
+            428,
+            {"Content-Type": "application/json"},
+        )
+
+    def process_bulk_delete():
+        try:
+            for user in data["user"]:
+                revoke_user_session(user)
+                users.Delete(user, payload["user_id"], data["delete_user"])
+            notify_admins(
+                "user_action",
+                {"action": "delete", "count": len(data["user"]), "status": "completed"},
             )
-        elif user["id"] == payload["user_id"]:
-            raise Error(
-                "forbidden", "Can not delete your own user", traceback.format_exc()
+        except Error as e:
+            app.logger.error(e)
+            error_message = str(e)
+            if isinstance(e.args, tuple) and len(e.args) > 1:
+                error_message = e.args[1]
+            notify_admins(
+                "user_action",
+                {
+                    "action": "delete",
+                    "count": len(data["user"]),
+                    "msg": error_message,
+                    "status": "failed",
+                },
             )
-    for user in data["user"]:
-        revoke_user_session(user)
-        users.Delete(user, payload["user_id"], data["delete_user"])
+        except Exception as e:
+            app.logger.error(traceback.format_exc())
+            notify_admins(
+                "user_action",
+                {
+                    "action": "delete",
+                    "count": len(data["user"]),
+                    "msg": "Something went wrong",
+                    "status": "failed",
+                },
+            )
+
+    gevent.spawn(process_bulk_delete)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 

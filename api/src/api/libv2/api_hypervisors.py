@@ -525,7 +525,7 @@ class ApiHypervisors:
                 .get_all(hyper_id, index="hyp_started")["id"]
                 .run(db.conn)
             )
-        desktops_stop(desktops_ids, force=True, wait_seconds=0)
+        desktops_stop(desktops_ids, force=True)
 
     def hypervisors_max_networks(self):
         ### There will be much more hypervisor networks available than dhcpsubnets

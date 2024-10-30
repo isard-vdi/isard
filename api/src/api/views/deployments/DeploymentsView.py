@@ -4,17 +4,20 @@
 # License: AGPLv3
 
 import json
+import traceback
 
+import gevent
 from api.libv2.api_desktop_events import deployment_delete
 from api.libv2.api_desktops_common import ApiDesktopsCommon
 from api.libv2.api_desktops_persistent import check_template_status
 from api.libv2.api_hypervisors import check_storage_pool_availability
+from api.libv2.api_notify import notify_admins
 from api.libv2.deployments import api_deployments
 from api.libv2.validators import _validate_item
 from flask import request
 from isardvdi_common.api_exceptions import Error
 
-from api import app
+from api import app, socketio
 
 from ..decorators import (
     allowedTemplateId,
@@ -107,8 +110,74 @@ def api_v3_deployments_check_quota(payload):
 @is_not_user
 def api_v3_deployments_delete(payload, deployment_id, permanent=False):
     ownsDeploymentId(payload, deployment_id, check_co_owners=False)
-    api_deployments.checkDesktopsStarted(deployment_id)
+    api_deployments.check_desktops_started(deployment_id)
     deployment_delete(deployment_id, payload["user_id"], permanent)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/deployments", methods=["DELETE"])
+@is_not_user
+def api_v3_deployments_delete_bulk(payload):
+    deployment_ids = request.get_json()["ids"]
+    exceptions = []
+
+    for d_id in deployment_ids:
+        try:
+            ownsDeploymentId(payload, d_id, check_co_owners=False)
+            api_deployments.check_desktops_started(d_id)
+        except Error as e:
+            exceptions.append(e.args[1])
+
+    if exceptions:
+        return (
+            json.dumps({"exceptions": exceptions}),
+            428,
+            {"Content-Type": "application/json"},
+        )
+
+    def process_bulk_delete():
+        try:
+            for d_id in deployment_ids:
+                deployment_delete(d_id, payload["user_id"])
+            notify_admins(
+                "deployment_action",
+                {
+                    "action": "delete",
+                    "count": len(deployment_ids),
+                    "status": "completed",
+                },
+            )
+
+        except Error as e:
+            app.logger.error(e)
+            error_message = str(e)
+            if isinstance(e.args, tuple) and len(e.args) > 1:
+                app.logger.error(e.args[0])
+                error_message = e.args[1]
+            notify_admins(
+                "deployment_action",
+                {
+                    "action": "delete",
+                    "count": len(deployment_ids),
+                    "msg": error_message,
+                    "status": "failed",
+                },
+            )
+
+        except Exception as e:
+            app.logger.error(traceback.format_exc())
+            notify_admins(
+                "deployment_action",
+                {
+                    "action": "delete",
+                    "count": len(deployment_ids),
+                    "msg": "Something went wrong",
+                    "status": "failed",
+                },
+            )
+
+    gevent.spawn(process_bulk_delete)
+
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
@@ -196,7 +265,7 @@ def api_v3_deployment_info(payload, deployment_id):
 @is_not_user
 def api_v3_deployment_edit(payload, deployment_id):
     ownsDeploymentId(payload, deployment_id)
-    api_deployments.checkDesktopsStarted(deployment_id)
+    api_deployments.check_desktops_started(deployment_id)
     try:
         data = request.get_json(force=True)
     except:
@@ -220,7 +289,7 @@ def api_v3_deployment_edit(payload, deployment_id):
 @is_not_user
 def api_v3_deployment_edit_users(payload, deployment_id):
     ownsDeploymentId(payload, deployment_id)
-    api_deployments.checkDesktopsStarted(deployment_id)
+    api_deployments.check_desktops_started(deployment_id)
     try:
         data = request.get_json(force=True)
         if data.get("allowed").get("categories"):

@@ -110,20 +110,8 @@ $(document).ready(function() {
                 opacity: 1,
                 type: 'success'
               });
-              deployments.ajax.reload();
             },
             error: function(xhr){
-              if (xhr.status == 428) {
-                new PNotify({
-                  title: 'ERROR deleting deployment',
-                  text: 'The deployment '+data["name"]+' must be stopped',
-                  type: 'error',
-                  hide: true,
-                  icon: 'fa fa-warning',
-                  delay: 5000,
-                  opacity: 1
-                })
-              } else {
                 new PNotify({
                   title: 'ERROR deleting deployment',
                   text: xhr.responseJSON.description,
@@ -132,11 +120,9 @@ $(document).ready(function() {
                   icon: 'fa fa-warning',
                   delay: 5000,
                   opacity: 1
-                })
-              }
+                });
             }
           });
-          deployments.ajax.reload();
         }).on('pnotify.cancel', function () {});
         break;
       }
@@ -149,7 +135,7 @@ $(document).ready(function() {
   $('.btn-bulkdelete').on('click', function () {
     let deploymentsToDelete = [];
     $.each(deployments.rows('.active').data(),function(key, value){
-      deploymentsToDelete.push(value);
+      deploymentsToDelete.push(value.id);
     });
 
     if (!(deploymentsToDelete.length == 0)) {
@@ -172,49 +158,48 @@ $(document).ready(function() {
         addclass: 'pnotify-center-large',
         width: '550'
       }).get().on('pnotify.confirm', function() {
-      for (deployment in deploymentsToDelete) {
+          var notify = new PNotify();
           $.ajax({
             type: "DELETE",
-            url: "/api/v3/deployments/" + deploymentsToDelete[deployment].id,
-            data: JSON.stringify(deployment),
+            url: "/api/v3/deployments/",
+            data: JSON.stringify({ids:deploymentsToDelete}),
             contentType: "application/json",
             success: function(data){
-              new PNotify({
-                title: 'Deleted',
-                text: 'Deployment deleted successfully',
-                hide: true,
-                delay: 2000,
-                icon: 'fa fa-' + data.icon,
-                opacity: 1,
-                type: 'success'
-              });
+              notify.update({
+                title: 'Processing',
+                text: `Processing action: deleting ${deploymentsToDelete.length} deployment(s)`,
+                hide: false,
+                type: 'info',
+                icon: 'fa fa-spinner fa-pulse',
+                opacity: 1
+            });
               deployments.ajax.reload();
             },
-            error: function(xhr){
-              if (xhr.status == 428) {
-                new PNotify({
-                    title: "ERROR deleting deployment",
-                    text: 'The deployment '+deploymentsToDelete[deployment].name+' must be stopped',
-                    hide: true,
-                    delay: 3000,
-                    icon: 'fa fa-warning',
-                    opacity: 1,
-                    type: 'error'
-                });
-              } else {
-                new PNotify({
-                  title: "ERROR acessing storage",
-                  text: xhr.responseJSON.description,
+            error: function (xhr) {
+              if (xhr.responseJSON && xhr.responseJSON.exceptions) {
+                const exceptionsList = xhr.responseJSON.exceptions.map(exception => `<li>${exception}</li>`).join('');
+                notify.update({
+                  title: "ERROR deleting deployment(s)",
+                  text: `<ul>${exceptionsList}</ul>`,
                   hide: true,
                   delay: 3000,
-                  icon: 'fa fa-warning',
+                  icon: 'fa fa-alert-sign',
                   opacity: 1,
                   type: 'error'
-              });
+                });
+              } else {
+                notify.update({
+                  title: "ERROR deleting deployment(s)",
+                  text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
+                  hide: true,
+                  delay: 3000,
+                  icon: 'fa fa-alert-sign',
+                  opacity: 1,
+                  type: 'error'
+                });
               }
             }
           });
-        }
       }).on('pnotify.cancel', function() {});
     } else {
       new PNotify({
@@ -248,6 +233,7 @@ $(document).ready(function() {
       actionsDomainDetail();
     }
   });
+  $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on);
 });
 
 function renderDeploymentDetailPannel ( d ) {
@@ -448,5 +434,34 @@ function actionsDomainDetail() {
         }
       });
     };
+  });
+}
+
+
+function socketio_on() {
+  socket.on('deployment_action', function (data) {
+    PNotify.removeAll();
+    var data = JSON.parse(data);
+    if (data.status === 'failed') {
+      new PNotify({
+        title: `ERROR: ${data.action} on ${data.count} deployment(s)`,
+        text: data.msg,
+        hide: false,
+        icon: 'fa fa-warning',
+        opacity: 1,
+        type: 'error'
+      });
+    } else if (data.status === 'completed') {
+      deployments.ajax.reload();
+      new PNotify({
+        title: `Action Succeeded: ${data.action}`,
+        text: `The action "${data.action}" completed on ${data.count} deployment(s).`,
+        hide: true,
+        delay: 4000,
+        icon: 'fa fa-success',
+        opacity: 1,
+        type: 'success'
+      });
+    }
   });
 }

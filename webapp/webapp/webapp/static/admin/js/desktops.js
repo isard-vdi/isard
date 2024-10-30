@@ -632,16 +632,17 @@ $(document).ready(function() {
                 addclass: 'pnotify-center-large',
                 width: '550'
             }).get().on('pnotify.confirm', function() {
-                $.ajax({
+                var notify = new PNotify();
+               $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/multiple_actions",
                     data: JSON.stringify({'ids':ids, 'action':action}),
                     contentType: "application/json",
                     accept: "application/json",
                     error: function(data) {
-                        new PNotify({
-                            title: "ERROR " + action + " desktops",
-                            text: data.responseJSON.description,
+                        notify.update({
+                            title: "ERROR " + action + " desktop(s)",
+                            text: data.responseJSON ?  data.responseJSON.description : "Something went wrong",
                             hide: true,
                             delay: 3000,
                             icon: 'fa fa-alert-sign',
@@ -650,8 +651,15 @@ $(document).ready(function() {
                         })
                         $('#mactions option[value="none"]').prop("selected", true);
                     },
-                    success: function(data) {
-                        notify(data)
+                    success: function() {
+                        notify.update({
+                            title: 'Processing',
+                            text: `Processing action: ${action} on ${ids.length} desktop(s)`,
+                            hide: false,
+                            type: 'info',
+                            icon: 'fa fa-spinner fa-pulse',
+                            opacity: 1
+                        });
                         $('#mactions option[value="none"]').prop("selected", true);
                     },
                 });
@@ -681,6 +689,7 @@ $(document).ready(function() {
                             click: function(notice, value){
                                 if (value == "I'm aware") {
                                     notice.remove();
+                                    var notify = new PNotify()
                                     $.ajax({
                                         type: "POST",
                                         url:"/api/v3/admin/multiple_actions",
@@ -688,18 +697,26 @@ $(document).ready(function() {
                                         contentType: "application/json",
                                         accept: "application/json",
                                         error: function(data) {
-                                            new PNotify({
+                                            notify.update({
                                                 title: "ERROR " + action + " desktops",
-                                                text: data.responseJSON.description,
+                                                text: data.responseJSON ?  data.responseJSON.description : "Something went wrong",
                                                 hide: true,
                                                 delay: 3000,
                                                 icon: 'fa fa-alert-sign',
                                                 opacity: 1,
                                                 type: 'error'
                                             })
+                                            $('#mactions option[value="none"]').prop("selected", true);
                                         },
-                                        success: function(data) {
-                                            notify(data)
+                                        success: function() {
+                                            notify.update({
+                                                title: 'Processing',
+                                                text: `Processing action: ${action} ${ids.length} desktops`,
+                                                type: 'info',
+                                                hide: false,
+                                                icon: 'fa fa-spinner fa-pulse',
+                                                opacity: 1
+                                            });
                                             $('#mactions option[value="none"]').prop("selected",true);
                                         },
                                         always: function() {
@@ -707,7 +724,7 @@ $(document).ready(function() {
                                         }
                                     });
                                 } else {
-                                    notice.update({
+                                    new PNotify({
                                         title: "Cancelled",
                                         text: "",
                                         hide: true,
@@ -1087,8 +1104,31 @@ function socketio_on(){
                 type: data.type
         });
     });
+    socket.on('desktop_action', function (data) {
+        PNotify.removeAll();
+        var data = JSON.parse(data);
+        if (data.status === 'failed') {
+            new PNotify({
+                title: `ERROR: ${data.action} on ${data.count} desktop(s).`,
+                text: data.msg,
+                hide: false,
+                icon: 'fa fa-warning',
+                opacity: 1,
+                type: 'error'
+            });
+        } else if (data.status === 'completed') {
+            new PNotify({
+                title: `Action Succeeded: ${data.action}`,
+                text: `The action "${data.action}" completed on ${data.count} desktop(s).`,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success'
+            });
+        }
+    });
 }
-
 function setDesktopTemplateTree(desktop_id) {
     $.ajax({
         url: "/api/v3/admin/domain/template_tree/" + desktop_id,

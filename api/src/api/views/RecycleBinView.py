@@ -1,10 +1,12 @@
 import json
 import traceback
 
+import gevent
+from api.libv2.api_notify import notify_admins
 from flask import request
 from isardvdi_common.api_exceptions import Error
 
-from api import app
+from api import app, socketio
 
 from ..libv2.recycle_bin import (
     RecycleBin,
@@ -74,24 +76,15 @@ def api_v3_admin_recycle_bin_item_count(payload, kind=None, status=None):
     )
 
 
-@app.route("/api/v3/recycle_bin/restore/", methods=["PUT"])
-@app.route("/api/v3/recycle_bin/restore/<recycle_bin_id>", methods=["GET"])
+@app.route("/api/v3/recycle_bin/restore/<recycle_bin_id>", methods=["PUT"])
 @has_token
 def api_v3_admin_recycle_bin_restore(payload, recycle_bin_id=None):
-    if request.method == "PUT":
-        data = request.get_json(force=True)
-        recycle_bin_ids = data.get("recycle_bin_ids")
-    else:
-        recycle_bin_ids = [recycle_bin_id]
-    for recycle_bin_id in recycle_bin_ids:
-        ownsRecycleBinId(payload, recycle_bin_id)
-        try:
-            rb = RecycleBin(id=recycle_bin_id)
-            rb._update_agent(payload["user_id"])
-            rb.restore()
-        except Exception as e:
-            app.logger.error(f"Error deleting recycle bin {recycle_bin_id}: {e}")
-            continue
+    recycle_bin_ids = [recycle_bin_id]
+    ownsRecycleBinId(payload, recycle_bin_id)
+
+    rb = RecycleBin(id=recycle_bin_id)
+    rb._update_agent(payload["user_id"])
+    rb.restore()
 
     return (
         json.dumps({"recycle_bin_ids": recycle_bin_ids}),
@@ -100,25 +93,146 @@ def api_v3_admin_recycle_bin_restore(payload, recycle_bin_id=None):
     )
 
 
-@app.route("/api/v3/recycle_bin/delete/", methods=["PUT"])
-@app.route("/api/v3/recycle_bin/delete/<recycle_bin_id>", methods=["DELETE"])
+@app.route("/api/v3/recycle_bin/restore/", methods=["PUT"])
 @has_token
-def storage_delete_bulk(payload, recycle_bin_id=None):
-    if request.method == "PUT":
-        data = request.get_json(force=True)
-        if data.get("recycle_bin_ids"):
-            recycle_bin_ids = data["recycle_bin_ids"]
-        else:
-            recycle_bin_ids = get_recycle_bin_by_period(
-                data.get("max_delete_period"), data.get("category")
-            )
-    else:
-        recycle_bin_ids = [recycle_bin_id]
+def api_v3_admin_recycle_bin_restore_bulk(payload):
+    data = request.get_json(force=True)
+    recycle_bin_ids = data.get("recycle_bin_ids")
+    for recycle_bin_id in recycle_bin_ids:
+        ownsRecycleBinId(payload, recycle_bin_id)
 
-    for rb_id in recycle_bin_ids:
-        rb_delete_queue.enqueue(
-            {"action": "delete", "recycle_bin_id": rb_id, "user_id": payload["user_id"]}
+    def process_bulk_restore():
+        try:
+            for recycle_bin_id in recycle_bin_ids:
+                rb = RecycleBin(id=recycle_bin_id)
+                rb._update_agent(payload["user_id"])
+                rb.restore()
+            notify_admins(
+                "recyclebin_action",
+                {
+                    "action": "restore",
+                    "count": len(recycle_bin_ids),
+                    "errors": [],
+                    "status": "completed",
+                },
+            )
+        except Error as e:
+            app.logger.error(e)
+            error_message = str(e)
+            if isinstance(e.args, tuple) and len(e.args) > 1:
+                error_message = e.args[1]
+            notify_admins(
+                "recyclebin_action",
+                {
+                    "action": "restore",
+                    "count": len(recycle_bin_ids),
+                    "msg": error_message,
+                    "status": "failed",
+                },
+            )
+        except Exception as e:
+            app.logger.error(e.args[0])
+            notify_admins(
+                "recyclebin_action",
+                {
+                    "action": "restore",
+                    "count": len(recycle_bin_ids),
+                    "msg": "Something went wrong",
+                    "status": "failed",
+                },
+            )
+
+    gevent.spawn(process_bulk_restore)
+    return (
+        json.dumps({"recycle_bin_ids": recycle_bin_ids}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/<recycle_bin_id>", methods=["DELETE"])
+@has_token
+def rcb_delete(payload, recycle_bin_id=None):
+    ownsRecycleBinId(payload, recycle_bin_id)
+    rb_delete_queue.enqueue(
+        {
+            "action": "delete",
+            "recycle_bin_id": recycle_bin_id,
+            "user_id": payload["user_id"],
+        }
+    )
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/delete", methods=["DELETE"])
+@has_token
+def rcb_delete_bulk(payload):
+    data = request.get_json(force=True)
+    if data.get("recycle_bin_ids"):
+        recycle_bin_ids = data["recycle_bin_ids"]
+    else:
+        recycle_bin_ids = get_recycle_bin_by_period(
+            data.get("max_delete_period"), data.get("category")
         )
+
+    def process_bulk_delete():
+        exceptions = []
+        try:
+            for rb_id in recycle_bin_ids:
+                try:
+                    ownsRecycleBinId(payload, rb_id)
+                    rb_delete_queue.enqueue(
+                        {
+                            "action": "delete",
+                            "recycle_bin_id": rb_id,
+                            "user_id": payload["user_id"],
+                        }
+                    )
+                except Error as e:
+                    exceptions.append(e.args[1])
+            notify_admins(
+                "recyclebin_action",
+                {
+                    "action": "delete",
+                    "count": len(recycle_bin_ids),
+                    "status": "completed",
+                },
+            )
+
+        except Error as e:
+            app.logger.error(e)
+            error_message = str(e)
+            if isinstance(e.args, tuple) and len(e.args) > 1:
+                error_message = e.args[1]
+            notify_admins(
+                (
+                    "recyclebin_action",
+                    {
+                        "action": "delete",
+                        "count": len(recycle_bin_ids),
+                        "msg": error_message,
+                        "status": "failed",
+                    },
+                )
+            )
+
+        except Exception as e:
+            app.logger.error(e)
+            notify_admins(
+                "recyclebin_action",
+                {
+                    "action": "delete",
+                    "count": len(recycle_bin_ids),
+                    "msg": str(e),
+                    "status": "failed",
+                },
+            )
+
+    gevent.spawn(process_bulk_delete)
     return (
         json.dumps({}),
         200,
