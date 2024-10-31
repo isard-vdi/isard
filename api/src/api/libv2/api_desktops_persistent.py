@@ -54,11 +54,7 @@ from ..libv2.bookings.api_booking import Bookings
 apib = Bookings()
 api_cards = ApiCards()
 common = ApiDesktopsCommon()
-from ..libv2.api_storage import (
-    get_domain_storage,
-    get_media_domains,
-    get_storage_derivatives,
-)
+from ..libv2.api_storage import get_media_domains, get_storage_derivatives
 from ..libv2.bookings.api_reservables import Reservables
 
 api_ri = Reservables()
