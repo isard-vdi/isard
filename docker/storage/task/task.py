@@ -276,7 +276,7 @@ def check_backing_filename():
     return result
 
 
-def move(origin_path, destination_path, method):
+def move(origin_path, destination_path, method, remove_source_file=True):
     """
     Move disk.
 
@@ -296,8 +296,8 @@ def move(origin_path, destination_path, method):
         return run_with_progress(
             [
                 "rsync",
-                "--remove-source-files",
                 "--info=progress,flist0",
+                "--remove-source-files" if remove_source_file else "",
                 origin_path,
                 destination_path,
             ],

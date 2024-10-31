@@ -95,6 +95,200 @@ def set_storage_maintenance(payload, storage_id):
     return storage
 
 
+def check_task_priority(payload, priority):
+    """
+    Check task priority.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param priority: Task priority
+    :type priority: str
+    """
+    if payload["role_id"] != "admin":
+        priority = "low"
+    else:
+        if priority not in ["low", "default", "high"]:
+            raise Error(
+                error="bad_request",
+                description=f"Priority must be low, default or high",
+            )
+    return priority
+
+
+def check_move_by_path(payload, storage_id, request):
+    """
+    Check move by path request data.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :param path: Path
+    :type path: str
+    :param priority: Priority
+    :type priority: str
+    :param request: Request
+    :type request: Request
+    :return: Path, priority, storage, storage_pool_origin
+    :rtype: tuple
+    """
+    if not request.is_json:
+        raise Error(
+            description="No JSON in body request. dest_path must be specified, priority is optional",
+        )
+
+    request_json = request.get_json()
+
+    if not request_json.get("dest_path"):
+        raise Error(
+            description="Incorrect JSON of body request: dest_path must be specified",
+        )
+
+    path = request_json.get("dest_path")
+    if not path.startswith("/"):
+        path = f"/{path}"
+    priority = check_task_priority(payload, request_json.get("priority", "default"))
+
+    check_storage_existence_and_permissions(payload, storage_id)
+
+    storage = Storage(storage_id)
+    if storage.directory_path == path:
+        raise Error(
+            error="bad_request",
+            description=f"Storage {storage.id} already in destination path {path}, no need to execute operation",
+        )
+
+    if storage.status != "ready":
+        raise Error(
+            error="precondition_required",
+            description=f"Storage {storage.id} status is not ready ({storage.status}). Can't execute operation",
+            description_code="storage_not_ready",
+        )
+    if storage.children:
+        raise Error(
+            error="conflict",
+            description=f"Storage {storage.id} used as backing file for {', '.join([storage.id for storage in storage.children])} storages. Can't execute operation",
+        )
+
+    # Storage domains checks
+    ## Only one domain can be attached to an storage now, but we iterate
+    for domain in storage.domains:
+        if domain.status != "Stopped":
+            raise Error(
+                "precondition_required",
+                f"Domain {domain.id} must be 'Stopped' in order to operate with its' storage.",
+                description_code="desktops_not_stopped",
+            )
+
+    # We can create move action
+    for domain in storage.domains:
+        domain.status = "Maintenance"
+        domain.current_action = "move"
+    storage.status = "maintenance"
+
+    storage_pool_origin = StoragePool.get_best_for_action("move", path=path)
+
+    if storage_pool_origin is None:
+        raise Error(
+            error="not_found",
+            description=f"Origin storage pool for path {path} not found to execute operation",
+        )
+
+    return path, priority, storage, storage_pool_origin
+
+
+def check_move_by_storage_pool(payload, storage_id, request):
+    """
+    Check move by storage_pool.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :param request: Request
+    :type request: Request
+    :return: Path, priority, storage
+    """
+    if not request.is_json:
+        raise Error(
+            description="No JSON in body request. storage_pool_id must be specified, priority is optional",
+        )
+
+    request_json = request.get_json()
+
+    if not request_json.get("storage_pool_id"):
+        raise Error(
+            description="Incorrect JSON of body request: storage_pool_id must be specified",
+        )
+
+    storage_pool_id = request_json.get("storage_pool_id")
+
+    path = get_dest_storage_pool_path(storage_id, storage_pool_id)
+
+    priority = check_task_priority(payload, request_json.get("priority", "default"))
+
+    check_storage_existence_and_permissions(payload, storage_id)
+
+    storage = Storage(storage_id)
+
+    if storage.status != "ready":
+        raise Error(
+            error="precondition_required",
+            description=f"Storage {storage.id} status is not ready ({storage.status}). Can't execute operation",
+            description_code="storage_not_ready",
+        )
+    if storage.children:
+        raise Error(
+            error="conflict",
+            description=f"Storage {storage.id} used as backing file for {', '.join([storage.id for storage in storage.children])} storages. Can't execute operation",
+        )
+
+    # Storage domains checks
+    ## Only one domain can be attached to an storage now, but we iterate
+    for domain in storage.domains:
+        if domain.status != "Stopped":
+            raise Error(
+                "precondition_required",
+                f"Domain {domain.id} must be 'Stopped' in order to operate with its' storage.",
+                description_code="desktops_not_stopped",
+            )
+
+    # We can create move action
+    for domain in storage.domains:
+        domain.status = "Maintenance"
+        domain.current_action = "move"
+    storage.status = "maintenance"
+
+    return storage_pool_id, priority, path, storage
+
+
+def get_dest_storage_pool_path(storage_id, storage_pool_id):
+    """
+    Get the path that must be used to move the storage to the destination storage pool.
+
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :param storage_pool_id: Storage Pool ID
+    :type storage_pool_id: str
+    :return: Path
+    :rtype: str
+    """
+    storage = Storage(storage_id)
+
+    if storage.domains[0].kind == "template":
+        storage_pool = StoragePool(storage_pool_id)
+        path = storage_pool.get_directory_path_by_usage("template")
+    elif storage.domains[0].kind == "desktop":
+        storage_pool = StoragePool(storage_pool_id)
+        path = storage_pool.get_directory_path_by_usage("desktop")
+    else:
+        raise Error(
+            error="bad_request",
+            description=f"Storage {storage.id} is not of type 'template' or 'desktop'. Can't execute operation",
+        )
+    return f"{storage_pool.mountpoint}/{storage.domains[0].category}/{path}"
+
+
 @app.route("/api/v3/storage/priority/<priority>", methods=["POST"])
 # TODO: Quotas should be implemented before open this endpoint
 # @has_token
@@ -711,6 +905,333 @@ def storage_update_parent(payload, storage_id):
             "internal_server_error",
             "Error updating storage parent",
         )
+    return jsonify(storage.task)
+
+
+@app.route(
+    "/api/v3/storage/<path:storage_id>/move/by-path",
+    methods=["PUT"],
+)
+@is_admin
+def storage_move_by_path(payload, storage_id):
+    """
+    Endpoint to move a storage to another path with storage specifications as JSON in body request.
+
+    Storage move action specification in JSON:
+    {
+        "dest_path": "Absolute path without trailing slash to move the storage",
+        "priority": "low, default or high", # Optional
+    }
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+
+    path, priority, storage, storage_pool_origin = check_move_by_path(
+        payload, storage_id, request
+    )
+
+    move_job_kwargs = {
+        "kwargs": {
+            "origin_path": storage.path,
+            "destination_path": f"{path}/{storage.id}.{storage.type}",
+            "method": "mv",
+        }
+    }
+
+    try:
+        storage_domains_ids = [domain.id for domain in storage.domains]
+        storage.create_task(
+            user_id=storage.user_id,
+            queue=f"storage.{storage_pool_origin.id}.{priority}",
+            task="move",
+            job_kwargs=move_job_kwargs,
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "id": storage.id,
+                            "directory_path": path,
+                            "qemu-img-info": {
+                                "filename": f"{path}/{storage.id}.{storage.type}"
+                            },
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "update_status",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "statuses": {
+                                        "_all": {
+                                            "ready": {
+                                                "storage": [storage.id],
+                                            },
+                                            "Stopped": {
+                                                "domain": storage_domains_ids,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            "queue": "core",
+                            "task": "domains_update",
+                            "job_kwargs": {
+                                "kwargs": {"domain_list": storage_domains_ids}
+                            },
+                        },
+                    ],
+                },
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error moving storage",
+        )
+
+    return jsonify(storage.task)
+
+
+@app.route(
+    "/api/v3/storage/<path:storage_id>/rsync/by-path",
+    methods=["PUT"],
+)
+@is_admin
+def storage_rsync_by_path(payload, storage_id):
+    """
+    Endpoint to move a storage to another path with storage specifications as JSON in body request.
+
+    Storage move action specification in JSON:
+    {
+        "dest_path": "Absolute path without trailing slash to rsync the storage",
+        "remove_source_file": "Boolean to remove source file after rsync", # Optional
+        "priority": "low, default or high", # Optional
+    }
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    path, priority, storage, storage_pool_origin = check_move_by_path(
+        payload, storage_id, request
+    )
+
+    move_job_kwargs = {
+        "kwargs": {
+            "origin_path": storage.path,
+            "destination_path": f"{path}/{storage.id}.{storage.type}",
+            "method": "rsync",
+            "remove_source_file": request.get_json().get("remove_source_file"),
+        }
+    }
+
+    try:
+        storage_domains_ids = [domain.id for domain in storage.domains]
+        storage.create_task(
+            user_id=storage.user_id,
+            queue=f"storage.{storage_pool_origin.id}.{priority}",
+            task="move",
+            job_kwargs=move_job_kwargs,
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "id": storage.id,
+                            "directory_path": path,
+                            "qemu-img-info": {
+                                "filename": f"{path}/{storage.id}.{storage.type}"
+                            },
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "update_status",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "statuses": {
+                                        "_all": {
+                                            "ready": {
+                                                "storage": [storage.id],
+                                            },
+                                            "Stopped": {
+                                                "domain": storage_domains_ids,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            "queue": "core",
+                            "task": "domains_update",
+                            "job_kwargs": {
+                                "kwargs": {"domain_list": storage_domains_ids}
+                            },
+                        },
+                    ],
+                },
+                (
+                    {
+                        "queue": "core",
+                        "task": "move_delete",
+                        "job_kwargs": {
+                            "kwargs": {
+                                "path": storage.path,
+                            }
+                        },
+                    }
+                    if request.get_json().get("remove_source_file")
+                    else None
+                ),
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error moving storage",
+        )
+
+    return jsonify(storage.task)
+
+
+@app.route(
+    "/api/v3/storage/<path:storage_id>/rsync/by-storage-pool",
+    methods=["PUT"],
+)
+@is_admin
+def storage_rsync_by_storage_pool(payload, storage_id):
+    """
+    Endpoint to move a storage to another storage pool with storage specifications as JSON in body request.
+
+    Storage move action specification in JSON:
+    {
+        "dest_storage_pool_id": "Storage Pool ID to rsync the storage",
+        "remove_source_file": "Boolean to remove source file after rsync", # Optional
+        "priority": "low, default or high", # Optional
+    }
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    storage_pool_id, priority, path, storage = check_move_by_storage_pool(
+        payload, storage_id, request
+    )
+
+    move_job_kwargs = {
+        "kwargs": {
+            "origin_path": storage.path,
+            "destination_path": f"{path}/{storage.id}.{storage.type}",
+            "method": "rsync",
+            "remove_source_file": request.get_json().get("remove_source_file"),
+        }
+    }
+
+    try:
+        storage_domains_ids = [domain.id for domain in storage.domains]
+        storage.create_task(
+            user_id=storage.user_id,
+            queue=f"storage.{storage_pool_id}.{priority}",
+            task="move",
+            job_kwargs=move_job_kwargs,
+            dependents=(
+                [
+                    {
+                        "queue": "core",
+                        "task": "storage_update",
+                        "job_kwargs": {
+                            "kwargs": {
+                                "id": storage.id,
+                                "directory_path": path,
+                                "qemu-img-info": {
+                                    "filename": f"{path}/{storage.id}.{storage.type}"
+                                },
+                            }
+                        },
+                        "dependents": [
+                            {
+                                "queue": "core",
+                                "task": "update_status",
+                                "job_kwargs": {
+                                    "kwargs": {
+                                        "statuses": {
+                                            "_all": {
+                                                "ready": {
+                                                    "storage": [storage.id],
+                                                },
+                                                "Stopped": {
+                                                    "domain": storage_domains_ids,
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                            {
+                                "queue": "core",
+                                "task": "domains_update",
+                                "job_kwargs": {
+                                    "kwargs": {"domain_list": storage_domains_ids}
+                                },
+                            },
+                        ],
+                    },
+                ]
+                + [
+                    {
+                        "queue": f"storage.{storage_pool_id}.{priority}",
+                        "task": "move_delete",
+                        "job_kwargs": {
+                            "kwargs": {
+                                "path": storage.path,
+                            }
+                        },
+                    }
+                ]
+                if request.get_json().get("remove_source_file")
+                else []
+            ),
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error moving storage",
+        )
+
     return jsonify(storage.task)
 
 
