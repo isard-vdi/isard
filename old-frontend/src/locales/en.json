@@ -286,7 +286,8 @@
                         "title": "Delete deployment"
                     },
                     "edit": {
-                        "title": "Edit deployment"
+                        "title": "Edit deployment",
+                        "disabled": "This deployment cannot be edited at the moment"
                     },
                     "allowed": {
                         "title": "Edit users"
@@ -779,6 +780,7 @@
             "desktop": {
                 "not-available": "Desktop not available",
                 "desktops": "Desktops",
+                "desktops-total-creating": "Desktops: {total} total, {creating} creating",
                 "started": "Started",
                 "visible": "Visible"
             },
