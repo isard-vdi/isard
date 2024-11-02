@@ -289,6 +289,19 @@ def get_dest_storage_pool_path(storage_id, storage_pool_id):
     return f"{storage_pool.mountpoint}/{storage.domains[0].category}/{path}"
 
 
+@app.route("/api/v3/storage/<storage_id>", methods=["GET"])
+@has_token
+def get_storage(payload, storage_id):
+    """
+    Get storage status.
+
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Storage object
+    """
+    return ownsStorageId(payload, storage_id)
+
+
 @app.route("/api/v3/storage/priority/<priority>", methods=["POST"])
 # TODO: Quotas should be implemented before open this endpoint
 # @has_token
