@@ -293,6 +293,8 @@ def move(origin_path, destination_path, method, remove_source_file=True):
     :return: Exit code of rsync command or 0 if rsync is False
     :rtype: int
     """
+    if not isdir(dirname(destination_path)):
+        mkdir(dirname(destination_path))
     if method == "mv":
         shutil.move(origin_path, destination_path)
         return 0
