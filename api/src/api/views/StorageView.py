@@ -94,6 +94,14 @@ def set_storage_maintenance(payload, storage_id):
     storage.status = "maintenance"
     return storage
 
+def get_queue_from_storage_pools(storage_pool_origin, storage_pool_destination):
+    if storage_pool_origin == storage_pool_destination:
+        queue = storage_pool_origin.id
+    else:
+        storage_pool_ids = [storage_pool_origin.id, storage_pool_destination.id]
+        storage_pool_ids.sort()
+        queue = ":".join(storage_pool_ids)
+    return queue
 
 def check_task_priority(payload, priority):
     """
@@ -1336,12 +1344,8 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
         "move", path=storage.directory_path
     )
 
-    if storage_pool_origin == storage_pool_destination:
-        queue = storage_pool_origin.id
-    else:
-        storage_pool_ids = [storage_pool_origin.id, storage_pool_destination.id]
-        storage_pool_ids.sort()
-        queue = ":".join(storage_pool_ids)
+    queue = get_queue_from_storage_pools(storage_pool_origin,storage_pool_destination)
+
     move_job_kwargs = {
         "kwargs": {
             "origin_path": storage.path,
