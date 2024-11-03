@@ -1826,11 +1826,11 @@ def storage_abort(payload, storage_id):
                                             },
                                             "dependents": [
                                                 {
-                                                    "queue": f"storage.{StoragePool.get_best_for_action('resize').id}.default",
+                                                    "queue": "core",
                                                     "task": "send_socket_user",
                                                     "job_kwargs": {
                                                         "kwargs": {
-                                                            "event": "update_storage",
+                                                            "kind": "update_storage",
                                                             "data": {
                                                                 "id": storage.id,
                                                                 "status": storage.status,
@@ -1839,7 +1839,7 @@ def storage_abort(payload, storage_id):
                                                                     "qemu-img-info",
                                                                 )["virtual-size"],
                                                             },
-                                                            "user": storage.user_id,
+                                                            "owner_id": storage.user_id,
                                                         }
                                                     },
                                                 }
