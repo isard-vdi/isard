@@ -56,6 +56,20 @@ class Storage(RethinkCustomBase):
         return f"{self.directory_path}/{self.id}.{self.type}"
 
     @property
+    def pool(self):
+        """
+        Returns the storage pool of storage.
+        """
+        return StoragePool.get_by_path(self.directory_path)[0]
+
+    @property
+    def pool_usage(self):
+        """
+        Returns the storage pool usage of storage.
+        """
+        return self.pool.get_usage_by_path(self.directory_path)
+
+    @property
     def children(self):
         """
         Returns the storages that have this storage as parent.

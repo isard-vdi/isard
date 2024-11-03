@@ -52,6 +52,29 @@ class StoragePool(RethinkCustomBase):
             weights.append(path.get("weight"))
         return choices(paths, weights=weights)[0]
 
+    def get_usage_by_path(self, path):
+        """
+        Get usage by path.
+
+        :param path: Path
+        :type path: str
+        :return: Usage type: desktop, media, template or volatile.
+        :rtype: str
+        """
+        # Check if full_path starts with mountpoint
+        if not path.startswith(self.mountpoint):
+            return None  # Not in the correct mountpoint
+
+        # Get the subpath after the mountpoint
+        subpath = path[len(self.mountpoint) :].strip("/")
+
+        # Search through each path kind to find a match
+        for usage, paths in self.paths.items():
+            for path_info in paths:
+                if path_info["path"] == subpath:
+                    return usage
+        return None
+
     @classmethod
     def get_by_path(cls, path):
         """
