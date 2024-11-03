@@ -16,6 +16,8 @@ from isardvdi_common.task import Task
 from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
 from rethinkdb import RethinkDB
 
+from ..libv2.validators import _validate_item
+
 r = RethinkDB()
 
 from api import app
@@ -57,6 +59,80 @@ db = RDB(app)
 db.init_app(app)
 
 
+def get_storage(payload, storage_id):
+    """
+    Check storage existence.
+
+    :param storage_id: Storage ID
+    :type storage_id: str
+    """
+    if not Storage.exists(storage_id):
+        raise Error(error="not_found", description=f"Storage {storage_id} not found")
+
+    storage = Storage(storage_id)
+    if payload["role_id"] == "admin":
+        return storage
+
+    if storage.user_id is None:
+        raise Error(
+            "not_found",
+            f"Storage {storage_id} missing user_id",
+            "not_found",
+        )
+
+    if storage.user_id == payload["user_id"]:
+        return storage
+
+    if payload["role_id"] == "manager":
+        with app.app_context():
+            storage_category_id = (
+                r.table("users")
+                .get(storage.user_id)
+                .pluck("category")["category"]
+                .run(db.conn)
+            )
+        if storage_category_id == payload["category_id"]:
+            return storage
+
+    raise Error(
+        "forbidden",
+        "Not enough access rights for this user_id " + payload["user_id"],
+        "forbidden",
+    )
+
+
+def get_storage_pool(storage_pool_id):
+    """
+    Check storage pool existence.
+
+    :param storage_pool_id: Storage Pool ID
+    :type storage_pool_id: str
+    """
+    if not StoragePool.exists(storage_pool_id):
+        raise Error(
+            error="not_found",
+            description=f"Storage pool {storage_pool_id} not found",
+        )
+    return StoragePool(storage_pool_id)
+
+
+def storage_status(storage, status):
+    if storage.status != status:
+        raise Error(
+            error="precondition_required",
+            description=f"Storage {storage.id} status is not ready ({storage.status}). Can't execute operation",
+            description_code="storage_not_ready",
+        )
+
+
+def not_storage_children(storage):
+    if storage.children:
+        raise Error(
+            error="conflict",
+            description=f"Storage {storage.id} used as backing file for {len([storage.id for storage in storage.children])} storages. Can't execute operation",
+        )
+
+
 def check_storage_existence_and_permissions(payload, storage_id):
     """
     Check storage existence and permissions.
@@ -69,6 +145,31 @@ def check_storage_existence_and_permissions(payload, storage_id):
     if not Storage.exists(storage_id):
         raise Error(error="not_found", description=f"Storage {storage_id} not found")
     ownsStorageId(payload, storage_id)
+
+
+def set_maintenance(storage, action):
+    """
+    Set storage and it's domains to maintenance status.
+
+    :param storage: Storage object
+    :type storage: isardvdi_common.storage.Storage
+    :param action: Action
+    :type action: str
+    """
+    domains_ids = []
+    for domain in storage.domains:
+        if domain.status != "Stopped":
+            raise Error(
+                "precondition_required",
+                f"Domain {domain.id} must be Stopped in order to operate with its' storage. It's {domain.status}",
+                description_code="desktops_not_stopped",
+            )
+    for domain in storage.domains:
+        domain.status = "Maintenance"
+        domain.current_action = action
+        domains_ids.append(domain.id)
+    storage.status = "maintenance"
+    return domains_ids
 
 
 def set_storage_maintenance(payload, storage_id):
@@ -94,6 +195,7 @@ def set_storage_maintenance(payload, storage_id):
     storage.status = "maintenance"
     return storage
 
+
 def get_queue_from_storage_pools(storage_pool_origin, storage_pool_destination):
     if storage_pool_origin == storage_pool_destination:
         queue = storage_pool_origin.id
@@ -102,6 +204,7 @@ def get_queue_from_storage_pools(storage_pool_origin, storage_pool_destination):
         storage_pool_ids.sort()
         queue = ":".join(storage_pool_ids)
     return queue
+
 
 def check_task_priority(payload, priority):
     """
@@ -205,7 +308,7 @@ def check_move_by_path(payload, storage_id, request):
     return path, priority, storage, storage_pool_origin
 
 
-def check_move_by_storage_pool(payload, storage_id, request):
+def check_move_by_storage_pool(payload, storage_id, destination_storage_pool_id):
     """
     Check move by storage_pool.
 
@@ -217,28 +320,7 @@ def check_move_by_storage_pool(payload, storage_id, request):
     :type request: Request
     :return: Path, priority, storage
     """
-    if not request.is_json:
-        raise Error(
-            description="No JSON in body request. storage_pool_id must be specified, priority is optional",
-        )
-
-    request_json = request.get_json()
-
-    if not request_json.get("storage_pool_id"):
-        raise Error(
-            description="Incorrect JSON of body request: storage_pool_id must be specified",
-        )
-
-    storage_pool_id = request_json.get("storage_pool_id")
-
-    path = get_dest_storage_pool_path(storage_id, storage_pool_id)
-
-    priority = check_task_priority(payload, request_json.get("priority", "default"))
-
-    check_storage_existence_and_permissions(payload, storage_id)
-
-    storage = Storage(storage_id)
-
+    storage = get_storage(payload, storage_id)
     if storage.status != "ready":
         raise Error(
             error="precondition_required",
@@ -248,29 +330,17 @@ def check_move_by_storage_pool(payload, storage_id, request):
     if storage.children:
         raise Error(
             error="conflict",
-            description=f"Storage {storage.id} used as backing file for {', '.join([storage.id for storage in storage.children])} storages. Can't execute operation",
+            description=f"Storage {storage.id} used as backing file for {len([storage.id for storage in storage.children])} storages. Can't execute operation",
         )
 
-    # Storage domains checks
-    ## Only one domain can be attached to an storage now, but we iterate
-    for domain in storage.domains:
-        if domain.status != "Stopped":
-            raise Error(
-                "precondition_required",
-                f"Domain {domain.id} must be 'Stopped' in order to operate with its' storage.",
-                description_code="desktops_not_stopped",
-            )
+    destination_path = get_dest_storage_pool_path(storage, destination_storage_pool_id)
 
-    # We can create move action
-    for domain in storage.domains:
-        domain.status = "Maintenance"
-        domain.current_action = "move"
-    storage.status = "maintenance"
+    set_maintenance(storage, "move")
 
     return storage_pool_id, priority, path, storage
 
 
-def get_dest_storage_pool_path(storage_id, storage_pool_id):
+def get_storage_pool_path(storage, destination_storage_pool):
     """
     Get the path that must be used to move the storage to the destination storage pool.
 
@@ -281,25 +351,46 @@ def get_dest_storage_pool_path(storage_id, storage_pool_id):
     :return: Path
     :rtype: str
     """
-    storage = Storage(storage_id)
+    destination_directory_path = destination_storage_pool.get_directory_path_by_usage(
+        storage.pool_usage
+    )
+    return storage.path.replace(storage.directory_path, destination_directory_path)
 
-    if storage.domains[0].kind == "template":
-        storage_pool = StoragePool(storage_pool_id)
-        path = storage_pool.get_directory_path_by_usage("template")
-    elif storage.domains[0].kind == "desktop":
-        storage_pool = StoragePool(storage_pool_id)
-        path = storage_pool.get_directory_path_by_usage("desktop")
-    else:
-        raise Error(
-            error="bad_request",
-            description=f"Storage {storage.id} is not of type 'template' or 'desktop'. Can't execute operation",
-        )
-    return f"{storage_pool.mountpoint}/{storage.domains[0].category}/{path}"
+
+# def get_dest_storage_pool_path(storage, destination_storage_pool):
+#     """
+#     Get the path that must be used to move the storage to the destination storage pool.
+
+#     :param storage_id: Storage ID
+#     :type storage_id: str
+#     :param storage_pool_id: Storage Pool ID
+#     :type storage_pool_id: str
+#     :return: Path
+#     :rtype: str
+#     """
+#     usage = destination_storage_pool.get_usage_by_path(storage.directory_path)
+#     return
+#     if not len(storage.domains):
+#         raise Error(
+#             error="bad_request",
+#             description=f"Storage {storage.id} has no domains. Can't execute operation",
+#         )
+#     if storage.domains[0].kind == "template":
+#         path = destination_storage_pool.get_directory_path_by_usage("template")
+#     elif storage.domains[0].kind == "desktop":
+#         path = destination_storage_pool.get_directory_path_by_usage("desktop")
+#     else:
+#         raise Error(
+#             error="bad_request",
+#             description=f"Storage {storage.id} is not of type 'template' or 'desktop'. Can't execute operation",
+#         )
+
+#     return f"{storage_pool.mountpoint}/{storage.domains[0].category}/{path}"
 
 
 @app.route("/api/v3/storage/<storage_id>", methods=["GET"])
 @has_token
-def get_storage(payload, storage_id):
+def get_storage_id(payload, storage_id):
     """
     Get storage status.
 
@@ -1051,94 +1142,30 @@ def storage_rsync_by_path(payload, storage_id):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    path, priority, storage, storage_pool_origin = check_move_by_path(
-        payload, storage_id, request
+    # Check parameters
+    data = request.get_json()
+    data["storage_id"] = storage_id
+    data = _validate_item("storage_rsync_by_storage_pool", data)
+    storage = get_storage(payload, storage_id)
+    storage_status(storage, "ready")
+    not_storage_children(storage)
+
+    # Prepare data
+    storage_pool_destination = StoragePool.get_best_by_action(
+        "move", data["destination_path"]
     )
-
-    move_job_kwargs = {
-        "kwargs": {
-            "origin_path": storage.path,
-            "destination_path": f"{path}/{storage.id}.{storage.type}",
-            "method": "rsync",
-            "remove_source_file": request.get_json().get("remove_source_file"),
-        }
-    }
-
-    try:
-        storage_domains_ids = [domain.id for domain in storage.domains]
-        storage.create_task(
-            user_id=storage.user_id,
-            queue=f"storage.{storage_pool_origin.id}.{priority}",
-            task="move",
-            job_kwargs=move_job_kwargs,
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "id": storage.id,
-                            "directory_path": path,
-                            "qemu-img-info": {
-                                "filename": f"{path}/{storage.id}.{storage.type}"
-                            },
-                        }
-                    },
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "update_status",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "statuses": {
-                                        "_all": {
-                                            "ready": {
-                                                "storage": [storage.id],
-                                            },
-                                            "Stopped": {
-                                                "domain": storage_domains_ids,
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            "queue": "core",
-                            "task": "domains_update",
-                            "job_kwargs": {
-                                "kwargs": {"domain_list": storage_domains_ids}
-                            },
-                        },
-                    ],
-                },
-                (
-                    {
-                        "queue": "core",
-                        "task": "move_delete",
-                        "job_kwargs": {
-                            "kwargs": {
-                                "path": storage.path,
-                            }
-                        },
-                    }
-                    if request.get_json().get("remove_source_file")
-                    else None
-                ),
-            ],
-        )
-    except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
-            )
+    if not len(storage_pool_destination):
         raise Error(
-            "internal_server_error",
-            "Error moving storage",
+            "not_found",
+            f"Storage pool for path {data['destination_path']} not found to execute rsync operation",
         )
+    queue = f"storage.{get_queue_from_storage_pools(storage.pool, storage_pool_destination)}.{data['priority']}"
+    destination_path = get_storage_pool_path(storage, storage_pool_destination)
 
-    return jsonify(storage.task)
+    # Execute action
+    return storage_rsync(
+        payload["user_id"], queue, storage, destination_path, data["remove_source_file"]
+    )
 
 
 @app.route(
@@ -1164,72 +1191,68 @@ def storage_rsync_by_storage_pool(payload, storage_id):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    storage_pool_id, priority, path, storage = check_move_by_storage_pool(
-        payload, storage_id, request
+    # Check parameters
+    data = request.get_json()
+    data["storage_id"] = storage_id
+    data = _validate_item("storage_rsync_by_storage_pool", data)
+    storage = get_storage(payload, storage_id)
+    storage_status(storage, "ready")
+    not_storage_children(storage)
+
+    # Prepare data
+    storage_pool_destination = get_storage_pool(data["destination_storage_pool_id"])
+    queue = f"storage.{get_queue_from_storage_pools(storage.pool, storage_pool_destination)}.{data['priority']}"
+    destination_path = get_storage_pool_path(storage, storage_pool_destination)
+
+    # Execute action
+    return storage_rsync(
+        payload["user_id"], queue, storage, destination_path, data["remove_source_file"]
     )
 
+
+def storage_rsync(
+    user_id, queue, storage, destination_path, domains_ids, remove_source_file=True
+):
+    set_maintenance(storage, "move")
     move_job_kwargs = {
         "kwargs": {
             "origin_path": storage.path,
-            "destination_path": f"{path}/{storage.id}.{storage.type}",
+            "destination_path": destination_path,
             "method": "rsync",
-            "remove_source_file": request.get_json().get("remove_source_file"),
+            "remove_source_file": remove_source_file,
         }
     }
 
     try:
-        storage_domains_ids = [domain.id for domain in storage.domains]
         storage.create_task(
-            user_id=storage.user_id,
-            queue=f"storage.{storage_pool_id}.{priority}",
+            user_id=user_id,
+            queue=queue,
             task="move",
             job_kwargs=move_job_kwargs,
             dependents=(
                 [
                     {
                         "queue": "core",
-                        "task": "storage_update",
+                        "task": "update_status",
                         "job_kwargs": {
                             "kwargs": {
-                                "id": storage.id,
-                                "directory_path": path,
-                                "qemu-img-info": {
-                                    "filename": f"{path}/{storage.id}.{storage.type}"
-                                },
-                            }
-                        },
-                        "dependents": [
-                            {
-                                "queue": "core",
-                                "task": "update_status",
-                                "job_kwargs": {
-                                    "kwargs": {
-                                        "statuses": {
-                                            "_all": {
-                                                "ready": {
-                                                    "storage": [storage.id],
-                                                },
-                                                "Stopped": {
-                                                    "domain": storage_domains_ids,
-                                                },
-                                            },
+                                "statuses": {
+                                    "_all": {
+                                        "ready": {
+                                            "storage": [storage.id],
+                                        },
+                                        "Stopped": {
+                                            "domain": domains_ids,
                                         },
                                     },
                                 },
                             },
-                            {
-                                "queue": "core",
-                                "task": "domains_update",
-                                "job_kwargs": {
-                                    "kwargs": {"domain_list": storage_domains_ids}
-                                },
-                            },
-                        ],
+                        },
                     },
                 ]
                 + [
                     {
-                        "queue": f"storage.{storage_pool_id}.{priority}",
+                        "queue": queue,
                         "task": "move_delete",
                         "job_kwargs": {
                             "kwargs": {
@@ -1238,7 +1261,7 @@ def storage_rsync_by_storage_pool(payload, storage_id):
                         },
                     }
                 ]
-                if request.get_json().get("remove_source_file")
+                if remove_source_file
                 else []
             ),
         )
@@ -1344,7 +1367,7 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
         "move", path=storage.directory_path
     )
 
-    queue = get_queue_from_storage_pools(storage_pool_origin,storage_pool_destination)
+    queue = get_queue_from_storage_pools(storage_pool_origin, storage_pool_destination)
 
     move_job_kwargs = {
         "kwargs": {
