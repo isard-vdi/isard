@@ -124,9 +124,14 @@ class RethinkBase(ABC):
         :rtype: bool
         """
         with cls._rdb_context():
-            return bool(
-                r.table(cls._rdb_table).get(document_id).run(cls._rdb_connection)
-            )
+            try:
+                return bool(
+                    r.table(cls._rdb_table)
+                    .get(document_id)["id"]
+                    .run(cls._rdb_connection)
+                )
+            except:
+                return False
 
     @classmethod
     def get_all(cls):
