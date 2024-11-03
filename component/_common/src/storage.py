@@ -21,6 +21,7 @@ from isardvdi_common.storage_pool import StoragePool
 from rq.job import JobStatus
 
 from . import domain
+from .api_exceptions import Error
 from .rethink_custom_base_factory import RethinkCustomBase
 from .task import Task
 
@@ -35,6 +36,16 @@ def get_storage_id_from_path(path):
     :rtype: str
     """
     return path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+
+
+def get_queue_from_storage_pools(storage_pool_origin, storage_pool_destination):
+    if storage_pool_origin == storage_pool_destination:
+        queue = storage_pool_origin.id
+    else:
+        storage_pool_ids = [storage_pool_origin.id, storage_pool_destination.id]
+        storage_pool_ids.sort()
+        queue = ":".join(storage_pool_ids)
+    return queue
 
 
 class Storage(RethinkCustomBase):
@@ -202,4 +213,144 @@ class Storage(RethinkCustomBase):
                 }
             ],
         )
+        return self.task
+
+    def set_maintenance(self, action):
+        """
+        Set storage and it's domains to maintenance status.
+
+        :param storage: Storage object
+        :type storage: isardvdi_common.storage.Storage
+        :param action: Action
+        :type action: str
+        """
+        for domain in self.domains:
+            if domain.status != "Stopped":
+                raise Error(
+                    "precondition_required",
+                    f"Domain {domain.id} must be Stopped in order to operate with its' storage. It's actual status is {domain.status}",
+                    description_code="desktops_not_stopped",
+                )
+        for domain in self.domains:
+            domain.status = "Maintenance"
+            domain.current_action = action
+        self.status = "maintenance"
+
+    def rsync(
+        self,
+        user_id,
+        destination_path,
+        bwlimit=0,
+        remove_source_file=True,
+        priority="default",
+    ):
+        """
+        Create a task to move the storage.
+
+        :param user_id: User ID
+        :type user_id: str
+        :param destination_path: Destination path
+        :type destination_path: str
+        :param bwlimit: Bandwidth limit in KB/s
+        :type bwlimit: int
+        :param remove_source_file: Remove source file
+        :type remove_source_file: bool
+        :param priority: Priority
+        :type priority: str
+        :return: Task ID
+        :rtype: str
+        """
+        if self.path == destination_path:
+            raise Error(
+                "precondition_required",
+                "The origin and destination paths must be different",
+                description_code="origin_destination_paths_must_be_different",
+            )
+        queue_rsync = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
+        queue_origin = f"storage.{StoragePool.get_best_for_action('check_existence', path=self.directory_path).id}.{priority}"
+        self.set_maintenance("move")
+        self.create_task(
+            blocking=True,
+            user_id=user_id,
+            queue=queue_rsync,
+            task="move",
+            job_kwargs={
+                "kwargs": {
+                    "origin_path": self.path,
+                    "destination_path": destination_path,
+                    "method": "rsync",
+                    "bwlimit": bwlimit,
+                    "remove_source_file": remove_source_file,
+                }
+            },
+            dependents=(
+                [
+                    {
+                        "queue": "core",
+                        "task": "storage_update",
+                        "job_kwargs": {
+                            "kwargs": {
+                                "id": self.id,
+                                "directory_path": destination_path.split("/" + self.id)[
+                                    0
+                                ],
+                                "qemu-img-info": {
+                                    "filename": destination_path,
+                                },
+                            }
+                        },
+                        "dependents": [
+                            {
+                                "queue": "core",
+                                "task": "update_status",
+                                "job_kwargs": {
+                                    "kwargs": {
+                                        "statuses": {
+                                            "_all": {
+                                                "ready": {
+                                                    "storage": [self.id],
+                                                },
+                                                "Stopped": {
+                                                    "domain": [
+                                                        domain.id
+                                                        for domain in self.domains
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                            {
+                                "queue": "core",
+                                "task": "domains_update",
+                                "job_kwargs": {
+                                    "kwargs": {
+                                        "domain_list": [
+                                            domain.id for domain in self.domains
+                                        ]
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ]
+                + (
+                    [
+                        {
+                            "queue": queue_origin,
+                            "task": "move_delete",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "path": self.path,
+                                }
+                            },
+                        }
+                    ]
+                    if not remove_source_file
+                    else []
+                )
+            ),
+        )
+
         return self.task

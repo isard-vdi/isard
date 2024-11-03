@@ -133,6 +133,14 @@ def not_storage_children(storage):
         )
 
 
+def not_same_storage_pool(storage_pool_id, destination_storage_pool_id):
+    if storage_pool_id == destination_storage_pool_id:
+        raise Error(
+            error="conflict",
+            description=f"Storage {storage_pool_id} and destination storage pool {destination_storage_pool_id} are the same. Can't execute operation",
+        )
+
+
 def check_storage_existence_and_permissions(payload, storage_id):
     """
     Check storage existence and permissions.
@@ -145,31 +153,6 @@ def check_storage_existence_and_permissions(payload, storage_id):
     if not Storage.exists(storage_id):
         raise Error(error="not_found", description=f"Storage {storage_id} not found")
     ownsStorageId(payload, storage_id)
-
-
-def set_maintenance(storage, action):
-    """
-    Set storage and it's domains to maintenance status.
-
-    :param storage: Storage object
-    :type storage: isardvdi_common.storage.Storage
-    :param action: Action
-    :type action: str
-    """
-    domains_ids = []
-    for domain in storage.domains:
-        if domain.status != "Stopped":
-            raise Error(
-                "precondition_required",
-                f"Domain {domain.id} must be Stopped in order to operate with its' storage. It's {domain.status}",
-                description_code="desktops_not_stopped",
-            )
-    for domain in storage.domains:
-        domain.status = "Maintenance"
-        domain.current_action = action
-        domains_ids.append(domain.id)
-    storage.status = "maintenance"
-    return domains_ids
 
 
 def set_storage_maintenance(payload, storage_id):
@@ -1128,7 +1111,8 @@ def storage_rsync_by_path(payload, storage_id):
 
     Storage move action specification in JSON:
     {
-        "dest_path": "Absolute path without trailing slash to rsync the storage",
+        "destination_path": "Absolute path without trailing slash to rsync the storage",
+        "bwlimit": "Bandwidth limit in KBytes/s", # Optional
         "remove_source_file": "Boolean to remove source file after rsync", # Optional
         "priority": "low, default or high", # Optional
     }
@@ -1143,7 +1127,7 @@ def storage_rsync_by_path(payload, storage_id):
     # Check parameters
     data = request.get_json()
     data["storage_id"] = storage_id
-    data = _validate_item("storage_rsync_by_storage_pool", data)
+    data = _validate_item("storage_rsync_by_path", data)
     storage = get_storage(payload, storage_id)
     storage_status(storage, "ready")
     not_storage_children(storage)
@@ -1157,12 +1141,19 @@ def storage_rsync_by_path(payload, storage_id):
             "not_found",
             f"Storage pool for path {data['destination_path']} not found to execute rsync operation",
         )
-    queue = f"storage.{get_queue_from_storage_pools(storage.pool, storage_pool_destination)}.{data['priority']}"
     destination_path = get_storage_pool_path(storage, storage_pool_destination)
 
-    # Execute action
-    return storage_rsync(
-        payload["user_id"], queue, storage, destination_path, data["remove_source_file"]
+    # Create task
+    return jsonify(
+        {
+            "id": storage.rsync(
+                payload["user_id"],
+                destination_path,
+                data["bwlimit"],
+                data["remove_source_file"],
+                data["priority"],
+            )
+        }
     )
 
 
@@ -1177,7 +1168,8 @@ def storage_rsync_by_storage_pool(payload, storage_id):
 
     Storage move action specification in JSON:
     {
-        "dest_storage_pool_id": "Storage Pool ID to rsync the storage",
+        "destination_storage_pool_id": "Storage Pool ID to rsync the storage",
+        "bwlimit": "Bandwidth limit in KBytes/s", # Optional
         "remove_source_file": "Boolean to remove source file after rsync", # Optional
         "priority": "low, default or high", # Optional
     }
@@ -1196,85 +1188,24 @@ def storage_rsync_by_storage_pool(payload, storage_id):
     storage = get_storage(payload, storage_id)
     storage_status(storage, "ready")
     not_storage_children(storage)
+    not_same_storage_pool(storage.pool.id, data["destination_storage_pool_id"])
 
     # Prepare data
     storage_pool_destination = get_storage_pool(data["destination_storage_pool_id"])
-    queue = f"storage.{get_queue_from_storage_pools(storage.pool, storage_pool_destination)}.{data['priority']}"
     destination_path = get_storage_pool_path(storage, storage_pool_destination)
 
-    # Execute action
-    return storage_rsync(
-        payload["user_id"], queue, storage, destination_path, data["remove_source_file"]
-    )
-
-
-def storage_rsync(
-    user_id, queue, storage, destination_path, domains_ids, remove_source_file=True
-):
-    set_maintenance(storage, "move")
-    move_job_kwargs = {
-        "kwargs": {
-            "origin_path": storage.path,
-            "destination_path": destination_path,
-            "method": "rsync",
-            "remove_source_file": remove_source_file,
-        }
-    }
-
-    try:
-        storage.create_task(
-            user_id=user_id,
-            queue=queue,
-            task="move",
-            job_kwargs=move_job_kwargs,
-            dependents=(
-                [
-                    {
-                        "queue": "core",
-                        "task": "update_status",
-                        "job_kwargs": {
-                            "kwargs": {
-                                "statuses": {
-                                    "_all": {
-                                        "ready": {
-                                            "storage": [storage.id],
-                                        },
-                                        "Stopped": {
-                                            "domain": domains_ids,
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                ]
-                + [
-                    {
-                        "queue": queue,
-                        "task": "move_delete",
-                        "job_kwargs": {
-                            "kwargs": {
-                                "path": storage.path,
-                            }
-                        },
-                    }
-                ]
-                if remove_source_file
-                else []
-            ),
-        )
-    except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
+    # Create task
+    return jsonify(
+        {
+            "id": storage.rsync(
+                payload["user_id"],
+                destination_path,
+                data["bwlimit"],
+                data["remove_source_file"],
+                data["priority"],
             )
-        raise Error(
-            "internal_server_error",
-            "Error moving storage",
-        )
-
-    return jsonify(storage.task)
+        }
+    )
 
 
 @app.route(

@@ -55,9 +55,33 @@ def extract_progress_from_rsync_output(process):
     :return: Progress percentage as decimal
     :rtype: float
     """
-    return (
-        float(process.stdout.read1().decode().split("%", 1)[0].rsplit(" ", 1)[-1]) / 100
-    )
+    output = process.stdout.read1().decode()
+
+    # Split by lines to handle multi-line output
+    lines = output.splitlines()
+
+    # Find the line with the progress information
+
+    for line in lines:
+        if "%" in line:  # Look for lines that contain a percentage
+            try:
+                # Split by space and look for the percentage part
+                percentage_str = line.split()[
+                    1
+                ]  # This assumes the percentage is always the second item
+                if percentage_str.endswith("%"):
+                    percentage_str = percentage_str[:-1]  # Remove the '%'
+                progress = float(percentage_str) / 100  # Convert to float and scale
+                break  # Exit the loop once we find the percentage
+            except (ValueError, IndexError) as e:
+                print("Error parsing progress:", e)
+                progress = 0.0  # Default value if parsing fails
+        else:
+            progress = 0.0  # Default if no progress line is found
+    try:
+        return progress
+    except UnboundLocalError:
+        raise ValueError("Source rsync file not found")
 
 
 def run_with_progress(command, extract_progress):
@@ -74,7 +98,7 @@ def run_with_progress(command, extract_progress):
     job = get_current_job()
     with Popen(command, stdout=PIPE) as process:
         while process.poll() is None:
-            job.meta["progress"] = extract_progress(process)
+            job.meta["progress"] = round(extract_progress(process), 2)
             job.save_meta()
             Queue("core", connection=job.connection).enqueue(
                 "task.feedback", task_id=job.id, result_ttl=0
@@ -280,7 +304,7 @@ def check_backing_filename():
     return result
 
 
-def move(origin_path, destination_path, method, remove_source_file=True):
+def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=True):
     """
     Move disk.
 
@@ -299,11 +323,22 @@ def move(origin_path, destination_path, method, remove_source_file=True):
         shutil.move(origin_path, destination_path)
         return 0
     elif method == "rsync":
+        print(
+            [
+                "rsync",
+                "--info=progress,flist0",
+                *(["--bwlimit=" + str(bwlimit)] if bwlimit else []),
+                *(["--remove-source-files"] if remove_source_file else []),
+                origin_path,
+                destination_path,
+            ]
+        )
         return run_with_progress(
             [
                 "rsync",
                 "--info=progress,flist0",
-                "--remove-source-files" if remove_source_file else "",
+                *(["--bwlimit=" + str(bwlimit)] if bwlimit else []),
+                *(["--remove-source-files"] if remove_source_file else []),
                 origin_path,
                 destination_path,
             ],
@@ -321,12 +356,15 @@ def move_delete(path):
     :type path: str
     :rtype: int
     """
+    if isfile(path):
+        delete_path = join(dirname(path), "deleted")
+        if not isdir(delete_path):
+            mkdir(delete_path)
 
-    delete_path = join(dirname(path), "deleted")
-    if not isdir(delete_path):
-        mkdir(delete_path)
-
-    rename(path, join(delete_path, basename(path)))
+        rename(path, join(delete_path, basename(path)))
+        return 0
+    else:
+        raise ValueError(f"Path {path} not found")
 
 
 def convert(convert_request):
