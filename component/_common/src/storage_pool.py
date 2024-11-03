@@ -96,13 +96,16 @@ class StoragePool(RethinkCustomBase):
             # Default path
             path = "/isard"
         with cls._rdb_context():
-            return [
-                cls(storage_pool["id"])
-                for storage_pool in r.table(cls._rdb_table)
-                .filter({"mountpoint": path})
-                .pluck("id")
-                .run(cls._rdb_connection)
-            ]
+            try:
+                return [
+                    cls(storage_pool["id"])
+                    for storage_pool in r.table(cls._rdb_table)
+                    .filter({"mountpoint": path})
+                    .pluck("id")
+                    .run(cls._rdb_connection)
+                ]
+            except:
+                return []
 
     @classmethod
     def get_by_user_kind(cls, user_id, kind):
