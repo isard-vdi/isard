@@ -351,9 +351,7 @@ def get_storage_pool_path(storage, destination_storage_pool):
     :return: Path
     :rtype: str
     """
-    destination_directory_path = destination_storage_pool.get_directory_path_by_usage(
-        storage.pool_usage
-    )
+    destination_directory_path = f"{destination_storage_pool.mountpoint}/{destination_storage_pool.get_directory_path_by_usage(storage.pool_usage)}"
     return storage.path.replace(storage.directory_path, destination_directory_path)
 
 
