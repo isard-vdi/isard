@@ -162,6 +162,10 @@ def qemu_img_info(storage_id, storage_path):
             ],
         )
     )
+    from pprint import pprint
+
+    pprint(qemu_img_info_data)
+    print(storage_path)
     qemu_img_info_data.setdefault("backing-filename")
     qemu_img_info_data.setdefault("backing-filename-format")
     qemu_img_info_data.setdefault("full-backing-filename")
