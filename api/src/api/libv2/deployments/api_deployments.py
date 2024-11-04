@@ -600,7 +600,7 @@ def edit_deployment(payload, deployment_id, data):
 
 def check_desktops_started(deployment_id):
     with app.app_context():
-        started_desktops = (
+        started_desktops = list(
             r.table("domains")
             .get_all(deployment_id, index="tag")
             .filter(
@@ -608,21 +608,19 @@ def check_desktops_started(deployment_id):
                     r.expr(["Stopped", "Failed", "Unknown"]).contains(desktop["status"])
                 )
             )
-            .count()
+            .pluck("status")
             .run(db.conn)
         )
-    if started_desktops > 0:
+    if len(started_desktops) > 0:
         raise Error(
             "precondition_required",
             "The deployment " + str(deployment_id) + " desktops must be stopped ",
             description_code="deployment_stop",
         )
-    if any(
-        [desktop["status"].startswith("Creating") for desktop in deployment_desktops]
-    ):
+    if any([desktop["status"].startswith("Creating") for desktop in started_desktops]):
         raise Error(
             "precondition_required",
-            "The deployment " + str(deployment_id) + " are being created",
+            "The deployment " + str(deployment_id) + " desktops are being created",
             description_code="deployment_stop",
         )
 
