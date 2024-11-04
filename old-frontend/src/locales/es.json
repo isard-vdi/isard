@@ -823,7 +823,8 @@
           "delete": "Eliminar",
           "co-owners": "Actualizar copropietarios"
         }
-      }
+      },
+      "alloweds-warning": "AVISO! Eliminar usuarios de este despliegue también eliminará sus escritorios asociados."
     },
     "deployment-desktop-list": {
       "actions": {

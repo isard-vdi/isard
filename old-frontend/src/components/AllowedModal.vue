@@ -7,6 +7,7 @@
     centered
     @hidden="closeAllowedModal"
   >
+    <slot name="subtitle" />
     <div class="ml-4 mr-4">
       <AllowedForm />
     </div>

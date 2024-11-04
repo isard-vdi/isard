@@ -267,7 +267,21 @@
                 scale="0.75"
               />
             </b-button>
-            <AllowedModal @updateAllowed="updateUsers" />
+            <AllowedModal @updateAllowed="updateUsers">
+              <template #subtitle>
+                <b-alert
+                  show
+                  variant="danger"
+                  class="mx-4"
+                >
+                  <b-icon
+                    class="mr-2"
+                    icon="exclamation-triangle-fill"
+                  />
+                  {{ $t(`views.deployment.alloweds-warning`) }}
+                </b-alert>
+              </template>
+            </AllowedModal>
             <b-button
               class="rounded-circle btn-red px-2 mr-2"
               :title="$t('components.statusbar.deployment.buttons.delete.title')"
