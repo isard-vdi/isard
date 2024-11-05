@@ -225,8 +225,6 @@ def storage_update(**storage_dict):
     if task.depending_status == "finished":
         if storage_dict:
             storage_object = Storage(**storage_dict)
-            for domain in storage_object.domains:
-                domain.force_update = True
             if storage_dict.get("status") == "deleted":
                 for domain in storage_object.domains:
                     domain.status = "Failed"
@@ -349,8 +347,9 @@ def domain_change_storage(domain_id, storage_id):
     :type storage_id: str
     """
     domain = Domain(domain_id)
-
     c_dict = domain.create_dict
     c_dict["hardware"]["disks"][0]["storage_id"] = storage_id
-
     domain.create_dict = c_dict
+    domain.force_update = (
+        True  # Engine will recreate it's hardware dict before next start
+    )
