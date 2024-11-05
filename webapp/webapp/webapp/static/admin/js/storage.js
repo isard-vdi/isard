@@ -847,12 +847,11 @@ $("#modalMoveStorage #send").on("click", function () {
   form.parsley().validate();
   if (form.parsley().isValid()) {
     data = form.serializeObject();
-    var method = data["moving-tool"] == "rsync" ? "/rsync" : "/mv";
-    data["rsync"] = data["moving-tool"] == "rsync" ? true : false;
-    var url = `/api/v3/storage/${data["storage_id"]}/path${data["destination_path"]}/priority/${data.priority}${method}`;
+    var method = data["moving-tool"] == "rsync" ? "rsync" : "mv";
+    const type = same_pool ? "byPath" :  "byStoragePool"
     delete data["pool-radio"];
     delete data["moving-tool"];
-    performStorageOperation(data, data.storage_id, "move", url);
+    performMoveOperation(data, method, type);
   }
 });
 
@@ -1422,6 +1421,74 @@ function performStorageOperation(formData, storageId, action, url) {
   });
 }
 
+function performMoveOperation(formData, method, type) {
+  var url = "";
+  var data = {};
+  switch (method) {
+    case "rsync":
+      switch (type) {
+        case "byStoragePool":
+          url = `/api/v3/storage/${formData.storage_id}/rsync/by-storage-pool`;
+          data = {
+            storage_id: formData.id,
+            destination_storage_pool_id: formData.storage_pool,
+            priority: formData.priority,
+          };
+          break;
+        case "byPath":
+          url = `/api/v3/storage/${formData.storage_id}/rsync/by-path`;
+          data = {
+            storage_id: formData.storage_id,
+            destination_path: formData.destination_path,
+            priority: formData.priority,
+          };
+          break;
+      }
+      break;
+    case "mv":
+      switch (type) {
+        case "byPath":
+          url = `/api/v3/storage/${formData.storage_id}/move/by-path`;
+          data = {
+            storage_id: formData.storage_id,
+            dest_path: formData.destination_path,
+            priority: formData.priority,
+          };
+          break;
+      }
+  }
+  $.ajax({
+    url: url,
+    type: "PUT",
+    data: JSON.stringify(data),
+    contentType: "application/json",
+  })
+    .done(function () {
+      new PNotify({
+        title: "Task created successfully",
+        text: `Moving storage...`,
+        hide: true,
+        delay: 2000,
+        opacity: 1,
+        type: "success",
+      });
+      $(".modal").modal("hide");
+    })
+    .fail(function (data) {
+      new PNotify({
+        title: `ERROR trying to move storage`,
+        text: data.responseJSON
+          ? data.responseJSON.description
+          : "Something went wrong",
+        type: "error",
+        hide: true,
+        icon: "fa fa-warning",
+        delay: 5000,
+        opacity: 1,
+      });
+    });
+}
+
 function populateSelectByPool(modal, pool, data, isDefault) {
   var emptySelect = true;
   $(modal + " .new_path").empty();
@@ -1458,11 +1525,13 @@ function addRadioButtonsListeners() {
       $("#modalMoveStorageForm #move").iCheck("check").iCheck("update");
       $("#modalMoveStorageForm #mv-recommended").show();
       $("#modalMoveStorageForm #rsync-recommended").hide();
+      $("#modalMoveStorageForm #move-from-panel").show();
       $("#modalMoveStorageForm #storage_pool").val($("#modalMoveStorageForm #storage_pool-name").val()).trigger("change");
     } else {
       $("#modalMoveStorageForm #rsync").iCheck("check").iCheck("update");
       $("#modalMoveStorageForm #rsync-recommended").show();
       $("#modalMoveStorageForm #mv-recommended").hide();
+      $("#modalMoveStorageForm #move-from-panel").hide();
     }
   });
   $("#modalMoveStorageForm .radio-title input").on("ifUnchecked", function () {
