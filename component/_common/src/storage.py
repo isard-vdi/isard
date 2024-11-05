@@ -21,7 +21,6 @@ from isardvdi_common.storage_pool import StoragePool
 from rq.job import JobStatus
 
 from . import domain
-from .api_exceptions import Error
 from .rethink_custom_base_factory import RethinkCustomBase
 from .task import Task
 
@@ -226,10 +225,12 @@ class Storage(RethinkCustomBase):
         """
         for domain in self.domains:
             if domain.status != "Stopped":
-                raise Error(
-                    "precondition_required",
-                    f"Domain {domain.id} must be Stopped in order to operate with its' storage. It's actual status is {domain.status}",
-                    description_code="desktops_not_stopped",
+                raise Exception(
+                    {
+                        "error": "precondition_required",
+                        "description": f"Domain {domain.id} must be Stopped in order to operate with its' storage. It's actual status is {domain.status}",
+                        "description_code": "desktops_not_stopped",
+                    }
                 )
         for domain in self.domains:
             domain.status = "Maintenance"
@@ -261,10 +262,12 @@ class Storage(RethinkCustomBase):
         :rtype: str
         """
         if self.path == destination_path:
-            raise Error(
-                "precondition_required",
-                "The origin and destination paths must be different",
-                description_code="origin_destination_paths_must_be_different",
+            raise Exception(
+                {
+                    "error": "precondition_required",
+                    "description": "The origin and destination paths must be different",
+                    "description_code": "origin_destination_paths_must_be_different",
+                }
             )
         queue_rsync = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
         queue_origin = f"storage.{StoragePool.get_best_for_action('check_existence', path=self.directory_path).id}.{priority}"
