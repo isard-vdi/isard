@@ -819,9 +819,9 @@ $(document).on('click', '.btn-move', function () {
             url: `/api/v3/admin/storage_pools`,
             type: 'GET',
           }).done(function (data) {
+            $(modal + " #storage_pool").append(`<option disabled selected>-- Select a destiny storage pool --</option>`)
             $.each(data, function (key, value) {
               $(modal + " #storage_pool").append(`<option value="${value.id}">${value.name}</option>`);
-              $(modal + " #storage_pool").val(pool.id);
             })
           });
           $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
@@ -1433,14 +1433,18 @@ function populateSelectByPool(modal, pool, data, isDefault) {
           // only get pools with desktop category or default pool
           if (!category || cat==data.category) {
             optionPath = pool.mountpoint + "/" + cat + "/" + kindPath.path;
-            $(modal + " .new_path").append(`<option ${optionPath == data["directory_path"] ? 'selected' : ''} value="${optionPath}">${optionPath}</option>`);
-            emptySelect = false;
+            if (data.directory_path != optionPath) {
+                $(modal + " .new_path").append(`<option ${optionPath == data["directory_path"] ? 'selected' : ''} value="${optionPath}">${optionPath}</option>`);
+                emptySelect = false;
+            }
           }
         });
       } else {
         optionPath = pool.mountpoint + "/" + category + kindPath.path;
-        $(modal + " .new_path").append(`<option ${optionPath == data["directory_path"] ? 'selected' : ''} value="${optionPath}">${optionPath}</option>`);
-        emptySelect = false;
+        if (data.directory_path != optionPath) {
+          $(modal + " .new_path").append(`<option ${optionPath == data["directory_path"] ? 'selected' : ''} value="${optionPath}">${optionPath}</option>`);
+          emptySelect = false;
+        }
       }
       $(modal + " #origin_path").empty().text(data["directory_path"]);
   });
