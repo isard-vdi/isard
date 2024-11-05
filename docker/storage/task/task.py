@@ -186,14 +186,10 @@ def qemu_img_info(storage_id, storage_path):
             ],
         )
     )
-    from pprint import pprint
-
-    pprint(qemu_img_info_data)
-    print(storage_path)
     qemu_img_info_data.setdefault("backing-filename")
     qemu_img_info_data.setdefault("backing-filename-format")
     qemu_img_info_data.setdefault("full-backing-filename")
-    return {"id": storage_id, "qemu-img-info": qemu_img_info_data}
+    return {"id": storage_id, "status": "ready", "qemu-img-info": qemu_img_info_data}
 
 
 def qemu_img_info_backing_chain(storage_id, storage_path):
@@ -323,16 +319,6 @@ def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=Tr
         shutil.move(origin_path, destination_path)
         return 0
     elif method == "rsync":
-        print(
-            [
-                "rsync",
-                "--info=progress,flist0",
-                *(["--bwlimit=" + str(bwlimit)] if bwlimit else []),
-                *(["--remove-source-files"] if remove_source_file else []),
-                origin_path,
-                destination_path,
-            ]
-        )
         return run_with_progress(
             [
                 "rsync",
