@@ -47,7 +47,6 @@ from .decorators import (
     is_admin,
     is_admin_or_manager,
     is_not_user,
-    ownsDomainId,
     ownsStorageId,
 )
 
@@ -369,7 +368,7 @@ def get_storage_pool_path(storage, destination_storage_pool):
 #     return f"{storage_pool.mountpoint}/{storage.domains[0].category}/{path}"
 
 
-@app.route("/api/v3/storage/<storage_id>", methods=["GET"])
+@app.route("/api/v3/storage/<path:storage_id>", methods=["GET"])
 @has_token
 def get_storage_id(payload, storage_id):
     """
@@ -684,7 +683,8 @@ def storage_delete(payload, storage_id):
 
 
 @app.route(
-    "/api/v3/storage/virt-win-reg/<storage_id>/priority/<priority>", methods=["PUT"]
+    "/api/v3/storage/virt-win-reg/<path:storage_id>/priority/<priority>",
+    methods=["PUT"],
 )
 @has_token
 def storage_virt_win_reg(payload, storage_id, priority="low"):
@@ -1668,7 +1668,7 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
     return jsonify(storage.task)
 
 
-@app.route("/api/v3/storage/<storage_id>/stop", methods=["PUT"])
+@app.route("/api/v3/storage/<path:storage_id>/stop", methods=["PUT"])
 @is_admin_or_manager
 def storage_stop_all_desktops(payload, storage_id):
     domains = [
@@ -1678,13 +1678,15 @@ def storage_stop_all_desktops(payload, storage_id):
     return jsonify({}), 200
 
 
-@app.route("/api/v3/storage/<storage_id>/check_stopped_desktops", methods=["GET"])
+@app.route("/api/v3/storage/<path:storage_id>/check_stopped_desktops", methods=["GET"])
 @is_admin_or_manager
 def storage_check_stopped_desktops(payload, storage_id):
     return jsonify({"is_stopped": Storage(storage_id)._check_domains_status()}), 200
 
 
-@app.route("/api/v3/storage/<storage_id>/check_storage_derivatives", methods=["GET"])
+@app.route(
+    "/api/v3/storage/<path:storage_id>/check_storage_derivatives", methods=["GET"]
+)
 @is_admin_or_manager
 def storage_check_storage_derivatives(payload, storage_id):
     return jsonify({"derivatives": len(get_storage_derivatives(storage_id))}), 200
@@ -1792,7 +1794,7 @@ def storage_abort(payload, storage_id):
     return jsonify(storage.task)
 
 
-@app.route("/api/v3/storage/<storage_id>/recreate", methods=["POST"])
+@app.route("/api/v3/storage/<path:storage_id>/recreate", methods=["POST"])
 @app.route("/api/v3/domain/<domain_id>/recreate_disk", methods=["POST"])
 @has_token
 def storage_recreate_disk(payload, storage_id=None, domain_id=None):
