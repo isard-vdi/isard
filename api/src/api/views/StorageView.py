@@ -1133,10 +1133,10 @@ def storage_rsync_by_path(payload, storage_id):
     not_storage_children(storage)
 
     # Prepare data
-    storage_pool_destination = StoragePool.get_best_by_action(
+    storage_pool_destination = StoragePool.get_best_for_action(
         "move", data["destination_path"]
     )
-    if not len(storage_pool_destination):
+    if storage_pool_destination is None:
         raise Error(
             "not_found",
             f"Storage pool for path {data['destination_path']} not found to execute rsync operation",
