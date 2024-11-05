@@ -1431,13 +1431,11 @@ function populateSelectByPool(modal, pool, data, isDefault) {
       if ($("#user_data").data("role") == "admin" && category) {
         $.each(pool.categories, function (key, cat) {
           // only get pools with desktop category or default pool
-          if (!category || cat==data.category) {
             optionPath = pool.mountpoint + "/" + cat + "/" + kindPath.path;
             if (data.directory_path != optionPath) {
                 $(modal + " .new_path").append(`<option ${optionPath == data["directory_path"] ? 'selected' : ''} value="${optionPath}">${optionPath}</option>`);
                 emptySelect = false;
             }
-          }
         });
       } else {
         optionPath = pool.mountpoint + "/" + category + kindPath.path;
