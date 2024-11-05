@@ -61,12 +61,23 @@ class StoragePool(RethinkCustomBase):
         :return: Usage type: desktop, media, template or volatile.
         :rtype: str
         """
+
         # Check if full_path starts with mountpoint
         if not path.startswith(self.mountpoint):
             return None  # Not in the correct mountpoint
 
-        # Get the subpath after the mountpoint
-        subpath = path[len(self.mountpoint) :].strip("/")
+        if path.startswith("/isard/storage_pools"):
+            # path to be found is the path without ANYTHING that comes after "/isard/storage_pools/ANYTHING/",
+            # so if we've got a path like "/isard/storage_pools/1/2/3/4" we want path to be /isard/storage_pools/1
+            base_path = (
+                "/isard/storage_pools/"
+                + path.split("/isard/storage_pools/")[1].split("/")[0]
+            )
+        else:
+            # Default path
+            base_path = "/isard"
+
+        subpath = path.replace(base_path, "").lstrip("/")
 
         # Search through each path kind to find a match
         for usage, paths in self.paths.items():
