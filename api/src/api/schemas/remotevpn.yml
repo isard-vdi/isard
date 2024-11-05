@@ -17,6 +17,6 @@ name:
   required: true
   empty: false
   coerce: sanitize
-interfaces:
+nets:
   type: string
   coerce: sanitize
