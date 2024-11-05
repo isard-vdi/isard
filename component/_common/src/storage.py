@@ -291,6 +291,7 @@ class Storage(RethinkCustomBase):
                         "job_kwargs": {
                             "kwargs": {
                                 "id": self.id,
+                                "status": "ready",
                                 "directory_path": destination_path.split("/" + self.id)[
                                     0
                                 ],
@@ -306,15 +307,14 @@ class Storage(RethinkCustomBase):
                                 "job_kwargs": {
                                     "kwargs": {
                                         "statuses": {
-                                            "_all": {
-                                                "ready": {
+                                            JobStatus.CANCELED: {
+                                                self.status: {
                                                     "storage": [self.id],
                                                 },
-                                                "Stopped": {
-                                                    "domain": [
-                                                        domain.id
-                                                        for domain in self.domains
-                                                    ],
+                                            },
+                                            JobStatus.FAILED: {
+                                                self.status: {
+                                                    "storage": [self.id],
                                                 },
                                             },
                                         },

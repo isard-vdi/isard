@@ -233,6 +233,9 @@ def storage_update(**storage_dict):
                         child.status = "orphan"
                         for domain in child.domains:
                             domain.status = "Failed"
+            if storage_dict.get("status") == "ready":
+                for domain in storage_object.domains:
+                    domain.status = "Stopped"
         else:
             for dependency in task.dependencies:
                 if dependency.task in (
