@@ -17,11 +17,10 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import base64
 import shutil
 import tempfile
 from json import loads
-from os import environ, mkdir, remove, rename
+from os import environ, makedirs, remove, rename
 from os.path import basename, dirname, isdir, isfile, join
 from re import search
 from subprocess import PIPE, Popen, check_output, run
@@ -128,6 +127,8 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
     :return: Exit code of qemu-img command
     :rtype: int
     """
+    if not isdir(dirname(storage_path)):
+        makedirs(dirname(storage_path), exist_ok=True)
     backing_file = []
     if parent_path and parent_type:
         backing_file = ["-b", parent_path, "-F", parent_type]
@@ -314,7 +315,7 @@ def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=Tr
     :rtype: int
     """
     if not isdir(dirname(destination_path)):
-        mkdir(dirname(destination_path))
+        makedirs(dirname(destination_path), exist_ok=True)
     if method == "mv":
         shutil.move(origin_path, destination_path)
         return 0
@@ -345,7 +346,7 @@ def move_delete(path):
     if isfile(path):
         delete_path = join(dirname(path), "deleted")
         if not isdir(delete_path):
-            mkdir(delete_path)
+            makedirs(delete_path, exist_ok=True)
 
         rename(path, join(delete_path, basename(path)))
         return 0
