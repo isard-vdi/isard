@@ -420,7 +420,7 @@
                                     </select>
                                 </div>
                                 <div class="col-md-12 update different_pool-display"" style=" display:none;">
-                                    <label class="control-label">Storage pool: </label>
+                                    <label class="control-label">Destination storage pool: </label>
                                     <select id="storage_pool" class="roundbox form-control">
                                         <option selected>-- Choose a storage pool --</option>
                                     </select>
@@ -438,36 +438,29 @@
                                     <select name="priority" id="priority" class="form-control tags-select roundbox">
                                     </select>
                                 </div>
-
                             </div>
                             <div class="x_panel">
                                 <div class="x_title">
                                     <h4>Method</h4>
                                     <div class="clearfix"></div>
                                 </div>
-
                                 <div class="x_content">
-                                    <div class="radio col-md-4 col-sm-6 col-xs-12" display:inline;">
-                                        <label class="control-label">
-                                            <div class="iradio_flat-green">
-                                                <input selected type="radio" checked id="move" value="move"
-                                                    name="moving-tool">
-                                                <ins class="iCheck-helper"></ins>
-                                            </div> mv <span id="mv-recommended" class="recommended"><i>
-                                                    (Recommended)</i></span>
-                                        </label>
+                                    <label for="method" class="control-label">Choose a moving tool:</label>
+                                    <select id="method" name="method" class="form-control roundbox"></select>
+                                </div>
+                                <div class="x_content" id="rsync-display" style="display:none;">
+                                    <div id="after-rsync-panel">
+                                        <label for="after_rsync">After rsync:</label>
+                                        <div>
+                                            <select class="roundbox form-control" required name="remove_source_file" id="after-rsync"></select>
+                                        </div>
                                     </div>
-                                    <div class="radio col-md-5 col-sm-6 col-xs-12" display:inline;">
-                                        <label class="control-label">
-                                            <div class="iradio_flat-green">
-                                                <input type="radio" id="rsync" value="rsync" name="moving-tool">
-                                                <ins class="iCheck-helper"></ins>
-                                            </div> rsync <span style="display:none;" id="rsync-recommended"
-                                                class="recommended"><i> (Recommended)</i></span>
-                                        </label>
+                                    <label for="bwlimit">Bandwith limit (KB/s):</label>
+                                    <div>
+                                        <input type="number" name="bwlimit" id="bwlimit" style="margin: 7px;"
+                                        class="form-control roundbox" required value="0" placeholder="0"/>
                                     </div>
                                 </div>
-
                             </div>
                         </div>
                     </div>

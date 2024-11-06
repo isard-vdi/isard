@@ -27,6 +27,7 @@ $(document).ready(function () {
   $('#status').attr('disabled', 'disabled')
   addCheckboxListeners();
   addRadioButtonsListeners();
+  addSelectMethodListeners();
 
   // Storage ready table
   let tableId = '#storage'
@@ -777,6 +778,8 @@ $(document).on('click', '.btn-move', function () {
   modal = "#modalMoveStorage";
   $(modal + " #id").val(storageId);
   resetMoveForm();
+  populateSelectMethod(modal);
+  populateSelectAfterRSync(modal);
   $.ajax({
     url: `/api/v3/storage/${storageId}/check_storage_derivatives`,
     type: 'GET',
@@ -814,14 +817,16 @@ $(document).on('click', '.btn-move', function () {
           });
           $(modal + " #storage_pool-name").empty().append(`<option selected value="${pool.id}">${pool.name}</option>`);
           populateSelectByPool(modal, pool, data, pool.is_default);
-          addSelectStoragePoolListeners(data);
+          // addSelectStoragePoolListeners(data);
           $.ajax({
             url: `/api/v3/admin/storage_pools`,
             type: 'GET',
           }).done(function (data) {
-            $(modal + " #storage_pool").append(`<option disabled selected>-- Select a destiny storage pool --</option>`)
+            $(modal + " #storage_pool").append(`<option disabled>-- Select a destination storage pool --</option>`)
             $.each(data, function (key, value) {
-              $(modal + " #storage_pool").append(`<option value="${value.id}">${value.name}</option>`);
+              if (value.id != pool.id) {
+                $(modal + " #storage_pool").append(`<option value="${value.id}">${value.name}</option>`);
+              }
             })
           });
           $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
@@ -843,15 +848,15 @@ $(document).on('click', '.btn-move', function () {
 
 
 $("#modalMoveStorage #send").on("click", function () {
-  var form = $('#modalMoveStorageForm');
+  var form = $("#modalMoveStorageForm");
   form.parsley().validate();
   if (form.parsley().isValid()) {
     data = form.serializeObject();
-    var method = data["moving-tool"] == "rsync" ? "rsync" : "mv";
-    const type = same_pool ? "byPath" :  "byStoragePool"
+    const type = data["pool-radio"] == "same_pool" ? "byPath" : "byStoragePool";
+    data["storage_pool"] = $("#modalMoveStorage #storage_pool").val();
     delete data["pool-radio"];
     delete data["moving-tool"];
-    performMoveOperation(data, method, type);
+    performMoveOperation(data, type);
   }
 });
 
@@ -1421,18 +1426,20 @@ function performStorageOperation(formData, storageId, action, url) {
   });
 }
 
-function performMoveOperation(formData, method, type) {
+function performMoveOperation(formData, type) {
   var url = "";
   var data = {};
-  switch (method) {
+  switch (formData.method) {
     case "rsync":
       switch (type) {
         case "byStoragePool":
           url = `/api/v3/storage/${formData.storage_id}/rsync/by-storage-pool`;
           data = {
-            storage_id: formData.id,
+            storage_id: formData.storage_id,
             destination_storage_pool_id: formData.storage_pool,
             priority: formData.priority,
+            bwlimit: parseInt(formData.bwlimit),
+            remove_source_file: formData["remove_source_file"] === "true",
           };
           break;
         case "byPath":
@@ -1441,11 +1448,12 @@ function performMoveOperation(formData, method, type) {
             storage_id: formData.storage_id,
             destination_path: formData.destination_path,
             priority: formData.priority,
+            bwlimit: parseInt(formData.bwlimit),
+            remove_source_file: formData["remove_source_file"] === "true",
           };
           break;
       }
-      break;
-    case "mv":
+    case "move":
       switch (type) {
         case "byPath":
           url = `/api/v3/storage/${formData.storage_id}/move/by-path`;
@@ -1497,7 +1505,6 @@ function populateSelectByPool(modal, pool, data, isDefault) {
       var category = isDefault ? "" : data.category + "/";
       if ($("#user_data").data("role") == "admin" && category) {
         $.each(pool.categories, function (key, cat) {
-          // only get pools with desktop category or default pool
             optionPath = pool.mountpoint + "/" + cat + "/" + kindPath.path;
             if (data.directory_path != optionPath) {
                 $(modal + " .new_path").append(`<option ${optionPath == data["directory_path"] ? 'selected' : ''} value="${optionPath}">${optionPath}</option>`);
@@ -1518,20 +1525,44 @@ function populateSelectByPool(modal, pool, data, isDefault) {
   }
 }
 
+function populateSelectMethod(modal) {
+  $(modal + " #method").empty().append(`
+    <option selected value="move">mv (Recommended)</option>
+    <option value="rsync">rsync</option>
+  `);
+}
+
+function populateSelectAfterRSync(modal) {
+  $(modal + " #after-rsync").empty().append(`
+      <option selected value="true">Remove original file</option>
+      <option value="false">Move original file to deleted subfolder</option>
+    `);
+}
+
 function addRadioButtonsListeners() {
   $("#modalMoveStorageForm .radio-title input").on("ifChecked", function () {
     $("#modalMoveStorageForm ." + $(this).val() + "-display").show();
     if ($(this).val() == "same_pool") {
-      $("#modalMoveStorageForm #move").iCheck("check").iCheck("update");
-      $("#modalMoveStorageForm #mv-recommended").show();
-      $("#modalMoveStorageForm #rsync-recommended").hide();
+      $("#modalMoveStorageForm #method").empty().append(`
+        <option selected value="move" selected>mv (Recommended)</option>
+        <option value="rsync">rsync</option>
+        `).trigger("change");
       $("#modalMoveStorageForm #move-from-panel").show();
-      $("#modalMoveStorageForm #storage_pool").val($("#modalMoveStorageForm #storage_pool-name").val()).trigger("change");
+      $("#modalMoveStorageForm #move-from-panel select").attr("required", true);
+      $("#modalMoveStorageForm #storage_pool").attr("required", false);
+      $("#modalMoveStorageForm #storage_pool").val(
+        $("#modalMoveStorageForm #storage_pool-name").val()
+      )
+      $("#modalMoveStorageForm #storage_pool-name").trigger("change");
     } else {
-      $("#modalMoveStorageForm #rsync").iCheck("check").iCheck("update");
-      $("#modalMoveStorageForm #rsync-recommended").show();
-      $("#modalMoveStorageForm #mv-recommended").hide();
+      $("#modalMoveStorageForm #method").empty().append(`
+        <option value="move">mv</option>
+        <option value="rsync" selected>rsync (Recommended)</option>
+        `).trigger("change");
       $("#modalMoveStorageForm #move-from-panel").hide();
+      $("#modalMoveStorageForm #move-from-panel select").attr("required", false);
+      $("#modalMoveStorageForm #storage_pool").attr("required", true);
+      $("#modalMoveStorageForm #storage_pool").prop('selectedIndex', 0);
     }
   });
   $("#modalMoveStorageForm .radio-title input").on("ifUnchecked", function () {
@@ -1548,6 +1579,16 @@ function addSelectStoragePoolListeners(storageData) {
     }).done(function (pool) {
       populateSelectByPool("#modalMoveStorageForm", pool, storageData, pool.is_default);
     });
+  });
+}
+
+function addSelectMethodListeners() {
+  $("#modalMoveStorageForm #method").on('change', function () {
+    if ($(this).val() == "rsync") {
+      $("#modalMoveStorageForm #rsync-display").show();
+    } else {
+      $("#modalMoveStorageForm #rsync-display").hide();
+    }
   });
 }
 
