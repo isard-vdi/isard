@@ -1210,10 +1210,10 @@ function detailButtons(storage) {
               <div class="row">
                 <div class="col-md-12 col-sm-12 col-xs-12">
                   <div class="x_panel" style="margin:3px;">
-                    <button class="btn btn-success btn-xs btn-move" data-id="${storage.id}" type="button"
+                    <!--<button class="btn btn-success btn-xs btn-move" data-id="${storage.id}" type="button"
                       data-placement="top" title="Move to another path"><i class="fa fa-truck m-right-xs"></i>
                       Move
-                    </button>
+                    </button>-->
                     <!--<button class="btn btn-success btn-xs btn-convert" data-id="${storage.id}" data-current_type=${storage.type} type="button"
                       data-placement="top" title="Convert to another disk format"><i class="fa fa-exchange m-right-xs"></i>
                       Convert
