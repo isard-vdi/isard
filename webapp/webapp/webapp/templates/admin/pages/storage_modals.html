@@ -15,6 +15,15 @@
         font-size: initial;
         box-shadow: none !important;
     }
+
+    #modalMoveStorage .radio-title .iradio_flat-green {
+        display: block;
+    }
+
+    #modalMoveStorage select {
+        margin: 7px;
+        width: 100%;
+    }
 </style>
 
 <div class="modal fade" id="modalConvertStorage" tabindex="-1" role="dialog" aria-labelledby="modalConvertStorage"
@@ -123,6 +132,7 @@
         </div>
     </div>
 </div>
+
 <div class="modal fade" id="modalIncreaseStorage" tabindex="-1" role="dialog" aria-labelledby="modalIncreaseStorage"
     aria-hidden="true">
     <div class="modal-dialog">
@@ -347,6 +357,126 @@
                     </li>
                 </ul>
             </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modalMoveStorage" tabindex="-1" role="dialog" aria-labelledby="modalMoveStorage"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel"><i class="fa fa-truck"></i> Move storage</h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalMoveStorageForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="storage_id" />
+                    <input hidden id="kind" name="kind" />
+                    <div class="x_panel" id="same_pool-panel">
+                        <div class="radio-wrapper">
+                            <div class="col-md-6 col-xs-12">
+                                <label class="control-label">
+                                    <h4>
+                                        <div class="radio radio-title" display:inline;">
+                                            <div class="iradio_flat-green">
+                                                <input type="radio" id="same_pool" value="same_pool" checked
+                                                    name="pool-radio">
+                                                <ins class="iCheck-helper"></ins>
+                                            </div>
+                                        </div> Within same storage pool
+                                    </h4>
+                                </label>
+                            </div>
+                            <div class="col-md-6 col-xs-12">
+                                <label class="control-label different_pool">
+                                    <h4>
+                                        <div class="radio radio-title" display:inline;">
+                                            <div class="iradio_flat-green">
+                                                <input type="radio" id="different_pool" value="different_pool"
+                                                    name="pool-radio">
+                                                <ins class="iCheck-helper"></ins>
+                                            </div>
+                                        </div> To a different storage pool
+                                    </h4>
+                                </label>
+                            </div>
+                            <hr>
+                        </div>
+                        <div class="row">
+                            <div class="x_panel">
+                                <div class="col-md-12 same_pool-display">
+                                    <label class="control-label">Storage pool:</label>
+                                    <select id="storage_pool-name" disabled class="roundbox form-control" name="storage_pool" required>
+                                        <option selected></option>
+                                    </select>
+                                </div>
+                                <div class="col-md-12 update different_pool-display"" style=" display:none;">
+                                    <label class="control-label">Destination storage pool: </label>
+                                    <select id="storage_pool" class="roundbox form-control">
+                                        <option selected>-- Choose a storage pool --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-12" style="margin-top:10px;margin-bottom:10px;" id="move-from-panel">
+                                    <label class="control-label">Move from
+                                        <span id="origin_path" class="text-muted"></span> to: </label>
+                                    <select name="destination_path" style="max-width:100%;" required
+                                        class="form-control new_path tags-select roundbox">
+                                        <option selected>-- Choose a new path --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="control-label">Priority:</label>
+                                    <select name="priority" id="priority" class="form-control tags-select roundbox">
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="x_panel">
+                                <div class="x_title">
+                                    <h4>Method</h4>
+                                    <div class="clearfix"></div>
+                                </div>
+                                <div class="x_content">
+                                    <label for="method" class="control-label">Choose a moving tool:</label>
+                                    <select id="method" name="method" class="form-control roundbox"></select>
+                                </div>
+                                <div class="x_content" id="rsync-display" style="display:none;">
+                                    <div id="after-rsync-panel">
+                                        <label for="after_rsync">After rsync:</label>
+                                        <div>
+                                            <select class="roundbox form-control" required name="remove_source_file" id="after-rsync"></select>
+                                        </div>
+                                    </div>
+                                    <label for="bwlimit">Bandwith limit (KB/s):</label>
+                                    <div>
+                                        <input type="number" name="bwlimit" id="bwlimit" style="margin: 7px;"
+                                        class="form-control roundbox" required value="0" placeholder="0"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Move</button></li>
+                </ul>
+            </div>
+
         </div>
     </div>
 </div>

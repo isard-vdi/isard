@@ -225,12 +225,17 @@ def storage_update(**storage_dict):
     if task.depending_status == "finished":
         if storage_dict:
             storage_object = Storage(**storage_dict)
-            for domain in Domain.get_with_storage(storage_object):
-                domain.force_update = True
             if storage_dict.get("status") == "deleted":
+                for domain in storage_object.domains:
+                    domain.status = "Failed"
                 for child in storage_object.children:
                     if child.status != "deleted":
                         child.status = "orphan"
+                        for domain in child.domains:
+                            domain.status = "Failed"
+            if storage_dict.get("status") == "ready":
+                for domain in storage_object.domains:
+                    domain.status = "Stopped"
         else:
             for dependency in task.dependencies:
                 if dependency.task in (
@@ -345,8 +350,9 @@ def domain_change_storage(domain_id, storage_id):
     :type storage_id: str
     """
     domain = Domain(domain_id)
-
     c_dict = domain.create_dict
     c_dict["hardware"]["disks"][0]["storage_id"] = storage_id
-
     domain.create_dict = c_dict
+    domain.force_update = (
+        True  # Engine will recreate it's hardware dict before next start
+    )

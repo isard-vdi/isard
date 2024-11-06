@@ -104,8 +104,6 @@ class RecycleBinDeleteQueue:
             recycle_bin_id = item.get("recycle_bin_id")
             self.perform_operation(recycle_bin_id, user_id)
             self.queue.task_done()
-        else:
-            app.logger.debug("No items to process.")
 
     def _background_worker(self):
         while not self.stop_event.is_set():

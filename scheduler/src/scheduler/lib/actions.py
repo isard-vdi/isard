@@ -521,7 +521,7 @@ class Actions:
         try:
             if kwargs["action"] == "move":
                 response = api_client.put(
-                    f"/storage/{kwargs['storage_id']}/path/{kwargs['path']}"
+                    f"/storage/{kwargs['storage_id']}/path{kwargs['destination_path']}/priority/{kwargs['priority']}"
                     + ("/rsync" if kwargs["rsync"] else "")
                 )
             elif kwargs["action"] == "virt_win_reg":

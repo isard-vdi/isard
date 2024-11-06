@@ -17,10 +17,10 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import base64
+import shutil
 import tempfile
 from json import loads
-from os import environ, mkdir, remove, rename
+from os import environ, makedirs, remove, rename
 from os.path import basename, dirname, isdir, isfile, join
 from re import search
 from subprocess import PIPE, Popen, check_output, run
@@ -54,9 +54,33 @@ def extract_progress_from_rsync_output(process):
     :return: Progress percentage as decimal
     :rtype: float
     """
-    return (
-        float(process.stdout.read1().decode().split("%", 1)[0].rsplit(" ", 1)[-1]) / 100
-    )
+    output = process.stdout.read1().decode()
+
+    # Split by lines to handle multi-line output
+    lines = output.splitlines()
+
+    # Find the line with the progress information
+
+    for line in lines:
+        if "%" in line:  # Look for lines that contain a percentage
+            try:
+                # Split by space and look for the percentage part
+                percentage_str = line.split()[
+                    1
+                ]  # This assumes the percentage is always the second item
+                if percentage_str.endswith("%"):
+                    percentage_str = percentage_str[:-1]  # Remove the '%'
+                progress = float(percentage_str) / 100  # Convert to float and scale
+                break  # Exit the loop once we find the percentage
+            except (ValueError, IndexError) as e:
+                print("Error parsing progress:", e)
+                progress = 0.0  # Default value if parsing fails
+        else:
+            progress = 0.0  # Default if no progress line is found
+    try:
+        return progress
+    except UnboundLocalError:
+        raise ValueError("Source rsync file not found")
 
 
 def run_with_progress(command, extract_progress):
@@ -73,7 +97,7 @@ def run_with_progress(command, extract_progress):
     job = get_current_job()
     with Popen(command, stdout=PIPE) as process:
         while process.poll() is None:
-            job.meta["progress"] = extract_progress(process)
+            job.meta["progress"] = round(extract_progress(process), 2)
             job.save_meta()
             Queue("core", connection=job.connection).enqueue(
                 "task.feedback", task_id=job.id, result_ttl=0
@@ -103,6 +127,8 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
     :return: Exit code of qemu-img command
     :rtype: int
     """
+    if not isdir(dirname(storage_path)):
+        makedirs(dirname(storage_path), exist_ok=True)
     backing_file = []
     if parent_path and parent_type:
         backing_file = ["-b", parent_path, "-F", parent_type]
@@ -164,7 +190,7 @@ def qemu_img_info(storage_id, storage_path):
     qemu_img_info_data.setdefault("backing-filename")
     qemu_img_info_data.setdefault("backing-filename-format")
     qemu_img_info_data.setdefault("full-backing-filename")
-    return {"id": storage_id, "qemu-img-info": qemu_img_info_data}
+    return {"id": storage_id, "status": "ready", "qemu-img-info": qemu_img_info_data}
 
 
 def qemu_img_info_backing_chain(storage_id, storage_path):
@@ -275,7 +301,7 @@ def check_backing_filename():
     return result
 
 
-def move(origin_path, destination_path, rsync=False):
+def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=True):
     """
     Move disk.
 
@@ -288,19 +314,25 @@ def move(origin_path, destination_path, rsync=False):
     :return: Exit code of rsync command or 0 if rsync is False
     :rtype: int
     """
-    if not rsync:
-        rename(origin_path, destination_path)
+    if not isdir(dirname(destination_path)):
+        makedirs(dirname(destination_path), exist_ok=True)
+    if method == "mv":
+        shutil.move(origin_path, destination_path)
         return 0
-    return run_with_progress(
-        [
-            "rsync",
-            "--remove-source-files",
-            "--info=progress,flist0",
-            origin_path,
-            destination_path,
-        ],
-        extract_progress_from_rsync_output,
-    )
+    elif method == "rsync":
+        return run_with_progress(
+            [
+                "rsync",
+                "--info=progress,flist0",
+                *(["--bwlimit=" + str(bwlimit)] if bwlimit else []),
+                *(["--remove-source-files"] if remove_source_file else []),
+                origin_path,
+                destination_path,
+            ],
+            extract_progress_from_rsync_output,
+        )
+    else:
+        raise ValueError(f"Invalid move method: {method}")
 
 
 def move_delete(path):
@@ -311,12 +343,15 @@ def move_delete(path):
     :type path: str
     :rtype: int
     """
+    if isfile(path):
+        delete_path = join(dirname(path), "deleted")
+        if not isdir(delete_path):
+            makedirs(delete_path, exist_ok=True)
 
-    delete_path = join(dirname(path), "deleted")
-    if not isdir(delete_path):
-        mkdir(delete_path)
-
-    rename(path, join(delete_path, basename(path)))
+        rename(path, join(delete_path, basename(path)))
+        return 0
+    else:
+        raise ValueError(f"Path {path} not found")
 
 
 def convert(convert_request):

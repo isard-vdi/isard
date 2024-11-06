@@ -26,6 +26,8 @@ $(document).ready(function () {
   storagesOtherTable=null;
   $('#status').attr('disabled', 'disabled')
   addCheckboxListeners();
+  addRadioButtonsListeners();
+  addSelectMethodListeners();
 
   // Storage ready table
   let tableId = '#storage'
@@ -262,7 +264,7 @@ $(document).on('click', '.btn-task-info', function () {
       element.html('<i class="fa fa-tasks"></i>')
       new PNotify({
         title: 'Last task info',
-        text: '<pre><li><b>TASK ID</b>: ' + result.id + '</li><li><b>TASK</b>: ' + result.task + '</li><li><b>USER ID</b>: ' + result.user_id + '</li><li><b>TASK STATUS</b>: ' + result.status + '</li><li><b>RESULT</b>: ' + JSON.stringify(result.result, undefined, 2) + '</li></pre>',
+        text: '<pre><li><b>TASK ID</b>: '+result.id+'</li><li><b>TASK</b>: '+result.task+'</li><li><b>USER ID</b>: '+result.user_id+'</li><li><b>TASK STATUS</b>: '+result.status+'</li><li><b>RESULT</b>: '+JSON.stringify(result.result, undefined, 2)+ '</li></pre>',
         hide: false,
         icon: '',
         opacity: 1,
@@ -439,6 +441,7 @@ $("#modalConvertStorage #send").on("click", function () {
 
   }
 });
+
 
 $(document).on('click', '.btn-increase', function () {
   element = $(this);
@@ -765,6 +768,95 @@ $("#modalVirtWinReg #send").on("click", function () {
       }
       reader.readAsText(file, 'UTF-8');
     }
+  }
+});
+
+
+$(document).on('click', '.btn-move', function () {
+  element = $(this);
+  var storageId = element.data("id");
+  modal = "#modalMoveStorage";
+  $(modal + " #id").val(storageId);
+  resetMoveForm();
+  populateSelectMethod(modal);
+  populateSelectAfterRSync(modal);
+  $.ajax({
+    url: `/api/v3/storage/${storageId}/check_storage_derivatives`,
+    type: 'GET',
+    contentType: "application/json",
+  }).done(function (data) {
+    if (data.derivatives > 1) {
+      new PNotify({
+        title: `ERROR`,
+        text: "This storage has derivatives",
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      });
+    } else {
+      $.ajax({
+        url: `/api/v3/admin/storage/info/${storageId}`,
+        type: 'GET',
+        contentType: "application/json",
+      }).done(function (data) {
+        $.ajax({
+          url: `/api/v3/admin/storage_pool/path`,
+          type: 'PUT',
+          data: JSON.stringify({ "path": data["directory_path"] }),
+          contentType: "application/json",
+        }).done(function (pool) {
+          var subpath = data["directory_path"].split(pool.mountpoint + "/")[1];
+          $.each(pool.paths, function (key, value) {
+            $.each(value, function (_, value) {
+              if (subpath.endsWith(value.path)) {
+                $(modal + " #kind").val(key);
+              }
+            });
+          });
+          $(modal + " #storage_pool-name").empty().append(`<option selected value="${pool.id}">${pool.name}</option>`);
+          populateSelectByPool(modal, pool, data, pool.is_default);
+          // addSelectStoragePoolListeners(data);
+          $.ajax({
+            url: `/api/v3/admin/storage_pools`,
+            type: 'GET',
+          }).done(function (data) {
+            $(modal + " #storage_pool").append(`<option disabled>-- Select a destination storage pool --</option>`)
+            $.each(data, function (key, value) {
+              if (value.id != pool.id) {
+                $(modal + " #storage_pool").append(`<option value="${value.id}">${value.name}</option>`);
+              }
+            })
+          });
+          $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+        });
+      }).fail(function (data) {
+        new PNotify({
+          title: 'ERROR',
+          text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+          type: 'error',
+          hide: true,
+          icon: 'fa fa-warning',
+          delay: 5000,
+          opacity: 1
+        });
+      });
+    }
+  });
+});
+
+
+$("#modalMoveStorage #send").on("click", function () {
+  var form = $("#modalMoveStorageForm");
+  form.parsley().validate();
+  if (form.parsley().isValid()) {
+    data = form.serializeObject();
+    const type = data["pool-radio"] == "same_pool" ? "byPath" : "byStoragePool";
+    data["storage_pool"] = $("#modalMoveStorage #storage_pool").val();
+    delete data["pool-radio"];
+    delete data["moving-tool"];
+    performMoveOperation(data, type);
   }
 });
 
@@ -1118,7 +1210,6 @@ function detailButtons(storage) {
               <div class="row">
                 <div class="col-md-12 col-sm-12 col-xs-12">
                   <div class="x_panel" style="margin:3px;">
-
                     <!--<button class="btn btn-success btn-xs btn-move" data-id="${storage.id}" type="button"
                       data-placement="top" title="Move to another path"><i class="fa fa-truck m-right-xs"></i>
                       Move
@@ -1333,4 +1424,178 @@ function performStorageOperation(formData, storageId, action, url) {
       });
     }
   });
+}
+
+function performMoveOperation(formData, type) {
+  var url = "";
+  var data = {};
+  switch (formData.method) {
+    case "rsync":
+      switch (type) {
+        case "byStoragePool":
+          url = `/api/v3/storage/${formData.storage_id}/rsync/by-storage-pool`;
+          data = {
+            storage_id: formData.storage_id,
+            destination_storage_pool_id: formData.storage_pool,
+            priority: formData.priority,
+            bwlimit: parseInt(formData.bwlimit),
+            remove_source_file: formData["remove_source_file"] === "true",
+          };
+          break;
+        case "byPath":
+          url = `/api/v3/storage/${formData.storage_id}/rsync/by-path`;
+          data = {
+            storage_id: formData.storage_id,
+            destination_path: formData.destination_path,
+            priority: formData.priority,
+            bwlimit: parseInt(formData.bwlimit),
+            remove_source_file: formData["remove_source_file"] === "true",
+          };
+          break;
+      }
+    case "move":
+      switch (type) {
+        case "byPath":
+          url = `/api/v3/storage/${formData.storage_id}/move/by-path`;
+          data = {
+            storage_id: formData.storage_id,
+            dest_path: formData.destination_path,
+            priority: formData.priority,
+          };
+          break;
+      }
+  }
+  $.ajax({
+    url: url,
+    type: "PUT",
+    data: JSON.stringify(data),
+    contentType: "application/json",
+  })
+    .done(function () {
+      new PNotify({
+        title: "Task created successfully",
+        text: `Moving storage...`,
+        hide: true,
+        delay: 2000,
+        opacity: 1,
+        type: "success",
+      });
+      $(".modal").modal("hide");
+    })
+    .fail(function (data) {
+      new PNotify({
+        title: `ERROR trying to move storage`,
+        text: data.responseJSON
+          ? data.responseJSON.description
+          : "Something went wrong",
+        type: "error",
+        hide: true,
+        icon: "fa fa-warning",
+        delay: 5000,
+        opacity: 1,
+      });
+    });
+}
+
+function populateSelectByPool(modal, pool, data, isDefault) {
+  var emptySelect = true;
+  $(modal + " .new_path").empty();
+  var kind = $(modal + " #kind").val();
+  $.each(pool.paths[kind], function (key, kindPath) {
+      var category = isDefault ? "" : data.category + "/";
+      if ($("#user_data").data("role") == "admin" && category) {
+        $.each(pool.categories, function (key, cat) {
+            optionPath = pool.mountpoint + "/" + cat + "/" + kindPath.path;
+            if (data.directory_path != optionPath) {
+                $(modal + " .new_path").append(`<option ${optionPath == data["directory_path"] ? 'selected' : ''} value="${optionPath}">${optionPath}</option>`);
+                emptySelect = false;
+            }
+        });
+      } else {
+        optionPath = pool.mountpoint + "/" + category + kindPath.path;
+        if (data.directory_path != optionPath) {
+          $(modal + " .new_path").append(`<option ${optionPath == data["directory_path"] ? 'selected' : ''} value="${optionPath}">${optionPath}</option>`);
+          emptySelect = false;
+        }
+      }
+      $(modal + " #origin_path").empty().text(data["directory_path"]);
+  });
+  if (emptySelect) {
+    $(modal + " .new_path").append(`<option selected disabled>-- No ${kind} paths available for this pool and category --</option>`);
+  }
+}
+
+function populateSelectMethod(modal) {
+  $(modal + " #method").empty().append(`
+    <option selected value="move">mv (Recommended)</option>
+    <option value="rsync">rsync</option>
+  `);
+}
+
+function populateSelectAfterRSync(modal) {
+  $(modal + " #after-rsync").empty().append(`
+      <option selected value="true">Remove original file</option>
+      <option value="false">Move original file to deleted subfolder</option>
+    `);
+}
+
+function addRadioButtonsListeners() {
+  $("#modalMoveStorageForm .radio-title input").on("ifChecked", function () {
+    $("#modalMoveStorageForm ." + $(this).val() + "-display").show();
+    if ($(this).val() == "same_pool") {
+      $("#modalMoveStorageForm #method").empty().append(`
+        <option selected value="move" selected>mv (Recommended)</option>
+        <option value="rsync">rsync</option>
+        `).trigger("change");
+      $("#modalMoveStorageForm #move-from-panel").show();
+      $("#modalMoveStorageForm #move-from-panel select").attr("required", true);
+      $("#modalMoveStorageForm #storage_pool").attr("required", false);
+      $("#modalMoveStorageForm #storage_pool").val(
+        $("#modalMoveStorageForm #storage_pool-name").val()
+      )
+      $("#modalMoveStorageForm #storage_pool-name").trigger("change");
+    } else {
+      $("#modalMoveStorageForm #method").empty().append(`
+        <option value="move">mv</option>
+        <option value="rsync" selected>rsync (Recommended)</option>
+        `).trigger("change");
+      $("#modalMoveStorageForm #move-from-panel").hide();
+      $("#modalMoveStorageForm #move-from-panel select").attr("required", false);
+      $("#modalMoveStorageForm #storage_pool").attr("required", true);
+      $("#modalMoveStorageForm #storage_pool").prop('selectedIndex', 0);
+    }
+  });
+  $("#modalMoveStorageForm .radio-title input").on("ifUnchecked", function () {
+    $("#modalMoveStorageForm ." + $(this).val() + "-display").hide();
+  });
+}
+
+function addSelectStoragePoolListeners(storageData) {
+  $("#modalMoveStorageForm #storage_pool").off('change').on('change', function () {
+    const pool_id = $(this).val();
+    $.ajax({
+      url: `/api/v3/admin/storage_pool/${pool_id}`,
+      type: "GET",
+    }).done(function (pool) {
+      populateSelectByPool("#modalMoveStorageForm", pool, storageData, pool.is_default);
+    });
+  });
+}
+
+function addSelectMethodListeners() {
+  $("#modalMoveStorageForm #method").on('change', function () {
+    if ($(this).val() == "rsync") {
+      $("#modalMoveStorageForm #rsync-display").show();
+    } else {
+      $("#modalMoveStorageForm #rsync-display").hide();
+    }
+  });
+}
+
+function resetMoveForm() {
+  var modal = "#modalMoveStorageForm";
+  $(modal + " select").empty();
+  $(modal + " #move").iCheck("check").iCheck("update")
+  $(modal + " #same_pool").iCheck("check").iCheck("update")
+  populatePrioritySelect(modal);
 }

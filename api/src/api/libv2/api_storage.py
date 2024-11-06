@@ -386,6 +386,7 @@ def get_storage_pools():
                         and hyper["storage_pools"].contains(pool["id"])
                     )
                     .count(),
+                    "is_default": pool["id"].eq(DEFAULT_STORAGE_POOL_ID),
                 }
             )
             .run(db.conn)
@@ -407,6 +408,8 @@ def update_storage_pool(storage_pool_id, data):
         for key in ["name", "description", "mountpoint", "categories"]:
             if key in data:
                 data.pop(key)
+        _check_default_paths(data["paths"])
+
     if "categories" in data:
         with app.app_context():
             existing_pools = list(
@@ -450,6 +453,19 @@ def _check_duplicated_paths(data):
                     "bad_request", "Paths of the same pool must have a unique name"
                 )
             seen_paths.add(path)
+
+
+def _check_default_paths(paths):
+    if not (
+        any(obj.get("path") == "groups" for obj in paths["desktop"])
+        and any(obj.get("path") == "media" for obj in paths["media"])
+        and any(obj.get("path") == "templates" for obj in paths["template"])
+        and any(obj.get("path") == "volatile" for obj in paths["volatile"])
+    ):
+        raise Error(
+            "bad_request",
+            "Default pool must have at least one empty path per type",
+        )
 
 
 def remove_category_from_storage_pool(category_id):

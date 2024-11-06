@@ -1,0 +1,23 @@
+storage_id:
+  required: true
+  type: string
+  empty: false
+  coerce: sanitize
+destination_storage_pool_id:
+  required: true
+  type: string
+  empty: false
+  coerce: sanitize
+priority:
+  required: false
+  type: string
+  default: "low"
+  coerce: sanitize
+bwlimit:
+  required: false
+  type: integer
+  default: 0
+remove_source_file:
+  required: false
+  type: boolean
+  default: True

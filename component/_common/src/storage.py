@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from isardvdi_common.storage_pool import StoragePool
+from isardvdi_common.user import User
 from rq.job import JobStatus
 
 from . import domain
@@ -37,6 +38,16 @@ def get_storage_id_from_path(path):
     return path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
 
 
+def get_queue_from_storage_pools(storage_pool_origin, storage_pool_destination):
+    if storage_pool_origin == storage_pool_destination:
+        queue = storage_pool_origin.id
+    else:
+        storage_pool_ids = [storage_pool_origin.id, storage_pool_destination.id]
+        storage_pool_ids.sort()
+        queue = ":".join(storage_pool_ids)
+    return queue
+
+
 class Storage(RethinkCustomBase):
     """
     Manage Storage Objects
@@ -54,6 +65,31 @@ class Storage(RethinkCustomBase):
         Returns the path of storage.
         """
         return f"{self.directory_path}/{self.id}.{self.type}"
+
+    @property
+    def pool(self):
+        """
+        Returns the storage pool of storage.
+        """
+        return StoragePool.get_by_path(self.directory_path)[0]
+
+    @property
+    def pool_usage(self):
+        """
+        Returns the storage pool usage of storage.
+        """
+        return self.pool.get_usage_by_path(self.directory_path)
+
+    def path_in_pool(self, storage_pool):
+        """
+        Map storage path to Storage Pool path.
+
+        :param storage: Storage object
+        :type storage: Storage
+        :return: Path
+        :rtype: str
+        """
+        return f"{storage_pool.mountpoint}/{self.category}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
 
     @property
     def children(self):
@@ -86,6 +122,15 @@ class Storage(RethinkCustomBase):
         Returns the domains using this storage.
         """
         return domain.Domain.get_with_storage(self)
+
+    @property
+    def category(self):
+        """
+        Returns the category of the storage user_id owner
+        """
+        if User.exists(self.user_id):
+            return User(self.user_id).category
+        return None
 
     @classmethod
     def create_from_path(cls, path):
@@ -188,4 +233,138 @@ class Storage(RethinkCustomBase):
                 }
             ],
         )
+        return self.task
+
+    def set_maintenance(self, action):
+        """
+        Set storage and it's domains to maintenance status.
+
+        :param storage: Storage object
+        :type storage: isardvdi_common.storage.Storage
+        :param action: Action
+        :type action: str
+        """
+        for domain in self.domains:
+            if domain.status not in ["Stopped", "Failed"]:
+                raise Exception(
+                    {
+                        "error": "precondition_required",
+                        "description": f"Domain {domain.id} must be Stopped in order to operate with its' storage. It's actual status is {domain.status}",
+                        "description_code": "desktops_not_stopped",
+                    }
+                )
+        for domain in self.domains:
+            domain.status = "Maintenance"
+            domain.current_action = action
+        self.status = "maintenance"
+
+    def rsync(
+        self,
+        user_id,
+        destination_path,
+        bwlimit=0,
+        remove_source_file=True,
+        priority="default",
+    ):
+        """
+        Create a task to move the storage.
+
+        :param user_id: User ID
+        :type user_id: str
+        :param destination_path: Destination path
+        :type destination_path: str
+        :param bwlimit: Bandwidth limit in KB/s
+        :type bwlimit: int
+        :param remove_source_file: Remove source file
+        :type remove_source_file: bool
+        :param priority: Priority
+        :type priority: str
+        :return: Task ID
+        :rtype: str
+        """
+        origin_path = self.path
+        if self.path == destination_path:
+            raise Exception(
+                {
+                    "error": "precondition_required",
+                    "description": "The origin and destination paths must be different",
+                    "description_code": "origin_destination_paths_must_be_different",
+                }
+            )
+        queue_rsync = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
+        queue_origin = f"storage.{StoragePool.get_best_for_action('check_existence', path=self.directory_path).id}.{priority}"
+        self.set_maintenance("move")
+        self.create_task(
+            blocking=True,
+            user_id=user_id,
+            queue=queue_rsync,
+            task="move",
+            job_kwargs={
+                "kwargs": {
+                    "origin_path": self.path,
+                    "destination_path": destination_path,
+                    "method": "rsync",
+                    "bwlimit": bwlimit,
+                    "remove_source_file": remove_source_file,
+                }
+            },
+            dependents=(
+                [
+                    {
+                        "queue": "core",
+                        "task": "storage_update",
+                        "job_kwargs": {
+                            "kwargs": {
+                                "id": self.id,
+                                "status": "ready",
+                                "directory_path": destination_path.split("/" + self.id)[
+                                    0
+                                ],
+                                "qemu-img-info": {
+                                    "filename": destination_path,
+                                },
+                            }
+                        },
+                        "dependents": [
+                            {
+                                "queue": "core",
+                                "task": "update_status",
+                                "job_kwargs": {
+                                    "kwargs": {
+                                        "statuses": {
+                                            JobStatus.CANCELED: {
+                                                self.status: {
+                                                    "storage": [self.id],
+                                                },
+                                            },
+                                            JobStatus.FAILED: {
+                                                self.status: {
+                                                    "storage": [self.id],
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ]
+                + (
+                    [
+                        {
+                            "queue": queue_origin,
+                            "task": "move_delete",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "path": origin_path,
+                                }
+                            },
+                        }
+                    ]
+                    if not remove_source_file
+                    else []
+                )
+            ),
+        )
+
         return self.task

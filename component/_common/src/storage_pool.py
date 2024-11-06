@@ -36,13 +36,24 @@ class StoragePool(RethinkCustomBase):
 
     _rdb_table = "storage_pool"
 
-    def get_directory_path_by_usage(self, usage):
+    def has_category(self, category_id):
         """
-        Get best directory path by usage.
+        Check if Storage Pool has a category.
+
+        :param category_id: Category id
+        :type category_id: str
+        :return: True if Storage Pool has category, otherwise False
+        :rtype: bool
+        """
+        return category_id in self.categories
+
+    def get_usage_path(self, usage):
+        """
+        Get best usage path by usage.
 
         :param usage: Usage type: desktop, media, template or volatile.
         :type path: str
-        :return: Directory path
+        :return: Usage path
         :rtype: str
         """
         paths = []
@@ -51,6 +62,34 @@ class StoragePool(RethinkCustomBase):
             paths.append(path.get("path"))
             weights.append(path.get("weight"))
         return choices(paths, weights=weights)[0]
+
+    def get_usage_by_path(self, path):
+        """
+        Get usage by path.
+
+        :param path: Path
+        :type path: str
+        :return: Usage type: desktop, media, template or volatile.
+        :rtype: str
+        """
+
+        # Check if full_path starts with mountpoint
+        if not path.startswith(self.mountpoint):
+            return None  # Not in the correct mountpoint
+
+        if path.startswith("/isard/storage_pools"):
+            category = path.replace(self.mountpoint, "").split("/")[1]
+            usage_path = path.split(category + "/")[1]
+        else:
+            category = ""
+            usage_path = path.replace(self.mountpoint + "/", "")
+
+        # Search through each path kind to find a match
+        for usage, paths in self.paths.items():
+            for path_info in paths:
+                if path_info["path"] == usage_path:
+                    return usage
+        return None
 
     @classmethod
     def get_by_path(cls, path):
@@ -73,13 +112,16 @@ class StoragePool(RethinkCustomBase):
             # Default path
             path = "/isard"
         with cls._rdb_context():
-            return [
-                cls(storage_pool["id"])
-                for storage_pool in r.table(cls._rdb_table)
-                .filter({"mountpoint": path})
-                .pluck("id")
-                .run(cls._rdb_connection)
-            ]
+            try:
+                return [
+                    cls(storage_pool["id"])
+                    for storage_pool in r.table(cls._rdb_table)
+                    .filter({"mountpoint": path})
+                    .pluck("id")
+                    .run(cls._rdb_connection)
+                ]
+            except:
+                return []
 
     @classmethod
     def get_by_user_kind(cls, user_id, kind):
@@ -126,5 +168,6 @@ class StoragePool(RethinkCustomBase):
             storage_pools = cls.get_all()
         # This should not happen, but just in case we'll get one
         if not len(storage_pools):
-            return cls.get_all()[0]
+            # return cls.get_all()[0]
+            return None
         return choice(storage_pools)

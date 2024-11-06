@@ -507,15 +507,28 @@ def ownsDeploymentDesktopId(payload, desktop_id, check_co_owners=True):
 
 
 def ownsStorageId(payload, storage_id):
-    if payload["role_id"] == "admin":
-        return True
-
     with app.app_context():
-        storage_user_id = (
-            r.table("storage").get(storage_id).pluck("user_id")["user_id"].run(db.conn)
+        storage = r.table("storage").get(storage_id).run(db.conn)
+    if storage is None:
+        raise Error(
+            "not_found",
+            f"Storage {storage_id} not found",
+            traceback.format_exc(),
+            "not_found",
         )
+    if payload["role_id"] == "admin":
+        return storage
+    storage_user_id = storage.get("user_id")
+    if storage_user_id is None:
+        raise Error(
+            "not_found",
+            f"Storage {storage_id} missing user_id",
+            traceback.format_exc(),
+            "not_found",
+        )
+
     if storage_user_id == payload["user_id"]:
-        return True
+        return storage
 
     if payload["role_id"] == "manager":
         with app.app_context():
@@ -526,7 +539,7 @@ def ownsStorageId(payload, storage_id):
                 .run(db.conn)
             )
         if storage_category_id == payload["category_id"]:
-            return True
+            return storage
 
     raise Error(
         "forbidden",

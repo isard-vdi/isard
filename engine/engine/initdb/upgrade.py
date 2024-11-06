@@ -10,7 +10,6 @@ from uuid import uuid4
 import humanfriendly as hf
 import rethinkdb as r
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
-from isardvdi_common.storage import Storage
 from redis import Redis
 
 from .lib import *
