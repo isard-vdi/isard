@@ -115,6 +115,22 @@ def get_storage_pool(storage_pool_id):
     return StoragePool(storage_pool_id)
 
 
+def get_storage_pool_by_path(path):
+    """
+    Get storage pool by path.
+
+    :param path: Path
+    :type path: str
+    """
+    storage_pools = StoragePool.get_by_path(path)
+    if not storage_pools:
+        raise Error(
+            error="not_found",
+            description=f"Storage pool for path {path} not found",
+        )
+    return storage_pools[0]
+
+
 def storage_status(storage, status):
     if storage.status != status:
         raise Error(
@@ -322,50 +338,20 @@ def check_move_by_storage_pool(payload, storage_id, destination_storage_pool_id)
     return storage_pool_id, priority, path, storage
 
 
-def get_storage_pool_path(storage, destination_storage_pool):
+def category_in_storage_pool(storage, destination_storage_pool):
     """
-    Get the path that must be used to move the storage to the destination storage pool.
+    Check storage category.
 
-    :param storage_id: Storage ID
-    :type storage_id: str
-    :param storage_pool_id: Storage Pool ID
-    :type storage_pool_id: str
-    :return: Path
-    :rtype: str
+    :param storage: Storage
+    :type storage: Storage
+    :param destination_storage_pool: Destination Storage Pool
+    :type destination_storage_pool: StoragePool
     """
-    destination_directory_path = f"{destination_storage_pool.mountpoint}/{destination_storage_pool.get_directory_path_by_usage(storage.pool_usage)}"
-    return storage.path.replace(storage.directory_path, destination_directory_path)
-
-
-# def get_dest_storage_pool_path(storage, destination_storage_pool):
-#     """
-#     Get the path that must be used to move the storage to the destination storage pool.
-
-#     :param storage_id: Storage ID
-#     :type storage_id: str
-#     :param storage_pool_id: Storage Pool ID
-#     :type storage_pool_id: str
-#     :return: Path
-#     :rtype: str
-#     """
-#     usage = destination_storage_pool.get_usage_by_path(storage.directory_path)
-#     return
-#     if not len(storage.domains):
-#         raise Error(
-#             error="bad_request",
-#             description=f"Storage {storage.id} has no domains. Can't execute operation",
-#         )
-#     if storage.domains[0].kind == "template":
-#         path = destination_storage_pool.get_directory_path_by_usage("template")
-#     elif storage.domains[0].kind == "desktop":
-#         path = destination_storage_pool.get_directory_path_by_usage("desktop")
-#     else:
-#         raise Error(
-#             error="bad_request",
-#             description=f"Storage {storage.id} is not of type 'template' or 'desktop'. Can't execute operation",
-#         )
-
-#     return f"{storage_pool.mountpoint}/{storage.domains[0].category}/{path}"
+    if not destination_storage_pool.has_category(storage.category):
+        raise Error(
+            error="bad_request",
+            description=f"Storage {storage.id} owned by category {storage.category} can't be moved to destination storage pool {destination_storage_pool.id} that doesn't have this category",
+        )
 
 
 @app.route("/api/v3/storage/<path:storage_id>", methods=["GET"])
@@ -478,9 +464,7 @@ def create_storage(payload, priority="low"):
     if "parent" in request_json and storage_pool.id != DEFAULT_STORAGE_POOL_ID:
         category = get_storage_category(parent) + "/"
 
-    directory_path = storage_pool.get_directory_path_by_usage(
-        request_json.get("usage_type")
-    )
+    usage_path = storage_pool.get_usage_path(request_json.get("usage_type"))
     user_id = (
         request.get_json().get("user_id")
         if request.get_json().get("user_id")
@@ -496,7 +480,7 @@ def create_storage(payload, priority="low"):
         user_id=user_id,
         type=request_json.get("storage_type"),
         parent=request_json.get("parent"),
-        directory_path=f"{storage_pool.mountpoint}/{category}{directory_path}",
+        directory_path=f"{storage_pool.mountpoint}/{category}{usage_path}",
         status_logs=[{"time": int(time.time()), "status": "created"}],
         perms=["r", "w"] if request_json.get("usage_type") != "template" else ["r"],
     )
@@ -1131,17 +1115,11 @@ def storage_rsync_by_path(payload, storage_id):
     storage = get_storage(payload, storage_id)
     storage_status(storage, "ready")
     not_storage_children(storage)
+    storage_pool_destination = get_storage_pool_by_path(data["destination_path"])
+    category_in_storage_pool(storage, storage_pool_destination)
 
     # Prepare data
-    storage_pool_destination = StoragePool.get_best_for_action(
-        "move", data["destination_path"]
-    )
-    if storage_pool_destination is None:
-        raise Error(
-            "not_found",
-            f"Storage pool for path {data['destination_path']} not found to execute rsync operation",
-        )
-    destination_path = get_storage_pool_path(storage, storage_pool_destination)
+    destination_path = storage.path_in_pool(storage_pool_destination)
 
     # Create task
     return jsonify(
@@ -1185,14 +1163,17 @@ def storage_rsync_by_storage_pool(payload, storage_id):
     data = request.get_json()
     data["storage_id"] = storage_id
     data = _validate_item("storage_rsync_by_storage_pool", data)
+
     storage = get_storage(payload, storage_id)
     storage_status(storage, "ready")
     not_storage_children(storage)
     not_same_storage_pool(storage.pool.id, data["destination_storage_pool_id"])
 
-    # Prepare data
     storage_pool_destination = get_storage_pool(data["destination_storage_pool_id"])
-    destination_path = get_storage_pool_path(storage, storage_pool_destination)
+    category_in_storage_pool(storage, storage_pool_destination)
+
+    # Prepare data
+    destination_path = storage.path_in_pool(storage_pool_destination)
 
     # Create task
     return jsonify(

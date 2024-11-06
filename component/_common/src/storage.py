@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from isardvdi_common.storage_pool import StoragePool
+from isardvdi_common.user import User
 from rq.job import JobStatus
 
 from . import domain
@@ -79,6 +80,17 @@ class Storage(RethinkCustomBase):
         """
         return self.pool.get_usage_by_path(self.directory_path)
 
+    def path_in_pool(self, storage_pool):
+        """
+        Map storage path to Storage Pool path.
+
+        :param storage: Storage object
+        :type storage: Storage
+        :return: Path
+        :rtype: str
+        """
+        return f"{storage_pool.mountpoint}/{self.category}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
+
     @property
     def children(self):
         """
@@ -110,6 +122,15 @@ class Storage(RethinkCustomBase):
         Returns the domains using this storage.
         """
         return domain.Domain.get_with_storage(self)
+
+    @property
+    def category(self):
+        """
+        Returns the category of the storage user_id owner
+        """
+        if User.exists(self.user_id):
+            return User(self.user_id).category
+        return None
 
     @classmethod
     def create_from_path(cls, path):
@@ -224,7 +245,7 @@ class Storage(RethinkCustomBase):
         :type action: str
         """
         for domain in self.domains:
-            if domain.status != "Stopped":
+            if domain.status not in ["Stopped", "Failed"]:
                 raise Exception(
                     {
                         "error": "precondition_required",
@@ -261,6 +282,7 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
+        origin_path = self.path
         if self.path == destination_path:
             raise Exception(
                 {
@@ -324,17 +346,6 @@ class Storage(RethinkCustomBase):
                                     },
                                 },
                             },
-                            {
-                                "queue": "core",
-                                "task": "domains_update",
-                                "job_kwargs": {
-                                    "kwargs": {
-                                        "domain_list": [
-                                            domain.id for domain in self.domains
-                                        ]
-                                    },
-                                },
-                            },
                         ],
                     },
                 ]
@@ -345,7 +356,7 @@ class Storage(RethinkCustomBase):
                             "task": "move_delete",
                             "job_kwargs": {
                                 "kwargs": {
-                                    "path": self.path,
+                                    "path": origin_path,
                                 }
                             },
                         }

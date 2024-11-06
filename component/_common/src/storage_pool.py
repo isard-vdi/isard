@@ -36,13 +36,24 @@ class StoragePool(RethinkCustomBase):
 
     _rdb_table = "storage_pool"
 
-    def get_directory_path_by_usage(self, usage):
+    def has_category(self, category_id):
         """
-        Get best directory path by usage.
+        Check if Storage Pool has a category.
+
+        :param category_id: Category id
+        :type category_id: str
+        :return: True if Storage Pool has category, otherwise False
+        :rtype: bool
+        """
+        return category_id in self.categories
+
+    def get_usage_path(self, usage):
+        """
+        Get best usage path by usage.
 
         :param usage: Usage type: desktop, media, template or volatile.
         :type path: str
-        :return: Directory path
+        :return: Usage path
         :rtype: str
         """
         paths = []
@@ -67,22 +78,16 @@ class StoragePool(RethinkCustomBase):
             return None  # Not in the correct mountpoint
 
         if path.startswith("/isard/storage_pools"):
-            # path to be found is the path without ANYTHING that comes after "/isard/storage_pools/ANYTHING/",
-            # so if we've got a path like "/isard/storage_pools/1/2/3/4" we want path to be /isard/storage_pools/1
-            base_path = (
-                "/isard/storage_pools/"
-                + path.split("/isard/storage_pools/")[1].split("/")[0]
-            )
+            category = path.replace(self.mountpoint, "").split("/")[1]
+            usage_path = path.split(category + "/")[1]
         else:
-            # Default path
-            base_path = "/isard"
-
-        subpath = path.replace(base_path, "").lstrip("/")
+            category = ""
+            usage_path = path.replace(self.mountpoint + "/", "")
 
         # Search through each path kind to find a match
         for usage, paths in self.paths.items():
             for path_info in paths:
-                if path_info["path"] == subpath:
+                if path_info["path"] == usage_path:
                     return usage
         return None
 
