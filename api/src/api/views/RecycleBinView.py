@@ -403,8 +403,8 @@ def api_v3_admin_recycle_bin_default_delete(payload):
 @app.route("/api/v3/recycle_bin/config/delete-action/<action>", methods=["PUT"])
 @is_admin
 def api_v3_admin_recycle_bin_delete_action_set(payload, action):
-    if action not in ["archive", "delete"]:
-        raise Error("bad_request", 'Action must be "archive" or "delete"')
+    if action not in ["move", "delete"]:
+        raise Error("bad_request", 'Action must be "move" or "delete"')
     RecycleBin.set_delete_action(action)
     return (
         {},
