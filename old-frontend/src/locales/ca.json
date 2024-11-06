@@ -1376,7 +1376,7 @@
       "file-downloaded": "Fitxer descarregat",
       "creating-deployment": "Creant desplegament",
       "recreating-deployment": "Recreant desplegament",
-      "deployment-recreated": "Desplegament recreat",
+      "deployment-desktops-created": "Escriptoris del desplegament creats",
       "deleting-deployment": "Esborrant desplegament",
       "making-visible-deployment": "Fent el desplegament visible",
       "making-invisible-deployment": "Fent el desplegament invisible",

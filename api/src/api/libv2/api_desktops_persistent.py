@@ -127,6 +127,12 @@ class ApiDesktopsPersistent:
 
     def NewFromTemplateTh(self, desktops, deployment):
         def process_desktops():
+            socketio.emit(
+                "creating_desktops",
+                json.dumps({"deployment_id": deployment["id"]}),
+                namespace="/userspace",
+                room=[deployment["user"]] + deployment["co_owners"],
+            )
             for desktop in desktops:
                 result = self.NewFromTemplate(
                     desktop["name"],
@@ -147,18 +153,12 @@ class ApiDesktopsPersistent:
                         }
                     )
                 time.sleep(0.25)
-                socketio.emit(
-                    "recreating_desktops",
-                    json.dumps({"deployment_id": deployment["id"]}),
-                    namespace="/userspace",
-                    room=deployment["co_owners"],
-                ),
             socketio.emit(
-                "end_recreating_desktops",
+                "end_creating_desktops",
                 json.dumps({"deployment_id": deployment["id"]}),
                 namespace="/userspace",
-                room=deployment["co_owners"],
-            ),
+                room=[deployment["user"]] + deployment["co_owners"],
+            )
 
         # Spawn the process_desktops greenlet and return immediately
         gevent.spawn(process_desktops)
