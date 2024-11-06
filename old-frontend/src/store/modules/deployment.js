@@ -142,12 +142,16 @@ export default {
       const deploymentdesktop = DeploymentsUtils.parseDeploymentDesktop(JSON.parse(data))
       context.commit('remove_deploymentdesktop', deploymentdesktop)
     },
-    socket_recreatingDesktops (context, _) {
-      context.commit('setDisableRecreateButton', true)
+    socket_creatingDesktops (context, data) {
+      if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === JSON.parse(data).deployment_id) {
+        context.commit('setDisableRecreateButton', true)
+      }
     },
-    socket_endRecreatingDesktops (context, _) {
-      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deployment-recreated'), '', true, 3000)
-      context.commit('setDisableRecreateButton', false)
+    socket_endCreatingDesktops (context, data) {
+      if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === JSON.parse(data).deployment_id) {
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deployment-desktops-created'), '', true, 3000)
+        context.commit('setDisableRecreateButton', false)
+      }
     },
     fetchDeployment (context, data) {
       axios.get(`${apiV3Segment}/deployment/${data.id}`).then(response => {
