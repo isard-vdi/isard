@@ -22,6 +22,7 @@
 import json
 
 from flask import request
+from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.storage_pool import StoragePool
 
@@ -91,6 +92,8 @@ def admin_storage_pool_get_by_path(payload):
 @app.route("/api/v3/admin/storage_pool/<storage_pool_id>", methods=["PUT"])
 @is_admin
 def admin_storage_pool_update(payload, storage_pool_id):
+    if storage_pool_id == DEFAULT_STORAGE_POOL_ID:
+        raise Error("bad_request", "Cannot update default storage pool")
     data = request.get_json()
     data = _validate_item("storage_pool_update", data)
 
@@ -119,6 +122,16 @@ def admin_storage_pool_check_availability(payload):
 
     return (
         json.dumps(check_storage_pool_availability(payload["category_id"])),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/storage_pool/default", methods=["GET"])
+@is_admin_or_manager
+def admin_storage_pool_default_get(payload):
+    return (
+        json.dumps(get_storage_pool(DEFAULT_STORAGE_POOL_ID)),
         200,
         {"Content-Type": "application/json"},
     )

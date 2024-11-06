@@ -19,6 +19,15 @@
  */
 
 $(document).ready(function () {
+  DEFAULT_STORAGE_POOL_ID = ""
+  $.ajax({
+    type: "GET",
+    url: "/admin/storage_pool/default",
+    success: function (data) {
+      DEFAULT_STORAGE_POOL_ID = data.id;
+    }
+  });
+
   storage_pools_table = $('#storage_pools').DataTable({
     "ajax": {
       "type": 'GET',
@@ -151,6 +160,17 @@ $(document).ready(function () {
         break;
       case 'btn-edit':
         var isDefault = isDefaultPool(data.id);
+        if (isDefault) {
+          new PNotify({
+            title: "ERROR editing pool",
+            text: "Default pool can't be edited",
+            hide: true,
+            delay: 3000,
+            icon: 'fa fa-warning',
+            opacity: 1,
+            type: 'error'
+          });
+        } else {
         $("#modalEditStoragePool #modalEdit #category").attr("disabled", isDefault);
         $("#modalEditStoragePool #modalEdit #name").attr("disabled", isDefault);
         $("#modalEditStoragePool #modalEdit #description").attr("disabled", isDefault);
@@ -228,7 +248,7 @@ $(document).ready(function () {
               pathText = pathObj.path;
             }
             typeCell.innerHTML = title;
-            pathCell.innerHTML = `<span class="path_base"></span><input id="path" name="${type}-path" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ\/ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text" value="${pathText}">`;
+            pathCell.innerHTML = `<span class="path_base"></span><input id="path" name="${type}-path" class="roundbox" pattern="^[\\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇa-zA-Z0-9]+$" data-parsley-trigger="change" type="text" value="${pathText}">`;
             weightCell.innerHTML = `<input id="weight" name="${type}-weight" type="number" value="${pathObj.weight}">`;
             buttonAddDelCell.innerHTML = `<input id='modalEdit-addrow-${type}' type='button' value='+' onclick='addRow("${type}", "modalEdit", ${isDefault})'/> \
                                           <input class='modalEdit-delrow-${type}' type='button' value='-' onclick='delRow("${type}", "modalEdit")'/>`;
@@ -259,6 +279,7 @@ $(document).ready(function () {
         } else {
           $("#modalEdit #category").attr("disabled", false);
         }
+      }
        break;
       case 'btn-enable':
         let change = data["enabled"] ? "disable" : "enable";
@@ -720,7 +741,7 @@ function renderNewRow(type, defaultPool) {
     </td>
     <td id="type"><i class="fa ${typeData.icon} fa-1x"></i><b> ${typeData.title}</b></td>
     <td>
-      <span class="path_base">${defaultPool ? typeData.path + "/" : ""}</span><input id="path" name="${type}-path" value="${typeData.path}" class="roundbox" required pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ\/ .a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
+      <span class="path_base">${defaultPool ? typeData.path + "/" : ""}</span><input id="path" name="${type}-path" value="${typeData.path}" class="roundbox" required pattern="^[\\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇa-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
     </td>
     <td><input id="weight" name="${type}-weight" type="number" value="100"></td>
     <td>
@@ -731,12 +752,5 @@ function renderNewRow(type, defaultPool) {
 }
 
 function isDefaultPool(poolId) {
-  $.ajax({
-    type: "GET",
-    url: "/api/v3/admin/storage_pool/" + poolId,
-    contentType: "application/json",
-    success: function (data) {
-      return data.is_default;
-    },
-  });
+  return poolId == DEFAULT_STORAGE_POOL_ID;
 }
