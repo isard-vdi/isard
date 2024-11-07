@@ -121,7 +121,7 @@
         </b-col>
       </b-row>
     </span>
-    <DomainBastion />
+    <DomainBastion v-if="getConfig.canUseBastion"/>
   </div>
 </template>
 
@@ -132,6 +132,7 @@ import { orderBy } from 'lodash'
 import i18n from '@/i18n'
 import { ErrorUtils } from '@/utils/errorUtils'
 import DomainBastion from '@/components/domain/DomainBastion.vue'
+import { mapGetters } from 'vuex/dist/vuex.common.js'
 
 export default {
   components: {
@@ -212,6 +213,11 @@ export default {
       availableViewers,
       showRDPLogin
     }
+  },
+  computed: {
+    ...mapGetters([
+      'getConfig'
+    ])
   }
 }
 </script>

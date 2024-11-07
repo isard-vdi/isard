@@ -171,6 +171,7 @@
             "port": "Puerto SSH",
             "authorized-keys": "Claves autorizadas (una por línea)"
           },
+          "port-tooltip": "El puerto utilizado por tu escritorio. Externamente, se asignará al puerto {port}.",
           "copy": "Copiar al portapapeles",
           "copied": "Copiado!"
         }
@@ -344,7 +345,8 @@
         "booking": "Reservar",
         "edit": "Editar",
         "direct-link": "Enlace directo",
-        "recreate": "Recrear"
+        "recreate": "Recrear",
+        "bastion": "Bastión"
       },
       "table-header": {
         "name": "Nombre",
@@ -1207,6 +1209,25 @@
         },
         "confirmation": {
           "delete": "Eliminar"
+        }
+      },
+      "bastion_modal": {
+        "title": "Información de bastión del escritorio '{name}'",
+        "labels": {
+          "id": "ID del bastión:",
+          "ssh": "SSH:",
+          "http": "URL HTTP:",
+          "https": "URL HTTPS:"
+        },
+        "titles": {
+          "id_copy": "Copiar ID del bastión",
+          "ssh_port": "SSH: {ssh_port}",
+          "ssh_copy": "Copiar comando SSH",
+          "http_open": "Abrir en nueva pestaña",
+          "http_port": "HTTP: {http_port}",
+          "http_copy": "Copiar URL HTTP",
+          "https_port": "HTTPS: {https_port}",
+          "https_copy": "Copiar URL HTTPS"
         }
       }
     },

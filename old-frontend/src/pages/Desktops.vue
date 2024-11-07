@@ -12,6 +12,7 @@
         <StartNowModal />
         <CantStartNowModal />
         <DesktopModal />
+        <BastionModal />
         <template #title>
           <b-spinner
             v-if="!getDesktopsLoaded"
@@ -109,6 +110,7 @@ import DirectLinkModal from '../components/directViewer/DirectLinkModal.vue'
 import StartNowModal from '@/components/booking/StartNowModal.vue'
 import CantStartNowModal from '@/components/booking/CantStartNowModal.vue'
 import DesktopModal from '@/components/desktops/DesktopModal.vue'
+import BastionModal from '@/components/BastionModal.vue'
 
 export default {
   components: {
@@ -117,7 +119,8 @@ export default {
     DirectLinkModal,
     StartNowModal,
     CantStartNowModal,
-    DesktopModal
+    DesktopModal,
+    BastionModal
   },
   setup (_, context) {
     const $store = context.root.$store
@@ -128,6 +131,9 @@ export default {
         $store.dispatch('fetchAllowedTemplates', 'all')
       } else {
         $store.dispatch('setTemplatesLoaded', true)
+      }
+      if (newVal.canUseBastion) {
+        $store.dispatch('fetchBastions')
       }
     }, { immediate: true })
 

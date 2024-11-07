@@ -434,6 +434,13 @@ create_docker_compose_file(){
 		fi
 	fi
 
+	# If BASTION_ENABLED is not true, remove the bastion part
+	if [ -z "$BASTION_ENABLED" ] || [ "$BASTION_ENABLED" != "true" ]
+	then
+		echo "BASTION_ENABLED is not true, removing bastion part"
+		parts="$(echo $parts | sed 's/bastion//')"
+	fi
+
 	# Build the docker-compose.yml
 	flavour "$config_name" $parts
 

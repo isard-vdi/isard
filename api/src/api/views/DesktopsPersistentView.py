@@ -40,6 +40,7 @@ admin = ApiAdmin()
 from ..libv2.api_scheduler import Scheduler
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .decorators import (
+    can_use_bastion,
     has_token,
     is_admin_or_manager,
     is_not_user,
@@ -480,6 +481,13 @@ def api_v3_template_to_desktop(payload):
 @has_token
 def api_v3_get_desktop_bastion(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
+    if can_use_bastion(payload) == False:
+        raise Error(
+            "forbidden",
+            "User can not use bastion",
+            traceback.format_exc(),
+        )
+
     try:
         target = desktops.get_domain_target(desktop_id)
     except:
@@ -495,6 +503,13 @@ def api_v3_get_desktop_bastion(payload, desktop_id):
 @has_token
 def api_v3_update_desktop_bastion(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
+    if can_use_bastion(payload) == False:
+        raise Error(
+            "forbidden",
+            "User can not use bastion",
+            traceback.format_exc(),
+        )
+
     try:
         data = request.get_json(force=True)
     except:
@@ -516,6 +531,13 @@ def api_v3_update_desktop_bastion(payload, desktop_id):
 @app.route("/api/v3/bastions", methods=["GET"])
 @has_token
 def api_v3_get_bastions(payload):
+    if can_use_bastion(payload) == False:
+        raise Error(
+            "forbidden",
+            "User can not use bastion",
+            traceback.format_exc(),
+        )
+
     return (
         json.dumps(desktops.get_user_targets(payload["user_id"])),
         200,

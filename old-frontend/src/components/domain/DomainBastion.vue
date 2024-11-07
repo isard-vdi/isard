@@ -70,7 +70,16 @@
             cols="4"
             xl="2"
           >
-            <label for="httpPortField">{{ $t('forms.domain.viewers.bastion.http.http-port') }}</label>
+            <label for="httpPortField">
+              {{ $t('forms.domain.viewers.bastion.http.http-port') }}
+              <b-icon
+                v-b-tooltip="{ title: $t('forms.domain.viewers.bastion.port-tooltip', { port: getConfig.httpPort }),
+                               placement: 'top',
+                               customClass: 'isard-tooltip isard-tooltip-lg',
+                               trigger: 'hover' }"
+                icon="info-circle"
+              />
+            </label>
           </b-col>
           <b-col
             cols="6"
@@ -93,7 +102,16 @@
             cols="4"
             xl="2"
           >
-            <label for="httpPortField">{{ $t('forms.domain.viewers.bastion.http.https-port') }}</label>
+            <label for="httpPortField">
+              {{ $t('forms.domain.viewers.bastion.http.https-port') }}
+              <b-icon
+                v-b-tooltip="{ title: $t('forms.domain.viewers.bastion.port-tooltip', { port: getConfig.httpsPort }),
+                               placement: 'top',
+                               customClass: 'isard-tooltip isard-tooltip-lg',
+                               trigger: 'hover' }"
+                icon="info-circle"
+              />
+            </label>
           </b-col>
           <b-col
             cols="6"
@@ -133,7 +151,16 @@
             cols="4"
             xl="2"
           >
-            <label for="sshPortField">{{ $t('forms.domain.viewers.bastion.ssh.port') }}</label>
+            <label for="sshPortField">
+              {{ $t('forms.domain.viewers.bastion.ssh.port') }}
+              <b-icon
+                v-b-tooltip="{ title: $t('forms.domain.viewers.bastion.port-tooltip', { port: getConfig.bastionSshPort }),
+                               placement: 'top',
+                               customClass: 'isard-tooltip isard-tooltip-lg',
+                               trigger: 'hover' }"
+                icon="info-circle"
+              />
+            </label>
           </b-col>
           <b-col
             cols="6"
@@ -181,12 +208,12 @@
 
 <script>
 import { computed, watch, ref } from '@vue/composition-api'
+import { mapGetters } from 'vuex'
 import i18n from '@/i18n'
 
 export default {
   setup (props, context) {
     const $store = context.root.$store
-    // const domain = computed(() => $store.getters.getDomain)
     const bastionData = computed(() => $store.getters.getBastion)
 
     const showBastionOptions = ref(false)
@@ -280,6 +307,9 @@ export default {
       copyTooltipText,
       copyToClipboard
     }
+  },
+  computed: {
+    ...mapGetters(['getConfig'])
   }
 }
 </script>

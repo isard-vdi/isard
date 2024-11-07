@@ -12,7 +12,7 @@
       no-body
     >
       <vue-fab
-        v-if="desktop.type === 'persistent' && !(!desktop.editable && desktop.permissions.length < 1)"
+        v-if="(desktop.type === 'persistent' && !(!desktop.editable && desktop.permissions.length < 1)) || (getConfig.bastion_enabled && bastion && (bastion.http.enabled || bastion.ssh.enabled))"
         icon="more_vert"
         main-btn-color="#bcc6cc"
         class="info-icon position-absolute"
@@ -21,6 +21,18 @@
         :scroll-auto-hide="false"
         active-icon="more_horiz"
       >
+        <fab-item
+          v-if="getConfig.canUseBastion && bastion && (bastion.http.enabled || bastion.ssh.enabled)"
+          v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.bastion')}`,
+                         placement: 'right',
+                         customClass: 'isard-tooltip',
+                         trigger: 'hover' }"
+          :idx="desktop.editable ? getUser.role_id != 'user' ? (desktop.needsBooking && !desktop.tag) ? 5 : 4 : 2 : (desktop.permissions.length)"
+          icon="fort"
+          color="#303446"
+          @clickItem="onClickShowBastionModal(bastion)"
+        />
+
         <fab-item
           v-if="!desktop.editable && desktop.permissions.includes('recreate')"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.recreate')}`,
@@ -257,18 +269,6 @@
             {{ desktop.ip ? `IP:  ${desktop.ip}` : '' }}
           </p>
 
-          <!-- Bastion -->
-          <p
-            v-if="desktop.type === 'persistent' && bastion"
-            v-b-tooltip="{ title: `http:${bastion.http.enabled ? bastion.http.http_port : $t('components.desktop-cards.bastion.disabled') } |
-                                   https:${bastion.http.enabled ? bastion.http.https_port : $t('components.desktop-cards.bastion.disabled') } |
-                                   ssh:${bastion.ssh.enabled ? bastion.ssh.port : $t('components.desktop-cards.bastion.disabled') }`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
-            class="w-100 mb-0 card-text ml-2 cursor-pointer"
-            @click="copyToClipboard(bastion.id)"
-          >
-            {{ true ? `${$t('components.desktop-cards.bastion.title', {id: "061efdd1-fb8f-43a8-89b5-e8745fdc1732"} )}` : '' | truncate(MAX_DESCRIPTION_SIZE) }}
-          </p>
-
           <!-- Template -->
           <p
             v-if="desktop.type === 'persistent' && template"
@@ -404,7 +404,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getViewers', 'getCurrentTab', 'getUser']),
+    ...mapGetters(['getViewers', 'getCurrentTab', 'getUser', 'getConfig']),
     filterViewerFromList () {
       return DesktopUtils.filterViewerFromList(this.desktop.viewers, this.getDefaultViewer)
     },
@@ -488,7 +488,10 @@ export default {
       return (this.desktop.template && this.templates.filter(template => template.id === this.desktop.template)[0]) || null
     },
     bastion () {
-      return (this.bastions.filter(bastion => bastion.desktop_id === this.desktop.id)[0]) || null
+      if (this.bastions) {
+        return (this.bastions.filter(bastion => bastion.desktop_id === this.desktop.id)[0]) || null
+      }
+      return null
     },
     getCardTitle () {
       return this.desktop.type === 'persistent' || (!this.desktop.state && this.desktop.type === 'nonpersistent' && this.desktopState === desktopStates.stopped) ? this.desktop.name : this.template && this.template.name
@@ -533,7 +536,8 @@ export default {
       'fetchDirectLink',
       'goToNewTemplate',
       'updateDesktopModal',
-      'recreateDesktop'
+      'recreateDesktop',
+      'bastionModalShow'
     ]),
     getBookingNotificationBar (dateStart, dateEnd) {
       if (DateUtils.dateIsAfter(dateEnd, new Date()) && DateUtils.dateIsBefore(dateStart, new Date())) {
@@ -632,6 +636,9 @@ export default {
       } else {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.recreate-desktop-stop'), '', true, 2000)
       }
+    },
+    onClickShowBastionModal (bastionItem) {
+      this.bastionModalShow({ show: true, bastion: bastionItem, desktop: this.desktop })
     }
   }
 }

@@ -67,7 +67,11 @@ from ..libv2.api_user_storage import (
     isard_user_storage_update_user_quota,
     user_storage_quota,
 )
-from ..views.decorators import CategoryNameGroupNameMatch, ownsCategoryId
+from ..views.decorators import (
+    CategoryNameGroupNameMatch,
+    can_use_bastion,
+    ownsCategoryId,
+)
 from .api_admin import (
     change_category_items_owner,
     change_group_items_owner,
@@ -374,6 +378,13 @@ class ApiUsers:
                 ),
                 "show_change_email_button": frontend_show_change_email,
                 "show_temporal_tab": frontend_show_temporal_tab,
+                "http_port": os.environ.get("HTTP_PORT", "80"),
+                "https_port": os.environ.get("HTTPS_PORT", "443"),
+                "bastion_ssh_port": os.environ.get(
+                    "BASTION_SSH_PORT",
+                    "2222",
+                ),
+                "can_use_bastion": can_use_bastion(payload),
             },
         }
 

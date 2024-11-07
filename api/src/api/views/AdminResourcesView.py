@@ -5,6 +5,7 @@
 
 import json
 import logging as log
+import os
 
 from flask import request
 from isardvdi_common.api_exceptions import Error
@@ -80,3 +81,25 @@ def api_v3_qos_disk_update(payload):
             200,
             {"Content-Type": "application/json"},
         )
+
+
+@app.route("/api/v3/admin/bastion", methods=["GET"])
+@is_admin
+def api_v3_admin_bastion(payload):
+    return (
+        json.dumps(
+            {
+                "bastion_enabled": (
+                    True
+                    if (os.environ.get("BASTION_ENABLED", "false")).lower() == "true"
+                    else False
+                ),
+                "bastion_ssh_port": os.environ.get(
+                    "BASTION_SSH_PORT",
+                    "2222",
+                ),
+            }
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )

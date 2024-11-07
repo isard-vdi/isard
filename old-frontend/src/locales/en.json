@@ -171,6 +171,7 @@
                         "port": "SSH port",
                         "authorized-keys": "Authorized keys (one per line)"
                     },
+                    "port-tooltip": "The port used by your desktop. Externaly, it will be assigned to port {port}.",
                     "copy": "Copy to clipboard",
                     "copied": "Copied!"
                 }
@@ -345,7 +346,8 @@
                 "booking": "Schedule",
                 "edit": "Edit",
                 "direct-link": "Direct Link",
-                "recreate": "Recreate"
+                "recreate": "Recreate",
+                "bastion": "Bastion info"
             },
             "table-header": {
                 "name": "Name",
@@ -1194,6 +1196,25 @@
                 },
                 "confirmation": {
                     "delete": "Delete"
+                }
+            },
+            "bastion_modal": {
+                "title": "Bastion info for desktop '{name}'",
+                "labels": {
+                    "id": "Bastion ID:",
+                    "ssh": "SSH:",
+                    "http": "HTTP URL:",
+                    "https": "HTTPS URL:"
+                },
+                "titles": {
+                    "id_copy": "Copy bastion ID",
+                    "ssh_port": "SSH: {ssh_port}",
+                    "ssh_copy": "Copy SSH command",
+                    "http_open": "Open in new tab",
+                    "http_port": "HTTP: {http_port}",
+                    "http_copy": "Copy HTTP URL",
+                    "https_port": "HTTPS: {https_port}",
+                    "https_copy": "Copy HTTPS URL"
                 }
             }
         },

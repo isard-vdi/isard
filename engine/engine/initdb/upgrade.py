@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 153
+release_version = 154
+# release 154: Add bastion alloweds to config table
 # release 153: Add new field 'user_migration' to config table
 # release 152: Add index 'owner_group_status', categor to recycle bin table
 # release 151: Add new field 'enabled_virt' to storage pools table
@@ -639,6 +640,22 @@ password:s:%s"""
                 )
                 log.error("Error detail: " + str(e))
 
+        if version == 154:
+            try:
+                r.table(table).update(
+                    {
+                        "bastion": {
+                            "allowed": {
+                                "categories": [],
+                                "groups": [],
+                                "roles": [],
+                                "users": [],
+                            },
+                        }
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
         return True
 
     """

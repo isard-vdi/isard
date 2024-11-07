@@ -513,6 +513,10 @@ HAPROXY_LOGGING=.
 #       accordingly the VIEWER_SPICE and VIEWER_BROWSER ports
 #HTTP_PORT=8081
 #HTTPS_PORT=8443
+
+# ------ Bastion -------------------------------------------------------------
+# TODO: Document this
+#BASTION_ENABLED=false
 #BASTION_SSH_PORT=2222
 
 # ------ Video proxy host ----------------------------------------------------

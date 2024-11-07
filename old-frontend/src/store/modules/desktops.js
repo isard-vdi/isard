@@ -49,7 +49,12 @@ const getDefaultState = () => {
         id: ''
       }
     },
-    bastions: []
+    bastions: [],
+    bastionModal: {
+      show: false,
+      desktop: {},
+      bastion: { http: {}, ssh: {} }
+    }
   }
 }
 
@@ -105,6 +110,9 @@ export default {
     },
     getBastions: state => {
       return state.bastions
+    },
+    getBastionModal: state => {
+      return state.bastionModal
     }
   },
   mutations: {
@@ -187,6 +195,13 @@ export default {
     },
     setBastions: (state, bastions) => {
       state.bastions = bastions
+    },
+    setBastionModal: (state, data) => {
+      state.bastionModal.show = data.show
+      const bastion = data.bastion || { http: {}, ssh: {} }
+      state.bastionModal.bastion = bastion
+      const desktop = data.desktop || {}
+      state.bastionModal.desktop = desktop
     }
   },
   actions: {
@@ -473,11 +488,17 @@ export default {
       })
     },
     fetchBastions (context) {
-      axios.get(`${apiV3Segment}/bastions`).then(response => {
-        context.commit('setBastions', response.data)
-      }).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
-      })
+      const config = context.getters.getConfig
+      if (config.canUseBastion === true) {
+        axios.get(`${apiV3Segment}/bastions`).then(response => {
+          context.commit('setBastions', response.data)
+        }).catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+      }
+    },
+    bastionModalShow (context, data) {
+      context.commit('setBastionModal', data)
     }
   }
 }
