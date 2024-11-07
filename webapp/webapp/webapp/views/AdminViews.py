@@ -96,19 +96,23 @@ def remote_logout():
 @app.route("/isard-admin/logout")
 @login_required
 def logout():
-    user_session = get_expired_user_data(request.cookies.get("isardvdi_session"))
-    provider = (
-        "form"
-        if user_session.get("provider") in ["local", "ldap"]
-        else user_session.get("provider")
-    )
     response = requests.get(
         f"http://isard-api:5000/api/v3/category/{current_user.category}/custom_url"
     )
-    if response.status_code == 200:
-        login_path = f"/login/{provider}/{response.text}"
+    if request.cookies.get("isardvdi_session"):
+        user_session = get_expired_user_data(request.cookies.get("isardvdi_session"))
+        provider = (
+            "form"
+            if user_session.get("provider") in ["local", "ldap"]
+            else user_session.get("provider")
+        )
+        if response.status_code == 200:
+            login_path = f"/login/{provider}/{response.text}"
+        else:
+            login_path = f"/login/{provider}"
     else:
-        login_path = f"/login/{provider}"
+        login_path = "/login"
+
     response = make_response(
         f"""
             <!DOCTYPE html>
