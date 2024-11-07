@@ -168,7 +168,7 @@ def rcb_delete(payload, recycle_bin_id=None):
     )
 
 
-@app.route("/api/v3/recycle_bin/delete", methods=["DELETE"])
+@app.route("/api/v3/recycle_bin/delete", methods=["PUT"])
 @has_token
 def rcb_delete_bulk(payload):
     data = request.get_json(force=True)
