@@ -7,7 +7,7 @@ requests==2.31.0
 rethinkdb==2.4.10.post1
 rq~=1.14
 spectree~=1.2
-waitress~=2.1
+waitress~=3.0.1
 simple-colors~=0.1.5
 python-json-logger~=2.0.7
 html-sanitizer==2.4.4
