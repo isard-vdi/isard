@@ -337,10 +337,13 @@ def _parse_deployment_desktop(desktop):
     if desktop["status"] in ["Started", "WaitingIP"] and desktop.get("viewer", {}).get(
         "static"
     ):
-        viewer = isardviewer.viewer_data(
-            desktop["id"],
-            "browser-vnc",
-        )
+        try:
+            viewer = isardviewer.viewer_data(
+                desktop["id"],
+                "browser-vnc",
+            )
+        except:
+            viewer = False
     else:
         viewer = False
     user_photo = desktop.get("user_photo")
