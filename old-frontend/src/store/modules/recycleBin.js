@@ -156,7 +156,7 @@ export default {
     },
     restoreRecycleBin (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.restoring-recycle-bin'), '', true, 1000)
-      return axios.get(`${apiV3Segment}/recycle_bin/restore/${data.id}`).then(response => {
+      return axios.put(`${apiV3Segment}/recycle_bin/restore/${data.id}`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
