@@ -405,7 +405,7 @@ router.beforeEach(async (to, from, next) => {
           }
         }
 
-        window.location.href = '/login'
+        window.location.pathname = '/login'
         return
       }
 
@@ -424,7 +424,7 @@ router.beforeEach(async (to, from, next) => {
       next()
       return
     } else if (sessionData.type === 'category-select') {
-      window.location.href = '/login'
+      window.location.pathname = '/login'
       return
     }
 
@@ -491,7 +491,7 @@ router.beforeEach(async (to, from, next) => {
       getCookie('authorization') &&
       jwtDecode(getCookie('authorization')).type === 'category-select'
     ) {
-      window.location = '/'
+      window.location.pathname = '/'
     } else {
       store.dispatch('saveNavigation', { url: to })
       next()

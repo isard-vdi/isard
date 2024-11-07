@@ -105,7 +105,7 @@ export default {
       if (user) {
         $store.dispatch('logout')
       } else {
-        window.location = '/login'
+        window.location.pathname = '/login'
       }
     }
 
