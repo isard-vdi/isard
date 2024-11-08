@@ -523,6 +523,32 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 			RataMinRAM:               300,
 			ExpectedRemoveOnlyForced: []string{"2"},
 		},
+		"should scale up with the biggest hypervisor available if the required RAM is higher than any of the available hypervisors RAM": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
+				Id:           "bm-e4-12",
+				State:        operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Cpu:          128,
+				Ram:          1097152,
+				Capabilities: []operationsv1.HypervisorCapabilities{},
+			}, {
+				Id:           "bm-e4-16",
+				State:        operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Cpu:          128,
+				Ram:          1097152,
+				Capabilities: []operationsv1.HypervisorCapabilities{},
+			}, {
+				Id:           "bm-e4-21",
+				State:        operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Cpu:          128,
+				Ram:          1097152,
+				Capabilities: []operationsv1.HypervisorCapabilities{},
+			}},
+			Hypers:     []*sdk.OrchestratorHypervisor{},
+			RataMinRAM: 3287400,
+			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorsRequest{
+				Ids: []string{"bm-e4-12"},
+			},
+		},
 	}
 
 	for name, tc := range cases {

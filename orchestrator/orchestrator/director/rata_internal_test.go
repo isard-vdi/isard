@@ -483,12 +483,25 @@ func TestBestHyperToCreate(t *testing.T) {
 			MinRAM:   1,
 			Expected: "correct",
 		},
-		"should return an error if there's no suitable hypervisor": {
+		"should return the biggest hypervisor if there's no hypervisor big enough for the requirements": {
 			Hypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
 				Id:    "smol :3",
 				Ram:   1,
 				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+			}, {
+				Id:    "medium",
+				Ram:   2,
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+			}, {
+				Id:    "correct",
+				Ram:   3,
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
 			}},
+			MinRAM:   4,
+			Expected: "correct",
+		},
+		"should return an error if there's no suitable hypervisor": {
+			Hypers:      []*operationsv1.ListHypervisorsResponseHypervisor{},
 			MinRAM:      2,
 			ExpectedErr: "no hypervisor with the required resources and capabilities available",
 		},

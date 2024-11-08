@@ -195,9 +195,14 @@ func (r *Rata) classifyHypervisors(hypers []*sdk.OrchestratorHypervisor) (
 // TODO: Capabilities
 func (r *Rata) bestHyperToCreate(hypersAvail []*operationsv1.ListHypervisorsResponseHypervisor, minCPU, minRAM int) (string, error) {
 	var bestHyper *operationsv1.ListHypervisorsResponseHypervisor
+	var biggestHyper *operationsv1.ListHypervisorsResponseHypervisor
 
 	for _, h := range hypersAvail {
 		if h.State == operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE {
+			if biggestHyper == nil || h.Ram > biggestHyper.Ram {
+				biggestHyper = h
+			}
+
 			enoughRAM := h.Ram > int32(minRAM)
 
 			if bestHyper != nil {
@@ -214,7 +219,11 @@ func (r *Rata) bestHyperToCreate(hypersAvail []*operationsv1.ListHypervisorsResp
 	}
 
 	if bestHyper == nil {
-		return "", ErrNoHypervisorAvailable
+		if biggestHyper == nil {
+			return "", ErrNoHypervisorAvailable
+		}
+
+		return biggestHyper.Id, nil
 	}
 
 	return bestHyper.Id, nil
