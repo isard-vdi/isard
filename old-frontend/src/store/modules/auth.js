@@ -109,7 +109,7 @@ export default {
       if (token.type === 'register') {
         router.push({ name: 'Register' })
       } else if (token.type === 'category-select') {
-        window.location = '/'
+        window.location.pathname = '/'
       } else {
         context.dispatch('loginSuccess', response.data)
       }
@@ -189,7 +189,7 @@ export default {
       context.commit('resetStore')
       context.dispatch('closeSocket')
       if (redirect) {
-        window.location = '/login'
+        window.location.pathname = '/login'
       }
     },
     saveNavigation (context, payload) {

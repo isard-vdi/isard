@@ -26,7 +26,7 @@
             {{ $t('views.not-found.subtitle') }}<br>
             {{ $t('views.not-found.home') }} <b
               class="cursor-pointer"
-              @click="window.location = '/login'"
+              @click="window.location.pathname = '/login'"
             ><u>{{ $t("views.not-found.here") }}</u></b>
           </p>
         </span>

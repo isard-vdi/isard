@@ -26,7 +26,7 @@
             {{ $t(`views.error.codes.${$route.params.code}.subtitle`) }}<br>
             {{ $t(`views.error.codes.${$route.params.code}.home`) }} <b
               class="cursor-pointer"
-              @click="window.location = '/login'"
+              @click="window.location.pathname = '/login'"
             ><u>{{ $t("views.error.here") }}</u></b><br>
             {{ $t(`views.error.codes.${$route.params.code}.logout`) }}
             <b

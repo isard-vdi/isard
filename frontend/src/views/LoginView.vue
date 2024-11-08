@@ -402,7 +402,7 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
   }
 
   setAuthToken(cookies, bearer)
-  window.location.href = '/'
+  window.location.pathname = '/'
 }
 
 const onFormSubmit = async (values) => {
