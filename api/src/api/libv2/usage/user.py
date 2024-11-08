@@ -81,8 +81,8 @@ class UserUsage:
             r.table("logs_users")
             .filter(
                 lambda log: (
-                    log["stopped_time"]
-                    > self.consolidation_day | log.has_fields("stopped_time").not_()
+                    (log["stopped_time"] > self.consolidation_day)
+                    | log.has_fields("stopped_time").not_()
                 )
                 & (log["started_time"] < self.consolidation_day_after)
             )
