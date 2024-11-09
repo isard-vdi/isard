@@ -287,7 +287,7 @@ def get_default_storage_pool():
     return default_storage_pool
 
 
-@cached(cache=TTLCache(maxsize=200, ttl=60))
+@cached(cache=TTLCache(maxsize=200, ttl=10))
 def get_category_storage_pools(category_id):
     with app.app_context():
         storage_pools = list(
