@@ -115,3 +115,35 @@ function setMountpoints(id) {
     }
   });
 }
+
+function setVirtPoolsTable(id) {
+  virt_pools_table = $("#virt_pools-table-" + id).DataTable({
+    "language": {
+      "loadingRecords": "Virtualization pools information still not available"
+    },
+    "ajax": {
+      "url": "/api/v3/hypervisor/" + id + "/virt_pools",
+      "contentType": "application/json",
+      "type": 'GET',
+    },
+    "sAjaxDataProp": "",
+    "rowId": "id",
+    "deferRender": true,
+    "columns": [
+      { "data": "enabled_virt_pool" },
+      { "data": "name" },
+      { "data": "id" },
+      { "data": "categories" },
+    ],
+
+    "order": [0, 'desc'],
+    "rowCallback": function (row, data) {
+      if (data.usage > 90) {
+        $(row).css("background-color", "rgba(217,83,79,0.85)");
+        $(row).css("color", "white")
+      } else if (data.usage > 90 && data.usage < 95) {
+        $(row).css("background-color", "rgba(240,173,78,0.85)");
+      }
+    }
+  });
+}

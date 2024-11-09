@@ -376,6 +376,10 @@ $(document).ready(function () {
       setMountpoints(row.data().id);
       setHypervisorDetailButtonsStatus(row.data().id, row.data().status)
       actionsHyperDetail();
+      setVirtPoolsTable(
+        row.data().id,
+        row.data().virt_pools || row.data().storage_pools || []
+      );
     }
   });
   $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
