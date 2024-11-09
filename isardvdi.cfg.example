@@ -1,4 +1,4 @@
-# Isard main config v2.18.0
+# Isard main config v2.19.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -423,7 +423,13 @@ HAPROXY_LOGGING=.
 #CAPABILITIES_HYPER=true
 ## Disk capabilities
 #CAPABILITIES_DISK=true
-## Comma-separated storage pool ids that can be used
+
+## Comma-separated virtualization pool ids that can be used to start desktops
+## At least one isard-storage should be registered with each virt pool
+## NOTE: If not defined, will default to CAPABILITIES_STORAGE_POOLS
+#CAPABILITIES_VIRT_POOLS=00000000-0000-0000-0000-000000000000
+
+## Comma-separated storage pool ids that can be used for disk operations
 #CAPABILITIES_STORAGE_POOLS=00000000-0000-0000-0000-000000000000
 
 # ------ Hypervisor options ---------------------------------------------------

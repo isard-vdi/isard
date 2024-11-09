@@ -297,6 +297,8 @@ class ApiHypervisors:
         min_free_mem_gb=0,
         min_free_gpu_mem_gb=0,
         storage_pools=[DEFAULT_STORAGE_POOL_ID],
+        virt_pools=[],
+        enabled_virt_pools=[],
         buffering_hyper=False,
         gpu_only=False,
     ):
@@ -326,6 +328,8 @@ class ApiHypervisors:
                 min_free_mem_gb=min_free_mem_gb,
                 min_free_gpu_mem_gb=min_free_gpu_mem_gb,
                 storage_pools=storage_pools,
+                virt_pools=virt_pools,
+                enabled_virt_pools=enabled_virt_pools,
                 buffering_hyper=buffering_hyper,
                 gpu_only=gpu_only,
             )
@@ -361,6 +365,8 @@ class ApiHypervisors:
                 min_free_mem_gb=min_free_mem_gb,
                 min_free_gpu_mem_gb=min_free_gpu_mem_gb,
                 storage_pools=storage_pools,
+                virt_pools=virt_pools,
+                enabled_virt_pools=enabled_virt_pools,
                 buffering_hyper=buffering_hyper,
                 gpu_only=gpu_only,
             )
@@ -410,6 +416,8 @@ class ApiHypervisors:
         min_free_mem_gb=0,
         min_free_gpu_mem_gb=0,
         storage_pools=[DEFAULT_STORAGE_POOL_ID],
+        virt_pools=[],
+        enabled_virt_pools=[],
         buffering_hyper=False,
         gpu_only=False,
     ):
@@ -449,11 +457,15 @@ class ApiHypervisors:
             "min_free_mem_gb": min_free_mem_gb,
             "min_free_gpu_mem_gb": min_free_gpu_mem_gb,
             "storage_pools": storage_pools,
+            "virt_pools": virt_pools,
             "buffering_hyper": buffering_hyper,
             "gpu_only": gpu_only,
         }
 
         hypervisor = _validate_item("hypervisors", hypervisor)
+        hypervisor["enabled_virt_pools"] = (
+            enabled_virt_pools or virt_pools or storage_pools
+        )
 
         with app.app_context():
             result = (
@@ -876,6 +888,34 @@ class ApiHypervisors:
             raise Error(
                 "not_found", "Hypervisor with ID " + hyper_id + " does not exist."
             )
+
+    def get_hyper_virt_pools(self, hyper_id):
+        with app.app_context():
+            storage_pools = list(
+                r.table("storage_pool")
+                .merge(lambda sp: {"categories": sp["categories"].count()})
+                .run(db.conn)
+            )
+        with app.app_context():
+            hypervisor_pools = (
+                r.table("hypervisors")
+                .get(hyper_id)
+                .pluck("virt_pools", "enabled_virt_pools")
+                .run(db.conn)
+            )
+        # hypervisor virt_pools is storage_pool ids or less than that
+        return [
+            {
+                "id": sp["id"],
+                "name": sp["name"],
+                "categories": sp["categories"],
+                "enabled": sp["enabled"],
+                "available": sp["id"] in hypervisor_pools.get("virt_pools", []),
+                "enabled_virt_pool": sp["id"]
+                in hypervisor_pools.get("enabled_virt_pools", []),
+            }
+            for sp in storage_pools
+        ]
 
     def get_hyper_mountpoints(self, hyper_id):
         with app.app_context():
