@@ -347,7 +347,7 @@ class Engine(object):
                     # Hypervisors balancer pools
                     self.manager.pools["default"] = PoolHypervisors("default")
                     # Diskoperations balancer pools
-                    for pool_id in get_storage_pool_ids():
+                    for pool_id in get_storage_pool_ids(only_enabled=False):
                         self.manager.diskoperations_pools[pool_id] = PoolDiskoperations(
                             pool_id
                         )

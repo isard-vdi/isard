@@ -660,7 +660,14 @@ class UiActions(object):
         create_dict = dict_domain["create_dict"]
 
         pool_id = get_category_storage_pool_id(dict_domain.get("category"))
-
+        if pool_id is None:
+            log.error(
+                "CREATE_TEMPLATE_DISKS_FROM_DOMAIN: No storage pool available for domain {} in category {}. Not creating any disk.".format(
+                    id_domain,
+                    dict_domain.get("category"),
+                )
+            )
+            return False
         try:
             dict_new_template = create_dict["template_dict"]
         except KeyError as e:
@@ -849,7 +856,14 @@ class UiActions(object):
             )
             return False
         pool_id = get_category_storage_pool_id(dict_domain.get("category"))
-
+        if pool_id is None:
+            log.error(
+                "CREATING_DISK_FROM_SCRATCH: No storage pool available for domain {} in category {}. Not creating any disk.".format(
+                    id_new,
+                    dict_domain.get("category"),
+                )
+            )
+            return False
         dict_to_create = dict_domain["create_dict"]
 
         if "disks" in dict_to_create["hardware"].keys():
@@ -1006,7 +1020,14 @@ class UiActions(object):
             dict_to_create = dict_domain["create_dict"]
 
         pool_id = get_category_storage_pool_id(dict_domain.get("category"))
-
+        if pool_id is None:
+            log.error(
+                "CREATING_DISKS_FROM_TEMPLATE: No storage pool available for domain {} in category {}. Not creating any disk.".format(
+                    id_new,
+                    dict_domain.get("category"),
+                )
+            )
+            return False
         # INFO TO DEVELOPER DEBERÍA SER UN FOR PARA CADA DISCO
         # y si el disco no tiene backing_chain, crear un disco vacío
         # del tamaño que marcase

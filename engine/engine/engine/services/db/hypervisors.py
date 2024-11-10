@@ -464,8 +464,10 @@ def get_hypers_online(
         )
         .run(r_conn)
     )
-
+    close_rethink_connection(r_conn)
     category_storage_pool_id = get_category_storage_pool_id(category_id)
+    if category_storage_pool_id is None:
+        return []
     hypers_online = [
         hyp
         for hyp in hypers_online
@@ -475,7 +477,6 @@ def get_hypers_online(
         )
     ]
 
-    close_rethink_connection(r_conn)
     return filter_available_hypers(
         hypers_online,
         forced_hyp=forced_hyp,
@@ -628,15 +629,20 @@ def get_hypers_gpu_online(
         )
         .run(r_conn)
     )
+    close_rethink_connection(r_conn)
 
     category_storage_pool_id = get_category_storage_pool_id(category_id)
+    if category_storage_pool_id is None:
+        return []
     hypers_online = [
         hyp
         for hyp in hypers_online
-        if category_storage_pool_id in hyp.get("enabled_virt_pools", [])
+        if category_storage_pool_id
+        in hyp.get(
+            "enabled_virt_pools", hyp.get("virt_pools", hyp.get("storage_pools", []))
+        )
     ]
 
-    close_rethink_connection(r_conn)
     # exclude hypers with low memory (HYPER_FREE_MEM)
     if exclude_outofmem:
         hypers_online = filter_outofmem_hypers(hypers_online)
