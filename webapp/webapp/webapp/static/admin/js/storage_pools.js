@@ -67,9 +67,16 @@ $(document).ready(function () {
         }
       },
       {
-        "data": "hypers", "title": "Available hypervisors", "width": "130px", "render": function (data, type, full, meta) {
+        "data": "storages", "title": "Available Disk Op", "width": "130px", "render": function (data, type, full, meta) {
           return (data == 0 && full.enabled) ?
-            `<i title="No hypervisors available for this pool. Disk operations will fail" class="fa fa-warning" style="color:red;"> ${data}</i> ` :
+            `<i title="No disk operations available for this pool. Disk operations will fail" class="fa fa-warning" style="color:red;"> ${data}</i> ` :
+            data
+        }
+      },
+      {
+        "data": "hypers", "title": "Available Virt Op", "width": "130px", "render": function (data, type, full, meta) {
+          return (data == 0 && full.enabled) ?
+            `<i title="No hypervisors virt operations available for this pool. Virt operations will fail" class="fa fa-warning" style="color:red;"> ${data}</i> ` :
             data
         }
       },

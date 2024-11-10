@@ -379,11 +379,18 @@ def get_storage_pools():
                         .pluck("name", "id")
                         .coerce_to("array"),
                     ),
-                    "hypers": r.table("hypervisors")
+                    "storages": r.table("hypervisors")
                     .filter(
                         lambda hyper: hyper["status"] == "Online"
                         and hyper["enabled"] == True
                         and hyper["storage_pools"].contains(pool["id"])
+                    )
+                    .count(),
+                    "hypers": r.table("hypervisors")
+                    .filter(
+                        lambda hyper: hyper["status"] == "Online"
+                        and hyper["enabled"] == True
+                        and hyper["enabled_virt_pools"].contains(pool["id"])
                     )
                     .count(),
                     "is_default": pool["id"].eq(DEFAULT_STORAGE_POOL_ID),
