@@ -454,6 +454,8 @@ def get_hypers_online(
             "id",
             "only_forced",
             "gpu_only",
+            "storage_pools",
+            "virt_pools",
             "enabled_virt_pools",
             "stats",
             "mountpoints",
@@ -467,7 +469,10 @@ def get_hypers_online(
     hypers_online = [
         hyp
         for hyp in hypers_online
-        if category_storage_pool_id in hyp.get("enabled_virt_pools", [])
+        if category_storage_pool_id
+        in hyp.get(
+            "enabled_virt_pools", hyp.get("virt_pools", hyp.get("storage_pools", []))
+        )
     ]
 
     close_rethink_connection(r_conn)
