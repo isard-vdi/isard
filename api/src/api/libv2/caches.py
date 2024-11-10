@@ -288,15 +288,29 @@ def get_default_storage_pool():
 
 
 @cached(cache=TTLCache(maxsize=200, ttl=10))
-def get_category_storage_pools(category_id):
+def get_category_storage_pool_id(category_id):
     with app.app_context():
         storage_pools = list(
             r.table("storage_pool")
             .filter(
-                lambda pool: pool["enabled"]
-                and pool["categories"].contains(category_id)
+                lambda storage_pool: storage_pool["categories"].contains(category_id)
             )
-            .pluck("id")["id"]
             .run(db.conn)
         )
-    return storage_pools
+    if len(storage_pools) == 0:
+        return DEFAULT_STORAGE_POOL_ID
+    if len(storage_pools) == 1:
+        if storage_pools[0]["enabled"] is False:
+            raise Error(
+                "precondition_required",
+                f"Category {category_id} assigned to disabled storage pool {storage_pools[0]['id']}",
+                traceback.format_exc(),
+                description_code="no_storage_pool_available",
+            )
+        return storage_pools[0]["id"]
+    raise Error(
+        "internal_server",
+        f"Category {category_id} assigned to more than one storage pool: {storage_pools}",
+        traceback.format_exc(),
+        description_code="no_storage_pool_available",
+    )

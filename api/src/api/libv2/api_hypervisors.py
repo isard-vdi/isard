@@ -28,7 +28,7 @@ from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from rethinkdb.errors import ReqlNonExistenceError
 
-from ..libv2.caches import get_category_storage_pools, get_default_storage_pool
+from ..libv2.caches import get_category_storage_pool_id, get_default_storage_pool
 from ..libv2.isardVpn import isardVpn
 from .api_desktop_events import desktops_stop
 
@@ -1009,43 +1009,36 @@ class ApiHypervisors:
 
 @cached(cache=TTLCache(maxsize=50, ttl=10))
 def check_storage_pool_availability(category_id=None):
+    # Check category storage pools for category. Will raise error if no storage pool available
+    storage_pool_id = get_category_storage_pool_id(category_id)
+
     # Hypervisors online
     with app.app_context():
         hypers_online = list(
-            r.table("hypervisors")
-            .filter({"status": "Online", "enabled": True, "only_forced": False})
-            .pluck("storage_pools")
+            r.table("hypervisors").filter({"status": "Online", "enabled": True})
+            # .filter(
+            #     r.row["enabled_virt_pools"]
+            #     .default(r.row["storage_pools"])
+            #     .contains(storage_pool_id)
+            # )
             .run(db.conn)
         )
+    ## NOTE_ default storage pool just for backward hypers compatibility, can be removed in future
+    hypers_online = [
+        hyper
+        for hyper in hypers_online
+        if storage_pool_id
+        in hyper.get("enabled_virt_pools", hyper.get("storage_pools", []))
+    ]
     if not len(hypers_online):
         raise Error(
             "precondition_required",
-            "No storage pool hypervisor available in system",
+            f"No hypervisor available for category {category_id} with storage pool {storage_pool_id}",
             description_code="no_storage_pool_available",
         )
 
-    # Check category storage pools for category
-    storage_pools = get_category_storage_pools(category_id)
-    ## As only one category per pool is allowed. This should not happen.
-    if len(storage_pools) > 1:
-        raise Error(
-            "internal_server",
-            f"More than one storage pool available for category {category_id}",
-            description_code="no_storage_pool_available",
-        )
-    if not len(storage_pools) or category_id is None:
-        # Check if default storage pool is available
-        default_storage_pool = get_default_storage_pool()
-        if not default_storage_pool.get("enabled"):
-            raise Error(
-                "precondition_required",
-                "No storage pool available",
-                description_code="no_storage_pool_available",
-            )
-        storage_pools = [DEFAULT_STORAGE_POOL_ID]
-    storage_pool = storage_pools[0]
     for hyper in hypers_online:
-        if storage_pool in hyper.get("storage_pools", []):
+        if storage_pool_id in hyper.get("storage_pools", []):
             return True
     raise Error(
         "precondition_required",
