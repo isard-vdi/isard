@@ -333,6 +333,14 @@ def api_v3_hypervisors_virt_pools(payload, hyper_id):
     return json.dumps(virt_pools), 200, {"Content-Type": "application/json"}
 
 
+@app.route("/api/v3/hypervisor/<hyper_id>/virt_pools", methods=["PUT"])
+@is_admin
+def api_v3_hypervisors_virt_pools_update(payload, hyper_id):
+    data = request.get_json(force=True)
+    api_hypervisors.update_hyper_virt_pools(hyper_id, data)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
 @app.route("/api/v3/hypervisor/mountpoints/<hyper_id>", methods=["GET"])
 @is_admin
 def api_v3_hypervisors_mountpoints(payload, hyper_id):

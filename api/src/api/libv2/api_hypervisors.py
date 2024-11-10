@@ -917,6 +917,42 @@ class ApiHypervisors:
             for sp in storage_pools
         ]
 
+    def update_hyper_virt_pools(self, hyper_id, virt_pool_data):
+        virt_pool_id = virt_pool_data["id"]
+        enable_virt_pool = virt_pool_data["enable_virt_pool"]
+        with app.app_context():
+            virts = (
+                r.table("hypervisors")
+                .get(hyper_id)
+                .pluck("virt_pools", "enabled_virt_pools")
+                .run(db.conn)
+            )
+        enabled_virt_pools = virts.get("enabled_virt_pools", [])
+        if virt_pool_id not in virts.get("virt_pools", []):
+            raise Error(
+                "precondition_required",
+                "Virt pool with ID "
+                + virt_pool_id
+                + " is not available for hypervisor.",
+            )
+        if enable_virt_pool is True:
+            if virt_pool_id not in enabled_virt_pools:
+                virt_pools = enabled_virt_pools + [virt_pool_id]
+                with app.app_context():
+                    r.table("hypervisors").get(hyper_id).update(
+                        {"enabled_virt_pools": virt_pools}
+                    ).run(db.conn)
+        else:
+            if virt_pool_id in enabled_virt_pools:
+                enabled_virt_pools.remove(virt_pool_id)
+            with app.app_context():
+                r.table("hypervisors").get(hyper_id).update(
+                    {
+                        "enabled_virt_pools": enabled_virt_pools,
+                    }
+                ).run(db.conn)
+        return True
+
     def get_hyper_mountpoints(self, hyper_id):
         with app.app_context():
             status = (
