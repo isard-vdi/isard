@@ -55,6 +55,15 @@ def get_category_storage_pool(category_id):
     return default
 
 
+def get_storage_pools_with_category(category_id):
+    sps = get_storage_pools()
+    default = []
+    for sp in sps:
+        # default = uuid4 with zeroes
+        if sp["id"] == DEFAULT_STORAGE_POOL_ID:
+            default.append(sp)
+
+
 def get_default_storage_pool():
     return [sp for sp in get_storage_pools() if sp["id"] == DEFAULT_STORAGE_POOL_ID][0]
 

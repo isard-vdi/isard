@@ -9,6 +9,7 @@ from engine.services.db import (
     new_rethink_connection,
 )
 from engine.services.db.domains import get_vgpus_mdevs
+from engine.services.db.storage_pool import get_category_storage_pool_id
 from engine.services.log import log, logs
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
@@ -442,6 +443,7 @@ def get_hypers_online(
     id_pool="default",
     forced_hyp=None,
     favourite_hyp=None,
+    category_id=None,
 ):
     r_conn = new_rethink_connection()
     hypers_online = list(
@@ -452,6 +454,7 @@ def get_hypers_online(
             "id",
             "only_forced",
             "gpu_only",
+            "enabled_virt_pools",
             "stats",
             "mountpoints",
             "min_free_mem_gb",
@@ -459,6 +462,14 @@ def get_hypers_online(
         )
         .run(r_conn)
     )
+
+    category_storage_pool_id = get_category_storage_pool_id(category_id)
+    hypers_online = [
+        hyp
+        for hyp in hypers_online
+        if category_storage_pool_id in hyp.get("enabled_virt_pools", [])
+    ]
+
     close_rethink_connection(r_conn)
     return filter_available_hypers(
         hypers_online,
@@ -594,6 +605,7 @@ def get_hypers_gpu_online(
     gpu_brand_model_profile=None,
     forced_gpus_hypervisors=None,
     exclude_outofmem=True,
+    category_id=None,
 ):
     r_conn = new_rethink_connection()
     hypers_online = list(
@@ -611,6 +623,14 @@ def get_hypers_gpu_online(
         )
         .run(r_conn)
     )
+
+    category_storage_pool_id = get_category_storage_pool_id(category_id)
+    hypers_online = [
+        hyp
+        for hyp in hypers_online
+        if category_storage_pool_id in hyp.get("enabled_virt_pools", [])
+    ]
+
     close_rethink_connection(r_conn)
     # exclude hypers with low memory (HYPER_FREE_MEM)
     if exclude_outofmem:

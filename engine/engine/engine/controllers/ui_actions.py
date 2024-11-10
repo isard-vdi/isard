@@ -99,6 +99,7 @@ class UiActions(object):
             [
                 "kind",
                 "name",
+                "category",
                 {"create_dict": {"hardware": "memory", "reservables": True}},
                 "forced_hyp",
                 "favourite_hyp",
@@ -174,6 +175,7 @@ class UiActions(object):
                     favourite_hyp=domain.get("favourite_hyp"),
                     force_gpus=domain.get("force_gpus"),
                     reservables=domain.get("create_dict", {}).get("reservables", {}),
+                    category_id=domain.get("category"),
                 )
             else:
                 hyp = self.start_domain_from_xml(
@@ -184,6 +186,7 @@ class UiActions(object):
                     favourite_hyp=domain.get("favourite_hyp"),
                     force_gpus=domain.get("force_gpus"),
                     reservables=domain.get("create_dict", {}).get("reservables", {}),
+                    category_id=domain.get("category"),
                 )
             return hyp
 
@@ -196,6 +199,7 @@ class UiActions(object):
         favourite_hyp=None,
         force_gpus=None,
         reservables=None,
+        category_id=None,
     ):
         # def start_paused_domain_from_xml(self, xml, id_domain, pool_id, start_after_created=False):
         return self.start_domain_from_xml(
@@ -210,6 +214,7 @@ class UiActions(object):
             # an hypervisor online hypervisor with GPUs
             force_gpus=None,
             reservables=None,
+            category_id=None,
         )
 
     def start_domain_from_xml(
@@ -222,6 +227,7 @@ class UiActions(object):
         favourite_hyp=None,
         force_gpus=None,
         reservables=None,
+        category_id=None,
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
@@ -232,6 +238,7 @@ class UiActions(object):
                 favourite_hyp=favourite_hyp,
                 reservables=reservables,
                 force_gpus=force_gpus,
+                category_id=category_id,
             )
             if next_hyp is not False:
                 if action == "start_paused_domain":
@@ -1377,6 +1384,7 @@ class UiActions(object):
                         reservables=domain.get("create_dict", {}).get(
                             "reservables", {}
                         ),
+                        category_id=domain.get("category"),
                     )
                 else:
                     update_domain_status(
