@@ -19,6 +19,9 @@
             icon="info-circle-fill"
           />
           {{ $t(`views.templates.modal.convert.rename.title`, {name : $store.getters.getTemplateName}) }}
+          <p class="text-info">
+            {{ $t(`views.templates.modal.convert.warning.recyclebin`) }}
+          </p>
         </span>
 
         <b-form
@@ -44,29 +47,38 @@
       </template>
 
       <hr
-        v-if="(!derivatives.pending) && (derivativesFiltered.domains.length > 0 || derivatives.pending)"
+        v-if="(!derivatives.pending) && (derivativesFiltered.domains.length > 0 || derivatives.pending || derivatives.is_duplicated )"
       >
 
       <span
-        v-if="derivativesFiltered.domains.length > 0 || derivatives.pending"
+        v-if="derivativesFiltered.domains.length > 0 || derivatives.pending || derivatives.is_duplicated"
         class="text-danger"
       >
-        <b-icon
-          class="mr-2"
-          variant="danger"
-          icon="exclamation-triangle-fill"
-        />
-        {{ $t(`views.templates.modal.convert.warning.title`) }}
+        <p
+          v-if="derivativesFiltered.domains.length > 0"
+        >
+          <b-icon
+            class="mr-2"
+            variant="danger"
+            icon="exclamation-triangle-fill"
+          />
+          {{ $t(`views.templates.modal.convert.warning.title`) }}
+        </p>
         <p
           v-if="derivatives.pending"
         >
           {{ $t(`views.templates.modal.convert.warning.pending`, {ammount: derivativesAmount }) }}
         </p>
         <p
+          v-if="derivatives.is_duplicated"
+        >
+          {{ $t(`views.templates.modal.convert.warning.duplicate`) }}
+        </p>
+        <!-- <p
           v-else
         >
           {{ $t(`views.templates.modal.convert.warning.delete`) }}
-        </p>
+        </p> -->
       </span>
 
       <!-- <ul
@@ -116,7 +128,7 @@
       />
 
       <b-form-checkbox
-        v-if="!derivatives.pending && derivativesFiltered.domains.length > 0"
+        v-if="!derivativesFiltered.domains.length && (!derivatives.pending && derivativesFiltered.domains.length > 0)"
         id="checkbox-confirmation"
         v-model="confirmation"
         :state="checkState"
@@ -130,7 +142,7 @@
     <template #modal-footer>
       <div class="w-100 d-flex flex-row justify-content-between align-items-center">
         <p
-          v-if="derivatives.pending"
+          v-if="derivativesFiltered.domains.length > 0|| derivatives.pending"
           class="text-danger my-2 mr-4"
         >
           {{ $t(`views.templates.modal.convert.warning.footer`) }}
@@ -138,8 +150,8 @@
         <span class="flex-grow-1" />
         <b-button
           squared
-          :variant="derivatives.pending ? 'secondary' : 'purple'"
-          :disabled="derivatives.pending"
+          :variant="derivativesFiltered.domains.length > 0 || derivatives.pending || derivatives.is_duplicated ? 'secondary' : 'purple'"
+          :disabled="derivativesFiltered.domains.length > 0 || derivatives.pending || derivatives.is_duplicated"
           @click="ConvertToDesktop"
         >
           {{ $t(`views.templates.modal.convert.button.apply`) }}

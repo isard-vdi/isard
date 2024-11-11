@@ -39,7 +39,7 @@ from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .decorators import (
     has_token,
     is_admin_or_manager,
-    is_admin_or_manager_or_advanced,
+    is_not_user,
     ownsDeploymentDesktopId,
     ownsDomainId,
     ownsStorageId,
@@ -213,7 +213,7 @@ def api_v3_persistent_desktop_new(payload):
         payload["user_id"],
     )
     check_storage_pool_availability(payload.get("category_id"))
-    desktops.NewFromTemplate(
+    desktops.new_from_template(
         desktop_name=desktop["name"],
         desktop_description=desktop["description"],
         template_id=desktop["template_id"],
@@ -423,63 +423,52 @@ def api_v3_desktop_update_storage_id(payload, desktop_id):
     )
 
 
-# @app.route("/api/v3/template/to/desktop", methods=["POST"])
-# @is_admin_or_manager_or_advanced
-# def api_v3_template_to_desktop(payload):
-#     """
-#     Endpoint to turn a template into a desktop
+@app.route("/api/v3/template/to/desktop", methods=["POST"])
+@is_not_user
+def api_v3_template_to_desktop(payload):
+    """
+    Endpoint to turn a template into a desktop
 
-#     :param payload: Data from JWT
-#     :type payload: dict
-#     :return: JSON response
-#     """
-#     try:
-#         data = request.get_json(force=True)
-#     except:
-#         raise Error(
-#             "bad_request",
-#             "Template to desktop incorrect body data",
-#             traceback.format_exc(),
-#             description_code="template_to_desktop_incorrect_body_data",
-#         )
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: JSON response
+    """
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request",
+            "Template to desktop incorrect body data",
+            traceback.format_exc(),
+            description_code="template_to_desktop_incorrect_body_data",
+        )
 
-#     data = _validate_item("template_to_desktop", data)
+    data = _validate_item("template_to_desktop", data)
+    ownsDomainId(payload, data["template_id"])
+    tree = admin.get_template_tree_list(data["template_id"], payload["user_id"])[0]
+    derivatives = templates.check_children(payload, tree)
 
-#     tree = admin.Gettemplate_tree_list(data["domain_id"], payload["user_id"])[0]
-#     derivates = templates.check_children(payload, tree)
+    # TODO: Allow to convert with derivatives
+    if len(derivatives["domains"]) > 1:
+        raise Error(
+            "precondition_required",
+            "Unable to convert template with derivatives",
+            traceback.format_exc(),
+        )
 
-#     if derivates["pending"]:
-#         raise Error(
-#             "precondition_required",
-#             "Template to desktop pending derivates",
-#             traceback.format_exc(),
-#             description_code="template_to_desktop_pending_derivates",
-#         )
-#     else:
-#         child_ids = []
+    if derivatives["pending"]:
+        raise Error(
+            "precondition_required",
+            "Template to desktop pending derivatives",
+            traceback.format_exc(),
+            description_code="template_to_desktop_pending_derivates",
+        )
 
-#         def get_children_ids(children):
-#             for child in children:
-#                 child_ids.append(child["id"])
-#                 if child.get("children"):
-#                     get_children_ids(child["children"])
+    quotas.desktop_create(payload["user_id"], 1)
+    check_storage_pool_availability(payload.get("category_id"))
 
-#         get_children_ids(tree["children"])
-
-#         data["children"] = child_ids
-
-#     if data["name"] == None or data["domain_id"] == None:
-#         raise Error(
-#             "bad_request",
-#             "Template to desktop bad body data",
-#             traceback.format_exc(),
-#             description_code="template_to_desktop_bad_body_data",
-#         )
-
-#     ownsDomainId(payload, data["domain_id"])
-#     quotas.desktop_create(payload["user_id"], 1)
-#     check_storage_pool_availability(payload.get("category_id"))
-
-#     desktops.convertTemplateToDesktop(payload, data)
-
-#     return json.dumps({}), 200, {"Content-Type": "application/json"}
+    return (
+        json.dumps(desktops.convert_template_to_desktop(data)),
+        200,
+        {"Content-Type": "application/json"},
+    )

@@ -322,6 +322,15 @@ class ApiTemplates:
             with app.app_context():
                 return list(query.run(db.conn))
 
+    def is_duplicate(self, template_id):
+        with app.app_context():
+            return (
+                r.table("domains")
+                .get(template_id)
+                .has_fields("duplicate_parent_template")
+                .run(db.conn)
+            )
+
 
 def delete_desktops_non_persistent(template_id):
     with app.app_context():

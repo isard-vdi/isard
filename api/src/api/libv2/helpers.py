@@ -995,7 +995,7 @@ def change_owner_domain_data(domain_id, user_id):
     return {"user_data": user_data, "domain_data": domain_data}
 
 
-# This has no recursion. Call Gettemplate_tree_list
+# This has no recursion. Call get_template_tree_list
 def template_tree_list(template_id):
     # Get derivated from this template (and derivated from itself)
     derivated = _derivated(template_id)
@@ -1118,7 +1118,7 @@ def get_template_with_all_derivatives(template_id, user_id=None):
     return all_domains_id
 
 
-# Call Gettemplate_tree_list. This is a subfunction only.
+# Call get_template_tree_list. This is a subfunction only.
 def template_tree_recursion(template_id, levels):
     nodes = [dict(n) for n in levels.get(template_id, [])]
     for n in nodes:

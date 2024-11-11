@@ -939,7 +939,8 @@
                 "convert": {
                     "title": {
                         "warning": "Dependency warning",
-                        "ok": "Convert template '{name}' to desktop"
+                        "ok": "Convert template '{name}' to desktop",
+                        "duplicate": "Duplicate warning"
                     },
                     "warning": {
                         "title": "To convert this template into a desktop, it must not have any dependent items.",
@@ -947,7 +948,9 @@
                         "delete": "The following resources of your property will be deleted if you convert it into a desktop. This action is irreversible.",
                         "footer": "You cannot convert this template into a desktop. Please contact the administrator.",
                         "confirm": "I'm aware that all these items will be deleted and I want proceed.",
-                        "confirm-unchecked": "You must check this box to proceed."
+                        "confirm-unchecked": "You must check this box to proceed.",
+                        "duplicate": "This template is a duplicate of another template and cannot be converted to a desktop. Please contact the administrator.",
+                        "recyclebin": "If you have recycle bin entries that depend on this template, they will be permanently deleted."
                     },
                     "info": {
                         "title": "The following changes will be made to this template:",
@@ -1422,7 +1425,9 @@
         "desktops_not_stopped": "The desktops associated with this storage must be stopped to perform this action",
         "increase_desktops_not_stopped": "The desktop associated with this storage must be stopped to increase the disk size",
         "increase_storage_has_derivatives": "The storage is from a template and can't be increased",
-        "hypervisors_not_available": "The desktop could not be started. The system may be overloaded. Please try again later."
+        "hypervisors_not_available": "The desktop could not be started. The system may be overloaded. Please try again later.",
+        "duplicate": "This template is a duplicate of another template and cannot be converted to a desktop. Please contact the administrator.",
+        "convert_template_with_derivatives": "This template has derivatives and cannot be converted to a desktop. Please contact the administrator."
     },
     "router": {
         "titles": {

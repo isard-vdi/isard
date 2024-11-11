@@ -22,6 +22,7 @@ from ..libv2.api_desktops_common import ApiDesktopsCommon
 from ..libv2.api_logging import logs_domain_event_directviewer
 from ..libv2.api_templates import ApiTemplates
 from ..libv2.quotas import Quotas
+from ..libv2.recycle_bin import delete_dependants_recycle_bin_from_templates
 
 templates = ApiTemplates()
 quotas = Quotas()
@@ -125,7 +126,7 @@ class ApiDesktopsPersistent:
             raise Error("not_found", "Desktop not found", traceback.format_exc())
         return desktop
 
-    def NewFromTemplateTh(self, desktops, deployment):
+    def new_from_templateTh(self, desktops, deployment):
         def process_desktops():
             socketio.emit(
                 "creating_desktops",
@@ -134,7 +135,7 @@ class ApiDesktopsPersistent:
                 room=[deployment["user"]] + deployment["co_owners"],
             )
             for desktop in desktops:
-                result = self.NewFromTemplate(
+                result = self.new_from_template(
                     desktop["name"],
                     desktop["description"],
                     desktop["template_id"],
@@ -163,7 +164,7 @@ class ApiDesktopsPersistent:
         # Spawn the process_desktops greenlet and return immediately
         gevent.spawn(process_desktops)
 
-    def NewFromTemplate(
+    def new_from_template(
         self,
         desktop_name,
         desktop_description,
@@ -173,6 +174,7 @@ class ApiDesktopsPersistent:
         deployment_tag_dict=False,
         new_data=None,
         image=None,
+        insert=True,
     ):
         template = get_document("domains", template_id)
         if not template:
@@ -186,7 +188,7 @@ class ApiDesktopsPersistent:
         if user is None:
             raise Error(
                 "not_found",
-                f"NewFromTemplate: user id {user_id} not found.",
+                f"new_from_template: user id {user_id} not found.",
                 description_code="not_found",
             )
 
@@ -226,7 +228,7 @@ class ApiDesktopsPersistent:
         except:
             raise Error(
                 "internal_server",
-                "NewFromTemplate: unable to parse media info.",
+                "new_from_template: unable to parse media info.",
                 description_code="unable_to_parse_media",
             )
 
@@ -289,9 +291,9 @@ class ApiDesktopsPersistent:
                 **new_desktop["create_dict"],
                 **{"reservables": create_dict["reservables"]},
             }
-
-        with app.app_context():
-            r.table("domains").insert(new_desktop).run(db.conn)
+        if insert:
+            with app.app_context():
+                r.table("domains").insert(new_desktop).run(db.conn)
         if image:
             image_data = image
             if not image_data.get("file"):
@@ -300,90 +302,55 @@ class ApiDesktopsPersistent:
                 api_cards.upload(domain_id, image_data)
         return new_desktop
 
-    def convertTemplateToDesktop(self, payload, data):
+    def convert_template_to_desktop(self, data):
         data = _validate_item("template_to_desktop", data)
+        with app.app_context():
+            template = r.table("domains").get(data["template_id"]).run(db.conn)
 
-        try:
-            with app.app_context():
-                domain = r.table("domains").get(data["domain_id"]).run(db.conn)
+        check_user_duplicated_domain_name(data["name"], template["user"], "desktop")
 
-            query_prefix = r.table("domains").get(data["domain_id"])
+        # TODO: Stop derivated running desktops
 
-            ## Set status to maintenance
-            with app.app_context():
-                query_prefix.update(
-                    {
-                        "status": "Maintenance",
-                        "detail": '"Started converting template to desktop"',
-                    }
-                ).run(db.conn)
-
-            ## Delete children if any
-            if data.get("children"):
-                try:
-                    children = data.get("children")
-                    desktops_delete(
-                        agent_id=payload["user_id"],
-                        desktops_ids=children,
-                        permanent=True,
-                    )
-                except:
-                    raise Error(
-                        "internal_server",
-                        "Template to desktop unable to delete children from template",
-                        traceback.format_exc(),
-                        description_code="template_to_desktop_delete_children",
-                    )
-
-            ## Delete deployments if any
-            deployments = templates.get_deployments_with_template(data["domain_id"])
-            if deployments:
-                for dp in deployments:
-                    with app.app_context():
-                        r.table("deployments").get(dp["id"]).delete().run(db.conn)
-
-            ## Check that the domain doesn't have an empty parents list
-            ### Empty list or None in a desktop breaks helpers.py line 229
-            if domain.get("parents") == []:
-                with app.app_context():
-                    query_prefix.replace(lambda row: row.without("parents")).run(
-                        db.conn
-                    )
-
-            ## Check if the domain name is duplicated and change it
-            if domain.get("name") != data["name"]:
-                check_user_duplicated_domain_name(
-                    data["name"], domain["user"], "desktop"
-                )
-                with app.app_context():
-                    query_prefix.update({"name": data["name"]}).run(db.conn)
-            else:
-                check_user_duplicated_domain_name(
-                    domain["name"], domain["user"], "desktop"
-                )
-
-            ## Change kind from template to desktop
-            with app.app_context():
-                query_prefix.update({"kind": "desktop"}).run(db.conn)
-
-            ## Change status to stopped and change detail
-            with app.app_context():
-                query_prefix.update(
-                    {
-                        "status": "Stopped",
-                        "detail": '"Template converted to desktop"',
-                    }
-                ).run(db.conn)
-
-        except:
+        ## check if template is a duplicate from another
+        if templates.is_duplicate(data["template_id"]):
             raise Error(
-                "internal_server",
-                "Unable to convert template to desktop",
+                "bad_request",
+                "Template to desktop is a duplicate from another template",
                 traceback.format_exc(),
-                description_code="template_to_desktop_convert",
+                description_code="duplicate",
             )
 
-        return data["domain_id"]
+        ## TODO: Permanently delete children if any
+
+        ## TODO: Delete deployments if any
+
+        desktop_data = self.new_from_template(
+            data["name"],
+            template["description"],
+            data["template_id"],
+            template["user"],
+            data["template_id"],
+            insert=False,
+        )
+        # We are updating the domain
+        new_desktop_data = {
+            "status": "Updating",
+            "create_dict": {
+                "hardware": {"disks": template["create_dict"]["hardware"]["disks"]}
+            },
+            "xml": template["xml"],
+            "parents": template["parents"] if template["parents"] else [None],
+        }
+        # Merge the new data with the existing desktop_data
+        desktop_data = {**desktop_data, **new_desktop_data}
+        # Permanently delete dependants in recycle bin
+        delete_dependants_recycle_bin_from_templates([template["id"]])
+
+        with app.app_context():
+            r.table("domains").get(data["template_id"]).update(desktop_data).run(
+                db.conn
+            )
+        return desktop_data
 
     def BulkDesktops(self, payload, data):
         selected = data["allowed"]
@@ -482,7 +449,7 @@ class ApiDesktopsPersistent:
                 "image": template["image"],
             }
             desktop_data = _validate_item("desktop_from_template", desktop_data)
-            self.NewFromTemplate(
+            self.new_from_template(
                 desktop_data["name"],
                 desktop_data["description"],
                 desktop_data["template_id"],
