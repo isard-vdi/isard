@@ -97,8 +97,8 @@ class DesktopsUsage:
             .without("events")
             .filter(
                 lambda log: (
-                    log["stopped_time"]
-                    > self.consolidation_day | log.has_fields("stopped_time").not_()
+                    (log["stopped_time"] > self.consolidation_day)
+                    | log.has_fields("stopped_time").not_()
                 )
                 & (log["started_time"] < self.consolidation_day_after)
             )
@@ -118,9 +118,11 @@ class DesktopsUsage:
             )
             .merge(
                 {
-                    "template_id": r.row["desktop_template_hierarchy"].default([None])[
-                        -1
-                    ],
+                    "template_id": r.branch(
+                        r.row["desktop_template_hierarchy"].default([]).is_empty(),
+                        None,
+                        r.row["desktop_template_hierarchy"][-1],
+                    ),
                     "deployment_id": r.row["tag"].default(None),
                 }
             )
