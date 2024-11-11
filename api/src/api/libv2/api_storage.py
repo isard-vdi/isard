@@ -440,6 +440,20 @@ def delete_storage_pool(storage_pool_id):
         raise Error("bad_request", "Default pool can't be removed")
     with app.app_context():
         r.table("storage_pool").get(storage_pool_id).delete().run(db.conn)
+    with app.app_context():
+        r.table("hypervisors").update(
+            lambda hyper: {
+                "storage_pools": hyper["storage_pools"].filter(
+                    lambda pool: pool != storage_pool_id
+                ),
+                "virt_pools": hyper["virt_pools"].filter(
+                    lambda pool: pool != storage_pool_id
+                ),
+                "enabled_virt_pools": hyper["enabled_virt_pools"].filter(
+                    lambda pool: pool != storage_pool_id
+                ),
+            }
+        ).run(db.conn)
 
 
 def _check_with_validate_weight(data):
