@@ -18,6 +18,7 @@ from api import app
 
 from ..libv2 import api_hypervisors
 from ..libv2.quotas import Quotas
+from ..libv2.validators import _validate_item
 
 quotas = Quotas()
 
@@ -337,6 +338,7 @@ def api_v3_hypervisors_virt_pools(payload, hyper_id):
 @is_admin
 def api_v3_hypervisors_virt_pools_update(payload, hyper_id):
     data = request.get_json(force=True)
+    data = _validate_item("virt_pools", data)
     api_hypervisors.update_hyper_virt_pools(hyper_id, data)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
