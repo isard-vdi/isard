@@ -218,7 +218,7 @@ function chart_html(id) {
             options = `<option value="Stopping">Force Stop</option>`
             break;
     }
-    if (!["Started", "Stopped", "Downloading", "Failed", "Shutting-down"].includes(id)) {
+    if (!["Started", "Stopped", "Downloading", "Failed", "Shutting-down", "Maintenance"].includes(id)) {
         options += `<option value="Failed">Force Failed</option>`
     }
     if (!["Started", "Stopped", "Starting", "Shutting-down", "Stopping"].includes(id)) {
