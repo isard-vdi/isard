@@ -124,6 +124,7 @@ services:
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/video.yml:/etc/agent/video.yml
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/monitor.yml:/etc/agent/monitor.yml
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/run.sh:/run.sh
+      - /opt/isard/stats/grafana-agent/custom:/custom
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers
       - /etc/timezone:/etc/timezone:ro
