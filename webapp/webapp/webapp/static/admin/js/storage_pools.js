@@ -369,7 +369,8 @@ $(document).ready(function () {
         new PNotify({
           title: "<b>WARNING</b>",
           type: "error",
-          text: "Are you sure you want to <b>delete</b> pool " + data["name"] + "?",
+          text: `Are you sure you want to <b>delete</b> pool ${data["name"]}?
+                \nNote: The storage pool deletion will only be completed after <strong>restarting the engine</strong>`,
           hide: false,
           opacity: 0.9,
           confirm: {
