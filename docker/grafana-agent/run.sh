@@ -19,4 +19,6 @@ else
     cp /etc/agent/config.yml /etc/agent/agent.yml
 fi
 
+find /custom -name "*.yml" | xargs -I% yq -i '. *+ load("%")' /etc/agent/agent.yml
+
 /bin/grafana-agent -config.file=/etc/agent/agent.yml -config.expand-env=true --metrics.wal-directory=/tmp/agent/data
