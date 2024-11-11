@@ -57,17 +57,26 @@ $(document).ready(function () {
       { "data": "id", "title": "Pool ID" },
       { "data": "name", "title": "Name" },
       { "data": "mountpoint", "title": "Mountpoint" },
-      { "data": "categories_names", "title": "Categories", "render": function(data, type, full, meta) { 
-        var categoryList = []
-        $.each(data, function(index, category){
-          categoryList.push(category["name"])
-        })
-        return categoryList.join(", ");
-      } },
       {
-        "data": "hypers", "title": "Available hypervisors", "width": "130px", "render": function (data, type, full, meta) {
+        "data": "categories_names", "title": "Categories", "render": function (data, type, full, meta) {
+          var categoryList = []
+          $.each(data, function (index, category) {
+            categoryList.push(category["name"])
+          })
+          return categoryList.join(", ");
+        }
+      },
+      {
+        "data": "storages", "title": "Available Disk Op", "width": "130px", "render": function (data, type, full, meta) {
           return (data == 0 && full.enabled) ?
-            `<i title="No hypervisors available for this pool. Disk operations will fail" class="fa fa-warning" style="color:red;"> ${data}</i> ` :
+            `<i title="No disk operations available for this pool. Disk operations will fail" class="fa fa-warning" style="color:red;"> ${data}</i> ` :
+            data
+        }
+      },
+      {
+        "data": "hypers", "title": "Available Virt Op", "width": "130px", "render": function (data, type, full, meta) {
+          return (data == 0 && full.enabled) ?
+            `<i title="No hypervisors virt operations available for this pool. Virt operations will fail" class="fa fa-warning" style="color:red;"> ${data}</i> ` :
             data
         }
       },
@@ -118,7 +127,7 @@ $(document).ready(function () {
     ],
   })
 
-  $('.btn-add-new').on('click', function(){
+  $('.btn-add-new').on('click', function () {
     $("#modalAddStoragePool #modalAdd")[0].reset();
     $("#modalAddStoragePool #category").select2({
       dropdownParent: $("#modalAddStoragePool"),
@@ -129,7 +138,7 @@ $(document).ready(function () {
     addDefaultCheckboxListeners("#modalAdd", $("#modalAdd .checkbox .default-cb"));
     $("#modalAdd .checkbox .default-cb").trigger("ifUnchecked");
     $(`#modalAdd .table-wrapper input`).attr("disabled", false);
-    
+
     $("#modalAddStoragePool").modal({
       backdrop: "static",
       keyboard: false,
@@ -137,7 +146,7 @@ $(document).ready(function () {
     $("#modalAddStoragePool #modalAdd").parsley();
   });
 
-  $('#storage_pools tbody').on('click', 'button', function(e){
+  $('#storage_pools tbody').on('click', 'button', function (e) {
     tr = $(this).closest("tr");
     data = storage_pools_table.row($(this).parents('tr')).data();
     row = storage_pools_table.row(tr)
@@ -171,64 +180,64 @@ $(document).ready(function () {
             type: 'error'
           });
         } else {
-        $("#modalEditStoragePool #modalEdit #category").attr("disabled", isDefault);
-        $("#modalEditStoragePool #modalEdit #name").attr("disabled", isDefault);
-        $("#modalEditStoragePool #modalEdit #description").attr("disabled", isDefault);
-        $("#modalEditStoragePool #modalEdit #mountpoint").attr("disabled", isDefault);
-        
-        $("#modalEditStoragePool #modalEdit")[0].reset();
-        $('#modalEdit #pathsTableEdit tbody').html('');
-        $("#modalEditStoragePool #category").select2({
-          dropdownParent: $("#modalEditStoragePool"),
-        });
-        populateCategory("#modalEditStoragePool", data.categories);
-            
-        $("#modalEditStoragePool").modal({
-          backdrop: "static",
-          keyboard: false,
-        }).modal("show");
-        $("#modalEditStoragePool #modalEdit").parsley();
-        $("#modalEdit #id").val(data.id);
-        $("#modalEdit #name").val(data.name);
-        $("#modalEdit #description").val(data.description);
+          $("#modalEditStoragePool #modalEdit #category").attr("disabled", isDefault);
+          $("#modalEditStoragePool #modalEdit #name").attr("disabled", isDefault);
+          $("#modalEditStoragePool #modalEdit #description").attr("disabled", isDefault);
+          $("#modalEditStoragePool #modalEdit #mountpoint").attr("disabled", isDefault);
 
-        var fullMountpoint = data.mountpoint.split("/");
-        var mountpointVar = fullMountpoint.pop();
+          $("#modalEditStoragePool #modalEdit")[0].reset();
+          $('#modalEdit #pathsTableEdit tbody').html('');
+          $("#modalEditStoragePool #category").select2({
+            dropdownParent: $("#modalEditStoragePool"),
+          });
+          populateCategory("#modalEditStoragePool", data.categories);
 
-        $("#modalEdit .path_base_mountpoint").text(fullMountpoint.join("/") + "/")
+          $("#modalEditStoragePool").modal({
+            backdrop: "static",
+            keyboard: false,
+          }).modal("show");
+          $("#modalEditStoragePool #modalEdit").parsley();
+          $("#modalEdit #id").val(data.id);
+          $("#modalEdit #name").val(data.name);
+          $("#modalEdit #description").val(data.description);
 
-        $("#modalEdit #mountpoint").val(mountpointVar);
-        $('#modalEdit #startable').iCheck(data.startable ? 'check' : 'uncheck').iCheck('update');
-        $('#modalEdit #read').iCheck(data.read ? 'check' : 'uncheck').iCheck('update');
-        $('#modalEdit #write').iCheck(data.write ? 'check' : 'uncheck').iCheck('update');
-        
-        const pathsTableEdit = $('#modalEdit #pathsTableEdit tbody')[0];
-        paths = data.paths;
+          var fullMountpoint = data.mountpoint.split("/");
+          var mountpointVar = fullMountpoint.pop();
 
-        for (const type in paths) {
-          title = `<i class="fa ${getTypeDefaultValue(type).icon} fa-1x"></i><b id="${type}"> ${getTypeDefaultValue(type).title}</b>`;
-          const pathArray = paths[type];
-          if (pathArray.length == 0) {
-            var row = renderNewRow(type, null) + `<tr><td colspan="100%" style="border-top: 3px solid rgb(221, 221, 221);"></td></tr>`;
-            $('#modalEdit #pathsTableEdit tbody').append(row);
-            addDefaultCheckboxListeners("#modalEdit", $('#modalEdit #'+ type +' .default-cb'));
-            $('#modalEdit #'+ type +' .default-cb').iCheck('check').iCheck('update').trigger('ifChecked');
-          }
-         
-          for (let i = 0; i < pathArray.length; i++) {
-            const pathObj = pathArray[i];
-            const row = pathsTableEdit.insertRow();
-            row.setAttribute('id', type);
+          $("#modalEdit .path_base_mountpoint").text(fullMountpoint.join("/") + "/")
 
-            const checkboxCell = row.insertCell(0);
-            const typeCell = row.insertCell(1);
-            typeCell.setAttribute('id', 'type');
-            const pathCell = row.insertCell(2);
-            const weightCell = row.insertCell(3);
-            const buttonAddDelCell = row.insertCell(4);
-            checkboxCell.innerHTML = "";
-            if (i == 0) {
-              checkboxCell.innerHTML = `<div class="checkbox"><label class="">
+          $("#modalEdit #mountpoint").val(mountpointVar);
+          $('#modalEdit #startable').iCheck(data.startable ? 'check' : 'uncheck').iCheck('update');
+          $('#modalEdit #read').iCheck(data.read ? 'check' : 'uncheck').iCheck('update');
+          $('#modalEdit #write').iCheck(data.write ? 'check' : 'uncheck').iCheck('update');
+
+          const pathsTableEdit = $('#modalEdit #pathsTableEdit tbody')[0];
+          paths = data.paths;
+
+          for (const type in paths) {
+            title = `<i class="fa ${getTypeDefaultValue(type).icon} fa-1x"></i><b id="${type}"> ${getTypeDefaultValue(type).title}</b>`;
+            const pathArray = paths[type];
+            if (pathArray.length == 0) {
+              var row = renderNewRow(type, null) + `<tr><td colspan="100%" style="border-top: 3px solid rgb(221, 221, 221);"></td></tr>`;
+              $('#modalEdit #pathsTableEdit tbody').append(row);
+              addDefaultCheckboxListeners("#modalEdit", $('#modalEdit #' + type + ' .default-cb'));
+              $('#modalEdit #' + type + ' .default-cb').iCheck('check').iCheck('update').trigger('ifChecked');
+            }
+
+            for (let i = 0; i < pathArray.length; i++) {
+              const pathObj = pathArray[i];
+              const row = pathsTableEdit.insertRow();
+              row.setAttribute('id', type);
+
+              const checkboxCell = row.insertCell(0);
+              const typeCell = row.insertCell(1);
+              typeCell.setAttribute('id', 'type');
+              const pathCell = row.insertCell(2);
+              const weightCell = row.insertCell(3);
+              const buttonAddDelCell = row.insertCell(4);
+              checkboxCell.innerHTML = "";
+              if (i == 0) {
+                checkboxCell.innerHTML = `<div class="checkbox"><label class="">
                                             <div class="icheckbox_flat-green" style="position: relative;">
                                               <input type="checkbox" name="default-${type}" data-type="${type}" class="flat default-cb" style="position: absolute; opacity: 0;">
                                               <ins class="iCheck-helper"
@@ -237,50 +246,50 @@ $(document).ready(function () {
                                             </div>
                                           </label>
                                         </div>`
-              addDefaultCheckboxListeners("#modalEdit", $(checkboxCell).find("input"));
-            }
-            pathText = "";
-            if (isDefault) {
-              pathText = pathObj.path.split(getTypeDefaultValue(type).path + "/")[1];
-              pathText = pathText ? pathText : "";
+                addDefaultCheckboxListeners("#modalEdit", $(checkboxCell).find("input"));
+              }
+              pathText = "";
+              if (isDefault) {
+                pathText = pathObj.path.split(getTypeDefaultValue(type).path + "/")[1];
+                pathText = pathText ? pathText : "";
 
-            } else {
-              pathText = pathObj.path;
-            }
-            typeCell.innerHTML = title;
-            pathCell.innerHTML = `<span class="path_base"></span><input id="path" name="${type}-path" class="roundbox" pattern="^[\\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇa-zA-Z0-9]+$" data-parsley-trigger="change" type="text" value="${pathText}">`;
-            weightCell.innerHTML = `<input id="weight" name="${type}-weight" type="number" value="${pathObj.weight}">`;
-            buttonAddDelCell.innerHTML = `<input id='modalEdit-addrow-${type}' type='button' value='+' onclick='addRow("${type}", "modalEdit", ${isDefault})'/> \
+              } else {
+                pathText = pathObj.path;
+              }
+              typeCell.innerHTML = title;
+              pathCell.innerHTML = `<span class="path_base"></span><input id="path" name="${type}-path" class="roundbox" pattern="^[\\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇa-zA-Z0-9]+$" data-parsley-trigger="change" type="text" value="${pathText}">`;
+              weightCell.innerHTML = `<input id="weight" name="${type}-weight" type="number" value="${pathObj.weight}">`;
+              buttonAddDelCell.innerHTML = `<input id='modalEdit-addrow-${type}' type='button' value='+' onclick='addRow("${type}", "modalEdit", ${isDefault})'/> \
                                           <input class='modalEdit-delrow-${type}' type='button' value='-' onclick='delRow("${type}", "modalEdit")'/>`;
 
-            if (i === pathArray.length - 1) {
-              const additionalRow = pathsTableEdit.insertRow();
-              const additionalCell = additionalRow.insertCell();
-              additionalCell.setAttribute('colspan', '100%');
-              additionalCell.style.borderTop = '3px solid rgb(221, 221, 221)';
-            }
-          }  
-        }
-
-        if (isDefault) {
-          $("#modalEdit #category").attr("disabled", true);
-          $("#modalEditStoragePool #modalEdit .checkbox").remove();
-          $.each($("#modalEdit #pathsTableEdit tr input"), function () {
-            if ($(this).attr("name")) {
-              var type = $(this).attr("name").split("-")[0];
-              $(this).siblings("span").text(getTypeDefaultValue(type).path);
-              if ($(this).val().length == 0) {
-                $(this).remove();
-              } else {
-                $(this).siblings("span").text(getTypeDefaultValue(type).path + "/");
+              if (i === pathArray.length - 1) {
+                const additionalRow = pathsTableEdit.insertRow();
+                const additionalCell = additionalRow.insertCell();
+                additionalCell.setAttribute('colspan', '100%');
+                additionalCell.style.borderTop = '3px solid rgb(221, 221, 221)';
               }
             }
-          });
-        } else {
-          $("#modalEdit #category").attr("disabled", false);
+          }
+
+          if (isDefault) {
+            $("#modalEdit #category").attr("disabled", true);
+            $("#modalEditStoragePool #modalEdit .checkbox").remove();
+            $.each($("#modalEdit #pathsTableEdit tr input"), function () {
+              if ($(this).attr("name")) {
+                var type = $(this).attr("name").split("-")[0];
+                $(this).siblings("span").text(getTypeDefaultValue(type).path);
+                if ($(this).val().length == 0) {
+                  $(this).remove();
+                } else {
+                  $(this).siblings("span").text(getTypeDefaultValue(type).path + "/");
+                }
+              }
+            });
+          } else {
+            $("#modalEdit #category").attr("disabled", false);
+          }
         }
-      }
-       break;
+        break;
       case 'btn-enable':
         let change = data["enabled"] ? "disable" : "enable";
 
@@ -312,16 +321,16 @@ $(document).ready(function () {
           },
           addclass: 'pnotify-center-large',
           width: '550'
-        }).get().on('pnotify.confirm', function() {
+        }).get().on('pnotify.confirm', function () {
           $.ajax({
             type: "PUT",
-            url: "/admin/storage_pool/"+data["id"],
-            data: JSON.stringify({'name':data["name"], 'enabled': !data.enabled}),
+            url: "/admin/storage_pool/" + data["id"],
+            data: JSON.stringify({ 'name': data["name"], 'enabled': !data.enabled }),
             contentType: "application/json",
             success: function (data) {
               new PNotify({
-                title: 'Pool ' + change +'d successfully',
-                text:  msg,
+                title: 'Pool ' + change + 'd successfully',
+                text: msg,
                 hide: true,
                 delay: 7000,
                 icon: 'fa fa-' + data.icon,
@@ -342,11 +351,11 @@ $(document).ready(function () {
               });
             }
           });
-        }).on('pnotify.cancel', function() {});
+        }).on('pnotify.cancel', function () { });
         break;
       case 'btn-delete':
         isDefault = isDefaultPool(data.id);
-        if(isDefault){
+        if (isDefault) {
           return new PNotify({
             title: "ERROR deleting pool",
             text: "Default pool can't be removed",
@@ -360,7 +369,8 @@ $(document).ready(function () {
         new PNotify({
           title: "<b>WARNING</b>",
           type: "error",
-          text: "Are you sure you want to <b>delete</b> pool " + data["name"] + "?",
+          text: `Are you sure you want to <b>delete</b> pool ${data["name"]}?
+                \nNote: The storage pool deletion will only be completed after <strong>restarting the engine</strong>`,
           hide: false,
           opacity: 0.9,
           confirm: {
@@ -378,7 +388,7 @@ $(document).ready(function () {
         }).get().on("pnotify.confirm", function () {
           $.ajax({
             type: "DELETE",
-            url: "/admin/storage_pool/"+data["id"],
+            url: "/admin/storage_pool/" + data["id"],
             contentType: "application/json",
             success: function (data) {
               new PNotify({
@@ -404,7 +414,7 @@ $(document).ready(function () {
               });
             }
           });
-        }).on("pnotify.cancel", function () {});
+        }).on("pnotify.cancel", function () { });
         break;
     }
   });
@@ -476,7 +486,7 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
     // data['startable'] = 'startable' in data ? true : false;
     // data['read'] = 'read' in data ? true : false;
     // data['write'] = 'write' in data ? true : false;
-    data["allowed"] = {"roles": false, "categories": false, "groups": false, "users": false}
+    data["allowed"] = { "roles": false, "categories": false, "groups": false, "users": false }
     e.preventDefault();
     var pathsTableAdd = {};
     var isDefault = isDefaultPool(data.id);
@@ -490,7 +500,7 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
         if (!pathsTableAdd[type]) {
           pathsTableAdd[type] = [];
         }
-        if (isDefault){
+        if (isDefault) {
           path = (getTypeDefaultValue(type).path + "/" + path).replace(/\/$/, '')
         }
         if (data["default-" + type] != 'on') {
@@ -564,8 +574,8 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
     e.preventDefault();
     var pathsTableEdit = {};
     isDefault = isDefaultPool(data.id)
-    $('#pathsTableEdit tbody tr').each(function() {
-      if($(this).attr("id") != undefined){
+    $('#pathsTableEdit tbody tr').each(function () {
+      if ($(this).attr("id") != undefined) {
         var type = $(this).attr("id");
         var weight = parseInt($(this).find('#weight').val());
         var path = $(this).find('#path').val();
@@ -573,7 +583,7 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
         if (!pathsTableEdit[type]) {
           pathsTableEdit[type] = [];
         }
-        if (isDefault){
+        if (isDefault) {
           path = (getTypeDefaultValue(type).path + "/" + path).replace(/\/$/, '')
         }
 
@@ -656,7 +666,7 @@ function updateStoragePool(data) {
     success: function (data) {
       notice.update({
         title: 'Updated',
-        text: 'Pool updated successfully', 
+        text: 'Pool updated successfully',
         hide: true,
         delay: 1000,
         icon: 'fa fa-' + data.icon,
@@ -684,7 +694,7 @@ function updateStoragePool(data) {
 function addPath(path, mountpoint) {
   $(path).empty();
   $.each($(path), function () {
-    $(this).text(`/isard/storage_pools/${mountpoint ?  mountpoint : ""}`);
+    $(this).text(`/isard/storage_pools/${mountpoint ? mountpoint : ""}`);
   });
 }
 
@@ -694,11 +704,11 @@ function addDefaultCheckboxListeners(modal, checkbox) {
     checkboxClass: 'icheckbox_flat-green',
   });
   $(checkbox).attr("disabled", false);
-  checkbox.on('ifChecked', function() {
+  checkbox.on('ifChecked', function () {
     $(modal + ` .table-wrapper tr#${$(this).data("type")} input`).attr("disabled", true)
     $($(this)).attr("disabled", false);
   })
-  checkbox.on('ifUnchecked', function() {
+  checkbox.on('ifUnchecked', function () {
     $(modal + ` .table-wrapper tr#${$(this).data("type")} input`).attr("disabled", false);
   })
 }
@@ -715,12 +725,12 @@ function getTypeDefaultValue(type) {
       "icon": "fa-circle-o",
       "title": "Media"
     },
-    "template" : {
+    "template": {
       "path": "templates",
       "icon": "fa-cubes",
       "title": "Template"
     },
-    "volatile" : {
+    "volatile": {
       "path": "volatile",
       "icon": "fa-clock-o",
       "title": "Volatile"

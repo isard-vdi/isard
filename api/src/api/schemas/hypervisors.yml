@@ -81,6 +81,12 @@ storage_pools:
   schema:
     type: string
     coerce: sanitize
+virt_pools:
+  type: list
+  default_setter: storagepools
+  schema:
+    type: string
+    coerce: sanitize
 buffering_hyper:
   type: boolean
 gpu_only:

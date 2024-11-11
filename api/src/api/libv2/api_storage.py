@@ -379,11 +379,18 @@ def get_storage_pools():
                         .pluck("name", "id")
                         .coerce_to("array"),
                     ),
-                    "hypers": r.table("hypervisors")
+                    "storages": r.table("hypervisors")
                     .filter(
                         lambda hyper: hyper["status"] == "Online"
                         and hyper["enabled"] == True
                         and hyper["storage_pools"].contains(pool["id"])
+                    )
+                    .count(),
+                    "hypers": r.table("hypervisors")
+                    .filter(
+                        lambda hyper: hyper["status"] == "Online"
+                        and hyper["enabled"] == True
+                        and hyper["enabled_virt_pools"].contains(pool["id"])
                     )
                     .count(),
                     "is_default": pool["id"].eq(DEFAULT_STORAGE_POOL_ID),
@@ -433,6 +440,20 @@ def delete_storage_pool(storage_pool_id):
         raise Error("bad_request", "Default pool can't be removed")
     with app.app_context():
         r.table("storage_pool").get(storage_pool_id).delete().run(db.conn)
+    with app.app_context():
+        r.table("hypervisors").update(
+            lambda hyper: {
+                "storage_pools": hyper["storage_pools"].filter(
+                    lambda pool: pool != storage_pool_id
+                ),
+                "virt_pools": hyper["virt_pools"].filter(
+                    lambda pool: pool != storage_pool_id
+                ),
+                "enabled_virt_pools": hyper["enabled_virt_pools"].filter(
+                    lambda pool: pool != storage_pool_id
+                ),
+            }
+        ).run(db.conn)
 
 
 def _check_with_validate_weight(data):

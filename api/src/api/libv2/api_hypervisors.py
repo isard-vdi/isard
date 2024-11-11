@@ -28,7 +28,7 @@ from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from rethinkdb.errors import ReqlNonExistenceError
 
-from ..libv2.caches import get_category_storage_pools, get_default_storage_pool
+from ..libv2.caches import get_category_storage_pool_id, get_default_storage_pool
 from ..libv2.isardVpn import isardVpn
 from .api_desktop_events import desktops_stop
 
@@ -297,6 +297,8 @@ class ApiHypervisors:
         min_free_mem_gb=0,
         min_free_gpu_mem_gb=0,
         storage_pools=[DEFAULT_STORAGE_POOL_ID],
+        virt_pools=[],
+        enabled_virt_pools=[],
         buffering_hyper=False,
         gpu_only=False,
     ):
@@ -326,6 +328,8 @@ class ApiHypervisors:
                 min_free_mem_gb=min_free_mem_gb,
                 min_free_gpu_mem_gb=min_free_gpu_mem_gb,
                 storage_pools=storage_pools,
+                virt_pools=virt_pools,
+                enabled_virt_pools=enabled_virt_pools,
                 buffering_hyper=buffering_hyper,
                 gpu_only=gpu_only,
             )
@@ -361,6 +365,8 @@ class ApiHypervisors:
                 min_free_mem_gb=min_free_mem_gb,
                 min_free_gpu_mem_gb=min_free_gpu_mem_gb,
                 storage_pools=storage_pools,
+                virt_pools=virt_pools,
+                enabled_virt_pools=enabled_virt_pools,
                 buffering_hyper=buffering_hyper,
                 gpu_only=gpu_only,
             )
@@ -410,6 +416,8 @@ class ApiHypervisors:
         min_free_mem_gb=0,
         min_free_gpu_mem_gb=0,
         storage_pools=[DEFAULT_STORAGE_POOL_ID],
+        virt_pools=[],
+        enabled_virt_pools=[],
         buffering_hyper=False,
         gpu_only=False,
     ):
@@ -449,11 +457,15 @@ class ApiHypervisors:
             "min_free_mem_gb": min_free_mem_gb,
             "min_free_gpu_mem_gb": min_free_gpu_mem_gb,
             "storage_pools": storage_pools,
+            "virt_pools": virt_pools,
             "buffering_hyper": buffering_hyper,
             "gpu_only": gpu_only,
         }
 
         hypervisor = _validate_item("hypervisors", hypervisor)
+        hypervisor["enabled_virt_pools"] = (
+            enabled_virt_pools or virt_pools or storage_pools
+        )
 
         with app.app_context():
             result = (
@@ -877,6 +889,70 @@ class ApiHypervisors:
                 "not_found", "Hypervisor with ID " + hyper_id + " does not exist."
             )
 
+    def get_hyper_virt_pools(self, hyper_id):
+        with app.app_context():
+            storage_pools = list(
+                r.table("storage_pool")
+                .merge(lambda sp: {"categories": sp["categories"].count()})
+                .run(db.conn)
+            )
+        with app.app_context():
+            hypervisor_pools = (
+                r.table("hypervisors")
+                .get(hyper_id)
+                .pluck("virt_pools", "enabled_virt_pools")
+                .run(db.conn)
+            )
+        # hypervisor virt_pools is storage_pool ids or less than that
+        return [
+            {
+                "id": sp["id"],
+                "name": sp["name"],
+                "categories": sp["categories"],
+                "enabled": sp["enabled"],
+                "available": sp["id"] in hypervisor_pools.get("virt_pools", []),
+                "enabled_virt_pool": sp["id"]
+                in hypervisor_pools.get("enabled_virt_pools", []),
+            }
+            for sp in storage_pools
+        ]
+
+    def update_hyper_virt_pools(self, hyper_id, virt_pool_data):
+        virt_pool_id = virt_pool_data["id"]
+        enable_virt_pool = virt_pool_data["enable_virt_pool"]
+        with app.app_context():
+            virts = (
+                r.table("hypervisors")
+                .get(hyper_id)
+                .pluck("virt_pools", "enabled_virt_pools")
+                .run(db.conn)
+            )
+        enabled_virt_pools = virts.get("enabled_virt_pools", [])
+        if virt_pool_id not in virts.get("virt_pools", []):
+            raise Error(
+                "precondition_required",
+                "Virt pool with ID "
+                + virt_pool_id
+                + " is not available for hypervisor.",
+            )
+        if enable_virt_pool is True:
+            if virt_pool_id not in enabled_virt_pools:
+                virt_pools = enabled_virt_pools + [virt_pool_id]
+                with app.app_context():
+                    r.table("hypervisors").get(hyper_id).update(
+                        {"enabled_virt_pools": virt_pools}
+                    ).run(db.conn)
+        else:
+            if virt_pool_id in enabled_virt_pools:
+                enabled_virt_pools.remove(virt_pool_id)
+            with app.app_context():
+                r.table("hypervisors").get(hyper_id).update(
+                    {
+                        "enabled_virt_pools": enabled_virt_pools,
+                    }
+                ).run(db.conn)
+        return True
+
     def get_hyper_mountpoints(self, hyper_id):
         with app.app_context():
             status = (
@@ -933,43 +1009,36 @@ class ApiHypervisors:
 
 @cached(cache=TTLCache(maxsize=50, ttl=10))
 def check_storage_pool_availability(category_id=None):
+    # Check category storage pools for category. Will raise error if no storage pool available
+    storage_pool_id = get_category_storage_pool_id(category_id)
+
     # Hypervisors online
     with app.app_context():
         hypers_online = list(
-            r.table("hypervisors")
-            .filter({"status": "Online", "enabled": True, "only_forced": False})
-            .pluck("storage_pools")
+            r.table("hypervisors").filter({"status": "Online", "enabled": True})
+            # .filter(
+            #     r.row["enabled_virt_pools"]
+            #     .default(r.row["storage_pools"])
+            #     .contains(storage_pool_id)
+            # )
             .run(db.conn)
         )
+    ## NOTE_ default storage pool just for backward hypers compatibility, can be removed in future
+    hypers_online = [
+        hyper
+        for hyper in hypers_online
+        if storage_pool_id
+        in hyper.get("enabled_virt_pools", hyper.get("storage_pools", []))
+    ]
     if not len(hypers_online):
         raise Error(
             "precondition_required",
-            "No storage pool hypervisor available in system",
+            f"No hypervisor available for category {category_id} with storage pool {storage_pool_id}",
             description_code="no_storage_pool_available",
         )
 
-    # Check category storage pools for category
-    storage_pools = get_category_storage_pools(category_id)
-    ## As only one category per pool is allowed. This should not happen.
-    if len(storage_pools) > 1:
-        raise Error(
-            "internal_server",
-            f"More than one storage pool available for category {category_id}",
-            description_code="no_storage_pool_available",
-        )
-    if not len(storage_pools) or category_id is None:
-        # Check if default storage pool is available
-        default_storage_pool = get_default_storage_pool()
-        if not default_storage_pool.get("enabled"):
-            raise Error(
-                "precondition_required",
-                "No storage pool available",
-                description_code="no_storage_pool_available",
-            )
-        storage_pools = [DEFAULT_STORAGE_POOL_ID]
-    storage_pool = storage_pools[0]
     for hyper in hypers_online:
-        if storage_pool in hyper.get("storage_pools", []):
+        if storage_pool_id in hyper.get("storage_pools", []):
             return True
     raise Error(
         "precondition_required",

@@ -162,8 +162,15 @@ class BalancerInterface:
             self._balancer = Balancer_less_cpu_till_low_ram_percent()
 
     def get_next_hypervisor(
-        self, forced_hyp=None, favourite_hyp=None, reservables=None, force_gpus=None
+        self,
+        forced_hyp=None,
+        favourite_hyp=None,
+        reservables=None,
+        force_gpus=None,
+        category_id=None,
     ):
+        # Get list of hypervisors online for category_id
+
         # Desktop does not have vgpu
         if (
             not reservables
@@ -171,7 +178,9 @@ class BalancerInterface:
             or not len(reservables.get("vgpus", []))
         ):
             return (
-                self._get_next_capabilities_virt(forced_hyp, favourite_hyp),
+                self._get_next_capabilities_virt(
+                    forced_hyp, favourite_hyp, category_id
+                ),
                 {},
             )
 
@@ -187,7 +196,7 @@ class BalancerInterface:
             forced_gpus_hypervisors = None
 
         hypervisor, extra = self._get_next_capabilities_virt_gpus(
-            forced_hyp, favourite_hyp, gpu_profile, forced_gpus_hypervisors
+            forced_hyp, favourite_hyp, gpu_profile, forced_gpus_hypervisors, category_id
         )
 
         # If no hypervisor with gpu available and online, return False
@@ -238,8 +247,12 @@ class BalancerInterface:
         ),
         return hyper_selected
 
-    def _get_next_capabilities_virt(self, forced_hyp=None, favourite_hyp=None):
-        hypers = get_hypers_online(self.id_pool, forced_hyp, favourite_hyp)
+    def _get_next_capabilities_virt(
+        self, forced_hyp=None, favourite_hyp=None, category_id=None
+    ):
+        hypers = get_hypers_online(
+            self.id_pool, forced_hyp, favourite_hyp, category_id=category_id
+        )
         hypers_w_threads = get_pools_threads_running(hypers)
         if len(hypers) != len(hypers_w_threads):
             logs.main.error("####################### BALANCER #######################")
@@ -278,6 +291,7 @@ class BalancerInterface:
         favourite_hyp=None,
         gpu_profile=None,
         forced_gpus_hypervisors=None,
+        category_id=None,
     ):
         gpu_hypervisors_online = get_hypers_gpu_online(
             self.id_pool,
@@ -285,6 +299,7 @@ class BalancerInterface:
             favourite_hyp,
             gpu_profile,
             forced_gpus_hypervisors,
+            category_id=category_id,
         )
         hypers_w_threads = get_pools_threads_running(gpu_hypervisors_online)
         if len(gpu_hypervisors_online) != len(hypers_w_threads):

@@ -29,6 +29,20 @@ from .db import rethink
     cache=TTLCache(maxsize=1, ttl=10),
     key=lambda connection: "storage_pools",
 )
+def get_all_storage_pools(connection):
+    storage_pools = []
+    for sp in r.table("storage_pool").run(connection):
+        if sp["id"] == DEFAULT_STORAGE_POOL_ID:
+            sp = _parse_default_storage_pool_paths(sp)
+        storage_pools.append(sp)
+    return storage_pools
+
+
+@rethink
+@cached(
+    cache=TTLCache(maxsize=1, ttl=10),
+    key=lambda connection: "storage_pools",
+)
 def get_storage_pools(connection):
     storage_pools = []
     for sp in r.table("storage_pool").filter({"enabled": True}).run(connection):
@@ -38,18 +52,19 @@ def get_storage_pools(connection):
     return storage_pools
 
 
-def get_storage_pool_ids():
-    return [sp["id"] for sp in get_storage_pools()]
+def get_storage_pool_ids(only_enabled=True):
+    if only_enabled:
+        return [sp["id"] for sp in get_storage_pools()]
+    return [sp["id"] for sp in get_all_storage_pools()]
 
 
 def get_category_storage_pool(category_id):
     sps = get_storage_pools()
-    default = {}
+    default = None
     for sp in sps:
-        # default = uuid4 with zeroes
+        # If no category is found, return default storage pool
         if sp["id"] == DEFAULT_STORAGE_POOL_ID:
             default = sp
-        # TODO: Check if disabled storage?
         if category_id in sp.get("categories", []):
             return _parse_category_storage_pool_paths(sp, category_id)
     return default
@@ -60,7 +75,10 @@ def get_default_storage_pool():
 
 
 def get_category_storage_pool_id(category_id):
-    return get_category_storage_pool(category_id)["id"]
+    storage_pool = get_category_storage_pool(category_id)
+    if storage_pool is None:
+        return None
+    return storage_pool["id"]
 
 
 def _parse_category_storage_pool_paths(pool, category_id):

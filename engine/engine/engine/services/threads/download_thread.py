@@ -482,7 +482,11 @@ class DownloadChangesThread(threading.Thread):
             extension = dict_changes["kind"]
 
         pool_id = get_category_storage_pool_id(dict_changes["category"])
-
+        if pool_id is None:
+            logs.downloads.error(
+                f"DOWNLOAD_CHANGES_THREAD: pool_id not available for category {dict_changes['category']}"
+            )
+            return
         new_file_path, path_selected = get_path_to_disk(
             relative_path=relative_path,
             category_id=dict_changes["category"],
@@ -538,8 +542,14 @@ class DownloadChangesThread(threading.Thread):
         cmds = create_cmds_delete_disk(d_media["path_downloaded"])
 
         # change for other pools when pools are implemented in all media
+        pool_id = get_category_storage_pool_id(dict_changes["category"])
+        if pool_id is None:
+            logs.downloads.error(
+                f"DOWNLOAD_CHANGES_THREAD: pool_id not available for category {dict_changes['category']}"
+            )
+            return
         next_hyp = self.manager.diskoperations_pools[
-            get_category_storage_pool_id(dict_changes["category"])
+            pool_id
         ].balancer.get_next_diskoperations()
         logs.downloads.debug(
             "hypervisor where delete media {}: {}".format(
@@ -658,6 +668,11 @@ class DownloadChangesThread(threading.Thread):
 
     def execute(self, action, dict_changes, extra=None):
         pool_id = get_category_storage_pool_id(dict_changes["category"])
+        if pool_id is None:
+            logs.downloads.error(
+                f"DOWNLOAD_CHANGES_THREAD: pool_id not available for category {dict_changes['category']}"
+            )
+            return
         next_diskop = self.manager.diskoperations_pools[
             pool_id
         ].balancer.get_next_diskoperations()

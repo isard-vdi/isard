@@ -18,6 +18,7 @@ from api import app
 
 from ..libv2 import api_hypervisors
 from ..libv2.quotas import Quotas
+from ..libv2.validators import _validate_item
 
 quotas = Quotas()
 
@@ -119,9 +120,17 @@ def api_v3_hypervisor(hyper_id=False):
             min_free_mem_gb = int(
                 request.form.get("min_free_mem_gb", default="0", type=str)
             )
+
             storage_pools = request.form.get(
                 "storage_pools", default=DEFAULT_STORAGE_POOL_ID, type=str
-            ).split(",")
+            )
+            virt_pools = request.form.get("virt_pools", default=storage_pools, type=str)
+            if virt_pools == "":
+                virt_pools = enabled_virt_pools = storage_pools.split(",")
+            else:
+                virt_pools = virt_pools.split(",")
+                enabled_virt_pools = virt_pools
+            storage_pools = storage_pools.split(",")
             buffering_hyper = json.loads(
                 request.form.get("buffering_hyper", default="false", type=str).lower()
             )
@@ -153,6 +162,8 @@ def api_v3_hypervisor(hyper_id=False):
             only_forced=only_forced,
             min_free_mem_gb=min_free_mem_gb,
             storage_pools=storage_pools,
+            virt_pools=virt_pools,
+            enabled_virt_pools=enabled_virt_pools,
             buffering_hyper=buffering_hyper,
             gpu_only=gpu_only,
         )
@@ -314,6 +325,22 @@ def api_v3_orch_hyper_manage(payload, hypervisor_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/hypervisor/<hyper_id>/virt_pools", methods=["GET"])
+@is_admin
+def api_v3_hypervisors_virt_pools(payload, hyper_id):
+    virt_pools = api_hypervisors.get_hyper_virt_pools(hyper_id)
+    return json.dumps(virt_pools), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/hypervisor/<hyper_id>/virt_pools", methods=["PUT"])
+@is_admin
+def api_v3_hypervisors_virt_pools_update(payload, hyper_id):
+    data = request.get_json(force=True)
+    data = _validate_item("virt_pools", data)
+    api_hypervisors.update_hyper_virt_pools(hyper_id, data)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/hypervisor/mountpoints/<hyper_id>", methods=["GET"])
