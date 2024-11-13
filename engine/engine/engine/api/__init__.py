@@ -75,11 +75,13 @@ def engine_status(payload):
         app.logger.debug(
             "----------------------------------STORAGE POOLS----------------------------------"
         )
-        app.logger.debug("enabled_storage_pools: {}".format(enabled_storage_pools))
         app.logger.debug(
-            "app.m.diskoperations_pools.keys(): {}".format(
-                app.m.diskoperations_pools.keys()
+            "enabled_storage_pools: {}".format(
+                [esp["id"] for esp in enabled_storage_pools]
             )
+        )
+        app.logger.debug(
+            "diskoperations_pools: {}".format(app.m.diskoperations_pools.keys())
         )
         for esp in enabled_storage_pools:
             if not esp["id"] in app.m.diskoperations_pools.keys():
