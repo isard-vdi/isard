@@ -457,6 +457,7 @@ def get_hypers_online(
             "storage_pools",
             "virt_pools",
             "enabled_virt_pools",
+            "info",
             "stats",
             "mountpoints",
             "min_free_mem_gb",
@@ -622,10 +623,14 @@ def get_hypers_gpu_online(
             "id",
             "only_forced",
             "gpu_only",
+            "storage_pools",
+            "virt_pools",
+            "enabled_virt_pools",
             "info",
             "stats",
             "mountpoints",
             "min_free_mem_gb",
+            "min_free_gpu_mem_gb",
         )
         .run(r_conn)
     )
