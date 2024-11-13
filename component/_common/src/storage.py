@@ -89,6 +89,8 @@ class Storage(RethinkCustomBase):
         :return: Path
         :rtype: str
         """
+        if self.pool_usage is None:
+            return None
         return f"{storage_pool.mountpoint}/{self.category}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
 
     @property

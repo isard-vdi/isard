@@ -1120,6 +1120,11 @@ def storage_rsync_by_path(payload, storage_id):
 
     # Prepare data
     destination_path = storage.path_in_pool(storage_pool_destination)
+    if destination_path is None:
+        raise Error(
+            error="not_found",
+            description="No pool found with the usage, it was not found to execute rsync operation",
+        )
 
     # Create task
     return jsonify(
@@ -1174,6 +1179,11 @@ def storage_rsync_by_storage_pool(payload, storage_id):
 
     # Prepare data
     destination_path = storage.path_in_pool(storage_pool_destination)
+    if destination_path is None:
+        raise Error(
+            error="not_found",
+            description="No pool found with the usage, it was not found to execute rsync operation",
+        )
 
     # Create task
     return jsonify(
