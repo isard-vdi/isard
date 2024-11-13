@@ -104,21 +104,6 @@ class ThreadBroom(threading.Thread):
                         else:
                             h = hyp(hyp_id, hostname, user=user, port=port)
                             if h.connected:
-                                # Update the current hypervisor memory and CPU usage in the DB
-                                try:
-                                    h.get_system_stats()
-                                    update_table_field(
-                                        "hypervisors",
-                                        hyp_id,
-                                        "stats",
-                                        h.stats,
-                                        soft=True,
-                                    )
-                                except Exception as e:
-                                    logs.broom.error(
-                                        "HYPERVISOR {} libvirt stats connection failed"
-                                    )
-
                                 # Update the current hypervisor storage usage in the DB
                                 if disk_interval == 1:
                                     update_table_dict(
