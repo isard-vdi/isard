@@ -1405,6 +1405,10 @@ function actionsUserDetail(){
                                 return item.category_name === category;
                             });
                         }
+                        // Filter out the user being migrated
+                        userData = userData.filter(function (item) {
+                            return item.id != rowData.id;
+                        });
                         // Filter out users with role 'user' if the user being migrated is not role 'user'
                         if (rowData.role != 'user') {
                             userData = userData.filter(function (item) {

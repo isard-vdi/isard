@@ -1308,6 +1308,11 @@ def admin_user_reset_vpn(payload, user_id):
 @app.route("/api/v3/admin/user/migrate/<user_id>/<target_user_id>", methods=["PUT"])
 @is_admin_or_manager
 def admin_user_migrate(payload, user_id, target_user_id):
+    if user_id == target_user_id:
+        raise Error(
+            "precondition_required",
+            "Can't migrate user to itself",
+        )
     ownsUserId(payload, user_id)
     ownsUserId(payload, target_user_id)
     if users.Get(user_id)["category"] != users.Get(target_user_id)["category"]:
