@@ -143,6 +143,17 @@ BALANCERS = [
 
 
 class BalancerInterface:
+
+    # Virtualization uses "default" id_pool always when instantiated
+    # from historic "hyper_pools" field (group by type of hyper)
+    # So, calls to get_next_hypervisor will decide pool based on storage path category storage pool
+    # NOTE: Now domain and it's storage belong to the same category. If we decide could not,
+    # we should change the way to get the pool_id from the storage user owner category
+
+    # Disk operations uses the domain category to decide the pool:
+    # pool_id = get_category_storage_pool_id(dict_domain.get("category"))
+    # To call the balancer for get_next_diskoperations
+
     def __init__(self, id_pool="default", balancer_type="round_robin"):
         if balancer_type not in BALANCERS:
             logs.hmlog.error(f"Balancer type {balancer_type} not found in {BALANCERS}")
@@ -167,9 +178,11 @@ class BalancerInterface:
         favourite_hyp=None,
         reservables=None,
         force_gpus=None,
-        category_id=None,
+        storage_pool_id=None,
     ):
-        # Get list of hypervisors online for category_id
+        if storage_pool_id is None:
+            logs.hmlog.error("Storage pool id is None so can't get next hypervisor")
+            return False, {}
 
         # Desktop does not have vgpu
         if (
@@ -179,7 +192,7 @@ class BalancerInterface:
         ):
             return (
                 self._get_next_capabilities_virt(
-                    forced_hyp, favourite_hyp, category_id
+                    forced_hyp, favourite_hyp, storage_pool_id
                 ),
                 {},
             )
@@ -196,7 +209,11 @@ class BalancerInterface:
             forced_gpus_hypervisors = None
 
         hypervisor, extra = self._get_next_capabilities_virt_gpus(
-            forced_hyp, favourite_hyp, gpu_profile, forced_gpus_hypervisors, category_id
+            forced_hyp,
+            favourite_hyp,
+            gpu_profile,
+            forced_gpus_hypervisors,
+            storage_pool_id,
         )
 
         # If no hypervisor with gpu available and online, return False
@@ -248,10 +265,10 @@ class BalancerInterface:
         return hyper_selected
 
     def _get_next_capabilities_virt(
-        self, forced_hyp=None, favourite_hyp=None, category_id=None
+        self, forced_hyp=None, favourite_hyp=None, storage_pool_id=None
     ):
         hypers = get_hypers_online(
-            self.id_pool, forced_hyp, favourite_hyp, category_id=category_id
+            self.id_pool, forced_hyp, favourite_hyp, storage_pool_id=storage_pool_id
         )
         hypers_w_threads = get_pools_threads_running(hypers)
         if len(hypers) != len(hypers_w_threads):
@@ -291,7 +308,7 @@ class BalancerInterface:
         favourite_hyp=None,
         gpu_profile=None,
         forced_gpus_hypervisors=None,
-        category_id=None,
+        storage_pool_id=None,
     ):
         gpu_hypervisors_online = get_hypers_gpu_online(
             self.id_pool,
@@ -299,7 +316,7 @@ class BalancerInterface:
             favourite_hyp,
             gpu_profile,
             forced_gpus_hypervisors,
-            category_id=category_id,
+            storage_pool_id=storage_pool_id,
         )
         hypers_w_threads = get_pools_threads_running(gpu_hypervisors_online)
         if len(gpu_hypervisors_online) != len(hypers_w_threads):
