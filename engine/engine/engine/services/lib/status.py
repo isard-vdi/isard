@@ -33,7 +33,7 @@ disk_balancer = BalancerInterface(
 
 @cached(cache=TTLCache(maxsize=1, ttl=5))
 def get_next_hypervisor():
-    virt, _ = virt_balancer.get_next_hypervisor()
+    virt, _ = virt_balancer.get_next_hypervisor(storage_pool_id=DEFAULT_STORAGE_POOL_ID)
     return virt
 
 
