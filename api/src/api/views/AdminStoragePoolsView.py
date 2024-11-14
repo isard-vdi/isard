@@ -28,7 +28,7 @@ from isardvdi_common.storage_pool import StoragePool
 
 from api import app
 
-from ..libv2.api_hypervisors import check_storage_pool_availability
+from ..libv2.api_hypervisors import check_create_storage_pool_availability
 from ..libv2.api_storage import (
     add_storage_pool,
     delete_storage_pool,
@@ -119,9 +119,8 @@ def admin_storage_pool_delete(payload, storage_pool_id):
 @app.route("/api/v3/admin/storage_pool/availability", methods=["GET"])
 @has_token
 def admin_storage_pool_check_availability(payload):
-
     return (
-        json.dumps(check_storage_pool_availability(payload["category_id"])),
+        json.dumps(check_create_storage_pool_availability(payload["category_id"])),
         200,
         {"Content-Type": "application/json"},
     )

@@ -7,6 +7,7 @@ from time import sleep, time
 from cachetools import TTLCache, cached
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.domain import Domain
 from rethinkdb import RethinkDB
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -314,3 +315,41 @@ def get_category_storage_pool_id(category_id):
         traceback.format_exc(),
         description_code="no_storage_pool_available",
     )
+
+
+@cached(cache=TTLCache(maxsize=200, ttl=10))
+def get_domain_storage_pool_id(domain_id):
+    # Domain storage and storage pool
+    if Domain.exists(domain_id):
+        domain_obj = Domain(domain_id)
+    else:
+        raise Error(
+            "not_found",
+            f"Domain {domain_id} not found",
+            traceback.format_exc(),
+            description_code="not_found",
+        )
+    if not domain_obj.storage_ready:
+        raise Error(
+            "precondition_required",
+            f"Domain {domain_id} storage not ready",
+            traceback.format_exc(),
+            description_code="storage_not_ready",
+        )
+    domain_storage_objs = domain_obj.storages
+    if len(domain_storage_objs) == 0:
+        raise Error(
+            "precondition_required",
+            f"Domain {domain_id} storage not found",
+            traceback.format_exc(),
+            description_code="storage_not_found",
+        )
+    domain_storage_pool_obj = domain_storage_objs[0].pool
+    if not domain_storage_pool_obj:
+        raise Error(
+            "precondition_required",
+            f"Domain {domain_id} storage pool not found",
+            traceback.format_exc(),
+            description_code="storage_pool_not_found",
+        )
+    return domain_storage_pool_obj.id
