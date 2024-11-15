@@ -66,6 +66,21 @@ class RecycleBinDeleteQueue:
             )
             self.worker_thread.start()
             self.initialized = True
+            # Add all recycle bin that are in status queued to the queue to be processed
+            with app.app_context():
+                recycle_bins = list(
+                    r.table("recycle_bin")
+                    .get_all("queued", index="status")
+                    .pluck("id", "agent_id")
+                    .run(db.conn)
+                )
+            for recycle_bin in recycle_bins:
+                self.enqueue(
+                    {
+                        "recycle_bin_id": recycle_bin["id"],
+                        "user_id": recycle_bin["agent_id"],
+                    }
+                )
 
     def enqueue(self, item):
         recycle_bin_id = item.get("recycle_bin_id")
