@@ -870,6 +870,12 @@ class RecycleBin(object):
             ).run(db.conn)
 
     def check_can_restore(self):
+        if self.item_type == "user":
+            if self.owner_id == self.agent_id:
+                raise Error(
+                    "bad_request",
+                    "Cannot restore user " + self.owner_name + " by itself",
+                )
         for desktop in self.desktops:
             if not desktop.get("tag"):
                 quotas.desktop_create(desktop["user"])
@@ -918,16 +924,17 @@ class RecycleBin(object):
                 "precondition_required",
                 "Cannot restore entry with status " + str(self.status),
             )
-        try:
-            itemExists("users", self.owner_id)
-        except:
-            raise Error(
-                "not_found",
-                f"Can't restore entry. User "
-                + str(self.owner_name)
-                + " has been deleted.",
-                description_code="user_not_found",
-            )
+        if self.item_type != "user":
+            try:
+                itemExists("users", self.owner_id)
+            except:
+                raise Error(
+                    "not_found",
+                    f"Can't restore entry. User "
+                    + str(self.owner_name)
+                    + " has been deleted.",
+                    description_code="user_not_found",
+                )
 
         if self.item_type not in ["deployment", "user", "group", "category"]:
             self.check_can_restore()
