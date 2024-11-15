@@ -455,6 +455,7 @@ def get_hypers_online(
             "only_forced",
             "gpu_only",
             "storage_pools",
+            "enabled_storage_pools",
             "virt_pools",
             "enabled_virt_pools",
             "info",
@@ -471,7 +472,10 @@ def get_hypers_online(
         for hyp in hypers_online
         if storage_pool_id
         in hyp.get(
-            "enabled_virt_pools", hyp.get("virt_pools", hyp.get("storage_pools", []))
+            "enabled_virt_pools",
+            hyp.get("virt_pools", hyp.get("storage_pools", []))
+            and storage_pool_id
+            in hyp.get("enabled_storage_pools", hyp.get("storage_pools", [])),
         )
     ]
 
@@ -621,6 +625,7 @@ def get_hypers_gpu_online(
             "only_forced",
             "gpu_only",
             "storage_pools",
+            "enabled_storage_pools",
             "virt_pools",
             "enabled_virt_pools",
             "info",
@@ -638,7 +643,10 @@ def get_hypers_gpu_online(
         for hyp in hypers_online
         if storage_pool_id
         in hyp.get(
-            "enabled_virt_pools", hyp.get("virt_pools", hyp.get("storage_pools", []))
+            "enabled_virt_pools",
+            hyp.get("virt_pools", hyp.get("storage_pools", []))
+            and storage_pool_id
+            in hyp.get("enabled_storage_pools", hyp.get("storage_pools", [])),
         )
     ]
 

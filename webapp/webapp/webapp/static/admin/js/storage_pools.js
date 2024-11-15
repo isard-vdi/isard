@@ -54,6 +54,7 @@ $(document).ready(function () {
           return renderEnabled(enabled, 'check');
         }
       },
+      { "data": "enabled_virt", "title": "Virtualization", "width": '55px', render: function (data, type, full, meta) { return renderEnabled(data, 'check'); } },
       { "data": "id", "title": "Pool ID" },
       { "data": "name", "title": "Name" },
       { "data": "mountpoint", "title": "Mountpoint" },

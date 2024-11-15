@@ -29,9 +29,10 @@ from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from rethinkdb.errors import ReqlNonExistenceError
 
 from ..libv2.caches import (
-    get_category_storage_pool_id,
-    get_default_storage_pool,
-    get_domain_storage_pool_id,
+    get_cached_available_category_storage_pool_id,
+    get_cached_available_domain_storage_pool_id,
+    get_cached_enabled_virt_pools,
+    get_cached_hypervisors_online,
 )
 from ..libv2.isardVpn import isardVpn
 from .api_desktop_events import desktops_stop
@@ -301,6 +302,7 @@ class ApiHypervisors:
         min_free_mem_gb=0,
         min_free_gpu_mem_gb=0,
         storage_pools=[DEFAULT_STORAGE_POOL_ID],
+        enabled_storage_pools=[DEFAULT_STORAGE_POOL_ID],
         virt_pools=[],
         enabled_virt_pools=[],
         buffering_hyper=False,
@@ -332,6 +334,7 @@ class ApiHypervisors:
                 min_free_mem_gb=min_free_mem_gb,
                 min_free_gpu_mem_gb=min_free_gpu_mem_gb,
                 storage_pools=storage_pools,
+                enabled_storage_pools=enabled_storage_pools,
                 virt_pools=virt_pools,
                 enabled_virt_pools=enabled_virt_pools,
                 buffering_hyper=buffering_hyper,
@@ -369,6 +372,7 @@ class ApiHypervisors:
                 min_free_mem_gb=min_free_mem_gb,
                 min_free_gpu_mem_gb=min_free_gpu_mem_gb,
                 storage_pools=storage_pools,
+                enabled_storage_pools=enabled_storage_pools,
                 virt_pools=virt_pools,
                 enabled_virt_pools=enabled_virt_pools,
                 buffering_hyper=buffering_hyper,
@@ -420,6 +424,7 @@ class ApiHypervisors:
         min_free_mem_gb=0,
         min_free_gpu_mem_gb=0,
         storage_pools=[DEFAULT_STORAGE_POOL_ID],
+        enabled_storage_pools=[DEFAULT_STORAGE_POOL_ID],
         virt_pools=[],
         enabled_virt_pools=[],
         buffering_hyper=False,
@@ -470,6 +475,7 @@ class ApiHypervisors:
         hypervisor["enabled_virt_pools"] = (
             enabled_virt_pools or virt_pools or storage_pools
         )
+        hypervisor["enabled_storage_pools"] = enabled_storage_pools or storage_pools
 
         with app.app_context():
             result = (
@@ -1014,36 +1020,17 @@ class ApiHypervisors:
 @cached(cache=TTLCache(maxsize=50, ttl=10))
 def check_create_storage_pool_availability(category_id=None):
     # Check category storage pools for category. Will raise error if no storage pool available
-    storage_pool_id = get_category_storage_pool_id(category_id)
+    # Will return DEFAULT_STORAGE_POOL_ID if no category_id is found
+    storage_pool_id = get_cached_available_category_storage_pool_id(category_id)
 
     # Hypervisors online
-    with app.app_context():
-        hypers_online = list(
-            r.table("hypervisors").filter({"status": "Online", "enabled": True})
-            # .filter(
-            #     r.row["enabled_virt_pools"]
-            #     .default(r.row["storage_pools"])
-            #     .contains(storage_pool_id)
-            # )
-            .run(db.conn)
-        )
     ## NOTE_ default storage pool just for backward hypers compatibility, can be removed in future
-    hypers_online = [
-        hyper
-        for hyper in hypers_online
-        if storage_pool_id
-        in hyper.get("enabled_virt_pools", hyper.get("storage_pools", []))
-    ]
-    if not len(hypers_online):
-        raise Error(
-            "precondition_required",
-            f"No hypervisor available for category {category_id} with storage pool {storage_pool_id}",
-            description_code="no_storage_pool_available",
-        )
-
-    for hyper in hypers_online:
-        if storage_pool_id in hyper.get("storage_pools", []):
+    for hyper in get_cached_hypervisors_online():
+        if storage_pool_id in hyper.get(
+            "enabled_storage_pools", hyper.get("storage_pools", [])
+        ):
             return True
+
     raise Error(
         "precondition_required",
         f"No hypervisors available for category {category_id} with storage pool {storage_pool_id}",
@@ -1053,40 +1040,19 @@ def check_create_storage_pool_availability(category_id=None):
 
 @cached(cache=TTLCache(maxsize=50, ttl=10))
 def check_virt_storage_pool_availability(domain_id):
-    return True
     # Check category storage pools for category. Will raise error if no storage pool available
-    storage_pool_id = get_domain_storage_pool_id(domain_id)
+    virt_pool_id = get_cached_available_domain_storage_pool_id(domain_id)
 
-    # Hypervisors online
-    with app.app_context():
-        hypers_online = list(
-            r.table("hypervisors").filter({"status": "Online", "enabled": True})
-            # .filter(
-            #     r.row["enabled_virt_pools"]
-            #     .default(r.row["storage_pools"])
-            #     .contains(storage_pool_id)
-            # )
-            .run(db.conn)
-        )
+    # Is that pool available in any hypervisor?
     ## NOTE_ default storage pool just for backward hypers compatibility, can be removed in future
-    hypers_online = [
-        hyper
-        for hyper in hypers_online
-        if storage_pool_id
-        in hyper.get("enabled_virt_pools", hyper.get("storage_pools", []))
-    ]
-    if not len(hypers_online):
-        raise Error(
-            "precondition_required",
-            f"No hypervisor available for domain {domain_id} with storage pool {storage_pool_id}",
-            description_code="no_storage_pool_available",
-        )
-
-    for hyper in hypers_online:
-        if storage_pool_id in hyper.get("storage_pools", []):
+    ##       storage_pools default is just for backward compatibility, can be removed in future
+    for hyper in get_cached_hypervisors_online():
+        if virt_pool_id in hyper.get(
+            "enabled_virt_pools", hyper.get("storage_pools", [])
+        ):
             return True
     raise Error(
         "precondition_required",
-        f"No hypervisors available for domain {domain_id} with storage pool {storage_pool_id}",
+        f"No hypervisor available for domain {domain_id} with storage pool {virt_pool_id}",
         description_code="no_storage_pool_available",
     )
