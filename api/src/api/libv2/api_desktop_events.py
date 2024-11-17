@@ -6,6 +6,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .caches import get_document
+
 r = RethinkDB()
 import time
 import traceback
@@ -94,6 +96,7 @@ def wait_status(
 
 def get_desktop(desktop_id):
     try:
+        # For desktop events better do not cache it's status
         with app.app_context():
             domain = (
                 r.table("domains")
@@ -103,10 +106,7 @@ def get_desktop(desktop_id):
             )
         return {
             "status": domain["status"],
-            "role_id": r.table("users")
-            .get(domain["user"])
-            .pluck("role")["role"]
-            .run(db.conn),
+            "role_id": get_document("users", domain["user"], ["role"]),
             "qos_disk_id": domain["create_dict"]["hardware"].get("qos_disk_id", False),
         }
     except:
