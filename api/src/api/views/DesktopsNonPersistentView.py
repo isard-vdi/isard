@@ -24,7 +24,6 @@ quotas = Quotas()
 allowed = ApiAllowed()
 
 from ..libv2.api_desktops_nonpersistent import ApiDesktopsNonPersistent
-from ..libv2.api_hypervisors import check_storage_pool_availability
 
 desktops = ApiDesktopsNonPersistent()
 
@@ -53,7 +52,6 @@ def api_v3_desktop_new(payload):
     template = templates.Get(template_id)
     allowed.is_allowed(payload, template, "domains")
 
-    check_storage_pool_availability(payload.get("category_id"))
     # So now we have checked if desktop exists and if we can create and/or start it
     return (
         json.dumps({"id": desktops.New(user_id, template_id)}),

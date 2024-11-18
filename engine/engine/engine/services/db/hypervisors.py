@@ -443,7 +443,7 @@ def get_hypers_online(
     id_pool="default",
     forced_hyp=None,
     favourite_hyp=None,
-    category_id=None,
+    storage_pool_id=None,
 ):
     r_conn = new_rethink_connection()
     hypers_online = list(
@@ -455,6 +455,7 @@ def get_hypers_online(
             "only_forced",
             "gpu_only",
             "storage_pools",
+            "enabled_storage_pools",
             "virt_pools",
             "enabled_virt_pools",
             "info",
@@ -466,15 +467,15 @@ def get_hypers_online(
         .run(r_conn)
     )
     close_rethink_connection(r_conn)
-    category_storage_pool_id = get_category_storage_pool_id(category_id)
-    if category_storage_pool_id is None:
-        return []
     hypers_online = [
         hyp
         for hyp in hypers_online
-        if category_storage_pool_id
+        if storage_pool_id
         in hyp.get(
-            "enabled_virt_pools", hyp.get("virt_pools", hyp.get("storage_pools", []))
+            "enabled_virt_pools",
+            hyp.get("virt_pools", hyp.get("storage_pools", []))
+            and storage_pool_id
+            in hyp.get("enabled_storage_pools", hyp.get("storage_pools", [])),
         )
     ]
 
@@ -612,7 +613,7 @@ def get_hypers_gpu_online(
     gpu_brand_model_profile=None,
     forced_gpus_hypervisors=None,
     exclude_outofmem=True,
-    category_id=None,
+    storage_pool_id=None,
 ):
     r_conn = new_rethink_connection()
     hypers_online = list(
@@ -624,6 +625,7 @@ def get_hypers_gpu_online(
             "only_forced",
             "gpu_only",
             "storage_pools",
+            "enabled_storage_pools",
             "virt_pools",
             "enabled_virt_pools",
             "info",
@@ -636,15 +638,15 @@ def get_hypers_gpu_online(
     )
     close_rethink_connection(r_conn)
 
-    category_storage_pool_id = get_category_storage_pool_id(category_id)
-    if category_storage_pool_id is None:
-        return []
     hypers_online = [
         hyp
         for hyp in hypers_online
-        if category_storage_pool_id
+        if storage_pool_id
         in hyp.get(
-            "enabled_virt_pools", hyp.get("virt_pools", hyp.get("storage_pools", []))
+            "enabled_virt_pools",
+            hyp.get("virt_pools", hyp.get("storage_pools", []))
+            and storage_pool_id
+            in hyp.get("enabled_storage_pools", hyp.get("storage_pools", [])),
         )
     ]
 

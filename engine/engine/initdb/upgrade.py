@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 150
+release_version = 151
+# release 151: Add new field 'enabled_virt' to storage pools table
 # release 150: Fix storage users to match domain users
 # release 149: Add multi desktop ids and kind index
 # release 148: Add booking_id, kind_booking, kind_valid_booking index to domains table
@@ -5451,6 +5452,18 @@ password:s:%s"""
                 r.table(table).index_create("name").run(self.conn)
             except Exception as e:
                 pass
+
+        if version == 151:
+            try:
+                storage_pools = r.table(table).run(self.conn)
+                for storage_pool in storage_pools:
+                    enabled_virt = storage_pool.get("enabled", False)
+                    r.table(table).get(storage_pool["id"]).update(
+                        {"enabled_virt": enabled_virt}
+                    ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     def user_storage(self, version):

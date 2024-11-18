@@ -7,6 +7,9 @@ description:
 enabled:
   type: boolean
   required: false
+enabled_virt:
+  type: boolean
+  required: false
 name:
   type: string
   empty: false

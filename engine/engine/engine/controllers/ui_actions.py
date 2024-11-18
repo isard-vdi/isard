@@ -112,14 +112,6 @@ class UiActions(object):
             log.error(f"Domain {id_domain} not found. Can't start. Maybe deleted?")
             return False
 
-        if not Domain(id_domain).storage_ready:
-            update_domain_status(
-                "Stopped",
-                id_domain,
-                detail=f"Desktop storage not ready",
-            )
-            return False
-
         if domain["kind"] != "desktop":
             log.error(
                 f"DANGER, domain {id_domain} ({domain['name']}) is a template and can't be started"
@@ -131,6 +123,35 @@ class UiActions(object):
             )
             return False
 
+        # Domain storage and storage pool
+        if Domain.exists(id_domain):
+            domain_obj = Domain(id_domain)
+        if not domain_obj.storage_ready:
+            update_domain_status(
+                "Stopped",
+                id_domain,
+                detail=f"Desktop storage not ready",
+            )
+            return False
+        domain_storage_objs = domain_obj.storages
+        if len(domain_storage_objs) == 0:
+            update_domain_status(
+                "Stopped",
+                id_domain,
+                detail=f"Desktop has no storage",
+            )
+            return False
+        domain_storage_pool_obj = domain_storage_objs[0].pool
+        if not domain_storage_pool_obj:
+            update_domain_status(
+                "Stopped",
+                id_domain,
+                detail=f"Desktop storage pool not found",
+            )
+            return False
+        domain_storage_pool_id = domain_storage_pool_obj.id
+
+        # This pool will be always the same for virtualization, nothing to do with balancers
         try:
             pool_id = domain.get("hypervisors_pools", ["default"])[0]
         except:
@@ -175,7 +196,7 @@ class UiActions(object):
                     favourite_hyp=domain.get("favourite_hyp"),
                     force_gpus=domain.get("force_gpus"),
                     reservables=domain.get("create_dict", {}).get("reservables", {}),
-                    category_id=domain.get("category"),
+                    storage_pool_id=domain_storage_pool_id,
                 )
             else:
                 hyp = self.start_domain_from_xml(
@@ -186,7 +207,7 @@ class UiActions(object):
                     favourite_hyp=domain.get("favourite_hyp"),
                     force_gpus=domain.get("force_gpus"),
                     reservables=domain.get("create_dict", {}).get("reservables", {}),
-                    category_id=domain.get("category"),
+                    storage_pool_id=domain_storage_pool_id,
                 )
             return hyp
 
@@ -199,9 +220,38 @@ class UiActions(object):
         favourite_hyp=None,
         force_gpus=None,
         reservables=None,
-        category_id=None,
+        storage_pool_id=None,
     ):
-        # def start_paused_domain_from_xml(self, xml, id_domain, pool_id, start_after_created=False):
+        if storage_pool_id is None:
+            # Domain storage and storage pool
+            if Domain.exists(id_domain):
+                domain_obj = Domain(id_domain)
+            if not domain_obj.storage_ready:
+                update_domain_status(
+                    "Stopped",
+                    id_domain,
+                    detail=f"Desktop storage not ready",
+                )
+                return False
+            domain_storage_objs = domain_obj.storages
+            if len(domain_storage_objs) == 0:
+                update_domain_status(
+                    "Stopped",
+                    id_domain,
+                    detail=f"Desktop has no storage",
+                )
+                return False
+            domain_storage_pool_obj = domain_storage_objs[0].pool
+            if not domain_storage_pool_obj:
+                update_domain_status(
+                    "Stopped",
+                    id_domain,
+                    detail=f"Desktop storage pool not found",
+                )
+                return False
+            domain_storage_pool_id = domain_storage_pool_obj.id
+        else:
+            domain_storage_pool_id = storage_pool_id
         return self.start_domain_from_xml(
             xml,
             id_domain,
@@ -214,7 +264,7 @@ class UiActions(object):
             # an hypervisor online hypervisor with GPUs
             force_gpus=None,
             reservables=None,
-            category_id=None,
+            storage_pool_id=domain_storage_pool_id,
         )
 
     def start_domain_from_xml(
@@ -227,7 +277,7 @@ class UiActions(object):
         favourite_hyp=None,
         force_gpus=None,
         reservables=None,
-        category_id=None,
+        storage_pool_id=None,
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
@@ -238,7 +288,7 @@ class UiActions(object):
                 favourite_hyp=favourite_hyp,
                 reservables=reservables,
                 force_gpus=force_gpus,
-                category_id=category_id,
+                storage_pool_id=storage_pool_id,
             )
             if next_hyp is not False:
                 if action == "start_paused_domain":
@@ -297,6 +347,9 @@ class UiActions(object):
                 self.manager.q.workers[next_hyp].put(dict_action, priority)
 
             else:
+                logs.main.error(
+                    f"desktop not started: no hypervisors online in pool {pool_id} with storage pool {storage_pool_id}"
+                )
                 failed = True
         else:
             log.error("pool_id {} does not exists??".format(pool_id))
@@ -1079,9 +1132,11 @@ class UiActions(object):
                 pool=pool_id,
                 type_path=path_type,
             )
-            if persistent is False:
-                print(f"desktop not persistent, forced hyp: {hyp_to_disk_create}")
-                update_domain_forced_hyp(id_domain=id_new, hyp_id=hyp_to_disk_create)
+            # This is only needed if we don't want volatile desktops to be created in
+            # shared storage, and create it locally in hypervisor
+            # if persistent is False:
+            #     print(f"desktop not persistent, forced hyp: {hyp_to_disk_create}")
+            #     update_domain_forced_hyp(id_domain=id_new, hyp_id=hyp_to_disk_create)
 
             cmds = create_cmds_disk_from_base(path_base=backing_file, path_new=new_file)
             log.debug(
@@ -1405,7 +1460,6 @@ class UiActions(object):
                         reservables=domain.get("create_dict", {}).get(
                             "reservables", {}
                         ),
-                        category_id=domain.get("category"),
                     )
                 else:
                     update_domain_status(

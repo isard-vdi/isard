@@ -361,6 +361,10 @@ def add_storage_pool(data):
                 + str(set(categories).intersection(set(data["categories"]))),
             )
     else:
+        if data.get("enabled") is False:
+            data["enabled_virt"] = False
+        else:
+            data["enabled_virt"] = True
         with app.app_context():
             r.table("storage_pool").insert(data).run(db.conn)
 
@@ -431,6 +435,10 @@ def update_storage_pool(storage_pool_id, data):
                     "conflict",
                     "Pool with one of the selected categories already exists",
                 )
+    if data.get("enabled") is False:
+        data["enabled_virt"] = False
+    else:
+        data["enabled_virt"] = True
     with app.app_context():
         r.table("storage_pool").get(storage_pool_id).update(data).run(db.conn)
 
@@ -444,6 +452,9 @@ def delete_storage_pool(storage_pool_id):
         r.table("hypervisors").update(
             lambda hyper: {
                 "storage_pools": hyper["storage_pools"].filter(
+                    lambda pool: pool != storage_pool_id
+                ),
+                "enabled_storage_pools": hyper["enabled_storage_pools"].filter(
                     lambda pool: pool != storage_pool_id
                 ),
                 "virt_pools": hyper["virt_pools"].filter(

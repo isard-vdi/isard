@@ -22,7 +22,7 @@ db.init_app(app)
 
 from isardvdi_common.api_exceptions import Error
 
-from ..libv2.api_hypervisors import check_storage_pool_availability
+from ..libv2.api_hypervisors import check_create_storage_pool_availability
 from ..libv2.helpers import gen_payload_from_user
 from ..libv2.quotas import Quotas
 
@@ -87,7 +87,7 @@ def api_v3_template_new(payload):
         )
 
     check_user_duplicated_domain_name(data["name"], data["user_id"], "template")
-    check_storage_pool_availability(payload.get("category_id"))
+    check_create_storage_pool_availability(payload.get("category_id"))
     templates.New(
         payload["user_id"],
         data["template_id"],

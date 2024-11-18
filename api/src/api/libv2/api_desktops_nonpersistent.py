@@ -15,6 +15,10 @@ r = RethinkDB()
 import logging as log
 import traceback
 
+from ..libv2.api_hypervisors import (
+    check_create_storage_pool_availability,
+    check_virt_storage_pool_availability,
+)
 from ..libv2.api_scheduler import Scheduler
 from ..libv2.quotas import Quotas
 from .api_desktop_events import (
@@ -65,6 +69,7 @@ class ApiDesktopsNonPersistent:
         if len(desktops) == 1:
             if desktops[0]["status"] == "Started":
                 return desktops[0]["id"]
+            check_virt_storage_pool_availability(desktops[0]["id"])
             desktop_start(desktops[0]["id"], wait_seconds=1)
             return desktops[0]["id"]
 
@@ -82,9 +87,12 @@ class ApiDesktopsNonPersistent:
             user = r.table("users").get(user_id).run(db.conn)
         if user == None:
             raise Error("not_found", "User not found", traceback.format_exc())
+        check_create_storage_pool_availability(user.get("category_id"))
         # Create the domain from that template
         desktop_id = self._nonpersistent_desktop_from_tmpl(user_id, template_id)
 
+        # Disk is created by engine and not ready yet, thus commented this check
+        # check_virt_storage_pool_availability(desktop_id)
         desktop_start(desktop_id)
         payload = gen_payload_from_user(user_id)
         scheduler.add_desktop_timeouts(payload, desktop_id)

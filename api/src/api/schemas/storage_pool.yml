@@ -13,6 +13,10 @@ enabled:
   type: boolean
   required: false
   default: false
+enabled_virt:
+  type: boolean
+  required: false
+  default: false
 name:
   type: string
   required: true

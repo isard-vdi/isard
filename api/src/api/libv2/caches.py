@@ -7,6 +7,7 @@ from time import sleep, time
 from cachetools import TTLCache, cached
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.domain import Domain
 from rethinkdb import RethinkDB
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -275,11 +276,24 @@ def get_cached_deployment_bookings(deployment_id):
     return booking
 
 
+## Hypervisors
+
+
+@cached(cache=TTLCache(maxsize=64, ttl=10))
+def get_cached_hypervisors_online():
+    with app.app_context():
+        return list(
+            r.table("hypervisors")
+            .filter({"status": "Online", "enabled": True})
+            .run(db.conn)
+        )
+
+
 ## Storage pools
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=3600))
-def get_default_storage_pool():
+def get_cached_default_storage_pool():
     with app.app_context():
         default_storage_pool = (
             r.table("storage_pool").get(DEFAULT_STORAGE_POOL_ID).run(db.conn)
@@ -287,30 +301,108 @@ def get_default_storage_pool():
     return default_storage_pool
 
 
-@cached(cache=TTLCache(maxsize=200, ttl=10))
-def get_category_storage_pool_id(category_id):
+@cached(cache=TTLCache(maxsize=10, ttl=10))
+def get_cached_enabled_storage_pools():
     with app.app_context():
         storage_pools = list(
             r.table("storage_pool")
             .filter(
-                lambda storage_pool: storage_pool["categories"].contains(category_id)
+                {"enabled": True},
             )
             .run(db.conn)
         )
-    if len(storage_pools) == 0:
-        return DEFAULT_STORAGE_POOL_ID
-    if len(storage_pools) == 1:
-        if storage_pools[0]["enabled"] is False:
-            raise Error(
-                "precondition_required",
-                f"Category {category_id} assigned to disabled storage pool {storage_pools[0]['id']}",
-                traceback.format_exc(),
-                description_code="no_storage_pool_available",
+    return storage_pools
+
+
+@cached(cache=TTLCache(maxsize=10, ttl=10))
+def get_cached_enabled_virt_pools():
+    with app.app_context():
+        virt_pools = list(
+            r.table("storage_pool")
+            .filter(
+                {"enabled_virt": True},
             )
-        return storage_pools[0]["id"]
+            .run(db.conn)
+        )
+    # It can be done with this query filter when the enabled_virt is always there
+    return virt_pools
+
+
+@cached(cache=TTLCache(maxsize=200, ttl=10))
+def get_cached_available_category_storage_pool_id(category_id):
+    # Used for create actions where the category is not yet assigned to the domain
+    with app.app_context():
+        storage_pools = list(
+            r.table("storage_pool")
+            .filter(lambda pool: pool["categories"].contains(category_id))
+            .run(db.conn)
+        )
+    if len(storage_pools) == 0:
+        if DEFAULT_STORAGE_POOL_ID in [
+            esp["id"] for esp in get_cached_enabled_storage_pools()
+        ]:
+            return DEFAULT_STORAGE_POOL_ID
+        raise Error(
+            "precondition_required",
+            f"Storage pool {DEFAULT_STORAGE_POOL_ID} is disabled so no storage pool available for category {category_id}",
+            description_code="storage_pool_disabled",
+        )
+    if len(storage_pools) == 1:
+        if storage_pools[0]["enabled"]:
+            return storage_pools[0]["id"]
+        raise Error(
+            "precondition_required",
+            f"Storage pool {storage_pools[0]['id']} is disabled",
+            description_code="storage_pool_disabled",
+        )
     raise Error(
         "internal_server",
-        f"Category {category_id} assigned to more than one storage pool: {storage_pools}",
-        traceback.format_exc(),
-        description_code="no_storage_pool_available",
+        f"Multiple storage pools found for category {category_id}",
+        description_code="multiple_storage_pools",
     )
+
+
+@cached(cache=TTLCache(maxsize=200, ttl=10))
+def get_cached_available_domain_storage_pool_id(domain_id):
+    # Used to virtualize the storage pool for the domain
+    # No virtualitzation for a disabled storage_pool should be available
+    if Domain.exists(domain_id):
+        domain_obj = Domain(domain_id)
+    else:
+        raise Error(
+            "not_found",
+            f"Domain {domain_id} not found",
+            description_code="not_found",
+        )
+    if not domain_obj.storage_ready:
+        raise Error(
+            "precondition_required",
+            f"Domain {domain_id} storage not ready",
+            description_code="storage_not_ready",
+        )
+    domain_storage_objs = domain_obj.storages
+    if len(domain_storage_objs) == 0:
+        raise Error(
+            "precondition_required",
+            f"Domain {domain_id} storage not found",
+            description_code="storage_not_found",
+        )
+    domain_storage_pool_obj = domain_storage_objs[0].pool
+    if not domain_storage_pool_obj:
+        ## This can only happen if we created it in an storage pool that has been deleted
+        # Default storage pool is used if no storage pool matches the domain storage_id,
+        # but likely will fail
+        # This can lead to allowing a domain to be started in any hypervisor with default storage pool
+        virt_pool_id = DEFAULT_STORAGE_POOL_ID
+    else:
+        virt_pool_id = domain_storage_pool_obj.id
+
+    # Check if the virt_pool is enabled
+    log.debug(f"Checking if virt_pool {virt_pool_id} is enabled")
+    if virt_pool_id not in [esp["id"] for esp in get_cached_enabled_virt_pools()]:
+        raise Error(
+            "precondition_required",
+            f"Virt pool {virt_pool_id} is disabled so no storage pool available for domain {domain_id}",
+            description_code="storage_pool_disabled",
+        )
+    return virt_pool_id

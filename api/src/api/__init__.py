@@ -69,6 +69,23 @@ app.config["MAX_CONTENT_LENGTH"] = 1 * 1000 * 1000  # 1 MB
 # '''
 # app.secret_key = "Change this key!//\xf7\x83\xbe\x17\xfa\xa3zT\n\\]m\xa6\x8bF\xdd\r\xf7\x9e\x1d\x1f\x14'"
 
+ws_debug = True if os.environ.get("DEBUG_WEBSOCKETS", "") == "true" else False
+
+from flask_socketio import SocketIO
+
+# from flask_cors import CORS
+# CORS(app)
+# app.config["CORS_HEADERS"] = "application/json"
+socketio = SocketIO(
+    app,
+    path="/api/v3/socket.io/",
+    cors_allowed_origins="*",
+    debug=ws_debug,
+    logger=ws_debug,
+    engineio_logger=ws_debug,
+)
+
+
 from api.libv2.helpers import InternalUsers, macs_in_use
 
 app.internal_users = InternalUsers()
@@ -96,21 +113,6 @@ from api.libv2.load_validator_schemas import load_validators
 
 app.validators = load_validators()
 
-ws_debug = True if os.environ.get("DEBUG_WEBSOCKETS", "") == "true" else False
-
-from flask_socketio import SocketIO
-
-# from flask_cors import CORS
-# CORS(app)
-# app.config["CORS_HEADERS"] = "application/json"
-socketio = SocketIO(
-    app,
-    path="/api/v3/socket.io/",
-    cors_allowed_origins="*",
-    debug=ws_debug,
-    logger=ws_debug,
-    engineio_logger=ws_debug,
-)
 
 import logging as log
 

@@ -124,6 +124,7 @@ def api_v3_hypervisor(hyper_id=False):
             storage_pools = request.form.get(
                 "storage_pools", default=DEFAULT_STORAGE_POOL_ID, type=str
             )
+            enabled_storage_pools = storage_pools.split(",")
             virt_pools = request.form.get("virt_pools", default=storage_pools, type=str)
             if virt_pools == "":
                 virt_pools = enabled_virt_pools = storage_pools.split(",")
@@ -162,6 +163,7 @@ def api_v3_hypervisor(hyper_id=False):
             only_forced=only_forced,
             min_free_mem_gb=min_free_mem_gb,
             storage_pools=storage_pools,
+            enabled_storage_pools=enabled_storage_pools,
             virt_pools=virt_pools,
             enabled_virt_pools=enabled_virt_pools,
             buffering_hyper=buffering_hyper,
