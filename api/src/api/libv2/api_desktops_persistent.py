@@ -1000,7 +1000,7 @@ class ApiDesktopsPersistent:
             batch_ids = domains[i : i + batch_size]
             with app.app_context():
                 r.table("domains").get_all(r.args(batch_ids)).update(
-                    {"status": "maintenance", "current_action": action}
+                    {"status": "Maintenance", "current_action": action}
                 ).run(db.conn)
 
 

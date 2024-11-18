@@ -233,6 +233,14 @@
   color: #89ce6d;
 }
 
+.text-state-small {
+  margin-top: 0.3rem;
+  margin-bottom: 0.3rem;
+  font-size: calc(0.6rem + 0.2vw);
+  color: #89ce6d;
+}
+
+
 .card-list .viewers-dropdown>button::after {
   margin-top: 0.6em;
 }

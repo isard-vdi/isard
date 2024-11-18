@@ -60,6 +60,9 @@ export default {
     getDesktops: state => {
       return state.desktops
     },
+    getDesktop: state => (id) => {
+      return state.desktops.find(d => d.id === id)
+    },
     getDesktopsLoaded: state => {
       return state.desktops_loaded
     },
@@ -200,6 +203,17 @@ export default {
     socket_desktopDelete (context, data) {
       const desktop = JSON.parse(data)
       context.commit('remove_desktop', desktop)
+    },
+    socket_desktopsQueue (context, data) {
+      data = JSON.parse(data)
+
+      for (const [desktopId, queueInfo] of Object.entries(data)) {
+        const desktop = context.getters.getDesktop(desktopId)
+        if (desktop) {
+          desktop.queue = queueInfo.position
+          context.commit('update_desktop', desktop)
+        }
+      }
     },
     loadViewers (context, viewers) {
       context.commit('updateViewers', viewers)

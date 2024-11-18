@@ -245,3 +245,32 @@ class ApiDesktopsCommon:
                 )
         hardware["hardware"]["memory"] = hardware["hardware"]["memory"] / 1048576
         return hardware
+
+    def parse_desktop_queues(self, data):
+        users = {}
+        categories = {}
+
+        domains = list(
+            r.table("domains")
+            .get_all(r.args([d["desktop_id"] for d in data]), index="id")
+            .pluck("id", "user", "category")
+            .run(db.conn)
+        )
+
+        for i in range(len(data)):
+            desktop_id = data[i]["desktop_id"]
+
+            user_id = domains[i]["user"]
+            category_id = domains[i]["category"]
+
+            # add user_id to users
+            users[user_id] = users.get(user_id, {})
+            # add data to users[user_id]
+            users[user_id][desktop_id] = data[i]
+
+            # add category_id to categories
+            categories[category_id] = categories.get(category_id, {})
+            # add data to categories[category_id]
+            categories[category_id][desktop_id] = data[i]
+
+        return users, categories

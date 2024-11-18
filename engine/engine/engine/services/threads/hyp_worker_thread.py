@@ -8,7 +8,6 @@ import queue
 import threading
 import time
 
-import requests
 from engine.models.domain_xml import DomainXML
 from engine.models.hyp import hyp
 from engine.services.db import (
@@ -41,12 +40,17 @@ from engine.services.threads.threads import (
     launch_delete_media,
     launch_killall_curl,
 )
+from isardvdi_common.api_rest import ApiRest
 from libvirt import (
     VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN,
     VIR_DOMAIN_START_PAUSED,
     VIR_ERR_NO_DOMAIN,
     libvirtError,
 )
+from requests.exceptions import ReadTimeout as requests_ReadTimeout
+
+api_client = ApiRest("isard-api")
+
 
 ITEMS_STATUS_MAP = {
     "start_paused_domain": "Checking",
@@ -678,7 +682,10 @@ class HypWorkerThread(threading.Thread):
                     # time.sleep(0.1)
                     ## TRY DOMAIN
 
-                self.update_desktops_queue(self.get_queue_items())
+                try:
+                    self.update_desktops_queue(self.get_queue_items())
+                except Exception as e:
+                    logs.workers.error(f"Error sending desktops queue to api: {e}")
             except queue.Empty:
                 try:
                     self.h.conn.isAlive()
@@ -788,25 +795,28 @@ class HypWorkerThread(threading.Thread):
             }
             for idx, item in enumerate(sorted_items)
         ]
+        return positioned_items
 
-    def update_desktops_queue(self, positioned_items):
+    def update_desktops_queue(self, positioned_items=[]):
+        if positioned_items == []:
+            return
         parsed_positioned_items = [
             {
                 "desktop_id": item["desktop_id"],
-                "event": ITEMS_STATUS_MAP.get(item[2]["type"], "Unknown"),
+                "event": ITEMS_STATUS_MAP.get(item["event"], "Unknown"),
                 "position": item["position"],
             }
             for item in positioned_items
-            if item[2]["type"] in ITEMS_STATUS_MAP.keys()
+            if item["event"] in ITEMS_STATUS_MAP.keys()
         ]
 
         try:
-            requests.put(
-                f"http://isard-api:5000/api/v3/notify/desktops/queue",
-                json=parsed_positioned_items,
+            api_client.put(
+                "/notify/desktops/queue",
+                data=parsed_positioned_items,
                 timeout=0.0000000001,
             )
-        except requests.exceptions.ReadTimeout:
+        except requests_ReadTimeout:
             pass
         except Exception as e:
             logs.workers.error(f"Error updating desktops queue: {e}")
