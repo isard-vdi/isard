@@ -347,6 +347,9 @@ class UiActions(object):
                 self.manager.q.workers[next_hyp].put(dict_action, priority)
 
             else:
+                logs.main.error(
+                    f"desktop not started: no hypervisors online in pool {pool_id} with storage pool {storage_pool_id}"
+                )
                 failed = True
         else:
             log.error("pool_id {} does not exists??".format(pool_id))
