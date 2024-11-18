@@ -1,11 +1,10 @@
-import pprint
 import queue
 import threading
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 
-from engine.services.db import update_domain_status
 from engine.services.db.hypervisors import update_hyp_thread_status
-from engine.services.lib.functions import PriorityQueueIsard, get_tid, try_ssh_command
+from engine.services.lib.functions import get_tid, try_ssh_command
 from engine.services.log import log, logs
 from engine.services.threads.threads import (
     TIMEOUT_QUEUES,
@@ -36,6 +35,13 @@ class DiskOperationsThread(threading.Thread):
         self.stop = False
         self.queue_actions = queue_actions
         self.queue_master = queue_master
+        self.executors = {
+            "create_disk": ThreadPoolExecutor(max_workers=10),
+            "create_disk_from_scratch": ThreadPoolExecutor(max_workers=10),
+            "delete_disk": ThreadPoolExecutor(max_workers=10),
+            "create_template_disk_from_domain": ThreadPoolExecutor(max_workers=2),
+            "update_storage_size": ThreadPoolExecutor(max_workers=10),
+        }
 
     def run(self):
         self.tid = get_tid()
@@ -46,57 +52,33 @@ class DiskOperationsThread(threading.Thread):
         host = self.hostname
         self.tid = get_tid()
         log.debug(
-            "Thread to launchdisks operations in host {} with TID: {}...".format(
-                host, self.tid
-            )
+            f"Thread to launch disk operations in host {host} with TID: {self.tid}..."
         )
 
         test_ssh, detail = try_ssh_command(self.hostname, self.user, self.port)
-        if test_ssh is False:
+        if not test_ssh:
             log.error(
                 f"test ssh in disk operations thread in hypervisor {self.hyp_id} fail. Thread stopped. Reason: {detail}"
             )
             self.stop = True
             self.error = detail
 
-        if self.stop is False:
+        if not self.stop:
             update_hyp_thread_status("disk_operations", self.hyp_id, "Started")
-        while self.stop is not True:
+        while not self.stop:
             try:
                 action = self.queue_actions.get(timeout=TIMEOUT_QUEUES)
-                # for ssh commands
-                if action["type"] in ["create_disk"]:
-                    launch_action_disk(action, self.hostname, self.user, self.port)
-                elif action["type"] in ["create_disk_from_scratch"]:
-                    launch_action_disk(
-                        action, self.hostname, self.user, self.port, from_scratch=True
-                    )
-                elif action["type"] in ["delete_disk"]:
-                    launch_delete_disk_action(
-                        action, self.hostname, self.user, self.port
-                    )
-
-                elif action["type"] in ["create_template_disk_from_domain"]:
-                    launch_action_create_template_disk(
-                        action, self.hostname, self.user, self.port
-                    )
-
-                elif action["type"] in ["update_storage_size"]:
-                    launch_action_update_size_storage_from_domain(
-                        action, self.hostname, self.user, self.port
-                    )
-
-                elif action["type"] == "stop_thread":
+                if action["type"] == "stop_thread":
                     self.stop = True
                 else:
-                    log.error("type action {} not supported".format(action["type"]))
+                    self.route_action(action)
             except queue.Empty:
-                pass
+                continue  # Timeout occurred, loop again
             except Exception as e:
                 logs.exception_id.debug("0054")
-                log.error("Exception when creating disk: {}".format(e))
-                log.error("Action: {}".format(pprint.pformat(action)))
-                log.error("Traceback: {}".format(traceback.format_exc()))
+                log.error(f"Exception when creating disk: {e}")
+                log.error(f"Action: {action}")
+                log.error(f"Traceback: {traceback.format_exc()}")
                 return False
 
         if self.stop is True:
@@ -109,3 +91,42 @@ class DiskOperationsThread(threading.Thread):
             action["type"] = "thread_disk_operations_dead"
             action["hyp_id"] = self.hyp_id
             self.queue_master.put(action)
+
+    def route_action(self, action):
+        # Determine the priority or type of action
+        action_type = action["type"]
+        if action_type not in self.executors.keys():
+            log.error(f"Unknown action type: {action_type}")
+            return
+        self.executors[action_type].submit(self.handle_action, action)
+
+    def handle_action(self, action):
+        try:
+            if action["type"] == "create_disk":
+                launch_action_disk(action, self.hostname, self.user, self.port)
+            elif action["type"] == "create_disk_from_scratch":
+                launch_action_disk(
+                    action, self.hostname, self.user, self.port, from_scratch=True
+                )
+            elif action["type"] == "delete_disk":
+                launch_delete_disk_action(action, self.hostname, self.user, self.port)
+            elif action["type"] == "create_template_disk_from_domain":
+                log.info(
+                    f"Processing create_template_disk_from_domain action for domain {action.get('id_domain')}..."
+                )
+                launch_action_create_template_disk(
+                    action, self.hostname, self.user, self.port
+                )
+                log.info(
+                    f"create_template_disk_from_domain action for domain {action.get('id_domain')} processed."
+                )
+            elif action["type"] == "update_storage_size":
+                launch_action_update_size_storage_from_domain(
+                    action, self.hostname, self.user, self.port
+                )
+        except Exception as e:
+            log.error(f"Error processing action {action}: {e}")
+
+    def stop_thread(self):
+        self.stop = True
+        self.executor.shutdown(wait=True)

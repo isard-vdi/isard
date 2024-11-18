@@ -196,11 +196,12 @@ class HypWorkerThread(threading.Thread):
             update_hyp_status(self.hyp_id, "Online")
 
         update_stats = time.time()
+        self.current_action = {}
         while self.stop is not True:
             try:
                 # do={type:'start_domain','xml':'xml','id_domain'='prova'}
                 action = self.queue_actions.get(timeout=TIMEOUT_QUEUES)
-
+                self.current_action = action
                 if action["type"] == "start_paused_domain":
                     logs.workers.debug(
                         "xml to start paused some lines...: {}".format(
@@ -722,6 +723,7 @@ class HypWorkerThread(threading.Thread):
                             self.stop = True
                             break
 
+            self.current_action = {}
             if update_stats + 5 < time.time():
                 self.h.get_system_stats()
                 update_table_field(
