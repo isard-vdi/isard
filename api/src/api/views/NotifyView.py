@@ -25,8 +25,12 @@ from isardvdi_common.api_exceptions import Error
 
 from api import app
 
-from ..libv2.api_notify import notify_desktop, notify_user
-from .decorators import is_admin
+from ..libv2.api_desktops_common import ApiDesktopsCommon
+from ..libv2.api_notify import notify_custom, notify_desktop, notify_user
+from ..libv2.validators import _validate_item
+from .decorators import has_token, is_admin
+
+desktops = ApiDesktopsCommon()
 
 
 @app.route("/api/v3/admin/notify/user/desktop", methods=["POST"])
@@ -52,4 +56,28 @@ def desktop_notify(payload):
         data.get("msg_code"),
         data.get("params"),
     )
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/notify/desktops/queue", methods=["PUT"])
+@is_admin
+def desktop_notify_queue(payload):
+    try:
+        data = request.get_json()
+    except:
+        raise Error("bad_request")
+    data = _validate_item("desktop_queues", {"items": data})["items"]
+
+    users, categories = desktops.parse_desktop_queues(data)
+
+    for user_id, user_desktops in users.items():
+        notify_custom("desktops_queue", user_desktops, "/userspace", user_id)
+
+    for category_id, category_desktops in categories.items():
+        notify_custom(
+            "desktops_queue", category_desktops, "/administrators", category_id
+        )
+
+    notify_custom("desktops_queue", data, "/administrators", "admins")
+
     return json.dumps({}), 200, {"Content-Type": "application/json"}

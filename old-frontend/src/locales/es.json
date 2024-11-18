@@ -351,7 +351,8 @@
         "virt_win_reg": "Se está editando el registro",
         "move": "El disco de este escritorio se está moviendo"
       },
-      "filter-label": "Filtrar"
+      "filter-label": "Filtrar",
+      "queue": "Posición en la cola: {position}"
     },
     "deployment-desktop-list": {
       "actions": {

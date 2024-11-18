@@ -133,7 +133,8 @@
         "direct-link": "Enllaç directe",
         "recreate": "Recrear"
       },
-      "filter-label": "Filtre"
+      "filter-label": "Filtre",
+      "queue": "Posició a la cua: {position}"
     },
     "deployment-desktop-list": {
       "actions": {

@@ -163,12 +163,26 @@
               variant="light"
               class="align-self-center mr-2 status-spinner"
             />
-            <p
-              class="mb-0 text-state font-weight-bold"
-              :class="statusTextCssColor"
+            <span
+              class="d-flex flex-column justify-content-center"
             >
-              {{ desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${desktopState}.text`) }}
-            </p>
+              <p
+                class="mb-0 text-state font-weight-bold"
+                :class="statusTextCssColor"
+              >
+                {{ desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${desktopState}.text`) }}
+              </p>
+              <p
+                v-if="
+                  [desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.maintenance].includes(desktopState.toLowerCase())
+                    && desktop.queue && ![0].includes(queuePosition)
+                "
+                class="mb-0 text-state-small font-weight-bold"
+                :class="statusTextCssColor"
+              >
+                {{ $t('components.desktop-cards.queue', { position: queuePosition }) }}
+              </p>
+            </span>
           </div>
           <div
             v-if="desktop.currentAction && desktopState == desktopStates.maintenance"
@@ -476,6 +490,9 @@ export default {
     },
     currentRouteName () {
       return this.$route.name
+    },
+    queuePosition () {
+      return this.desktop.queue || 0
     }
   },
   destroyed () {

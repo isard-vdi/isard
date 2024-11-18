@@ -154,12 +154,13 @@ class ApiRest:
         resp.raise_for_status()
         return json.loads(resp.text)
 
-    def put(self, url, data={}):
+    def put(self, url, data={}, timeout=5):
         resp = requests.put(
             self.base_url + url,
             json=data,
             headers=header_auth(self.service),
             verify=self.verify_cert,
+            timeout=timeout,
         )
         resp.raise_for_status()
         return json.loads(resp.text)

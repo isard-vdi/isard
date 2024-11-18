@@ -1,0 +1,17 @@
+items:
+  type: list
+  schema:
+    type: dict
+    schema:
+      desktop_id:
+        type: string
+        required: true
+        coerce: sanitize
+      event:
+        type: string
+        required: true
+        coerce: sanitize
+      position:
+        type: integer
+        required: true
+        coerce: sanitize

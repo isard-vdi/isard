@@ -104,26 +104,38 @@
                 </p>
               </template>
               <template #cell(state)="data">
-                <div
-                  v-b-tooltip="{title: `${data.item.currentAction && getItemState(data.item)==desktopStates.maintenance ? $t('components.desktop-cards.storage-operation.'+data.item.currentAction, { action: data.item.currentAction} ) : ''}`}"
-                  class="d-flex justify-content-center align-items-center"
-                >
-                  <!-- STATE DOT -->
+                <span class="d-flex flex-column justify-content-center">
                   <div
-                    v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading, desktopStates.maintenance].includes(getItemState(data.item))"
-                    :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"
-                  />
-                  <!-- SPINNER -->
-                  <b-spinner
-                    v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading, desktopStates.maintenance].includes(getItemState(data.item))"
-                    small
-                    class="align-self-center mr-2 spinner-loading"
-                  />
-                  <!-- TITLE -->
-                  <p class="mb-0 text-medium-gray flex-grow">
-                    {{ data.item.type === 'nonpersistent' && getItemState(data.item) === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${getItemState(data.item)}.text`) }}
+                    v-b-tooltip="{title: `${data.item.currentAction && getItemState(data.item)==desktopStates.maintenance ? $t('components.desktop-cards.storage-operation.'+data.item.currentAction, { action: data.item.currentAction} ) : ''}`}"
+                    class="d-flex justify-content-center align-items-center"
+                  >
+                    <!-- STATE DOT -->
+                    <div
+                      v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading, desktopStates.maintenance].includes(getItemState(data.item))"
+                      :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"
+                    />
+                    <!-- SPINNER -->
+                    <b-spinner
+                      v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading, desktopStates.maintenance].includes(getItemState(data.item))"
+                      small
+                      class="align-self-center mr-2 spinner-loading"
+                    />
+                    <!-- TITLE -->
+                    <p class="mb-0 text-medium-gray flex-grow">
+                      {{ data.item.type === 'nonpersistent' && getItemState(data.item) === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${getItemState(data.item)}.text`) }}
+                    </p>
+                  </div>
+                  <p
+                    v-if="
+                      [desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.maintenance].includes(getItemState(data.item))
+                        && data.item.queue && ![0].includes(data.item.queue || 0)
+                    "
+                    class="mb-0 text-state-small font-weight-bold"
+                    :class="statusTextCssColor"
+                  >
+                    {{ $t('components.desktop-cards.queue', { position: data.item.queue || 0 }) }}
                   </p>
-                </div>
+                </span>
               </template>
               <template #cell(viewers)="data">
                 <div class="">

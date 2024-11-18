@@ -25,6 +25,15 @@ from api import app
 from .. import socketio
 
 
+def notify_custom(event: str, data: dict | list, namespace: str, room: str):
+    socketio.emit(
+        event,
+        json.dumps(data),
+        namespace=namespace,
+        room=room,
+    )
+
+
 def notify_user(user_id, type, msg_code, params={}):
     data = {
         "type": type,
@@ -77,7 +86,6 @@ def notify_admins(event, data={}, category=None):
         room="admins",
     )
     if category:
-        ## Manager notification
         socketio.emit(
             event,
             json.dumps(data),
