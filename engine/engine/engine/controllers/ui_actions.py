@@ -1132,9 +1132,11 @@ class UiActions(object):
                 pool=pool_id,
                 type_path=path_type,
             )
-            if persistent is False:
-                print(f"desktop not persistent, forced hyp: {hyp_to_disk_create}")
-                update_domain_forced_hyp(id_domain=id_new, hyp_id=hyp_to_disk_create)
+            # This is only needed if we don't want volatile desktops to be created in
+            # shared storage, and create it locally in hypervisor
+            # if persistent is False:
+            #     print(f"desktop not persistent, forced hyp: {hyp_to_disk_create}")
+            #     update_domain_forced_hyp(id_domain=id_new, hyp_id=hyp_to_disk_create)
 
             cmds = create_cmds_disk_from_base(path_base=backing_file, path_new=new_file)
             log.debug(
