@@ -3,11 +3,22 @@ package model
 import (
 	"context"
 	"errors"
+	"time"
 
 	"gitlab.com/isard/isardvdi/pkg/db"
 
+	"github.com/jellydator/ttlcache/v3"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
+
+var desktopCache = ttlcache.New(
+	ttlcache.WithTTL[string, Desktop](10*time.Second),
+	ttlcache.WithDisableTouchOnHit[string, Desktop](),
+)
+
+func init() {
+	go desktopCache.Start()
+}
 
 type Desktop struct {
 	ID              string                 `rethinkdb:"id"`
@@ -31,6 +42,12 @@ type DesktopViewer struct {
 }
 
 func (d *Desktop) Load(ctx context.Context, sess r.QueryExecutor) error {
+	cached := desktopCache.Get(d.ID)
+	if cached != nil {
+		*d = cached.Value()
+		return nil
+	}
+
 	res, err := r.Table("domains").Get(d.ID).Run(sess)
 	if err != nil {
 		return &db.Err{
@@ -49,6 +66,8 @@ func (d *Desktop) Load(ctx context.Context, sess r.QueryExecutor) error {
 			Err: err,
 		}
 	}
+
+	desktopCache.Set(d.ID, *d, ttlcache.DefaultTTL)
 
 	return nil
 }

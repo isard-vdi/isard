@@ -92,6 +92,8 @@ func (b *bastion) handleAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Per
 	}
 
 	if !target.SSH.Enabled {
+		b.log.Error().Str("target", target.ID).Msg("ssh transport disabled for target")
+
 		return nil, &ssh.BannerError{
 			Message: "SSH is not enabled for this target\n",
 		}
@@ -102,15 +104,19 @@ func (b *bastion) handleAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Per
 	for _, a := range target.SSH.AuthorizedKeys {
 		aKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(a))
 		if err != nil {
+			b.log.Error().Str("target", target.ID).Str("authorized_key", a).Err(err).Msg("parse SSH authorized key")
 			continue
 		}
 
 		if bytes.Equal(ssh.MarshalAuthorizedKey(key), ssh.MarshalAuthorizedKey(aKey)) {
 			found = true
+			break
 		}
 	}
 
 	if !found {
+		b.log.Error().Str("target", target.ID).Msg("key authentication failed, no matching keys")
+
 		return nil, &ssh.BannerError{
 			Message: "key authentication failed. Ensure you've added your authorized_key to IsardVDI\n",
 		}
