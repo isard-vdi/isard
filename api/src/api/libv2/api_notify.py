@@ -76,3 +76,11 @@ def notify_admins(event, data={}, category=None):
         namespace="/administrators",
         room="admins",
     )
+    if category:
+        ## Manager notification
+        socketio.emit(
+            event,
+            json.dumps(data),
+            namespace="/administrators",
+            room=category,
+        )
