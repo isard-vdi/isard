@@ -215,7 +215,7 @@ def api_v3_persistent_desktop_new(payload):
         desktop["name"],
         payload["user_id"],
     )
-    check_virt_storage_pool_availability(desktop_id)
+    check_create_storage_pool_availability(payload.get("category_id"))
     desktops.new_from_template(
         desktop_name=desktop["name"],
         desktop_description=desktop["description"],

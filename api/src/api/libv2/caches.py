@@ -320,7 +320,7 @@ def get_cached_enabled_virt_pools():
         virt_pools = list(
             r.table("storage_pool")
             .filter(
-                {"enabled": True, "enabled_virt": True},
+                {"enabled_virt": True},
             )
             .run(db.conn)
         )
@@ -399,7 +399,6 @@ def get_cached_available_domain_storage_pool_id(domain_id):
 
     # Check if the virt_pool is enabled
     log.debug(f"Checking if virt_pool {virt_pool_id} is enabled")
-    log.debug(get_cached_enabled_virt_pools())
     if virt_pool_id not in [esp["id"] for esp in get_cached_enabled_virt_pools()]:
         raise Error(
             "precondition_required",

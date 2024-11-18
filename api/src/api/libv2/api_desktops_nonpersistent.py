@@ -91,7 +91,8 @@ class ApiDesktopsNonPersistent:
         # Create the domain from that template
         desktop_id = self._nonpersistent_desktop_from_tmpl(user_id, template_id)
 
-        check_virt_storage_pool_availability(desktop_id)
+        # Disk is created by engine and not ready yet, thus commented this check
+        # check_virt_storage_pool_availability(desktop_id)
         desktop_start(desktop_id)
         payload = gen_payload_from_user(user_id)
         scheduler.add_desktop_timeouts(payload, desktop_id)
