@@ -121,7 +121,7 @@
         </b-col>
       </b-row>
     </span>
-    <DomainBastion v-if="getConfig.canUseBastion"/>
+    <DomainBastion v-if="getConfig.canUseBastion" />
   </div>
 </template>
 

@@ -5,8 +5,8 @@
     size="lg"
     :title="$t('views.desktop.bastion_modal.title', { name: modal.desktop.name })"
     centered
-    @hidden="closeModal"
     hide-footer
+    @hidden="closeModal"
   >
     <b-row
       class="ml-2 mt-2 pr-3"
@@ -17,8 +17,14 @@
       >
         {{ $t('views.desktop.bastion_modal.labels.id') }}
       </label>
-      <b-input-group id="bastionId" class="mb-2">
-        <b-form-input readonly :value="modal.bastion.id"/>
+      <b-input-group
+        id="bastionId"
+        class="mb-2"
+      >
+        <b-form-input
+          readonly
+          :value="modal.bastion.id"
+        />
         <b-input-group-append>
           <b-button
             :title="$t('views.desktop.bastion_modal.titles.id_copy')"
@@ -43,8 +49,14 @@
       >
         {{ $t('views.desktop.bastion_modal.labels.ssh') }}
       </label>
-      <b-input-group id="bastionSshUrl" class="mb-3">
-        <b-form-input readonly :value="sshUrl" />
+      <b-input-group
+        id="bastionSshUrl"
+        class="mb-3"
+      >
+        <b-form-input
+          readonly
+          :value="sshUrl"
+        />
         <b-input-group-append>
           <b-button
             :title="$t('views.desktop.bastion_modal.titles.ssh_copy')"
@@ -61,15 +73,21 @@
       v-if="modal.bastion.http.enabled"
       class="ml-2 pr-3"
     >
-    <label
+      <label
         for="bastionHttpUrl"
         class="ml-2 mb-0"
         :title="$t('views.desktop.bastion_modal.titles.http_port', { http_port: modal.bastion.http.http_port })"
       >
         {{ $t('views.desktop.bastion_modal.labels.http') }}
       </label>
-      <b-input-group id="bastionHttpUrl" class="mb-3">
-        <b-form-input readonly :value="httpUrl" />
+      <b-input-group
+        id="bastionHttpUrl"
+        class="mb-3"
+      >
+        <b-form-input
+          readonly
+          :value="httpUrl"
+        />
         <b-input-group-append>
           <b-button
             :title="$t('views.desktop.bastion_modal.titles.http_open')"
@@ -98,8 +116,14 @@
       >
         {{ $t('views.desktop.bastion_modal.labels.https') }}
       </label>
-      <b-input-group id="bastionHttpUrl" class="mb-3">
-        <b-form-input readonly :value="httpsUrl" />
+      <b-input-group
+        id="bastionHttpUrl"
+        class="mb-3"
+      >
+        <b-form-input
+          readonly
+          :value="httpsUrl"
+        />
         <b-input-group-append>
           <b-button
             :title="$t('views.desktop.bastion_modal.titles.http_open')"
