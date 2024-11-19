@@ -130,24 +130,26 @@ def update_storage_qemu_info(storage_id, qemu_img_info, hierarchy=True):
             disk_info = qemu_img_info
         else:
             return False
+
         if disk_info.get("filename") == filename:
-            update_table_field("storage", storage_id, "qemu-img-info", disk_info)
+            storage_dict = {}
+            storage_dict["qemu-img-info"] = disk_info
             if not hierarchy:
                 return True
             if "backing-filename" not in disk_info.keys():
-                update_table_field("storage", storage_id, "parent", None)
+                storage_dict["parent"] = None
             else:
                 parent_path = disk_info["backing-filename"]
                 try:
                     uuid_parent = parent_path[: parent_path.rfind(".")].split("/")[-1]
                     # if id doesn't exist get_table_field is None
                     parent_id = get_table_field("storage", uuid_parent, "id")
-
                 except Exception as e:
                     parent_id = None
 
                 if parent_id is None:
-                    update_table_field("storage", storage_id, "status", "orphan")
+                    storage_dict["status"] = "orphan"
 
-                update_table_field("storage", storage_id, "parent", parent_id)
+                storage_dict["parent"] = parent_id
+            update_table_dict("storage", storage_id, storage_dict)
     return True

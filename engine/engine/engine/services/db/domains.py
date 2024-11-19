@@ -245,7 +245,7 @@ def update_domain_parents(id_domain):
         with rethink_conn() as conn:
             results = (
                 r.table("domains")
-                .get_all(id_domain, index="id")
+                .get(id_domain)
                 .update({"parents": parents_with_new_origin})
                 .run(conn)
             )
