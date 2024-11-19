@@ -784,6 +784,10 @@ class HypWorkerThread(threading.Thread):
     def get_queue_items(self):
         # Get the list with this format {“desktop_id”: “UUID-UUID…”, “event”: “Starting”, “position”: 14}
         items = list(self.queue_actions.queue)
+        # remove items without id_domain and type
+        items = [
+            item for item in items if item[2].get("id_domain") and item[2].get("type")
+        ]
         # Order them by their priority and then by the order in the queue
         sorted_items = sorted(items, key=lambda x: (x[0], x[1]))
         positioned_items = [
