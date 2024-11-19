@@ -111,6 +111,44 @@ class RecycleBinDeleteQueue:
         app.logger.debug(f"Performing operation with user_id {user_id}")
         rb = RecycleBin(id=recycle_bin_id)
         rb.delete_storage(user_id)
+        if rb.item_type in ["user", "group", "category"]:
+            dependants_rb_ids = []
+            for user in rb.users:
+                with app.app_context():
+                    dependants_rb_ids += set(
+                        r.table("recycle_bin")
+                        .get_all([user["id"], "recycled"], index=f"owner_status")
+                        .filter(lambda rb: rb["id"] != recycle_bin_id)
+                        .pluck("id")["id"]
+                        .run(db.conn)
+                    )
+            if rb.item_type == "group":
+                for group in rb.groups:
+                    with app.app_context():
+                        dependants_rb_ids += set(
+                            r.table("recycle_bin")
+                            .get_all(
+                                [group["id"], "recycled"], index=f"owner_group_status"
+                            )
+                            .filter(lambda rb: rb["id"] != recycle_bin_id)
+                            .pluck("id")["id"]
+                            .run(db.conn)
+                        )
+            elif rb.item_type == "category":
+                for category in rb.categories:
+                    with app.app_context():
+                        dependants_rb_ids += set(
+                            r.table("recycle_bin")
+                            .get_all(
+                                [category["id"], "recycled"],
+                                index=f"owner_category_status",
+                            )
+                            .filter(lambda rb: rb["id"] != recycle_bin_id)
+                            .pluck("id")["id"]
+                            .run(db.conn)
+                        )
+            for d_rb_id in dependants_rb_ids:
+                self.enqueue({"recycle_bin_id": d_rb_id, "user_id": user_id})
 
     def process_next_item(self):
         item = self.dequeue()

@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 151
+release_version = 152
+# release 152: Add index 'owner_group_status', categor to recycle bin table
 # release 151: Add new field 'enabled_virt' to storage pools table
 # release 150: Fix storage users to match domain users
 # release 149: Add multi desktop ids and kind index
@@ -5359,6 +5360,15 @@ password:s:%s"""
                     multi=True,
                 ).run(self.conn)
                 r.table(table).index_wait("duplicate_parent_template").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 152:
+            try:
+                r.table(table).index_create(
+                    "owner_group_status",
+                    [r.row["owner_group_id"], r.row["status"]],
+                ).run(self.conn)
             except Exception as e:
                 print(e)
 
