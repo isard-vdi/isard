@@ -818,7 +818,18 @@ def change_owner_domains(domain_ids, user_data, kind):
 
 def change_owner_desktops(desktop_ids, user_data, desktop_user_id):
     desktops_stop(desktop_ids)
-    quotas.desktop_create(user_data["new_user"]["user"], len(desktop_ids))
+    # Deployment desktops must be ignored when checking the new user quotas
+    with app.app_context():
+        user_desktops = list(
+            r.table("domains")
+            .get_all(r.args(desktop_ids))
+            .pluck("id", "tag")
+            .run(db.conn)
+        )
+    not_deployment_desktops = list(
+        filter(lambda desktop: (desktop.get("tag") in [None, False]), user_desktops)
+    )
+    quotas.desktop_create(user_data["new_user"]["user"], len(not_deployment_desktops))
     # delete old bookings
     with app.app_context():
         r.table("bookings").get_all(desktop_user_id, index="user_id").delete().run(
