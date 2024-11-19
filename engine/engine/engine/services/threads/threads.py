@@ -96,14 +96,12 @@ def launch_disk_operations_thread(
 
 
 def launch_delete_disk_action(action, hostname, user, port):
-    disk_path = action["disk_path"]
-    id_domain = action["domain"]
+    # disk_path = action["disk_path"]
+    # id_domain = action["domain"]
     array_out_err = execute_commands(
         hostname, ssh_commands=action["ssh_commands"], user=user, port=port
     )
-    # ALBERTO FALTA ACABAR
-
-    pass
+    # TODO or TOREMOVE
 
 
 def launch_action_delete_disk(action, hostname, user, port):

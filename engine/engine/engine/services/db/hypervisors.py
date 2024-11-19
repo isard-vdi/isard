@@ -7,14 +7,12 @@ from engine.services.db import (
     cleanup_hypervisor_gpus,
     close_rethink_connection,
     new_rethink_connection,
+    rethink_conn,
 )
 from engine.services.db.domains import get_vgpus_mdevs
-from engine.services.db.storage_pool import get_category_storage_pool_id
 from engine.services.log import log, logs
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
-
-from .db import rethink
 
 
 def get_hypervisor(hyp_id):
@@ -38,24 +36,25 @@ def update_hyp_thread_status(thread_type, hyp_id, status):
         "Stopping",
         "Deleting",
     ]:
-        r_conn = new_rethink_connection()
-        rtable = r.table("hypervisors")
-        result = (
-            rtable.get(hyp_id)
-            .update({"thread_status": {thread_type: status}})
-            .run(r_conn)
-        )
+        with rethink_conn() as conn:
+            result = (
+                r.table("hypervisors")
+                .get(hyp_id)
+                .update({"thread_status": {thread_type: status}})
+                .run(conn)
+            )
 
         if status != "Started":
             try:
-                d = (
-                    rtable.get(hyp_id)
-                    .pluck("thread_status", "status", "capabilities")
-                    .run(r_conn)
-                )
+                with rethink_conn() as conn:
+                    d = (
+                        r.table("hypervisors")
+                        .get(hyp_id)
+                        .pluck("thread_status", "status", "capabilities")
+                        .run(conn)
+                    )
             except:
                 # hypervisor not found. It is weird that it happens.
-                close_rethink_connection(r_conn)
                 return False
             status_hyp = d["status"]
             if status_hyp == "Online":
@@ -81,16 +80,17 @@ def update_hyp_thread_status(thread_type, hyp_id, status):
 
                 if ko_worker is True and ko_disk_operations is True:
                     cleanup_hypervisor_gpus(hyp_id)
-                    result = rtable.get(hyp_id).delete().run(r_conn)
-                    close_rethink_connection(r_conn)
-                    return result
+                    with rethink_conn() as conn:
+                        return r.table("hypervisors").get(hyp_id).delete().run(conn)
 
         elif status == "Started":
-            d = (
-                rtable.get(hyp_id)
-                .pluck("thread_status", "status", "capabilities")
-                .run(r_conn)
-            )
+            with rethink_conn() as conn:
+                d = (
+                    r.table("hypervisors")
+                    .get(hyp_id)
+                    .pluck("thread_status", "status", "capabilities")
+                    .run(conn)
+                )
 
             ok_disk_operations = False
             if d["capabilities"].get("disk_operations", False) is True:
@@ -110,7 +110,6 @@ def update_hyp_thread_status(thread_type, hyp_id, status):
                 logs.workers.info(
                     f"All threads for hyp are started in hypervisor: {hyp_id}"
                 )
-        close_rethink_connection(r_conn)
         return result
     else:
         return False
@@ -138,18 +137,17 @@ def update_hyp_status(id, status, detail="", uri=""):
     if status == "Error":
         pass
     if status in defined_status:
-        r_conn = new_rethink_connection()
-        rtable = r.table("hypervisors")
         if len(uri) > 0:
             dict_update = {"status": status, "uri": uri}
         else:
             dict_update = {"status": status}
-
-        d = (
-            rtable.get(id)
-            .pluck("status", "status_time", "prev_status", "detail", "capabilities")
-            .run(r_conn)
-        )
+        with rethink_conn() as conn:
+            d = (
+                r.table("hypervisors")
+                .get(id)
+                .pluck("status", "status_time", "prev_status", "detail", "capabilities")
+                .run(conn)
+            )
 
         if status == "Online":
             dict_update["cap_status"] = {
@@ -201,8 +199,8 @@ def update_hyp_status(id, status, detail="", uri=""):
         #
         # else:
         dict_update["detail"] = str(detail)
-        rtable.filter({"id": id}).update(dict_update).run(r_conn)
-        close_rethink_connection(r_conn)
+        with rethink_conn() as conn:
+            r.table("hypervisors").get(id).update(dict_update).run(conn)
 
     else:
         log.error("hypervisor status {} is not defined".format(status))
@@ -309,24 +307,22 @@ def get_hyp_system_info():
 
 
 def get_hyp_hostname_from_id(id):
-    r_conn = new_rethink_connection()
     try:
-        l = (
-            r.table("hypervisors")
-            .get(id)
-            .pluck(
-                "hostname",
-                "port",
-                "user",
-                "nvidia_enabled",
-                "force_get_hyp_info",
-                "init_vgpu_profiles",
+        with rethink_conn() as conn:
+            l = (
+                r.table("hypervisors")
+                .get(id)
+                .pluck(
+                    "hostname",
+                    "port",
+                    "user",
+                    "nvidia_enabled",
+                    "force_get_hyp_info",
+                    "init_vgpu_profiles",
+                )
+                .run(conn)
             )
-            .run(r_conn)
-        )
-        close_rethink_connection(r_conn)
     except ReqlNonExistenceError:
-        close_rethink_connection(r_conn)
         return False, False, False, False, False, False
     if len(l) > 0:
         if l.__contains__("user") and l.__contains__("port"):
