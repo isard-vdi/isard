@@ -81,6 +81,7 @@ $(document).ready(function () {
             data
         }
       },
+      { "data": "qos_disk_id", "title": "QoS Disk ID", "render": function (data, type, full, meta) { return data ? data : "Ignore" } },
       { "data": "description", "title": "Description", 'defaultContent': '' },
       // { 
       //   "data": "startable",
@@ -134,6 +135,7 @@ $(document).ready(function () {
       dropdownParent: $("#modalAddStoragePool"),
     });
     populateCategory("#modalAddStoragePool", null);
+    populateQosDisk("#modalAddStoragePool", null);
     addPath("#modalAddStoragePool .path_base_mountpoint", "");
 
     addDefaultCheckboxListeners("#modalAdd", $("#modalAdd .checkbox .default-cb"));
@@ -192,6 +194,7 @@ $(document).ready(function () {
             dropdownParent: $("#modalEditStoragePool"),
           });
           populateCategory("#modalEditStoragePool", data.categories);
+          populateQosDisk("#modalEditStoragePool", data.qos_disk_id);
 
           $("#modalEditStoragePool").modal({
             backdrop: "static",
@@ -634,6 +637,26 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
 
   }
 });
+
+function populateQosDisk(modal, qos_disk_id) {
+  $(modal + " #qos_disk_id").empty();
+  $(modal + ' #qos_disk_id').append(
+    `<option value=null>Ignore</option>`
+  );
+  $.ajax({
+    type: "GET",
+    url: "/api/v3/admin/table/qos_disk",
+    cache: false,
+    success: function (qos_disk) {
+      $.each(qos_disk, function (key, value) {
+        $(modal + ' #qos_disk_id').append(
+          `<option value="${value.id}">${value.name}</option>`
+        );
+        $(modal + " #category").val(qos_disk_id).trigger("change");
+      });
+    }
+  });
+}
 
 function populateCategory(modal, category_id) {
   $(modal + " #category").empty();

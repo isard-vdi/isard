@@ -96,3 +96,7 @@ write:
   type: boolean
   required: true
   default: true
+qos_disk_id:
+  type: string
+  required: true
+  coerce: sanitize
