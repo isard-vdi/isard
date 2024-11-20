@@ -347,6 +347,8 @@ def category_in_storage_pool(storage, destination_storage_pool):
     :param destination_storage_pool: Destination Storage Pool
     :type destination_storage_pool: StoragePool
     """
+    if destination_storage_pool.id == DEFAULT_STORAGE_POOL_ID:
+        return
     if not destination_storage_pool.has_category(storage.category):
         raise Error(
             error="bad_request",
