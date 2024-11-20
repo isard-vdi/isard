@@ -342,6 +342,71 @@ func TestParseCategorySelectToken(t *testing.T) {
 	}
 }
 
+func TestParseUserMigrationRequiredToken(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	cases := map[string]struct {
+		PrepareToken func() string
+		ExpectedErr  string
+		CheckToken   func(jwt.Claims)
+	}{
+		"should work if the token is a valid user-migration-required token": {
+			PrepareToken: func() string {
+				ss, err := token.SignUserMigrationRequiredToken("", "néfix! :D")
+				require.NoError(err)
+
+				return ss
+			},
+			CheckToken: func(c jwt.Claims) {
+				claims, ok := c.(*token.UserMigrationRequiredClaims)
+
+				assert.True(ok)
+
+				claims.ExpiresAt = nil
+				claims.IssuedAt = nil
+				claims.NotBefore = nil
+
+				assert.Equal(&token.UserMigrationRequiredClaims{
+					TypeClaims: token.TypeClaims{
+						RegisteredClaims: &jwt.RegisteredClaims{
+							Issuer: "isard-authentication",
+						},
+						KeyID: "isardvdi",
+						Type:  token.TypeUserMigrationRequired,
+					},
+					UserID: "néfix! :D",
+				}, claims)
+			},
+		},
+		"should return an error if the token is not of type user-migration-required": {
+			PrepareToken: func() string {
+				ss, err := token.SignDisclaimerAcknowledgementRequiredToken("", "néfix :D")
+				require.NoError(err)
+
+				return ss
+			},
+			ExpectedErr: "error parsing the JWT token: token has invalid claims: invalid token type",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			claims, err := token.ParseUserMigrationRequiredToken("", tc.PrepareToken())
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			if tc.CheckToken != nil {
+				tc.CheckToken(claims)
+			}
+		})
+	}
+}
+
 func TestParseUserMigrationToken(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)

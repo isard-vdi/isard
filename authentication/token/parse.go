@@ -119,6 +119,10 @@ func ParseCategorySelectToken(secret, ss string) (*CategorySelectClaims, error) 
 	return parseAuthenticationToken[*CategorySelectClaims](secret, ss, &CategorySelectClaims{})
 }
 
+func ParseUserMigrationRequiredToken(secret, ss string) (*UserMigrationRequiredClaims, error) {
+	return parseAuthenticationToken[*UserMigrationRequiredClaims](secret, ss, &UserMigrationRequiredClaims{})
+}
+
 func ParseUserMigrationToken(secret, ss string) (*UserMigrationClaims, error) {
 	return parseAuthenticationToken[*UserMigrationClaims](secret, ss, &UserMigrationClaims{})
 }

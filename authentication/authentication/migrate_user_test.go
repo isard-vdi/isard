@@ -57,11 +57,54 @@ func TestMigrateUser(t *testing.T) {
 				}, claims)
 			},
 		},
+		"should work as expected with a user-migration-required token": {
+			PrepareToken: func() string {
+				tkn, err := token.SignUserMigrationRequiredToken("", "néfix")
+
+				require.NoError(err)
+
+				return tkn
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParseUserMigrationToken("", ss)
+
+				require.NoError(err)
+
+				// Cleanup expiration time
+				claims.ExpiresAt = nil
+				claims.NotBefore = nil
+				claims.IssuedAt = nil
+
+				assert.Equal(&token.UserMigrationClaims{
+					TypeClaims: token.TypeClaims{
+						RegisteredClaims: &jwt.RegisteredClaims{
+							Issuer: "isard-authentication",
+						},
+						KeyID: "isardvdi",
+						Type:  token.TypeUserMigration,
+					},
+					UserID: "néfix",
+				}, claims)
+			},
+		},
 		"should return an error if there's an error parsing the token": {
 			PrepareToken: func() string {
 				return ""
 			},
-			ExpectedErr: "error parsing the JWT token: token is malformed: token contains an invalid number of segments",
+			ExpectedErr: "get the JWT token type: parse the JWT token: token is malformed: token contains an invalid number of segments",
+			CheckToken: func(ss string) {
+				assert.Equal("", ss)
+			},
+		},
+		"should return an error if the JWT is an invalid type": {
+			PrepareToken: func() string {
+				tkn, err := token.SignPasswordResetRequiredToken("", "néfix")
+
+				require.NoError(err)
+
+				return tkn
+			},
+			ExpectedErr: "invalid token type",
 			CheckToken: func(ss string) {
 				assert.Equal("", ss)
 			},

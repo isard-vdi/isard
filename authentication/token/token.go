@@ -25,6 +25,7 @@ const (
 	TypePasswordResetRequired             Type = "password-reset-required"
 	TypePasswordReset                     Type = "password-reset"
 	TypeCategorySelect                    Type = "category-select"
+	TypeUserMigrationRequired             Type = "user-migration-required"
 	TypeUserMigration                     Type = "user-migration"
 )
 
@@ -203,6 +204,19 @@ func (c CategorySelectClaims) Validate() error {
 	return nil
 }
 
+type UserMigrationRequiredClaims struct {
+	TypeClaims
+	UserID string `json:"user_id"`
+}
+
+func (u UserMigrationRequiredClaims) Validate() error {
+	if u.Type != TypeUserMigrationRequired {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
 type UserMigrationClaims struct {
 	TypeClaims
 	UserID string `json:"user_id"`
@@ -234,6 +248,7 @@ func GetTokenType(ss string) (Type, error) {
 		TypePasswordResetRequired,
 		TypePasswordReset,
 		TypeCategorySelect,
+		TypeUserMigrationRequired,
 		TypeUserMigration:
 
 		return claims.Type, nil
