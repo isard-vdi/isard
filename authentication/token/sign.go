@@ -259,3 +259,27 @@ func SignCategorySelectToken(secret string, categories []*model.Category, u *typ
 
 	return ss, nil
 }
+
+func SignUserMigrationToken(secret string, userID string) (string, error) {
+	tkn := jwt.NewWithClaims(signingMethod, &UserMigrationClaims{
+		TypeClaims: TypeClaims{
+			RegisteredClaims: &jwt.RegisteredClaims{
+				// TODO: This should be maybe configurable
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(60 * time.Minute)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Issuer:    issuer,
+			},
+			KeyID: keyID,
+			Type:  TypeUserMigration,
+		},
+		UserID: userID,
+	})
+
+	ss, err := tkn.SignedString([]byte(secret))
+	if err != nil {
+		return "", fmt.Errorf("sign the user migration token: %w", err)
+	}
+
+	return ss, nil
+}

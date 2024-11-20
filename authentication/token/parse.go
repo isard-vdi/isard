@@ -118,3 +118,7 @@ func ParsePasswordResetToken(secret, ss string) (*PasswordResetClaims, error) {
 func ParseCategorySelectToken(secret, ss string) (*CategorySelectClaims, error) {
 	return parseAuthenticationToken[*CategorySelectClaims](secret, ss, &CategorySelectClaims{})
 }
+
+func ParseUserMigrationToken(secret, ss string) (*UserMigrationClaims, error) {
+	return parseAuthenticationToken[*UserMigrationClaims](secret, ss, &UserMigrationClaims{})
+}
