@@ -22,6 +22,7 @@ from isardvdi_common.user import User
 from rq.job import JobStatus
 
 from . import domain
+from .default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from .rethink_custom_base_factory import RethinkCustomBase
 from .task import Task
 
@@ -91,6 +92,8 @@ class Storage(RethinkCustomBase):
         """
         if self.pool_usage is None:
             return None
+        if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
+            return f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
         return f"{storage_pool.mountpoint}/{self.category}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
 
     @property
