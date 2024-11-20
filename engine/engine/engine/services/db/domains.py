@@ -13,6 +13,7 @@ from engine.services.db import (
     close_rethink_connection,
     create_list_buffer_history_domain,
     new_rethink_connection,
+    rethink_conn,
 )
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
 from engine.services.lib.storage import (
@@ -224,9 +225,13 @@ def update_domain_forced_hyp(id_domain, hyp_id=None):
 
 
 def update_domain_parents(id_domain):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    d = rtable.get(id_domain).pluck({"create_dict": "origin"}, "parents").run(r_conn)
+    with rethink_conn() as conn:
+        d = (
+            r.table("domains")
+            .get(id_domain)
+            .pluck({"create_dict": "origin"}, "parents")
+            .run(conn)
+        )
 
     if "parents" not in d.keys():
         parents_with_new_origin = []
@@ -237,13 +242,14 @@ def update_domain_parents(id_domain):
 
     if "origin" in d["create_dict"].keys():
         parents_with_new_origin.append(d["create_dict"]["origin"])
-        results = (
-            rtable.get_all(id_domain, index="id")
-            .update({"parents": parents_with_new_origin})
-            .run(r_conn)
-        )
+        with rethink_conn() as conn:
+            results = (
+                r.table("domains")
+                .get(id_domain)
+                .update({"parents": parents_with_new_origin})
+                .run(conn)
+            )
 
-    close_rethink_connection(r_conn)
     return results
 
 
@@ -274,9 +280,6 @@ def update_domain_status(
     keep_hyp_id=False,
     storage_id=None,
 ):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
     if DEBUG_CHANGES:
         thread_name = threading.currentThread().name
         parents = []
@@ -311,34 +314,46 @@ def update_domain_status(
 
     try:
         if status == "Stopped":
-            last_hyp_id = (
-                rtable.get(id_domain).pluck("hyp_started").run(r_conn)["hyp_started"]
-            )
-            if type(last_hyp_id) is str and len(last_hyp_id) > 0:
-                results = (
-                    rtable.get_all(id_domain, index="id")
-                    .update({"last_hyp_id": last_hyp_id})
-                    .run(r_conn)
+            with rethink_conn() as conn:
+                last_hyp_id = (
+                    r.table("domains")
+                    .get(id_domain)
+                    .pluck("hyp_started")
+                    .run(conn)["hyp_started"]
                 )
+            if type(last_hyp_id) is str and len(last_hyp_id) > 0:
+                with rethink_conn() as conn:
+                    results = (
+                        r.table("domains")
+                        .get_all(id_domain, index="id")
+                        .update({"last_hyp_id": last_hyp_id})
+                        .run(conn)
+                    )
 
         if keep_hyp_id == True:
-            hyp_id = (
-                rtable.get(id_domain).pluck("hyp_started").run(r_conn)["hyp_started"]
-            )
+            with rethink_conn() as conn:
+                hyp_id = (
+                    r.table("domains")
+                    .get(id_domain)
+                    .pluck("hyp_started")
+                    .run(conn)["hyp_started"]
+                )
 
         if hyp_id is None:
-            results = (
-                rtable.get(id_domain)
-                .update(
-                    {
-                        "status": status,
-                        "hyp_started": False,
-                        "detail": json.dumps(detail),
-                    },
-                    return_changes=True,
+            with rethink_conn() as conn:
+                results = (
+                    r.table("domains")
+                    .get(id_domain)
+                    .update(
+                        {
+                            "status": status,
+                            "hyp_started": False,
+                            "detail": json.dumps(detail),
+                        },
+                        return_changes=True,
+                    )
+                    .run(conn)
                 )
-                .run(r_conn)
-            )
         else:
             d_update = {
                 "hyp_started": hyp_id,
@@ -346,9 +361,13 @@ def update_domain_status(
                 "detail": json.dumps(detail),
             }
 
-            results = (
-                rtable.get(id_domain).update(d_update, return_changes=True).run(r_conn)
-            )
+            with rethink_conn() as conn:
+                results = (
+                    r.table("domains")
+                    .get(id_domain)
+                    .update(d_update, return_changes=True)
+                    .run(conn)
+                )
 
         if status == "DiskDeleted":
             try:
@@ -360,12 +379,11 @@ def update_domain_status(
                 logs.main.error("Traceback: \n .{}".format(traceback.format_exc()))
                 logs.main.error("Exception message: {}".format(e))
         if status == "Stopped":
-            remove_fieds_when_stopped(id_domain, conn=r_conn)
+            remove_fieds_when_stopped(id_domain)
 
         if status == "Failed":
-            remove_fieds_when_stopped(id_domain, conn=r_conn)
+            remove_fieds_when_stopped(id_domain)
 
-        close_rethink_connection(r_conn)
         # if results_zero(results):
         #
         #     logs.main.debug('id_domain {} in hyperviros {} does not exist in domain table'.format(id_domain,hyp_id))
@@ -377,7 +395,6 @@ def update_domain_status(
             "domain_id {} does not exist in domains table".format(id_domain)
         )
         logs.main.debug("function: {}".format(sys._getframe().f_code.co_name))
-        close_rethink_connection(r_conn)
         return False
 
 
@@ -557,17 +574,11 @@ def update_domain_dict_hardware(domain_id, domain_dict, xml=False):
     return results
 
 
-def remove_domain_viewer_values(id, conn=False):
-    if conn is False:
-        r_conn = new_rethink_connection()
-    else:
-        r_conn = conn
-
-    rtable = r.table("domains")
-
-    results = rtable.get(id).replace(r.row.without("viewer")).run(r_conn)
-    close_rethink_connection(r_conn)
-    return results
+def remove_domain_viewer_values(domain_id):
+    with rethink_conn() as conn:
+        return (
+            r.table("domains").get(domain_id).replace(r.row.without("viewer")).run(conn)
+        )
 
 
 def update_disk_backing_chain(
@@ -578,9 +589,8 @@ def update_disk_backing_chain(
     new_template=False,
     list_backing_chain_template=[],
 ):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    domain = rtable.get(id_domain).run(r_conn)
+    with rethink_conn() as conn:
+        domain = r.table("domains").get(id_domain).run(conn)
     # Domain could be deleted by api and webapp
     # https://gitlab.com/isard/isardvdi/-/blob/main/api/src/api/libv2/ds.py#L60
     # https://gitlab.com/isard/isardvdi/-/blob/main/webapp/webapp/webapp/lib/ds.py#L53
@@ -600,26 +610,27 @@ def update_disk_backing_chain(
         update_domain_createdict_qemu_img_info(
             domain.get("create_dict", {}), index_disk, list_backing_chain
         )
-        results = rtable.replace(domain).run(r_conn)
+        with rethink_conn() as conn:
+            results = r.table("domains").replace(domain).run(conn)
     else:
         logs.main.error(
             f"trying to update disk backing chain of non-existent domain {id_domain}"
         )
         results = None
 
-    close_rethink_connection(r_conn)
     return results
 
 
 def update_disk_template_created(id_domain, index_disk):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    dict_disk_templates = (
-        rtable.get(id_domain).pluck("disk_template_created").run(r_conn)
-    )
+    with rethink_conn() as conn:
+        dict_disk_templates = (
+            r.table("domains").get(id_domain).pluck("disk_template_created").run(conn)
+        )
     dict_disk_templates["disk_template_created"][index_disk] = 1
-    results = rtable.get(id_domain).update(dict_disk_templates).run(r_conn)
-    close_rethink_connection(r_conn)
+    with rethink_conn() as conn:
+        results = (
+            r.table("domains").get(id_domain).update(dict_disk_templates).run(conn)
+        )
     return results
 
 
@@ -727,29 +738,24 @@ def get_domain(id):
 
 
 def get_domain_status(id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
     try:
-        domain_status = rtable.get(id).pluck("status").run(r_conn)
+        with rethink_conn() as conn:
+            domain_status = r.table("domains").get(id).pluck("status").run(conn)
     except ReqlNonExistenceError:
-        close_rethink_connection(r_conn)
         return None
 
-    close_rethink_connection(r_conn)
     return domain_status["status"]
 
 
 def get_storage_ids_and_paths_from_domain(domain_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
     try:
-        d_storages_ids = (
-            rtable.get(domain_id)
-            .pluck({"create_dict": {"hardware": [{"disks": "storage_id"}]}})
-            .run(r_conn)
-        )
+        with rethink_conn() as conn:
+            d_storages_ids = (
+                r.table("domains")
+                .get(domain_id)
+                .pluck({"create_dict": {"hardware": [{"disks": "storage_id"}]}})
+                .run(conn)
+            )
         l_storage_ids = [
             a["storage_id"]
             for a in d_storages_ids.get("create_dict", {})
@@ -761,12 +767,13 @@ def get_storage_ids_and_paths_from_domain(domain_id):
         d_out = {}
         for storage_id in l_storage_ids:
             try:
-                storage = (
-                    r.table("storage")
-                    .get(storage_id)
-                    .pluck("directory_path", "type", "readonly")
-                    .run(r_conn)
-                )
+                with rethink_conn() as conn:
+                    storage = (
+                        r.table("storage")
+                        .get(storage_id)
+                        .pluck("directory_path", "type", "readonly")
+                        .run(conn)
+                    )
                 if storage.get("readonly", False) is True:
                     continue
                 path = str(
@@ -777,10 +784,8 @@ def get_storage_ids_and_paths_from_domain(domain_id):
                 d_out[storage_id] = path
             except r.ReqlNonExistenceError:
                 continue
-        close_rethink_connection(r_conn)
         return d_out
     except r.ReqlNonExistenceError:
-        close_rethink_connection(r_conn)
         return {}
 
 
@@ -1268,22 +1273,15 @@ def get_domains_started_in_hyp(hyp_id, only_started=False, only_unknown=False):
     return d
 
 
-def remove_fieds_when_stopped(id_domain, conn=False):
-    if conn is False:
-        r_conn = new_rethink_connection()
-    else:
-        r_conn = conn
-
-    r.table("domains").get(id_domain).update(
-        {
-            "create_dict": {"personal_vlans": False},
-            "hyp_started": False,
-        },
-    ).run(r_conn)
-    remove_domain_viewer_values(id_domain, conn=r_conn)
-
-    if conn is False:
-        close_rethink_connection(r_conn)
+def remove_fieds_when_stopped(id_domain):
+    with rethink_conn() as conn:
+        r.table("domains").get(id_domain).update(
+            {
+                "create_dict": {"personal_vlans": False},
+                "hyp_started": False,
+            },
+        ).run(conn)
+    remove_domain_viewer_values(id_domain)
 
 
 def domains_with_attached_disk(disk_path):

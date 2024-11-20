@@ -4,6 +4,7 @@
 # License: AGPLv3
 
 import json
+from contextlib import contextmanager
 from functools import wraps
 
 from engine.config import (
@@ -43,11 +44,27 @@ def rethink(function):
     return decorate
 
 
+@contextmanager
+def rethink_conn():
+    connection = None
+    try:
+        connection = r.connect(
+            host=RETHINK_HOST,
+            port=RETHINK_PORT,
+            db=RETHINK_DB,
+        )
+        yield connection
+    except r.errors.ReqlDriverError as e:
+        print(f"Rethinkdb connection failed: {e}")
+        raise
+    finally:
+        if connection:
+            connection.close()
+
+
 def get_dict_from_item_in_table(table, id):
-    r_conn = new_rethink_connection()
-    d = r.table(table).get(id).run(r_conn)
-    close_rethink_connection(r_conn)
-    return d
+    with rethink_conn() as conn:
+        return r.table(table).get(id).run(conn)
 
 
 def get_hyp_viewer_info(hyp_id):
@@ -147,15 +164,12 @@ def insert_table_dict(table, d_new, ignore_if_exists=False):
 
 
 def get_table_field(table, id_item, field):
-    r_conn = new_rethink_connection()
-    rtable = r.table(table)
-
     try:
-        result = rtable.get(id_item).pluck(field).run(r_conn)
+        with rethink_conn() as conn:
+            result = r.table(table).get(id_item).pluck(field).run(conn)
     except Exception as e:
-        close_rethink_connection(r_conn)
         return None
-    close_rethink_connection(r_conn)
+
     if type(field) is dict and type(result) is dict:
         return result
     if type(result) is dict:
@@ -185,28 +199,28 @@ def delete_table_item(table, id_item):
 
 def update_table_field(table, id_doc, field, value, merge_dict=True, soft=False):
     durability = "hard" if soft is False else "soft"
-    r_conn = new_rethink_connection()
-    rtable = r.table(table)
     if merge_dict is True:
-        result = (
-            rtable.get(id_doc).update({field: value}, durability=durability).run(r_conn)
-        )
+        with rethink_conn() as conn:
+            return (
+                r.table(table)
+                .get(id_doc)
+                .update({field: value}, durability=durability)
+                .run(conn)
+            )
     else:
-        result = (
-            rtable.get(id_doc)
-            .update({field: r.literal(value)}, durability=durability)
-            .run(r_conn)
-        )
-    close_rethink_connection(r_conn)
-    return result
+        with rethink_conn() as conn:
+            return (
+                r.table(table)
+                .get(id_doc)
+                .update({field: r.literal(value)}, durability=durability)
+                .run(conn)
+            )
 
 
 def update_table_dict(table, id_doc, dict, soft=False):
     durability = "hard" if soft is False else "soft"
-    r_conn = new_rethink_connection()
-    result = r.table(table).get(id_doc).update(dict, durability=durability).run(r_conn)
-    close_rethink_connection(r_conn)
-    return result
+    with rethink_conn() as conn:
+        return r.table(table).get(id_doc).update(dict, durability=durability).run(conn)
 
 
 def remove_media(id):
@@ -267,18 +281,19 @@ def get_isardvdi_secret():
 
 
 def cleanup_hypervisor_gpus(hyp_id: str):
-    r_conn = new_rethink_connection()
-
-    physical_devs = list(
-        r.table("vgpus").filter({"hyp_id": hyp_id})["id"].coerce_to("array").run(r_conn)
-    )
+    with rethink_conn() as conn:
+        physical_devs = list(
+            r.table("vgpus")
+            .filter({"hyp_id": hyp_id})["id"]
+            .coerce_to("array")
+            .run(conn)
+        )
     if len(physical_devs) != 0:
-        r.table("gpus").filter(
-            lambda gpu: r.expr(physical_devs).contains(gpu["physical_device"])
-        ).update({"physical_device": None}).run(r_conn)
-        r.table("vgpus").filter({"hyp_id": hyp_id}).delete().run(r_conn)
-
-    close_rethink_connection(r_conn)
+        with rethink_conn() as conn:
+            r.table("gpus").filter(
+                lambda gpu: r.expr(physical_devs).contains(gpu["physical_device"])
+            ).update({"physical_device": None}).run(conn)
+            r.table("vgpus").filter({"hyp_id": hyp_id}).delete().run(conn)
 
 
 ## In unused functions

@@ -1,5 +1,6 @@
 import queue
 import threading
+import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 
@@ -13,6 +14,22 @@ from engine.services.threads.threads import (
     launch_action_update_size_storage_from_domain,
     launch_delete_disk_action,
 )
+
+# Define the global maximum number of threads
+GLOBAL_MAX_THREADS = 10
+global_semaphore = threading.Semaphore(GLOBAL_MAX_THREADS)
+
+
+class LimitedThreadPoolExecutor(ThreadPoolExecutor):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def submit(self, fn, *args, **kwargs):
+        def wrapper(*wargs, **wkwargs):
+            with global_semaphore:
+                return fn(*wargs, **wkwargs)
+
+        return super().submit(wrapper, *args, **kwargs)
 
 
 class DiskOperationsThread(threading.Thread):
@@ -35,12 +52,16 @@ class DiskOperationsThread(threading.Thread):
         self.stop = False
         self.queue_actions = queue_actions
         self.queue_master = queue_master
+        # Warning: increasing workers from this values could cause rethinkdb to saturate
+        # number of connections
         self.executors = {
-            "create_disk": ThreadPoolExecutor(max_workers=10),
-            "create_disk_from_scratch": ThreadPoolExecutor(max_workers=10),
-            "delete_disk": ThreadPoolExecutor(max_workers=10),
-            "create_template_disk_from_domain": ThreadPoolExecutor(max_workers=2),
-            "update_storage_size": ThreadPoolExecutor(max_workers=10),
+            "create_disk": LimitedThreadPoolExecutor(max_workers=5),
+            "create_disk_from_scratch": LimitedThreadPoolExecutor(max_workers=5),
+            "delete_disk": LimitedThreadPoolExecutor(max_workers=5),
+            "create_template_disk_from_domain": LimitedThreadPoolExecutor(
+                max_workers=2
+            ),
+            "update_storage_size": LimitedThreadPoolExecutor(max_workers=5),
         }
 
     def run(self):
@@ -72,6 +93,7 @@ class DiskOperationsThread(threading.Thread):
                     self.stop = True
                 else:
                     self.route_action(action)
+                    time.sleep(0.25)  # Just to not saturate system in excess
             except queue.Empty:
                 continue  # Timeout occurred, loop again
             except Exception as e:
