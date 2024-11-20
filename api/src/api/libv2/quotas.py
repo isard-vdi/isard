@@ -18,6 +18,7 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+from cachetools import TTLCache, cached
 from isardvdi_common.api_exceptions import Error
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -1837,6 +1838,7 @@ class Quotas:
     def get_shutdown_timeouts(self, payload, desktop_id=None):
         return qp.get_shutdown_timeouts(payload, desktop_id=None)
 
+    @cached(cache=TTLCache(maxsize=10, ttl=10))
     def user_hardware_allowed(self, payload, kind=None, domain_id=None):
         if kind and kind not in [
             "interfaces",
