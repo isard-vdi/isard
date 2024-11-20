@@ -147,6 +147,7 @@ class ApiAllowed:
                     )
         return allowed
 
+    @cached(cache=TTLCache(maxsize=50, ttl=10))
     def get_items_allowed(
         self,
         payload,
