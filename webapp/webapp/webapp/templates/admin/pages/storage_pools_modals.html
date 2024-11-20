@@ -1,25 +1,27 @@
 <style>
-  #pathsTableAdd > tbody > tr > td,
-  #pathsTableEdit > tbody > tr > td  {
+  #pathsTableAdd>tbody>tr>td,
+  #pathsTableEdit>tbody>tr>td {
     border-top: none;
   }
+
   .category-wrapper {
     padding: 0px;
     margin-top: 10px;
     margin-bottom: 10px;
   }
+
   .table-wrapper tbody td {
     max-width: 315px;
   }
 
-  .modal-body form > .x_panel {
+  .modal-body form>.x_panel {
     margin-bottom: 0px;
   }
-
 </style>
 
 <!-- ADD STORAGE POOL -->
-<div class="modal fade" id="modalAddStoragePool" tabindex="-1" role="dialog" aria-labelledby="modalAddStoragePool" aria-hidden="true">
+<div class="modal fade" id="modalAddStoragePool" tabindex="-1" role="dialog" aria-labelledby="modalAddStoragePool"
+  aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <!-- Modal Header -->
@@ -41,22 +43,26 @@
                 <div class="col-md-4 col-xs-12">
                   <label class="control-label" for="name">Name <span class="required">*</span>
                   </label>
-                  <input id="name" name="name" placeholder="Pool name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change" required type="text" style="width:100%">
+                  <input id="name" name="name" placeholder="Pool name" class="roundbox" maxlength="40"
+                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]"
+                    data-parsley-trigger="change" required type="text" style="width:100%">
                 </div>
 
                 <div class="col-md-8 col-xs-12">
                   <label class="control-label" for="description">Description
                   </label>
-                  <input id="description" name="description" placeholder="Pool description" class="roundbox" type="text" style="width:100%">
+                  <input id="description" name="description" placeholder="Pool description" class="roundbox" type="text"
+                    style="width:100%">
                 </div>
               </div>
               <div class="row">
                 <div class="col-md-12">
                   <label class="control-label" for="mountpoint">Mountpoint <span class="required">*</span>
                   </label>
-                  <div><span class="path_base_mountpoint"></span><input id="mountpoint" name="mountpoint" placeholder="mountpoint" class="roundbox" maxlength="40"
-                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change"
-                    required type="text">
+                  <div><span class="path_base_mountpoint"></span><input id="mountpoint" name="mountpoint"
+                      placeholder="mountpoint" class="roundbox" maxlength="40"
+                      pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]"
+                      data-parsley-trigger="change" required type="text">
                   </div>
                 </div>
               </div>
@@ -82,7 +88,8 @@
                       <td>
                         <div class="checkbox"><label class="">
                             <div class="icheckbox_flat-green" style="position: relative;">
-                              <input type="checkbox" name="default-desktop" data-type="desktop" class="flat default-cb" style="position: absolute; opacity: 0;">
+                              <input type="checkbox" name="default-desktop" data-type="desktop" class="flat default-cb"
+                                style="position: absolute; opacity: 0;">
                               <ins class="iCheck-helper"
                                 style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                               </ins>
@@ -92,12 +99,16 @@
                       </td>
                       <td id="type"><i class="fa fa-desktop fa-1x"></i><b> Desktops</b></td>
                       <td>
-                        <span class="path_base"></span><input id="path" name="desktop-path" value="desktops" class="roundbox" required pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
+                        <span class="path_base"></span><input id="path" name="desktop-path" value="desktops"
+                          class="roundbox" required pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$"
+                          data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="desktop-weight" type="number" value="100"></td>
                       <td>
-                        <input id="modalAdd-addrow-desktop" type="button" value="+" onclick="addRow('desktop', 'modalAdd')"/>
-                        <input class="modalAdd-delrow-desktop" type="button" value="-" onclick="delRow('desktop', 'modalAdd')"/>
+                        <input id="modalAdd-addrow-desktop" type="button" value="+"
+                          onclick="addRow('desktop', 'modalAdd')" />
+                        <input class="modalAdd-delrow-desktop" type="button" value="-"
+                          onclick="delRow('desktop', 'modalAdd')" />
                       </td>
                     </tr>
                     <tr>
@@ -107,7 +118,8 @@
                       <td>
                         <div class="checkbox"><label class="">
                             <div class="icheckbox_flat-green" style="position: relative;">
-                              <input type="checkbox" name="default-media" data-type="media" class="flat default-cb" style="position: absolute; opacity: 0;">
+                              <input type="checkbox" name="default-media" data-type="media" class="flat default-cb"
+                                style="position: absolute; opacity: 0;">
                               <ins class="iCheck-helper"
                                 style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                               </ins>
@@ -117,12 +129,16 @@
                       </td>
                       <td id="type"><i class="fa fa-circle-o fa-1x"></i><b> Media</b></td>
                       <td>
-                        <span class="path_base"></span><input id="path" name="media-path" value="media" class="roundbox" required pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
+                        <span class="path_base"></span><input id="path" name="media-path" value="media" class="roundbox"
+                          required pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-trigger="change"
+                          type="text">
                       </td>
                       <td><input id="weight" name="media-weight" type="number" value="100"></td>
                       <td>
-                        <input id="modalAdd-addrow-media" type="button" value="+" onclick="addRow('media', 'modalAdd')"/>
-                        <input id="modalAdd-delrow-media" type="button" value="-" onclick="delRow('media', 'modalAdd')"/>
+                        <input id="modalAdd-addrow-media" type="button" value="+"
+                          onclick="addRow('media', 'modalAdd')" />
+                        <input id="modalAdd-delrow-media" type="button" value="-"
+                          onclick="delRow('media', 'modalAdd')" />
                       </td>
                     </tr>
                     <tr>
@@ -132,7 +148,8 @@
                       <td>
                         <div class="checkbox"><label class="">
                             <div class="icheckbox_flat-green" style="position: relative;">
-                              <input type="checkbox" name="default-template" data-type="template" class="flat default-cb" style="position: absolute; opacity: 0;">
+                              <input type="checkbox" name="default-template" data-type="template"
+                                class="flat default-cb" style="position: absolute; opacity: 0;">
                               <ins class="iCheck-helper"
                                 style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                               </ins>
@@ -142,12 +159,16 @@
                       </td>
                       <td id="type"><i class="fa fa-cubes fa-1x"></i><b> Templates</b></td>
                       <td>
-                        <span class="path_base"></span><input id="path" name="template-path" value="templates" class="roundbox" required pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
+                        <span class="path_base"></span><input id="path" name="template-path" value="templates"
+                          class="roundbox" required pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$"
+                          data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="template-weight" type="number" value="100"></td>
                       <td>
-                        <input id="modalAdd-addrow-template" type="button" value="+" onclick="addRow('template', 'modalAdd')"/>
-                        <input id="modalAdd-delrow-template" type="button" value="-" onclick="delRow('template', 'modalAdd')"/>
+                        <input id="modalAdd-addrow-template" type="button" value="+"
+                          onclick="addRow('template', 'modalAdd')" />
+                        <input id="modalAdd-delrow-template" type="button" value="-"
+                          onclick="delRow('template', 'modalAdd')" />
                       </td>
                     </tr>
                     <tr>
@@ -157,7 +178,8 @@
                       <td>
                         <div class="checkbox"><label class="">
                             <div class="icheckbox_flat-green" style="position: relative;">
-                              <input type="checkbox" name="default-volatile" data-type="volatile" class="flat default-cb" style="position: absolute; opacity: 0;">
+                              <input type="checkbox" name="default-volatile" data-type="volatile"
+                                class="flat default-cb" style="position: absolute; opacity: 0;">
                               <ins class="iCheck-helper"
                                 style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                               </ins>
@@ -167,12 +189,16 @@
                       </td>
                       <td id="type"><i class="fa fa-clock-o fa-1x"></i><b> Volatile</b></td>
                       <td>
-                        <span class="path_base"></span><input id="path" name="volatile-path" value="volatile" class="roundbox" required pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-trigger="change" type="text">
+                        <span class="path_base"></span><input id="path" name="volatile-path" value="volatile"
+                          class="roundbox" required pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$"
+                          data-parsley-trigger="change" type="text">
                       </td>
                       <td><input id="weight" name="volatile-weight" type="number" value="100"></td>
                       <td>
-                        <input id="modalAdd-addrow-volatile" type="button" value="+" onclick="addRow('volatile', 'modalAdd')"/>
-                        <input id="modalAdd-delrow-volatile" type="button" value="-" onclick="delRow('volatile', 'modalAdd')"/>
+                        <input id="modalAdd-addrow-volatile" type="button" value="+"
+                          onclick="addRow('volatile', 'modalAdd')" />
+                        <input id="modalAdd-delrow-volatile" type="button" value="-"
+                          onclick="delRow('volatile', 'modalAdd')" />
                       </td>
                     </tr>
                   </tbody>
@@ -180,6 +206,12 @@
               </div>
               <br>
 
+              <div class="col-md-12">
+                <label class="control-label">QoS Disk:</label>
+                <select id="qos_disk_id" class="roundbox form-control" name="qos_disk_id">
+                  <option selected></option>
+                </select>
+              </div>
               <!-- <div class="row">
                 <div class="col-md-4 col-xs-12">
                   <div class="checkbox">
@@ -218,8 +250,10 @@
                 </div>
               </div> -->
               <div class="col-md-12 col-sm-12 col-xs-12 text-info">
-                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Note: The storage pool creation will only be completed after
-                  <strong>restarting the engine</strong>.</h4>
+                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Note: The storage pool creation will only be
+                  completed after
+                  <strong>restarting the engine</strong>.
+                </h4>
               </div>
             </div>
           </div>
@@ -241,7 +275,8 @@
 </div>
 
 <!-- EDIT STORAGE POOL -->
-<div class="modal fade" id="modalEditStoragePool" tabindex="-1" role="dialog" aria-labelledby="modalEditStoragePool" aria-hidden="true">
+<div class="modal fade" id="modalEditStoragePool" tabindex="-1" role="dialog" aria-labelledby="modalEditStoragePool"
+  aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <!-- Modal Header -->
@@ -264,22 +299,26 @@
                 <div class="col-md-4 col-xs-12">
                   <label class="control-label" for="name">Name <span class="required">*</span>
                   </label>
-                  <input id="name" name="name" placeholder="Pool name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change" required type="text" style="width:100%">
+                  <input id="name" name="name" placeholder="Pool name" class="roundbox" maxlength="40"
+                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]"
+                    data-parsley-trigger="change" required type="text" style="width:100%">
                 </div>
 
                 <div class="col-md-8 col-xs-12">
                   <label class="control-label" for="description">Description
                   </label>
-                  <input id="description" name="description" placeholder="Pool description" class="roundbox" type="text" style="width:100%">
+                  <input id="description" name="description" placeholder="Pool description" class="roundbox" type="text"
+                    style="width:100%">
                 </div>
               </div>
               <div class="row">
                 <div class="col-md-12">
                   <label class="control-label" for="mountpoint">Mountpoint <span class="required">*</span>
                   </label>
-                  <div><span class="path_base_mountpoint"></span><input id="mountpoint" name="mountpoint" placeholder="mountpoint" class="roundbox" maxlength="40"
-                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change"
-                    type="text">
+                  <div><span class="path_base_mountpoint"></span><input id="mountpoint" name="mountpoint"
+                      placeholder="mountpoint" class="roundbox" maxlength="40"
+                      pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]"
+                      data-parsley-trigger="change" type="text">
                   </div>
                 </div>
               </div>
@@ -308,6 +347,12 @@
               </div>
               <br>
 
+              <div class="col-md-12">
+                <label class="control-label">QoS Disk:</label>
+                <select id="qos_disk_id" class="roundbox form-control" name="qos_disk_id">
+                  <option selected></option>
+                </select>
+              </div>
               <!-- <div class="row">
                 <div class="col-md-4 col-xs-12">
                   <div class="checkbox">

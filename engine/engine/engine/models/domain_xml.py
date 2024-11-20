@@ -31,6 +31,7 @@ from engine.services.db import (
     update_table_field,
 )
 from engine.services.db.downloads import get_media
+from engine.services.db.storage_pool import get_category_storage_pool
 from engine.services.lib.functions import pop_key_if_zero, randomMAC
 from engine.services.lib.storage import insert_storage
 from engine.services.log import *
@@ -1736,13 +1737,24 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         )
 
     # qos
-    qos_disk_id = dict_domain["create_dict"]["hardware"].get("qos_disk_id", False)
-    if qos_disk_id:
+    storage_pool = get_category_storage_pool(category_id)
+    if storage_pool.get("qos_disk_id") is not None:
+        qos_disk_id = storage_pool["qos_disk_id"]
         iotune = get_qos_disk_iotune(qos_disk_id)
         if iotune:
             x.set_qos_disk(iotune)
         else:
-            log.error(f"qos_disk_id {qos_disk_id} not found in qos_disk table")
+            log.error(
+                f"qos_disk_id {qos_disk_id} from storage_pool {storage_pool['id']} not found in qos_disk table"
+            )
+    else:
+        qos_disk_id = dict_domain["create_dict"]["hardware"].get("qos_disk_id", False)
+        if qos_disk_id:
+            iotune = get_qos_disk_iotune(qos_disk_id)
+            if iotune:
+                x.set_qos_disk(iotune)
+            else:
+                log.error(f"qos_disk_id {qos_disk_id} not found in qos_disk table")
 
     if (
         not dict_domain.get("create_dict", {})

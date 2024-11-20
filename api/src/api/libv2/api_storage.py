@@ -360,13 +360,13 @@ def add_storage_pool(data):
                 "Pool with one of the selected categories already exists: "
                 + str(set(categories).intersection(set(data["categories"]))),
             )
+
+    if data.get("enabled") is False:
+        data["enabled_virt"] = False
     else:
-        if data.get("enabled") is False:
-            data["enabled_virt"] = False
-        else:
-            data["enabled_virt"] = True
-        with app.app_context():
-            r.table("storage_pool").insert(data).run(db.conn)
+        data["enabled_virt"] = True
+    with app.app_context():
+        r.table("storage_pool").insert(data).run(db.conn)
 
 
 def get_storage_pools():

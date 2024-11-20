@@ -79,3 +79,6 @@ startable:
   type: boolean
 write:
   type: boolean
+qos_disk_id:
+  type: string
+  coerce: sanitize
