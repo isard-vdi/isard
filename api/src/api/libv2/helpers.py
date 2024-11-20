@@ -849,7 +849,8 @@ def change_owner_templates(template_ids, user_data):
 
 
 def change_owner_medias(media_ids, user_data):
-    # TODO: change allowed to false if the target user is on a different category
+    if user_data["payload"]["role_id"] == "user":
+        raise Error("bad_request", 'Role "user" can not own media.')
 
     # check duplicate name
     with app.app_context():
