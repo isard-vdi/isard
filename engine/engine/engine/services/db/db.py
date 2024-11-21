@@ -4,6 +4,8 @@
 # License: AGPLv3
 
 import json
+import queue
+import threading
 from contextlib import contextmanager
 from functools import wraps
 
@@ -44,22 +46,70 @@ def rethink(function):
     return decorate
 
 
+class RethinkDBConnectionPool:
+    def __init__(self, pool_size):
+        """Initialize the connection pool."""
+        self._pool_size = pool_size
+        self._pool = queue.Queue(maxsize=pool_size)
+        self._lock = threading.Lock()
+
+        # Pre-create connections to fill the pool
+        for _ in range(pool_size):
+            self._pool.put(self._create_connection())
+
+    def _create_connection(self):
+        """Create a new RethinkDB connection."""
+        try:
+            return r.connect(
+                host=RETHINK_HOST,
+                port=RETHINK_PORT,
+                db=RETHINK_DB,
+            )
+        except r.errors.ReqlDriverError as e:
+            print(f"RethinkDB connection failed: {e}")
+            raise
+
+    def get_connection(self):
+        """Retrieve a connection from the pool."""
+        try:
+            return self._pool.get(timeout=5)  # Wait up to 5 seconds for a connection
+        except queue.Empty:
+            raise RuntimeError("No available connections in the pool.")
+
+    def release_connection(self, conn):
+        """Return a connection to the pool."""
+        if conn and conn.is_open():
+            self._pool.put(conn)
+
+    def close_all_connections(self):
+        """Close all connections in the pool."""
+        with self._lock:
+            while not self._pool.empty():
+                conn = self._pool.get()
+                if conn.is_open():
+                    conn.close()
+
+
+class PooledConnection:
+    def __init__(self, pool):
+        self.pool = pool
+        self.connection = None
+
+    def __enter__(self):
+        self.connection = self.pool.get_connection()
+        return self.connection
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.pool.release_connection(self.connection)
+
+
+connection_pool = RethinkDBConnectionPool(pool_size=5)
+
+
 @contextmanager
 def rethink_conn():
-    connection = None
-    try:
-        connection = r.connect(
-            host=RETHINK_HOST,
-            port=RETHINK_PORT,
-            db=RETHINK_DB,
-        )
-        yield connection
-    except r.errors.ReqlDriverError as e:
-        print(f"Rethinkdb connection failed: {e}")
-        raise
-    finally:
-        if connection:
-            connection.close()
+    with PooledConnection(connection_pool) as conn:
+        yield conn
 
 
 def get_dict_from_item_in_table(table, id):
