@@ -1393,7 +1393,7 @@ function actionsUserDetail(){
                     data: function (params) {
                         return JSON.stringify({
                             term: params.term,
-                            pluck: ['id', 'name'],
+                            pluck: ['id', 'username', 'role', 'name', 'group_name'],
                         });
                     },
                     processResults: function (data) {
@@ -1409,12 +1409,6 @@ function actionsUserDetail(){
                         userData = userData.filter(function (item) {
                             return item.id != rowData.id;
                         });
-                        // Filter out users with role 'user' if the user being migrated is not role 'user'
-                        if (rowData.role != 'user') {
-                            userData = userData.filter(function (item) {
-                                return item.role != 'user';
-                            });
-                        }
                         // Filter out users with role 'admin' if the user being migrated is not role 'admin'
                         if ($('meta[id=user_data]').data('role') != 'admin') {
                             userData = userData.filter(function (item) {
@@ -1424,7 +1418,7 @@ function actionsUserDetail(){
                         return {
                             results: $.map(userData, function (item, i) {
                                 return {
-                                    text: item.name + ' [' + item['uid'] + '] ',
+                                    text: `[${item.role}] ${item.username} - ${item.name} (${item.group_name})`,
                                     id: item.id
                                 }
                             })
