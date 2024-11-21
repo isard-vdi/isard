@@ -463,6 +463,7 @@ def get_hypers_online(
         .run(r_conn)
     )
     close_rethink_connection(r_conn)
+
     hypers_online = [
         hyp
         for hyp in hypers_online
