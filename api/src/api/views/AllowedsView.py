@@ -159,17 +159,12 @@ def admin_allowed_update(payload, table):
     data.update(_validate_item("allowed", data["allowed"]))
 
     if table == "bastion":
+        table = "config"
 
         @is_admin
         def bastion_allowed_update(payload):
-            table = "config"
-            admin_table_update(
-                table,
-                {
-                    "bastion": {
-                        "allowed": data["allowed"],
-                    },
-                },
+            alloweds.update_bastion_alloweds(
+                data["allowed"],
             )
             # update targets table without the disallowed ones
             alloweds.remove_disallowed_bastion_targets_th()
@@ -206,13 +201,3 @@ def allowed_table(payload, table):
             admin_table_get(table, data["id"], pluck=["allowed"])["allowed"]
         )
     return json.dumps(result), 200, {"Content-Type": "application/json"}
-
-
-@app.route("/api/v3/admin/bastion/disallowed", methods=["DELETE"])
-@is_admin
-def admin_bastion_allowed_delete(payload):
-    return (
-        json.dumps(alloweds.remove_disallowed_bastion_targets_th()),
-        200,
-        {"Content-Type": "application/json"},
-    )

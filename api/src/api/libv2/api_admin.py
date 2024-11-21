@@ -262,8 +262,6 @@ def admin_table_insert(table, data):
 
 def admin_table_update(table, data, payload=False):
     _validate_table(table)
-    if table == "config":
-        data["id"] = 1
     if table == "hypervisors":
         if data.get("capabilities"):
             if not data["capabilities"].get("hypervisor") and not data[

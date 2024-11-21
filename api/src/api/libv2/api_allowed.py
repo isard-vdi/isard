@@ -360,3 +360,13 @@ class ApiAllowed:
 
     def remove_disallowed_bastion_targets_th(self):
         gevent.spawn(self.remove_disallowed_bastion_targets)
+
+    def update_bastion_alloweds(self, allowed):
+        with app.app_context():
+            r.table("config").get(1).update(
+                {
+                    "bastion": {
+                        "allowed": allowed,
+                    }
+                }
+            ).run(db.conn)

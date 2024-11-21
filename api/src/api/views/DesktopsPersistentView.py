@@ -30,12 +30,14 @@ quotas = Quotas()
 from ..libv2.api_admin import ApiAdmin
 from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent, check_template_status
+from ..libv2.api_targets import ApiTargets
 from ..libv2.api_templates import ApiTemplates
 
 templates = ApiTemplates()
 desktops = ApiDesktopsPersistent()
 allowed = ApiAllowed()
 admin = ApiAdmin()
+targets = ApiTargets()
 
 from ..libv2.api_scheduler import Scheduler
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
@@ -472,74 +474,6 @@ def api_v3_template_to_desktop(payload):
 
     return (
         json.dumps(desktops.convert_template_to_desktop(data)),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
-@app.route("/api/v3/desktop/bastion/<desktop_id>", methods=["GET"])
-@has_token
-def api_v3_get_desktop_bastion(payload, desktop_id):
-    ownsDomainId(payload, desktop_id)
-    if can_use_bastion(payload) == False:
-        raise Error(
-            "forbidden",
-            "User can not use bastion",
-            traceback.format_exc(),
-        )
-
-    try:
-        target = desktops.get_domain_target(desktop_id)
-    except:
-        target = desktops.update_domain_target(desktop_id, {})
-    return (
-        json.dumps(target),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
-@app.route("/api/v3/desktop/bastion/<desktop_id>", methods=["PUT"])
-@has_token
-def api_v3_update_desktop_bastion(payload, desktop_id):
-    ownsDomainId(payload, desktop_id)
-    if can_use_bastion(payload) == False:
-        raise Error(
-            "forbidden",
-            "User can not use bastion",
-            traceback.format_exc(),
-        )
-
-    try:
-        data = request.get_json(force=True)
-    except:
-        raise Error(
-            "bad_request",
-            "Desktop bastion update incorrect body data",
-            traceback.format_exc(),
-            description_code="desktop_bastion_incorrect_body_data",
-        )
-    data = _validate_item("bastion", data)
-    desktops.update_domain_target(desktop_id, data)
-    return (
-        json.dumps({}),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
-@app.route("/api/v3/bastions", methods=["GET"])
-@has_token
-def api_v3_get_bastions(payload):
-    if can_use_bastion(payload) == False:
-        raise Error(
-            "forbidden",
-            "User can not use bastion",
-            traceback.format_exc(),
-        )
-
-    return (
-        json.dumps(desktops.get_user_targets(payload["user_id"])),
         200,
         {"Content-Type": "application/json"},
     )
