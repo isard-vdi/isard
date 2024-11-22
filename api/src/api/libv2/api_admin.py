@@ -1248,3 +1248,9 @@ def get_user_migration_config():
             .run(db.conn)
         )
     return user_migration
+
+
+def update_user_migration_config(data):
+    with app.app_context():
+        r.table("config").get(1).update({"user_migration": data}).run(db.conn)
+    return data
