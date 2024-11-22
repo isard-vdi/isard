@@ -15,6 +15,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
+      USAGE:
       DOMAIN:
       API_ISARDVDI_SECRET:
       LOG_LEVEL:
