@@ -12,7 +12,6 @@
 
     #modalMigrateUser .collapse-link {
         cursor: pointer;
-        margin-left: 20px;
     }
 
     #modalMigrateUser .qty {
@@ -2204,8 +2203,7 @@
                     <span aria-hidden="true">&times;</span>
                     <span class="sr-only">Close</span>
                 </button>
-                <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-exchange"></i> Migrate user <small> Migrate within category <span class="category-name"></span></small>
+                <h4 class="modal-migration-title"><i class="fa fa-exchange"></i> Migrate <span id="user-name" style="color:inherit;"></span>'s resources to another user
                 </h4>
             </div>
 
@@ -2215,117 +2213,122 @@
                     <input hidden id="id" name="id" />
                     <div class="x_panel">
                         <div class="row">
-                            <div class="col-md-12">
-                                <div class="x_title col-md-12">
-                                    <h4><i class="fa fa-exchange"></i> Migrate <span id="user-name" style="color:inherit;"></span>'s resources to another user
-                                    </h4>
+                            <div id="resources-summary">
+                                <div class="col-lg-3 col-md-6 col-sm-12">
+                                    <h3><span class="qty qty-desktops"></span><i class="fa fa-desktop"></i> Desktops</h3>
                                 </div>
-                                <div id="resources-summary">
-                                    <div class="col-lg-3 col-md-6 col-sm-12">
-                                        <h3><span class="qty qty-desktops"></span><i class="fa fa-desktop"></i> Desktops</h3>
-                                    </div>
-                                    <div class="col-lg-3 col-md-6 col-sm-12">
-                                        <h3><span class="qty qty-templates"></span><i class="fa fa-cube"></i> Templates</h3>
-                                    </div>
-                                    <div class="col-lg-3 col-md-6 col-sm-12">
-                                        <h3><span class="qty qty-deployments"></span><i class="fa fa-tv"></i> Deployments</h3>
-                                    </div>
-                                    <div class="col-lg-3 col-md-6 col-sm-12">
-                                        <h3><span class="qty qty-media"></span><i class="fa fa-circle-o"></i> Media</h3>
-                                    </div>
+                                <div class="col-lg-3 col-md-6 col-sm-12">
+                                    <h3><span class="qty qty-templates"></span><i class="fa fa-cube"></i> Templates</h3>
                                 </div>
-                                <div class="x_panel">
-                                    <h4>
-                                        <li style="list-style: none;">
-                                            <a id="show-details-button" class="collapse-link"><i class="fa fa-info"></i> Show detailed items</a>
-                                            <a id="hide-details-button" class="collapse-link" style="display:none;"><i class="fa fa-info"></i> Hide detailed items</a>
-                                        </li>
-                                    </h4>
-                
-                                    <div id="resources-tables" class="x_content" style="display:none;">
-                                        <div class="row">
-                                            <div class="item form-group col-md-6">
-                                                <h4><i class="fa fa-desktop"></i> Desktops</h4>
-                                                <div class="table-wrapper">
-                                                    <table id="table_modal_delete_desktops" class="table">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Name</th>
-                                                                <th style="width:35%;">Persistent</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody></tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                            <div class="item form-group col-md-6">
-                                                <h4><i class="fa fa-cube"></i> Templates</h4>
-                                                <div class="table-wrapper">
-                                                    <table id="table_modal_delete_templates" class="table">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Name</th>
-                                                                <th style="width:35%;">Duplicate</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody></tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row">
-                                            <div class="item form-group col-md-6">
-                                                <h4><i class="fa fa-tv"></i> Deployments</h4>
-                                                <div class="table-wrapper">
-                                                    <table id="table_modal_delete_deployments" class="table">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Name</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody></tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                            <div class="item form-group col-md-6">
-                                                <h4> <i class="fa fa-circle-o"></i> Media</h4>
-                                                <div class="table-wrapper">
-                                                    <table id="table_modal_delete_media" class="table">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Name</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody></tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div class="col-lg-3 col-md-6 col-sm-12">
+                                    <h3><span class="qty qty-deployments"></span><i class="fa fa-tv"></i> Deployments</h3>
                                 </div>
-                            </div>
-                            <div class="row">
-                                <div>
-                                    <ul>
-                                        <li>Any running desktops will be stopped.</li>
-                                        <li>The user's recycle bin will be emptied.</li>
-                                        <li>The user's bookings will be deleted.</li>
-                                        <li>Non-persistent desktops will be DELETED</li>
-                                        <li>The list of coworkers in deployments will be deleted.</li>
-                                        <li>Desktops belonging to other users in migrated deployments will remain
-                                            intact.</li>
-                                        <li>Resources not allowed for the <b>new</b> user will be removed or
-                                            restricted.</li>
-                                    </ul>
-                                </div>
-                                <div class="x_panel">
-                                    <label class="control-label" for="group">Migrate resources to this user:</label>
-                                    <select style="width:100%" id="target-user" name="target_user" class="form-control" required
-                                        placeholer="Select one user">
-                                    </select>
+                                <div class="col-lg-3 col-md-6 col-sm-12">
+                                    <h3><span class="qty qty-media"></span><i class="fa fa-circle-o"></i> Media</h3>
                                 </div>
                             </div>
                         </div>
+                        <div class="row">
+                            <div class="col-md-12 col-sm-12 col-xs-12">
+                                <!-- Alert to display with errors -->
+                                <div class="alert alert-danger" id="alert-migrate-user-errors">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+
+                            <div class="col-lg-12 col-md-12 col-sm-12">
+                                <h4>
+                                    <a class="collapse-link"><i class="fa fa-chevron-down"></i> Click to <span class="show-hide">show</span> the details of the items that will be migrated</a>
+                                </h4>
+            
+                                <div id="resources-tables" class="x_content">
+                                    <div class="row">
+                                        <div class="item form-group col-md-6">
+                                            <h4><i class="fa fa-desktop"></i> Desktops</h4>
+                                            <div class="table-wrapper">
+                                                <table id="table_modal_delete_desktops" class="table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                            <th style="width:35%;">Persistent</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody></tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        <div class="item form-group col-md-6">
+                                            <h4><i class="fa fa-cube"></i> Templates</h4>
+                                            <div class="table-wrapper">
+                                                <table id="table_modal_delete_templates" class="table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                            <th style="width:35%;">Duplicate</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody></tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="item form-group col-md-6">
+                                            <h4><i class="fa fa-tv"></i> Deployments</h4>
+                                            <div class="table-wrapper">
+                                                <table id="table_modal_delete_deployments" class="table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody></tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        <div class="item form-group col-md-6">
+                                            <h4> <i class="fa fa-circle-o"></i> Media</h4>
+                                            <div class="table-wrapper">
+                                                <table id="table_modal_delete_media" class="table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody></tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-lg-12 col-md-12 col-sm-12">
+                                <h4>Important information when performing a migration:</h4>
+                                <ul>
+                                    <li>Any running desktops will be stopped.</li>
+                                    <li>The user's recycle bin will be emptied.</li>
+                                    <li>The user's bookings will be deleted.</li>
+                                    <li>Non-persistent desktops will be DELETED</li>
+                                    <li>The list of co-owners in deployments will be deleted.</li>
+                                    <li>Desktops belonging to other users in migrated deployments will remain
+                                        intact.</li>
+                                    <li>Resources (such as networks, RAM, CPU, GPUS) not allowed for the <b>new</b> user will be removed or
+                                        restricted.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 col-sm-12 col-xs-12">
+                                <label class="control-label" for="group">Migrate resources to this user:</label>
+                                <select style="width:100%" id="target-user" name="target_user" class="form-control" required
+                                    placeholer="Select one user">
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </form>
             </div>
 

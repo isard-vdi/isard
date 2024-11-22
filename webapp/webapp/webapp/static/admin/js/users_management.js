@@ -10,14 +10,13 @@ var current_category = ''
 
 $(document).ready(function() {
     $('.collapsed').find('.x_content').css('display', 'none');
-    $('.collapse-link ').find('i').toggleClass('fa-chevron-up fa-chevron-down');
-    $("#modalMigrateUser .collapse-link").on("click", function () {
-      $(this).hide();
-      if ($(this).attr("id") == "show-details-button") {
-        $("#modalMigrateUser #hide-details-button").show();
-      } else if ($(this).attr("id") == "hide-details-button") {
-        $("#modalMigrateUser #show-details-button").show();
-      }
+    $('.external-apps .collapse-link ').find('i').toggleClass('fa-chevron-down fa-chevron-up');
+    $("#modalMigrateUser #modalMigrateUserForm .collapse-link").off("click").on("click", function () {
+        // Show or hide resources-table
+        $(this).find('i').toggleClass('fa-chevron-down fa-chevron-up');
+        var opened = $(this).find('i').hasClass('fa-chevron-up');
+        $(this).closest('.collapse-link').find('span').html(opened ? 'hide' : 'show');
+        $(this).closest('.collapse-link').parent().next('.x_content').slideToggle();
     });
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
@@ -1340,20 +1339,15 @@ function actionsUserDetail(){
         var rowData = users_table.row("#" + id).data();
         var category = rowData.category_name;
         let modal = "#modalMigrateUser"
-        $(modal + " #modalMigrateUserForm select").empty();
+        resetMigrationModalForm();
         $(modal + ' #modalMigrateUserForm #id').val(id);
-        $(modal + ' #modalMigrateUserForm #show-details-button').show();
-        $(modal + ' #modalMigrateUserForm #hide-details-button').hide();
-        $(modal + ' #modalMigrateUserForm #resources-tables').hide();
-        $(modal + ' #modalMigrateUserForm span#user-name').text(rowData.name);
-        $(modal + ' h4 .category-name').text(rowData.category_name);
+        $(modal + ' .modal-migration-title span#user-name').text(rowData.name);
         $.ajax({
             type: "POST",
             url: "/api/v3/admin/user/delete/check",
             data: JSON.stringify({ "ids": [id] }),
             contentType: "application/json"
         }).done(function (items) {
-            $(modal + ' #send').prop('disabled', false)
             $(modal).modal({
                 backdrop: 'static',
                 keyboard: false
@@ -1367,16 +1361,16 @@ function actionsUserDetail(){
                 { type: 'deployments', columns: ["name"] },
                 { type: 'media', columns: ["name"] }
             ];
-            $.each(resourceTypes, function (_,resource) {
+            let hasItems = false;
+            $.each(resourceTypes, function (_, resource) {
                 const itemsCount = items[resource.type].length;
                 const table = `${modal} #table_modal_delete_${resource.type}`;
                 const qtySpan = `${modal} #modalMigrateUserForm #resources-summary .qty-${resource.type}`;
                 populateDeleteModalTable(items[resource.type], $(table), resource.columns);
+                $(qtySpan).parent().parent().show();
+                $(qtySpan).text(itemsCount);
                 if (itemsCount) {
-                    $(qtySpan).parent().parent().show();
-                    $(qtySpan).text(itemsCount);
-                } else {
-                    $(qtySpan).parent().parent().hide();
+                    hasItems = true;
                 }
             });
 
@@ -1426,8 +1420,65 @@ function actionsUserDetail(){
                     }
                 },
             })
+            if (!hasItems) {
+                var alert = $(modal + ' #modalMigrateUserForm #alert-migrate-user-errors');
+                alert.empty();
+                alert.append("<b>Errors:</b><br><ul>");
+                alert.append(`<li>The user has no items to migrate!</li>`);
+                alert.append("</ul>");
+                alert.show();
+                $(modal + ' #send').prop('disabled', true);
+                $(modal + ' #target-user').prop('disabled', true);
+            }
         });
     });
+
+    // When selecting a user call to the API to check whether the user can migrate (role/quota checks)
+    $('#modalMigrateUser #target-user').off('select2:select').on('select2:select', function (e) {
+        var modal = "#modalMigrateUser";
+        var originUserId = $(modal + ' #modalMigrateUserForm #id').val();
+        var targetUserId = e.params.data.id;
+        resetMigrationModalErrors(modal+ ' #modalMigrateUserForm');
+        $.ajax({
+            type: "GET",
+            url: "/api/v3/admin/user/migrate/check/" + originUserId + "/" + targetUserId,
+            contentType: "application/json",
+            success: function (data) {
+                if (data.errors.length > 0) {
+                    $(modal + ' #send').prop('disabled', true);
+                    var alert = $(modal + ' #modalMigrateUserForm #alert-migrate-user-errors');
+                    alert.empty();
+                    alert.append("<b>Errors:</b><br><ul>");
+                    data.errors.forEach(function (error) {
+                        alert.append(`<li>${error.description}</li>`);
+                        const errorMapping = {
+                            'role_migration_user': ["deployments", "templates", "media"],
+                            'migration_desktop_quota_error': ["desktops"],
+                            'migration_template_quota_error': ["templates"],
+                            'migration_media_quota_error': ["media"],
+                            'migration_deployments_quota_error': ["deployments"]
+                        };
+
+                        if (error.description_code in errorMapping) {
+                            errorMapping[error.description_code].forEach(resource => {
+                                $(`#modalMigrateUserForm #resources-summary .qty-${resource}`).parent().css('color', 'red');
+                            });
+                        }
+
+                    });
+                    alert.append("</ul>");
+                    alert.show();
+                } else {
+                    $(modal + ' #send').prop('disabled', false);
+                }
+            },
+            error: function (data) {
+                $(modal + ' #send').prop('disabled', true);
+                $(modal + ' #send').prop('title', data.responseJSON.description);
+            }
+        });
+    });
+
 
     $('.btn-impersonate').on('click', function () {
         var closest=$(this).closest("div");
@@ -1535,6 +1586,28 @@ function actionsUserDetail(){
         }).on('pnotify.cancel', function () { });
     });
 };
+
+function resetMigrationModalForm() {
+
+    var modal = '#modalMigrateUser'
+    var modalForm = `${modal} #modalMigrateUserForm`
+
+    $(modalForm + ' select').empty();
+    $(modalForm + ' #resources-tables').hide();
+    $(modalForm + ' .collapse-link').find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+    $(modalForm + ' .collapse-link').find('span').html('show');
+    resetMigrationModalErrors(modalForm)
+    $(modal + ' #target-user').prop('disabled', false);
+    $(modal + '  #send').prop('disabled', true);
+
+}
+
+function resetMigrationModalErrors(modalForm) {
+    $(modalForm + ' #alert-migrate-user-errors').hide();
+    ["desktops", "deployments", "templates", "media"].forEach(resource => {
+        $(`#modalMigrateUserForm #resources-summary .qty-${resource}`).parent().css('color', 'black');
+    });
+}
 
 function renderUsersDetailPannel ( d ) {
     if(d.id == 'local-default-admin-admin'){

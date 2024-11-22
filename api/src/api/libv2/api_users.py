@@ -2160,6 +2160,160 @@ class ApiUsers:
         for rb_id in rb_ids:
             rb_delete_queue.enqueue({"recycle_bin_id": rb_id, "user_id": user_id})
 
+    def check_valid_migration(self, origin_user_id, target_user_id):
+        """
+
+        Checks if the user migration is valid based on the role, category and quotas
+
+        :param origin_user_id: The user id to migrate
+        :param target_user_id: The user id to migrate to
+        :return: A list of errors if the migration is not valid
+
+        """
+        errors = []
+        if origin_user_id == target_user_id:
+            errors.append(
+                {
+                    "description": "Can't migrate to the same user.",
+                    "description_code": "same_user_migration",
+                }
+            )
+
+        user_resources = self.get_user_resources(origin_user_id)
+        errors += self.check_user_category_role_migration(
+            origin_user_id, target_user_id, user_resources
+        )
+        if errors:
+            return errors
+        # TODO: If in configuration os defined that the user can't migrate if the quotas are surpassed
+        errors += self.check_target_user_quotas_migration(
+            target_user_id, user_resources
+        )
+        return errors
+
+    def check_user_category_role_migration(
+        self, origin_user_id, target_user_id, user_resources=None
+    ):
+        """
+
+        Checks if the user migration is valid based on the following rules:
+        - Can't migrate to a different category
+        - Can't migrate to an admin role
+        - If the old role is advanced, manager or admin and the origin user has templates, media or deployments the new role can't be user
+
+        :param origin_user_id: The user id to migrate
+        :param target_user_id: The user id to migrate to
+        :param user_resources: The user resources to check if the user has templates, media or deployments
+        :return: A list of errors if the migration is not valid
+
+        """
+        errors = []
+        origin_user = self.Get(origin_user_id)
+        target_user = self.Get(target_user_id)
+
+        if origin_user["category"] != target_user["category"]:
+            errors.append(
+                {
+                    "description": "Can't migrate to a different category.",
+                    "description_code": "different_category_migration",
+                }
+            )
+
+        if origin_user["role"] == "admin" and target_user["role"] != "admin":
+            errors.append(
+                {
+                    "description": "Can't migrate to an admin role.",
+                    "description_code": "role_migration_admin",
+                }
+            )
+        # If the old role is advanced, manager or admin and the origin user has templates, media or deployments the new role can't be user
+        if (
+            origin_user["role"] in ["advanced", "manager", "admin"]
+            and target_user["role"] == "user"
+            and (
+                user_resources["templates"]
+                or user_resources["media"]
+                or user_resources["deployments"]
+            )
+        ):
+            errors.append(
+                {
+                    "description": "Can't migrate to a user role. Users only can have desktops. Change templates, media and deployments ownership or delete them first.",
+                    "description_code": "role_migration_user",
+                }
+            )
+        return errors
+
+    def check_target_user_quotas_migration(self, target_user_id, user_resources):
+        """
+
+        Checks if the target user quotas are surpassed based on the following rules:
+        - The new user can't surpass the desktops, templates, media or deployments quotas
+
+        :param target_user_id: The user id to migrate to
+        :param user_resources: The user resources to check if the user has templates, media or deployments
+        :return: A list of errors if the quotas are surpassed
+
+        """
+        errors = []
+        # Deployment desktops must be ignored when checking the new user quotas
+        with app.app_context():
+            user_desktops = list(
+                r.table("domains")
+                .get_all(r.args(user_resources["desktops"]), index="id")
+                .pluck("id", "tag")
+                .run(db.conn)
+            )
+        not_deployment_desktops = list(
+            filter(lambda desktop: (desktop.get("tag") in [None, False]), user_desktops)
+        )
+        try:
+            quotas.desktop_create(target_user_id, len(not_deployment_desktops))
+        except Error as e:
+            errors.append(
+                {
+                    "description": e.args[1],
+                    "description_code": "migration_desktop_quota_error",
+                }
+            )
+
+        try:
+            quotas.template_create(
+                target_user_id,
+                len(user_resources["templates"]),
+            )
+        except Error as e:
+            errors.append(
+                {
+                    "description": e.args[1],
+                    "description_code": "migration_template_quota_error",
+                }
+            )
+
+        try:
+            quotas.media_create(target_user_id, quantity=len(user_resources["media"]))
+        except Error as e:
+            errors.append(
+                {
+                    "description": e.args[1],
+                    "description_code": "migration_media_quota_error",
+                }
+            )
+
+        try:
+            quotas.deployment_create(
+                [], target_user_id, len(user_resources["deployments"])
+            )
+        except Error as e:
+            errors.append(
+                {
+                    "description": e.args[1],
+                    "description_code": "migration_deployments_quota_error",
+                }
+            )
+
+        return errors
+
 
 def validate_email_jwt(user_id, email, minutes=60):
     return {
