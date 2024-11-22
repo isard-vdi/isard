@@ -72,6 +72,7 @@ from .api_admin import (
     change_category_items_owner,
     change_group_items_owner,
     change_user_items_owner,
+    get_user_migration_config,
 )
 from .api_notify import notify_admin, notify_admins
 from .helpers import (
@@ -2185,10 +2186,10 @@ class ApiUsers:
         )
         if errors:
             return errors
-        # TODO: If in configuration os defined that the user can't migrate if the quotas are surpassed
-        errors += self.check_target_user_quotas_migration(
-            target_user_id, user_resources
-        )
+        if get_user_migration_config()["check_quotas"]:
+            errors += self.check_target_user_quotas_migration(
+                target_user_id, user_resources
+            )
         return errors
 
     def check_user_category_role_migration(

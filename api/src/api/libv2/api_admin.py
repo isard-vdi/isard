@@ -1237,3 +1237,14 @@ def admin_table_update_book(table, id, data):
 
     with app.app_context():
         r.table(table).get(id).update(data).run(db.conn)
+
+
+def get_user_migration_config():
+    with app.app_context():
+        user_migration = (
+            r.table("config")
+            .get(1)
+            .pluck("user_migration")["user_migration"]
+            .run(db.conn)
+        )
+    return user_migration

@@ -1985,3 +1985,13 @@ class Quotas:
 
         dict = {**dict, **quota}
         return dict
+
+    def get_user_migration_check_quota_config(self):
+        with app.app_context():
+            migration_quota_check = (
+                r.table("config")
+                .get(1)
+                .pluck("user_migration")["user_migration"]["check_quotas"]
+                .run(db.conn)
+            )
+        return migration_quota_check
