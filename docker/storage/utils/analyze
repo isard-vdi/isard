@@ -1,0 +1,342 @@
+#!/usr/bin/env python3
+
+#
+#   Copyright © 2024 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+import datetime
+import json
+import os
+import subprocess
+from contextlib import contextmanager
+from pathlib import Path
+from time import time
+
+from rethinkdb import r
+
+
+@contextmanager
+def get_conn():
+    connection = None
+    try:
+        connection = r.connect(
+            host=os.environ.get("RETHINKDB_HOST", "isard-db"),
+            port=28015,
+            db="isard",
+        )
+        yield connection
+    except r.errors.ReqlDriverError as e:
+        print(f"Connection failed: {e}")
+        raise
+    finally:
+        if connection:
+            connection.close()
+
+
+from pathlib import Path
+
+from tabulate import tabulate
+
+
+def size(paths):
+    total_size = 0
+    for path in paths:
+        # Ensure it's a Path object
+        p = Path(path)
+        if p.is_file():  # Check if the path is a file
+            total_size += p.stat().st_size
+        elif p.is_dir():  # If it's a directory, sum sizes of files recursively
+            total_size += sum(f.stat().st_size for f in p.rglob("*") if f.is_file())
+    return round(
+        total_size / (1024**3), 2
+    )  # Convert bytes to GB and round to 2 decimals
+
+
+def modification(file_path):
+    file = Path(file_path)
+    if not file.is_file():
+        raise ValueError(f"{file_path} is not a valid file.")
+    # Get the modification time as a timestamp
+    timestamp = file.stat().st_mtime
+    # Convert the timestamp to a datetime object
+    modification_time = datetime.datetime.fromtimestamp(timestamp)
+    return modification_time
+
+
+def older_first(storage_paths):
+    # Convert storage paths to Path objects and ensure they are valid
+    storage_paths = [Path(path) for path in storage_paths if Path(path).exists()]
+
+    # Sort by modification time
+    sorted_storages = sorted(
+        storage_paths,
+        key=lambda p: p.stat().st_mtime,  # Use modification time for sorting
+    )
+    return sorted_storages
+
+
+def get_qcow_info(file_path):
+    """Get Qcow2 file metadata using qemu-img, suppressing output and errors."""
+    try:
+        result = subprocess.run(
+            ["qemu-img", "info", "-U", "--output=json", file_path],
+            stdout=subprocess.PIPE,  # Suppress stdout
+            stderr=subprocess.PIPE,  # Suppress stderr
+            text=True,
+            check=True,
+        )
+        # Parse JSON output
+        info = json.loads(result.stdout)  # Use json.loads to safely parse the output
+        return info.get("backing-filename")  # Get the backing file
+    except subprocess.CalledProcessError:
+        return None
+
+
+def analyze_qcow_dependencies(qcow_files):
+    """Analyze dependencies and categorize files."""
+    dependency_map = {}
+    reverse_map = {}
+
+    # Build dependency and reverse maps
+    for qcow in qcow_files:
+        backing_file = get_qcow_info(qcow)
+        dependency_map[qcow] = backing_file
+
+        # Build reverse map for derivatives
+        if backing_file:
+            reverse_map.setdefault(backing_file, []).append(qcow)
+
+    # Identify orphans and files without derivatives
+    wo_backing = [file for file, backing in dependency_map.items() if backing is None]
+    wo_derivatives = [file for file in qcow_files if file not in reverse_map]
+
+    return {
+        "wo_backing": wo_backing,
+        "wo_derivatives": wo_derivatives,
+        "dependency_map": dependency_map,
+        "reverse_map": reverse_map,
+    }
+
+
+def get_backing_chain(file_path):
+    """Get the full backing chain for a QCOW2 image, suppressing output and errors."""
+    try:
+        result = subprocess.run(
+            ["qemu-img", "info", "-U", "--backing-chain", file_path],
+            stdout=subprocess.PIPE,  # Suppress stdout
+            stderr=subprocess.PIPE,  # Suppress stderr
+            text=True,
+            check=True,
+        )
+        return result.stdout  # Return the result if no error
+    except subprocess.CalledProcessError:
+        return None
+
+
+def parse_backing_chain(output):
+    """Parse the backing chain output to identify missing files."""
+    broken_files = []
+    lines = output.splitlines()
+
+    # Iterate over each line in the output
+    for line in lines:
+        if "backing file" in line:
+            # Extract the backing file path from the line
+            backing_file = line.split(":")[1].strip()
+
+            # Check if the file exists
+            if not os.path.exists(backing_file):
+                broken_files.append(backing_file)  # Add to broken list if missing
+    return broken_files
+
+
+def analyze_qcow_integrity(qcow_files):
+    """Analyze the integrity of a list of Qcow2 files and check for broken backing chains."""
+    broken_files = []
+    for qcow in qcow_files:
+        if get_backing_chain(qcow) is None:
+            broken_files.append(qcow)
+    return broken_files
+
+
+### DATABASE
+
+
+def get_db_storages():
+    with get_conn() as conn:
+        return list(
+            r.table("storage")
+            .filter(lambda storage: storage["status"] != "deleted")
+            .merge(
+                {
+                    "path": r.row["directory_path"]
+                    + "/"
+                    + r.row["id"]
+                    + "."
+                    + r.row["type"]
+                }
+            )
+            .pluck("path")["path"]
+            .run(conn)
+        )
+
+
+def get_volatile_storages():
+    base_path = "/isard"
+    return [
+        str(file) for file in Path(base_path + "/volatile").rglob("*") if file.is_file()
+    ]
+
+
+def get_system_storages():
+    base_path = "/isard"
+    storages = {
+        "groups": [
+            str(file)
+            for file in Path(base_path + "/groups").rglob("*")
+            if file.is_file()
+        ],
+        "templates": [
+            str(file)
+            for file in Path(base_path + "/templates").rglob("*")
+            if file.is_file()
+        ],
+        "volatile": [
+            str(file)
+            for file in Path(base_path + "/volatile").rglob("*")
+            if file.is_file()
+        ],
+        "storage_pools": [
+            str(file)
+            for file in Path(base_path + "/storage_pools").rglob("*")
+            if file.is_file()
+        ],
+    }
+    return (
+        storages["groups"]
+        + storages["templates"]
+        + storages["volatile"]
+        + storages["storage_pools"]
+    )
+
+
+t = time()
+print(f"Starting integrity.py")
+print(f"Getting storages from database...")
+db_storages = get_db_storages()
+print(f" - Got {len(db_storages)} storages from database in {time()-t:.2f} seconds")
+print(f"Getting storages from system...")
+sys_storages = get_system_storages()
+print(f" - Got {len(sys_storages)} storages from system in {time()-t:.2f} seconds")
+print(f"Analyzing storages...")
+qcow_storages = [s for s in sys_storages if s.endswith(".qcow2")]
+non_qcow_storages = [s for s in sys_storages if not s.endswith(".qcow2")]
+storages_in_db_not_in_system = set(db_storages) - set(qcow_storages)
+storages_in_system_not_in_db = set(qcow_storages) - set(db_storages)
+print(f" - Analyzed storages in {time()-t:.2f} seconds")
+print(f"Analyzing qcow integrity...")
+broken_chain = analyze_qcow_integrity(qcow_storages)  # files with broken backing chain
+print(f" - Analyzed qcow integrity in {time()-t:.2f} seconds")
+valid_qcow_storages = set(qcow_storages) - set(broken_chain)
+print(f"Analyzing qcow dependencies...")
+qcow_dependencies = analyze_qcow_dependencies(valid_qcow_storages)
+print(f" - Analyzed qcow dependencies in {time()-t:.2f} seconds")
+
+print(f"Finished in {time()-t:.2f} seconds, generating report...")
+
+table_data = [
+    ["Info", "Count", "Size (GB)"],
+    ["Storages in db", len(db_storages), "-"],
+    ["Storages in system", len(sys_storages), size(sys_storages)],
+    ["Non-qcow2 files", len(non_qcow_storages), size(non_qcow_storages)],
+    ["Storages in db not in system", len(storages_in_db_not_in_system), "-"],
+    [
+        "Storages in system not in db",
+        len(storages_in_system_not_in_db),
+        size(storages_in_system_not_in_db),
+    ],
+    ["Broken chain", len(broken_chain), size(broken_chain)],
+    [
+        "No backing file",
+        len(qcow_dependencies["wo_backing"]),
+        size(qcow_dependencies["wo_backing"]),
+    ],
+    [
+        "No derivatives",
+        len(qcow_dependencies["wo_derivatives"]),
+        size(qcow_dependencies["wo_derivatives"]),
+    ],
+    [
+        "Volatile storages",
+        len(get_volatile_storages()),
+        size(get_volatile_storages()),
+    ],
+]
+
+print(
+    tabulate(
+        table_data,
+        headers="firstrow",
+        tablefmt="grid",
+        stralign="center",
+        numalign="center",
+    )
+)
+
+
+table_data = [
+    ["To delete", "What", "Count", "Size (GB)"],
+    [
+        "Storages in db not in system",
+        "db storage&domains entries",
+        len(storages_in_db_not_in_system),
+        "-",
+    ],
+    ["Non-qcow2 files", "qcow files", len(non_qcow_storages), size(non_qcow_storages)],
+    [
+        "Volatile storages",
+        "qcow files",
+        len(get_volatile_storages()),
+        size(get_volatile_storages()),
+    ],
+    ["Broken chain", "qcow files", len(broken_chain), size(broken_chain)],
+    [
+        "Storages in system not in db with no derivatives",
+        "qcow files",
+        len(set(qcow_dependencies["wo_derivatives"]) & storages_in_system_not_in_db),
+        size(set(qcow_dependencies["wo_derivatives"]) & storages_in_system_not_in_db),
+    ],
+]
+
+print(
+    tabulate(
+        table_data,
+        headers="firstrow",
+        tablefmt="grid",
+        stralign="center",
+        numalign="center",
+    )
+)
+print(
+    "Total size of storages that may be deleted: ",
+    size(get_volatile_storages())
+    + size(non_qcow_storages)
+    + size(broken_chain)
+    + size(set(qcow_dependencies["wo_derivatives"]) & storages_in_system_not_in_db),
+)

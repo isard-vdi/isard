@@ -1,2 +1,4 @@
 rq~=1.13
 betterproto~=1.2
+rethinkdb==2.4.10.post1
+tabulate
