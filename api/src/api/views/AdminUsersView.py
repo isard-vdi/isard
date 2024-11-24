@@ -1315,20 +1315,32 @@ def admin_user_migrate(payload, user_id, target_user_id):
         )
     ownsUserId(payload, user_id)
     ownsUserId(payload, target_user_id)
-    if users.Get(user_id)["category"] != users.Get(target_user_id)["category"]:
-        raise Error(
-            "precondition_required",
-            "Can't migrate users from different categories",
+
+    errors = users.check_valid_migration(user_id, target_user_id)
+    if errors:
+        return (
+            json.dumps({"errors": errors}),
+            428,
+            {"Content-Type": "application/json"},
         )
-    if payload["role_id"] != "admin":
-        if users.Get(user_id)["role"] == "admin":
-            raise Error(
-                "forbidden",
-                "Not allowed to migrate to an admin user",
-            )
     gevent.spawn(users.process_migrate_user, user_id, target_user_id)
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/admin/user/migrate/check/<user_id>/<target_user_id>", methods=["GET"]
+)
+@is_admin_or_manager
+def admin_check_user_migrate(payload, user_id, target_user_id):
+
+    ownsUserId(payload, user_id)
+    ownsUserId(payload, target_user_id)
+    return (
+        json.dumps({"errors": users.check_valid_migration(user_id, target_user_id)}),
         200,
         {"Content-Type": "application/json"},
     )

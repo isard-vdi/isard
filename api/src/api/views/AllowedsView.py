@@ -66,7 +66,15 @@ def alloweds_table_term(payload, table):
                     table,
                     "name",
                     data["term"],
-                    pluck=["id", "name", "uid", "role", "category_name", "group_name"],
+                    pluck=[
+                        "id",
+                        "username",
+                        "name",
+                        "uid",
+                        "role",
+                        "category_name",
+                        "group_name",
+                    ],
                 )
         elif table == "media":
             if data["kind"] == "isos":
