@@ -829,7 +829,10 @@ def change_owner_desktops(desktop_ids, user_data, desktop_user_id):
     not_deployment_desktops = list(
         filter(lambda desktop: (desktop.get("tag") in [None, False]), user_desktops)
     )
-    quotas.desktop_create(user_data["new_user"]["user"], len(not_deployment_desktops))
+    if quotas.get_user_migration_check_quota_config():
+        quotas.desktop_create(
+            user_data["new_user"]["user"], len(not_deployment_desktops)
+        )
     # delete old bookings
     with app.app_context():
         r.table("bookings").get_all(desktop_user_id, index="user_id").delete().run(
@@ -841,10 +844,11 @@ def change_owner_desktops(desktop_ids, user_data, desktop_user_id):
 def change_owner_templates(template_ids, user_data):
     if user_data["payload"]["role_id"] == "user":
         raise Error("bad_request", 'Role "user" can not own templates.')
-    quotas.template_create(
-        user_data["new_user"]["user"],
-        len(template_ids),
-    )
+    if quotas.get_user_migration_check_quota_config():
+        quotas.template_create(
+            user_data["new_user"]["user"],
+            len(template_ids),
+        )
     change_owner_domains(template_ids, user_data, "template")
 
 
@@ -867,7 +871,8 @@ def change_owner_medias(media_ids, user_data):
     )
 
     # check media quota
-    quotas.media_create(user_data["new_user"]["user"], quantity=len(media_ids))
+    if quotas.get_user_migration_check_quota_config():
+        quotas.media_create(user_data["new_user"]["user"], quantity=len(media_ids))
 
     ## if new owner is from another category, delete
     # permissions of groups and users of old category
@@ -907,9 +912,10 @@ def change_owner_deployments(deployments_ids, user_data, old_user_id):
             raise Error("bad_request", 'Role "user" can not own deployments.')
 
         # check deployment create quota, ignore number of users in the deployment
-        quotas.deployment_create(
-            [], user_data["new_user"]["user"], len(deployments_ids)
-        )
+        if quotas.get_user_migration_check_quota_config():
+            quotas.deployment_create(
+                [], user_data["new_user"]["user"], len(deployments_ids)
+            )
         with app.app_context():
             # for each deployment old_user_id is in co_owners, remove old_user_id from co_owners
             r.table("deployments").get_all(old_user_id, index="co_owners").update(

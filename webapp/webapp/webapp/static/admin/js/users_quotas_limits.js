@@ -9,6 +9,10 @@ var users_table= ''
 var current_category = ''
 
 $(document).ready(function() {
+    if ($('meta[id=user_data]').attr('data-role') == 'admin') {
+        checkUserMigrationCheckQuotas()
+    }
+
     $template = $(".template-detail-users");
 
     users_table=$('#users').DataTable( {
@@ -374,4 +378,60 @@ function setModalUser(){
             current_category = ($('#add-category').val())
         }
     });
+}
+
+function checkUserMigrationCheckQuotas() {
+    $.ajax({
+        type: "GET",
+        url: "/api/v3/admin/config/user_migration",
+        success: function(data) {
+            $("#migration-check-quotas-checkbox").iCheck(data.check_quotas ? "check" : "uncheck").iCheck('update');
+        },
+        error: function(data) {
+            new PNotify({
+                title: 'ERROR',
+                text: data.responseJSON.description,
+                type: 'error',
+                hide: true,
+                icon: 'fa fa-warning',
+                delay: 5000,
+                opacity: 1
+            })
+        }
+    }).done(function() {
+        $('#migration-check-quotas-checkbox').on('ifChanged', toggleUserMigrationCheckQuotas);
+    });
+}
+
+function toggleUserMigrationCheckQuotas() {
+    $.ajax({
+        type: "PUT",
+        url: "/api/v3/admin/config/user_migration",
+        data: JSON.stringify({check_quotas: $("#migration-check-quotas-checkbox").is(":checked")}),
+        contentType: "application/json",
+        success: function(data) {
+            $("#migration-check-quotas-checkbox").iCheck(data.check_quotas ? "check" : "uncheck").iCheck('update');
+            new PNotify({
+                title: `User migration quotas check ${data.check_quotas ? 'enabled' : 'disabled'}`,
+                text: "",
+                hide: true,
+                delay: 1000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success'
+            });
+        },
+        error: function(data) {
+            new PNotify({
+                title: "ERROR",
+                text: data.responseJSON.description,
+                type: 'error',
+                hide: true,
+                icon: 'fa fa-warning',
+                delay: 5000,
+                opacity: 1
+            });
+        }
+    });
+
 }

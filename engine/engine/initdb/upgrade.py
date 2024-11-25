@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 152
+release_version = 153
+# release 153: Add new field 'user_migration' to config table
 # release 152: Add index 'owner_group_status', categor to recycle bin table
 # release 151: Add new field 'enabled_virt' to storage pools table
 # release 150: Fix storage users to match domain users
@@ -613,6 +614,21 @@ password:s:%s"""
                         }
                     }
                 ).run(self.conn)
+            except Exception as e:
+                log.error(
+                    "Could not update table "
+                    + table
+                    + " conversion fields for db version "
+                    + str(version)
+                    + "!"
+                )
+                log.error("Error detail: " + str(e))
+
+        if version == 153:
+            try:
+                r.table(table).update({"user_migration": {"check_quotas": True}}).run(
+                    self.conn
+                )
             except Exception as e:
                 log.error(
                     "Could not update table "
