@@ -6,6 +6,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from ..views.decorators import can_use_bastion
 from .flask_rethink import RDB
 
 r = RethinkDB()
@@ -65,14 +66,29 @@ class ApiTargets:
 
         return target
 
-    def delete_domain_target(self, domain_id):
+    def delete_domain_target(self, domain_id: str):
         with app.app_context():
             r.table("targets").get_all(domain_id, index="desktop_id").delete().run(
                 db.conn
             )
+
+    def bulk_delete_domain_targets(self, domain_ids: list):
+        with app.app_context():
+            r.table("targets").get_all(
+                r.args(domain_ids), index="desktop_id"
+            ).delete().run(db.conn)
 
     def get_user_targets(self, user_id):
         with app.app_context():
             return list(
                 r.table("targets").get_all(user_id, index="user_id").run(db.conn)
             )
+
+    def change_desktops_target_owner(self, domain_ids, new_user_payload):
+        if can_use_bastion(new_user_payload) == True:
+            with app.app_context():
+                r.table("targets").get_all(
+                    r.args(domain_ids), index="desktop_id"
+                ).update({"user_id": new_user_payload["user_id"]})
+        else:
+            self.bulk_delete_domain_targets(domain_ids)
