@@ -98,6 +98,20 @@
                               {{ $t('components.profile.export') }}
                             </b-button>
                           </template>
+                          <template v-if="showImportUserButton">
+                            <ImportUserModal />
+                            <b-button
+                              class="rounded-pill mr-2 pl-2 pr-3 btn-red"
+                              :title="$t('components.profile.import')"
+                              @click="showImportUserModal(true)"
+                            >
+                              <b-icon
+                                icon="file-earmark-arrow-up-fill"
+                                scale="0.75"
+                              />
+                              {{ $t('components.profile.import') }}
+                            </b-button>
+                          </template>
                           <span>
                             <b-button
                               v-if="profile.userStorage.tokenWeb !== false"
@@ -361,6 +375,7 @@ import QuotaProgressBar from '@/components/profile/QuotaProgressBar.vue'
 import { computed } from '@vue/composition-api'
 import i18n from '@/i18n'
 import EmailVerificationModal from '@/components/profile/EmailVerificationModal.vue'
+import ImportUserModal from '@/components/profile/ImportUserModal.vue'
 
 export default {
   components: {
@@ -380,8 +395,10 @@ export default {
     const config = computed(() => $store.getters.getConfig)
     const exportUserToken = computed(() => $store.getters.getExportUserToken)
     const showExportUserButton = computed(() => $store.getters.getShowExportUserButton)
+    const showImportUserButton = computed(() => $store.getters.getShowImportUserButton)
 
     $store.dispatch('fetchShowExportUserButton', user.value.provider)
+    $store.dispatch('fetchShowImportUserButton', user.value.provider)
 
     const profileLoaded = computed(() => $store.getters.getProfileLoaded)
     const showEmailVerificationModal = () => {
@@ -410,7 +427,11 @@ export default {
       })
     }
 
-    return { profile, profileLoaded, showEmailVerificationModal, config, showResetVPNModalConfirmation, copyExportUserToken, showExportUserButton }
+    const showImportUserModal = (value) => {
+      $store.dispatch('showImportUserModal', value)
+    }
+
+    return { profile, profileLoaded, showEmailVerificationModal, config, showResetVPNModalConfirmation, copyExportUserToken, showExportUserButton, showImportUserButton, showImportUserModal }
   },
   destroyed () {
     this.$store.dispatch('resetProfileState')

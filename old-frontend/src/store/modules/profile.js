@@ -17,6 +17,7 @@ const getDefaultState = () => {
     },
     modalShow: false,
     modalEmailShow: false,
+    modalImportUserShow: false,
     password: '',
     passwordConfirmation: '',
     profile_loaded: false,
@@ -25,7 +26,8 @@ const getDefaultState = () => {
     currentPassword: '',
     emailAddress: '',
     showExportUserButton: false,
-    exportUserToken: ''
+    exportUserToken: '',
+    showImportUserButton: false
   }
 }
 
@@ -52,6 +54,9 @@ export default {
     getShowEmailVerificationModal: state => {
       return state.modalEmailShow
     },
+    getShowImportUserModal: state => {
+      return state.modalImportUserShow
+    },
     getExportUserToken: state => {
       return state.exportUserToken
     },
@@ -69,6 +74,9 @@ export default {
     },
     getShowExportUserButton: state => {
       return state.showExportUserButton
+    },
+    getShowImportUserButton: state => {
+      return state.showImportUserButton
     }
   },
   mutations: {
@@ -99,6 +107,9 @@ export default {
     setShowEmailVerificationModal: (state, modalEmailShow) => {
       state.modalEmailShow = modalEmailShow
     },
+    setShowImportUserModal: (state, modalImportUserShow) => {
+      state.modalImportUserShow = modalImportUserShow
+    },
     setExportUserToken: (state, exportUserToken) => {
       state.exportUserToken = exportUserToken
     },
@@ -119,6 +130,9 @@ export default {
     },
     setShowExportUserButton: (state, showExportUserButton) => {
       state.showExportUserButton = showExportUserButton
+    },
+    setShowImportUserButton: (state, showImportUserButton) => {
+      state.showImportUserButton = showImportUserButton
     }
   },
   actions: {
@@ -155,6 +169,9 @@ export default {
     },
     showEmailVerificationModal (context, show) {
       context.commit('setShowEmailVerificationModal', show)
+    },
+    showImportUserModal (context, show) {
+      context.commit('setShowImportUserModal', show)
     },
     resetPasswordState (context) {
       context.commit('resetPasswordState')
@@ -201,6 +218,25 @@ export default {
       axios.get(`${apiV3Segment}/authentication/export/${providerId}`)
         .then(response => {
           context.commit('setShowExportUserButton', response.data.enabled)
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+    },
+    fetchShowImportUserButton (context, providerId) {
+      axios.get(`${apiV3Segment}/authentication/import/${providerId}`)
+        .then(response => {
+          context.commit('setShowImportUserButton', response.data.enabled)
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+    },
+    importUser (context, data) {
+      console.log(data)
+      return axios.post(`${apiV3Segment}/user_migration/import`, data)
+        .then(response => {
+          window.location.pathname = '/migration'
         })
         .catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
