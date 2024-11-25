@@ -24,41 +24,18 @@ import traceback
 import requests
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.api_rest import ApiRest
+from isardvdi_common.tokens import get_token_payload
 
 authentication_client = ApiRest("isard-authentication")
 
 
 def generate_migrate_user_token(user_id):
     try:
-        user = authentication_client.post("/export-user", {"user_id": user_id})
-        return user
+        user_token = authentication_client.post("/migrate-user", {"user_id": user_id})
+        return user_token
     except:
         raise Error(
             "internal_server",
             "Exception when trying to generate migration token",
-            traceback.format_exc(),
-        )
-
-
-def import_migrate_user_token(token):
-    try:
-        user = authentication_client.put("/import-user", {"migration_token": token})
-        return user
-    except requests.exceptions.HTTPError as e:
-        if e.response.status_code in [401, 403, 498]:
-            raise Error(
-                "forbidden",
-                "The migration token is invalid",
-                description_code="token_invalid",
-            )
-        raise Error(
-            "internal_server",
-            "Exception when trying to import migration token",
-            traceback.format_exc(),
-        )
-    except:
-        raise Error(
-            "internal_server",
-            "Exception when trying to import migration token",
             traceback.format_exc(),
         )

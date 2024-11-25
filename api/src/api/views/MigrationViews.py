@@ -23,15 +23,20 @@ import json
 import gevent
 from flask import jsonify, request
 from isardvdi_common.api_exceptions import Error
-from isardvdi_common.tokens import get_jwt_payload
+from isardvdi_common.tokens import get_jwt_payload, get_user_migration_payload
 
 from api import app, socketio
 
 from ..libv2.api_admin import get_user_migration_config, update_user_migration_config
-from ..libv2.api_auth import generate_migrate_user_token, import_migrate_user_token
+from ..libv2.api_auth import generate_migrate_user_token
 from ..libv2.api_users import ApiUsers
 from ..libv2.validators import _validate_item
-from .decorators import has_token, is_admin, ownsUserId
+from .decorators import (
+    has_migration_required_or_login_token,
+    has_token,
+    is_admin,
+    ownsUserId,
+)
 
 users = ApiUsers()
 
@@ -83,7 +88,7 @@ def api_v3_admin_config_migration_update(payload):
 
 
 @app.route("/api/v3/user_migration/export", methods=["POST"])
-@has_token
+@has_migration_required_or_login_token
 def api_v3_user_migration_export(payload):
     """
 
@@ -123,16 +128,19 @@ def api_v3_user_migration_import(payload):
     request_json = request.get_json()
     data = _validate_item("user_migration_import", request_json)
     users.get_user_migration(data["token"])
+
     try:
-        import_migrate_user_token(data["token"])
+        get_user_migration_payload(data["token"])
     # If the token is expired delete the migration
     except Error as e:
-        if e.error.get("description_code") == "token_invalid":
+        if e.error.get("description_code") == "token_expired":
             users.delete_user_migration(data["token"])
         raise e
+
     users.update_user_migration(
         data["token"], "imported", target_user_id=payload["user_id"], import_time=True
     )
+
     return (
         json.dumps({}),
         200,
@@ -155,18 +163,20 @@ def api_v3_user_migration_list(payload):
     """
     user_migration = users.get_user_migration_by_target_user(payload["user_id"])
     errors = []
+
     try:
-        import_migrate_user_token(user_migration["token"])
+        get_user_migration_payload(user_migration["token"])
     # If the token is expired delete the migration
     except Error as e:
-        if e.error.get("description_code") == "token_invalid":
+        if e.error.get("description_code") == "token_expired":
             users.delete_user_migration(user_migration["token"])
         errors = [
             {
-                "description": "The user migration token is not valid.",
-                "description_code": "invalid_token",
+                "description": "The user migration token has expired.",
+                "description_code": "token_expired",
             }
         ]
+
     errors += users.check_valid_migration(
         user_migration["origin_user"], payload["user_id"]
     )
@@ -201,15 +211,15 @@ def api_v3_user_migration_auto(payload):
     user_migration = users.get_user_migration_by_target_user(payload["user_id"])
     errors = []
     try:
-        import_migrate_user_token(user_migration["token"])
+        get_user_migration_payload(user_migration["token"])
     # If the token is expired delete the migration
     except Error as e:
-        if e.error.get("description_code") == "token_invalid":
+        if e.error.get("description_code") == "token_expired":
             users.delete_user_migration(user_migration["token"])
         errors = [
             {
-                "description": "The user migration token is not valid.",
-                "description_code": "invalid_token",
+                "description": "The user migration token has expired.",
+                "description_code": "token_expired",
             }
         ]
     errors += users.check_valid_migration(

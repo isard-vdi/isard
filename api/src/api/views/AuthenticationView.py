@@ -191,3 +191,29 @@ def export_provider_enabled(payload, provider_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route(
+    "/api/v3/authentication/import/<provider_id>",
+    methods=["GET"],
+)
+@has_token
+def import_provider_enabled(payload, provider_id):
+    """
+
+    Endpoint to retrieve the import enabled status for a specific provider.
+
+    :param payload: JWT payload
+    :type payload: dict
+    :param provider: Provider id
+    :type provider: str
+    :return: Import enabled status for the provider
+    :rtype: str
+
+    """
+    # TODO: Implement this endpoint
+    return (
+        json.dumps({"enabled": False}),
+        200,
+        {"Content-Type": "application/json"},
+    )

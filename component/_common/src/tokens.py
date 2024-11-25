@@ -163,3 +163,16 @@ def get_jwt_payload(token=None):
             "Unable to parse authentication token",
         )
     return payload
+
+
+def get_user_migration_payload(token):
+    payload = get_jwt_payload(token)
+
+    if payload.get("type", "") != "user-migration":
+        raise Error(
+            "forbidden",
+            "Token is not a migration token",
+            description_code="token_invalid",
+        )
+
+    return payload
