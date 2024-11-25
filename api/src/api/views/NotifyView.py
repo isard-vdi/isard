@@ -68,16 +68,9 @@ def desktop_notify_queue(payload):
         raise Error("bad_request")
     data = _validate_item("desktop_queues", {"items": data})["items"]
 
-    users, categories = desktops.parse_desktop_queues(data)
+    users = desktops.parse_desktop_queues(data)
 
     for user_id, user_desktops in users.items():
         notify_custom("desktops_queue", user_desktops, "/userspace", user_id)
-
-    for category_id, category_desktops in categories.items():
-        notify_custom(
-            "desktops_queue", category_desktops, "/administrators", category_id
-        )
-
-    notify_custom("desktops_queue", data, "/administrators", "admins")
 
     return json.dumps({}), 200, {"Content-Type": "application/json"}

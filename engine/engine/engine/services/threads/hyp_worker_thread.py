@@ -7,6 +7,7 @@ import base64
 import queue
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from engine.models.domain_xml import DomainXML
 from engine.models.hyp import hyp
@@ -55,15 +56,45 @@ api_client = ApiRest("isard-api")
 ITEMS_STATUS_MAP = {
     "start_paused_domain": "Checking",
     "start_domain": "Starting",
-    "shutdown_domain": "Shutting down",
+    # "shutdown_domain": "Shutting down",
     "stop_domain": "Stopping",
     "reset_domain": "Starting",
     "create_disk": "Creating disk",
-    "delete_disk": "Deleting disk",
-    "add_media_hot": "Adding media",
-    "killall_curl": "Canceling download",
-    "delete_media": "Deleting media",
+    # "delete_disk": "Deleting disk",
+    # "add_media_hot": "Adding media",
+    # "killall_curl": "Canceling download",
+    # "delete_media": "Deleting media",
 }
+
+
+notify_thread_pool = ThreadPoolExecutor(max_workers=1)
+
+
+def notify_desktop_in_thread(domain, action):
+    try:
+        Notifier.notify_desktop(domain, action["message"])
+    except Exception as error:
+        logs.workers.debug(
+            f'error notify desktop {action["desktop_id"]} with "{base64.b64decode(action["message"]).decode()}": '
+            f"{error}"
+        )
+        raise error
+
+
+NOTIFY_PERSONAL_UNIT = False
+
+if NOTIFY_PERSONAL_UNIT:
+    personal_unit_thread_pool = ThreadPoolExecutor(max_workers=1)
+
+    def personal_unit_in_thread(domain):
+        try:
+            PersonalUnit.connect_personal_unit(domain)
+        except Exception as error:
+            logs.workers.debug(
+                f"error connecting the personal unit for desktop {domain.name()}: "
+                f"{error}"
+            )
+            raise error
 
 
 class HypWorkerThread(threading.Thread):
@@ -171,7 +202,7 @@ class HypWorkerThread(threading.Thread):
                     )
 
                     self.h.get_system_stats()
-
+                    last_stats_update = time.time()
                     # load info and nvidia info from db
                     self.h.load_info_from_db()
 
@@ -213,9 +244,9 @@ class HypWorkerThread(threading.Thread):
             )
             update_hyp_status(self.hyp_id, "Online")
 
-        update_stats = time.time()
         self.current_action = {}
         while self.stop is not True:
+            action = {}
             try:
                 # do={type:'start_domain','xml':'xml','id_domain'='prova'}
                 action = self.queue_actions.get(timeout=TIMEOUT_QUEUES)
@@ -646,33 +677,34 @@ class HypWorkerThread(threading.Thread):
                         )
                     else:
                         try:
-                            Notifier.notify_desktop(domain, action["message"])
-
+                            notify_thread_pool.submit(
+                                notify_desktop_in_thread, domain, action["message"]
+                            )
                         except Exception as error:
                             logs.workers.error(
-                                f'error notifying desktop {action["desktop_id"]}: '
-                                f'notify with "{base64.b64decode(action["message"])}": '
-                                f"{error}"
+                                f'error adding notify desktop {action["desktop_id"]} to notification thread pool'
                             )
 
                 elif action["type"] == "personal_unit":
-                    try:
-                        domain = self.h.conn.lookupByName(action["desktop_id"])
-                    except libvirtError as error:
-                        logs.workers.error(
-                            f'libvirt error getting desktop {action["desktop_id"]} to '
-                            "mount personal unit: "
-                            f"{error}"
-                        )
-                    else:
+                    if NOTIFY_PERSONAL_UNIT is True:
                         try:
-                            PersonalUnit.connect_personal_unit(domain)
-
-                        except Exception as error:
+                            domain = self.h.conn.lookupByName(action["desktop_id"])
+                        except libvirtError as error:
                             logs.workers.error(
-                                f'error connecting the personal unit for desktop {action["desktop_id"]}'
+                                f'libvirt error getting desktop {action["desktop_id"]} to '
+                                "mount personal unit: "
                                 f"{error}"
                             )
+                        else:
+                            try:
+                                personal_unit_thread_pool.submit(
+                                    personal_unit_in_thread, domain
+                                )
+
+                            except Exception as error:
+                                logs.workers.error(
+                                    f'error adding personal unit for desktop {action["desktop_id"]} to personal unit thread pool'
+                                )
 
                 else:
                     logs.workers.error(
@@ -683,10 +715,11 @@ class HypWorkerThread(threading.Thread):
                     # time.sleep(0.1)
                     ## TRY DOMAIN
 
-                try:
-                    self.update_desktops_queue(self.get_queue_items())
-                except Exception as e:
-                    logs.workers.error(f"Error sending desktops queue to api: {e}")
+                if action["type"] in ITEMS_STATUS_MAP.keys():
+                    try:
+                        self.update_desktops_queue()
+                    except Exception as e:
+                        logs.workers.error(f"Error sending desktops queue to api: {e}")
             except queue.Empty:
                 try:
                     self.h.conn.isAlive()
@@ -746,12 +779,15 @@ class HypWorkerThread(threading.Thread):
                             break
 
             self.current_action = {}
-            if update_stats + 5 < time.time():
+            if (
+                action.get("type") in ["start_domain", "stop_domain"]
+                or time.time() - last_stats_update > 10
+            ):
                 self.h.get_system_stats()
+                last_stats_update = time.time()
                 update_table_field(
                     "hypervisors", self.hyp_id, "stats", self.h.stats, soft=True
                 )
-                update_stats = time.time()
                 logs.workers.debug(
                     "hypervisor {} stats updated in working thread".format(self.hyp_id)
                 )
@@ -781,48 +817,37 @@ class HypWorkerThread(threading.Thread):
                 )
             )
 
-    def get_queue_items(self):
-        # Get the list with this format {“desktop_id”: “UUID-UUID…”, “event”: “Starting”, “position”: 14}
+    def update_desktops_queue(self):
         items = list(self.queue_actions.queue)
-        # remove items without id_domain and type
-        items = [
-            item for item in items if item[2].get("id_domain") and item[2].get("type")
+
+        # Filter items to include only those with both 'id_domain' and 'type'
+        valid_items = [
+            item for item in items if "id_domain" in item[2] and "type" in item[2]
         ]
-        # Order them by their priority and then by the order in the queue
-        sorted_items = sorted(items, key=lambda x: (x[0], x[1]))
+
+        # Sort items first by priority (item[0]), then by order in the queue (item[1])
+        sorted_items = sorted(valid_items, key=lambda item: (item[0], item[1]))
+
+        # Construct the resulting list with additional position field (1-based index)
         positioned_items = [
             {
-                "priority": item[0],
-                "order_in_queue": item[1],
                 "event": item[2]["type"],
                 "desktop_id": item[2]["id_domain"],
-                "position": idx
-                + 1,  # Adding 1 to make position human-readable (1-based index)
+                "position": idx + 1,
             }
             for idx, item in enumerate(sorted_items)
-        ]
-        return positioned_items
-
-    def update_desktops_queue(self, positioned_items=[]):
-        if positioned_items == []:
-            return
-        parsed_positioned_items = [
-            {
-                "desktop_id": item["desktop_id"],
-                "event": ITEMS_STATUS_MAP.get(item["event"], "Unknown"),
-                "position": item["position"],
-            }
-            for item in positioned_items
-            if item["event"] in ITEMS_STATUS_MAP.keys()
+            if item[2]["type"] in ITEMS_STATUS_MAP.keys()
         ]
 
-        try:
-            api_client.put(
-                "/notify/desktops/queue",
-                data=parsed_positioned_items,
-                timeout=0.0000000001,
-            )
-        except requests_ReadTimeout:
-            pass
-        except Exception as e:
-            logs.workers.error(f"Error updating desktops queue: {e}")
+        # Update the desktops queue if there are valid items
+        if positioned_items:
+            try:
+                api_client.put(
+                    "/notify/desktops/queue",
+                    data=positioned_items,
+                    timeout=0.0000000001,
+                )
+            except requests_ReadTimeout:
+                pass
+            except Exception as e:
+                logs.workers.error(f"Error updating desktops queue: {e}")
