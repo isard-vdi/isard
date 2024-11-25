@@ -21,6 +21,7 @@ from isardvdi_common.task import Task
 
 from api import socketio
 
+from ..libv2.api_targets import ApiTargets
 from ..libv2.api_user_storage import (
     isard_user_storage_disable_categories,
     isard_user_storage_disable_groups,
@@ -39,6 +40,7 @@ from .helpers import desktops_stop, get_template_with_all_derivatives
 
 quotas = Quotas()
 
+api_targets = ApiTargets()
 apib = Bookings()
 
 db = RDB(app)
@@ -735,6 +737,7 @@ class RecycleBin(object):
     owner_group_name = None
     owner_role = None
     desktops = []
+    targets = []
     templates = []
     deployments = []
     storages = []
@@ -794,6 +797,7 @@ class RecycleBin(object):
                             "owner_group_name": self.owner_group_name,
                             "owner_role": self.owner_role,
                             "desktops": self.desktops,
+                            "targets": self.targets,
                             "templates": self.templates,
                             "deployments": self.deployments,
                             "storages": self.storages,
@@ -1008,6 +1012,8 @@ class RecycleBin(object):
         )
         with app.app_context():
             r.table("domains").insert(self.desktops + self.templates).run(db.conn)
+        with app.app_context():
+            r.table("targets").insert(self.targets).run(db.conn)
         with app.app_context():
             r.table("deployments").insert(self.deployments).run(db.conn)
         if self.categories:
@@ -1399,12 +1405,18 @@ class RecycleBinDomain(RecycleBin):
         with app.app_context():
             domain = r.table("domains").get(domain_id).run(db.conn)
         self.add_domain(domain)
+        try:
+            self.add_target(api_targets.get_domain_target(domain_id))
+        except:
+            pass
         if not self.owner_id:
             super()._add_owner(domain["user"])
         if not self.item_name:
             self._add_item_name(domain["name"])
         with app.app_context():
             r.table("domains").get(domain_id).delete().run(db.conn)
+        with app.app_context():
+            api_targets.delete_domain_target(domain_id)
         return self._set_data(self.id)
 
     def add_domain(self, domain):
@@ -1462,6 +1474,12 @@ class RecycleBinDomain(RecycleBin):
                     }
                 ).run(db.conn)
         rcb_storage.add_storages(storages)
+
+    def add_target(self, target):
+        with app.app_context():
+            r.table("recycle_bin").get(self.id).update(
+                {"targets": r.row["targets"].append(target)}
+            ).run(db.conn)
 
 
 class RecycleBinDesktop(RecycleBinDomain):

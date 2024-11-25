@@ -6,15 +6,12 @@ from rethinkdb import RethinkDB
 
 from api import app
 
-from .api_desktops_persistent import ApiDesktopsPersistent
 from .flask_rethink import RDB
 
 r = RethinkDB()
 
 db = RDB(app)
 db.init_app(app)
-
-desktops = ApiDesktopsPersistent()
 
 
 class ApiTargets:
@@ -43,22 +40,28 @@ class ApiTargets:
         try:
             target = self.get_domain_target(domain_id)
         except:
+            with app.app_context():
+                user_id = (
+                    r.table("domains").get(domain_id).pluck("user").run(db.conn)["user"]
+                )
             target = {
                 "id": str(uuid.uuid4()),
                 "desktop_id": domain_id,
-                "user_id": desktops.UserDesktop(domain_id),
+                "user_id": user_id,
             }
             target["http"] = {"enabled": False, "http_port": 80, "https_port": 443}
             target["ssh"] = {"enabled": False, "port": 22, "authorized_keys": []}
 
-            r.db("isard").table("targets").insert(target).run(db.conn)
+            with app.app_context():
+                r.db("isard").table("targets").insert(target).run(db.conn)
 
         if data.get("http"):
             target["http"] = data["http"]
         if data.get("ssh"):
             target["ssh"] = data["ssh"]
 
-        r.db("isard").table("targets").get(target["id"]).update(target).run(db.conn)
+        with app.app_context():
+            r.db("isard").table("targets").get(target["id"]).update(target).run(db.conn)
 
         return target
 
