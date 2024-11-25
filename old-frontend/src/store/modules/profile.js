@@ -12,7 +12,8 @@ const getDefaultState = () => {
       userStorage: {
         tokenWeb: false,
         providerQuota: false
-      }
+      },
+      role: ''
     },
     modalShow: false,
     modalEmailShow: false,
@@ -22,7 +23,9 @@ const getDefaultState = () => {
     lang: '',
     passwordPolicy: '',
     currentPassword: '',
-    emailAddress: ''
+    emailAddress: '',
+    showExportUserButton: false,
+    exportUserToken: ''
   }
 }
 
@@ -49,6 +52,9 @@ export default {
     getShowEmailVerificationModal: state => {
       return state.modalEmailShow
     },
+    getExportUserToken: state => {
+      return state.exportUserToken
+    },
     getLang: state => {
       return state.lang
     },
@@ -60,8 +66,10 @@ export default {
     },
     getEmailAddress: state => {
       return state.emailAddress
+    },
+    getShowExportUserButton: state => {
+      return state.showExportUserButton
     }
-
   },
   mutations: {
     resetProfileState: (state) => {
@@ -91,6 +99,9 @@ export default {
     setShowEmailVerificationModal: (state, modalEmailShow) => {
       state.modalEmailShow = modalEmailShow
     },
+    setExportUserToken: (state, exportUserToken) => {
+      state.exportUserToken = exportUserToken
+    },
     setLang (state, lang) {
       state.lang = lang
     },
@@ -105,6 +116,9 @@ export default {
     },
     update_profile: (state, profile) => {
       state.profile = { ...state.profile, ...profile }
+    },
+    setShowExportUserButton: (state, showExportUserButton) => {
+      state.showExportUserButton = showExportUserButton
     }
   },
   actions: {
@@ -169,6 +183,24 @@ export default {
       axios.put(`${apiV3Segment}/user/reset-vpn`)
         .then(response => {
           ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.reset-vpn'))
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+    },
+    fetchExportUserToken (context) {
+      return axios.post(`${apiV3Segment}/user_migration/export`, {})
+        .then(response => {
+          context.commit('setExportUserToken', response.data.token)
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+    },
+    fetchShowExportUserButton (context, providerId) {
+      axios.get(`${apiV3Segment}/authentication/export/${providerId}`)
+        .then(response => {
+          context.commit('setShowExportUserButton', response.data.enabled)
         })
         .catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)

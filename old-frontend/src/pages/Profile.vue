@@ -85,6 +85,19 @@
                             />
                             {{ $t('components.profile.reset-vpn') }}
                           </b-button>
+                          <template v-if="showExportUserButton">
+                            <b-button
+                              class="rounded-pill mr-2 pl-2 pr-3 btn-red"
+                              :title="$t('components.profile.export')"
+                              @click="copyExportUserToken"
+                            >
+                              <b-icon
+                                icon="file-earmark-arrow-down-fill"
+                                scale="0.75"
+                              />
+                              {{ $t('components.profile.export') }}
+                            </b-button>
+                          </template>
                           <span>
                             <b-button
                               v-if="profile.userStorage.tokenWeb !== false"
@@ -361,8 +374,13 @@ export default {
     const $store = context.root.$store
 
     $store.dispatch('fetchProfile')
+    const user = computed(() => $store.getters.getUser)
     const profile = computed(() => $store.getters.getProfile)
     const config = computed(() => $store.getters.getConfig)
+    const exportUserToken = computed(() => $store.getters.getExportUserToken)
+    const showExportUserButton = computed(() => $store.getters.getShowExportUserButton)
+
+    $store.dispatch('fetchShowExportUserButton', user.value.provider)
 
     const profileLoaded = computed(() => $store.getters.getProfileLoaded)
     const showEmailVerificationModal = () => {
@@ -383,7 +401,15 @@ export default {
       })
     }
 
-    return { profile, profileLoaded, showEmailVerificationModal, config, showResetVPNModalConfirmation }
+    const copyExportUserToken = () => {
+      $store.dispatch('fetchExportUserToken').then(response => {
+        navigator.clipboard.writeText(exportUserToken.value).then(() => {
+          context.root.$snotify.success(i18n.t('messages.success.token-copied'))
+        })
+      })
+    }
+
+    return { profile, profileLoaded, showEmailVerificationModal, config, showResetVPNModalConfirmation, copyExportUserToken, showExportUserButton }
   },
   destroyed () {
     this.$store.dispatch('resetProfileState')
