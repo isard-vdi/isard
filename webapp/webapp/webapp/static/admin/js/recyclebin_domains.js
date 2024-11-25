@@ -589,7 +589,16 @@ $(document).ready(function () {
       var rowData = this.data();
       if ($('#select-all').is(':checked')) {
         if (!['deleted', 'restored'].includes(rowData.status)) {
-          ids.push(rowData.id)
+          ids.push(rowData.id); // get all the entries filtered in the table
+          rowNodes.each(function () {
+              if (!$(this).hasClass('active')) {
+                  var index = ids.indexOf(rowData.id);
+                  if (index !== -1) {
+                      ids.splice(index, 1);
+                  } // delete the unchecked rows
+                  return false;
+              }
+          })
         }
       } else {
         rowNodes.each(function () {
