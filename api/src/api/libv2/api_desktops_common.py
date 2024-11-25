@@ -247,30 +247,28 @@ class ApiDesktopsCommon:
         return hardware
 
     def parse_desktop_queues(self, data):
-        users = {}
-        categories = {}
-
-        domains = list(
+        # Fetch domains using the list of desktop_ids
+        desktop_ids = [d["desktop_id"] for d in data]
+        domains = (
             r.table("domains")
-            .get_all(r.args([d["desktop_id"] for d in data]), index="id")
-            .pluck("id", "user", "category")
+            .get_all(r.args(desktop_ids), index="id")
+            .pluck("id", "user")
             .run(db.conn)
         )
 
-        for i in range(len(data)):
-            desktop_id = data[i]["desktop_id"]
+        # Map domains by desktop_id for quick lookup
+        domain_map = {domain["id"]: domain["user"] for domain in domains}
 
-            user_id = domains[i]["user"]
-            category_id = domains[i]["category"]
+        # Create users dictionary
+        users = {}
+        for entry in data:
+            desktop_id = entry["desktop_id"]
+            user_id = domain_map.get(desktop_id)
 
-            # add user_id to users
-            users[user_id] = users.get(user_id, {})
-            # add data to users[user_id]
-            users[user_id][desktop_id] = data[i]
+            if user_id:
+                # Initialize the user's dictionary if not already present
+                users.setdefault(user_id, {})
+                # Add data to the user's dictionary
+                users[user_id][desktop_id] = entry
 
-            # add category_id to categories
-            categories[category_id] = categories.get(category_id, {})
-            # add data to categories[category_id]
-            categories[category_id][desktop_id] = data[i]
-
-        return users, categories
+        return users
