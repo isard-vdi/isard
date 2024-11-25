@@ -323,6 +323,7 @@ def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=Tr
         return run_with_progress(
             [
                 "rsync",
+                "-a",
                 "--info=progress,flist0",
                 *(["--bwlimit=" + str(bwlimit)] if bwlimit else []),
                 *(["--remove-source-files"] if remove_source_file else []),
