@@ -492,18 +492,6 @@ def admin_system():
     )
 
 
-@app.route("/isard-admin/admin/bastion", methods=["GET"])
-@login_required
-@isAdmin
-def admin_bastion():
-    return render_template(
-        "admin/pages/bastion.html",
-        nav="Bastion",
-        title="Bastion",
-        monitor_host=monitor_host,
-    )
-
-
 """
 ANALYTICS
 """
