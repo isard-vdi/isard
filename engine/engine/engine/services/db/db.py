@@ -72,7 +72,7 @@ class RethinkDBConnectionPool:
     def get_connection(self):
         """Retrieve a connection from the pool."""
         try:
-            return self._pool.get(timeout=5)  # Wait up to 5 seconds for a connection
+            return self._pool.get(timeout=60)  # Wait up to 60 seconds for a connection
         except queue.Empty:
             raise RuntimeError("No available connections in the pool.")
 
@@ -103,7 +103,7 @@ class PooledConnection:
         self.pool.release_connection(self.connection)
 
 
-connection_pool = RethinkDBConnectionPool(pool_size=5)
+connection_pool = RethinkDBConnectionPool(pool_size=10)
 
 
 @contextmanager

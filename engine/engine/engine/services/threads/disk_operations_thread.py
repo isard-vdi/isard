@@ -16,7 +16,7 @@ from engine.services.threads.threads import (
 )
 
 # Define the global maximum number of threads
-GLOBAL_MAX_THREADS = 25
+GLOBAL_MAX_THREADS = 5
 global_semaphore = threading.Semaphore(GLOBAL_MAX_THREADS)
 
 
@@ -55,13 +55,13 @@ class DiskOperationsThread(threading.Thread):
         # Warning: increasing workers from this values could cause rethinkdb to saturate
         # number of connections
         self.executors = {
-            "create_disk": LimitedThreadPoolExecutor(max_workers=10),
-            "create_disk_from_scratch": LimitedThreadPoolExecutor(max_workers=10),
-            "delete_disk": LimitedThreadPoolExecutor(max_workers=10),
+            "create_disk": LimitedThreadPoolExecutor(max_workers=5),
+            "create_disk_from_scratch": LimitedThreadPoolExecutor(max_workers=5),
+            "delete_disk": LimitedThreadPoolExecutor(max_workers=5),
             "create_template_disk_from_domain": LimitedThreadPoolExecutor(
                 max_workers=2
             ),
-            "update_storage_size": LimitedThreadPoolExecutor(max_workers=10),
+            "update_storage_size": LimitedThreadPoolExecutor(max_workers=5),
         }
 
     def run(self):
