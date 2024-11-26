@@ -251,6 +251,8 @@ class HypWorkerThread(threading.Thread):
                 # do={type:'start_domain','xml':'xml','id_domain'='prova'}
                 action = self.queue_actions.get(timeout=TIMEOUT_QUEUES)
                 self.current_action = action
+                t = time.time()
+                db_time = libvirt_time = 0
                 if action["type"] == "start_paused_domain":
                     logs.workers.debug(
                         "xml to start paused some lines...: {}".format(
@@ -396,6 +398,10 @@ class HypWorkerThread(threading.Thread):
                     )
                     try:
                         dom = self.h.conn.createXML(action["xml"])
+                        libvirt_time = time.time() - t
+                        logs.workers.info(
+                            f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - createXML - {libvirt_time}"
+                        )
                     except libvirtError as e:
                         if "already exists with uuid" in str(e):
                             logs.workers.error(
@@ -422,6 +428,10 @@ class HypWorkerThread(threading.Thread):
                             logs.workers.info(
                                 "exception 01 in start_domain action {}: ".format(e)
                             )
+                        db_time = time.time() - libvirt_time - t
+                        logs.workers.info(
+                            f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB err - {db_time}"
+                        )
                     else:
                         try:
                             xml_started = dom.XMLDesc()
@@ -437,6 +447,10 @@ class HypWorkerThread(threading.Thread):
                             )
                             logs.workers.info(
                                 "exception 02 in start_domain action {}: ".format(e)
+                            )
+                            db_time = time.time() - libvirt_time - t
+                            logs.workers.info(
+                                f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB err - {db_time}"
                             )
                         else:
                             try:
@@ -471,6 +485,11 @@ class HypWorkerThread(threading.Thread):
                                         domain_id=action["id_domain"],
                                         profile=action["profile"],
                                     )
+                                db_time = time.time() - libvirt_time - t
+                                logs.workers.info(
+                                    f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB - {db_time}"
+                                )
+
                                 logs.status.info(
                                     f"DOMAIN STARTED INFO WORKER - {dom_id} in {self.hyp_id} (spice: {spice} / spicetls:{spice_tls} / vnc: {vnc} / vnc_websocket: {vnc_websocket})"
                                 )
@@ -504,6 +523,10 @@ class HypWorkerThread(threading.Thread):
                                         domain_id=action["id_domain"],
                                         profile=action["profile"],
                                     )
+                                db_time = time.time() - libvirt_time - t
+                                logs.workers.info(
+                                    f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB err - {db_time}"
+                                )
 
                 ## STOP DOMAIN
                 elif action["type"] == "shutdown_domain":
@@ -526,6 +549,10 @@ class HypWorkerThread(threading.Thread):
                             hyp_id=hyp_id,
                             detail="shutdown ACPI_POWER_BTN launched in libvirt domain",
                         )
+                        db_time = time.time() - libvirt_time - t
+                        logs.workers.info(
+                            f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB - {db_time}"
+                        )
                     except Exception as e:
                         logs.exception_id.debug("0063")
                         logs.workers.error(
@@ -543,6 +570,10 @@ class HypWorkerThread(threading.Thread):
                     try:
                         domain_handler = self.h.conn.lookupByName(action["id_domain"])
                         domain_handler.destroy()
+                        libvirt_time = time.time() - t
+                        logs.workers.info(
+                            f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - domain_handler.destroy() - {libvirt_time}"
+                        )
                     except libvirtError as e:
                         if e.get_error_code() == VIR_ERR_NO_DOMAIN:
                             # already undefined
@@ -559,6 +590,10 @@ class HypWorkerThread(threading.Thread):
                                     action["id_domain"],
                                     hyp_id=self.hyp_id,
                                     detail=str(e),
+                                )
+                                db_time = time.time() - libvirt_time - t
+                                logs.workers.info(
+                                    f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB err - {db_time}"
                                 )
                             logs.workers.info(
                                 "exception in stopping domain {}: ".format(
@@ -588,6 +623,10 @@ class HypWorkerThread(threading.Thread):
                                     "Stopped", action["id_domain"], hyp_id=""
                                 )
                                 update_vgpu_info_if_stopped(action["id_domain"])
+                            db_time = time.time() - libvirt_time - t
+                            logs.workers.info(
+                                f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB - {db_time}"
+                            )
 
                     except Exception as e:
                         logs.exception_id.debug("0065")
@@ -598,6 +637,10 @@ class HypWorkerThread(threading.Thread):
                                 hyp_id=self.hyp_id,
                                 detail=str(e),
                             )
+                        db_time = time.time() - libvirt_time - t
+                        logs.workers.info(
+                            f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB err - {db_time}"
+                        )
                         logs.workers.info("exception in stopping domain {}: ".format(e))
 
                 ## RESET DOMAIN
@@ -785,8 +828,17 @@ class HypWorkerThread(threading.Thread):
             ):
                 self.h.get_system_stats()
                 last_stats_update = time.time()
+                if action.get("type") in ["start_domain", "stop_domain"]:
+                    stats = self.h.stats
+                    stats["last_action"] = {
+                        "action": action.get("type"),
+                        "db_time": db_time,
+                        "libvirt_time": libvirt_time,
+                        "action_time": t - time.time(),
+                        "positioned_items": ["positioned_items"],  # TODO: queue items
+                    }
                 update_table_field(
-                    "hypervisors", self.hyp_id, "stats", self.h.stats, soft=True
+                    "hypervisors", self.hyp_id, "stats", stats, soft=True
                 )
                 logs.workers.debug(
                     "hypervisor {} stats updated in working thread".format(self.hyp_id)
