@@ -8,6 +8,7 @@ import queue
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from pprint import pformat
 
 from engine.models.domain_xml import DomainXML
 from engine.models.hyp import hyp
@@ -95,6 +96,17 @@ if NOTIFY_PERSONAL_UNIT:
                 f"{error}"
             )
             raise error
+
+
+def log_action(id_domain, action, intervals, total_time, final_status):
+    log_data = {
+        "desktop_id": id_domain,
+        "action": action,
+        "total_time": total_time,
+        "final_status": final_status,
+        "intervals": intervals,
+    }
+    logs.workers.info(f"DOMAIN ACTION INFO WORKER - {log_data}")
 
 
 class HypWorkerThread(threading.Thread):
@@ -247,12 +259,12 @@ class HypWorkerThread(threading.Thread):
         self.current_action = {}
         while self.stop is not True:
             action = {}
+            intervals = []
             try:
                 # do={type:'start_domain','xml':'xml','id_domain'='prova'}
                 action = self.queue_actions.get(timeout=TIMEOUT_QUEUES)
                 self.current_action = action
-                t = time.time()
-                db_time = libvirt_time = 0
+                action_time = time.time()
                 if action["type"] == "start_paused_domain":
                     logs.workers.debug(
                         "xml to start paused some lines...: {}".format(
@@ -260,9 +272,15 @@ class HypWorkerThread(threading.Thread):
                         )
                     )
                     try:
+                        final_status = "Started"
+                        lt = time.time()
                         self.h.conn.createXML(
                             action["xml"], flags=VIR_DOMAIN_START_PAUSED
                         )
+                        intervals.append(
+                            {"libvirt createXML": round(time.time() - lt, 3)}
+                        )
+
                         # nvidia_uid = action.get("nvidia_uid", False)
                         # if nvidia_uid is not False:
                         #     ok = update_info_nvidia_hyp_domain(
@@ -272,8 +290,16 @@ class HypWorkerThread(threading.Thread):
                         # reference: https://libvirt.org/html/libvirt-libvirt-domain.html#VIR_CONNECT_LIST_DOMAINS_PAUSED
 
                         FLAG_LIST_DOMAINS_PAUSED = 32
+                        lt = time.time()
                         list_all_domains = self.h.conn.listAllDomains(
                             FLAG_LIST_DOMAINS_PAUSED
+                        )
+                        intervals.append(
+                            {
+                                "libvirt listAllDomains(paused)": round(
+                                    time.time() - lt, 3
+                                ),
+                            }
                         )
                         list_names_domains = [d.name() for d in list_all_domains]
                         dict_domains = dict(zip(list_names_domains, list_all_domains))
@@ -282,10 +308,35 @@ class HypWorkerThread(threading.Thread):
                             domain = dict_domains[action["id_domain"]]
                             domain_active = True
                             try:
+                                lt = time.time()
                                 domain.isActive()
+                                intervals.append(
+                                    {
+                                        "libvirt domain.isActive()": round(
+                                            time.time() - lt, 3
+                                        ),
+                                    }
+                                )
+                                lt = time.time()
                                 domain.destroy()
+                                intervals.append(
+                                    {
+                                        "libvirt domain.destroy()": round(
+                                            time.time() - lt, 3
+                                        ),
+                                    }
+                                )
+
                                 try:
+                                    lt = time.time()
                                     domain.isActive()
+                                    intervals.append(
+                                        {
+                                            "libvirt domain.isActive()": round(
+                                                time.time() - lt, 3
+                                            ),
+                                        }
+                                    )
                                 except Exception as e:
                                     logs.exception_id.debug("0060")
                                     logs.workers.debug(
@@ -296,14 +347,11 @@ class HypWorkerThread(threading.Thread):
                                 update_last_hyp_id(
                                     action["id_domain"], last_hyp_id=hyp_id
                                 )
-
                                 domain_active = False
 
                             except libvirtError as e:
-                                from pprint import pformat
 
                                 error_msg = pformat(e.get_error_message())
-
                                 update_domain_status(
                                     "Failed",
                                     action["id_domain"],
@@ -314,6 +362,13 @@ class HypWorkerThread(threading.Thread):
                                     "Exception in libvirt starting paused xml for domain {} in hypervisor {}. Exception message: {} ".format(
                                         action["id_domain"], self.hyp_id, error_msg
                                     )
+                                )
+                                log_action(
+                                    action["id_domain"],
+                                    action["type"],
+                                    intervals,
+                                    time.time() - action_time,
+                                    "Failed",
                                 )
                                 continue
 
@@ -333,6 +388,13 @@ class HypWorkerThread(threading.Thread):
                                         action["id_domain"], self.hyp_id
                                     )
                                 )
+                                log_action(
+                                    action["id_domain"],
+                                    action["type"],
+                                    intervals,
+                                    time.time() - action_time,
+                                    "Stopped",
+                                )
 
                             else:
                                 update_domain_status(
@@ -341,10 +403,13 @@ class HypWorkerThread(threading.Thread):
                                     hyp_id=self.hyp_id,
                                     detail="Domain is created, started in pause mode but not destroyed,creating domain operation is aborted",
                                 )
-                                logs.workers.error(
-                                    "domain {} started paused but not destroyed in hypervisor {}, must be destroyed".format(
-                                        action["id_domain"], self.hyp_id
-                                    )
+
+                                log_action(
+                                    action["id_domain"],
+                                    action["type"],
+                                    intervals,
+                                    time.time() - action_time,
+                                    "Crashed",
                                 )
                         else:
                             update_domain_status(
@@ -360,10 +425,15 @@ class HypWorkerThread(threading.Thread):
                                     action["id_domain"], self.hyp_id
                                 )
                             )
+                            log_action(
+                                action["id_domain"],
+                                action["type"],
+                                intervals,
+                                time.time() - action_time,
+                                "Crashed",
+                            )
 
                     except libvirtError as e:
-                        from pprint import pformat
-
                         error_msg = pformat(e.get_error_message())
 
                         update_domain_status(
@@ -376,6 +446,13 @@ class HypWorkerThread(threading.Thread):
                             "Exception in libvirt starting paused xml for domain {} in hypervisor {}. Exception message: {} ".format(
                                 action["id_domain"], self.hyp_id, error_msg
                             )
+                        )
+                        log_action(
+                            action["id_domain"],
+                            action["type"],
+                            intervals,
+                            time.time() - action_time,
+                            "Failed",
                         )
                     except Exception as e:
                         logs.exception_id.debug("0061")
@@ -390,17 +467,23 @@ class HypWorkerThread(threading.Thread):
                                 action["id_domain"], self.hyp_id, str(e)
                             )
                         )
-
+                        log_action(
+                            action["id_domain"],
+                            action["type"],
+                            intervals,
+                            time.time() - action_time,
+                            "Crashed",
+                        )
                 ## START DOMAIN
                 elif action["type"] == "start_domain":
                     logs.workers.debug(
                         "xml to start some lines...: {}".format(action["xml"][30:100])
                     )
                     try:
+                        lt = time.time()
                         dom = self.h.conn.createXML(action["xml"])
-                        libvirt_time = time.time() - t
-                        logs.workers.info(
-                            f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - createXML - {libvirt_time}"
+                        intervals.append(
+                            {"libvirt createXML": round(time.time() - lt, 3)}
                         )
                     except libvirtError as e:
                         if "already exists with uuid" in str(e):
@@ -415,6 +498,13 @@ class HypWorkerThread(threading.Thread):
                                 hyp_id=hyp_id,
                                 detail="Ups, domain already active",
                             )
+                            log_action(
+                                action["id_domain"],
+                                action["type"],
+                                intervals,
+                                time.time() - action_time,
+                                "Started",
+                            )
                         else:
                             update_domain_status(
                                 "Failed",
@@ -428,13 +518,20 @@ class HypWorkerThread(threading.Thread):
                             logs.workers.info(
                                 "exception 01 in start_domain action {}: ".format(e)
                             )
-                        db_time = time.time() - libvirt_time - t
-                        logs.workers.info(
-                            f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB err - {db_time}"
-                        )
+                            log_action(
+                                action["id_domain"],
+                                action["type"],
+                                intervals,
+                                time.time() - action_time,
+                                "Failed",
+                            )
                     else:
                         try:
+                            lt = time.time()
                             xml_started = dom.XMLDesc()
+                            intervals.append(
+                                {"libvirt XMLDesc": round(time.time() - lt, 3)}
+                            )
                         except libvirtError as e:
                             update_domain_status(
                                 "Failed",
@@ -448,21 +545,32 @@ class HypWorkerThread(threading.Thread):
                             logs.workers.info(
                                 "exception 02 in start_domain action {}: ".format(e)
                             )
-                            db_time = time.time() - libvirt_time - t
-                            logs.workers.info(
-                                f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB err - {db_time}"
+                            log_action(
+                                action["id_domain"],
+                                action["type"],
+                                intervals,
+                                time.time() - action_time,
+                                "Failed",
                             )
                         else:
                             try:
+                                xt = time.time()
                                 vm = DomainXML(
                                     xml_started, id_domain=action["id_domain"]
                                 )
+                                intervals.append(
+                                    {"DomainXML": round(time.time() - xt, 3)}
+                                )
+                                vt = time.time()
                                 (
                                     spice,
                                     spice_tls,
                                     vnc,
                                     vnc_websocket,
                                 ) = vm.get_graphics_port()
+                                intervals.append(
+                                    {"get_graphics_port": round(time.time() - vt, 3)}
+                                )
                                 dom_id = action["id_domain"]
                                 update_domain_viewer_started_values(
                                     dom_id,
@@ -485,10 +593,6 @@ class HypWorkerThread(threading.Thread):
                                         domain_id=action["id_domain"],
                                         profile=action["profile"],
                                     )
-                                db_time = time.time() - libvirt_time - t
-                                logs.workers.info(
-                                    f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB - {db_time}"
-                                )
 
                                 logs.status.info(
                                     f"DOMAIN STARTED INFO WORKER - {dom_id} in {self.hyp_id} (spice: {spice} / spicetls:{spice_tls} / vnc: {vnc} / vnc_websocket: {vnc_websocket})"
@@ -499,6 +603,13 @@ class HypWorkerThread(threading.Thread):
                                     "STARTED domain {}: createdXML action in hypervisor {} has been sent".format(
                                         action["id_domain"], host
                                     )
+                                )
+                                log_action(
+                                    action["id_domain"],
+                                    action["type"],
+                                    intervals,
+                                    time.time() - action_time,
+                                    "Started",
                                 )
 
                             except Exception as e:
@@ -523,9 +634,12 @@ class HypWorkerThread(threading.Thread):
                                         domain_id=action["id_domain"],
                                         profile=action["profile"],
                                     )
-                                db_time = time.time() - libvirt_time - t
-                                logs.workers.info(
-                                    f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB err - {db_time}"
+                                log_action(
+                                    action["id_domain"],
+                                    action["type"],
+                                    intervals,
+                                    time.time() - action_time,
+                                    "Failed",
                                 )
 
                 ## STOP DOMAIN
@@ -534,12 +648,20 @@ class HypWorkerThread(threading.Thread):
                         "action shutdown domain: {}".format(action["id_domain"][30:100])
                     )
                     try:
+                        lt = time.time()
                         domain_handler = self.h.conn.lookupByName(action["id_domain"])
+                        intervals.append(
+                            {"conn.lookupByName": round(time.time() - lt, 3)}
+                        )
                         # this function not shutdown via ACPI: domain_handler.shutdown()
                         # the flag that we use is: VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN
                         # if we have agent we can use the constant: VIR_DOMAIN_SHUTDOWN_GUEST_AGENT
                         # using shutdownFlags you can control the behaviour of shutdown like virsh shutdown domain --mode MODE-LIST
+                        lt = time.time()
                         domain_handler.shutdownFlags(VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN)
+                        intervals.append(
+                            {"domain_handler.shutdownFlags": round(time.time() - lt, 3)}
+                        )
                         logs.workers.debug(
                             "SHUTTING-DOWN domain {}".format(action["id_domain"])
                         )
@@ -549,9 +671,12 @@ class HypWorkerThread(threading.Thread):
                             hyp_id=hyp_id,
                             detail="shutdown ACPI_POWER_BTN launched in libvirt domain",
                         )
-                        db_time = time.time() - libvirt_time - t
-                        logs.workers.info(
-                            f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB - {db_time}"
+                        log_action(
+                            action["id_domain"],
+                            action["type"],
+                            intervals,
+                            time.time() - action_time,
+                            "Shutting-down",
                         )
                     except Exception as e:
                         logs.exception_id.debug("0063")
@@ -561,22 +686,39 @@ class HypWorkerThread(threading.Thread):
                             )
                         )
                         logs.workers.error(f"Exception: {e}")
-
+                        log_action(
+                            action["id_domain"],
+                            action["type"],
+                            intervals,
+                            time.time() - action_time,
+                            "Failed with exception)",
+                        )
                 ## STOP DOMAIN
                 elif action["type"] == "stop_domain":
                     logs.workers.debug(
                         "action stop domain: {}".format(action["id_domain"][30:100])
                     )
                     try:
+                        lt = time.time()
                         domain_handler = self.h.conn.lookupByName(action["id_domain"])
+                        intervals.append(
+                            {"conn.lookupByName": round(time.time() - lt, 3)}
+                        )
+                        lt = time.time()
                         domain_handler.destroy()
-                        libvirt_time = time.time() - t
-                        logs.workers.info(
-                            f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - domain_handler.destroy() - {libvirt_time}"
+                        intervals.append(
+                            {"domain_handler.destroy": round(time.time() - lt, 3)}
                         )
                     except libvirtError as e:
                         if e.get_error_code() == VIR_ERR_NO_DOMAIN:
                             # already undefined
+                            intervals.append(
+                                {
+                                    "libvirtError VIR_ERR_NO_DOMAIN": round(
+                                        time.time() - lt, 3
+                                    )
+                                }
+                            )
                             pass
                         else:
                             logs.exception_id.debug(
@@ -591,16 +733,19 @@ class HypWorkerThread(threading.Thread):
                                     hyp_id=self.hyp_id,
                                     detail=str(e),
                                 )
-                                db_time = time.time() - libvirt_time - t
-                                logs.workers.info(
-                                    f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB err - {db_time}"
-                                )
                             logs.workers.info(
                                 "exception in stopping domain {}: ".format(
                                     e.get_error_code()
                                 )
                             )
-                            continue
+                            log_action(
+                                action["id_domain"],
+                                action["type"],
+                                intervals,
+                                time.time() - action_time,
+                                "Failed with exception",
+                            )
+                            continue  # Do not execute next try, end here
                     try:
                         # nvidia info updated in events_recolector
 
@@ -618,16 +763,25 @@ class HypWorkerThread(threading.Thread):
                                 update_domain_status(
                                     "Deleting", action["id_domain"], hyp_id=""
                                 )
+                                log_action(
+                                    action["id_domain"],
+                                    action["type"],
+                                    intervals,
+                                    time.time() - action_time,
+                                    "Stopped and Deleting",
+                                )
                             else:
                                 update_domain_status(
                                     "Stopped", action["id_domain"], hyp_id=""
                                 )
                                 update_vgpu_info_if_stopped(action["id_domain"])
-                            db_time = time.time() - libvirt_time - t
-                            logs.workers.info(
-                                f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB - {db_time}"
-                            )
-
+                                log_action(
+                                    action["id_domain"],
+                                    action["type"],
+                                    intervals,
+                                    time.time() - action_time,
+                                    "Stopped",
+                                )
                     except Exception as e:
                         logs.exception_id.debug("0065")
                         if action.get("not_change_status", False) is False:
@@ -637,11 +791,21 @@ class HypWorkerThread(threading.Thread):
                                 hyp_id=self.hyp_id,
                                 detail=str(e),
                             )
-                        db_time = time.time() - libvirt_time - t
-                        logs.workers.info(
-                            f"HYPWORKERTREAD {self.hyp_id} - DOMAIN: {action['id_domain']} - ACTION: {action['type']} - updateDB err - {db_time}"
+                        log_action(
+                            action["id_domain"],
+                            action["type"],
+                            intervals,
+                            time.time() - action_time,
+                            "Failed",
                         )
-                        logs.workers.info("exception in stopping domain {}: ".format(e))
+                    else:
+                        log_action(
+                            action["id_domain"],
+                            action["type"],
+                            intervals,
+                            time.time() - action_time,
+                            "Stopped",
+                        )
 
                 ## RESET DOMAIN
                 elif action["type"] == "reset_domain":
@@ -649,8 +813,16 @@ class HypWorkerThread(threading.Thread):
                         "action reset domain: {}".format(action["id_domain"][30:100])
                     )
                     try:
+                        lt = time.time()
                         domain_handler = self.h.conn.lookupByName(action["id_domain"])
+                        intervals.append(
+                            {"conn.lookupByName": round(time.time() - lt, 3)}
+                        )
+                        lt = time.time()
                         domain_handler.reset()
+                        intervals.append(
+                            {"domain_handler.reset": round(time.time() - lt, 3)}
+                        )
                         update_domain_status(
                             id_domain=action["id_domain"],
                             status="Started",
@@ -659,6 +831,13 @@ class HypWorkerThread(threading.Thread):
                         )
                         logs.workers.info(
                             "RESET OK domain {}".format(action["id_domain"])
+                        )
+                        log_action(
+                            action["id_domain"],
+                            action["type"],
+                            intervals,
+                            time.time() - action_time,
+                            "Started",
                         )
 
                     except Exception as e:
@@ -672,38 +851,87 @@ class HypWorkerThread(threading.Thread):
                         logs.workers.info(
                             "exception in resetting domain {}: ".format(e)
                         )
+                        log_action(
+                            action["id_domain"],
+                            action["type"],
+                            intervals,
+                            time.time() - action_time,
+                            "Failed",
+                        )
 
                 elif action["type"] in ["create_disk", "delete_disk"]:
+                    t = time.time()
                     launch_action_disk(action, self.hostname, user, port)
+                    log_action(
+                        action["domain"],
+                        action["type"],
+                        intervals,
+                        time.time() - action_time,
+                        "Finished",
+                    )
 
                 elif action["type"] in ["add_media_hot"]:
                     pass
 
                 elif action["type"] in ["killall_curl"]:
+                    t = time.time()
                     launch_killall_curl(self.hostname, user, port)
+                    log_action(
+                        None,
+                        action["type"],
+                        intervals,
+                        time.time() - action_time,
+                        "Finished",
+                    )
 
                 elif action["type"] in ["delete_media"]:
                     final_status = action.get("final_status", "Deleted")
-
+                    t = time.time()
                     launch_delete_media(
                         action, self.hostname, user, port, final_status=final_status
+                    )
+                    log_action(
+                        None,
+                        action["type"],
+                        intervals,
+                        time.time() - action_time,
+                        final_status,
                     )
 
                 elif action["type"] == "create_disk":
                     pass
 
                 elif action["type"] == "update_status_db_from_running_domains":
+                    t = time.time()
                     update_status_db_from_running_domains(self.h)
+                    log_action(
+                        None,
+                        action["type"],
+                        intervals,
+                        time.time() - action_time,
+                        "Finished",
+                    )
 
                 elif action["type"] == "hyp_info":
+                    t = time.time()
                     self.h.get_kvm_mod()
+                    intervals.append({"get_kvm_mod": round(time.time() - t, 3)})
+                    t = time.time()
                     self.h.get_hyp_info()
+                    intervals.append({"get_hyp_info": round(time.time() - t, 3)})
                     logs.workers.debug(
                         "hypervisor motherboard: {}".format(
                             self.h.info["motherboard_manufacturer"]
                         )
                     )
                     update_db_hyp_info(self.hyp_id, self.h.info)
+                    log_action(
+                        None,
+                        action["type"],
+                        intervals,
+                        time.time() - action_time,
+                        "Finished",
+                    )
 
                 ## DESTROY THREAD
                 elif action["type"] == "stop_thread":
@@ -711,12 +939,23 @@ class HypWorkerThread(threading.Thread):
 
                 elif action["type"] == "notify":
                     try:
+                        t = time.time()
                         domain = self.h.conn.lookupByName(action["desktop_id"])
+                        intervals.append(
+                            {"conn.lookupByName": round(time.time() - t, 3)}
+                        )
                     except libvirtError as error:
                         logs.workers.error(
                             f'libvirt error getting desktop {action["desktop_id"]} to '
                             f'notify with "{base64.b64decode(action["message"])}": '
                             f"{error}"
+                        )
+                        log_action(
+                            action["desktop_id"],
+                            action["type"],
+                            intervals,
+                            time.time() - action_time,
+                            "Failed",
                         )
                     else:
                         try:
@@ -727,16 +966,33 @@ class HypWorkerThread(threading.Thread):
                             logs.workers.error(
                                 f'error adding notify desktop {action["desktop_id"]} to notification thread pool'
                             )
-
+                    log_action(
+                        action["desktop_id"],
+                        action["type"],
+                        intervals,
+                        time.time() - action_time,
+                        "Finished",
+                    )
                 elif action["type"] == "personal_unit":
                     if NOTIFY_PERSONAL_UNIT is True:
                         try:
+                            t = time.time()
                             domain = self.h.conn.lookupByName(action["desktop_id"])
+                            intervals.append(
+                                {"conn.lookupByName": round(time.time() - t, 3)}
+                            )
                         except libvirtError as error:
                             logs.workers.error(
                                 f'libvirt error getting desktop {action["desktop_id"]} to '
                                 "mount personal unit: "
                                 f"{error}"
+                            )
+                            log_action(
+                                action["desktop_id"],
+                                action["type"],
+                                intervals,
+                                time.time() - action_time,
+                                "Failed",
                             )
                         else:
                             try:
@@ -748,6 +1004,13 @@ class HypWorkerThread(threading.Thread):
                                 logs.workers.error(
                                     f'error adding personal unit for desktop {action["desktop_id"]} to personal unit thread pool'
                                 )
+                        log_action(
+                            action["desktop_id"],
+                            action["type"],
+                            intervals,
+                            time.time() - action_time,
+                            "Finished",
+                        )
 
                 else:
                     logs.workers.error(
@@ -760,13 +1023,37 @@ class HypWorkerThread(threading.Thread):
 
                 if action["type"] in ITEMS_STATUS_MAP.keys():
                     try:
+                        t = time.time()
                         self.update_desktops_queue()
+                        intervals.append(
+                            {"update_desktops_queue": round(time.time() - t, 3)}
+                        )
+                        log_action(
+                            action["id_domain"],
+                            action["type"],
+                            intervals,
+                            time.time() - action_time,
+                            ITEMS_STATUS_MAP[action["type"]],
+                        )
                     except Exception as e:
                         logs.workers.error(f"Error sending desktops queue to api: {e}")
             except queue.Empty:
                 try:
+                    t = time.time()
                     self.h.conn.isAlive()
+                    intervals.append({"libvirt isAlive": round(time.time() - t, 3)})
+                    t = time.time()
                     self.h.conn.getLibVersion()
+                    intervals.append(
+                        {"libvirt getLibVersion": round(time.time() - t, 3)}
+                    )
+                    log_action(
+                        None,
+                        "libvirt_isAlive",
+                        intervals,
+                        time.time() - action_time,
+                        "Finished",
+                    )
                 except:
                     logs.workers.info(
                         "trying to reconnect hypervisor {}, alive test in working thread failed".format(
@@ -826,17 +1113,19 @@ class HypWorkerThread(threading.Thread):
                 action.get("type") in ["start_domain", "stop_domain"]
                 or time.time() - last_stats_update > 10
             ):
+                t = time.time()
                 self.h.get_system_stats()
+                intervals.append({"get_system_stats": round(time.time() - t, 3)})
                 last_stats_update = time.time()
+                stats = self.h.stats
                 if action.get("type") in ["start_domain", "stop_domain"]:
-                    stats = self.h.stats
                     stats["last_action"] = {
+                        "timestamp": time.time(),
                         "action": action.get("type"),
-                        "db_time": db_time,
-                        "libvirt_time": libvirt_time,
-                        "action_time": t - time.time(),
-                        "positioned_items": ["positioned_items"],  # TODO: queue items
+                        "action_time": time.time() - action_time,  # in seconds
+                        "intervals": intervals,
                     }
+                    stats["positioned_items"] = self.get_positioned_items()
                 update_table_field(
                     "hypervisors", self.hyp_id, "stats", stats, soft=True
                 )
@@ -869,7 +1158,7 @@ class HypWorkerThread(threading.Thread):
                 )
             )
 
-    def update_desktops_queue(self):
+    def get_positioned_items(self):
         items = list(self.queue_actions.queue)
 
         # Filter items to include only those with both 'id_domain' and 'type'
@@ -880,9 +1169,9 @@ class HypWorkerThread(threading.Thread):
         # Sort items first by priority (item[0]), then by order in the queue (item[1])
         sorted_items = sorted(valid_items, key=lambda item: (item[0], item[1]))
 
-        # Construct the resulting list with additional position field (1-based index)
         positioned_items = [
             {
+                "priority": item[0],
                 "event": item[2]["type"],
                 "desktop_id": item[2]["id_domain"],
                 "position": idx + 1,
@@ -890,6 +1179,32 @@ class HypWorkerThread(threading.Thread):
             for idx, item in enumerate(sorted_items)
             if item[2]["type"] in ITEMS_STATUS_MAP.keys()
         ]
+
+        return positioned_items
+
+    def update_desktops_queue(self):
+        # items = list(self.queue_actions.queue)
+
+        # # Filter items to include only those with both 'id_domain' and 'type'
+        # valid_items = [
+        #     item for item in items if "id_domain" in item[2] and "type" in item[2]
+        # ]
+
+        # # Sort items first by priority (item[0]), then by order in the queue (item[1])
+        # sorted_items = sorted(valid_items, key=lambda item: (item[0], item[1]))
+
+        # # Construct the resulting list with additional position field (1-based index)
+        # positioned_items = [
+        #     {
+        #         "event": item[2]["type"],
+        #         "desktop_id": item[2]["id_domain"],
+        #         "position": idx + 1,
+        #     }
+        #     for idx, item in enumerate(sorted_items)
+        #     if item[2]["type"] in ITEMS_STATUS_MAP.keys()
+        # ]
+
+        positioned_items = self.get_positioned_items()
 
         # Update the desktops queue if there are valid items
         if positioned_items:
