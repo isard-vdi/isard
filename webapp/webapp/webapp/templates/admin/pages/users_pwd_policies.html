@@ -1,0 +1,60 @@
+<!-- extend base layout -->
+{% extends "base.html" %} {% block content %}
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel" id="local_panel">
+      <div class="x_title">
+        <h3>
+          <i class="fa fa-asterisk"></i> Password policy
+        </h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li>
+            <a class="btn-add-policy"
+              ><span style="color: #5499c7"
+                ><i class="fa fa-plus"></i> Add policy</span
+              ></a
+            >
+          </li>
+
+          <li style="padding-right: 46px">
+            <a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
+          </li>
+        </ul>
+
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="users-password-policy" class="table">
+          <thead>
+            <tr>
+              <th rowspan="2">Category</th>
+              <th rowspan="2">Role</th>
+              <th rowspan="2">Email verification</th>
+              <th rowspan="2">Disclaimer</th>
+              <th colspan="9">Password</th>
+            </tr>
+            <tr>
+              <th>Digits</th>
+              <th>Length</th>
+              <th>Lowercase</th>
+              <th>Uppercase</th>
+              <th>Special chars</th>
+              <th>Expiration days</th>
+              <th>Old passwords</th>
+              <th>Not username</th>
+              <th>Action</th>
+              <th>ID</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include '/admin/pages/users_pwd_policies_modals.html' %} {% endblock %} {%
+block pagescript %}
+<script src="/isard-admin/static/admin/js/users_pwd_policies.js"></script>
+{% endblock %}

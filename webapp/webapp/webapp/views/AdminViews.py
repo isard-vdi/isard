@@ -332,14 +332,14 @@ def admin_users_user_storage():
     )
 
 
-@app.route("/isard-admin/admin/users/authentication", methods=["POST", "GET"])
+@app.route("/isard-admin/admin/users/pwd_policies", methods=["POST", "GET"])
 @login_required
 @isAdmin
-def admin_users_authentication():
+def admin_users_pwd_policies():
     return render_template(
-        "admin/pages/authentication.html",
-        nav="authentication",
-        title="Authentication",
+        "admin/pages/users_pwd_policies.html",
+        nav="Pwd Policies",
+        title="Password Policies",
         monitor_host=monitor_host,
     )
 
@@ -476,6 +476,18 @@ def admin_viewers():
         "admin/pages/viewers_config.html",
         nav="Viewers config",
         title="Viewers configuration",
+        monitor_host=monitor_host,
+    )
+
+
+@app.route("/isard-admin/admin/users/authentication", methods=["POST", "GET"])
+@login_required
+@isAdmin
+def admin_users_authentication():
+    return render_template(
+        "admin/pages/authentication.html",
+        nav="authentication",
+        title="Authentication",
         monitor_host=monitor_host,
     )
 
