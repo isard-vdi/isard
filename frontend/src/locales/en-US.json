@@ -2,7 +2,8 @@
   "router": {
     "titles": {
       "home": "Home",
-      "login": "Login"
+      "login": "Login",
+      "migration": "Migration"
     }
   },
   "views": {
@@ -15,6 +16,9 @@
     "login": {
       "title": "Login",
       "works-with": "Works with"
+    },
+    "migration": {
+      "title": "User migration"
     }
   },
   "components": {

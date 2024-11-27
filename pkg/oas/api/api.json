@@ -78,7 +78,73 @@
           }
         }
       }
-    }
+    },
+    "/api/v3/user_migration/items": {
+      "get": {
+        "operationId": "GetUserMigrationItems",
+        "summary": "Get items from the user that would be migrated",
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserMigrationItemsResponse"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserMigrationItemsError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+
+      }
+    },
+    "/api/v3/user_migration/auto": {
+      "post": {
+        "operationId": "PostUserMigrationAuto",
+        "summary": "Migrate the user items automatically",
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "428": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostUserMigrationAutoError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
   },
   "components": {
     "securitySchemes": {
@@ -304,6 +370,130 @@
           "submit_extra_styles": {
             "type": "string",
             "title": "Extra styles for the submit button. It will be added as `style=''` in the HTML"
+          }
+        }
+      },
+      "GetUserMigrationItemsResponse": {
+        "type": "object",
+        "title": "List of the items that will be migrated",
+        "properties": {
+          "desktops": {
+            "type": "array",
+            "title": "List of the desktops that will be migrated",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "title": "The ID of the desktop"
+                },
+                "name": {
+                  "type": "string",
+                  "title": "The name of the desktop"
+                }
+              },
+              "required": ["id", "name"]
+            }
+          },
+          "templates": {
+            "type": "array",
+            "title": "List of the templates that will be migrated",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "title": "The ID of the template"
+                },
+                "name": {
+                  "type": "string",
+                  "title": "The name of the template"
+                }
+              },
+              "required": ["id", "name"]
+            }
+          },
+          "media": {
+            "type": "array",
+            "title": "List of the media that will be migrated",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "title": "The ID of the media"
+                },
+                "name": {
+                  "type": "string",
+                  "title": "The name of the media"
+                }
+              },
+              "required": ["id", "name"]
+            }
+          },
+          "deployment": {
+            "type": "array",
+            "title": "List of the deployments that will be migrated",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "title": "The ID of the deployment"
+                },
+                "name": {
+                  "type": "string",
+                  "title": "The name of the deployment"
+                }
+              },
+              "required": ["id", "name"]
+            }
+          }
+        }
+      },
+      "GetUserMigrationItemsError": {
+        "type": "object",
+        "title": "Error response",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "title": "List of the errors that make the migration not valid",
+            "items": {
+              "type": "object",
+              "properties": {
+                "description": {
+                  "type": "string",
+                  "title": "The error message"
+                },
+                "description_code": {
+                  "type": "string",
+                  "title": "The error code"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PostUserMigrationAutoError": {
+        "type": "object",
+        "title": "Error response",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "title": "List of the errors that make the migration not valid",
+            "items": {
+              "type": "object",
+              "properties": {
+                "description": {
+                  "type": "string",
+                  "title": "The error message"
+                },
+                "description_code": {
+                  "type": "string",
+                  "title": "The error code"
+                }
+              }
+            }
           }
         }
       }

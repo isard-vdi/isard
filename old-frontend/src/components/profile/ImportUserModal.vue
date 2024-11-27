@@ -11,6 +11,9 @@
       class="ml-2 mr-2"
     >
       <b-col cols="12">
+        <p>
+          {{ $t(`forms.import.modal.description`) }}
+        </p>
         <b-input-group
           class="mt-3"
         >
@@ -25,10 +28,11 @@
     <template #modal-footer>
       <div class="w-100">
         <b-button
+          variant="primary"
           class="float-right"
-          @click="closeImportUserModal"
+          @click="submitForm"
         >
-          {{ $t('forms.cancel') }}
+          {{ $t(`forms.import.modal.buttons.migrate`) }}
         </b-button>
       </div>
     </template>
