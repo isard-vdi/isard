@@ -22,12 +22,17 @@ import json
 
 from flask import jsonify, request
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.tokens import get_jwt_payload
 
 from api import app, socketio
 
 from ..libv2.api_admin import get_user_migration_config, update_user_migration_config
+from ..libv2.api_auth import generate_migrate_user_token
+from ..libv2.api_users import ApiUsers
 from ..libv2.validators import _validate_item
-from .decorators import is_admin
+from .decorators import has_token, is_admin
+
+users = ApiUsers()
 
 
 @app.route("/api/v3/admin/config/user_migration", methods=["GET"])
@@ -71,6 +76,29 @@ def api_v3_admin_config_migration_update(payload):
     data = _validate_item("user_migration_update", request_json)
     return (
         json.dumps(update_user_migration_config(data)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/user_migration/export", methods=["POST"])
+@has_token
+def api_v3_user_migration_export(payload):
+    """
+
+    Endpoint to start the user migration process
+
+    :param payload: Data from JWT token
+    :type payload: dict
+    :return: The user migration process status
+    :rtype: Set with Flask response values and data in JSON
+
+    """
+    token = generate_migrate_user_token(payload["user_id"])["token"]
+    token_data = get_jwt_payload(token)
+    users.register_migration(token, token_data["user_id"])
+    return (
+        json.dumps({"token": token}),
         200,
         {"Content-Type": "application/json"},
     )

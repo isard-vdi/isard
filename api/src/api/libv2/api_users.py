@@ -2122,6 +2122,50 @@ class ApiUsers:
 
         return user
 
+    def register_migration(self, migration_token, origin_user_id):
+        """
+
+        Registers a user migration in the database. If a migration already exists for the user, it updates it with the new token.
+
+        :param migration_token: The migration token
+        :type migration_token: str
+        :param origin_user_id: The origin user id
+        :type origin_user_id: str
+        :param exp_time: The expiration time
+        :type exp_time: int
+
+        """
+        with app.app_context():
+            user_migration = list(
+                r.table("users_migrations")
+                .get_all(origin_user_id, index="origin_user")
+                .run(db.conn)
+            )
+        if user_migration:
+            with app.app_context():
+                r.table("users_migrations").get_all(
+                    origin_user_id, index="origin_user"
+                ).update(
+                    {
+                        "status": "exported",
+                        "export_time": int(time.time()),
+                        "origin_user": origin_user_id,
+                        "token": migration_token,
+                    }
+                ).run(
+                    db.conn
+                )
+        else:
+            with app.app_context():
+                r.table("users_migrations").insert(
+                    {
+                        "token": migration_token,
+                        "status": "exported",
+                        "created": int(time.time()),
+                        "origin_user": origin_user_id,
+                    }
+                ).run(db.conn)
+
     def process_migrate_user(self, user_id, target_user_id):
         user_data = get_new_user_data(target_user_id)
         try:

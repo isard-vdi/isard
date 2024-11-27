@@ -1,5 +1,5 @@
 #
-#   Copyright © 2023 Naomi Hidalgo
+#   Copyright © 2023 Naomi Hidalgo, Miriam Melina Gamboa Valdez
 #
 #   This file is part of IsardVDI.
 #
@@ -37,7 +37,7 @@ from ..libv2.api_authentication import (
     get_providers,
 )
 from ..libv2.validators import _validate_item
-from .decorators import has_disclaimer_token, is_admin
+from .decorators import has_disclaimer_token, has_token, is_admin
 
 
 @app.route("/api/v3/admin/authentication/policy", methods=["POST"])
@@ -162,6 +162,32 @@ def get_disclaimer(payload):
     text = get_disclaimer_template(payload["user_id"])
     return (
         json.dumps(text),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/authentication/export/<provider_id>",
+    methods=["GET"],
+)
+@has_token
+def export_provider_enabled(payload, provider_id):
+    """
+
+    Endpoint to retrieve the export enabled status for a specific provider.
+
+    :param payload: JWT payload
+    :type payload: dict
+    :param provider: Provider id
+    :type provider: str
+    :return: Export enabled status for the provider
+    :rtype: str
+
+    """
+    # TODO: Implement this endpoint
+    return (
+        json.dumps({"enabled": False}),
         200,
         {"Content-Type": "application/json"},
     )
