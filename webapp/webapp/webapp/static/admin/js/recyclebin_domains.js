@@ -630,7 +630,7 @@ $(document).ready(function () {
       }).get().on('pnotify.confirm', function () {
         var notify = new PNotify();
         $.ajax({
-          type: action == "delete" ? "DELETE" : "PUT",
+          type: "PUT",
           url: '/api/v3/recycle_bin/' + action + '/',
           data: JSON.stringify({'recycle_bin_ids':ids}),
           contentType: "application/json",
