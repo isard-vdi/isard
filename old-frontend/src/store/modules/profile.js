@@ -205,7 +205,7 @@ export default {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })
     },
-    fetchExportUserToken (context) {
+    generateExportUserToken (context) {
       return axios.post(`${apiV3Segment}/user_migration/export`, {})
         .then(response => {
           context.commit('setExportUserToken', response.data.token)
@@ -241,6 +241,9 @@ export default {
         .catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })
+    },
+    goToExportUser () {
+      window.location.pathname = '/export-user'
     }
   }
 }

@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from cachetools import TTLCache, cached
 from html_sanitizer import Sanitizer
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
@@ -72,9 +73,18 @@ def add_notification_template(template_data):
         r.table("notification_tmpls").insert(template_data).run(db.conn)
 
 
-def get_notification_templates():
+def get_notification_templates(kind=None):
+    if kind:
+        if kind == "system":
+            query = r.table("notification_tmpls").has_fields("system")
+        elif kind == "custom":
+            query = r.table("notification_tmpls").filter(
+                r.row.has_fields("system").not_()
+            )
+    else:
+        query = r.table("notification_tmpls")
     with app.app_context():
-        return list(r.table("notification_tmpls").run(db.conn))
+        return list(query.run(db.conn))
 
 
 def get_notification_template(template_id):
@@ -129,6 +139,11 @@ def delete_notification_template(template_id):
             .get_all(template_id, index="disclaimer_template")
             .count()
             .run(db.conn)
+        ) + r.table("config").get(1)["auth"].values().filter(
+            lambda provider: provider["migration"]["notification_bar"]["template"]
+            == template_id
+        ).count().run(
+            db.conn
         )
     if uses > 0:
         raise Error("bad_request", "Unable to delete a template that is in use")
@@ -161,3 +176,17 @@ def get_notification_event_template(event, user_id, args):
     data["footer"] = data["footer"].format(**args)
 
     return data
+
+
+@cached(cache=TTLCache(maxsize=10, ttl=30))
+def get_status_bar_notification_by_provider(provider):
+    try:
+        with app.app_context():
+            return (
+                r.table("config")
+                .get(1)["auth"][provider]["migration"]["notification_bar"]
+                .pluck("level", "template", "enabled")
+                .run(db.conn)
+            )
+    except:
+        raise Error("not_found", "Provider notification bar config not found")

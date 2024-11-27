@@ -101,6 +101,12 @@
             "title": "Més informació"
           }
         }
+      },
+      "notification": {
+          "migrate-button": {
+            "import": "Importa usuari ara",
+            "export": "Exporta usuari ara"
+          }
       }
     },
     "desktop-cards": {
@@ -298,7 +304,9 @@
           "description": "Quantitat total d'escriptoris de desplegaments que pot arrencar l'usuari"
         }
       },
-      "reset-vpn": "Restablir VPN"
+      "reset-vpn": "Restablir VPN",
+      "export": "Exporta usuari",
+      "import": "Importa usuari"
     },
     "start-now-modal": {
       "title": "Iniciar ara",
@@ -1009,7 +1017,22 @@
       "reject": "Rebutjar",
       "accept": "Acceptar",
       "disclaimer-accepted": "S'ha acceptat l'avís legal. Redirigint a l'inici de sessió en {seconds} segons."
-    }
+    },
+    "export-user": {
+        "title": "Exporta els elements del teu usuari",
+        "back": "Torna",
+        "description": "Migra els elements mitjançant un codi de migració",
+        "migration-instructions1": "Genera i copia aquest codi de migració al porta-retalls. Guarda aquest codi, ja que el necessitaràs per la importació.",
+        "migration-instructions2": "Per migrar aquest usuari a un altre, tanca aquesta sessió i inicia sessió amb l'usuari nou. Al perfil del nou usuari hi trobaràs el botó d'importació on enganxar-hi aquest codi.",
+        "warning": "ATENCIÓ",
+        "migration-warning": "Si ja s'ha generat un codi de migració amb anterioritat per aquest usuari, generar-ne un de nou invalidarà l'anterior.",
+        "generate-token": "Genera un codi de migració",
+        "generate-token-warning": "Aquest codi de migració no serà accessible de nou. Assegureu-vos d’haver-lo copiat abans de continuar",
+        "copy-token": "Copia el codi de migració",
+        "copy": "Copia al porta-retalls",
+        "logout": "Tanca la sessió i continua amb l'usuari nou",
+        "logout-tooltip": "Genera i copia el codi de migració abans de tancar la sessió"
+      }
   },
   "validations": {
     "required": "El camp {property} és requerit.",
@@ -1238,6 +1261,20 @@
         "high": "Alta"
       }
     },
+    "import": {
+      "modal": {
+          "title": "Importa l'usuari",
+          "description": "Importa els elements d'un altre usuari a aquest compte",
+          "migration-instructions1": "Per començar, necessiteu un codi de migració de l'usuari que voleu importar.",
+          "migration-instructions2": "Si no en teniu cap, primer heu d'iniciar sessió en el compte que voleu migrar, cliqueu \"Exporta usuari\" al perfil i seguiu les instruccions indicades.",
+          "migration-instructions3": "Un cop tingueu el codi de migració, enganxeu-lo aquí: ",
+          "placeholder": "Introdueix el codi de migració",
+          "migrate-tooltip": "Ves a la pàgina de migració per continuar el procés",
+          "buttons": {
+              "migrate": "Inicia la migració"
+          }
+      }
+  },
     "filter-placeholder": "Escriu per cercar",
     "clear": "Neteja",
     "cancel": "Cancel·la",
@@ -1384,7 +1421,8 @@
     "increase_storage_has_derivatives": "L'emmagatzematge és d'una plantilla i no es pot incrementar",
     "hypervisors_not_available": "No s'ha pogut iniciar l'escriptori. El sistema pot estar sobrecarregat. Torni-ho a provar més tard.",
     "duplicate": "Aquesta plantilla és duplicada d'una altra plantilla i no es pot convertir a escriptori. Contacta amb el teu administrador.",
-    "convert_template_with_derivatives": "Aquesta plantilla té dependències i no pot ser convertida a escriptori. Contacta amb el teu administrador."
+    "convert_template_with_derivatives": "Aquesta plantilla té dependències i no pot ser convertida a escriptori. Contacta amb el teu administrador.",
+    "migration_not_found": "No s'ha trobat aquest codi de migració"
   },
   "messages": {
     "title": {
@@ -1466,7 +1504,8 @@
       "cancelling-operation": "Cancel·lant operació de disc en curs",
       "recreate-desktop-stop": "Per recrear un escriptori, aquest ha d'estar aturat",
       "increasing-storage": "Incrementant mida del disc. Això pot trigar una estona",
-      "converting-template": "Convertint la plantilla a l'escriptori"
+      "converting-template": "Convertint la plantilla a l'escriptori",
+      "token-copied": "Codi de migració copiat al porta-retalls"
     },
     "loading": "Carregant"
   },

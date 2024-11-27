@@ -85,33 +85,37 @@
                             />
                             {{ $t('components.profile.reset-vpn') }}
                           </b-button>
-                          <template v-if="showExportUserButton">
-                            <b-button
-                              class="rounded-pill mr-2 pl-2 pr-3 btn-red"
-                              :title="$t('components.profile.export')"
-                              @click="copyExportUserToken"
-                            >
-                              <b-icon
-                                icon="file-earmark-arrow-down-fill"
-                                scale="0.75"
-                              />
-                              {{ $t('components.profile.export') }}
-                            </b-button>
-                          </template>
-                          <template v-if="showImportUserButton">
-                            <ImportUserModal />
-                            <b-button
-                              class="rounded-pill mr-2 pl-2 pr-3 btn-red"
-                              :title="$t('components.profile.import')"
-                              @click="showImportUserModal(true)"
-                            >
-                              <b-icon
-                                icon="file-earmark-arrow-up-fill"
-                                scale="0.75"
-                              />
-                              {{ $t('components.profile.import') }}
-                            </b-button>
-                          </template>
+                          <b-row
+                            class="justify-content-center"
+                          >
+                            <template v-if="showExportUserButton">
+                              <b-button
+                                class="rounded-pill mr-2 pl-2 pr-3 btn-red"
+                                :title="$t('components.profile.export')"
+                                @click="onClickGoToExportUser"
+                              >
+                                <b-icon
+                                  icon="box-arrow-up-right"
+                                  scale="0.75"
+                                />
+                                {{ $t('components.profile.export') }}
+                              </b-button>
+                            </template>
+                            <template v-if="showImportUserButton">
+                              <ImportUserModal />
+                              <b-button
+                                class="rounded-pill mr-2 pl-2 pr-3 btn-red"
+                                :title="$t('components.profile.import')"
+                                @click="showImportUserModal(true)"
+                              >
+                                <b-icon
+                                  icon="box-arrow-in-down-right"
+                                  scale="0.75"
+                                />
+                                {{ $t('components.profile.import') }}
+                              </b-button>
+                            </template>
+                          </b-row>
                           <span>
                             <b-button
                               v-if="profile.userStorage.tokenWeb !== false"
@@ -393,7 +397,6 @@ export default {
     const user = computed(() => $store.getters.getUser)
     const profile = computed(() => $store.getters.getProfile)
     const config = computed(() => $store.getters.getConfig)
-    const exportUserToken = computed(() => $store.getters.getExportUserToken)
     const showExportUserButton = computed(() => $store.getters.getShowExportUserButton)
     const showImportUserButton = computed(() => $store.getters.getShowImportUserButton)
 
@@ -419,19 +422,14 @@ export default {
       })
     }
 
-    const copyExportUserToken = () => {
-      $store.dispatch('fetchExportUserToken').then(response => {
-        navigator.clipboard.writeText(exportUserToken.value).then(() => {
-          context.root.$snotify.success(i18n.t('messages.success.token-copied'))
-        })
-      })
+    const onClickGoToExportUser = () => {
+      $store.dispatch('goToExportUser')
     }
-
     const showImportUserModal = (value) => {
       $store.dispatch('showImportUserModal', value)
     }
 
-    return { profile, profileLoaded, showEmailVerificationModal, config, showResetVPNModalConfirmation, copyExportUserToken, showExportUserButton, showImportUserButton, showImportUserModal }
+    return { profile, profileLoaded, showEmailVerificationModal, config, showResetVPNModalConfirmation, onClickGoToExportUser, showExportUserButton, showImportUserButton, showImportUserModal }
   },
   destroyed () {
     this.$store.dispatch('resetProfileState')

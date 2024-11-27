@@ -1,0 +1,135 @@
+
+<style>
+    #preview-panel {
+        border: 1px solid transparent;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0.25rem;
+    }
+    #preview-panel.info {
+        color: #0c5460;
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+    }
+    #preview-panel.warning {
+        color: #856404;
+        background-color: #fff3cd;
+        border-color: #ffeeba;
+    }
+    #preview-panel.danger {
+        color: #721c24;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+    }
+
+</style>
+
+<div class="modal fade" id="modalProviderConfig" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title"> <i class="fa fa-wrench"></i> Provider Configuration: <span class="text-capitalize" id="provider"></span>
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalProviderConfigForm" class="form-horizontal form-label-left">
+                    <input hidden name="provider" id="provider" />
+                    <div class="x_panel">
+                        <h4><i class="fa fa-exchange"></i> Migration</h4>
+                        <!-- 4 iCheck checkboxes: allow automigration, delete user on migrate, allow user import and allow user export-->
+                        <div class="x_content">
+                            <div class="x_content">
+                                <div class="col-md-6 col-xs-12">
+                                    <label>
+                                        <input type="checkbox" id="import" name="import" class="flat"> Allow User
+                                        Import
+                                    </label>
+                                </div>
+                                <div class="col-md-6 col-xs-12">
+                                    <label>
+                                        <input type="checkbox" id="export" name="export" class="flat"> Allow User
+                                        Export
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="x_content">
+                        <h4><i class="fa fa-cog"></i> Migration settings</h4>
+                        <!-- <div class="col-md-6 col-xs-12">
+                            <label>
+                                <input type="checkbox" id="allow_automigration" name="allow_automigration" class="flat"> Allow
+                                Auto-migration
+                            </label>
+                        </div> -->
+
+                        <div class="x_content">
+                        <div class="col-xs-12">
+                            <label for="action_after_migrate">After migration:</label>
+                            <select id="action_after_migrate" name="action_after_migrate" class="form-control">
+                                <option selected value="none">Nothing</option>
+                                <option value="delete">Delete original user</option>
+                                <option value="disable">Disable original user</option>
+                            </select>
+                        </div>
+                        </div>
+                        
+                    </div>
+                    <div class="x_panel">
+                        <h4><i class="fa far fa-window-maximize"></i> Status bar notification</h4>
+                        <div class="x_content">
+                            <div class="form-group">
+                                <div class="col-md-6 col-xs-12">
+                                    <label>
+                                        <input type="checkbox" id="notification_bar" name="notification_bar"
+                                            class="flat"> Add Status Bar Notification
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="status_bar_notification">
+                                <div class="form-group">
+                                    <label for="template">Notification Template</label>
+                                    <select id="template" name="template" class="form-control">
+                                    </select>
+                                    <p><i>(Edit templates at
+                                            <a href="/isard-admin/admin/notifications">Notification templates</a>)
+                                    </i></p>
+                                </div>
+                                <div class="form-group">
+                                    <label for="level">Notification Level</label>
+                                    <select id="level" name="level" class="form-control">
+                                        <option selected value="info">Info</option>
+                                        <option value="warning">Warning</option>
+                                        <option value="danger">Danger</option>
+                                    </select>
+                                </div>
+                                <!-- HTML preview of the notification -->
+                                <label>Notifcation Preview</label>
+                                <div class="x_panel" id="preview-panel">
+                                    <div id="notification-preview"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+                
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-info">Update</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

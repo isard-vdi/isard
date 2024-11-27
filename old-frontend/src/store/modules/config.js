@@ -13,6 +13,9 @@ export default {
     },
     getConfig: state => {
       return state.config
+    },
+    getStatusBarNotification: state => {
+      return state.statusBarNotification
     }
   },
   mutations: {
@@ -21,6 +24,9 @@ export default {
     },
     setConfig: (state, config) => {
       state.config = config
+    },
+    setStatusBarNotification: (state, notification) => {
+      state.statusBarNotification = notification
     }
   },
   actions: {
@@ -39,6 +45,10 @@ export default {
     async fetchMaintenanceStatus ({ _ }) {
       const rsp = await axios.get(`${apiV3Segment}/maintenance`)
       return rsp.data
+    },
+    async fetchStatusBarNotification ({ commit }) {
+      const rsp = await axios.get(`${apiV3Segment}/notifications/status_bar`)
+      commit('setStatusBarNotification', rsp.data)
     }
   }
 }

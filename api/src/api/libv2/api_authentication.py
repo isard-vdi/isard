@@ -21,6 +21,7 @@
 
 import os
 
+from cachetools import TTLCache, cached
 from html_sanitizer import Sanitizer
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
@@ -35,6 +36,8 @@ db = RDB(app)
 db.init_app(app)
 
 users = ApiUsers()
+
+provider_config_cache = TTLCache(maxsize=10, ttl=30)
 
 
 def no_sanitize_href(href):
@@ -198,3 +201,30 @@ def get_disclaimer_template(user_id):
         raise Error("not_found", "Unable to find disclaimer template")
     else:
         return None
+
+
+@cached(provider_config_cache)
+def get_provider_config(provider):
+    try:
+        with app.app_context():
+            config = r.table("config").get(1)["auth"][provider].run(db.conn)
+    except:
+        raise Error("not_found", "Provider config not found")
+    try:
+        with app.app_context():
+            config["migration"]["notification_bar"]["template_name"] = (
+                r.table("notification_tmpls")
+                .get(config["migration"]["notification_bar"]["template"])["name"]
+                .run(db.conn)
+            )
+    except r.ReqlNonExistenceError:
+        config["template_name"] = "[DELETED]"
+    return config
+
+
+def update_provider_config(provider, data):
+    with app.app_context():
+        r.table("config").get(1).update(
+            {"auth": {provider: r.row["auth"][provider].merge(data)}}
+        ).run(db.conn)
+    provider_config_cache.clear()

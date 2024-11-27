@@ -32,10 +32,15 @@ from ..libv2.api_admin_notifications import (
     get_notification_event_template,
     get_notification_template,
     get_notification_templates,
+    get_status_bar_notification_by_provider,
     update_notification_template,
 )
+from ..libv2.api_authentication import get_provider_config
+from ..libv2.api_users import ApiUsers
 from ..libv2.validators import _validate_item
-from .decorators import is_admin
+from .decorators import has_token, is_admin
+
+users = ApiUsers()
 
 
 @app.route("/api/v3/admin/notifications/template/", methods=["POST"])
@@ -71,6 +76,26 @@ def api_v3_admin_add_notification_template(payload):
 def api_v3_admin_notification_templates(payload):
     return (
         json.dumps(get_notification_templates()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notifications/templates/custom", methods=["GET"])
+@is_admin
+def api_v3_admin_notification_templates_custom(payload):
+    return (
+        json.dumps(get_notification_templates("custom")),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notifications/templates/system", methods=["GET"])
+@is_admin
+def api_v3_admin_notification_templates_system(payload):
+    return (
+        json.dumps(get_notification_templates("system")),
         200,
         {"Content-Type": "application/json"},
     )
@@ -135,3 +160,40 @@ def api_v3_admin_delete_notification_templates(payload, template_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/notifications/status_bar", methods=["GET"])
+@has_token
+def api_v3_get_status_bar_notifications(payload):
+    lang = users.get_lang(payload["user_id"])
+    notification = get_status_bar_notification_by_provider(payload["provider"])
+    provider_config = get_provider_config(payload["provider"])
+
+    if notification["enabled"] and (
+        provider_config["migration"]["export"] or provider_config["migration"]["import"]
+    ):
+        notification_tmpl = get_notification_template(notification.get("template"))
+        if notification_tmpl["lang"].get(lang):
+            notification_text = notification_tmpl["lang"][lang]
+        else:
+            notification_text = notification_tmpl["lang"][notification_tmpl["default"]]
+        return (
+            json.dumps(
+                {
+                    "text": notification_text["body"],
+                    "level": notification["level"],
+                    "migration_config": {
+                        "import": provider_config["migration"]["import"],
+                        "export": provider_config["migration"]["export"],
+                    },
+                }
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    else:
+        return (
+            json.dumps(None),
+            200,
+            {"Content-Type": "application/json"},
+        )

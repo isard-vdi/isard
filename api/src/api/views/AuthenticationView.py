@@ -21,6 +21,7 @@
 
 import json
 
+from cachetools import TTLCache, cached
 from flask import request
 from isardvdi_common.api_exceptions import Error
 
@@ -34,7 +35,9 @@ from ..libv2.api_authentication import (
     get_disclaimer_template,
     get_policies,
     get_policy,
+    get_provider_config,
     get_providers,
+    update_provider_config,
 )
 from ..libv2.validators import _validate_item
 from .decorators import has_disclaimer_token, has_token, is_admin
@@ -185,9 +188,9 @@ def export_provider_enabled(payload, provider_id):
     :rtype: str
 
     """
-    # TODO: Implement this endpoint
+    enabled = get_provider_config(provider_id).get("migration", {}).get("export", False)
     return (
-        json.dumps({"enabled": False}),
+        json.dumps({"enabled": enabled}),
         200,
         {"Content-Type": "application/json"},
     )
@@ -211,9 +214,53 @@ def import_provider_enabled(payload, provider_id):
     :rtype: str
 
     """
-    # TODO: Implement this endpoint
+    enabled = get_provider_config(provider_id).get("migration", {}).get("import", False)
     return (
-        json.dumps({"enabled": False}),
+        json.dumps({"enabled": enabled}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/authentication/provider/<provider>", methods=["GET"])
+@is_admin
+def get_provider_config_route(payload, provider):
+    """
+
+    Endpoint to get the provider configuration.
+
+    :param payload: JWT payload
+    :type payload: dict
+    :param provider: Provider id
+    :type provider: str
+    :return: Provider configuration
+    :rtype: dict
+
+    """
+    return (
+        json.dumps(get_provider_config(provider)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/authentication/provider/<provider>", methods=["PUT"])
+@is_admin
+def edit_provider_config_route(payload, provider):
+    """
+
+    Endpoint to edit the provider configuration.
+
+    :param payload: JWT payload
+    :type payload: dict
+    :param provider: Provider id
+    :type provider: str
+    """
+    data = request.get_json()
+    data = _validate_item("provider_config_update", data)
+    update_provider_config(provider, data)
+    return (
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )

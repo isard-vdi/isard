@@ -226,6 +226,20 @@
         "high": "Alta"
       }
     },
+    "import": {
+      "modal": {
+        "title": "Importar usuario",
+        "description": "Importar los elementos de otro usuario a esta cuenta",
+        "migration-instructions1": "Para empezar, necesitas un código de migración de la cuenta que deseas importar.",
+        "migration-instructions2": "Si no tienes uno, primero debes iniciar sesión en la cuenta que quieres migrar, hacer clic en \"Exportar Usuario\" en la página de perfil y seguir las instrucciones indicadas.",
+        "migration-instructions3": "Una vez tengas el código de migración, pégalo aquí: ",
+        "placeholder": "Introducir el código de migración",
+        "migrate-tooltip": "Ir a la página de migración para continuar con el proceso",
+        "buttons": {
+          "migrate": "Iniciar migración"
+        }
+      }
+    },
     "filter-placeholder": "Escribe para buscar",
     "clear": "Limpia",
     "cancel": "Cancela",
@@ -336,6 +350,12 @@
             "title": "Más información"
           }
         }
+      },
+      "notification": {
+          "migrate-button": {
+            "import": "Importar usuario ahora",
+            "export": "Exportar usuario ahora"
+          }
       }
     },
     "desktop-cards": {
@@ -534,7 +554,9 @@
           "description": "Cantidad total de escritorios de despliegues que puede arrancar el usuario"
         }
       },
-      "reset-vpn": "Restaurar VPN"
+      "reset-vpn": "Restaurar VPN",
+      "export": "Exportar usuario",
+      "import": "Importar usuario"
     },
     "start-now-modal": {
       "title": "Iniciar ahora",
@@ -1257,6 +1279,21 @@
       "reject": "Rechazar",
       "accept": "Aceptar",
       "disclaimer-accepted": "Se ha aceptado el aviso legal. Redirigiendo al inicio de sesión en {seconds} segundos."
+    },
+    "export-user": {
+      "title": "Exportar elementos del usuario",
+      "back": "Volver",
+      "description": "Migrar elementos del usuario mediante un código de migración",
+      "migration-instructions1": "Genera y copia este código de migración en el portapapeles. Guarda este código, ya que lo necesitarás para la importación",
+      "migration-instructions2": "Para migrar este usuario a otro, cierra esta sesión e inicia sesión con el nuevo usuario. En el perfil del usuario nuevo encontrarás el botón de importación donde pegar este código",
+      "warning": "ATENCIÓN",
+      "migration-warning": "Si ya se ha generado un código de migración anteriormente para este usuario, generar uno nuevo invalidará el código anterior.",
+      "generate-token": "Generar un código de migración",
+      "generate-token-warning": "Este código de migración no será accesible de nuevo. Asegúrate de haberlo copiado antes de continuar.",
+      "copy-token": "Copiar el código de migración",
+      "copy": "Copiar al portapapeles",
+      "logout": "Cerrar sesión y cotinuar con el nuevo usuario",
+      "logout-tooltip": "Genera y copia el código de migración antes de cerrar la sesión"
     }
   },
   "messages": {
@@ -1338,7 +1375,8 @@
       "cancelling-operation": "Cancelando operación de disco en curso",
       "recreate-desktop-stop": "Para recrear un escritorio es necesario que esté parado",
       "increasing-storage": "Incrementando tamaño de disco. Esto podría tomar unos momentos",
-      "converting-template": "Convertiendo la plantilla a escritorio"
+      "converting-template": "Convirtiendo la plantilla a escritorio",
+      "token-copied": "Código de migración copiado en el portapapeles"
     },
     "loading": "Cargando"
   },
@@ -1483,7 +1521,8 @@
     "increase_storage_has_derivatives": "El almacenamiento es de una plantilla y no se puede incrementar",
     "hypervisors_not_available": "No se ha podido iniciar el escritorio. El sistema puede estar sobrecargado. Inténtelo de nuevo más tarde.",
     "duplicate": "Esta plantilla es una duplicada de otra plantilla y no se puede convertir en un escritorio. Contacta con tu administrador.",
-    "convert_template_with_derivatives": "Esta plantilla tiene dependencias y no puede ser convertida a escritorio. Contacta con tu administrador."
+    "convert_template_with_derivatives": "Esta plantilla tiene dependencias y no puede ser convertida a escritorio. Contacta con tu administrador.",
+    "migration_not_found":"No se ha encontrado este código de migración"
   },
   "router": {
     "titles": {

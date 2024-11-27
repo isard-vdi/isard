@@ -23,9 +23,9 @@ $(document).ready(function () {
     renderTableNotificationTemplates();
     $template_detail = $(".notification-tmpl-detail");
 
-    $('#notification-tmpls-table tbody').on('click', 'td.details-control', function () {
+    $('#system-notification-tmpls-table tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest("tr");
-        var row = $('#notification-tmpls-table').DataTable().row(tr);
+        var row = $('#system-notification-tmpls-table').DataTable().row(tr);
         var rowData = row.data();
 
         if (row.child.isShown()) {
@@ -33,7 +33,22 @@ $(document).ready(function () {
             tr.removeClass("shown");
         } else {
             row.child(rowData).show();
-            row.child(addDetailPannel(row.data())).show();
+            row.child(addDetailPannel(row.data(), "system")).show();
+            tr.addClass("shown");
+        }
+    });
+
+    $('#custom-notification-tmpls-table tbody').on('click', 'td.details-control', function () {
+        var tr = $(this).closest("tr");
+        var row = $('#custom-notification-tmpls-table').DataTable().row(tr);
+        var rowData = row.data();
+
+        if (row.child.isShown()) {
+            row.child.hide();
+            tr.removeClass("shown");
+        } else {
+            row.child(rowData).show();
+            row.child(addDetailPannel(row.data(), "custom")).show();
             tr.addClass("shown");
         }
     });
@@ -138,6 +153,7 @@ $(document).ready(function () {
     $("#modalNotificationTemplate #send").on("click", function () {
         var form = $('#modalNotificationTemplateForm');
         var data = form.serializeObject();
+        data["name"] = data["tmpl_name"]
         var pk = data.id;
 
         if (checkCleanHTML(data.body) && checkCleanHTML(data.footer)) {
@@ -217,15 +233,16 @@ $(document).ready(function () {
             }
         }
     });
-
 });
 
-function addDetailPannel(tmpl) {
+function addDetailPannel(tmpl, kind) {
+    let template = kind === "custom" ? tmpl.lang[tmpl["default"]] : tmpl.system;
     $newPanel = $template_detail.clone();
     $newPanel.find('#notification-tmpl\\.id').remove();
-    $newPanel.find("#system_tmpl-title").html(tmpl.system.title);
-    $newPanel.find("#system_tmpl-body").html(tmpl.system.body);
-    $newPanel.find("#system_tmpl-footer").html("<hr>" + tmpl.system.footer);
+    $newPanel.find(`#${kind}-title`).show();
+    $newPanel.find("#system_tmpl-title").html(template.title);
+    $newPanel.find("#system_tmpl-body").html(template.body);
+    $newPanel.find("#system_tmpl-footer").html("<hr>" + template.footer);
     return $newPanel
 }
 
@@ -333,9 +350,9 @@ function populateLanguage(modal, availableLanguageList, defaultLang) {
 
 
 function renderTableNotificationTemplates() {
-    notification_tmpls_table = $('#notification-tmpls-table').DataTable({
+    custom_notification_tmpls_table = $('#custom-notification-tmpls-table').DataTable({
         "ajax": {
-            "url": "/api/v3/admin/notifications/templates",
+            "url": "/api/v3/admin/notifications/templates/custom",
             "contentType": "application/json",
             "type": 'GET',
         },
@@ -351,11 +368,10 @@ function renderTableNotificationTemplates() {
                 "orderable": false,
                 "data": null,
                 "render": function (data, type, row) {
-                    if (data.system) {
-                        return `<button class="btn btn-xs btn-info"
-                        type="button"  data-placement="top"><i class="fa fa-plus"
-                        title="See system default template"></i></button>`}
-                }
+                    return `<button class="btn btn-xs btn-info"
+                    type="button"  data-placement="top"><i class="fa fa-plus"
+                    title="See system default template"></i></button>`}
+                
             },
             { "data": "name" },
             { "data": "description" },
@@ -364,13 +380,44 @@ function renderTableNotificationTemplates() {
                 "orderable": false,
                 "data": null,
                 "render": function (data, type, row) {
-                    if (["password", "desktop", "email", "deleted_gpu"].includes(data.kind)) {
-                        return `<button title="Edit notification template" class="btn btn-xs btn-info btn-edit-notification-tmpl" type="button" data-placement="top" ><i class="fa fa-pencil"></i></button>`;
+                    return `<button title="Edit notification template" class="btn btn-xs btn-info btn-edit-notification-tmpl" type="button" data-placement="top" ><i class="fa fa-pencil"></i></button>
+                    <button title="Delete notification template" class="btn btn-xs btn-danger btn-delete-notification-tmpl" type="button" data-placement="top" ><i class="fa fa-times"></i></button>`;
+                }
+            },
+        ],
+    });
 
-                    } else {
-                        return `<button title="Edit notification template" class="btn btn-xs btn-info btn-edit-notification-tmpl" type="button" data-placement="top" ><i class="fa fa-pencil"></i></button>
-                        <button title="Delete notification template" class="btn btn-xs btn-danger btn-delete-notification-tmpl" type="button" data-placement="top" ><i class="fa fa-times"></i></button>`;
-                    }
+    system_notification_tmpls_table = $('#system-notification-tmpls-table').DataTable({
+        "ajax": {
+            "url": "/api/v3/admin/notifications/templates/system",
+            "contentType": "application/json",
+            "type": 'GET',
+        },
+        "sAjaxDataProp": "",
+        "language": {
+            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        },
+        "rowId": "id",
+        "deferRender": true,
+        "columns": [
+            {
+                "className": 'details-control',
+                "orderable": false,
+                "data": null,
+                "render": function (data, type, row) {
+                    return `<button class="btn btn-xs btn-info"
+                    type="button"  data-placement="top"><i class="fa fa-plus"
+                    title="See system default template"></i></button>`}
+                
+            },
+            { "data": "name" },
+            { "data": "description" },
+            { "data": "default" },
+            {
+                "orderable": false,
+                "data": null,
+                "render": function (data, type, row) {
+                    return `<button title="Edit notification template" class="btn btn-xs btn-info btn-edit-notification-tmpl" type="button" data-placement="top" ><i class="fa fa-pencil"></i></button>`;
                 }
             },
         ],
@@ -414,6 +461,7 @@ function togglePreviewMode(modal, preview) {
 function applyMessage() {
     var form = $('#modalNotificationTemplateForm');
     var data = form.serializeObject();
+    data["name"] = data["tmpl_name"]
     if (checkCleanHTML(data.body) && checkCleanHTML(data.footer)) {
         form.parsley().validate();
         if (form.parsley().isValid()) {

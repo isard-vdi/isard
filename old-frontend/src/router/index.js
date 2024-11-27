@@ -345,6 +345,14 @@ const router = new VueRouter({
       }
     },
     {
+      path: '/export-user',
+      component: () => import('@/pages/ExportUser.vue'),
+      name: 'ExportUser',
+      meta: {
+        title: i18n.t('router.titles.export-user')
+      }
+    },
+    {
       path: '/register',
       name: 'Register',
       component: () => import('@/views/Register.vue'),

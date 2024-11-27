@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 155
+release_version = 156
+# release 156: Add empty dict values to provider settings
 # release 155: Add token, status, origin_user and target_user index to users_migrations table
 # release 154: Add bastion alloweds to config table
 # release 153: Add new field 'user_migration' to config table
@@ -652,6 +653,64 @@ password:s:%s"""
                                 "groups": [],
                                 "roles": [],
                                 "users": [],
+                            },
+                        }
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+        if version == 156:
+            try:
+                r.table(table).get(1).update(
+                    {
+                        "auth": {
+                            "google": {
+                                "migration": {
+                                    "action_after_migrate": "none",
+                                    "export": False,
+                                    "import": False,
+                                    "notification_bar": {
+                                        "enabled": False,
+                                        "level": None,
+                                        "template": None,
+                                    },
+                                }
+                            },
+                            "ldap": {
+                                "migration": {
+                                    "action_after_migrate": "none",
+                                    "export": False,
+                                    "import": False,
+                                    "notification_bar": {
+                                        "enabled": False,
+                                        "level": None,
+                                        "template": None,
+                                    },
+                                }
+                            },
+                            "local": {
+                                "migration": {
+                                    "action_after_migrate": "none",
+                                    "export": False,
+                                    "import": False,
+                                    "notification_bar": {
+                                        "enabled": False,
+                                        "level": None,
+                                        "template": None,
+                                    },
+                                }
+                            },
+                            "saml": {
+                                "migration": {
+                                    "action_after_migrate": "none",
+                                    "export": False,
+                                    "import": False,
+                                    "notification_bar": {
+                                        "enabled": False,
+                                        "level": None,
+                                        "template": None,
+                                    },
+                                }
                             },
                         }
                     }

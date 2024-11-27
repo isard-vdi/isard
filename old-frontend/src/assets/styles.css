@@ -25,6 +25,10 @@
   padding-top: calc(112px + 2rem);
 }
 
+.header-wrapper.notification ~ #content {
+  margin-top: calc(10px + 2rem);
+}
+
 /* FLEX GRID */
 .flex-grow {
   flex-grow: 1;
@@ -147,6 +151,10 @@
 #statusbar .separator {
   width: 85px;
   margin-right: 1rem;
+}
+
+#statusbar + #notification {
+  height: 50px;
 }
 
 #logo-wrapper {
