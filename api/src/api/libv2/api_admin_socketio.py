@@ -481,6 +481,8 @@ class HypervisorsThread(threading.Thread):
                                     "stats": {
                                         "mem_stats": {"total": True, "available": True},
                                         "cpu_1min": {"used": True},
+                                        "last_action": True,
+                                        "positioned_items": True,
                                     }
                                 },
                                 {"vpn": {"wireguard": {"connected": True}}},

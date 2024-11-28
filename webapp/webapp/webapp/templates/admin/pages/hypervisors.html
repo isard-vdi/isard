@@ -19,6 +19,7 @@
         <i class="fa fa-warning" style="font-size:16px;color:red"></i>
       </div>
       <div class="x_content">
+        <div class="row hypervisors-buttons-row"></div>
         <table id="hypervisors" class="table">
           <thead>
             <tr>
@@ -36,13 +37,17 @@
               <th>Last Status Change</th>
               <th title="Started desktops in this hyper">Desktops</th>
               <th title="Has GPU profiles enabled to be used">GPU cards</th>
-              <th title="This hypervisor connected to wg 4443/UPD isard-vpn OVS">VPN</th>
-              <th title="This hypervisor allow nested desktops virtualization">Nested</th>
               <th title="noVNC HTML5 viewers isard-static host to load src">Static</th>
               <th title="Where will desktops running in this hypervisor point it's viewer">Proxy Video</th>
+              <th title="This hypervisor connected to wg 4443/UPD isard-vpn OVS">VPN</th><!-- TODO: move next to virt -->
+              <th title="This hypervisor allow nested desktops virtualization">Nested</th><!-- TODO: move next to virt -->
               <th title="Hardware virtualization enabled">Virt</th>
               <th>QEMU</th>
               <th>Libvirt</th>
+              <th title="The last action that ran in this hypervisor">Last action</th>
+              <th title="Time it took to complete the last action">Time</th>
+              <th title="Intervals of the last action">Last action Intervals</th>
+              <th title="Queue size of this hypervisor">Queue</th>
             </tr>
           </thead>
           <tbody>
