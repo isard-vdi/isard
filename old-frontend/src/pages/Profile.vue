@@ -368,7 +368,8 @@ export default {
     Language,
     PasswordModal,
     EmailVerificationModal,
-    QuotaProgressBar
+    QuotaProgressBar,
+    ImportUserModal
   },
   setup (_, context) {
     const $store = context.root.$store

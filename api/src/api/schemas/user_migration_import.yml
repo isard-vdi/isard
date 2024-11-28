@@ -1,0 +1,4 @@
+token:
+  type: string
+  required: true
+  empty: false
