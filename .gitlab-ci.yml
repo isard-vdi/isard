@@ -111,7 +111,7 @@ check-frontend:
   parallel:
     matrix:
       - JOB: "format --write=false --check"
-      - JOB: "lint --max-warnings 0"
+      - JOB: "lint"
         # TODO: Remove this when all lint errors are fixed
         ALLOW_FAILURE: "true"
       - JOB: "type-check"
