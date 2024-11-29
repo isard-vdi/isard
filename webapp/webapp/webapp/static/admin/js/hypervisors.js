@@ -110,12 +110,15 @@ $(document).ready(function () {
       }
     }
   });
-  renderBoolean = (enabled) => {
-    if (enabled) {
-      return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
-    } else {
-      return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
+  renderBoolean = (enabled, type) => {
+    if (type === 'display') {
+      if (enabled) {
+        return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
+      } else {
+        return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
+      }
     }
+    return enabled
   }
 
   table = $('#hypervisors').DataTable({
@@ -142,11 +145,11 @@ $(document).ready(function () {
     { "data": "cap_status.hypervisor" },
     { "data": "only_forced" },
     { "data": "gpu_only", "defaultContent": 0 },
-    { "data": "id" },
-    { "data": "hostname", "width": "100px" },
-    { "data": "info.memory_in_MB", "width": "1000px", "defaultContent": 'NaN' },
-    { "data": "info.cpu_cores", "defaultContent": 'NaN' },
-    { "data": "status_time" },
+    { "data": "id", "width": "100px" },
+    { "data": "hostname", "width": "100px", "className": 'group-system', "visible": false },
+    { "data": "info.memory_in_MB", "width": "600px", "defaultContent": 'NaN' },
+    { "data": "info.cpu_cores", "width": "600px", "defaultContent": 'NaN' },
+    { "data": "status_time", "className": 'group-system', "visible": false },
     { "data": "desktops_started", "defaultContent": 0 },
     {
       "data": "gpus", "defaultContent": 0, render: function (data, type, row) {
@@ -160,13 +163,17 @@ $(document).ready(function () {
             ${physical_gpus.length + "/" + data.length}</i>`
       }
     },
-    { "data": "vpn.wireguard.connected", "defaultContent": 'NaN' },
-    { "data": "info.nested", "defaultContent": 'NaN' },
-    { "data": "viewer.static" },
-    { "data": "viewer.proxy_video" },
-    { "data": "info.virtualization_capabilities", "defaultContent": 'NaN' },
-    { "data": "info.qemu_version", "defaultContent": 'NaN' },
-    { "data": "info.libvirt_version", "defaultContent": 'NaN' },
+    { "data": "viewer.static", "className": 'group-system', "visible": false },
+    { "data": "viewer.proxy_video", "className": 'group-system', "visible": false },
+    { "data": "vpn.wireguard.connected", "defaultContent": 'NaN', "className": 'group-system', "visible": false },
+    { "data": "info.nested", "defaultContent": 'NaN', "className": 'group-system', "visible": false },
+    { "data": "info.virtualization_capabilities", "defaultContent": 'NaN', "className": 'group-system', "visible": false },
+    { "data": "info.qemu_version", "defaultContent": 'NaN', "className": 'group-system', "visible": false },
+    { "data": "info.libvirt_version", "defaultContent": 'NaN', "className": 'group-system', "visible": false },
+    { "data": "stats.last_action.action", "width": "100px", "className": 'group-stats', "visible": false },
+    { "data": "stats.last_action.action_time", "className": 'group-stats', "visible": false },
+    { "data": "stats.last_action.intervals", "className": '-group-stats', "visible": false },
+    { "data": "stats.positioned_items", "className": 'group-stats', "visible": false },
     ],
     "order": [
       [7, 'asc']
@@ -192,16 +199,16 @@ $(document).ready(function () {
           if (full.capabilities.disk_operations) {
             if ("cap_status" in full && "disk_operations" in full.cap_status) {
               if (full.cap_status.disk_operations) {
-                return renderBoolean(true);
+                return renderBoolean(true, type);
               } else {
-                return '<i class="fa fa-circle" aria-hidden="true" style="color:red"></i>'
+                return type === 'display' ? '<i class="fa fa-circle" aria-hidden="true" style="color:red"></i>' : 'no disk operations'
               }
             } else {
               return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
             }
           }
         }
-        return renderBoolean(false);
+        return renderBoolean(false, type);
       },
     },
     { // Hypervisor
@@ -211,7 +218,7 @@ $(document).ready(function () {
           if (full.capabilities.hypervisor) {
             if ("cap_status" in full && "hypervisor" in full.cap_status) {
               if (full.cap_status.hypervisor) {
-                return renderBoolean(true);
+                return renderBoolean(true, type);
               } else {
                 return '<i class="fa fa-circle" aria-hidden="true" style="color:red"></i>'
               }
@@ -220,7 +227,7 @@ $(document).ready(function () {
             }
           }
         }
-        return renderBoolean(false);
+        return renderBoolean(false, type);
       },
     },
     {
@@ -232,12 +239,12 @@ $(document).ready(function () {
       //Only GPU
       "targets": 6,
       "render": function (data, type, full, meta) {
-        if (!("min_free_gpu_mem_gb" in full)) { return renderBoolean(data) }
-        if (full.min_free_gpu_mem_gb == 0) { return renderBoolean(data) }
+        if (!("min_free_gpu_mem_gb" in full)) { return renderBoolean(data, type) }
+        if (full.min_free_gpu_mem_gb == 0) { return renderBoolean(data, type) }
         if (data) {
-          return '<p title="Set to reserve ' + full.min_free_gpu_mem_gb + ' GB of ram for GPU desktops. Now allowing only GPU desktops.">Auto ' + renderBoolean(data) + '</p>'
+          return '<p title="Set to reserve ' + full.min_free_gpu_mem_gb + ' GB of ram for GPU desktops. Now allowing only GPU desktops.">Auto ' + renderBoolean(data, type) + '</p>'
         } else {
-          return '<p title="Set to reserve ' + full.min_free_gpu_mem_gb + ' GB of ram for GPU desktops. Now allowing all.">Auto ' + renderBoolean(data) + '</p>'
+          return '<p title="Set to reserve ' + full.min_free_gpu_mem_gb + ' GB of ram for GPU desktops. Now allowing all.">Auto ' + renderBoolean(data, type) + '</p>'
         }
       }
     },
@@ -291,18 +298,8 @@ $(document).ready(function () {
       }
     },
     {
-      // VPN
-      "targets": 14,
-      "render": renderBoolean
-    },
-    {
-      // Nested
-      "targets": 15,
-      "render": renderBoolean
-    },
-    {
       // Static
-      "targets": 16,
+      "targets": 14,
       "render": function (data, type, full, meta) {
         if ("viewer_status" in full) {
           if (full.viewer_status.static) {
@@ -317,7 +314,7 @@ $(document).ready(function () {
     },
     {
       // Proxy Video
-      "targets": 17,
+      "targets": 15,
       "render": function (data, type, full, meta) {
         if ("viewer_status" in full) {
           title = "HTML5 cert: " + full.viewer_status.html5 + " days\nSpice cert: " + full.viewer_status.spice + " days\nStatic cert: " + full.viewer_status.static + " days"
@@ -332,13 +329,129 @@ $(document).ready(function () {
     },
 
     {
+      // VPN
+      "targets": 16,
+      "render": renderBoolean
+    },
+    {
+      // Nested
+      "targets": 17,
+      "render": renderBoolean
+    },
+    {
       // Virt
       "targets": 18,
       "render": function (data, type, full, meta) {
-        if (!data) { return renderBoolean }
+        if (!data) { return renderBoolean(data, type) }
         return data
       }
     },
+
+    {
+      // Last Action
+      "targets": 21,
+      "render": function (data, type, full, meta) {
+        if (!("stats" in full)) {
+          return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
+        }
+        if (!("last_action" in full.stats)) {
+          return '-'
+        }
+        if (type === 'display') {
+          let actionMap =  {
+            "start_domain": "Start",
+            "stop_domain": "Stop",
+          }
+          let actionName = actionMap[full.stats.last_action.action] || full.stats.last_action.action
+
+          let timeDiff = moment().unix() - full.stats.last_action.timestamp.toFixed(0)
+          if (timeDiff < 5) {
+            return '<span title="Seconds since action: ' + timeDiff + '">' + '<i class="fa fa-circle" aria-hidden="true" style="color:red"></i> ' + actionName + '</span>'
+          }
+          return '<span title="Seconds since action: ' + timeDiff + '">' + actionName + '</span>'
+        }
+        return full.stats.last_action.action
+      }
+    },
+    {
+      // Action time
+      "targets": 22,
+      "render": function (data, type, full, meta) {
+        if (!("stats" in full)) {
+          return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
+        }
+        if (!("last_action" in full.stats)) {
+          return '-'
+        }
+        if (type === 'display') {
+          let timeMap = {
+            "red": 5, // over 3 seconds
+            "orange": 2, // over 2 second
+          }
+          for (var color in timeMap) {
+            if (data > timeMap[color]) {
+              return '<span title="Seconds since action: ' + timeDiff + '">' + '<i class="fa fa-circle" aria-hidden="true" style="color:' + color + '"></i> ' + full.stats.last_action.action_time.toFixed(3) + '</span>'
+            }
+          }
+          return full.stats.last_action.action_time.toFixed(3)
+        }
+        return full.stats.last_action.action_time
+      }
+    },
+    {
+      // Action intervals
+      "targets": 23,
+      "render": function (data, type, full, meta) {
+        if (!("stats" in full)) {
+          return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
+        }
+        if (!("last_action" in full.stats)) {
+          return '-'
+        }
+        if (type === 'display') {
+          let table = '<table class="table table-bordered table-condensed table-striped" style="width:100%">'
+          table += '<thead><tr><th>Action</th><th>Time</th></tr></thead>'
+          table += '<tbody>'
+          full.stats.last_action.intervals.forEach(function (obj) {
+            table += '<tr>'
+            table += '<td>' + Object.keys(obj)[0] + '</td>'
+            table += '<td>' + obj[Object.keys(obj)[0]].toFixed(3) + '</td>'
+            table += '</tr>'
+          })
+          table += '</tbody>'
+          table += '</table>'
+          return table
+        }
+        return data
+      }
+    },
+    {
+      // Queued actions
+      "targets": 24,
+      "render": function (data, type, full, meta) {
+        if (!("stats" in full)) {
+          return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
+        }
+        if (!("positioned_items" in full.stats)) {
+          full.stats.positioned_items = []
+        }
+        var dataLen = full.stats.positioned_items.length
+        var dataLenGrouped = full.stats.positioned_items.reduce(function (acc, obj) {
+          if (obj.event in acc) {
+            acc[obj.event]++
+          } else {
+            acc[obj.event] = 1
+          }
+          return acc
+        }, {})
+        dataLenGoupString = ""
+        for (var key in dataLenGrouped) {
+          dataLenGoupString += key + ": " + dataLenGrouped[key] + ", \n"
+        }
+
+        return '<span style="cursor: help" title="' + dataLenGoupString + '">' + dataLen + '</span>'
+      }
+    }
     ],
     "rowCallback": function (row, data, dataIndex) {
       if (!("stats" in data)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
@@ -356,6 +469,7 @@ $(document).ready(function () {
       }
     }
   });
+  showUserExportButtons(table, 'hypervisors-buttons-row');
 
   $('#hypervisors').find('tbody').on('click', 'td.details-control', function () {
     var tr = $(this).closest('tr');
@@ -1100,4 +1214,30 @@ function renderProgress(perc, green, orange) {
 
 function renderGraph(data) {
   return '<div class="epoch category40" id="chart-' + data.id + '" style="width: 220px; height: 50px;"></div>'
+}
+
+function showUserExportButtons(table, buttonsRowClass) {
+  new $.fn.dataTable.Buttons(table, {
+    buttons: [
+      {
+        titleAttr: 'Customise visible columns',
+        text: 'Custom',
+        extend: 'colvis',
+        columns: ':not(.details-control)'
+      },
+      {
+        titleAttr: 'Toggle system info columns',
+        text: 'System',
+        extend: 'columnToggle',
+        columns: '.group-system'
+      },
+      {
+        titleAttr: 'Toggle Stats columns',
+        text: 'Stats',
+        extend: 'columnToggle',
+        columns: '.group-stats'
+      },
+    ]
+  }).container()
+    .appendTo($('.' + buttonsRowClass));
 }
