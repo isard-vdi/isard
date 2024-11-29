@@ -1,4 +1,4 @@
-FROM fedora:39 as production
+FROM fedora:42 as production
 MAINTAINER isard <info@isard.com>
 
 COPY docker/storage/requirements.txt /requirements.txt
