@@ -64,7 +64,21 @@ const getDefaultState = () => {
     isos: [], // Available isos
     floppies: [], // Available floppires
     mediaInstalls: [],
-    mediaInstallsLoaded: false
+    mediaInstallsLoaded: false,
+    bastion: {
+      enabled: false,
+      id: '',
+      http: {
+        enabled: false,
+        http_port: 80,
+        https_port: 443
+      },
+      ssh: {
+        enabled: false,
+        port: 22,
+        authorized_keys: []
+      }
+    }
   }
 }
 
@@ -105,6 +119,9 @@ export default {
     },
     getMediaInstallsLoaded: state => {
       return state.mediaInstalls
+    },
+    getBastion: state => {
+      return state.bastion
     }
   },
   mutations: {
@@ -167,6 +184,9 @@ export default {
     },
     changeVideos: (state, videos) => {
       state.domain.hardware.videos = videos
+    },
+    setBastion: (state, bastion) => {
+      state.bastion = bastion
     }
   },
   actions: {
@@ -220,6 +240,8 @@ export default {
       axios.get(`${apiV3Segment}/domain/info/${domainId}`).then(response => {
         if (!context.getters.getEditDomainId) { // Only keep the domain name when editing
           response.data.name = context.getters.getDomain.name
+        } else { // only fetch bastion when editing
+          context.dispatch('fetchBastion', domainId)
         }
         context.commit('setDomain', DomainsUtils.parseDomain(response.data))
       }).catch(e => {
@@ -244,6 +266,7 @@ export default {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
 
       axios.put(`${apiV3Segment}/domain/${data.id}`, data).then(response => {
+        context.dispatch('updateBastion', data.id)
         router.push({ name: 'desktops' })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -267,6 +290,41 @@ export default {
     },
     changeVideos (context, videos) {
       context.commit('changeVideos', videos)
+    },
+    fetchBastion (context, domainId) {
+      const config = context.getters.getConfig
+      if (config.canUseBastion === true) {
+        axios.get(`${apiV3Segment}/desktop/bastion/${domainId}`).then(response => {
+          const bastion = response.data
+          if (response.data.ssh.enabled || response.data.http.enabled) {
+            bastion.enabled = true
+          } else {
+            bastion.enabled = false
+          }
+          context.commit('setBastion', bastion)
+        }).catch(e => {
+          // We can ignore 404, since the first time the bastion
+          // won't be created
+          if (e.respponse.status !== 404) {
+            ErrorUtils.handleErrors(e, this._vm.$snotify)
+          }
+        })
+      }
+    },
+    updateBastion (context, domainId) {
+      const config = context.getters.getConfig
+      if (config.canUseBastion === true) {
+        const bastion = context.getters.getBastion
+
+        bastion.http.http_port = bastion.http.http_port ? parseInt(bastion.http.http_port) : 80
+        bastion.http.https_port = bastion.http.https_port ? parseInt(bastion.http.https_port) : 443
+        bastion.ssh.port = bastion.ssh.port ? parseInt(bastion.ssh.port) : 22
+
+        axios.put(`${apiV3Segment}/desktop/bastion/${domainId}`, bastion).then(response => {
+        }).catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+      }
     }
   }
 }

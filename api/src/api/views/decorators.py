@@ -5,6 +5,7 @@
 
 import json
 import logging as log
+import os
 from functools import wraps
 
 from flask import request
@@ -35,8 +36,10 @@ from isardvdi_common.tokens import (
     get_token_auth_header,
 )
 
-from ..libv2.api_allowed import get_all_linked_groups
+from ..libv2.api_allowed import ApiAllowed, get_all_linked_groups
 from ..libv2.maintenance import Maintenance
+
+api_allowed = ApiAllowed()
 
 
 @cached(TTLCache(maxsize=100, ttl=15))
@@ -870,3 +873,19 @@ def canPerformActionDeployment(payload, domain_id, action):
         traceback.format_exc(),
         description_code=f"not_enough_rights_action_{action}_{domain_id}",
     )
+
+
+def can_use_bastion(payload):
+    bastion_enabled = (
+        True
+        if (os.environ.get("BASTION_ENABLED", "false")).lower() == "true"
+        else False
+    )
+    if not bastion_enabled:
+        return False
+
+    bastion_alloweds = (
+        r.table("config").get(1).pluck({"bastion": "allowed"}).run(db.conn)["bastion"]
+    )
+
+    return api_allowed.is_allowed(payload, bastion_alloweds, "config", True)

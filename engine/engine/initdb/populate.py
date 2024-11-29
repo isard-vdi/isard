@@ -132,6 +132,7 @@ class Populate(object):
             "analytics",
             "notification_tmpls",
             "system_events",
+            "targets",
             # "recycle_bin_archive",
             # config should be the last table to be created
             # api waits for config table to start
@@ -1920,6 +1921,19 @@ class Populate(object):
                     },
                 ]
             ).run(self.conn)
+        except Exception as e:
+            log.error(e)
+
+    """
+    TARGETS
+    """
+
+    def targets(self):
+        try:
+            log.info("Table targets not found, creating...")
+            r.table_create("targets", primary_key="id").run(self.conn)
+            r.table("targets").index_create("desktop_id").run(self.conn)
+            r.table("targets").index_create("user_id").run(self.conn)
         except Exception as e:
             log.error(e)
 

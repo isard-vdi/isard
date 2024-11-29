@@ -101,7 +101,7 @@
       </b-row>
 
       <!-- Guest password -->
-      <b-row class="mt-4">
+      <b-row class="my-4">
         <b-col
           cols="4"
           xl="2"
@@ -121,6 +121,7 @@
         </b-col>
       </b-row>
     </span>
+    <DomainBastion v-if="getConfig.canUseBastion" />
   </div>
 </template>
 
@@ -130,8 +131,13 @@ import { availableViewers } from '@/shared/constants'
 import { orderBy } from 'lodash'
 import i18n from '@/i18n'
 import { ErrorUtils } from '@/utils/errorUtils'
+import DomainBastion from '@/components/domain/DomainBastion.vue'
+import { mapGetters } from 'vuex/dist/vuex.common.js'
 
 export default {
+  components: {
+    DomainBastion
+  },
   setup (props, context) {
     const $store = context.root.$store
     const domain = computed(() => $store.getters.getDomain)
@@ -207,6 +213,11 @@ export default {
       availableViewers,
       showRDPLogin
     }
+  },
+  computed: {
+    ...mapGetters([
+      'getConfig'
+    ])
   }
 }
 </script>

@@ -12,6 +12,7 @@
         <StartNowModal />
         <CantStartNowModal />
         <DesktopModal />
+        <BastionModal />
         <template #title>
           <b-spinner
             v-if="!getDesktopsLoaded"
@@ -37,6 +38,7 @@
           <card-list
             :templates="getTemplates"
             :desktops="filteredPersistentDesktops"
+            :bastions="getBastions"
             :persistent="true"
             :loading="!getDesktopsLoaded"
           />
@@ -108,6 +110,7 @@ import DirectLinkModal from '../components/directViewer/DirectLinkModal.vue'
 import StartNowModal from '@/components/booking/StartNowModal.vue'
 import CantStartNowModal from '@/components/booking/CantStartNowModal.vue'
 import DesktopModal from '@/components/desktops/DesktopModal.vue'
+import BastionModal from '@/components/BastionModal.vue'
 
 export default {
   components: {
@@ -116,7 +119,8 @@ export default {
     DirectLinkModal,
     StartNowModal,
     CantStartNowModal,
-    DesktopModal
+    DesktopModal,
+    BastionModal
   },
   setup (_, context) {
     const $store = context.root.$store
@@ -128,9 +132,13 @@ export default {
       } else {
         $store.dispatch('setTemplatesLoaded', true)
       }
+      if (newVal.canUseBastion) {
+        $store.dispatch('fetchBastions')
+      }
     }, { immediate: true })
 
     $store.dispatch('fetchDesktops')
+    $store.dispatch('fetchBastions')
     $store.dispatch('fetchProfile')
 
     const currentTab = computed(() => $store.getters.getCurrentTab)
@@ -161,6 +169,7 @@ export default {
     ...mapGetters([
       'getTemplates',
       'getDesktops',
+      'getBastions',
       'getTemplatesLoaded',
       'getDesktopsLoaded',
       'getViewType'

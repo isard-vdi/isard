@@ -131,10 +131,15 @@
         "booking": "Reservar",
         "edit": "Editar",
         "direct-link": "Enllaç directe",
-        "recreate": "Recrear"
+        "recreate": "Recrear",
+        "bastion": "Bastió"
       },
       "filter-label": "Filtre",
-      "queue": "Posició a la cua: {position}"
+      "queue": "Posició a la cua: {position}",
+      "bastion": {
+        "title": "Bastió: {id}",
+        "disabled": "desactivat"
+      }
     },
     "deployment-desktop-list": {
       "actions": {
@@ -957,6 +962,25 @@
         "confirmation": {
           "delete": "Esborrar"
         }
+      },
+      "bastion_modal": {
+        "title": "Informació del bastió de l'escriptori '{name}'",
+        "labels": {
+          "id": "ID del bastió:",
+          "ssh": "SSH:",
+          "http": "URL HTTP:",
+          "https": "URL HTTPS:"
+        },
+        "titles": {
+          "id_copy": "Copiar ID del bastió",
+          "ssh_port": "SSH: {ssh_port}",
+          "ssh_copy": "Copiar comanda SSH",
+          "http_open": "Obrir en una nova pestanya",
+          "http_port": "HTTP: {http_port}",
+          "http_copy": "Copiar URL HTTP",
+          "https_port": "HTTPS: {https_port}",
+          "https_copy": "Copiar URL HTTPS"
+        }
       }
     },
     "forgot-password": {
@@ -1144,6 +1168,24 @@
           "warning": "ATENCIÓ: La contrasenya es guardarà com a text pla!!",
           "username": "Usuari",
           "password": "Contrasenya"
+        },
+        "bastion": {
+          "disabled": "Bastió deshabilitat",
+          "enabled": "Basitó habilitat",
+          "title": "Opcions de bastió",
+          "http": {
+            "checkbox": "HTTP",
+            "http-port": "Port HTTP",
+            "https-port": "Port HTTPS"
+          },
+          "ssh": {
+            "checkbox": "SSH",
+            "port": "Port SSH",
+            "authorized-keys": "Claus autoritzades (una per línia)"
+          },
+          "port-tooltip": "El port utilitzat pel teu escriptori. Externament, s'assignarà al port {port}.",
+          "copy": "Copiar al porta-retalls",
+          "copied": "Copiat!"
         }
       },
       "hardware": {

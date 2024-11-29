@@ -35,6 +35,7 @@ from ..libv2.isardVpn import isardVpn
 vpn = isardVpn()
 
 from .decorators import (
+    can_use_bastion,
     checkDuplicateUser,
     has_password_reset_required_or_password_reset_token,
     has_token,
@@ -302,6 +303,16 @@ def user_reset_vpn(payload):
     users.reset_vpn(payload["user_id"])
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/user/bastion/allowed", methods=["GET"])
+@has_token
+def user_bastion_allowed(payload):
+    return (
+        json.dumps(can_use_bastion(payload)),
         200,
         {"Content-Type": "application/json"},
     )

@@ -30,16 +30,19 @@ quotas = Quotas()
 from ..libv2.api_admin import ApiAdmin
 from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent, check_template_status
+from ..libv2.api_targets import ApiTargets
 from ..libv2.api_templates import ApiTemplates
 
 templates = ApiTemplates()
 desktops = ApiDesktopsPersistent()
 allowed = ApiAllowed()
 admin = ApiAdmin()
+targets = ApiTargets()
 
 from ..libv2.api_scheduler import Scheduler
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .decorators import (
+    can_use_bastion,
     has_token,
     is_admin_or_manager,
     is_not_user,
@@ -397,7 +400,6 @@ def api_v3_desktop_delete(payload, desktop_id, permanent=False):
 @has_token
 def api_v3_desktop_update_storage_id(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
-
     try:
         data = request.get_json(force=True)
     except:

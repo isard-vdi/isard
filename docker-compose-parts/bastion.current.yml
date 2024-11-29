@@ -1,0 +1,8 @@
+version: "3.5"
+services:
+  isard-bastion:
+    depends_on:
+      isard-db:
+        condition: service_healthy
+      isard-vpn:
+        condition: service_started

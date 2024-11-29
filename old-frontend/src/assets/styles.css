@@ -545,6 +545,10 @@
   background-color: #858581;
 }
 
+.isard-tooltip-lg .tooltip-inner {
+  max-width: 500px;
+}
+
 .arrow::before {
   border-bottom-color: #858581 !important;
   border-top-color: #858581 !important;

@@ -48,6 +48,12 @@ const getDefaultState = () => {
       item: {
         id: ''
       }
+    },
+    bastions: [],
+    bastionModal: {
+      show: false,
+      desktop: {},
+      bastion: { http: {}, ssh: {} }
     }
   }
 }
@@ -101,6 +107,12 @@ export default {
     },
     getDesktopModal: state => {
       return state.desktopModal
+    },
+    getBastions: state => {
+      return state.bastions
+    },
+    getBastionModal: state => {
+      return state.bastionModal
     }
   },
   mutations: {
@@ -180,6 +192,16 @@ export default {
     },
     setDesktopModal: (state, desktopModal) => {
       state.desktopModal = desktopModal
+    },
+    setBastions: (state, bastions) => {
+      state.bastions = bastions
+    },
+    setBastionModal: (state, data) => {
+      state.bastionModal.show = data.show
+      const bastion = data.bastion || { http: {}, ssh: {} }
+      state.bastionModal.bastion = bastion
+      const desktop = data.desktop || {}
+      state.bastionModal.desktop = desktop
     }
   },
   actions: {
@@ -308,10 +330,11 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
-    createNewDesktop (_, data) {
+    createNewDesktop (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-desktop'), '', true, 1000)
 
       axios.post(`${apiV3Segment}/persistent_desktop`, data).then(response => {
+        context.dispatch('updateBastion', response.data.id)
         router.push({ name: 'desktops' })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -463,6 +486,19 @@ export default {
       axios.post(`${apiV3Segment}/domain/${data.id}/recreate_disk`).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
+    },
+    fetchBastions (context) {
+      const config = context.getters.getConfig
+      if (config.canUseBastion === true) {
+        axios.get(`${apiV3Segment}/bastions`).then(response => {
+          context.commit('setBastions', response.data)
+        }).catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+      }
+    },
+    bastionModalShow (context, data) {
+      context.commit('setBastionModal', data)
     }
   }
 }

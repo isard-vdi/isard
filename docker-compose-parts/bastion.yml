@@ -1,0 +1,45 @@
+version: "3.5"
+services:
+  isard-bastion:
+    container_name: isard-bastion
+    image: ${DOCKER_IMAGE_PREFIX}bastion:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.117
+    ports:
+      - published: ${BASTION_SSH_PORT:-2222}
+        target: ${BASTION_SSH_PORT:-1315}
+        mode: host
+    privileged: true
+    # # TODO: This!
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:1313/healthcheck"]
+    #   start_period: 30s
+    #   interval: 5s
+    volumes:
+      - "/opt/isard/bastion/ssh:/opt/isard/bastion/ssh"
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      LOG_LEVEL:
+      BASTION_LOG_LEVEL:
+
+      BASTION_DB_HOST:
+      BASTION_DB_PORT:
+      BASTION_DB_USR:
+      BASTION_DB_PWD:
+      BASTION_DB_DB:
+
+      BASTION_HTTP_HOST:
+      BASTION_HTTP_PORT:
+      DOMAIN:
+      BASTION_HTTP_BASE_URL:
+
+      BASTION_SSH_PRIVATE_KEY_PATH:
+      BASTION_SSH_HOST:
+      BASTION_SSH_PORT:

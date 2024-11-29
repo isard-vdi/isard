@@ -63,6 +63,7 @@ ALLINONE_PARTS="
 	check
 	notifier
 	sessions
+	bastion
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
@@ -118,6 +119,7 @@ WEB_PARTS="
 	infrastructure
 	notifier
 	sessions
+	bastion
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="
@@ -430,6 +432,13 @@ create_docker_compose_file(){
 		then
 			parts="$(echo $parts | sed 's/check//')"
 		fi
+	fi
+
+	# If BASTION_ENABLED is not true, remove the bastion part
+	if [ -z "$BASTION_ENABLED" ] || [ "$BASTION_ENABLED" != "true" ]
+	then
+		echo "BASTION_ENABLED is not true, removing bastion part"
+		parts="$(echo $parts | sed 's/bastion//')"
 	fi
 
 	# Build the docker-compose.yml

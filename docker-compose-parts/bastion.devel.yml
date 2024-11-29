@@ -1,0 +1,37 @@
+version: "3.5"
+services:
+  isard-bastion:
+    image: ${GOLANG_BUILD_IMAGE}
+    command:
+      - ash
+      - -c
+      - >-
+        apk add --no-cache \
+          openvswitch
+        go install github.com/githubnemo/CompileDaemon@latest &&
+        go install github.com/go-delve/delve/cmd/dlv@latest &&
+
+        /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db ;
+        mkdir -pv /var/run/openvswitch/ &&
+
+        set +a &&
+        cat /bastion/bastion/build/package/run.sh | head -n-1 | ash &&
+        set -a &&
+
+        CompileDaemon \
+          -log-prefix=false \
+          -graceful-kill=true \
+          -directory=/bastion \
+          -build="go build -o /bin/bastion ./bastion/cmd/bastion/main.go" \
+          -command="dlv exec --headless=true --listen=:4000 --api-version=2 --accept-multiclient --continue /bin/bastion"
+    volumes:
+      - ${BUILD_ROOT_PATH}/go.mod:/bastion/go.mod
+      - ${BUILD_ROOT_PATH}/go.sum:/bastion/go.sum
+      - ${BUILD_ROOT_PATH}/pkg:/bastion/pkg
+      - ${BUILD_ROOT_PATH}/bastion:/bastion/bastion
+      - /tmp/isardvdi-go-devel/cache:/root/.cache/go-build
+      - /tmp/isardvdi-go-devel/pkg:/go/pkg
+    security_opt:
+      - "seccomp:unconfined"
+    cap_add:
+      - SYS_PTRACE

@@ -1,0 +1,39 @@
+id:
+  type: string
+  coerce: sanitize
+user_id:
+  type: string
+  coerce: sanitize
+desktop_id:
+  type: string
+  coerce: sanitize
+http:
+  type: dict
+  required: true
+  schema:
+    enabled:
+      type: boolean
+      required: true
+    http_port:
+      type: integer
+      required: true
+    https_port:
+      type: integer
+      required: true
+ssh:
+  type: dict
+  required: true
+  schema:
+    enabled:
+      type: boolean
+      required: true
+    port:
+      type: integer
+      required: true
+    authorized_keys:
+      type: list
+      required: true
+      schema:
+        type: string
+        required: false
+        coerce: sanitize

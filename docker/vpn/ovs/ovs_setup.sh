@@ -17,6 +17,9 @@ while ! ip a s vlan-wg; do
   sleep 1
 done
 
+# Bastion port
+ovs-vsctl add-port ovsbr0 bastion -- set interface bastion type=geneve options:remote_ip=172.31.255.117 >> /var/log/ovs 2>&1
+
 mkdir -p /var/run/dnsmasq
 mkdir -p /var/lib/dnsmasq
 cat <<EOT > /etc/dnsmasq.d/vlan-wg.conf

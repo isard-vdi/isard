@@ -57,8 +57,7 @@ func TestUserLoad(t *testing.T) {
 				Name:          "Administrator",
 				Email:         "admin@isardvdi.com",
 				EmailVerified: &now,
-
-				Photo: "https://isardvdi.com/path/to/foto.jpg",
+				Photo:         "https://isardvdi.com/path/to/photo.jpg",
 			},
 		},
 		"should return an error if there's an error querying the DB": {
@@ -66,6 +65,12 @@ func TestUserLoad(t *testing.T) {
 				m.On(r.Table("users").Get("")).Return(nil, errors.New(":)"))
 			},
 			User: &model.User{
+				Provider: "local",
+				Category: "default",
+				UID:      "admin",
+				Username: "admin",
+			},
+			ExpectedUser: &model.User{
 				Provider: "local",
 				Category: "default",
 				UID:      "admin",
@@ -80,8 +85,10 @@ func TestUserLoad(t *testing.T) {
 			User: &model.User{
 				ID: "local-default-fakeuser-fakeuser",
 			},
-			ExpectedUser: &model.User{},
-			ExpectedErr:  db.ErrNotFound.Error(),
+			ExpectedUser: &model.User{
+				ID: "local-default-fakeuser-fakeuser",
+			},
+			ExpectedErr: db.ErrNotFound.Error(),
 		},
 	}
 
@@ -98,6 +105,8 @@ func TestUserLoad(t *testing.T) {
 			} else {
 				assert.EqualError(err, tc.ExpectedErr)
 			}
+
+			assert.Equal(tc.ExpectedUser, tc.User)
 
 			mock.AssertExpectations(t)
 		})

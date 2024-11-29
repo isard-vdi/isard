@@ -141,6 +141,7 @@ from .views import (
     AllowedsView,
     AnalyticsView,
     AuthenticationView,
+    BastionView,
     CardsView,
     CommonView,
     DesktopsNonPersistentView,

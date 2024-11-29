@@ -223,22 +223,6 @@
             }
         });
 
-        socket.off('allowed_result').on('allowed_result', function (data) {
-            var data = JSON.parse(data);
-            if(data.result){
-                $("#modalAlloweds").modal('hide');
-            }
-            new PNotify({
-                    title: data.title,
-                    text: data.text,
-                    hide: true,
-                    delay: 4000,
-                    icon: 'fa fa-'+data.icon,
-                    opacity: 1,
-                    type: data.type
-            });
-        });
-
         $("#modalAlloweds #send").off('click').on('click', function(e){
                 var form = $('#modalAllowedsForm');
 
@@ -257,12 +241,17 @@
                             $('form').each(function() { this.reset() });
                             $('#modalAllowedsForm #warning-icon').hide()
                             $('.modal').modal('hide');
+                            new PNotify({
+                                title: `Alloweds updated successfully`,
+                                hide: true,
+                                delay: 4000,
+                                icon: 'fa fa-users',
+                                opacity: 1,
+                                type: 'success'
+                            });
                         }
                     })
                 }
-
-
-
             });
     }
 

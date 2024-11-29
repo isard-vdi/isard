@@ -26,6 +26,7 @@
             :key="desktop.id"
             :desktop="desktop"
             :templates="templates"
+            :bastions="bastions"
           />
         </b-skeleton-wrapper>
       </b-col>
@@ -50,6 +51,10 @@ export default {
     },
     desktops: {
       required: true,
+      type: Array
+    },
+    bastions: {
+      required: false,
       type: Array
     },
     persistent: {

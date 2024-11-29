@@ -5,14 +5,22 @@ export class ConfigUtils {
       documentation_url: documentationUrl,
       viewers_documentation_url: viewersDocumentationUrl,
       show_temporal_tab: showTemporalTab,
-      show_change_email_button: showChangeEmailButton
+      show_change_email_button: showChangeEmailButton,
+      http_port: httpPort,
+      https_port: httpsPort,
+      bastion_ssh_port: bastionSshPort,
+      can_use_bastion: canUseBastion
     } = config
     return {
       showBookingsButton,
       documentationUrl,
       viewersDocumentationUrl,
       showTemporalTab,
-      showChangeEmailButton
+      showChangeEmailButton,
+      httpPort,
+      httpsPort,
+      bastionSshPort,
+      canUseBastion
     }
   }
 }

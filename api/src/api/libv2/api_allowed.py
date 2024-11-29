@@ -7,6 +7,7 @@
 
 import traceback
 
+import gevent
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from isardvdi_common.api_exceptions import Error
@@ -287,3 +288,85 @@ class ApiAllowed:
                 .run(db.conn)
             )
         return reservables.get("create_dict", {})
+
+    def get_users_allowed(self, allowed):
+        users = []
+        for k, v in allowed.items():
+            if k == "categories" and v != False and len(v):
+                with app.app_context():
+                    users.append(
+                        r.table("users")
+                        .get_all(r.args(v), index="category")
+                        .pluck("id")["id"]
+                        .run(db.conn)
+                    )
+            elif k == "groups" and v != False and len(v):
+                with app.app_context():
+                    users.append(
+                        r.table("users")
+                        .get_all(r.args(v), index="group")
+                        .pluck("id")["id"]
+                        .run(db.conn)
+                    )
+            elif k == "users" and v != False and len(v):
+                with app.app_context():
+                    users.append(
+                        r.table("users")
+                        .get_all(r.args(v), index="id")
+                        .pluck("id")["id"]
+                        .run(db.conn)
+                    )
+            elif k == "roles" and v != False and len(v):
+                with app.app_context():
+                    users.append(
+                        r.table("users")
+                        .get_all(r.args(v), index="role")
+                        .pluck("id")["id"]
+                        .run(db.conn)
+                    )
+            elif v == []:
+                with app.app_context():
+                    users.append(r.table("users").pluck("id")["id"].run(db.conn))
+
+        # remove duplicates
+        users = [item for sublist in users for item in sublist]
+
+        return users
+
+    def remove_disallowed_bastion_targets(self):
+        with app.app_context():
+            targets = r.table("targets").run(db.conn)
+
+        with app.app_context():
+            bastion_alloweds = dict(
+                r.table("config")
+                .get(1)
+                .pluck([{"bastion": "allowed"}])
+                .run(db.conn)["bastion"]["allowed"]
+            )
+
+        allowed_users = self.get_users_allowed(bastion_alloweds)
+
+        disallowed_targets = []
+
+        for target in targets:
+            if target["user_id"] not in allowed_users:
+                disallowed_targets.append(target["id"])
+
+        with app.app_context():
+            r.table("targets").get_all(r.args(disallowed_targets)).delete().run(db.conn)
+
+        return disallowed_targets
+
+    def remove_disallowed_bastion_targets_th(self):
+        gevent.spawn(self.remove_disallowed_bastion_targets)
+
+    def update_bastion_alloweds(self, allowed):
+        with app.app_context():
+            r.table("config").get(1).update(
+                {
+                    "bastion": {
+                        "allowed": allowed,
+                    }
+                }
+            ).run(db.conn)

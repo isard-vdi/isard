@@ -21,6 +21,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2.api_allowed import ApiAllowed
+from ..libv2.api_targets import ApiTargets
 from ..libv2.caches import (
     get_cached_deployment_bookings,
     get_cached_deployment_desktops,
@@ -35,6 +36,7 @@ from .flask_rethink import RDB
 r = RethinkDB()
 allowed = ApiAllowed()
 quotas = Quotas()
+targets = ApiTargets()
 
 
 db = RDB(app)
@@ -838,6 +840,9 @@ def change_owner_desktops(desktop_ids, user_data, desktop_user_id):
         r.table("bookings").get_all(desktop_user_id, index="user_id").delete().run(
             db.conn
         )
+    # change targets user_id
+    targets.change_desktops_target_owner(desktop_ids, user_data["payload"])
+
     change_owner_domains(desktop_ids, user_data, "desktop")
 
 
