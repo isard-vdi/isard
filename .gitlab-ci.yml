@@ -114,9 +114,9 @@ check-frontend:
       - JOB: "lint"
         # TODO: Remove this when all lint errors are fixed
         ALLOW_FAILURE: "true"
-      - JOB: "type-check"
-        # TODO: Remove this when all type errors are fixed
-        ALLOW_FAILURE: "true"
+      # - JOB: "type-check"
+      #   # TODO: Remove this when all type errors are fixed
+      #   ALLOW_FAILURE: "true"
   rules:
     - if: $ALLOW_FAILURE == "true"
       allow_failure: true
