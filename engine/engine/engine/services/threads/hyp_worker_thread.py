@@ -1080,20 +1080,21 @@ class HypWorkerThread(threading.Thread):
                     t = time.time()
                     self.h.conn.isAlive()
                     intervals.append({"libvirt isAlive": round(time.time() - t, 3)})
-                    t = time.time()
-                    self.h.conn.getLibVersion()
-                    intervals.append(
-                        {"libvirt getLibVersion": round(time.time() - t, 3)}
-                    )
-                    log_action(
-                        self.hyp_id,
-                        None,
-                        "libvirt_isAlive",
-                        intervals,
-                        time.time() - action_time,
-                        "Finished",
-                        "warning",
-                    )
+                    # t = time.time()
+                    # self.h.conn.getLibVersion()
+                    # intervals.append(
+                    #     {"libvirt getLibVersion": round(time.time() - t, 3)}
+                    # )
+                    if time.time() - t > 1:
+                        log_action(
+                            self.hyp_id,
+                            None,
+                            "libvirt_isAlive",
+                            intervals,
+                            time.time() - action_time,
+                            "Finished, but took too long",
+                            "warning",
+                        )
                 except:
                     logs.workers.info(
                         "trying to reconnect hypervisor {}, alive test in working thread failed".format(
