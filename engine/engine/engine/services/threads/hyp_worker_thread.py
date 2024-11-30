@@ -98,15 +98,23 @@ if NOTIFY_PERSONAL_UNIT:
             raise error
 
 
-def log_action(id_domain, action, intervals, total_time, final_status):
+def log_action(
+    hyp_id, id_domain, action, intervals, total_time, final_status, log_level="info"
+):
     log_data = {
+        "hyp_id": hyp_id,
         "desktop_id": id_domain,
         "action": action,
         "total_time": total_time,
         "final_status": final_status,
         "intervals": intervals,
     }
-    logs.workers.info(f"DOMAIN ACTION INFO WORKER - {log_data}")
+    if log_level == "info":
+        logs.workers.info(f"{log_data}")
+    elif log_level == "warning":
+        logs.workers.warning(f"{log_data}")
+    else:
+        logs.workers.error(f"{log_data}")
 
 
 class HypWorkerThread(threading.Thread):
@@ -364,6 +372,7 @@ class HypWorkerThread(threading.Thread):
                                     )
                                 )
                                 log_action(
+                                    self.hyp_id,
                                     action["id_domain"],
                                     action["type"],
                                     intervals,
@@ -389,6 +398,7 @@ class HypWorkerThread(threading.Thread):
                                     )
                                 )
                                 log_action(
+                                    self.hyp_id,
                                     action["id_domain"],
                                     action["type"],
                                     intervals,
@@ -405,6 +415,7 @@ class HypWorkerThread(threading.Thread):
                                 )
 
                                 log_action(
+                                    self.hyp_id,
                                     action["id_domain"],
                                     action["type"],
                                     intervals,
@@ -426,6 +437,7 @@ class HypWorkerThread(threading.Thread):
                                 )
                             )
                             log_action(
+                                self.hyp_id,
                                 action["id_domain"],
                                 action["type"],
                                 intervals,
@@ -448,6 +460,7 @@ class HypWorkerThread(threading.Thread):
                             )
                         )
                         log_action(
+                            self.hyp_id,
                             action["id_domain"],
                             action["type"],
                             intervals,
@@ -468,6 +481,7 @@ class HypWorkerThread(threading.Thread):
                             )
                         )
                         log_action(
+                            self.hyp_id,
                             action["id_domain"],
                             action["type"],
                             intervals,
@@ -499,6 +513,7 @@ class HypWorkerThread(threading.Thread):
                                 detail="Ups, domain already active",
                             )
                             log_action(
+                                self.hyp_id,
                                 action["id_domain"],
                                 action["type"],
                                 intervals,
@@ -519,6 +534,7 @@ class HypWorkerThread(threading.Thread):
                                 "exception 01 in start_domain action {}: ".format(e)
                             )
                             log_action(
+                                self.hyp_id,
                                 action["id_domain"],
                                 action["type"],
                                 intervals,
@@ -546,6 +562,7 @@ class HypWorkerThread(threading.Thread):
                                 "exception 02 in start_domain action {}: ".format(e)
                             )
                             log_action(
+                                self.hyp_id,
                                 action["id_domain"],
                                 action["type"],
                                 intervals,
@@ -605,6 +622,7 @@ class HypWorkerThread(threading.Thread):
                                     )
                                 )
                                 log_action(
+                                    self.hyp_id,
                                     action["id_domain"],
                                     action["type"],
                                     intervals,
@@ -635,6 +653,7 @@ class HypWorkerThread(threading.Thread):
                                         profile=action["profile"],
                                     )
                                 log_action(
+                                    self.hyp_id,
                                     action["id_domain"],
                                     action["type"],
                                     intervals,
@@ -672,6 +691,7 @@ class HypWorkerThread(threading.Thread):
                             detail="shutdown ACPI_POWER_BTN launched in libvirt domain",
                         )
                         log_action(
+                            self.hyp_id,
                             action["id_domain"],
                             action["type"],
                             intervals,
@@ -687,6 +707,7 @@ class HypWorkerThread(threading.Thread):
                         )
                         logs.workers.error(f"Exception: {e}")
                         log_action(
+                            self.hyp_id,
                             action["id_domain"],
                             action["type"],
                             intervals,
@@ -739,6 +760,7 @@ class HypWorkerThread(threading.Thread):
                                 )
                             )
                             log_action(
+                                self.hyp_id,
                                 action["id_domain"],
                                 action["type"],
                                 intervals,
@@ -764,6 +786,7 @@ class HypWorkerThread(threading.Thread):
                                     "Deleting", action["id_domain"], hyp_id=""
                                 )
                                 log_action(
+                                    self.hyp_id,
                                     action["id_domain"],
                                     action["type"],
                                     intervals,
@@ -776,6 +799,7 @@ class HypWorkerThread(threading.Thread):
                                 )
                                 update_vgpu_info_if_stopped(action["id_domain"])
                                 log_action(
+                                    self.hyp_id,
                                     action["id_domain"],
                                     action["type"],
                                     intervals,
@@ -792,6 +816,7 @@ class HypWorkerThread(threading.Thread):
                                 detail=str(e),
                             )
                         log_action(
+                            self.hyp_id,
                             action["id_domain"],
                             action["type"],
                             intervals,
@@ -800,6 +825,7 @@ class HypWorkerThread(threading.Thread):
                         )
                     else:
                         log_action(
+                            self.hyp_id,
                             action["id_domain"],
                             action["type"],
                             intervals,
@@ -833,6 +859,7 @@ class HypWorkerThread(threading.Thread):
                             "RESET OK domain {}".format(action["id_domain"])
                         )
                         log_action(
+                            self.hyp_id,
                             action["id_domain"],
                             action["type"],
                             intervals,
@@ -852,6 +879,7 @@ class HypWorkerThread(threading.Thread):
                             "exception in resetting domain {}: ".format(e)
                         )
                         log_action(
+                            self.hyp_id,
                             action["id_domain"],
                             action["type"],
                             intervals,
@@ -863,6 +891,7 @@ class HypWorkerThread(threading.Thread):
                     t = time.time()
                     launch_action_disk(action, self.hostname, user, port)
                     log_action(
+                        self.hyp_id,
                         action["domain"],
                         action["type"],
                         intervals,
@@ -877,6 +906,7 @@ class HypWorkerThread(threading.Thread):
                     t = time.time()
                     launch_killall_curl(self.hostname, user, port)
                     log_action(
+                        self.hyp_id,
                         None,
                         action["type"],
                         intervals,
@@ -891,6 +921,7 @@ class HypWorkerThread(threading.Thread):
                         action, self.hostname, user, port, final_status=final_status
                     )
                     log_action(
+                        self.hyp_id,
                         None,
                         action["type"],
                         intervals,
@@ -905,6 +936,7 @@ class HypWorkerThread(threading.Thread):
                     t = time.time()
                     update_status_db_from_running_domains(self.h)
                     log_action(
+                        self.hyp_id,
                         None,
                         action["type"],
                         intervals,
@@ -926,6 +958,7 @@ class HypWorkerThread(threading.Thread):
                     )
                     update_db_hyp_info(self.hyp_id, self.h.info)
                     log_action(
+                        self.hyp_id,
                         None,
                         action["type"],
                         intervals,
@@ -951,6 +984,7 @@ class HypWorkerThread(threading.Thread):
                             f"{error}"
                         )
                         log_action(
+                            self.hyp_id,
                             action["desktop_id"],
                             action["type"],
                             intervals,
@@ -967,6 +1001,7 @@ class HypWorkerThread(threading.Thread):
                                 f'error adding notify desktop {action["desktop_id"]} to notification thread pool'
                             )
                     log_action(
+                        self.hyp_id,
                         action["desktop_id"],
                         action["type"],
                         intervals,
@@ -988,6 +1023,7 @@ class HypWorkerThread(threading.Thread):
                                 f"{error}"
                             )
                             log_action(
+                                self.hyp_id,
                                 action["desktop_id"],
                                 action["type"],
                                 intervals,
@@ -1005,6 +1041,7 @@ class HypWorkerThread(threading.Thread):
                                     f'error adding personal unit for desktop {action["desktop_id"]} to personal unit thread pool'
                                 )
                         log_action(
+                            self.hyp_id,
                             action["desktop_id"],
                             action["type"],
                             intervals,
@@ -1029,6 +1066,7 @@ class HypWorkerThread(threading.Thread):
                             {"update_desktops_queue": round(time.time() - t, 3)}
                         )
                         log_action(
+                            self.hyp_id,
                             action["id_domain"],
                             action["type"],
                             intervals,
@@ -1042,18 +1080,21 @@ class HypWorkerThread(threading.Thread):
                     t = time.time()
                     self.h.conn.isAlive()
                     intervals.append({"libvirt isAlive": round(time.time() - t, 3)})
-                    t = time.time()
-                    self.h.conn.getLibVersion()
-                    intervals.append(
-                        {"libvirt getLibVersion": round(time.time() - t, 3)}
-                    )
-                    log_action(
-                        None,
-                        "libvirt_isAlive",
-                        intervals,
-                        time.time() - action_time,
-                        "Finished",
-                    )
+                    # t = time.time()
+                    # self.h.conn.getLibVersion()
+                    # intervals.append(
+                    #     {"libvirt getLibVersion": round(time.time() - t, 3)}
+                    # )
+                    if time.time() - t > 1:
+                        log_action(
+                            self.hyp_id,
+                            None,
+                            "libvirt_isAlive",
+                            intervals,
+                            time.time() - action_time,
+                            "Finished, but took too long",
+                            "warning",
+                        )
                 except:
                     logs.workers.info(
                         "trying to reconnect hypervisor {}, alive test in working thread failed".format(
