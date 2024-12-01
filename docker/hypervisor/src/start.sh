@@ -25,7 +25,7 @@ echo "root:$API_HYPERVISORS_SECRET" |chpasswd
 
 echo "---> Starting sshd server..."
 ssh-keygen -A
-/usr/sbin/sshd -D -e -f /etc/ssh/sshd_config &
+/usr/sbin/sshd -D -e -f /etc/ssh/sshd_config >/dev/null 2>&1 &
 sleep 1
 
 echo "---> Setting up hypervisor certificates from api..."
@@ -127,7 +127,8 @@ else
 fi
 
 echo "---> HYPERVISOR READY <---"
-
+touch /tmp/qemu-hook.log
+tail -f /tmp/qemu-hook.log &
 while true
 do
     ping -c 1 10.1.0.1 >/dev/null 2>&1
