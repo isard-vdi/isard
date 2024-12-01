@@ -36,6 +36,10 @@ flow_add(){
     # Outgoing to guest
     echo "priority=201,dl_dst=${mac},dl_vlan=0x4095,actions=strip_vlan,output:${nport}" >> "${flowdir}/${domain_name}"
     ovs-ofctl add-flows ovsbr0 "${flowdir}/${domain_name}"
+
+    # timestamp=$(date +"%Y-%m-%dT%H:%M:%S%:z")
+    # echo "{\"id\": \"$domain_name\", \"status\": \"$domain_status\", \"port\": \"$port\", \"portgroup\": \"$portgroup\", \"mac\": \"$mac\", \"nport\": \"$nport\", \"timestamp\": \"$timestamp\"}" >> /tmp/qemu-hook.log
+
 }
 
 
@@ -50,6 +54,8 @@ flow_del() {
     fi
 }
 
+timestamp=$(date +"%Y-%m-%dT%H:%M:%S%:z")
+echo "{\"id\": \"$domain_name\", \"status\": \"$domain_status\", \"time\": \"$timestamp\"}" >> /tmp/qemu-hook.log
 case "${domain_status}" in
   started)
     flow_add
