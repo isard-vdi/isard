@@ -110,18 +110,22 @@ func TestLogin(t *testing.T) {
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
 						"id": "default",
-						"allowed_domains": map[string]interface{}{
-							"google": []interface{}{
-								"example.net",
+						"authentication": map[string]interface{}{
+							"google": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.net"},
 							},
-							"ldap": []interface{}{
-								"example.io",
+							"ldap": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.io"},
 							},
-							"local": []interface{}{
-								"example.org",
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.org"},
 							},
-							"saml": []interface{}{
-								"example.com",
+							"saml": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.com"},
 							},
 						},
 					},
@@ -446,8 +450,11 @@ func TestLogin(t *testing.T) {
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
 						"id": "default",
-						"allowed_domains": map[string]interface{}{
-							"local": []interface{}{},
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": nil,
+							},
 						},
 					},
 				}, nil)
@@ -493,8 +500,11 @@ func TestLogin(t *testing.T) {
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
 						"id": "default",
-						"allowed_domains": map[string]interface{}{
-							"local": []interface{}{},
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": nil,
+							},
 						},
 					},
 				}, nil)
@@ -564,8 +574,11 @@ func TestLogin(t *testing.T) {
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
 						"id": "default",
-						"allowed_domains": map[string]interface{}{
-							"local": []interface{}{},
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": nil,
+							},
 						},
 					},
 				}, nil)
@@ -639,8 +652,11 @@ func TestLogin(t *testing.T) {
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
 						"id": "default",
-						"allowed_domains": map[string]interface{}{
-							"local": []interface{}{},
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": nil,
+							},
 						},
 					},
 				}, nil)
@@ -690,7 +706,7 @@ func TestLogin(t *testing.T) {
 		"should return a ErrUserDisallowed error if the user's email is not in the category's allowed domains for the provider": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Filter(r.And(
-					r.Eq(r.Row.Field("uid"), "nefix"),
+					r.Eq(r.Row.Field("uid"), "pau"),
 					r.Eq(r.Row.Field("provider"), "local"),
 					r.Eq(r.Row.Field("category"), "default"),
 				), r.FilterOpts{})).Return([]interface{}{
@@ -713,18 +729,22 @@ func TestLogin(t *testing.T) {
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
 						"id": "default",
-						"allowed_domains": map[string]interface{}{
-							"google": []interface{}{
-								"example.net",
+						"authentication": map[string]interface{}{
+							"google": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.net"},
 							},
-							"ldap": []interface{}{
-								"example.io",
+							"ldap": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.io"},
 							},
-							"local": []interface{}{
-								"example.org",
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.org"},
 							},
-							"saml": []interface{}{
-								"example.com",
+							"saml": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.com"},
 							},
 						},
 					},
@@ -734,7 +754,7 @@ func TestLogin(t *testing.T) {
 			Provider:   "form",
 			CategoryID: "default",
 			PrepareArgs: func() provider.LoginArgs {
-				username := "nefix"
+				username := "pau"
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
@@ -770,18 +790,22 @@ func TestLogin(t *testing.T) {
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
 						"id": "default",
-						"allowed_domains": map[string]interface{}{
-							"google": []interface{}{
-								"example.net",
+						"authentication": map[string]interface{}{
+							"google": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.net"},
 							},
-							"ldap": []interface{}{
-								"example.io",
+							"ldap": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.io"},
 							},
-							"local": []interface{}{
-								"example.org",
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.org"},
 							},
-							"saml": []interface{}{
-								"example.com",
+							"saml": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.com"},
 							},
 						},
 					},
@@ -828,18 +852,22 @@ func TestLogin(t *testing.T) {
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
 						"id": "default",
-						"allowed_domains": map[string]interface{}{
-							"google": []interface{}{
-								"example.net",
+						"authentication": map[string]interface{}{
+							"google": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.net"},
 							},
-							"ldap": []interface{}{
-								"example.io",
+							"ldap": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.io"},
 							},
-							"local": []interface{}{
-								"example.org",
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.org"},
 							},
-							"saml": []interface{}{
-								"example.com",
+							"saml": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.com"},
 							},
 						},
 					},
@@ -858,7 +886,69 @@ func TestLogin(t *testing.T) {
 				}
 			},
 			ExpectedRedirect: "",
-			ExpectedErr:      fmt.Errorf("parse user email address: '🐐': mail: missing '@' or angle-addr").Error(),
+			ExpectedErr:      "parse user email address: '🐐': mail: missing '@' or angle-addr",
+		},
+		"should return an error if the category has that provider disabled": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("uid"), "nefix"),
+					r.Eq(r.Row.Field("provider"), "local"),
+					r.Eq(r.Row.Field("category"), "default"),
+				), r.FilterOpts{})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                   "905d7714-df00-499a-8b0a-7d7a0a40191f",
+						"uid":                  "pau",
+						"username":             "pau",
+						"password":             "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm",
+						"password_reset_token": "",
+						"provider":             "local",
+						"active":               false,
+						"category":             "default",
+						"role":                 "user",
+						"group":                "default-default",
+						"name":                 "Pau Abril",
+						"email":                "🐐",
+						"email_verified":       &now,
+					},
+				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"google": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.net"},
+							},
+							"ldap": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.io"},
+							},
+							"local": map[string]interface{}{
+								"enabled":         false,
+								"allowed_domains": nil,
+							},
+							"saml": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.com"},
+							},
+						},
+					},
+				}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
+				}
+			},
+			ExpectedRedirect: "",
+			ExpectedErr:      provider.ErrUserDisallowed.Error(),
 		},
 	}
 

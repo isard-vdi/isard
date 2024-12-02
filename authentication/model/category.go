@@ -10,12 +10,17 @@ import (
 )
 
 type Category struct {
-	ID             string              `rethinkdb:"id"`
-	UID            string              `rethinkdb:"uid"`
-	Name           string              `rethinkdb:"name"`
-	Description    string              `rethinkdb:"description"`
-	Photo          string              `rethinkdb:"photo"`
-	AllowedDomains map[string][]string `rethinkdb:"allowed_domains"`
+	ID             string                            `rethinkdb:"id"`
+	UID            string                            `rethinkdb:"uid"`
+	Name           string                            `rethinkdb:"name"`
+	Description    string                            `rethinkdb:"description"`
+	Photo          string                            `rethinkdb:"photo"`
+	Authentication map[string]CategoryAuthentication `rethinkdb:"authentication"`
+}
+
+type CategoryAuthentication struct {
+	Enabled        *bool     `rethinkdb:"enabled"`
+	AllowedDomains *[]string `rethinkdb:"allowed_domains"`
 }
 
 func (c *Category) Load(ctx context.Context, sess r.QueryExecutor) (*Category, error) {

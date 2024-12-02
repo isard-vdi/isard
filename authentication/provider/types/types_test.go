@@ -3,20 +3,21 @@ package types_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestFromUser(t *testing.T) {
-	tests := []struct {
-		name     string
-		user     *model.User
-		expected types.ProviderUserData
+func TestProviderUserDataFromUser(t *testing.T) {
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		User         *model.User
+		ExpectedUser types.ProviderUserData
 	}{
-		{
-			name: "all fields populated",
-			user: &model.User{
+		"should populate all fields correctly": {
+			User: &model.User{
 				Provider: "local",
 				Category: "default",
 				UID:      "pau",
@@ -27,7 +28,7 @@ func TestFromUser(t *testing.T) {
 				Email:    "pau@example.org",
 				Photo:    "https://example.org/photo.jpg",
 			},
-			expected: types.ProviderUserData{
+			ExpectedUser: types.ProviderUserData{
 				Provider: "local",
 				Category: "default",
 				UID:      "pau",
@@ -39,9 +40,8 @@ func TestFromUser(t *testing.T) {
 				Photo:    stringPointer("https://example.org/photo.jpg"),
 			},
 		},
-		{
-			name: "some fields empty",
-			user: &model.User{
+		"should use zero values if only some fileds are populated": {
+			User: &model.User{
 				Provider: "ldap",
 				Category: "default",
 				UID:      "pau",
@@ -52,7 +52,7 @@ func TestFromUser(t *testing.T) {
 				Email:    "pau@example.org",
 				Photo:    "",
 			},
-			expected: types.ProviderUserData{
+			ExpectedUser: types.ProviderUserData{
 				Provider: "ldap",
 				Category: "default",
 				UID:      "pau",
@@ -61,34 +61,34 @@ func TestFromUser(t *testing.T) {
 				Email:    stringPointer("pau@example.org"),
 			},
 		},
-		{
-			name: "all fields empty",
-			user: &model.User{},
-			expected: types.ProviderUserData{
+		"should use zero values if all fields are empty": {
+			User: &model.User{},
+			ExpectedUser: types.ProviderUserData{
 				Role:  nil,
 				Group: nil,
 			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var pUser types.ProviderUserData
-			pUser.FromUser(tt.user)
-			assert.Equal(t, tt.expected, pUser)
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var u types.ProviderUserData
+			u.FromUser(tc.User)
+
+			assert.Equal(tc.ExpectedUser, u)
 		})
 	}
 }
 
-func TestToUser(t *testing.T) {
-	tests := []struct {
-		name     string
-		pUser    types.ProviderUserData
-		expected *model.User
+func TestProviderUserDataToUser(t *testing.T) {
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		User         types.ProviderUserData
+		ExpectedUser *model.User
 	}{
-		{
-			name: "all fields populated",
-			pUser: types.ProviderUserData{
+		"should transform all fields correctly": {
+			User: types.ProviderUserData{
 				Provider: "local",
 				Category: "default",
 				UID:      "pau",
@@ -99,7 +99,7 @@ func TestToUser(t *testing.T) {
 				Email:    stringPointer("pau@example.org"),
 				Photo:    stringPointer("https://example.org/photo.jpg"),
 			},
-			expected: &model.User{
+			ExpectedUser: &model.User{
 				Provider: "local",
 				Category: "default",
 				UID:      "pau",
@@ -111,9 +111,8 @@ func TestToUser(t *testing.T) {
 				Photo:    "https://example.org/photo.jpg",
 			},
 		},
-		{
-			name: "some fields empty",
-			pUser: types.ProviderUserData{
+		"should use zero values if only some fileds are populated": {
+			User: types.ProviderUserData{
 				Provider: "ldap",
 				Category: "default",
 				UID:      "pau",
@@ -121,7 +120,7 @@ func TestToUser(t *testing.T) {
 				Username: stringPointer("pau"),
 				Email:    stringPointer("pau@example.org"),
 			},
-			expected: &model.User{
+			ExpectedUser: &model.User{
 				Provider: "ldap",
 				Category: "default",
 				UID:      "pau",
@@ -130,10 +129,9 @@ func TestToUser(t *testing.T) {
 				Email:    "pau@example.org",
 			},
 		},
-		{
-			name:  "all fields empty",
-			pUser: types.ProviderUserData{},
-			expected: &model.User{
+		"should use zero values if all fields are empty": {
+			User: types.ProviderUserData{},
+			ExpectedUser: &model.User{
 				Provider: "",
 				Category: "",
 				UID:      "",
@@ -147,10 +145,11 @@ func TestToUser(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			user := tt.pUser.ToUser()
-			assert.Equal(t, tt.expected, user)
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			u := tc.User.ToUser()
+
+			assert.Equal(tc.ExpectedUser, u)
 		})
 	}
 }

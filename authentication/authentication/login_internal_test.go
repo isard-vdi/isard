@@ -14,6 +14,7 @@ import (
 	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -50,11 +51,15 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("provider"), "local"),
 					r.Eq(r.Row.Field("category"), "default"),
 				))).Return([]interface{}{}, nil)
+
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
 						"id": "default",
-						"allowed_domains": map[string]interface{}{
-							"local": []interface{}{},
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.org"},
+							},
 						},
 					},
 				}, nil)
@@ -101,11 +106,13 @@ func TestStartLogin(t *testing.T) {
 					r.Eq(r.Row.Field("provider"), "mock"),
 					r.Eq(r.Row.Field("category"), "default"),
 				))).Return([]interface{}{}, nil)
+
 				m.On(r.Table("groups").Filter(r.And(
 					r.Eq(r.Row.Field("parent_category"), "default"),
 					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
 					r.Eq(r.Row.Field("external_gid"), "my group ID"),
 				))).Return([]interface{}{}, nil)
+
 				m.On(r.Table("groups").Filter(r.And(
 					r.Eq(r.Row.Field("parent_category"), "default"),
 					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
@@ -115,16 +122,21 @@ func TestStartLogin(t *testing.T) {
 						"id": "imagine an UUID here",
 					},
 				}, nil)
+
 				m.On(r.Table("groups").Filter(r.And(
 					r.Eq(r.Row.Field("parent_category"), "default"),
 					r.Eq(r.Row.Field("external_app_id"), "provider-saml"),
 					r.Eq(r.Row.Field("external_gid"), "other secondary group"),
 				))).Return([]interface{}{}, nil)
+
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
 						"id": "default",
-						"allowed_domains": map[string]interface{}{
-							"local": []interface{}{},
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.org"},
+							},
 						},
 					},
 				}, nil)
@@ -221,6 +233,58 @@ func TestStartLogin(t *testing.T) {
 			Redirect: "/",
 
 			ExpectedErr: "get category: Category error",
+		},
+		"should work as expected if the user doesn't have an email, but there's no allowed domains configured": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("uid"), uuid.Max.String()),
+					r.Eq(r.Row.Field("provider"), "local"),
+					r.Eq(r.Row.Field("category"), "default"),
+				))).Return([]interface{}{}, nil)
+
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{},
+							},
+						},
+					},
+				}, nil)
+			},
+			PrepareAPI:      func(s *sdk.MockSdk) {},
+			PrepareSessions: func(s *grpcmock.Server) {},
+
+			Provider: "local",
+			ProviderUserData: func() *types.ProviderUserData {
+				username := "nefix"
+				name := "Néfix Estrada"
+
+				return &types.ProviderUserData{
+					Provider: "local",
+					Category: "default",
+					UID:      uuid.Max.String(),
+
+					Username: &username,
+					Name:     &name,
+				}
+			},
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseRegisterToken("", ss)
+
+				require.NoError(err)
+
+				assert.Equal("local", tkn.Provider)
+				assert.Equal(uuid.Max.String(), tkn.UserID)
+				assert.Equal("nefix", tkn.Username)
+				assert.Equal("default", tkn.CategoryID)
+				assert.Equal("Néfix Estrada", tkn.Name)
+				assert.Equal("", tkn.Email)
+				assert.Equal("", tkn.Photo)
+			},
 		},
 	}
 

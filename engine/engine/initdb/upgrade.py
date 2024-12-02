@@ -5310,35 +5310,43 @@ password:s:%s"""
 
         if version == 163:
             try:
-                r.table(table).index_create("allowed_domains").run(self.conn)
-                r.table(table).index_wait("allowed_domains").run(self.conn)
-            except Exception as e:
-                print(e)
-
-            try:
                 categories = list(r.table(table).run(self.conn))
 
                 for category in categories:
                     try:
                         allowed_domain = (
                             [category["allowed_domain"]]
-                            if category["allowed_domain"] != ""
-                            else []
+                            if category.get("allowed_domain", "") != ""
+                            else None
                         )
+
                         self.add_keys(
                             table,
                             [
                                 {
-                                    "allowed_domains": {
-                                        "local": allowed_domain,
-                                        "google": allowed_domain,
-                                        "saml": allowed_domain,
-                                        "ldap": allowed_domain,
+                                    "authentication": {
+                                        "local": {
+                                            "enabled": None,
+                                            "allowed_domains": allowed_domain,
+                                        },
+                                        "google": {
+                                            "enabled": None,
+                                            "allowed_domains": allowed_domain,
+                                        },
+                                        "saml": {
+                                            "enabled": None,
+                                            "allowed_domains": allowed_domain,
+                                        },
+                                        "ldap": {
+                                            "enabled": None,
+                                            "allowed_domains": allowed_domain,
+                                        },
                                     }
                                 }
                             ],
                             id=category["id"],
                         )
+
                     except Exception as e:
                         print(e)
 
@@ -5348,13 +5356,16 @@ password:s:%s"""
                             ["allowed_domain"],
                             id=category["id"],
                         )
+
                     except Exception as e:
                         print(e)
+
             except Exception as e:
                 print(e)
 
             try:
                 r.table(table).index_drop("allowed_domain").run(self.conn)
+
             except Exception as e:
                 print(e)
 
