@@ -18,7 +18,7 @@ pytz==2022.7
 humanize==4.0.0
 portion==2.2.0
 cachetools~=5.3
-rq~=1.14
+rq==2.0.0
 betterproto~=1.2
 python-json-logger
 requests~=2.31

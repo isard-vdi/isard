@@ -1,4 +1,4 @@
-rq~=1.14
+rq==2.0.0
 rethinkdb==2.4.10.post1
 requests~=2.30
 PyJWT==2.8.0

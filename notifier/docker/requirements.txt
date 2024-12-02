@@ -5,7 +5,7 @@ pydantic~=2.4
 PyJWT==2.8.0
 requests==2.31.0
 rethinkdb==2.4.10.post1
-rq~=1.14
+rq==2.0.0
 spectree~=1.2
 waitress~=3.0.1
 simple-colors~=0.1.5
