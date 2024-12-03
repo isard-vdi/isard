@@ -4,6 +4,7 @@
 # License: AGPLv3
 
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 
 # from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
@@ -70,6 +71,8 @@ Q_PRIORITY_PERSONAL_UNIT = 130  # Mount personal unit inside a desktop
 Q_LONGOPERATIONS_PRIORITY_CREATE_TEMPLATE_DISK = 50
 Q_LONGOPERATIONS_PRIORITY_CREATE_DISK_FROM_TEMPLATE = 40
 Q_LONGOPERATIONS_PRIORITY_DOMAIN_FROM_TEMPLATE = 40
+
+updating_thread_pool = ThreadPoolExecutor(max_workers=1)
 
 
 class UiActions(object):
@@ -1225,6 +1228,16 @@ class UiActions(object):
         return True
 
     def updating_from_create_dict(self, id_domain, ssl=True):
+        try:
+            updating_thread_pool.submit(
+                self.updating_from_create_dict_th, id_domain, ssl
+            )
+        except Exception as e:
+            logs.exception_id.debug("0018")
+            log.error("Updating domain {} failed. Exception: {}".format(id_domain, e))
+
+    def updating_from_create_dict_th(self, id_domain, ssl=True):
+        sleep(0.1)
         if self.update_hardware_dict_and_xml_from_create_dict(id_domain):
             update_domain_status(
                 "Updating",
