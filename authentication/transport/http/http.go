@@ -850,7 +850,7 @@ func (a *AuthenticationServer) MigrateUser(ctx context.Context, req *oasAuthenti
 		}, nil
 	}
 
-	migrateTkn, err := a.Authentication.MigrateUser(ctx, tkn)
+	migrateTkn, err := a.Authentication.MigrateUser(ctx, tkn, req.UserID)
 	if err != nil {
 		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
 			return &oasAuthentication.MigrateUserForbidden{

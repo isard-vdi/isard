@@ -262,3 +262,16 @@ func GetTokenType(ss string) (Type, error) {
 		return TypeUnknown, errors.New("unknown token type")
 	}
 }
+
+func TokenIsIsardvdiService(secret, ss string) error {
+	tkn, err := ParseLoginToken(secret, ss)
+	if err != nil {
+		return err
+	}
+
+	if tkn.SessionID != "isardvdi-service" {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}

@@ -798,7 +798,7 @@
             "post": {
                 "operationId": "MigrateUser",
                 "summary": "Request a token for user migration",
-                "description": "",
+                "description": "Internal call from isard-api only. Users cannot call this endpoint",
                 "parameters": [],
                 "requestBody": {
                     "content": {
@@ -1253,7 +1253,16 @@
                 "type": "object"
             },
             "MigrateUserRequest": {
-                "properties": {},
+                "properties": {
+                    "user_id": {
+                        "title": "The ID of the user to migrate",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user_id"
+                ],
                 "type": "object"
             },
             "MigrateUserResponse": {
