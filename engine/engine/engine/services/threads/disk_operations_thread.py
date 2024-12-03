@@ -93,7 +93,7 @@ class DiskOperationsThread(threading.Thread):
                     self.stop = True
                 else:
                     self.route_action(action)
-                    time.sleep(0.1)  # Just to not saturate system in excess
+                    time.sleep(0.25)  # Just to not saturate system in excess
             except queue.Empty:
                 continue  # Timeout occurred, loop again
             except Exception as e:
