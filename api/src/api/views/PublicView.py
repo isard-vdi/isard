@@ -7,6 +7,7 @@
 import json
 import os
 
+from cachetools import TTLCache, cached
 from isardvdi_common.api_exceptions import Error
 
 from api import app
@@ -20,6 +21,7 @@ with open("/version", "r") as file:
     version = file.read()
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=360))
 @app.route("/api/v3", methods=["GET"])
 def api_v3_test():
     return (
@@ -36,6 +38,7 @@ def api_v3_test():
     )
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=20))
 @app.route("/api/v3/categories", methods=["GET"])
 def api_v3_categories():
     return (
@@ -45,6 +48,7 @@ def api_v3_categories():
     )
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=20))
 @app.route("/api/v3/category/<custom_url>", methods=["GET"])
 def api_v3_category(custom_url):
     return (
@@ -54,6 +58,7 @@ def api_v3_category(custom_url):
     )
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=20))
 @app.route("/api/v3/category/<category_id>/custom_url", methods=["GET"])
 def api_v3_category_custom_url(category_id):
     return (
@@ -63,6 +68,7 @@ def api_v3_category_custom_url(category_id):
     )
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=20))
 @app.route("/api/v3/login_config", methods=["GET"])
 def api_v3_login_config():
     return (

@@ -25,7 +25,6 @@ import uuid
 from datetime import datetime, timedelta
 
 import bcrypt
-import pytz
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from isardvdi_common.api_exceptions import Error

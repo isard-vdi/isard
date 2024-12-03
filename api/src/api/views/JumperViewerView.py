@@ -7,11 +7,10 @@ import json
 import logging as log
 import os
 
+from cachetools import TTLCache, cached
 from flask import request
 from isardvdi_common.api_exceptions import Error
 
-#!flask/bin/python
-# coding=utf-8
 from api import app
 
 from ..libv2.quotas import Quotas
@@ -26,6 +25,7 @@ common = ApiDesktopsCommon()
 desktops = ApiDesktopsPersistent()
 
 
+@cached(cache=TTLCache(maxsize=20, ttl=10))
 @app.route("/api/v3/direct/<token>", methods=["GET"])
 def api_v3_viewer(token):
     maintenance()
@@ -53,6 +53,7 @@ def api_v3_viewer(token):
     )
 
 
+@cached(cache=TTLCache(maxsize=20, ttl=10))
 @app.route("/api/v3/direct/<token>/reset", methods=["PUT"])
 def api_v3_desktop_reset(token):
     return (
@@ -62,6 +63,7 @@ def api_v3_desktop_reset(token):
     )
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=360))
 @app.route("/api/v3/direct/docs", methods=["GET"])
 def api_v3_viewer_docs():
     return (
