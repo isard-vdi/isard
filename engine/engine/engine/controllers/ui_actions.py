@@ -3,11 +3,7 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
-import itertools
-import time
 import traceback
-from os.path import dirname as extract_dir_path
-from pprint import pformat
 
 # from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
@@ -37,7 +33,6 @@ from engine.services.db import (
     remove_disk_template_created_list_in_domain,
     update_domain_dict_hardware,
     update_domain_force_update,
-    update_domain_forced_hyp,
     update_domain_status,
     update_origin_and_parents_to_new_template,
     update_table_field,
@@ -523,7 +518,7 @@ class UiActions(object):
                             if not disk_path:
                                 log.error(
                                     "DELETE_DOMAIN_DISKS: Domain {} disk in old format and not found the file key in db entry. Unable to delete disk entry: \n {}".format(
-                                        id_domain, pformat(d)
+                                        id_domain, d
                                     )
                                 )
                                 index_disk += 1
@@ -1153,8 +1148,6 @@ class UiActions(object):
 
             if index_disk == 0:
                 cmds += add_cmds_if_custom(id_domain=id_new, path_new=new_file)
-                # from pprint import pformat
-                # log.info(pformat(cmds))
             action["ssh_commands"] = cmds
 
             try:
