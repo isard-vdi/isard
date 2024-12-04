@@ -124,7 +124,6 @@ check_all_bookings()
 """'
 Import all views
 """
-# from .views import XmlView
 from .views import (
     AdminDomainsView,
     AdminDownloadsView,
