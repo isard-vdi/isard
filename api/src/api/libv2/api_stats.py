@@ -1,6 +1,8 @@
 from rethinkdb import RethinkDB
 
 r = RethinkDB()
+from cachetools import TTLCache, cached
+
 from api import app
 
 from ..libv2.flask_rethink import RDB
@@ -11,6 +13,7 @@ db.init_app(app)
 stable_status = ["Started", "Stopped", "Failed"]
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=5))
 def Users():
     with app.app_context():
         users_count = r.table("users").count().run(db.conn)
@@ -30,9 +33,15 @@ def Users():
     }
 
 
-def Desktops():
+@cached(cache=TTLCache(maxsize=1, ttl=30))
+def desktops_total():
     with app.app_context():
-        total = r.table("domains").get_all("desktop", index="kind").count().run(db.conn)
+        return r.table("domains").get_all("desktop", index="kind").count().run(db.conn)
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=1))
+def Desktops():
+    # Used by webapp desktops status
     with app.app_context():
         group_by_status = (
             r.table("domains")
@@ -42,11 +51,25 @@ def Desktops():
             .run(db.conn)
         )
     return {
-        "total": total,
+        "total": desktops_total(),
         "status": group_by_status,
     }
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=5))
+def DomainsStatus():
+    # Used by stats go
+    with app.app_context():
+        domains = r.table("domains").group(index="kind_status").count().run(db.conn)
+    d = {}
+    for k, v in domains.items():
+        if k[0] not in d:
+            d[k[0]] = {}
+        d[k[0]][k[1]] = v
+    return d
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=5))
 def Templates():
     with app.app_context():
         templates = list(
@@ -63,17 +86,7 @@ def Templates():
     }
 
 
-def DomainsStatus():
-    with app.app_context():
-        domains = r.table("domains").group(index="kind_status").count().run(db.conn)
-    d = {}
-    for k, v in domains.items():
-        if k[0] not in d:
-            d[k[0]] = {}
-        d[k[0]][k[1]] = v
-    return d
-
-
+@cached(cache=TTLCache(maxsize=1, ttl=5))
 def OtherStatus():
     with app.app_context():
         desktops = (
@@ -117,6 +130,7 @@ def OtherStatus():
     return result
 
 
+@cached(cache=TTLCache(maxsize=5, ttl=5))
 def Kind(kind):
     query = {}
     if kind == "desktops":
@@ -135,11 +149,12 @@ def Kind(kind):
         return list(query.run(db.conn))
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=30))
 def GroupByCategories():
+    # Used by stats go
     query = {}
     with app.app_context():
         categories = r.table("categories").pluck("id")["id"].run(db.conn)
-    user_role = ["admin", "manager", "advanced", "user"]
     for category in categories:
         query[category] = {
             "users": {
@@ -254,7 +269,9 @@ def GroupByCategories():
     return query
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=30))
 def CategoriesKindState(kind, state=False):
+    # Used by stats go
     query = {}
     with app.app_context():
         categories = r.table("categories").pluck("id")["id"].run(db.conn)
@@ -398,6 +415,7 @@ def CategoriesKindState(kind, state=False):
                 return query
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=30))
 def CategoriesLimitsHardware():
     query = {}
     with app.app_context():
@@ -448,7 +466,9 @@ def CategoriesLimitsHardware():
     return query
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=5))
 def CategoriesDeploys():
+    # Used by stats go
     with app.app_context():
         return (
             r.table("deployments")
@@ -465,6 +485,7 @@ def CategoriesDeploys():
         )
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=30))
 def DomainsByCategoryCount():
     with app.app_context():
         return (
