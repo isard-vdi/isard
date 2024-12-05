@@ -17,11 +17,12 @@ from .flask_rethink import RDB
 
 db = RDB(app)
 db.init_app(app)
-
+from cachetools import TTLCache, cached
 from isardvdi_common.api_exceptions import Error
 from rethinkdb.errors import ReqlNonExistenceError
 
 from .api_allowed import ApiAllowed
+from .caches import get_cached_user_with_names, get_document
 from .quotas_process import QuotasProcess
 
 allowed = ApiAllowed()
@@ -34,24 +35,9 @@ class Quotas:
         None
 
     def get_applied_quota(self, user_id):
-        with app.app_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .pluck("id", "name", "category", "group", "quota")
-                .run(db.conn)
-            )
-        with app.app_context():
-            group = (
-                r.table("groups").get(user["group"]).pluck("name", "quota").run(db.conn)
-            )
-        with app.app_context():
-            category = (
-                r.table("categories")
-                .get(user["category"])
-                .pluck("name", "quota")
-                .run(db.conn)
-            )
+        user = get_document("users", user_id, ["id", "category", "group", "quota"])
+        group = get_document("groups", user["group"], ["name", "quota"])
+        category = get_document("categories", user["category"], ["name", "quota"])
 
         if user["quota"]:
             return {
@@ -73,25 +59,16 @@ class Quotas:
 
     # Get in user["quota"] the applied quota, either user, group or category
     # TODO: Use get_applied_quota function
+    @cached(
+        TTLCache(maxsize=200, ttl=5),
+        key=lambda self, user_id, started_info=True: (user_id, started_info),
+    )
     def Get(self, user_id, started_info=True):
-        with app.app_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .pluck("id", "name", "category", "group", "quota")
-                .run(db.conn)
-            )
-        with app.app_context():
-            group = (
-                r.table("groups").get(user["group"]).pluck("name", "quota").run(db.conn)
-            )
-        with app.app_context():
-            category = (
-                r.table("categories")
-                .get(user["category"])
-                .pluck("name", "quota")
-                .run(db.conn)
-            )
+        user = get_document(
+            "users", user_id, ["id", "name", "category", "group", "quota"]
+        )
+        group = get_document("groups", user["group"], ["name", "quota"])
+        category = get_document("categories", user["category"], ["name", "quota"])
 
         # Used
         with app.app_context():
@@ -207,11 +184,13 @@ class Quotas:
         else:
             return {"quota": False, "used": used, "restriction_applied": "user_quota"}
 
+    @cached(TTLCache(maxsize=100, ttl=5), key=lambda self, user_id: user_id)
     def GetUserQuota(self, user_id):
         return qp.get_user(user_id)
 
     """ Used to edit category/group/user in admin """
 
+    @cached(TTLCache(maxsize=100, ttl=5), key=lambda self, category_id: category_id)
     def GetCategoryQuota(self, category_id):
         with app.app_context():
             category = (
@@ -222,6 +201,7 @@ class Quotas:
             )
         return {"quota": category["quota"], "limits": category["limits"]}
 
+    @cached(TTLCache(maxsize=100, ttl=5), key=lambda self, group_id: group_id)
     def GetGroupQuota(self, group_id):
         ### Limits for group will be at least limits for its category
         with app.app_context():
@@ -246,38 +226,16 @@ class Quotas:
             "grouplimits": group["limits"],
         }
 
+    @cached(
+        TTLCache(maxsize=100, ttl=5),
+        key=lambda self, category_id, group_id: (category_id, group_id),
+    )
     def UserCreate(self, category_id, group_id):
         qp.check_new_autoregistered_user(category_id, group_id)
 
     def desktop_create(self, user_id, quantity=1):
-        try:
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .merge(
-                        lambda d: {
-                            "category_name": r.table("categories").get(d["category"])[
-                                "name"
-                            ],
-                            "group_name": r.table("groups").get(d["group"])["name"],
-                            "role_name": r.table("roles").get(d["role"])["name"],
-                        }
-                    )
-                    .pluck(
-                        "id",
-                        "name",
-                        "category",
-                        "group",
-                        "quota",
-                        "category_name",
-                        "group_name",
-                        "role_name",
-                    )
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "User not found")
+        user = get_cached_user_with_names(user_id)
+
         with app.app_context():
             group_quantity = (
                 r.table("domains")
@@ -322,34 +280,8 @@ class Quotas:
         )
 
     def volatile_create(self, user_id, quantity=1):
-        try:
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .merge(
-                        lambda d: {
-                            "category_name": r.table("categories").get(d["category"])[
-                                "name"
-                            ],
-                            "group_name": r.table("groups").get(d["group"])["name"],
-                            "role_name": r.table("roles").get(d["role"])["name"],
-                        }
-                    )
-                    .pluck(
-                        "id",
-                        "name",
-                        "category",
-                        "group",
-                        "quota",
-                        "category_name",
-                        "group_name",
-                        "role_name",
-                    )
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "User not found")
+        user = get_cached_user_with_names(user_id)
+
         with app.app_context():
             group_quantity = (
                 r.table("domains")
@@ -394,34 +326,7 @@ class Quotas:
         )
 
     def template_create(self, user_id, quantity=1):
-        try:
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .merge(
-                        lambda d: {
-                            "category_name": r.table("categories").get(d["category"])[
-                                "name"
-                            ],
-                            "group_name": r.table("groups").get(d["group"])["name"],
-                            "role_name": r.table("roles").get(d["role"])["name"],
-                        }
-                    )
-                    .pluck(
-                        "id",
-                        "name",
-                        "category",
-                        "group",
-                        "quota",
-                        "category_name",
-                        "group_name",
-                        "role_name",
-                    )
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "User not found")
+        user = get_cached_user_with_names(user_id)
         with app.app_context():
             group_quantity = (
                 r.table("domains")
@@ -464,34 +369,7 @@ class Quotas:
         )
 
     def media_create(self, user_id, media_size=False, quantity=1):
-        try:
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .merge(
-                        lambda d: {
-                            "category_name": r.table("categories").get(d["category"])[
-                                "name"
-                            ],
-                            "group_name": r.table("groups").get(d["group"])["name"],
-                            "role_name": r.table("roles").get(d["role"])["name"],
-                        }
-                    )
-                    .pluck(
-                        "id",
-                        "name",
-                        "category",
-                        "group",
-                        "quota",
-                        "category_name",
-                        "group_name",
-                        "role_name",
-                    )
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "User not found")
+        user = get_cached_user_with_names(user_id)
 
         with app.app_context():
             group_quantity = (
@@ -612,16 +490,7 @@ class Quotas:
         category_quantity,
         limits_error,
     ):
-        try:
-            with app.app_context():
-                group = (
-                    r.table("groups")
-                    .get(user["group"])
-                    .pluck("name", "quota", "limits")
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "Group not found")
+        group = get_document("groups", user["group"], ["name", "quota", "limits"])
 
         if group["limits"]:
             self.check_limits(
@@ -631,16 +500,9 @@ class Quotas:
                 limits_error=limits_error["group"],
             )
 
-        try:
-            with app.app_context():
-                category = (
-                    r.table("categories")
-                    .get(user["category"])
-                    .pluck("name", "quota", "limits")
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "Category not found")
+        category = get_document(
+            "categories", user["category"], ["name", "quota", "limits"]
+        )
 
         if category["limits"]:
             self.check_limits(
@@ -694,6 +556,7 @@ class Quotas:
                 description_code=limits_error["error_description_code"],
             )
 
+    @cached(TTLCache(maxsize=100, ttl=5), key=lambda self, user_id: user_id)
     def get_started_deployment_desktops(self, user_id):
         # Status that are considered in the running quota
         started_status = [
@@ -776,6 +639,14 @@ class Quotas:
 
         return started_deployment_desktops
 
+    @cached(
+        TTLCache(maxsize=100, ttl=5),
+        key=lambda self, query_id, query_index, owner_only=False: (
+            query_id,
+            query_index,
+            owner_only,
+        ),
+    )
     def get_started_desktops(self, query_id, query_index, owner_only=False):
         # Status that are considered in the running quota
         started_status = [
@@ -841,42 +712,15 @@ class Quotas:
 
         return started_desktops
 
+    @cached(
+        TTLCache(maxsize=100, ttl=5),
+        key=lambda self, user_id, desktop_id: (user_id, desktop_id),
+    )
     def desktop_start(self, user_id, desktop_id):
-        with app.app_context():
-            desktop = r.table("domains").get(desktop_id).run(db.conn)
-        if not desktop:
-            raise Error("not_found", "Desktop not found")
-        try:
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .merge(
-                        lambda d: {
-                            "category_name": r.table("categories").get(d["category"])[
-                                "name"
-                            ],
-                            "group_name": r.table("groups").get(d["group"])["name"],
-                            "role_name": r.table("roles").get(d["role"])["name"],
-                        }
-                    )
-                    .pluck(
-                        "id",
-                        "name",
-                        "category",
-                        "group",
-                        "role",
-                        "quota",
-                        "category_name",
-                        "group_name",
-                        "role_name",
-                    )
-                    .run(db.conn)
-                )
-            if user["role"] == "admin":
-                return desktop
-        except:
-            raise Error("not_found", "User not found")
+        desktop = get_document("domains", desktop_id)
+        user = get_cached_user_with_names(user_id)
+        if user["role"] == "admin":
+            return desktop
 
         # We get the user applied quota (either user, group or category quota) and currently used info to check the quota
         user_quota_data = self.Get(user_id=user["id"], started_info=True)
@@ -941,17 +785,7 @@ class Quotas:
             )
 
         # Group limits
-        try:
-            with app.app_context():
-                group = (
-                    r.table("groups")
-                    .get(user["group"])
-                    .pluck("name", "quota", "limits")
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "Group not found")
-
+        group = get_document("groups", user["group"], ["name", "quota", "limits"])
         if group["limits"]:
             started_desktops = self.get_started_desktops(user["group"], "kind_group")
             desktops = {
@@ -1034,17 +868,9 @@ class Quotas:
             )
 
         # Category limits
-        try:
-            with app.app_context():
-                category = (
-                    r.table("categories")
-                    .get(user["category"])
-                    .pluck("name", "quota", "limits")
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "Category not found")
-
+        category = get_document(
+            "categories", user["category"], ["name", "quota", "limits"]
+        )
         # Category limit
         if not category["limits"]:
             return desktop
@@ -1131,44 +957,17 @@ class Quotas:
 
         return desktop
 
+    @cached(
+        TTLCache(maxsize=100, ttl=5),
+        key=lambda self, user_id, desktop_id: (user_id, desktop_id),
+    )
     def deployment_desktop_start(self, user_id, desktop_id):
-        with app.app_context():
-            desktop = r.table("domains").get(desktop_id).run(db.conn)
-        if not desktop:
-            raise Error("not_found", "Desktop not found")
-        elif not desktop["tag"]:
+        desktop = get_document("domains", desktop_id)
+        if not desktop["tag"]:
             raise Error("precondition_required", "Desktop is not part of a deployment")
-        try:
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .merge(
-                        lambda d: {
-                            "category_name": r.table("categories").get(d["category"])[
-                                "name"
-                            ],
-                            "group_name": r.table("groups").get(d["group"])["name"],
-                            "role_name": r.table("roles").get(d["role"])["name"],
-                        }
-                    )
-                    .pluck(
-                        "id",
-                        "name",
-                        "category",
-                        "group",
-                        "role",
-                        "quota",
-                        "category_name",
-                        "group_name",
-                        "role_name",
-                    )
-                    .run(db.conn)
-                )
-            if user["role"] == "admin":
-                return desktop
-        except:
-            raise Error("not_found", "User not found")
+        user = get_cached_user_with_names(user_id)
+        if user["role"] == "admin":
+            return desktop
 
         self.check_field_quotas(
             user,
@@ -1185,17 +984,7 @@ class Quotas:
         user_quota_data = self.Get(user_id=user["id"], started_info=True)
 
         # Group limits
-        try:
-            with app.app_context():
-                group = (
-                    r.table("groups")
-                    .get(user["group"])
-                    .pluck("name", "quota", "limits")
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "Group not found")
-
+        group = get_document("groups", user["group"], ["name", "quota", "limits"])
         if group["limits"]:
             started_desktops = self.get_started_desktops(user["group"], "kind_group")
             desktops = {
@@ -1278,17 +1067,9 @@ class Quotas:
             )
 
         # Category limits
-        try:
-            with app.app_context():
-                category = (
-                    r.table("categories")
-                    .get(user["category"])
-                    .pluck("name", "quota", "limits")
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "Category not found")
-
+        category = get_document(
+            "categories", user["category"], ["name", "quota", "limits"]
+        )
         # Category limit
         if not category["limits"]:
             return desktop
@@ -1376,34 +1157,7 @@ class Quotas:
         return desktop
 
     def deployment_create(self, users, owner_id, quantity=1):
-        try:
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(owner_id)
-                    .merge(
-                        lambda d: {
-                            "category_name": r.table("categories").get(d["category"])[
-                                "name"
-                            ],
-                            "group_name": r.table("groups").get(d["group"])["name"],
-                            "role_name": r.table("roles").get(d["role"])["name"],
-                        }
-                    )
-                    .pluck(
-                        "id",
-                        "name",
-                        "category",
-                        "group",
-                        "quota",
-                        "category_name",
-                        "group_name",
-                        "role_name",
-                    )
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "User not found")
+        user = get_cached_user_with_names(owner_id)
 
         with app.app_context():
             group_quantity = (
@@ -1470,17 +1224,7 @@ class Quotas:
 
         # Check the group limits aren't exceeded
         for group_id, users in groups_users.items():
-            try:
-                with app.app_context():
-                    group = (
-                        r.table("groups")
-                        .get(group_id)
-                        .pluck("name", "quota", "limits")
-                        .run(db.conn)
-                    )
-            except:
-                raise Error("not_found", "Group not found")
-
+            group = get_document("groups", group_id, ["name", "quota", "limits"])
             if group["limits"]:
                 with app.app_context():
                     group_domains = (
@@ -1503,17 +1247,9 @@ class Quotas:
 
         # Check the category limits aren't exceeded
         for category_id, users in categories_users.items():
-            try:
-                with app.app_context():
-                    category = (
-                        r.table("categories")
-                        .get(user["category"])
-                        .pluck("name", "quota", "limits")
-                        .run(db.conn)
-                    )
-            except:
-                raise Error("not_found", "Category not found")
-
+            category = get_document(
+                "categories", category_id, ["name", "quota", "limits"]
+            )
             if category["limits"]:
                 with app.app_context():
                     category_domains = (
@@ -1536,34 +1272,7 @@ class Quotas:
                     )
 
     def deployment_update(self, users, owner_id):
-        try:
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(owner_id)
-                    .merge(
-                        lambda d: {
-                            "category_name": r.table("categories").get(d["category"])[
-                                "name"
-                            ],
-                            "group_name": r.table("groups").get(d["group"])["name"],
-                            "role_name": r.table("roles").get(d["role"])["name"],
-                        }
-                    )
-                    .pluck(
-                        "id",
-                        "name",
-                        "category",
-                        "group",
-                        "quota",
-                        "category_name",
-                        "group_name",
-                        "role_name",
-                    )
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "User not found")
+        user = get_cached_user_with_names(owner_id)
 
         # Check the amount of desktops in the deployment
         quota_error = {
@@ -1837,6 +1546,14 @@ class Quotas:
     def get_shutdown_timeouts(self, payload, desktop_id=None):
         return qp.get_shutdown_timeouts(payload, desktop_id=None)
 
+    @cached(
+        TTLCache(maxsize=100, ttl=5),
+        key=lambda self, payload, kind=None, domain_id=None: (
+            payload["user_id"],
+            kind,
+            domain_id,
+        ),
+    )
     def user_hardware_allowed(self, payload, kind=None, domain_id=None):
         if kind and kind not in [
             "interfaces",
