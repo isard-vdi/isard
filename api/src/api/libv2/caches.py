@@ -22,7 +22,7 @@ db = RDB(app)
 db.init_app(app)
 
 # Create the cache object
-cache = TTLCache(maxsize=2000, ttl=10)
+cache = TTLCache(maxsize=5000, ttl=10)
 
 
 def get_document(table, item_id, keys=[], invalidate=False):
@@ -87,6 +87,8 @@ def invalidate_cache(table, item_id):
 def show_cache_occupancy():
     current_size = len(cache)
     max_size = cache.maxsize
+    if current_size >= max_size:
+        log.error(f"Cache occupancy full: {current_size}/{max_size}")
     return f"Cache occupancy: {current_size}/{max_size}"
 
 
@@ -103,7 +105,7 @@ def get_cached_user_with_names(user_id):
             "role_name": get_document("roles", user["role"], ["name"]),
             "category_name": get_document("categories", user["category"], ["name"]),
             "group_name": get_document("groups", user["group"], ["name"]),
-            "user_name": get_document("users", user_id, ["name"]),
+            "user_name": user["name"],
         },
     )
 
