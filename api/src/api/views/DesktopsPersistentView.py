@@ -6,8 +6,11 @@
 import copy
 import json
 import traceback
+from collections import defaultdict
+from threading import Lock
 
-from flask import request
+import gevent
+from flask import jsonify, request
 from rethinkdb import RethinkDB
 
 from ..libv2.helpers import _parse_desktop_booking
@@ -42,7 +45,6 @@ targets = ApiTargets()
 from ..libv2.api_scheduler import Scheduler
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .decorators import (
-    can_use_bastion,
     has_token,
     is_admin_or_manager,
     is_not_user,
@@ -65,47 +67,65 @@ def api_v3_desktops_check_quota(payload):
     )
 
 
+active_status_requests = defaultdict(Lock)
+pending_status_requests = defaultdict(bool)
+
+
+def delayed_remove_status_lock(desktop_id):
+    del pending_status_requests[desktop_id]
+    del active_status_requests[desktop_id]
+
+
 @app.route("/api/v3/desktop/start/<desktop_id>", methods=["GET"])
 @has_token
 def api_v3_desktop_start(payload, desktop_id):
-    ownsDomainId(payload, desktop_id)
-    user_id = desktops.UserDesktop(desktop_id)
-
-    if ownsDeploymentDesktopId(payload, desktop_id):
-        desktop = quotas.deployment_desktop_start(payload["user_id"], desktop_id)
-    else:
-        desktop = quotas.desktop_start(user_id, desktop_id)
-    desktop = _parse_desktop_booking(desktop)
-
-    try:
-        check_virt_storage_pool_availability(desktop_id)
-    except Error as e:
+    if pending_status_requests[desktop_id]:
         raise Error(
-            "precondition_required",
-            e.error["description"],
-            traceback.format_exc(),
-            "hypervisors_not_available",
+            "too_many_requests",
+            "Start request already in progress. Please try again later.",
         )
 
-    if desktop["needs_booking"]:
-        try:
-            desktops.check_current_plan(payload, desktop_id)
-        except Error as e:
-            err = e.error["description_code"]
-            if err in [
-                "current_plan_doesnt_match",
-                "needs_deployment_booking",
-            ] or payload["role_id"] not in ["admin", "manager"]:
-                raise e
+    with active_status_requests[desktop_id]:
+        pending_status_requests[desktop_id] = True
 
-    # So now we have checked if desktop exists and if we can create and/or start it
-    desktop_id = desktops.Start(desktop_id)
-    logs_domain_start_api(
-        desktop_id,
-        action_user=payload.get("user_id"),
-        user_request=request,
-    )
-    scheduler.add_desktop_timeouts(payload, desktop_id)
+        ownsDomainId(payload, desktop_id)
+        if ownsDeploymentDesktopId(payload, desktop_id):
+            desktop = quotas.deployment_desktop_start(payload["user_id"], desktop_id)
+        else:
+            desktop = quotas.desktop_start(payload["user_id"], desktop_id)
+        desktop = _parse_desktop_booking(desktop)
+
+        try:
+            check_virt_storage_pool_availability(desktop_id)
+        except Error as e:
+            raise Error(
+                "precondition_required",
+                e.error["description"],
+                traceback.format_exc(),
+                "hypervisors_not_available",
+            )
+
+        if desktop["needs_booking"]:
+            try:
+                desktops.check_current_plan(payload, desktop_id)
+            except Error as e:
+                err = e.error["description_code"]
+                if err in [
+                    "current_plan_doesnt_match",
+                    "needs_deployment_booking",
+                ] or payload["role_id"] not in ["admin", "manager"]:
+                    raise e
+
+        # So now we have checked if desktop exists and if we can create and/or start it
+        desktop_id = desktops.Start(desktop_id)
+        logs_domain_start_api(
+            desktop_id,
+            action_user=payload.get("user_id"),
+            user_request=request,
+        )
+        scheduler.add_desktop_timeouts(payload, desktop_id)
+
+    gevent.spawn_later(1, delayed_remove_status_lock, desktop_id)
 
     return (
         json.dumps({"id": desktop_id}),
@@ -130,13 +150,12 @@ def api_v3_desktops_start(payload):
 
     for desktop_id in desktops_ids:
         ownsDomainId(payload, desktop_id)
-        user_id = desktops.UserDesktop(desktop_id)
         logs_domain_start_api(
             desktop_id,
-            action_user=user_id,
+            action_user=payload.get("user_id"),
             user_request=request,
         )
-        quotas.desktop_start(user_id, desktop_id)
+        quotas.desktop_start(payload.get("user_id"), desktop_id)
 
     # So now we have checked if desktop exists and if we can create and/or start it
     return (
@@ -149,10 +168,22 @@ def api_v3_desktops_start(payload):
 @app.route("/api/v3/desktop/stop/<desktop_id>", methods=["GET"])
 @has_token
 def api_v3_desktop_stop(payload, desktop_id):
-    ownsDomainId(payload, desktop_id)
-    logs_domain_stop_api(desktop_id, action_user=payload.get("user_id"))
+    if pending_status_requests[desktop_id]:
+        raise Error(
+            "too_many_requests",
+            "Stop request already in progress. Please try again later.",
+        )
+
+    with active_status_requests[desktop_id]:
+        pending_status_requests[desktop_id] = True
+
+        ownsDomainId(payload, desktop_id)
+        logs_domain_stop_api(desktop_id, action_user=payload.get("user_id"))
+        desktop_id = desktops.Stop(desktop_id)
+
+    gevent.spawn_later(1, delayed_remove_status_lock, desktop_id)
     return (
-        json.dumps({"id": desktops.Stop(desktop_id)}),
+        json.dumps({"id": desktop_id}),
         200,
         {"Content-Type": "application/json"},
     )

@@ -101,6 +101,13 @@ ex = {
         },
         "status_code": 507,
     },
+    "too_many_requests": {
+        "error": {
+            "error": "too_many_requests",
+            "msg": "Too many requests",
+        },
+        "status_code": 429,
+    },
 }
 
 ex_codes = [ex[x]["status_code"] for x in ex]
