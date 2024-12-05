@@ -406,3 +406,23 @@ def get_cached_available_domain_storage_pool_id(domain_id):
             description_code="storage_pool_disabled",
         )
     return virt_pool_id
+
+
+## Config
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=60))
+def get_config():
+    with app.app_context():
+        return r.table("config").get(1).run(db.conn)
+
+
+## Desktops priorities
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=60))
+def get_cached_desktops_priority():
+    with app.app_context():
+        return list(
+            r.table("desktops_priority").order_by(r.desc("priority")).run(db.conn)
+        )
