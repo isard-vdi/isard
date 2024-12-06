@@ -176,8 +176,8 @@ def check_category_domain(category_id, domain):
 
 
 def bulk_create(users):
-    for i in range(0, len(users), 5000):
-        batch_users = users[i : i + 5000]
+    for i in range(0, len(users), 100):
+        batch_users = users[i : i + 100]
         with app.app_context():
             r.table("users").insert(batch_users).run(db.conn)
     for user in users:
