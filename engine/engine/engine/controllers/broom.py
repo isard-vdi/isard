@@ -3,10 +3,10 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
-
-import os
+import json
 import threading
 import traceback
+from datetime import datetime, timezone
 from time import sleep, time
 
 from engine.config import POLLING_INTERVAL_TRANSITIONAL_STATES
@@ -28,6 +28,16 @@ from engine.services.lib.functions import (
     state_and_cause_to_str,
 )
 from engine.services.log import logs
+from tabulate import tabulate
+
+
+def format_broom_data(data):
+    if data[-1]["time"] > 5:
+        print(tabulate(data, headers="keys", tablefmt="grid"))
+    current_time = (
+        datetime.now(timezone.utc).astimezone().replace(microsecond=0).isoformat()
+    )
+    print({"time": current_time, "broom_time": data[-1]["time"]})
 
 
 class ThreadBroom(threading.Thread):
@@ -54,11 +64,21 @@ class ThreadBroom(threading.Thread):
                 if self.manager.check_actions_domains_enabled() is False:
                     continue
 
+                t_broom = time()
+                t_broom_data = []
                 """
                 DB DOMAINS TRANSITIONAL STATES
                 """
+                t_broom_inner = time()
                 l = get_domains_with_transitional_status(also_started=True)
-
+                t_broom_data.append(
+                    {
+                        "step": "get_domains_with_transitional_status",
+                        "count": len(l),
+                        "time": round(time() - t_broom_inner, 2),
+                    }
+                )
+                t_broom_inner = time()
                 DB_DOMAINS_WITHOUT_HYP = [d for d in l if "hyp_started" not in d.keys()]
                 DB_DOMAINS_STARTED_WITH_HYP = [
                     d for d in l if "hyp_started" in d.keys()
@@ -70,6 +90,15 @@ class ThreadBroom(threading.Thread):
                 #     a["id"] for a in DB_DOMAINS_WITHOUT_HYP
                 # ]
 
+                t_broom_data.append(
+                    {
+                        "step": "split_domains_with_transitional_status",
+                        "count": len(DB_DOMAINS_WITHOUT_HYP),
+                        "time": round(time() - t_broom_inner, 2),
+                    }
+                )
+
+                t_broom_inner = time()
                 for db_domain in DB_DOMAINS_WITHOUT_HYP:
                     logs.broom.error(
                         "DOMAIN {} WITH STATUS {} without HYPERVISOR".format(
@@ -81,10 +110,25 @@ class ThreadBroom(threading.Thread):
                         db_domain["id"],
                         detail="starting or stoping status without hypervisor",
                     )
+                t_broom_data.append(
+                    {
+                        "step": "update_domains_without_hypervisor",
+                        "count": len(DB_DOMAINS_WITHOUT_HYP),
+                        "time": round(time() - t_broom_inner, 2),
+                    }
+                )
 
+                t_broom_inner = time()
                 HYPERS_ONLINE = list(get_hyp_hostnames_online().keys())
-
+                t_broom_data.append(
+                    {
+                        "step": "get_hyp_hostnames_online",
+                        "count": len(HYPERS_ONLINE),
+                        "time": round(time() - t_broom_inner, 2),
+                    }
+                )
                 hyps_domain_started = {}
+                t_broom_inner = time()
                 for hyp_id in HYPERS_ONLINE:
                     try:
                         (
@@ -190,9 +234,16 @@ class ThreadBroom(threading.Thread):
                             "Exception when try to hypervisor {}: {}".format(hyp_id, e)
                         )
                         logs.broom.error("Traceback: {}".format(traceback.format_exc()))
-
+                t_broom_data.append(
+                    {
+                        "step": "get_domains_from_hypervisors",
+                        "count": len(hyps_domain_started),
+                        "time": round(time() - t_broom_inner, 2),
+                    }
+                )
                 ## DOMAINS ACTIVE EN HYPERVISOR THAT ARE STOPPED, FAILED, UNKNOWN IN DATABASE...
                 for hyp_id, d in hyps_domain_started.items():
+                    t_broom_inner = time()
                     if d.get("active_domains"):
                         for domain_id, d_status in d["active_domains"].items():
                             domain_status = d_status["status"]
@@ -241,7 +292,15 @@ class ThreadBroom(threading.Thread):
                                     logs.broom.error(
                                         f"CRITICAL: broom not update strange status {domain_id} with status {domain_status} in hypervisor {hyp_id}"
                                     )
+                    t_broom_data.append(
+                        {
+                            "step": f"update_domains_from_hypervisors {hyp_id}",
+                            "count": len(hyps_domain_started),
+                            "time": round(time() - t_broom_inner, 2),
+                        }
+                    )
 
+                t_broom_inner = time()
                 for d in DB_DOMAINS_WITHOUT_HYP:
                     domain_id = d["id"]
                     status = d["status"]
@@ -256,7 +315,15 @@ class ThreadBroom(threading.Thread):
                             domain_id,
                             detail="Stopped by broom thread because has not hypervisor",
                         )
+                t_broom_data.append(
+                    {
+                        "step": "update_domains_without_hypervisor",
+                        "count": len(DB_DOMAINS_WITHOUT_HYP),
+                        "time": round(time() - t_broom_inner, 2),
+                    }
+                )
 
+                t_broom_inner = time()
                 for d in DB_DOMAINS_STARTED_WITH_HYP:
                     domain_id = d["id"]
                     status = d["status"]
@@ -377,6 +444,21 @@ class ThreadBroom(threading.Thread):
                                     domain_id, hyp_started
                                 )
                             )
+                t_broom_data.append(
+                    {
+                        "step": "update_domains_with_hypervisor",
+                        "count": len(DB_DOMAINS_STARTED_WITH_HYP),
+                        "time": round(time() - t_broom_inner, 2),
+                    }
+                )
+                t_broom_data.append(
+                    {
+                        "step": "total",
+                        "count": "-",
+                        "time": round(time() - t_broom, 2),
+                    }
+                )
+                format_broom_data(t_broom_data)
             except Exception as e:
                 logs.broom.error(
                     "Exception in broom thread. Traceback: {}".format(
