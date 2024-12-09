@@ -32,6 +32,7 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.recycle_bin import RecycleBinDeleteQueue
+from .api_notify import notify_custom
 from .api_sessions import revoke_user_session
 from .api_storage import remove_category_from_storage_pool
 from .bookings.api_booking import Bookings
@@ -1091,7 +1092,7 @@ class ApiUsers:
                 users = list(
                     r.table("users")
                     .get_all(r.args(item_ids))
-                    .pluck("id", "name", "username")
+                    .pluck("id", "name", "username", "provider")
                     .run(db.conn)
                 )
             with app.app_context():
@@ -2142,6 +2143,12 @@ class ApiUsers:
                 .run(db.conn)
             )
         if user_migration:
+            if len(user_migration) > 1:
+                raise Error(
+                    "internal_server",
+                    "Multiple migrations found for user",
+                    description_code="multiple_migrations_found",
+                )
             with app.app_context():
                 r.table("users_migrations").get_all(
                     origin_user_id, index="origin_user"
@@ -2184,6 +2191,13 @@ class ApiUsers:
                 .run(db.conn)
             )
         if user_migration:
+            if len(user_migration) > 1:
+                raise Error(
+                    "internal_server",
+                    "Multiple migrations found for token",
+                    description_code="multiple_migrations_found",
+                )
+
             return user_migration[0]
         else:
             raise Error(
@@ -2284,17 +2298,24 @@ class ApiUsers:
 
     def delete_user_migration(self, migration_token):
         """
-
         Deletes a user migration based on the migration token
 
         :param migration_token: The migration token
         :type migration_token: str
-
         """
         with app.app_context():
-            r.table("users_migrations").get_all(
-                migration_token, index="token"
-            ).delete().run(db.conn)
+            result = (
+                r.table("users_migrations")
+                .get_all(migration_token, index="token")
+                .delete()
+                .run(db.conn)
+            )
+        if result.get("deleted", 0) == 0:
+            raise Error(
+                "internal_server",
+                "No migration found when deleting",
+                description_code="migration_not_found",
+            )
 
     def process_migrate_user(self, user_id, target_user_id):
         user_data = get_new_user_data(target_user_id)
@@ -2351,17 +2372,37 @@ class ApiUsers:
             self.update_user_migration(
                 migration_token, "migrating", migration_start_time=True
             )
-            self.automigrate_user(user_id, user_data, migration_token)
-            self.update_user_migration(
-                migration_token, "migrated", migration_end_time=True
-            )
+            result = self.automigrate_user(user_id, user_data, migration_token)
+            if any(
+                s in result
+                for s in [
+                    "desktops_error",
+                    "templates_error",
+                    "media_error",
+                    "deployments_error",
+                ]
+            ):
+                self.update_user_migration(
+                    migration_token, "failed", migration_end_time=True
+                )
+            else:
+                self.update_user_migration(
+                    migration_token, "migrated", migration_end_time=True
+                )
+            return result
         except Error as e:
             app.logger.error(e)
             error_message = str(e)
             if isinstance(e.args, tuple) and len(e.args) > 1:
                 error_message = e.args[1]
+            raise e
         except Exception:
             app.logger.error(traceback.format_exc())
+            raise Error(
+                "internal_server",
+                "Error migrating user",
+                traceback.format_exc(),
+            )
 
     def automigrate_user(self, user_id, user_data, migration_token):
         """
@@ -2376,22 +2417,150 @@ class ApiUsers:
         :type migration_token: str
 
         """
+        progress = {}
+
         user_resources = self.get_user_resources(user_id)
         self.update_user_migration(migration_token, migrated_items=user_resources)
+
         if user_resources["desktops"]:
-            change_owner_desktops(user_resources["desktops"], user_data, user_id)
-            self.update_user_migration(migration_token, migrated_desktops=True)
+            try:
+                change_owner_desktops(user_resources["desktops"], user_data, user_id)
+            except Error as e:
+                progress["migrated_desktops"] = False
+                progress["desktops_error"] = str(e)
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_desktops": False, "desktops_error": str(e)},
+                    "/userspace",
+                    user_id,
+                )
+            except:
+                progress["migrated_desktops"] = False
+                progress["desktops_error"] = "unknown"
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_desktops": False, "desktops_error": "unknown"},
+                    "/userspace",
+                    user_id,
+                )
+            else:
+                self.update_user_migration(migration_token, migrated_desktops=True)
+                progress["migrated_desktops"] = True
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_desktops": True},
+                    "/userspace",
+                    user_id,
+                )
+
         if user_resources["templates"]:
-            change_owner_templates(user_resources["templates"], user_data)
-            self.update_user_migration(migration_token, migrated_templates=True)
+            try:
+                change_owner_templates(user_resources["templates"], user_data)
+            except Error as e:
+                progress["migrated_templates"] = False
+                progress["templates_error"] = str(e)
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_templates": False, "templates_error": str(e)},
+                    "/userspace",
+                    user_id,
+                )
+            except:
+                progress["migrated_templates"] = False
+                progress["templates_error"] = "unknown"
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_templates": False, "templates_error": "unknown"},
+                    "/userspace",
+                    user_id,
+                )
+            else:
+                self.update_user_migration(migration_token, migrated_templates=True)
+                progress["migrated_templates"] = True
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_templates": True},
+                    "/userspace",
+                    user_id,
+                )
+
         if user_resources["media"]:
-            change_owner_medias(user_resources["media"], user_data)
-            self.update_user_migration(migration_token, migrated_media=True)
-        change_owner_deployments(user_resources["deployments"], user_data, user_id)
-        self.update_user_migration(migration_token, migrated_deployments=True)
+            try:
+                change_owner_medias(user_resources["media"], user_data)
+            except Error as e:
+                progress["migrated_media"] = False
+                progress["media_error"] = str(e)
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_media": False, "media_error": str(e)},
+                    "/userspace",
+                    user_id,
+                )
+            except:
+                progress["migrated_media"] = False
+                progress["media_error"] = "unknown"
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_media": False, "media_error": "unknown"},
+                    "/userspace",
+                    user_id,
+                )
+            else:
+                self.update_user_migration(migration_token, migrated_media=True)
+                progress["migrated_media"] = True
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_media": True},
+                    "/userspace",
+                    user_id,
+                )
+
+        if user_resources["deployments"]:
+            try:
+                change_owner_deployments(
+                    user_resources["deployments"], user_data, user_id
+                )
+            except Error as e:
+                progress["migrated_deployments"] = False
+                progress["deployments_error"] = str(e)
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_deployments": False, "deployments_error": str(e)},
+                    "/userspace",
+                    user_id,
+                )
+            except:
+                progress["migrated_deployments"] = False
+                progress["deployments_error"] = "unknown"
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_deployments": False, "deployments_error": "unknown"},
+                    "/userspace",
+                    user_id,
+                )
+            else:
+                self.update_user_migration(migration_token, migrated_deployments=True)
+                progress["migrated_deployments"] = True
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_deployments": True},
+                    "/userspace",
+                    user_id,
+                )
+
         rb_ids = get_user_recycle_bin_ids(user_id, "recycled")
         for rb_id in rb_ids:
             rb_delete_queue.enqueue({"recycle_bin_id": rb_id, "user_id": user_id})
+        progress["rb_deleted"] = True
+        notify_custom(
+            "migration_progress",
+            {"rb_deleted": True},
+            "/userspace",
+            user_id,
+        )
+
+        # TODO: only use ws once they are implemented in frontend
+        return progress
 
     def check_valid_migration(self, origin_user_id, target_user_id):
         """

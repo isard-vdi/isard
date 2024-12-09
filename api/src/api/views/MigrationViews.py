@@ -161,7 +161,24 @@ def api_v3_user_migration_list(payload):
     :rtype: Set with Flask response values and data in JSON
 
     """
-    user_migration = users.get_user_migration_by_target_user(payload["user_id"])
+    try:
+        user_migration = users.get_user_migration_by_target_user(payload["user_id"])
+    except Error as e:
+        if e.error.get("description_code") == "migration_not_found":
+            return (
+                json.dumps(
+                    {
+                        "errors": [
+                            {
+                                "description": "The user migration process was not found.",
+                                "description_code": "invalid_token",
+                            }
+                        ]
+                    }
+                ),
+                428,
+                {"Content-Type": "application/json"},
+            )
     errors = []
 
     try:
@@ -181,15 +198,33 @@ def api_v3_user_migration_list(payload):
         user_migration["origin_user"], payload["user_id"]
     )
 
-    if errors:
+    # TODO: quota errors can either block the migration or just be a warning
+    quota_errors = []
+    non_quota_errors = []
+    for error in errors:
+        if error["description_code"] in [
+            "migration_desktop_quota_error",
+            "migration_template_quota_error",
+            "migration_media_quota_error",
+            "migration_deployments_quota_error",
+        ]:
+            quota_errors.append(error)
+        else:
+            non_quota_errors.append(error)
+
+    if non_quota_errors:
         return (
-            json.dumps({"errors": errors}),
+            json.dumps({"errors": non_quota_errors}),
             428,
             {"Content-Type": "application/json"},
         )
 
+    items = users._delete_checks([user_migration["origin_user"]], "user")
+    if quota_errors:
+        items["quota_errors"] = quota_errors
+
     return (
-        json.dumps(users._delete_checks([user_migration["origin_user"]], "user")),
+        json.dumps(items),
         200,
         {"Content-Type": "application/json"},
     )
@@ -233,14 +268,28 @@ def api_v3_user_migration_auto(payload):
             {"Content-Type": "application/json"},
         )
 
-    gevent.spawn(
-        users.process_automigrate_user,
-        user_migration["origin_user"],
-        payload["user_id"],
-        user_migration["token"],
-    )
+    # TODO: move to a thread once ws are implemented in frontend
+
+    # gevent.spawn(
+    #     users.process_automigrate_user,
+    #     user_migration["origin_user"],
+    #     payload["user_id"],
+    #     user_migration["token"],
+    # )
+    # return (
+    #     json.dumps({}),
+    #     200,
+    #     {"Content-Type": "application/json"},
+    # )
+
     return (
-        json.dumps({}),
+        json.dumps(
+            users.process_automigrate_user(
+                user_migration["origin_user"],
+                payload["user_id"],
+                user_migration["token"],
+            )
+        ),
         200,
         {"Content-Type": "application/json"},
     )

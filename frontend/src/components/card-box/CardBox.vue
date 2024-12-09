@@ -17,7 +17,7 @@ const emit = defineEmits(['click'])
 
 <template>
   <div
-    class="flex flex-col items-center justify-center bg-white shadow-md rounded-lg p-4"
+    class="flex flex-col items-center justify-center bg-base-white shadow-md rounded-lg p-4 border border-gray-warm-300"
     @click="emit('click')"
   >
     <Icon

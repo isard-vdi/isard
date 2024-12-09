@@ -8,6 +8,7 @@ import (
 )
 
 func New(cfg cfg.DB) (r.QueryExecutor, error) {
+	fmt.Println(cfg.Usr)
 	sess, err := r.Connect(r.ConnectOpts{
 		// TOOD: Cluster connections!
 		Address:  cfg.Addr(),
