@@ -12,6 +12,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from .api_allowed import ApiAllowed
+from .caches import get_cached_desktops_priority, get_document
 
 allowed = ApiAllowed()
 r = RethinkDB()
@@ -21,12 +22,70 @@ db = RDB(app)
 db.init_app(app)
 
 
+@cached(
+    TTLCache(maxsize=200, ttl=5),
+    key=lambda user_id: user_id,
+)
+def cached_user_domains(user_id):
+    return list(
+        r.table("domains")
+        .get_all(user_id, index="user")
+        .pluck("status", "kind", "create_dict")
+        .run(db.conn)
+    )
+
+
+def cached_user_desktops(user_id):
+    return [d for d in cached_user_domains(user_id) if d["kind"] == "desktop"]
+
+
+def cached_user_desktops_started(user_id):
+    return [
+        d
+        for d in cached_user_domains(user_id)
+        if d["kind"] == "desktop" and d["status"] == "Started"
+    ]
+
+
+@cached(
+    TTLCache(maxsize=200, ttl=5),
+    key=lambda user_id: user_id,
+)
+def cached_user_templates(user_id):
+    return [d for d in cached_user_domains(user_id) if d["kind"] == "template"]
+
+
+@cached(
+    TTLCache(maxsize=200, ttl=5),
+    key=lambda user_id: user_id,
+)
+def cached_user_isos_count(user_id):
+    return r.table("media").get_all(user_id, index="user").count().run(db.conn)
+
+
+@cached(
+    TTLCache(maxsize=200, ttl=5),
+    key=lambda user_id: user_id,
+)
+def cached_user_deployments_ids(user_id):
+    return list(
+        r.table("deployments")
+        .get_all(user_id, index="user")
+        .pluck("id")["id"]
+        .run(db.conn)
+    )
+
+
 class QuotasProcess:
     def __init__(self):
         None
 
-    @cached(TTLCache(maxsize=10, ttl=10))
+    @cached(
+        TTLCache(maxsize=50, ttl=10),
+        key=lambda self, user_id, category_id, role_id: user_id,
+    )
     def get(self, user_id, category_id, role_id):
+        # Used only in webapp as information
         userquotas = {}
         userquotas["user"] = self.process_user_quota(user_id)
         if role_id == "manager":
@@ -41,127 +100,62 @@ class QuotasProcess:
         return userquotas
 
     def process_user_quota(self, user_id):
-        with app.app_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .without("password", "vpn", "user_storage")
-                .run(db.conn)
-            )
+        user = get_document("users", user_id)
 
-        with app.app_context():
-            desktops = (
-                r.table("domains")
-                .get_all(["desktop", user_id], index="kind_user")
-                .count()
-                .run(db.conn)
-            )
-        with app.app_context():
-            templates = (
-                r.table("domains")
-                .get_all(["template", user_id], index="kind_user")
-                .count()
-                .run(db.conn)
-            )
-        with app.app_context():
-            isos = r.table("media").get_all(user_id, index="user").count().run(db.conn)
-        try:
-            with app.app_context():
-                starteds = (
-                    r.table("domains")
-                    .get_all(["Started", user_id], index="status_user")
-                    .pluck("create_dict")
-                    .map(
-                        lambda domain: {
-                            "count": 1,
-                            "memory": domain["create_dict"]["hardware"]["memory"],
-                            "vcpus": domain["create_dict"]["hardware"]["vcpus"],
-                        }
-                    )
-                    .reduce(
-                        lambda left, right: {
-                            "count": left["count"] + right["count"],
-                            "vcpus": left["vcpus"].add(right["vcpus"]),
-                            "memory": left["memory"].add(right["memory"]),
-                        }
-                    )
-                    .run(db.conn)
-                )
-        except r.ReqlNonExistenceError:
-            starteds = {"count": 0, "memory": 0, "vcpus": 0}
-        with app.app_context():
-            deployments = (
-                r.table("deployments")
-                .get_all(user["id"], index="user")
-                .count()
-                .run(db.conn)
-            )
+        desktops = len(cached_user_desktops(user_id))
+        if user["role"] == "user":
+            templates = 0
+            isos = 0
+        else:
+            templates = len(cached_user_templates(user_id))
+            isos = cached_user_isos_count(user_id)
+
+        starteds = {
+            "count": len(cached_user_desktops_started(user_id)),
+            "vcpus": sum(
+                domain["create_dict"]["hardware"]["vcpus"]
+                for domain in cached_user_desktops_started(user_id)
+            ),
+            "memory": sum(
+                domain["create_dict"]["hardware"]["memory"]
+                for domain in cached_user_desktops_started(user_id)
+            ),
+        }
+
+        deployments_ids = cached_user_deployments_ids(user_id)
+        deployments = len(deployments_ids)
         deployment_desktops = 0
 
-        with app.app_context():
-            started_deployment_desktops = (
-                r.table("domains")
-                .get_all(
-                    r.args(
-                        list(
-                            r.table("deployments")
-                            .get_all(user_id, index="user")
-                            .pluck("id")["id"]
-                            .run(db.conn)
-                        )
-                    ),
-                    index="tag",
-                )
-                .filter(
-                    lambda desktop: r.expr(
-                        [
-                            "Started",
-                            "Starting",
-                            "StartingPaused",
-                            "CreatingAndStarting",
-                            "Shutting-down",
-                        ]
-                    ).contains(desktop["status"])
-                )
-                .eq_join("start_logs_id", r.table("logs_desktops"))
-                .pluck({"right": ["starting_by"]}, "left")
-                .zip()
-                .filter(lambda log: log.get_field("starting_by").eq("deployment-owner"))
-                .count()
-                .run(db.conn)
-            ) + (
-                r.table("domains")
-                .get_all(
-                    r.args(
-                        list(
-                            r.table("deployments")
-                            .get_all(user_id, index="user")
-                            .pluck("id")["id"]
-                            .run(db.conn)
-                        )
-                    ),
-                    index="tag",
-                )
-                .filter(
-                    lambda desktop: r.expr(
-                        [
-                            "Started",
-                            "Starting",
-                            "StartingPaused",
-                            "CreatingAndStarting",
-                            "Shutting-down",
-                        ]
-                    ).contains(desktop["status"])
-                )
-                .eq_join("start_logs_id", r.table("logs_desktops"))
-                .pluck({"right": ["starting_by"]}, "left")
-                .zip()
-                .filter(
-                    lambda log: log.get_field("starting_by").eq("deployment-co-owner")
-                )
-                .count()
-                .run(db.conn)
-            )
+        ## Not used in webapp yet
+        # with app.app_context():
+        #     started_deployment_desktops_starting_by = (
+        #         r.table("domains")
+        #         .get_all(r.args(deployments_ids), index="tag")
+        #         .filter(
+        #             lambda desktop: r.expr(
+        #                 [
+        #                     "Started",
+        #                     "Starting",
+        #                     "StartingPaused",
+        #                     "CreatingAndStarting",
+        #                     "Shutting-down",
+        #                 ]
+        #             ).contains(desktop["status"])
+        #         )
+        #         .eq_join("start_logs_id", r.table("logs_desktops"))
+        #         .pluck({"right": ["starting_by"]}, "left")
+        #         .zip()
+        #         .group(lambda log: log["starting_by"])
+        #         .count()
+        #         .run(db.conn)
+        #     )
+
+        # owner_count = started_deployment_desktops_starting_by.get("deployment-owner", 0)
+        # co_owner_count = started_deployment_desktops_starting_by.get(
+        #     "deployment-co-owner", 0
+        # )
+        # started_deployment_desktops = owner_count + co_owner_count
+        started_deployment_desktops = 0
 
         vcpus = starteds["vcpus"]
         memory = round(starteds["memory"] / 1048576)
@@ -262,22 +256,22 @@ class QuotasProcess:
             "startDeploymentDktpqp": int(round(qpStartDeploymentDktp, 0)),
         }
 
+    @cached(
+        TTLCache(maxsize=50, ttl=10),
+        key=lambda self, id, from_user_id=None, from_group_id=None: (
+            id,
+            from_user_id,
+            from_group_id,
+        ),
+    )
     def process_category_limits(self, id, from_user_id=None, from_group_id=None):
         if from_user_id:
-            with app.app_context():
-                user = r.table("users").get(id).pluck("category", "role").run(db.conn)
+            user = get_document("users", id, ["category", "role"])
             id = user["category"]
         if from_group_id:
-            with app.app_context():
-                id = (
-                    r.table("groups")
-                    .get(id)
-                    .pluck("parent_category")
-                    .run(db.conn)["parent_category"]
-                )
+            id = get_document("groups", id, ["parent_category"])
+        category = get_document("categories", id)
 
-        with app.app_context():
-            category = r.table("categories").get(id).run(db.conn)
         if (
             category == None
             or "limits" not in category.keys()
@@ -439,16 +433,18 @@ class QuotasProcess:
             "deploymentsqp": int(round(qpDeployments, 0)),
         }
 
+    @cached(
+        TTLCache(maxsize=200, ttl=10),
+        key=lambda self, id, from_user_id=None: (id, from_user_id),
+    )
     def process_group_limits(self, id, from_user_id=None):
         if from_user_id:
-            with app.app_context():
-                user = r.table("users").get(id).pluck("group", "role").run(db.conn)
-                group_id = user["group"]
+            user = get_document("users", id, ["group", "role"])
+            group_id = user["group"]
         else:
             group_id = id
+        group = get_document("groups", group_id)
 
-        with app.app_context():
-            group = r.table("groups").get(group_id).run(db.conn)
         if group == None or "limits" not in group.keys() or group["limits"] == False:
             return False
 
@@ -601,6 +597,10 @@ class QuotasProcess:
             "deploymentsqp": int(round(qpdeployments, 0)),
         }
 
+    @cached(
+        TTLCache(maxsize=10, ttl=30),
+        key=lambda self, category_id: category_id,
+    )
     def get_manager_usage(self, category_id):
         with app.app_context():
             desktops = (
@@ -674,6 +674,10 @@ class QuotasProcess:
             "deployments": deployments,
         }
 
+    @cached(
+        TTLCache(maxsize=10, ttl=30),
+        key=lambda self: None,
+    )
     def get_admin_usage(self):
         with app.app_context():
             desktops = (
@@ -728,271 +732,279 @@ class QuotasProcess:
             "deployments": deployments,
         }
 
-    def check_payload_quota_newdesktop(self, payload):
-        with app.app_context():
-            desktops = (
-                r.table("domains")
-                .get_all(["desktop", payload["user_id"]], index="kind_user")
-                .count()
-                .run(db.conn)
-            )
-        if desktops >= payload.get("quota", {}).get("desktops"):
-            raise Error(
-                "precondition_required",
-                "User "
-                + payload["user_id"]
-                + " quota exceeded for creating new desktop.",
-                traceback.format_exc(),
-                data=payload,
-                description_code="desktop_new_user_quota_exceeded",
-            )
+    # @cached(
+    #     TTLCache(maxsize=100, ttl=10),
+    #     key=lambda self, payload: payload["user_id"],
+    # )
+    # def check_payload_quota_newdesktop(self, payload):
+    #     with app.app_context():
+    #         desktops = (
+    #             r.table("domains")
+    #             .get_all(["desktop", payload["user_id"]], index="kind_user")
+    #             .count()
+    #             .run(db.conn)
+    #         )
+    #     if desktops >= payload.get("quota", {}).get("desktops"):
+    #         raise Error(
+    #             "precondition_required",
+    #             "User "
+    #             + payload["user_id"]
+    #             + " quota exceeded for creating new desktop.",
+    #             traceback.format_exc(),
+    #             data=payload,
+    #             description_code="desktop_new_user_quota_exceeded",
+    #         )
 
-    def check(self, item, user_id, amount=1):
-        """All common events should call here and check if quota/limits have exceeded already."""
-        user = self.process_user_quota(user_id)
-        group = self.process_group_limits(user_id, from_user_id=True)
-        category = self.process_category_limits(user_id, from_user_id=True)
-        if item == "NewDesktop":
-            if user != False and float(user["dqp"]) >= 100:
-                raise Error(
-                    "precondition_required",
-                    "User "
-                    + user["user"]["name"]
-                    + " quota exceeded for creating new desktop.",
-                    traceback.format_exc(),
-                    data=user,
-                    description_code="desktop_new_user_quota_exceeded",
-                )
-            if group != False and float(group["dqp"]) >= 100:
-                raise Error(
-                    "precondition_required",
-                    "Group "
-                    + group["group"]["name"]
-                    + " quota exceeded for creating new desktop.",
-                    traceback.format_exc(),
-                    data=group,
-                    description_code="desktop_new_group_quota_exceeded",
-                )
-            if category != False and float(category["dqp"]) >= 100:
-                raise Error(
-                    "precondition_required",
-                    "Category "
-                    + category["category"]["name"]
-                    + " quota exceeded for creating new desktop.",
-                    traceback.format_exc(),
-                    data=category,
-                    description_code="desktop_new_category_quota_exceeded",
-                )
+    # def check(self, item, user_id, amount=1):
+    #     """All common events should call here and check if quota/limits have exceeded already."""
+    #     user = self.process_user_quota(user_id)
+    #     group = self.process_group_limits(user_id, from_user_id=True)
+    #     category = self.process_category_limits(user_id, from_user_id=True)
+    #     if item == "NewDesktop":
+    #         if user != False and float(user["dqp"]) >= 100:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "User "
+    #                 + user["user"]["name"]
+    #                 + " quota exceeded for creating new desktop.",
+    #                 traceback.format_exc(),
+    #                 data=user,
+    #                 description_code="desktop_new_user_quota_exceeded",
+    #             )
+    #         if group != False and float(group["dqp"]) >= 100:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "Group "
+    #                 + group["group"]["name"]
+    #                 + " quota exceeded for creating new desktop.",
+    #                 traceback.format_exc(),
+    #                 data=group,
+    #                 description_code="desktop_new_group_quota_exceeded",
+    #             )
+    #         if category != False and float(category["dqp"]) >= 100:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "Category "
+    #                 + category["category"]["name"]
+    #                 + " quota exceeded for creating new desktop.",
+    #                 traceback.format_exc(),
+    #                 data=category,
+    #                 description_code="desktop_new_category_quota_exceeded",
+    #             )
 
-        if item == "NewConcurrent":
-            if user != False:
-                if float(user["rqp"]) >= 100:
-                    raise Error(
-                        "precondition_required",
-                        "User "
-                        + user["user"]["name"]
-                        + " quota exceeded for starting new desktop.",
-                        traceback.format_exc(),
-                        data=user,
-                        description_code="desktop_start_user_quota_exceeded",
-                    )
-                if float(user["vqp"]) >= 100:
-                    raise Error(
-                        "precondition_required",
-                        "User "
-                        + user["user"]["name"]
-                        + " quota exceeded for vCPU at starting a new desktop.",
-                        traceback.format_exc(),
-                        data=user,
-                        description_code="desktop_start_vcpu_quota_exceeded",
-                    )
-                if float(user["mqp"]) >= 100:
-                    raise Error(
-                        "precondition_required",
-                        "User "
-                        + user["user"]["name"]
-                        + " quota exceeded for RAM at starting a new desktop.",
-                        traceback.format_exc(),
-                        data=user,
-                        description_code="desktop_start_memory_quota_exceeded",
-                    )
-            if group != False:
-                if float(group["rqp"]) >= 100:
-                    raise Error(
-                        "precondition_required",
-                        "Group "
-                        + group["group"]["name"]
-                        + " quota exceeded for starting new desktop.",
-                        traceback.format_exc(),
-                        data=group,
-                        description_code="desktop_start_group_quota_exceeded",
-                    )
-                if float(group["vqp"]) >= 100:
-                    raise Error(
-                        "precondition_required",
-                        "Group "
-                        + group["group"]["name"]
-                        + " quota exceeded for vCPU at starting new desktop.",
-                        traceback.format_exc(),
-                        data=group,
-                        description_code="desktop_start_group_vcpu_quota_exceeded",
-                    )
-                if float(group["mqp"]) >= 100:
-                    raise Error(
-                        "precondition_required",
-                        "Group "
-                        + group["group"]["name"]
-                        + " quota exceeded for RAM at starting new desktop.",
-                        traceback.format_exc(),
-                        data=group,
-                        description_code="desktop_start_group_memory_quota_exceeded",
-                    )
-            if category != False:
-                if float(category["rqp"]) >= 100:
-                    raise Error(
-                        "precondition_required",
-                        "Category"
-                        + category["category"]["name"]
-                        + " quota exceeded for starting new desktop.",
-                        traceback.format_exc(),
-                        data=category,
-                        description_code="desktop_start_category_quota_exceeded",
-                    )
-                if float(category["vqp"]) >= 100:
-                    raise Error(
-                        "precondition_required",
-                        "Category"
-                        + category["category"]["name"]
-                        + " quota exceeded for vCPU at starting new desktop.",
-                        traceback.format_exc(),
-                        data=category,
-                        description_code="desktop_start_category_vcpu_quota_exceeded",
-                    )
-                if float(category["mqp"]) >= 100:
-                    raise Error(
-                        "precondition_required",
-                        "Category"
-                        + category["category"]["name"]
-                        + " quota exceeded for RAM at starting new desktop.",
-                        traceback.format_exc(),
-                        data=category,
-                        description_code="desktop_start_category_memory_quota_exceeded",
-                    )
+    #     if item == "NewConcurrent":
+    #         if user != False:
+    #             if float(user["rqp"]) >= 100:
+    #                 raise Error(
+    #                     "precondition_required",
+    #                     "User "
+    #                     + user["user"]["name"]
+    #                     + " quota exceeded for starting new desktop.",
+    #                     traceback.format_exc(),
+    #                     data=user,
+    #                     description_code="desktop_start_user_quota_exceeded",
+    #                 )
+    #             if float(user["vqp"]) >= 100:
+    #                 raise Error(
+    #                     "precondition_required",
+    #                     "User "
+    #                     + user["user"]["name"]
+    #                     + " quota exceeded for vCPU at starting a new desktop.",
+    #                     traceback.format_exc(),
+    #                     data=user,
+    #                     description_code="desktop_start_vcpu_quota_exceeded",
+    #                 )
+    #             if float(user["mqp"]) >= 100:
+    #                 raise Error(
+    #                     "precondition_required",
+    #                     "User "
+    #                     + user["user"]["name"]
+    #                     + " quota exceeded for RAM at starting a new desktop.",
+    #                     traceback.format_exc(),
+    #                     data=user,
+    #                     description_code="desktop_start_memory_quota_exceeded",
+    #                 )
+    #         if group != False:
+    #             if float(group["rqp"]) >= 100:
+    #                 raise Error(
+    #                     "precondition_required",
+    #                     "Group "
+    #                     + group["group"]["name"]
+    #                     + " quota exceeded for starting new desktop.",
+    #                     traceback.format_exc(),
+    #                     data=group,
+    #                     description_code="desktop_start_group_quota_exceeded",
+    #                 )
+    #             if float(group["vqp"]) >= 100:
+    #                 raise Error(
+    #                     "precondition_required",
+    #                     "Group "
+    #                     + group["group"]["name"]
+    #                     + " quota exceeded for vCPU at starting new desktop.",
+    #                     traceback.format_exc(),
+    #                     data=group,
+    #                     description_code="desktop_start_group_vcpu_quota_exceeded",
+    #                 )
+    #             if float(group["mqp"]) >= 100:
+    #                 raise Error(
+    #                     "precondition_required",
+    #                     "Group "
+    #                     + group["group"]["name"]
+    #                     + " quota exceeded for RAM at starting new desktop.",
+    #                     traceback.format_exc(),
+    #                     data=group,
+    #                     description_code="desktop_start_group_memory_quota_exceeded",
+    #                 )
+    #         if category != False:
+    #             if float(category["rqp"]) >= 100:
+    #                 raise Error(
+    #                     "precondition_required",
+    #                     "Category"
+    #                     + category["category"]["name"]
+    #                     + " quota exceeded for starting new desktop.",
+    #                     traceback.format_exc(),
+    #                     data=category,
+    #                     description_code="desktop_start_category_quota_exceeded",
+    #                 )
+    #             if float(category["vqp"]) >= 100:
+    #                 raise Error(
+    #                     "precondition_required",
+    #                     "Category"
+    #                     + category["category"]["name"]
+    #                     + " quota exceeded for vCPU at starting new desktop.",
+    #                     traceback.format_exc(),
+    #                     data=category,
+    #                     description_code="desktop_start_category_vcpu_quota_exceeded",
+    #                 )
+    #             if float(category["mqp"]) >= 100:
+    #                 raise Error(
+    #                     "precondition_required",
+    #                     "Category"
+    #                     + category["category"]["name"]
+    #                     + " quota exceeded for RAM at starting new desktop.",
+    #                     traceback.format_exc(),
+    #                     data=category,
+    #                     description_code="desktop_start_category_memory_quota_exceeded",
+    #                 )
 
-        if item == "NewTemplate":
-            if user != False and float(user["tqp"]) >= 100:
-                raise Error(
-                    "precondition_required",
-                    "User "
-                    + user["user"]["name"]
-                    + " quota exceeded for creating new template.",
-                    traceback.format_exc(),
-                    data=user,
-                    description_code="template_new_user_quota_exceeded",
-                )
-            if group != False and float(group["tqp"]) >= 100:
-                raise Error(
-                    "precondition_required",
-                    "Group "
-                    + group["group"]["name"]
-                    + " quota exceeded for creating new template.",
-                    traceback.format_exc(),
-                    data=group,
-                    description_code="template_new_group_quota_exceeded",
-                )
-            if category != False and float(category["tqp"]) >= 100:
-                raise Error(
-                    "precondition_required",
-                    "Category "
-                    + category["category"]["name"]
-                    + " quota exceeded for creating new desktop.",
-                    traceback.format_exc(),
-                    data=category,
-                    description_code="template_new_category_quota_exceeded",
-                )
+    #     if item == "NewTemplate":
+    #         if user != False and float(user["tqp"]) >= 100:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "User "
+    #                 + user["user"]["name"]
+    #                 + " quota exceeded for creating new template.",
+    #                 traceback.format_exc(),
+    #                 data=user,
+    #                 description_code="template_new_user_quota_exceeded",
+    #             )
+    #         if group != False and float(group["tqp"]) >= 100:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "Group "
+    #                 + group["group"]["name"]
+    #                 + " quota exceeded for creating new template.",
+    #                 traceback.format_exc(),
+    #                 data=group,
+    #                 description_code="template_new_group_quota_exceeded",
+    #             )
+    #         if category != False and float(category["tqp"]) >= 100:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "Category "
+    #                 + category["category"]["name"]
+    #                 + " quota exceeded for creating new desktop.",
+    #                 traceback.format_exc(),
+    #                 data=category,
+    #                 description_code="template_new_category_quota_exceeded",
+    #             )
 
-        if item == "NewIso":
-            if user != False and float(user["iqp"]) >= 100:
-                raise Error(
-                    "precondition_required",
-                    "User "
-                    + user["user"]["name"]
-                    + " quota exceeded for uploading new iso",
-                    traceback.format_exc(),
-                    data=user,
-                    description_code="iso_creation_user_quota_exceeded",
-                )
-            if group != False and float(group["iqp"]) >= 100:
-                raise Error(
-                    "precondition_required",
-                    "Group "
-                    + group["group"]["name"]
-                    + " quota exceeded for uploading new iso",
-                    traceback.format_exc(),
-                    data=group,
-                    description_code="iso_creation_group_quota_exceeded",
-                )
-            if category != False and float(category["iqp"]) >= 100:
-                raise Error(
-                    "precondition_required",
-                    "Category "
-                    + category["category"]["name"]
-                    + " quota exceeded for uploading new iso",
-                    traceback.format_exc(),
-                    data=category,
-                    description_code="iso_creation_category_quota_exceeded",
-                )
+    #     if item == "NewIso":
+    #         if user != False and float(user["iqp"]) >= 100:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "User "
+    #                 + user["user"]["name"]
+    #                 + " quota exceeded for uploading new iso",
+    #                 traceback.format_exc(),
+    #                 data=user,
+    #                 description_code="iso_creation_user_quota_exceeded",
+    #             )
+    #         if group != False and float(group["iqp"]) >= 100:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "Group "
+    #                 + group["group"]["name"]
+    #                 + " quota exceeded for uploading new iso",
+    #                 traceback.format_exc(),
+    #                 data=group,
+    #                 description_code="iso_creation_group_quota_exceeded",
+    #             )
+    #         if category != False and float(category["iqp"]) >= 100:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "Category "
+    #                 + category["category"]["name"]
+    #                 + " quota exceeded for uploading new iso",
+    #                 traceback.format_exc(),
+    #                 data=category,
+    #                 description_code="iso_creation_category_quota_exceeded",
+    #             )
 
-        if item == "NewUser":
-            if group != False and float(group["uqp"]) >= 100:
-                raise Error(
-                    "precondition_required",
-                    "Group "
-                    + group["group"]["name"]
-                    + " quota exceeded for creating user",
-                    traceback.format_exc(),
-                    data=group,
-                    description_code="user_new_group_cuota_exceeded",
-                )
-            if category != False and float(category["uqp"]) >= 100:
-                raise Error(
-                    "precondition_required",
-                    "Category "
-                    + category["category"]["name"]
-                    + " quota exceeded for creating user",
-                    traceback.format_exc(),
-                    data=category,
-                    description_code="user_new_category_cuota_exceeded",
-                )
+    #     if item == "NewUser":
+    #         if group != False and float(group["uqp"]) >= 100:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "Group "
+    #                 + group["group"]["name"]
+    #                 + " quota exceeded for creating user",
+    #                 traceback.format_exc(),
+    #                 data=group,
+    #                 description_code="user_new_group_cuota_exceeded",
+    #             )
+    #         if category != False and float(category["uqp"]) >= 100:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "Category "
+    #                 + category["category"]["name"]
+    #                 + " quota exceeded for creating user",
+    #                 traceback.format_exc(),
+    #                 data=category,
+    #                 description_code="user_new_category_cuota_exceeded",
+    #             )
 
-        if item == "NewUsers":
-            if group != False and group["u"] + amount > group["uq"]:
-                raise Error(
-                    "precondition_required",
-                    "Group "
-                    + group["group"]["name"]
-                    + " quota exceeded for creating "
-                    + str(amount)
-                    + " users",
-                    traceback.format_exc(),
-                    data=group,
-                    description_code="user_new_group_cuota_exceeded",
-                )
-            if category != False and category["u"] + amount > category["uq"]:
-                raise Error(
-                    "precondition_required",
-                    "Category "
-                    + category["category"]["name"]
-                    + " quota exceeded for creating "
-                    + str(amount)
-                    + " users",
-                    traceback.format_exc(),
-                    data=category,
-                    description_code="user_new_category_cuota_exceeded",
-                )
+    #     if item == "NewUsers":
+    #         if group != False and group["u"] + amount > group["uq"]:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "Group "
+    #                 + group["group"]["name"]
+    #                 + " quota exceeded for creating "
+    #                 + str(amount)
+    #                 + " users",
+    #                 traceback.format_exc(),
+    #                 data=group,
+    #                 description_code="user_new_group_cuota_exceeded",
+    #             )
+    #         if category != False and category["u"] + amount > category["uq"]:
+    #             raise Error(
+    #                 "precondition_required",
+    #                 "Category "
+    #                 + category["category"]["name"]
+    #                 + " quota exceeded for creating "
+    #                 + str(amount)
+    #                 + " users",
+    #                 traceback.format_exc(),
+    #                 data=category,
+    #                 description_code="user_new_category_cuota_exceeded",
+    #             )
 
-        return False
+    #     return False
 
+    @cached(
+        TTLCache(maxsize=100, ttl=10),
+        key=lambda self, category_id, group_id: (category_id, group_id),
+    )
     def check_new_autoregistered_user(self, category_id, group_id):
         """All common events should call here and check if quota/limits have exceeded already."""
         group = self.process_group_limits(group_id, from_user_id=False)
@@ -1020,31 +1032,16 @@ class QuotasProcess:
         return False
 
     def get_user(self, user_id):
-        with app.app_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .without("password", "vpn", "user_storage")
-                .run(db.conn)
-            )
-        with app.app_context():
-            group = r.table("groups").get(user["group"]).run(db.conn)
+        user = get_document("users", user_id)
+        group = get_document("groups", user["group"])
+
         limits = group["limits"]
         if limits == False:
-            with app.app_context():
-                limits = (
-                    r.table("categories")
-                    .get(group["parent_category"])
-                    .pluck("limits")
-                    .run(db.conn)["limits"]
-                )
+            limits = get_document("categories", group["parent_category"], ["limits"])
         return {"quota": user["quota"], "limits": limits}
 
     def get_shutdown_timeouts(self, payload, desktop_id=None):
-        with app.app_context():
-            rules = list(
-                r.table("desktops_priority").order_by(r.desc("priority")).run(db.conn)
-            )
+        rules = get_cached_desktops_priority()
         if not len(rules):
             return False
 
