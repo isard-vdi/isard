@@ -2145,9 +2145,9 @@ class ApiUsers:
         if user_migration:
             if len(user_migration) > 1:
                 raise Error(
-                    "internal_server",
-                    "Multiple migrations found for user",
-                    description_code="multiple_migrations_found",
+                    "forbidden",
+                    "Multiple migrations found for the same user",
+                    description_code="multiple_migrations_found_origin_user",
                 )
             with app.app_context():
                 r.table("users_migrations").get_all(
@@ -2187,7 +2187,7 @@ class ApiUsers:
             user_migration = list(
                 r.table("users_migrations")
                 .get_all(migration_token, index="token")
-                .filter(lambda migration: migration["status"].ne("revoked"))
+                .filter(lambda migration: ~migration["status"].match("revoked|failed"))
                 .run(db.conn)
             )
         if user_migration:
@@ -2206,6 +2206,17 @@ class ApiUsers:
                 description_code="migration_not_found",
             )
 
+    def check_user_migration(self, migration_token):
+        """
+
+        Check if the user migration exists based on the migration token. If it doesn't it raises an error
+
+        :param migration_token: The migration token
+        :type migration_token: str
+        """
+
+        self.get_user_migration(migration_token)
+
     def get_user_migration_by_target_user(self, target_user_id):
         """
 
@@ -2221,8 +2232,14 @@ class ApiUsers:
             user_migration = list(
                 r.table("users_migrations")
                 .get_all(target_user_id, index="target_user")
-                .filter(lambda migration: migration["status"].ne("revoked"))
+                .filter(lambda migration: ~migration["status"].match("revoked|failed"))
                 .run(db.conn)
+            )
+        if len(user_migration) > 1:
+            raise Error(
+                "forbidden",
+                "Multiple migrations found for the same target user",
+                description_code="multiple_migrations_found_target_user",
             )
         if user_migration:
             return user_migration[0]
@@ -2238,7 +2255,6 @@ class ApiUsers:
         migration_token,
         status=None,
         target_user_id=None,
-        import_time=False,
         migration_start_time=False,
         migration_end_time=False,
         migrated_items=None,
@@ -2256,10 +2272,6 @@ class ApiUsers:
         :type status: str
         :param target_user_id: The target user id
         :type target_user_id: str
-        :param export_time: Whether to set the export time
-        :type export_time: bool
-        :param import_time: Whether to set the import time
-        :type import_time: bool
         :param migration_start_time: Whether to set the migration start time
         :type migration_start_time: bool
         :param migration_end_time: Whether to set the migration end time
@@ -2278,7 +2290,7 @@ class ApiUsers:
         data = {
             "status": status if status else None,
             "target_user": target_user_id,
-            "import_time": int(time.time()) if import_time else None,
+            "import_time": int(time.time()) if status == "imported" else None,
             "migration_start_time": int(time.time()) if migration_start_time else None,
             "migration_end_time": int(time.time()) if migration_end_time else None,
             "migrated_items": migrated_items,
@@ -2290,11 +2302,24 @@ class ApiUsers:
             ),
         }
         data = {k: v for k, v in data.items() if v is not None}
-
         with app.app_context():
-            r.table("users_migrations").get_all(migration_token, index="token").update(
-                data
-            ).run(db.conn)
+            total = (
+                r.table("users_migrations")
+                .get_all(migration_token, index="token")
+                .count()
+                .run(db.conn)
+            )
+        if total > 1:
+            raise Error(
+                "forbidden",
+                "Multiple migrations found for the same token",
+                description_code="multiple_migrations_found_token",
+            )
+        else:
+            with app.app_context():
+                r.table("users_migrations").get_all(
+                    migration_token, index="token"
+                ).update(data).run(db.conn)
 
     def delete_user_migration(self, migration_token):
         """
@@ -2368,41 +2393,27 @@ class ApiUsers:
 
     def process_automigrate_user(self, user_id, target_user_id, migration_token):
         user_data = get_new_user_data(target_user_id)
-        try:
+        self.update_user_migration(
+            migration_token, "migrating", migration_start_time=True
+        )
+        result = self.automigrate_user(user_id, user_data, migration_token)
+        if any(
+            s in result
+            for s in [
+                "desktops_error",
+                "templates_error",
+                "media_error",
+                "deployments_error",
+            ]
+        ):
             self.update_user_migration(
-                migration_token, "migrating", migration_start_time=True
+                migration_token, "failed", migration_end_time=True
             )
-            result = self.automigrate_user(user_id, user_data, migration_token)
-            if any(
-                s in result
-                for s in [
-                    "desktops_error",
-                    "templates_error",
-                    "media_error",
-                    "deployments_error",
-                ]
-            ):
-                self.update_user_migration(
-                    migration_token, "failed", migration_end_time=True
-                )
-            else:
-                self.update_user_migration(
-                    migration_token, "migrated", migration_end_time=True
-                )
-            return result
-        except Error as e:
-            app.logger.error(e)
-            error_message = str(e)
-            if isinstance(e.args, tuple) and len(e.args) > 1:
-                error_message = e.args[1]
-            raise e
-        except Exception:
-            app.logger.error(traceback.format_exc())
-            raise Error(
-                "internal_server",
-                "Error migrating user",
-                traceback.format_exc(),
+        else:
+            self.update_user_migration(
+                migration_token, "migrated", migration_end_time=True
             )
+        return result
 
     def automigrate_user(self, user_id, user_data, migration_token):
         """

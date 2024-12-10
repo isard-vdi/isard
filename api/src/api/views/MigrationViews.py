@@ -21,22 +21,17 @@
 import json
 
 import gevent
-from flask import jsonify, request
+from flask import request
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.tokens import get_jwt_payload, get_user_migration_payload
 
-from api import app, socketio
+from api import app
 
 from ..libv2.api_admin import get_user_migration_config, update_user_migration_config
 from ..libv2.api_auth import generate_migrate_user_token
 from ..libv2.api_users import ApiUsers
 from ..libv2.validators import _validate_item
-from .decorators import (
-    has_migration_required_or_login_token,
-    has_token,
-    is_admin,
-    ownsUserId,
-)
+from .decorators import has_migration_required_or_login_token, has_token, is_admin
 
 users = ApiUsers()
 
@@ -123,11 +118,12 @@ def api_v3_user_migration_import(payload):
     """
     if not request.is_json:
         raise Error(
+            "bad_request",
             description="No JSON in body request with user_migration configuration specifications",
         )
     request_json = request.get_json()
     data = _validate_item("user_migration_import", request_json)
-    users.get_user_migration(data["token"])
+    users.check_user_migration(data["token"])
 
     try:
         get_user_migration_payload(data["token"])
@@ -138,7 +134,7 @@ def api_v3_user_migration_import(payload):
         raise e
 
     users.update_user_migration(
-        data["token"], "imported", target_user_id=payload["user_id"], import_time=True
+        data["token"], "imported", target_user_id=payload["user_id"]
     )
 
     return (
@@ -165,20 +161,24 @@ def api_v3_user_migration_list(payload):
         user_migration = users.get_user_migration_by_target_user(payload["user_id"])
     except Error as e:
         if e.error.get("description_code") == "migration_not_found":
-            return (
-                json.dumps(
-                    {
-                        "errors": [
-                            {
-                                "description": "The user migration process was not found.",
-                                "description_code": "invalid_token",
-                            }
-                        ]
-                    }
-                ),
-                428,
-                {"Content-Type": "application/json"},
-            )
+            errors = [
+                {
+                    "description": "The user migration process was not found.",
+                    "description_code": "invalid_token",
+                }
+            ]
+        elif e.error.get("description_code") == "multiple_migrations_found_target_user":
+            errors = [
+                {
+                    "description": "Multiple user migration processes found for the target user.",
+                    "description_code": "invalid_token",
+                }
+            ]
+        return (
+            json.dumps({"errors": errors}),
+            428,
+            {"Content-Type": "application/json"},
+        )
     errors = []
 
     try:
@@ -187,12 +187,7 @@ def api_v3_user_migration_list(payload):
     except Error as e:
         if e.error.get("description_code") == "token_expired":
             users.delete_user_migration(user_migration["token"])
-        errors = [
-            {
-                "description": "The user migration token has expired.",
-                "description_code": "token_expired",
-            }
-        ]
+        raise e
 
     errors += users.check_valid_migration(
         user_migration["origin_user"], payload["user_id"]
@@ -220,6 +215,16 @@ def api_v3_user_migration_list(payload):
         )
 
     items = users._delete_checks([user_migration["origin_user"]], "user")
+    items["desktops"] = [
+        item
+        for item in items["desktops"]
+        if item["user"] == user_migration["origin_user"]
+    ]
+    items["templates"] = [
+        item
+        for item in items["templates"]
+        if item["user"] == user_migration["origin_user"]
+    ]
     if quota_errors:
         items["quota_errors"] = quota_errors
 
@@ -251,12 +256,8 @@ def api_v3_user_migration_auto(payload):
     except Error as e:
         if e.error.get("description_code") == "token_expired":
             users.delete_user_migration(user_migration["token"])
-        errors = [
-            {
-                "description": "The user migration token has expired.",
-                "description_code": "token_expired",
-            }
-        ]
+        raise e
+
     errors += users.check_valid_migration(
         user_migration["origin_user"], payload["user_id"]
     )

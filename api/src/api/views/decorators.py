@@ -181,8 +181,7 @@ def has_migration_required_or_login_token(f):
             get_jwt_payload().get("session_id", ""), get_remote_addr(request)
         )
 
-        if payload.get("role_id") != "admin":
-            maintenance(payload.get("category_id"))
+        maintenance()
         kwargs["payload"] = payload
         return f(*args, **kwargs)
 

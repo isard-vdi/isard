@@ -1,5 +1,5 @@
 #
-#   Copyright © 2023 Naomi Hidalgo, Miriam Melina Gamboa Valdez
+#   Copyright © 2023 Naomi Hidalgo, 2024 Miriam Melina Gamboa Valdez
 #
 #   This file is part of IsardVDI.
 #

@@ -642,6 +642,10 @@
   overflow-y: auto;
 }
 
+.header-wrapper.notification ~ .main-container {
+  margin-top: calc(10rem) !important;
+}
+
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
 
 .disclaimer-container {

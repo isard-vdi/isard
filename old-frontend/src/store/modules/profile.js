@@ -233,7 +233,6 @@ export default {
         })
     },
     importUser (context, data) {
-      console.log(data)
       return axios.post(`${apiV3Segment}/user_migration/import`, data)
         .then(response => {
           window.location.pathname = '/migration'

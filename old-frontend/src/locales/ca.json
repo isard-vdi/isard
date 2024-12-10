@@ -1422,8 +1422,11 @@
     "hypervisors_not_available": "No s'ha pogut iniciar l'escriptori. El sistema pot estar sobrecarregat. Torni-ho a provar més tard.",
     "duplicate": "Aquesta plantilla és duplicada d'una altra plantilla i no es pot convertir a escriptori. Contacta amb el teu administrador.",
     "convert_template_with_derivatives": "Aquesta plantilla té dependències i no pot ser convertida a escriptori. Contacta amb el teu administrador.",
-    "migration_not_found": "No s'ha trobat aquest codi de migració"
-  },
+    "migration_not_found": "No s'ha trobat aquest codi de migració",
+    "multiple_migrations_found_origin_user": "S'han trobat múltiples migracions per a l'usuari d'origen. Contacta amb el teu administrador",
+    "multiple_migrations_found_target_user": "S'han trobat múltiples migracions per a l'usuari de destinació. Contacta amb el teu administrador",
+    "multiple_migrations_found_token": "S'han trobat múltiples migracions per al mateix codi de migració. Contacta amb el teu administrador"
+    },
   "messages": {
     "title": {
       "delete": "Esborrar"

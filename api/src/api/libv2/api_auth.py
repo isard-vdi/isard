@@ -36,6 +36,7 @@ def generate_migrate_user_token(user_id):
     except:
         raise Error(
             "internal_server",
-            "Exception when trying to generate migration token",
+            "Unable to connect with isard-authentication to get migration token",
             traceback.format_exc(),
+            description_code="generic-error",
         )

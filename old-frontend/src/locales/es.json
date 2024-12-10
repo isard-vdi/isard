@@ -1522,8 +1522,11 @@
     "hypervisors_not_available": "No se ha podido iniciar el escritorio. El sistema puede estar sobrecargado. Inténtelo de nuevo más tarde.",
     "duplicate": "Esta plantilla es una duplicada de otra plantilla y no se puede convertir en un escritorio. Contacta con tu administrador.",
     "convert_template_with_derivatives": "Esta plantilla tiene dependencias y no puede ser convertida a escritorio. Contacta con tu administrador.",
-    "migration_not_found":"No se ha encontrado este código de migración"
-  },
+    "migration_not_found":"No se ha encontrado este código de migración",
+    "multiple_migrations_found_origin_user": "Se encontraron múltiples migraciones para el usuario de origen. Contacta con tu administrador",
+    "multiple_migrations_found_target_user": "Se encontraron múltiples migraciones para el usuario de destino. Contacta con tu administrador",
+    "multiple_migrations_found_token": "Se encontraron múltiples migraciones para el mismo código de migración. Contacta con tu administrador"
+    },
   "router": {
     "titles": {
       "desktops": "Escritorios",

@@ -1509,7 +1509,10 @@
         "hypervisors_not_available": "The desktop could not be started. The system may be overloaded. Please try again later.",
         "duplicate": "This template is a duplicate of another template and cannot be converted to a desktop. Please contact the administrator.",
         "convert_template_with_derivatives": "This template has derivatives and cannot be converted to a desktop. Please contact the administrator.",
-        "migration_not_found": "Migration token not found"
+        "migration_not_found": "Migration token not found",
+        "multiple_migrations_found_origin_user": "Multiple migrations found for the origin user. Contact your administrator",
+        "multiple_migrations_found_target_user": "Multiple migrations found for the destination user. Contact your administrator",
+        "multiple_migrations_found_token": "Multiple migrations found for the same migration token. Contact your administrator"
     },
     "router": {
         "titles": {
