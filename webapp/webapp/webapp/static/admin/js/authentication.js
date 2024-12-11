@@ -128,7 +128,7 @@ function populateNotificationTemplate(modal) {
         $.each(response, function (key, template) {
             if (!["password", "email", "deleted_gpu"].includes(template.kind)) {
                 $(modal + " select#template").append(`
-                   <option selected value="${template.id}">${template.name}</option>
+                   <option value="${template.id}">${template.name}</option>
                 `);
             }
         });

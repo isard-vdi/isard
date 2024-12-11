@@ -152,7 +152,7 @@ const showItemTable = (title: string) => {
  */
 const schema = z.object({
   accept: z.boolean().refine((value) => value, {
-    message: 'You must accept that .',
+    message: t('views.migration.form.accept.required'),
     path: ['accept']
   })
 })
@@ -160,7 +160,7 @@ const schema = z.object({
 const fieldConfig = computed(() => {
   return {
     accept: {
-      label: t('views.migration.form.accept'),
+      label: t('views.migration.form.accept.title'),
       inputProps: {
         required: true
       }

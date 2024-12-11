@@ -24,7 +24,10 @@
         }
       },
       "form": {
-        "accept": "I understand and accept the risks associated with the migration process",
+        "accept": {
+          "title": "I understand and accept the risks associated with the migration process",
+          "required": "You must check this box to continue"
+        },
         "submit": "Confirm migration"
       },
       "error": {
@@ -123,6 +126,7 @@
         "token_expired": "The token you provided has expired",
         "invalid_token": "The token you provided is invalid",
         "no_items_to_migrate": "There are no items to migrate",
+        "multiple_migrations_found_target_user": "There are multiple migrations for the new user",
         "same_user_migration": "You can't migrate to the same account. When obtaining the token, you must log out and log in with the new account",
         "different_category_migration": "You can't migrate to an account from a different category",
         "role_migration_admin": "You can't migrate from an admin account",

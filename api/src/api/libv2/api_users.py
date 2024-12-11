@@ -2206,16 +2206,18 @@ class ApiUsers:
                 description_code="migration_not_found",
             )
 
-    def check_user_migration(self, migration_token):
+    def check_user_migration(self, migration_token, target_user_id):
         """
 
-        Check if the user migration exists based on the migration token. If it doesn't it raises an error
+        Check if the user migration exists and if the migration is valid based on the migration token. If it doesn't it raises an error.
 
         :param migration_token: The migration token
         :type migration_token: str
         """
 
-        self.get_user_migration(migration_token)
+        migration = self.get_user_migration(migration_token)
+        errors = self.check_valid_migration(migration["origin_user"], target_user_id)
+        return errors
 
     def get_user_migration_by_target_user(self, target_user_id):
         """

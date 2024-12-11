@@ -123,7 +123,13 @@ def api_v3_user_migration_import(payload):
         )
     request_json = request.get_json()
     data = _validate_item("user_migration_import", request_json)
-    users.check_user_migration(data["token"])
+    errors = users.check_user_migration(data["token"], payload["user_id"])
+    if errors:
+        return (
+            json.dumps(errors[0]),
+            428,
+            {"Content-Type": "application/json"},
+        )
 
     try:
         get_user_migration_payload(data["token"])

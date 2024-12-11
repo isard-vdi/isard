@@ -100,7 +100,7 @@ $(document).ready(function () {
                             opacity: 1,
                             type: 'success'
                         });
-                        $('#notification-tmpls-table').DataTable().row('#' + id).remove().draw();
+                        $('#custom-notification-tmpls-table').DataTable().row('#' + id).remove().draw();
                     },
                     error: function (data) {
                         new PNotify({
@@ -182,7 +182,7 @@ $(document).ready(function () {
                                 opacity: 1,
                                 type: 'success'
                             })
-                            $('#notification-tmpls-table').DataTable().ajax.reload().draw();
+                            $('#custom-notification-tmpls-table').DataTable().ajax.reload().draw();
                         },
                         error: function (data) {
                             new PNotify({
@@ -215,7 +215,7 @@ $(document).ready(function () {
                                 opacity: 1,
                                 type: 'success'
                             })
-                            $('#notification-tmpls-table').DataTable().ajax.reload().draw();
+                            $('#custom-notification-tmpls-table').DataTable().ajax.reload().draw();
                         },
                         error: function (data) {
                             new PNotify({

@@ -23,7 +23,10 @@
         }
       },
       "form": {
-        "accept": "Entiendo y acepto los riesgos asociados con el proceso de migración",
+        "accept": {
+          "title": "Entiendo y acepto los riesgos asociados con el proceso de migración",
+          "required": "Debes marcar esta casilla para continuar"
+        },
         "submit": "Confirmar migración"
       },
       "error": {
@@ -122,6 +125,7 @@
         "token_expired": "El token proporcionado ha expirado",
         "invalid_token": "El token proporcionado no es válido",
         "no_items_to_migrate": "No hay elementos para migrar",
+        "multiple_migrations_found_target_user": "Hay múltiples migraciones para el nuevo usuario",
         "same_user_migration": "No puedes migrar a la misma cuenta. Cuando obtengas el token, debes cerrar la sesión e iniciar sesión con la nueva cuenta",
         "different_category_migration": "No puedes migrar a una cuenta de una categoría diferente",
         "role_migration_admin": "No puedes migrar desde una cuenta de administrador",
