@@ -171,7 +171,7 @@ def api_v3_user_migration_list(payload):
             errors = [
                 {
                     "description": "Multiple user migration processes found for the target user.",
-                    "description_code": "invalid_token",
+                    "description_code": "multiple_migrations_found_target_user",
                 }
             ]
         return (
@@ -190,22 +190,24 @@ def api_v3_user_migration_list(payload):
         raise e
 
     errors += users.check_valid_migration(
-        user_migration["origin_user"], payload["user_id"]
+        user_migration["origin_user"], payload["user_id"], check_quotas=True
     )
 
-    # TODO: quota errors can either block the migration or just be a warning
     quota_errors = []
     non_quota_errors = []
-    for error in errors:
-        if error["description_code"] in [
-            "migration_desktop_quota_error",
-            "migration_template_quota_error",
-            "migration_media_quota_error",
-            "migration_deployments_quota_error",
-        ]:
-            quota_errors.append(error)
-        else:
-            non_quota_errors.append(error)
+    if get_user_migration_config()["check_quotas"]:
+        non_quota_errors = errors
+    else:
+        for error in errors:
+            if error["description_code"] in [
+                "migration_desktop_quota_error",
+                "migration_template_quota_error",
+                "migration_media_quota_error",
+                "migration_deployments_quota_error",
+            ]:
+                quota_errors.append(error)
+            else:
+                non_quota_errors.append(error)
 
     if non_quota_errors:
         return (

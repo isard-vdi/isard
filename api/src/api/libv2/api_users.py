@@ -2573,7 +2573,7 @@ class ApiUsers:
         # TODO: only use ws once they are implemented in frontend
         return progress
 
-    def check_valid_migration(self, origin_user_id, target_user_id):
+    def check_valid_migration(self, origin_user_id, target_user_id, check_quotas=False):
         """
 
         Checks if the user migration is valid based on the role, category and quotas
@@ -2598,7 +2598,7 @@ class ApiUsers:
         )
         if errors:
             return errors
-        if get_user_migration_config()["check_quotas"]:
+        if get_user_migration_config()["check_quotas"] or check_quotas:
             errors += self.check_target_user_quotas_migration(
                 target_user_id, user_resources
             )

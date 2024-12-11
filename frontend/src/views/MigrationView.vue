@@ -207,24 +207,20 @@ const goToDesktops = () => {
   window.location.pathname = '/desktops'
 }
 
-const itemQuotaExceeded = (item: string) =>
-  computed(() => {
-    console.log('userMigrationItems?.quota_errors', userMigrationItems?.quota_errors)
-    console.log('userMigrationItems?.users', userMigrationItems?.users)
-
-    switch (item) {
-      case 'desktops':
-        return userMigrationItems?.quota_errors?.includes('migration_desktop_quota_error')
-      case 'templates':
-        return userMigrationItems?.quota_errors?.includes('migration_template_quota_error')
-      case 'media':
-        return userMigrationItems?.quota_errors?.includes('migration_media_quota_error')
-      case 'deployments':
-        return userMigrationItems?.quota_errors?.includes('migration_deployments_quota_error')
-      default:
-        return false
-    }
-  })
+const itemQuotaExceeded = (item: string) => {
+  switch (item) {
+    case 'desktops':
+      return userMigrationItems.value?.quota_errors?.some((error) => error.description_code === 'migration_desktop_quota_error')
+    case 'templates':
+      return userMigrationItems.value?.quota_errors?.some((error) => error.description_code === 'migration_template_quota_error')
+    case 'media':
+      return userMigrationItems.value?.quota_errors?.some((error) => error.description_code === 'migration_media_quota_error')
+    case 'deployments':
+      return userMigrationItems.value?.quota_errors?.some((error) => error.description_code === 'migration_deployments_quota_error')
+    default:
+      return false
+  }
+}
 </script>
 
 <template>
