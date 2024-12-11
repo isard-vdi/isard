@@ -1,4 +1,3 @@
-
 import { computed } from 'vue'
 import { useCookies as useAuthCookies, getBearer } from '../lib/auth'
 import { createRouter, createWebHistory } from 'vue-router'
@@ -32,7 +31,7 @@ const token = computed(() => getBearer(cookies))
 
 router.beforeEach((to, from, next) => {
   if (to.matched.some((record) => record.meta.requiresAuth)) {
-    if (!token || (!token.value || token.value === 'login')) {
+    if (!token || !token.value || token.value === 'login') {
       next({ name: 'login' })
     } else {
       next()

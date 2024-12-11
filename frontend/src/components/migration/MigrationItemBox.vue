@@ -25,7 +25,11 @@ const emit = defineEmits(['click'])
       <span
         v-if="props.warning"
         class="absolute top-2 left-2 w-10 h-10 rounded-md flex items-center justify-center bg-warning-400 border border-warning-700 text-warning-700"
-        :title="t('components.migration.migration-item-box.quota_exceeded', { type: props.title /* TODO: translation for domain 'types' */ })"
+        :title="
+          t('components.migration.migration-item-box.quota_exceeded', {
+            type: props.title.toLowerCase()
+          })
+        "
       >
         <Icon name="alert-triangle" />
       </span>

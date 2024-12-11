@@ -9,12 +9,65 @@
     "login": {
       "separator": "Otros accessos",
       "select-category": "Selecciona una categoría"
+    },
+    "migration": {
+      "title": "Migración de usuario",
+      "subtitle": "Migrar \"{old_user_name}\" (autenticación {old_user_provider}) a \"{new_user_name}\" (autenticación {new_user_provider})",
+      "notification": {
+        "title": "Información importante al realizar una migración:",
+        "description": {
+          "delete_user": "El usuario anterior \"{old_user_name}\" (autenticación {old_user_provider}) será eliminado.",
+          "user_description": "Los escritorios iniciados se detendrán. \nLa papelera del usuario se eliminará. \nLas reservas del usuario se eliminarán. \nLos escritorios temporales serán ELIMINADOS \nLos recursos (como redes, RAM, CPU, GPUS) no permitidos para el nuevo usuario serán eliminados o restringidos.",
+          "description": "Los escritorios iniciados se detendrán. \nLa papelera del usuario se eliminará. \nLas reservas del usuario se eliminarán. \nLos escritorios temporales serán ELIMINADOS \nLa lista de co-propietarios en los despliegues será eliminada. \nLos escritorios pertenecientes a otros usuarios en los despliegues migrados permanecerán intactos. \nLos recursos (como redes, RAM, CPU, GPUS) no permitidos para el nuevo usuario serán eliminados o restringidos.",
+          "footer": "El proceso de migración es irreversible."
+        }
+      },
+      "form": {
+        "accept": "Entiendo y acepto los riesgos asociados con el proceso de migración",
+        "submit": "Confirmar migración"
+      },
+      "error": {
+        "title": "Hubo errores en el proceso de migración:"
+      },
+      "success": {
+        "title": "Migración completada",
+        "description": {
+          "ok": "Tus elementos se han migrado correctamente a la nueva cuenta. Ahora puedes volver a la página principal.",
+          "error": "Hubo algunos errores durante el proceso y algunos de tus elementos no se han podido migrar a la nueva cuenta. Por favor, contacta con un administrador. Ahora puedes volver a la página principal."
+        },
+        "progress": {
+          "desktops-progress": "Migrando escritorios...",
+          "desktops-ok": "Escritorios migrados",
+          "desktops-error": "Escritorios no migrados",
+          "templates-progress": "Migrando plantillas...",
+          "templates-ok": "Plantillas migradas",
+          "templates-error": "Plantillas no migradas",
+          "media-progress": "Migrando medios...",
+          "media-ok": "Medios migrados",
+          "media-error": "Medios no migrados",
+          "deployments-progress": "Migrando despliegues...",
+          "deployments-ok": "Despliegues migrados",
+          "deployments-error": "Despliegues no migrados",
+          "recycle-bin-progress": "Vaciando papelera...",
+          "recycle-bin-ok": "Papelera vaciada"
+        },
+        "buttons": {
+          "ok": "OK",
+          "logout": "Cerrar sesión"
+        },
+        "errors": {
+          "generic": "Hubo un error mientras se migraban tus {type}, por favor, contacta con un administrador."
+        }
+      }
     }
   },
   "layouts": {
     "login": {
       "title": "Iniciar sesión",
       "works-with": "Funciona con"
+    },
+    "single-page": {
+      "go-back": "Volver atrás"
     }
   },
   "components": {
@@ -40,6 +93,14 @@
         "logged-in-as": "Has iniciado sesión como {name}",
         "logout": "Cerrar sesión"
       }
+    },
+    "migration": {
+      "migration-item-table": {
+        "name": "Nombre"
+      },
+      "migration-item-box": {
+        "quota_exceeded": "Las cuotas de '{type}' se superarán"
+      }
     }
   },
   "authentication": {
@@ -52,6 +113,36 @@
         "user_disallowed": "El usuario no puede utilizar IsardVDI",
         "rate_limit": "Se han producido demasiados intentos de inicio de sesión. Vuélve a intentarlo a {time}"
       }
+    }
+  },
+  "api": {
+    "user_migration": {
+      "errors": {
+        "unknown": "Se ha producido un error",
+        "token_expired": "El token proporcionado ha expirado",
+        "invalid_token": "El token proporcionado no es válido",
+        "no_items_to_migrate": "No hay elementos para migrar",
+        "same_user_migration": "No puedes migrar a la misma cuenta. Cuando obtengas el token, debes cerrar la sesión e iniciar sesión con la nueva cuenta",
+        "different_category_migration": "No puedes migrar a una cuenta de una categoría diferente",
+        "role_migration_admin": "No puedes migrar desde una cuenta de administrador",
+        "role_migration_user": "No puedes migrar a una cuenta de usuario desde una cuenta con un rol superior",
+        "migration_desktop_quota_error": "El usuario tiene más escritorios que la cuota del nuevo usuario",
+        "migration_template_quota_error": "El usuario tiene más plantillas que la cuota del nuevo usuario",
+        "migration_media_quota_error": "El usuario tiene más medios que la cuota del nuevo usuario",
+        "migration_deployments_quota_error": "El usuario tiene más despliegues que la cuota del nuevo usuario"
+      }
+    }
+  },
+  "domains": {
+    "desktops": "escritorio | escritorios",
+    "templates": "plantilla | plantillas",
+    "media": "medio | medios",
+    "deployments": "despliegue | despliegues",
+    "capitalized": {
+      "desktops": "@.capitalize:domains.desktops",
+      "templates": "@.capitalize:domains.templates",
+      "media": "@.capitalize:domains.media",
+      "deployments": "@.capitalize:domains.deployments"
     }
   }
 }

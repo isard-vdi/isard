@@ -13,11 +13,11 @@
     },
     "migration": {
       "title": "User migration",
-      "subtitle": "Migrate {old_user_name} ({old_user_provider} authentication) to {new_user_name} ({new_user_provider} authentication)",
+      "subtitle": "Migrate \"{old_user_name}\" ({old_user_provider} authentication) to \"{new_user_name}\" ({new_user_provider} authentication)",
       "notification": {
         "title": "Important information when performing a migration:",
         "description": {
-          "delete_user": "The previous user {old_user_name} ({old_user_provider} authentication) will be deleted.",
+          "delete_user": "The previous user \"{old_user_name}\" ({old_user_provider} authentication) will be deleted.",
           "user_description": "Any running desktops will be stopped. \nThe user's recycle bin will be emptied. \nThe user's bookings will be deleted. \nNon-persistent desktops will be DELETED \nResources (such as networks, RAM, CPU, GPUS) not allowed for the new user will be removed or restricted.",
           "description": "Any running desktops will be stopped. \nThe user's recycle bin will be emptied. \nThe user's bookings will be deleted. \nNon-persistent desktops will be DELETED \nThe list of co-owners in deployments will be deleted. \nDesktops belonging to other users in migrated deployments will remain intact. \nResources (such as networks, RAM, CPU, GPUS) not allowed for the new user will be removed or restricted.",
           "footer": "The migration process is irreversible."
@@ -34,7 +34,7 @@
         "title": "Migration completed",
         "description": {
           "ok": "Your items have been successfully migrated to the new account. You can now go back to the main page.",
-          "error": "There were some errors during the process and your items have been partially migrated to the new account. Please contact an administrator. You can now go back to the main page."
+          "error": "There were some errors during the process and some of your items haven't been migrated to the new account. Please contact an administrator. You can now go back to the main page."
         },
         "progress": {
           "desktops-progress": "Migrating desktops...",
@@ -53,16 +53,11 @@
           "recycle-bin-ok": "Recycle bin emptied"
         },
         "buttons": {
-          "desktops": "Go back",
+          "ok": "OK",
           "logout": "Logout"
         },
         "errors": {
-          "generic": "There was an error while migrating your {type}, please contact an administrator.",
-
-          "desktops": "desktops",
-          "templates": "templates",
-          "media": "media",
-          "deployments": "deployments"
+          "generic": "There was an error while migrating your {type}, please contact an administrator."
         }
       }
     }
@@ -101,6 +96,9 @@
       }
     },
     "migration": {
+      "migration-item-table": {
+        "name": "Name"
+      },
       "migration-item-box": {
         "quota_exceeded": "'{type}' quotas will be exceeded"
       }
@@ -124,6 +122,7 @@
         "unknown": "An error has ocurred",
         "token_expired": "The token you provided has expired",
         "invalid_token": "The token you provided is invalid",
+        "no_items_to_migrate": "There are no items to migrate",
         "same_user_migration": "You can't migrate to the same account. When obtaining the token, you must log out and log in with the new account",
         "different_category_migration": "You can't migrate to an account from a different category",
         "role_migration_admin": "You can't migrate from an admin account",
@@ -133,6 +132,18 @@
         "migration_media_quota_error": "The user has more media than the new user quota",
         "migration_deployments_quota_error": "The user has more deployments than the new user quota"
       }
+    }
+  },
+  "domains": {
+    "desktops": "desktop | desktops",
+    "templates": "template | templates",
+    "media": "media | media",
+    "deployments": "deployment | deployments",
+    "capitalized": {
+      "desktops": "@.capitalize:domains.desktops",
+      "templates": "@.capitalize:domains.templates",
+      "media": "@.capitalize:domains.media",
+      "deployments": "@.capitalize:domains.deployments"
     }
   }
 }

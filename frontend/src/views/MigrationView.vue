@@ -3,24 +3,17 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { MigrationLayout } from '@/layouts/migration'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
-import Icon from '@/components/icon/Icon.vue'
-import MigrationError from '@/components/migration/MigrationError.vue'
-import MigrationItemBox from '@/components/migration/MigrationItemBox.vue'
-import MigrationItemTable from '@/components/migration/MigrationItemTable.vue'
-import MigrationNotification from '@/components/migration/MigrationNotification.vue'
-import MigrationResultItem from '@/components/migration/MigrationResultItem.vue'
-import CardBox from '@/components/card-box/CardBox.vue'
-import Tooltip from '@/components/ui/tooltip/Tooltip.vue'
+import { Icon } from '@/components/icon'
+import { MigrationItemBox, MigrationItemTable, MigrationResultItem } from '@/components/migration'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   postUserMigrationAuto,
   type PostUserMigrationAutoResponse,
   type GetUserMigrationItemsError,
-  type GetUserMigrationItemsResponse,
-  type PostUserMigrationAutoError as ApiUserMigrationError
+  type GetUserMigrationItemsResponse
 } from '@/gen/oas/api'
 
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
@@ -65,30 +58,24 @@ type UserMigrationItemsError =
   | GetUserMigrationItemsError['errors'][number]['description_code']
   | 'unknown'
 
-const isUserMigrationItemsError = (error: string): error is UserMigrationItemsError => {
-  switch (error) {
-    case 'unknown':
-    case 'invalid_token':
-    case 'same_user_migration':
-    case 'different_category_migration':
-    case 'role_migration_admin':
-    case 'role_migration_user':
-    case 'migration_desktop_quota_error':
-    case 'migration_template_quota_error':
-    case 'migration_media_quota_error':
-    case 'migration_deployments_quota_error':
-      return true
+// const isUserMigrationItemsError = (error: string): error is UserMigrationItemsError => {
+//   switch (error) {
+//     case 'unknown':
+//     case 'invalid_token':
+//     case 'same_user_migration':
+//     case 'different_category_migration':
+//     case 'role_migration_admin':
+//     case 'role_migration_user':
+//     case 'migration_desktop_quota_error':
+//     case 'migration_template_quota_error':
+//     case 'migration_media_quota_error':
+//     case 'migration_deployments_quota_error':
+//       return true
 
-    default:
-      return false
-  }
-}
-
-// const userMigrationError = ref<UserMigrationError | undefined>(
-//   (() => {
-//     return error.value
-//   })()
-// )
+//     default:
+//       return false
+//   }
+// }
 
 const userMigrationItemsErrorMsgs = computed(() => {
   if (!isError.value || !userMigrationItemsError.value) {
@@ -100,6 +87,12 @@ const userMigrationItemsErrorMsgs = computed(() => {
 
   const errorMsgs: Array<string> = []
   const baseKey = 'api.user_migration.errors.'
+
+  if (!aaa.errors) {
+    errorMsgs.push(t(baseKey + 'unknown'))
+    return errorMsgs
+  }
+
   for (const err of aaa.errors) {
     const key = baseKey + err.description_code
 
@@ -157,8 +150,6 @@ const showItemTable = (title: string) => {
 /*
  * Actions
  */
-const confirmMigration = async () => {}
-
 const schema = z.object({
   accept: z.boolean().refine((value) => value, {
     message: 'You must accept that .',
@@ -210,13 +201,21 @@ const goToDesktops = () => {
 const itemQuotaExceeded = (item: string) => {
   switch (item) {
     case 'desktops':
-      return userMigrationItems.value?.quota_errors?.some((error) => error.description_code === 'migration_desktop_quota_error')
+      return userMigrationItems.value?.quota_errors?.some(
+        (error) => error.description_code === 'migration_desktop_quota_error'
+      )
     case 'templates':
-      return userMigrationItems.value?.quota_errors?.some((error) => error.description_code === 'migration_template_quota_error')
+      return userMigrationItems.value?.quota_errors?.some(
+        (error) => error.description_code === 'migration_template_quota_error'
+      )
     case 'media':
-      return userMigrationItems.value?.quota_errors?.some((error) => error.description_code === 'migration_media_quota_error')
+      return userMigrationItems.value?.quota_errors?.some(
+        (error) => error.description_code === 'migration_media_quota_error'
+      )
     case 'deployments':
-      return userMigrationItems.value?.quota_errors?.some((error) => error.description_code === 'migration_deployments_quota_error')
+      return userMigrationItems.value?.quota_errors?.some(
+        (error) => error.description_code === 'migration_deployments_quota_error'
+      )
     default:
       return false
   }
@@ -250,6 +249,12 @@ const itemQuotaExceeded = (item: string) => {
       </h2>
     </template>
     <template #main>
+      <img
+        v-if="!(userMigrationItemsIsError && userMigrationItemsErrorMsgs)"
+        src="@/assets/img/HELLO.svg"
+        class="fixed bottom-0 left-0 -z-10 h-1/2 invisible md:visible"
+      />
+
       <div v-if="isPending" class="w-full flex flex-col gap-2 items-center justify-center">
         <Skeleton class="h-6 w-1/2" />
         <div class="flex flex-row w-1/2 gap-2 my-4">
@@ -279,8 +284,11 @@ const itemQuotaExceeded = (item: string) => {
 
       <div v-else-if="migrationSuccess" class="flex items-center justify-center">
         <Alert variant="default" class="w-2/3">
-          <AlertTitle class="flex items-center justify-center text-xl text-gray-warm-800">{{ t('views.migration.success.title') }}</AlertTitle>
+          <AlertTitle class="flex items-center justify-center text-xl text-gray-warm-800">{{
+            t('views.migration.success.title')
+          }}</AlertTitle>
           <AlertDescription class="p-4 flex flex-col gap-4">
+            <!-- Migration result list -->
             <div class="flex flex-col gap-4 p-4">
               <MigrationResultItem
                 v-if="migrationResponse?.migrated_desktops !== undefined"
@@ -293,7 +301,7 @@ const itemQuotaExceeded = (item: string) => {
                 :description="
                   migrationResponse?.desktops_error
                     ? t('views.migration.success.errors.generic', {
-                        type: t('views.migration.success.errors.desktops')
+                        type: t('domains.desktops', 2)
                       })
                     : undefined
                 "
@@ -309,7 +317,7 @@ const itemQuotaExceeded = (item: string) => {
                 :description="
                   migrationResponse?.templates_error
                     ? t('views.migration.success.errors.generic', {
-                        type: t('views.migration.success.errors.templates')
+                        type: t('domains.templates', 2)
                       })
                     : undefined
                 "
@@ -325,7 +333,7 @@ const itemQuotaExceeded = (item: string) => {
                 :description="
                   migrationResponse?.media_error
                     ? t('views.migration.success.errors.generic', {
-                        type: t('views.migration.success.errors.media')
+                        type: t('domains.media', 2)
                       })
                     : undefined
                 "
@@ -341,7 +349,7 @@ const itemQuotaExceeded = (item: string) => {
                 :description="
                   migrationResponse?.deployments_error
                     ? t('views.migration.success.errors.generic', {
-                        type: t('views.migration.success.errors.deployments')
+                        type: t('domains.deployments', 2)
                       })
                     : undefined
                 "
@@ -365,7 +373,9 @@ const itemQuotaExceeded = (item: string) => {
             </p>
 
             <div class="flex flex-row items-center justify-end">
-              <Button class="px-8" @click="goToDesktops"> OK </Button>
+              <Button class="px-8" @click="goToDesktops">{{
+                t('views.migration.success.buttons.ok')
+              }}</Button>
             </div>
           </AlertDescription>
         </Alert>
@@ -380,20 +390,18 @@ const itemQuotaExceeded = (item: string) => {
             >
               <MigrationItemBox
                 :loading="isPending"
-                :title="item.title"
+                :title="t(`domains.capitalized.${item.title.toLowerCase()}`, 2)"
                 :count="userMigrationItems[item.title.toLowerCase()].length"
                 :color-class="item.colorClass"
                 :warning="itemQuotaExceeded(item.title.toLowerCase())"
                 :icon="item.icon"
                 class="transition-transform duration-300 ease-in-out transform hover:scale-105 cursor-pointer"
                 @click="showItemTable(item.title)"
-              >
-                <Tooltip title="Click me!"> </Tooltip>
-              </MigrationItemBox>
+              />
               <MigrationItemTable
                 v-if="!shownTables.includes(item.title.toLowerCase())"
                 :loading="isPending"
-                :title="item.title"
+                :title="t(`domains.capitalized.${item.title.toLowerCase()}`, 2)"
                 :items="userMigrationItems[item.title.toLowerCase()]"
                 class="max-h-[30vh] overflow-y-auto"
               />
@@ -446,10 +454,6 @@ const itemQuotaExceeded = (item: string) => {
             </Button>
           </AutoForm>
         </div>
-
-        <Alert v-if="response" variant="success">
-          <AlertDescription>The migration was successful!</AlertDescription>
-        </Alert>
       </div>
     </template>
   </MigrationLayout>

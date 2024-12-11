@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { defineProps } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 interface Props {
   items: Array<{
@@ -16,11 +19,17 @@ const props = defineProps<Props>()
     <table class="min-w-full bg-base-white">
       <thead>
         <tr class="border-b border-gray-warm-300">
-          <th class="py-2 text-start text-gray-warm-600">Name</th>
+          <th class="py-2 text-start text-gray-warm-600">
+            {{ t('components.migration.migration-item-table.name') }}
+          </th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="item in props.items" :key="item.id" class="border-b border-gray-warm-300 last:border-b-0">
+        <tr
+          v-for="item in props.items"
+          :key="item.id"
+          class="border-b border-gray-warm-300 last:border-b-0"
+        >
           <td class="py-2">{{ item.name }}</td>
         </tr>
       </tbody>

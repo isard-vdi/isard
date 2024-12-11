@@ -230,6 +230,27 @@ def api_v3_user_migration_list(payload):
     if quota_errors:
         items["quota_errors"] = quota_errors
 
+    if (
+        not items["desktops"]
+        and not items["templates"]
+        and not items["media"]
+        and not items["deployments"]
+    ):
+        return (
+            json.dumps(
+                {
+                    "errors": [
+                        {
+                            "description": "No items to migrate.",
+                            "description_code": "no_items_to_migrate",
+                        }
+                    ]
+                }
+            ),
+            428,
+            {"Content-Type": "application/json"},
+        )
+
     return (
         json.dumps(items),
         200,

@@ -9,12 +9,65 @@
     "login": {
       "separator": "Altres accessos",
       "select-category": "Selecciona una categoria"
+    },
+    "migration": {
+      "title": "Migració d'usuari",
+      "subtitle": "Migrar \"{old_user_name}\" (autenticació {old_user_provider}) a \"{new_user_name}\" (autenticació {new_user_provider})",
+      "notification": {
+        "title": "Informació important al realitzar una migració:",
+        "description": {
+          "delete_user": "L'usuari anterior \"{old_user_name}\" (autenticació {old_user_provider}) serà eliminat.",
+          "user_description": "Els escriptoris iniciats s'aturaran. \nLa paperera de l'usuari s'eliminarà. \nLes reserves de l'usuari s'eliminaran. \nEls escriptoris temporals seran ELIMINATS \nEls recursos (com ara xarxes, RAM, CPU, GPUS) no permesos per al nou usuari seran eliminats o restricts.",
+          "description": "Els escriptoris iniciats s'aturaran. \nLa paperera de l'usuari s'eliminarà. \nLes reserves de l'usuari s'eliminaran. \nEls escriptoris temporals seran ELIMINATS \nLa llista de co-propietaris en els desplegaments serà eliminada. \nEls escriptoris pertanyents a altres usuaris en els desplegaments migrats romandran intactes. \nEls recursos (com ara xarxes, RAM, CPU, GPUS) no permesos per al nou usuari seran eliminats o restricts.",
+          "footer": "El procés de migració és irreversible."
+        }
+      },
+      "form": {
+        "accept": "Entenc i accepto els riscos associats amb el procés de migració",
+        "submit": "Confirmar migració"
+      },
+      "error": {
+        "title": "Hi han hagut errors en el procés de migració:"
+      },
+      "success": {
+        "title": "Migració completada",
+        "description": {
+          "ok": "Els teus elements s'han migrat correctament al nou compte. Ara pots tornar a la pàgina principal.",
+          "error": "Hi ha hagut errors durant el procés i alguns dels teus elements no pogut migrat al nou compte. Si us plau, contacta amb un administrador. Ara pots tornar a la pàgina principal."
+        },
+        "progress": {
+          "desktops-progress": "Migrant escriptoris...",
+          "desktops-ok": "Escriptoris migrats",
+          "desktops-error": "Escriptoris no migrats",
+          "templates-progress": "Migrant plantilles...",
+          "templates-ok": "Plantilles migrades",
+          "templates-error": "Plantilles no migrades",
+          "media-progress": "Migrant mitjans...",
+          "media-ok": "Mitjans migrats",
+          "media-error": "Mitjans no migrats",
+          "deployments-progress": "Migrant desplegaments...",
+          "deployments-ok": "Desplegaments migrats",
+          "deployments-error": "Desplegaments no migrats",
+          "recycle-bin-progress": "Buidant la paperera...",
+          "recycle-bin-ok": "Paperera buidada"
+        },
+        "buttons": {
+          "ok": "OK",
+          "logout": "Tancar sessió"
+        },
+        "errors": {
+          "generic": "Hi ha hagut un error mentre es migraven els teus {type}, si us plau, contacta amb un administrador."
+        }
+      }
     }
   },
   "layouts": {
     "login": {
       "title": "Iniciar sessió",
       "works-with": "Funciona amb"
+    },
+    "single-page": {
+      "go-back": "Tornar enrere"
     }
   },
   "components": {
@@ -40,6 +93,14 @@
         "logged-in-as": "Has iniciat sessió com a {name}",
         "logout": "Tancar sessió"
       }
+    },
+    "migration": {
+      "migration-item-table": {
+        "name": "Nom"
+      },
+      "migration-item-box": {
+        "quota_exceeded": "Les quotes de '{type}' es superaran"
+      }
     }
   },
   "authentication": {
@@ -52,6 +113,36 @@
         "user_disallowed": "L'usuari no pot utilitzar IsardVDI",
         "rate_limit": "S'han produït massa intents d'inici de sessió. Torni-ho a provar a {time}"
       }
+    }
+  },
+  "api": {
+    "user_migration": {
+      "errors": {
+        "unknown": "S'ha produït un error",
+        "token_expired": "El token proporcionat ha expirat",
+        "invalid_token": "El token proporcionat no és vàlid",
+        "no_items_to_migrate": "No hi ha elements per migrar",
+        "same_user_migration": "No pots migrar al mateix compte. Quan obtinguis el token, has de tancar la sessió i tornar a iniciar-la amb el nou compte",
+        "different_category_migration": "No pots migrar a un compte d'una categoria diferent",
+        "role_migration_admin": "No pots migrar des d'un compte d'administrador",
+        "role_migration_user": "No pots migrar a un compte d'usuari des d'un compte amb un rol més alt",
+        "migration_desktop_quota_error": "L'usuari té més escriptoris que la quota del nou usuari",
+        "migration_template_quota_error": "L'usuari té més plantilles que la quota del nou usuari",
+        "migration_media_quota_error": "L'usuari té més mitjans que la quota del nou usuari",
+        "migration_deployments_quota_error": "L'usuari té més desplegaments que la quota del nou usuari"
+      }
+    }
+  }
+  "domains": {
+    "desktops": "escriptori | escriptoris",
+    "templates": "plantilla | plantilles",
+    "media": "mitjà | mitjans",
+    "deployments": "desplegament | desplegaments",
+    "capitalized": {
+      "desktops": "@.capitalize:domains.desktops",
+      "templates": "@.capitalize:domains.templates",
+      "media": "@.capitalize:domains.media",
+      "deployments": "@.capitalize:domains.deployments"
     }
   }
 }
