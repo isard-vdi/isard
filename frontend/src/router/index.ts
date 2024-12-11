@@ -1,4 +1,6 @@
-import { getToken, useCookies } from '@/lib/auth'
+
+import { computed } from 'vue'
+import { useCookies as useAuthCookies, getBearer } from '../lib/auth'
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
@@ -25,17 +27,15 @@ const router = createRouter({
   ]
 })
 
-const cookies = useCookies()
+const cookies = useAuthCookies()
+const token = computed(() => getBearer(cookies))
 
 router.beforeEach((to, from, next) => {
   if (to.matched.some((record) => record.meta.requiresAuth)) {
-    const token = getToken(cookies)
-    console.log('requiresAuth')
-    console.log(token)
-    if (!token?.type || token.type === 'login') {
-      next()
-    } else {
+    if (!token || (!token.value || token.value === 'login')) {
       next({ name: 'login' })
+    } else {
+      next()
     }
   } else {
     next()
