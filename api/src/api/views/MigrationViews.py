@@ -155,6 +155,9 @@ def api_v3_user_migration_import(payload):
             users.delete_user_migration(data["token"])
         raise e
 
+    # Check if the user has other migrations as imported and reset them
+    users.reset_imported_user_migration_by_target_user(payload["user_id"])
+
     users.update_user_migration(
         data["token"], "imported", target_user_id=payload["user_id"]
     )

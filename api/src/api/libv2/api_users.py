@@ -2344,6 +2344,24 @@ class ApiUsers:
                 description_code="migration_not_found",
             )
 
+    def reset_imported_user_migration_by_target_user(self, target_user_id):
+        """
+        Reset as exported all the imported migrations from the given target user id (remove the import_time and target_user fields too).
+
+        :param target_user_id: The target user id
+        :type target_user_id: str
+        """
+        with app.app_context():
+            r.table("users_migrations").get_all(
+                target_user_id, index="target_user"
+            ).filter({"status": "imported"}).replace(
+                r.row.without({"import_time": True, "target_user": True}).merge(
+                    {"status": "exported"}
+                )
+            ).run(
+                db.conn
+            )
+
     def process_migrate_user(self, user_id, target_user_id):
         user_data = get_new_user_data(target_user_id)
         try:
