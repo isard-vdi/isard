@@ -421,7 +421,7 @@ const itemQuotaExceeded = (item: string) => {
               </h1>
             </AlertTitle>
             <AlertDescription>
-              <p class="font-semibold">
+              <p v-if="userMigrationItems?.origin_user_delete === true" class="font-semibold">
                 {{
                   t('views.migration.notification.description.delete_user', {
                     old_user_name: userMigrationItems?.users[0].name,

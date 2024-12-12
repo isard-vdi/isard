@@ -561,8 +561,13 @@
               },
               "required": ["description", "description_code"]
             }
+          },
+          "origin_user_delete": {
+            "type": "boolean",
+            "title": "Whether the origin user will be deleted"
           }
-        }
+        },
+        "required": ["desktops", "templates", "media", "deployment", "users", "origin_user_delete"]
       },
       "GetUserMigrationItemsError": {
         "type": "object",

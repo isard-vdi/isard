@@ -29,6 +29,7 @@ from api import app
 
 from ..libv2.api_admin import get_user_migration_config, update_user_migration_config
 from ..libv2.api_auth import generate_migrate_user_token
+from ..libv2.api_authentication import get_provider_config
 from ..libv2.api_users import ApiUsers
 from ..libv2.validators import _validate_item
 from .decorators import has_migration_required_or_login_token, has_token, is_admin
@@ -250,6 +251,13 @@ def api_v3_user_migration_list(payload):
     ]
     if quota_errors:
         items["quota_errors"] = quota_errors
+
+    items["origin_user_delete"] = (
+        get_provider_config(items["users"][0]["provider"])
+        .get("migration", {})
+        .get("action_after_migrate", "")
+        != "none"
+    )
 
     if (
         not items["desktops"]
