@@ -2152,13 +2152,17 @@ class ApiUsers:
             with app.app_context():
                 r.table("users_migrations").get_all(
                     origin_user_id, index="origin_user"
-                ).update(
-                    {
-                        "status": "exported",
-                        "export_time": int(time.time()),
-                        "origin_user": origin_user_id,
-                        "token": migration_token,
-                    }
+                ).filter(
+                    lambda migration: ~migration["status"].match("migrated")
+                ).replace(
+                    r.row.without({"import_time": True, "target_user": True}).merge(
+                        {
+                            "status": "exported",
+                            "export_time": int(time.time()),
+                            "origin_user": origin_user_id,
+                            "token": migration_token,
+                        }
+                    )
                 ).run(
                     db.conn
                 )
@@ -2234,7 +2238,11 @@ class ApiUsers:
             user_migration = list(
                 r.table("users_migrations")
                 .get_all(target_user_id, index="target_user")
-                .filter(lambda migration: ~migration["status"].match("revoked|failed"))
+                .filter(
+                    lambda migration: ~migration["status"].match(
+                        "migrated|revoked|failed"
+                    )
+                )
                 .run(db.conn)
             )
         if len(user_migration) > 1:
