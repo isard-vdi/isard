@@ -1520,7 +1520,9 @@
         "migration_desktop_quota_error": "The user has more desktops than the new user quota",
         "migration_template_quota_error": "The user has more templates than the new user quota",
         "migration_media_quota_error": "The user has more media than the new user quota",
-        "migration_deployments_quota_error": "The user has more deployments than the new user quota"
+        "migration_deployments_quota_error": "The user has more deployments than the new user quota",
+        "migration_no_items_available": "This user has no items to migrate"
+
     },
     "router": {
         "titles": {

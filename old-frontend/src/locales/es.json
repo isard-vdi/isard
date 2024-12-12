@@ -1525,7 +1525,8 @@
     "migration_not_found":"No se ha encontrado este código de migración",
     "multiple_migrations_found_origin_user": "Se encontraron múltiples migraciones para el usuario de origen. Contacta con tu administrador",
     "multiple_migrations_found_target_user": "Se encontraron múltiples migraciones para el usuario de destino. Contacta con tu administrador",
-    "multiple_migrations_found_token": "Se encontraron múltiples migraciones para el mismo código de migración. Contacta con tu administrador"
+    "multiple_migrations_found_token": "Se encontraron múltiples migraciones para el mismo código de migración. Contacta con tu administrador",
+    "migration_no_items_available": "Este usuario no tiene elementos para migrar"
     },
   "router": {
     "titles": {

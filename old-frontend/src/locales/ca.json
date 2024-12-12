@@ -1425,7 +1425,8 @@
     "migration_not_found": "No s'ha trobat aquest codi de migració",
     "multiple_migrations_found_origin_user": "S'han trobat múltiples migracions per a l'usuari d'origen. Contacta amb el teu administrador",
     "multiple_migrations_found_target_user": "S'han trobat múltiples migracions per a l'usuari de destinació. Contacta amb el teu administrador",
-    "multiple_migrations_found_token": "S'han trobat múltiples migracions per al mateix codi de migració. Contacta amb el teu administrador"
+    "multiple_migrations_found_token": "S'han trobat múltiples migracions per al mateix codi de migració. Contacta amb el teu administrador",
+    "migration_no_items_available": "Aquest usuari no té elements per migrar"
     },
   "messages": {
     "title": {

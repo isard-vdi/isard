@@ -95,6 +95,21 @@ def api_v3_user_migration_export(payload):
     :rtype: Set with Flask response values and data in JSON
 
     """
+    resources = users._delete_checks([payload["user_id"]], "user")
+    if not any(
+        [
+            resources["desktops"],
+            resources["templates"],
+            resources["media"],
+            resources["deployments"],
+        ]
+    ):
+        raise Error(
+            "bad_request",
+            description="No items available for migration",
+            description_code="migration_no_items_available",
+        )
+
     token = generate_migrate_user_token(payload["user_id"])["token"]
     token_data = get_jwt_payload(token)
     users.register_migration(token, token_data["user_id"])
