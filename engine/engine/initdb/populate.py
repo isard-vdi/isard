@@ -133,11 +133,11 @@ class Populate(object):
             "notification_tmpls",
             "system_events",
             "targets",
+            "users_migrations",
             # "recycle_bin_archive",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
-            "users_migrations",
         ]
         tables_to_create = list(set(newtables) - set(dbtables))
         d = {k: v for v, k in enumerate(newtables)}
@@ -1957,5 +1957,21 @@ class Populate(object):
         try:
             log.info("Table users_migrations not found, creating...")
             r.table_create("users_migrations", primary_key="id").run(self.conn)
+        except Exception as e:
+            log.error(e)
+        try:
+            r.table("users_migrations").index_create("token").run(self.conn)
+        except Exception as e:
+            log.error(e)
+        try:
+            r.table("users_migrations").index_create("status").run(self.conn)
+        except Exception as e:
+            log.error(e)
+        try:
+            r.table("users_migrations").index_create("origin_user").run(self.conn)
+        except Exception as e:
+            log.error(e)
+        try:
+            r.table("users_migrations").index_create("target_user").run(self.conn)
         except Exception as e:
             log.error(e)

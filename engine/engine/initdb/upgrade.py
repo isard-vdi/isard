@@ -18,9 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 156
-# release 156: Add empty dict values to provider settings
-# release 155: Add token, status, origin_user and target_user index to users_migrations table
+release_version = 155
+# release 155: Add empty dict values to provider settings
 # release 154: Add bastion alloweds to config table
 # release 153: Add new field 'user_migration' to config table
 # release 152: Add index 'owner_group_status', categor to recycle bin table
@@ -199,7 +198,6 @@ tables = [
     "notification_tmpls",
     "system_events",
     "bookings",
-    "users_migrations",
 ]
 
 
@@ -659,7 +657,7 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
-        if version == 156:
+        if version == 155:
             try:
                 r.table(table).get(1).update(
                     {
@@ -5706,32 +5704,6 @@ password:s:%s"""
                     .run(self.conn)
                 )
                 print(result)
-            except Exception as e:
-                print(e)
-        return True
-
-    """
-    USERS MIGRATIONS TABLE UPGRADES
-    """
-
-    def users_migrations(self, migrations):
-        table = "users_migrations"
-        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(migrations))
-        if migrations == 155:
-            try:
-                r.table(table).index_create("token").run(self.conn)
-            except Exception as e:
-                print(e)
-            try:
-                r.table(table).index_create("status").run(self.conn)
-            except Exception as e:
-                print(e)
-            try:
-                r.table(table).index_create("origin_user").run(self.conn)
-            except Exception as e:
-                print(e)
-            try:
-                r.table(table).index_create("target_user").run(self.conn)
             except Exception as e:
                 print(e)
         return True
