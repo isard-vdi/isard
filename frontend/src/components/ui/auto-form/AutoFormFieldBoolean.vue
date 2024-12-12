@@ -35,7 +35,11 @@ const booleanComponent = computed(() => (props.config?.component === 'switch' ? 
         </FormControl>
         <!-- TODO: size prop -->
         <!-- https://www.figma.com/design/FHPNZiT08g7iQysunKZkLm/N%C3%89FIX---ISARD-Design-system-Cliente?node-id=1097-63652&m=dev -->
-        <AutoFormLabel v-if="!config?.hideLabel" :required="required" class="text-gray-warm-700 text-[16px]">
+        <AutoFormLabel
+          v-if="!config?.hideLabel"
+          :required="required"
+          class="text-gray-warm-700 text-[16px]"
+        >
           {{ config?.label || beautifyObjectName(label ?? fieldName) }}
         </AutoFormLabel>
       </div>
