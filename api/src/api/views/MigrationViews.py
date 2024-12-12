@@ -153,6 +153,11 @@ def api_v3_user_migration_import(payload):
     except Error as e:
         if e.error.get("description_code") == "token_expired":
             users.delete_user_migration(data["token"])
+            raise Error(
+                "bad_request",
+                description="The migration token has expired.",
+                description_code="token_expired",
+            )
         raise e
 
     # Check if the user has other migrations as imported and reset them
