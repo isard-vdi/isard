@@ -24,23 +24,36 @@
     <div class="x_panel" id="local_panel">
       <div class="x_title">
         <h3>
-          <i
-            id="local-enabled"
-            class="fa fa-circle"
-            aria-hidden="true"
-            style="color: darkgray"
-          ></i>
+          <i id="local-enabled" class="fa fa-circle" aria-hidden="true" style="color: darkgray"></i>
           <i class="fa fa-home"></i> Local
         </h3>
         <ul class="nav navbar-right panel_toolbox">
-          <li style="padding-right: 46px">
-            <a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
-          </li>
+          <li><a class="btn btn-edit-config" data-provider="local"><span style="display:none;color: #5499c7; "><i
+                  class="fa fa-pencil"></i> Update
+                config</span></a>
+          <li><a class="collapse-link"><i class="fa fa-chevron-down"></i></a></li>
         </ul>
 
         <div class="clearfix"></div>
       </div>
-      <div class="x_content"></div>
+      <div class="x_content">
+        <table id="local-table" class="table">
+          <thead>
+            <tr>
+              <th rowspan="2">Import</th>
+              <th rowspan="2">Export</th>
+              <th rowspan="2">On migration</th>
+              <th colspan="6">Notification bar</th>
+            </tr>
+            <tr>
+              <th>Enabled</th>
+              <th>Template</th>
+              <th>Level</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -49,52 +62,73 @@
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel" id="google_panel">
       <div class="x_title">
-        <h3>
-          <i
-            id="google-enabled"
-            class="fa fa-circle"
-            aria-hidden="true"
-            style="color: darkgray"
-          ></i>
-          <i class="fa fa-google"></i> Google
-        </h3>
+        <h3><i id="google-enabled" class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i> <i
+            class="fa fa-google"></i> Google</h3>
         <ul class="nav navbar-right panel_toolbox">
+          <li><a class="btn btn-edit-config" data-provider="google"><span style="display:none;color: #5499c7; "><i
+                  class="fa fa-pencil"></i> Update
+                config</span></a>
+          <li class="collapse"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
           <li>
-            <a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
-          </li>
-          <li></li>
         </ul>
-
         <div class="clearfix"></div>
       </div>
-      <div class="x_content"></div>
+      <div class="x_content">
+        <table id="google-table" class="table">
+          <thead>
+            <tr>
+              <th rowspan="2">Import</th>
+              <th rowspan="2">Export</th>
+              <th rowspan="2">On migration</th>
+              <th colspan="6">Notification bar</th>
+            </tr>
+            <tr>
+              <th>Enabled</th>
+              <th>Template</th>
+              <th>Level</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
+
 
 <div class="row">
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel" id="saml_panel">
       <div class="x_title">
-        <h3>
-          <i
-            id="saml-enabled"
-            class="fa fa-circle"
-            aria-hidden="true"
-            style="color: darkgray"
-          ></i>
-          <i class="fa fa-lock"></i> SAML
-        </h3>
+        <h3><i id="saml-enabled" class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i> <i
+            class="fa fa-lock"></i> SAML</h3>
         <ul class="nav navbar-right panel_toolbox">
+          <li><a class="btn btn-edit-config" data-provider="saml"><span style="display:none;color: #5499c7; "><i
+                  class="fa fa-pencil"></i> Update
+                config</span></a>
+          <li class="collapse"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
           <li>
-            <a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
-          </li>
-          <li></li>
         </ul>
-
         <div class="clearfix"></div>
       </div>
-      <div class="x_content col-md-12"></div>
+      <div class="x_content">
+        <table id="saml-table" class="table">
+          <thead>
+            <tr>
+              <th rowspan="2">Import</th>
+              <th rowspan="2">Export</th>
+              <th rowspan="2">On migration</th>
+              <th colspan="6">Notification bar</th>
+            </tr>
+            <tr>
+              <th>Enabled</th>
+              <th>Template</th>
+              <th>Level</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -103,27 +137,39 @@
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel" id="ldap_panel">
       <div class="x_title">
-        <h3>
-          <i
-            id="ldap-enabled"
-            class="fa fa-circle"
-            aria-hidden="true"
-            style="color: darkgray"
-          ></i>
-          <i class="fa fa-sitemap"></i> LDAP
-        </h3>
+        <h3><i id="ldap-enabled" class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i> <i
+            class="fa fa-sitemap"></i> LDAP</h3>
         <ul class="nav navbar-right panel_toolbox">
-          <li>
-            <a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
-          </li>
+          <li><a class="btn btn-edit-config" data-provider="ldap"><span style="display:none;color: #5499c7; "><i
+                  class="fa fa-pencil"></i> Update
+                config</span></a>
+          <li class="collapse"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a></li>
         </ul>
         <div class="clearfix"></div>
       </div>
-      <div class="x_content"></div>
+      <div class="x_content">
+        <table id="ldap-table" class="table">
+          <thead>
+            <tr>
+              <th rowspan="2">Import</th>
+              <th rowspan="2">Export</th>
+              <th rowspan="2">On migration</th>
+              <th colspan="6">Notification bar</th>
+            </tr>
+            <tr>
+              <th>Enabled</th>
+              <th>Template</th>
+              <th>Level</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
 
+{% include '/admin/pages/authentication_modals.html' %}
 {% endblock %} {% block pagescript %}
 <script src="/isard-admin/static/admin/js/authentication.js"></script>
 {% endblock %}

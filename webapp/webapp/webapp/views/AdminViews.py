@@ -339,7 +339,7 @@ def admin_users_pwd_policies():
     return render_template(
         "admin/pages/users_pwd_policies.html",
         nav="Pwd Policies",
-        title="Password Policies",
+        title="Policies",
         monitor_host=monitor_host,
     )
 

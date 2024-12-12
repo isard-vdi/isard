@@ -168,6 +168,16 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 		return ss, redirect, nil
 	}
 
+	// TODO: Check if the user needs to migrate themselves
+	if false {
+		ss, err := token.SignUserMigrationRequiredToken(a.Secret, u.ID)
+		if err != nil {
+			return "", "", err
+		}
+
+		return ss, redirect, nil
+	}
+
 	// Check if the user has the email verified
 	vfEmail, err := a.API.AdminUserRequiredEmailVerification(ctx, u.ID)
 	if err != nil {

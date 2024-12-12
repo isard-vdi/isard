@@ -1,0 +1,30 @@
+migration:
+  type: dict
+  schema:
+    notification_bar:
+      type: dict
+      schema:
+        level:
+          required: false
+          type: string
+          coerce: sanitize
+        template:
+          required: false
+          type: string
+          coerce: sanitize
+        enabled:
+          required: false
+          type: boolean
+    allow_automigration:
+      required: false
+      type: boolean
+    export:
+      required: false
+      type: boolean
+    import:
+      required: false
+      type: boolean
+    action_after_migrate:
+      required: false
+      type: string
+      coerce: sanitize

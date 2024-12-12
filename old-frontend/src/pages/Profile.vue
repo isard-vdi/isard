@@ -85,6 +85,37 @@
                             />
                             {{ $t('components.profile.reset-vpn') }}
                           </b-button>
+                          <b-row
+                            class="justify-content-center"
+                          >
+                            <template v-if="showExportUserButton">
+                              <b-button
+                                class="rounded-pill mr-2 pl-2 pr-3 btn-red"
+                                :title="$t('components.profile.export')"
+                                @click="onClickGoToExportUser"
+                              >
+                                <b-icon
+                                  icon="box-arrow-up-right"
+                                  scale="0.75"
+                                />
+                                {{ $t('components.profile.export') }}
+                              </b-button>
+                            </template>
+                            <template v-if="showImportUserButton">
+                              <ImportUserModal />
+                              <b-button
+                                class="rounded-pill mr-2 pl-2 pr-3 btn-red"
+                                :title="$t('components.profile.import')"
+                                @click="showImportUserModal(true)"
+                              >
+                                <b-icon
+                                  icon="box-arrow-in-down-right"
+                                  scale="0.75"
+                                />
+                                {{ $t('components.profile.import') }}
+                              </b-button>
+                            </template>
+                          </b-row>
                           <span>
                             <b-button
                               v-if="profile.userStorage.tokenWeb !== false"
@@ -348,6 +379,7 @@ import QuotaProgressBar from '@/components/profile/QuotaProgressBar.vue'
 import { computed } from '@vue/composition-api'
 import i18n from '@/i18n'
 import EmailVerificationModal from '@/components/profile/EmailVerificationModal.vue'
+import ImportUserModal from '@/components/profile/ImportUserModal.vue'
 
 export default {
   components: {
@@ -355,14 +387,21 @@ export default {
     Language,
     PasswordModal,
     EmailVerificationModal,
-    QuotaProgressBar
+    QuotaProgressBar,
+    ImportUserModal
   },
   setup (_, context) {
     const $store = context.root.$store
 
     $store.dispatch('fetchProfile')
+    const user = computed(() => $store.getters.getUser)
     const profile = computed(() => $store.getters.getProfile)
     const config = computed(() => $store.getters.getConfig)
+    const showExportUserButton = computed(() => $store.getters.getShowExportUserButton)
+    const showImportUserButton = computed(() => $store.getters.getShowImportUserButton)
+
+    $store.dispatch('fetchShowExportUserButton', user.value.provider)
+    $store.dispatch('fetchShowImportUserButton', user.value.provider)
 
     const profileLoaded = computed(() => $store.getters.getProfileLoaded)
     const showEmailVerificationModal = () => {
@@ -383,7 +422,14 @@ export default {
       })
     }
 
-    return { profile, profileLoaded, showEmailVerificationModal, config, showResetVPNModalConfirmation }
+    const onClickGoToExportUser = () => {
+      $store.dispatch('goToExportUser')
+    }
+    const showImportUserModal = (value) => {
+      $store.dispatch('showImportUserModal', value)
+    }
+
+    return { profile, profileLoaded, showEmailVerificationModal, config, showResetVPNModalConfirmation, onClickGoToExportUser, showExportUserButton, showImportUserButton, showImportUserModal }
   },
   destroyed () {
     this.$store.dispatch('resetProfileState')

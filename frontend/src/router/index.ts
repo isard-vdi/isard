@@ -1,3 +1,5 @@
+import { computed } from 'vue'
+import { useCookies as useAuthCookies, getBearer } from '../lib/auth'
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
@@ -14,8 +16,29 @@ const router = createRouter({
       name: 'login',
       component: () => import('../views/LoginView.vue'),
       meta: { title: 'router.titles.login' }
+    },
+    {
+      path: '/migration',
+      name: 'migration',
+      component: () => import('../views/MigrationView.vue'),
+      meta: { title: 'router.titles.migration', requiresAuth: true }
     }
   ]
+})
+
+const cookies = useAuthCookies()
+const token = computed(() => getBearer(cookies))
+
+router.beforeEach((to, from, next) => {
+  if (to.matched.some((record) => record.meta.requiresAuth)) {
+    if (!token || !token.value || token.value === 'login') {
+      next({ name: 'login' })
+    } else {
+      next()
+    }
+  } else {
+    next()
+  }
 })
 
 export default router

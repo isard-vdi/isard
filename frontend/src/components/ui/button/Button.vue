@@ -23,7 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
     :as-child="asChild"
     :class="cn(buttonVariants({ hierarchy, size }), props.class)"
   >
-    <Icon v-if="props.icon" :name="props.icon" class="pr-3" />
+    <Icon v-if="props.icon" :name="props.icon" />
     <slot />
   </Primitive>
 </template>

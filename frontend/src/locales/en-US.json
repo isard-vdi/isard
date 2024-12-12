@@ -2,19 +2,76 @@
   "router": {
     "titles": {
       "home": "Home",
-      "login": "Login"
+      "login": "Login",
+      "migration": "Migration"
     }
   },
   "views": {
     "login": {
       "separator": "Other logins",
       "select-category": "Select a category"
+    },
+    "migration": {
+      "title": "User migration",
+      "subtitle": "Migrate \"{old_user_name}\" ({old_user_provider} authentication) to \"{new_user_name}\" ({new_user_provider} authentication)",
+      "notification": {
+        "title": "Important information when performing a migration:",
+        "description": {
+          "delete_user": "The previous user \"{old_user_name}\" ({old_user_provider} authentication) will be deleted.",
+          "user_description": "Any running desktops will be stopped. \nThe user's recycle bin will be emptied. \nThe user's bookings will be deleted. \nNon-persistent desktops will be DELETED \nResources (such as networks, RAM, CPU, GPUS) not allowed for the new user will be removed or restricted.",
+          "description": "Any running desktops will be stopped. \nThe user's recycle bin will be emptied. \nThe user's bookings will be deleted. \nNon-persistent desktops will be DELETED \nThe list of co-owners in deployments will be deleted. \nDesktops belonging to other users in migrated deployments will remain intact. \nResources (such as networks, RAM, CPU, GPUS) not allowed for the new user will be removed or restricted.",
+          "footer": "The migration process is irreversible."
+        }
+      },
+      "form": {
+        "accept": {
+          "title": "I understand and accept the risks associated with the migration process",
+          "required": "You must check this box to continue"
+        },
+        "submit": "Confirm migration"
+      },
+      "error": {
+        "title": "There were errors in the migration process:"
+      },
+      "success": {
+        "title": "Migration completed",
+        "description": {
+          "ok": "Your items have been successfully migrated to the new account. You can now go back to the main page.",
+          "error": "There were some errors during the process and some of your items haven't been migrated to the new account. Please contact an administrator. You can now go back to the main page."
+        },
+        "progress": {
+          "desktops-progress": "Migrating desktops...",
+          "desktops-ok": "Desktops migrated",
+          "desktops-error": "Desktops not migrated",
+          "templates-progress": "Migrating templates...",
+          "templates-ok": "Templates migrated",
+          "templates-error": "Templates not migrated",
+          "media-progress": "Migrating media...",
+          "media-ok": "Media migrated",
+          "media-error": "Media not migrated",
+          "deployments-progress": "Migrating deployments...",
+          "deployments-ok": "Deployments migrated",
+          "deployments-error": "Deployments not migrated",
+          "recycle-bin-progress": "Emptying recycle bin...",
+          "recycle-bin-ok": "Recycle bin emptied"
+        },
+        "buttons": {
+          "ok": "OK",
+          "logout": "Logout"
+        },
+        "errors": {
+          "generic": "There was an error while migrating your {type}, please contact an administrator."
+        }
+      }
     }
   },
   "layouts": {
     "login": {
       "title": "Login",
       "works-with": "Works with"
+    },
+    "single-page": {
+      "go-back": "Go back"
     }
   },
   "components": {
@@ -40,6 +97,14 @@
         "logged-in-as": "Logged in as {name}",
         "logout": "Logout"
       }
+    },
+    "migration": {
+      "migration-item-table": {
+        "name": "Name"
+      },
+      "migration-item-box": {
+        "quota_exceeded": "'{type}' quotas will be exceeded"
+      }
     }
   },
   "authentication": {
@@ -52,6 +117,37 @@
         "user_disallowed": "The user can't use IsardVDI",
         "rate_limit": "Too many login attempts, please try again at {time}"
       }
+    }
+  },
+  "api": {
+    "user_migration": {
+      "errors": {
+        "unknown": "An error has ocurred",
+        "token_expired": "The token you provided has expired",
+        "invalid_token": "The token you provided is invalid",
+        "no_items_to_migrate": "There are no items to migrate",
+        "multiple_migrations_found_target_user": "There are multiple migrations for the new user",
+        "same_user_migration": "You can't migrate to the same account. When obtaining the token, you must log out and log in with the new account",
+        "different_category_migration": "You can't migrate to an account from a different category",
+        "role_migration_admin": "You can't migrate from an admin account",
+        "role_migration_user": "You can't migrate to a user account from an account with a higher role",
+        "migration_desktop_quota_error": "The user has more desktops than the new user quota",
+        "migration_template_quota_error": "The user has more templates than the new user quota",
+        "migration_media_quota_error": "The user has more media than the new user quota",
+        "migration_deployments_quota_error": "The user has more deployments than the new user quota"
+      }
+    }
+  },
+  "domains": {
+    "desktops": "desktop | desktops",
+    "templates": "template | templates",
+    "media": "media | media",
+    "deployments": "deployment | deployments",
+    "capitalized": {
+      "desktops": "@.capitalize:domains.desktops",
+      "templates": "@.capitalize:domains.templates",
+      "media": "@.capitalize:domains.media",
+      "deployments": "@.capitalize:domains.deployments"
     }
   }
 }

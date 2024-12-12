@@ -21,17 +21,42 @@
 <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
         <div class="x_title">
-            <h3><i class="fa fa-edit"></i> Notification templates<small> Preconfigured template text for event
-                    notifications</small></h3>
+            <h3><i class="fa fa-sliders"></i><i class="fa fa-edit"></i> Custom Notification Templates<small> Templates that can be added, edited, or deleted</small></h3>
             <ul class="nav navbar-right panel_toolbox">
-                <li><a class="btn btn-add-notification-tmpl" data-panel="notification-tmpls"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add template</span></a>
+                <li><a class="btn btn-add-notification-tmpl" data-panel="custom-notification-tmpls"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add template</span></a>
             </ul>
             <div class="clearfix"></div>
         </div>
         <div class="x_content">
             <p class="text-muted font-13 m-b-30"></p>
-            <div id="tableDiv"></div>
-            <table id="notification-tmpls-table" class="table">
+            <div id="custom-table-div"></div>
+            <table id="custom-notification-tmpls-table" class="table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Default language</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+        <div class="x_title">
+            <h3><i class="fa fa-cogs"></i><i class="fa fa-edit"></i> System Notification Templates<small> Preconfigured templates</small></h3>
+            <div class="clearfix"></div>
+        </div>
+        <div class="x_content">
+            <p class="text-muted font-13 m-b-30"></p>
+            <div id="system-table-div"></div>
+            <table id="system-notification-tmpls-table" class="table">
                 <thead>
                     <tr>
                         <th></th>

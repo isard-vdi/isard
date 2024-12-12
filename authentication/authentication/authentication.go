@@ -34,6 +34,7 @@ type Interface interface {
 	VerifyEmail(ctx context.Context, tkn string) error
 	ForgotPassword(ctx context.Context, categoryID, email string) error
 	ResetPassword(ctx context.Context, tkn string, pwd string, remoteAddr string) error
+	MigrateUser(ctx context.Context, tkn string, UserID string) (migrationTkn string, err error)
 
 	SAML() *samlsp.Middleware
 

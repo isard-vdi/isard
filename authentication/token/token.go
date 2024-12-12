@@ -25,6 +25,8 @@ const (
 	TypePasswordResetRequired             Type = "password-reset-required"
 	TypePasswordReset                     Type = "password-reset"
 	TypeCategorySelect                    Type = "category-select"
+	TypeUserMigrationRequired             Type = "user-migration-required"
+	TypeUserMigration                     Type = "user-migration"
 )
 
 type TypeClaims struct {
@@ -202,6 +204,32 @@ func (c CategorySelectClaims) Validate() error {
 	return nil
 }
 
+type UserMigrationRequiredClaims struct {
+	TypeClaims
+	UserID string `json:"user_id"`
+}
+
+func (u UserMigrationRequiredClaims) Validate() error {
+	if u.Type != TypeUserMigrationRequired {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
+type UserMigrationClaims struct {
+	TypeClaims
+	UserID string `json:"user_id"`
+}
+
+func (u UserMigrationClaims) Validate() error {
+	if u.Type != TypeUserMigration {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
 func GetTokenType(ss string) (Type, error) {
 	tkn, _, err := new(jwt.Parser).ParseUnverified(ss, &TypeClaims{})
 	if err != nil {
@@ -219,7 +247,9 @@ func GetTokenType(ss string) (Type, error) {
 		TypeEmailVerification,
 		TypePasswordResetRequired,
 		TypePasswordReset,
-		TypeCategorySelect:
+		TypeCategorySelect,
+		TypeUserMigrationRequired,
+		TypeUserMigration:
 
 		return claims.Type, nil
 
@@ -231,4 +261,17 @@ func GetTokenType(ss string) (Type, error) {
 	default:
 		return TypeUnknown, errors.New("unknown token type")
 	}
+}
+
+func TokenIsIsardvdiService(secret, ss string) error {
+	tkn, err := ParseLoginToken(secret, ss)
+	if err != nil {
+		return err
+	}
+
+	if tkn.SessionID != "isardvdi-service" {
+		return ErrInvalidTokenType
+	}
+
+	return nil
 }

@@ -32,6 +32,7 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.recycle_bin import RecycleBinDeleteQueue
+from .api_notify import notify_custom
 from .api_sessions import revoke_user_session
 from .api_storage import remove_category_from_storage_pool
 from .bookings.api_booking import Bookings
@@ -1091,7 +1092,7 @@ class ApiUsers:
                 users = list(
                     r.table("users")
                     .get_all(r.args(item_ids))
-                    .pluck("id", "name", "username")
+                    .pluck("id", "name", "username", "provider")
                     .run(db.conn)
                 )
             with app.app_context():
@@ -2122,6 +2123,253 @@ class ApiUsers:
 
         return user
 
+    def register_migration(self, migration_token, origin_user_id):
+        """
+
+        Registers a user migration in the database. If a migration already exists for the user, it updates it with the new token.
+
+        :param migration_token: The migration token
+        :type migration_token: str
+        :param origin_user_id: The origin user id
+        :type origin_user_id: str
+        :param exp_time: The expiration time
+        :type exp_time: int
+
+        """
+        with app.app_context():
+            user_migration = list(
+                r.table("users_migrations")
+                .get_all(origin_user_id, index="origin_user")
+                .run(db.conn)
+            )
+        if user_migration:
+            if len(user_migration) > 1:
+                raise Error(
+                    "forbidden",
+                    "Multiple migrations found for the same user",
+                    description_code="multiple_migrations_found_origin_user",
+                )
+            with app.app_context():
+                r.table("users_migrations").get_all(
+                    origin_user_id, index="origin_user"
+                ).filter(
+                    lambda migration: ~migration["status"].match("migrated")
+                ).replace(
+                    r.row.without({"import_time": True, "target_user": True}).merge(
+                        {
+                            "status": "exported",
+                            "export_time": int(time.time()),
+                            "origin_user": origin_user_id,
+                            "token": migration_token,
+                        }
+                    )
+                ).run(
+                    db.conn
+                )
+        else:
+            with app.app_context():
+                r.table("users_migrations").insert(
+                    {
+                        "token": migration_token,
+                        "status": "exported",
+                        "created": int(time.time()),
+                        "origin_user": origin_user_id,
+                    }
+                ).run(db.conn)
+
+    def get_user_migration(self, migration_token):
+        """
+
+        Gets a user migration based on the migration token
+
+        :param migration_token: The migration token
+        :type migration_token: str
+        :return: The user migration data
+
+        """
+        with app.app_context():
+            user_migration = list(
+                r.table("users_migrations")
+                .get_all(migration_token, index="token")
+                .filter(lambda migration: ~migration["status"].match("revoked|failed"))
+                .run(db.conn)
+            )
+        if user_migration:
+            if len(user_migration) > 1:
+                raise Error(
+                    "internal_server",
+                    "Multiple migrations found for token",
+                    description_code="multiple_migrations_found",
+                )
+
+            return user_migration[0]
+        else:
+            raise Error(
+                "not_found",
+                "Migration not found",
+                description_code="migration_not_found",
+            )
+
+    def check_user_migration(self, migration_token, target_user_id):
+        """
+
+        Check if the user migration exists and if the migration is valid based on the migration token. If it doesn't it raises an error.
+
+        :param migration_token: The migration token
+        :type migration_token: str
+        """
+
+        migration = self.get_user_migration(migration_token)
+        errors = self.check_valid_migration(migration["origin_user"], target_user_id)
+        return errors
+
+    def get_user_migration_by_target_user(self, target_user_id):
+        """
+
+        Gets a user migration based on the target user id
+
+        :param target_user_id: The target user id
+        :type target_user_id: str
+        :return: The user migration data
+
+        """
+
+        with app.app_context():
+            user_migration = list(
+                r.table("users_migrations")
+                .get_all(target_user_id, index="target_user")
+                .filter(
+                    lambda migration: ~migration["status"].match(
+                        "migrated|revoked|failed"
+                    )
+                )
+                .run(db.conn)
+            )
+        if len(user_migration) > 1:
+            raise Error(
+                "forbidden",
+                "Multiple migrations found for the same target user",
+                description_code="multiple_migrations_found_target_user",
+            )
+        if user_migration:
+            return user_migration[0]
+        else:
+            raise Error(
+                "not_found",
+                "Migration not found",
+                description_code="migration_not_found",
+            )
+
+    def update_user_migration(
+        self,
+        migration_token,
+        status=None,
+        target_user_id=None,
+        migration_start_time=False,
+        migration_end_time=False,
+        migrated_items=None,
+        migrated_desktops=False,
+        migrated_templates=False,
+        migrated_media=False,
+        migrated_deployments=False,
+    ):
+        """
+        Updates a user migration status based on the migration token
+
+        :param migration_token: The migration token
+        :type migration_token: str
+        :param status: The migration status
+        :type status: str
+        :param target_user_id: The target user id
+        :type target_user_id: str
+        :param migration_start_time: Whether to set the migration start time
+        :type migration_start_time: bool
+        :param migration_end_time: Whether to set the migration end time
+        :type migration_end_time: bool
+        :param migrated_items: The migrated items
+        :type migrated_items: dict
+        :param migrated_desktops: Whether the desktops were migrated
+        :type migrated_desktops: bool
+        :param migrated_templates: Whether the templates were migrated
+        :type migrated_templates: bool
+        :param migrated_media: Whether the media was migrated
+        :type migrated_media: bool
+        :param migrated_deployments: Whether the deployments were migrated
+        :type migrated_deployments: bool
+        """
+        data = {
+            "status": status if status else None,
+            "target_user": target_user_id,
+            "import_time": int(time.time()) if status == "imported" else None,
+            "migration_start_time": int(time.time()) if migration_start_time else None,
+            "migration_end_time": int(time.time()) if migration_end_time else None,
+            "migrated_items": migrated_items,
+            "migrated_desktops": migrated_desktops if migrated_desktops else None,
+            "migrated_templates": migrated_templates if migrated_templates else None,
+            "migrated_media": migrated_media if migrated_media else None,
+            "migrated_deployments": (
+                migrated_deployments if migrated_deployments else None
+            ),
+        }
+        data = {k: v for k, v in data.items() if v is not None}
+        with app.app_context():
+            total = (
+                r.table("users_migrations")
+                .get_all(migration_token, index="token")
+                .count()
+                .run(db.conn)
+            )
+        if total > 1:
+            raise Error(
+                "forbidden",
+                "Multiple migrations found for the same token",
+                description_code="multiple_migrations_found_token",
+            )
+        else:
+            with app.app_context():
+                r.table("users_migrations").get_all(
+                    migration_token, index="token"
+                ).update(data).run(db.conn)
+
+    def delete_user_migration(self, migration_token):
+        """
+        Deletes a user migration based on the migration token
+
+        :param migration_token: The migration token
+        :type migration_token: str
+        """
+        with app.app_context():
+            result = (
+                r.table("users_migrations")
+                .get_all(migration_token, index="token")
+                .delete()
+                .run(db.conn)
+            )
+        if result.get("deleted", 0) == 0:
+            raise Error(
+                "internal_server",
+                "No migration found when deleting",
+                description_code="migration_not_found",
+            )
+
+    def reset_imported_user_migration_by_target_user(self, target_user_id):
+        """
+        Reset as exported all the imported migrations from the given target user id (remove the import_time and target_user fields too).
+
+        :param target_user_id: The target user id
+        :type target_user_id: str
+        """
+        with app.app_context():
+            r.table("users_migrations").get_all(
+                target_user_id, index="target_user"
+            ).filter({"status": "imported"}).replace(
+                r.row.without({"import_time": True, "target_user": True}).merge(
+                    {"status": "exported"}
+                )
+            ).run(
+                db.conn
+            )
+
     def process_migrate_user(self, user_id, target_user_id):
         user_data = get_new_user_data(target_user_id)
         try:
@@ -2171,7 +2419,202 @@ class ApiUsers:
         for rb_id in rb_ids:
             rb_delete_queue.enqueue({"recycle_bin_id": rb_id, "user_id": user_id})
 
-    def check_valid_migration(self, origin_user_id, target_user_id):
+    def process_automigrate_user(self, user_id, target_user_id, migration_token):
+        user_data = get_new_user_data(target_user_id)
+        self.update_user_migration(
+            migration_token, "migrating", migration_start_time=True
+        )
+        result = self.automigrate_user(user_id, user_data, migration_token)
+        if any(
+            s in result
+            for s in [
+                "desktops_error",
+                "templates_error",
+                "media_error",
+                "deployments_error",
+            ]
+        ):
+            self.update_user_migration(
+                migration_token, "failed", migration_end_time=True
+            )
+        else:
+            self.update_user_migration(
+                migration_token, "migrated", migration_end_time=True
+            )
+            with app.app_context():
+                provider_migration_config = (
+                    r.table("config")
+                    .get(1)["auth"][user_data["payload"]["provider"]]
+                    .run(db.conn)
+                )
+            action_after_migrate = provider_migration_config.get("migration", {}).get(
+                "action_after_migrate", ""
+            )
+            if action_after_migrate == "delete":
+                self.Delete(user_id, user_id, True)
+            elif action_after_migrate == "disable":
+                self.Update([user_id], {"active": False})
+        return result
+
+    def automigrate_user(self, user_id, user_data, migration_token):
+        """
+
+        Migrates a user based on the user data and migration token
+
+        :param user_id: The user id to migrate
+        :type user_id: str
+        :param user_data: The user data to migrate to
+        :type user_data: dict
+        :param migration_token: The migration token
+        :type migration_token: str
+
+        """
+        progress = {}
+
+        user_resources = self.get_user_resources(user_id)
+        self.update_user_migration(migration_token, migrated_items=user_resources)
+
+        if user_resources["desktops"]:
+            try:
+                change_owner_desktops(user_resources["desktops"], user_data, user_id)
+            except Error as e:
+                progress["migrated_desktops"] = False
+                progress["desktops_error"] = str(e)
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_desktops": False, "desktops_error": str(e)},
+                    "/userspace",
+                    user_id,
+                )
+            except:
+                progress["migrated_desktops"] = False
+                progress["desktops_error"] = "unknown"
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_desktops": False, "desktops_error": "unknown"},
+                    "/userspace",
+                    user_id,
+                )
+            else:
+                self.update_user_migration(migration_token, migrated_desktops=True)
+                progress["migrated_desktops"] = True
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_desktops": True},
+                    "/userspace",
+                    user_id,
+                )
+
+        if user_resources["templates"]:
+            try:
+                change_owner_templates(user_resources["templates"], user_data)
+            except Error as e:
+                progress["migrated_templates"] = False
+                progress["templates_error"] = str(e)
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_templates": False, "templates_error": str(e)},
+                    "/userspace",
+                    user_id,
+                )
+            except:
+                progress["migrated_templates"] = False
+                progress["templates_error"] = "unknown"
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_templates": False, "templates_error": "unknown"},
+                    "/userspace",
+                    user_id,
+                )
+            else:
+                self.update_user_migration(migration_token, migrated_templates=True)
+                progress["migrated_templates"] = True
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_templates": True},
+                    "/userspace",
+                    user_id,
+                )
+
+        if user_resources["media"]:
+            try:
+                change_owner_medias(user_resources["media"], user_data)
+            except Error as e:
+                progress["migrated_media"] = False
+                progress["media_error"] = str(e)
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_media": False, "media_error": str(e)},
+                    "/userspace",
+                    user_id,
+                )
+            except:
+                progress["migrated_media"] = False
+                progress["media_error"] = "unknown"
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_media": False, "media_error": "unknown"},
+                    "/userspace",
+                    user_id,
+                )
+            else:
+                self.update_user_migration(migration_token, migrated_media=True)
+                progress["migrated_media"] = True
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_media": True},
+                    "/userspace",
+                    user_id,
+                )
+
+        if user_resources["deployments"]:
+            try:
+                change_owner_deployments(
+                    user_resources["deployments"], user_data, user_id
+                )
+            except Error as e:
+                progress["migrated_deployments"] = False
+                progress["deployments_error"] = str(e)
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_deployments": False, "deployments_error": str(e)},
+                    "/userspace",
+                    user_id,
+                )
+            except:
+                progress["migrated_deployments"] = False
+                progress["deployments_error"] = "unknown"
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_deployments": False, "deployments_error": "unknown"},
+                    "/userspace",
+                    user_id,
+                )
+            else:
+                self.update_user_migration(migration_token, migrated_deployments=True)
+                progress["migrated_deployments"] = True
+                notify_custom(
+                    "migration_progress",
+                    {"migrated_deployments": True},
+                    "/userspace",
+                    user_id,
+                )
+
+        rb_ids = get_user_recycle_bin_ids(user_id, "recycled")
+        for rb_id in rb_ids:
+            rb_delete_queue.enqueue({"recycle_bin_id": rb_id, "user_id": user_id})
+        progress["rb_deleted"] = True
+        notify_custom(
+            "migration_progress",
+            {"rb_deleted": True},
+            "/userspace",
+            user_id,
+        )
+
+        # TODO: only use ws once they are implemented in frontend
+        return progress
+
+    def check_valid_migration(self, origin_user_id, target_user_id, check_quotas=False):
         """
 
         Checks if the user migration is valid based on the role, category and quotas
@@ -2196,7 +2639,7 @@ class ApiUsers:
         )
         if errors:
             return errors
-        if get_user_migration_config()["check_quotas"]:
+        if get_user_migration_config()["check_quotas"] or check_quotas:
             errors += self.check_target_user_quotas_migration(
                 target_user_id, user_resources
             )

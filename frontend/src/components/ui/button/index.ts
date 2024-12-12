@@ -5,7 +5,7 @@ export { default as Button } from './Button.vue'
 export const buttonVariants = cva(
   // Common classes applied to all buttons
   `
-    inline-flex items-center justify-center whitespace-nowrap
+    inline-flex items-center gap-2 justify-center whitespace-nowrap
     rounded-md font-semibold
   `,
   {

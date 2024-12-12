@@ -12,17 +12,22 @@ const getDefaultState = () => {
       userStorage: {
         tokenWeb: false,
         providerQuota: false
-      }
+      },
+      role: ''
     },
     modalShow: false,
     modalEmailShow: false,
+    modalImportUserShow: false,
     password: '',
     passwordConfirmation: '',
     profile_loaded: false,
     lang: '',
     passwordPolicy: '',
     currentPassword: '',
-    emailAddress: ''
+    emailAddress: '',
+    showExportUserButton: false,
+    exportUserToken: '',
+    showImportUserButton: false
   }
 }
 
@@ -49,6 +54,12 @@ export default {
     getShowEmailVerificationModal: state => {
       return state.modalEmailShow
     },
+    getShowImportUserModal: state => {
+      return state.modalImportUserShow
+    },
+    getExportUserToken: state => {
+      return state.exportUserToken
+    },
     getLang: state => {
       return state.lang
     },
@@ -60,8 +71,13 @@ export default {
     },
     getEmailAddress: state => {
       return state.emailAddress
+    },
+    getShowExportUserButton: state => {
+      return state.showExportUserButton
+    },
+    getShowImportUserButton: state => {
+      return state.showImportUserButton
     }
-
   },
   mutations: {
     resetProfileState: (state) => {
@@ -91,6 +107,12 @@ export default {
     setShowEmailVerificationModal: (state, modalEmailShow) => {
       state.modalEmailShow = modalEmailShow
     },
+    setShowImportUserModal: (state, modalImportUserShow) => {
+      state.modalImportUserShow = modalImportUserShow
+    },
+    setExportUserToken: (state, exportUserToken) => {
+      state.exportUserToken = exportUserToken
+    },
     setLang (state, lang) {
       state.lang = lang
     },
@@ -105,6 +127,12 @@ export default {
     },
     update_profile: (state, profile) => {
       state.profile = { ...state.profile, ...profile }
+    },
+    setShowExportUserButton: (state, showExportUserButton) => {
+      state.showExportUserButton = showExportUserButton
+    },
+    setShowImportUserButton: (state, showImportUserButton) => {
+      state.showImportUserButton = showImportUserButton
     }
   },
   actions: {
@@ -142,6 +170,9 @@ export default {
     showEmailVerificationModal (context, show) {
       context.commit('setShowEmailVerificationModal', show)
     },
+    showImportUserModal (context, show) {
+      context.commit('setShowImportUserModal', show)
+    },
     resetPasswordState (context) {
       context.commit('resetPasswordState')
     },
@@ -173,6 +204,45 @@ export default {
         .catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })
+    },
+    generateExportUserToken (context) {
+      return axios.post(`${apiV3Segment}/user_migration/export`, {})
+        .then(response => {
+          context.commit('setExportUserToken', response.data.token)
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+    },
+    fetchShowExportUserButton (context, providerId) {
+      axios.get(`${apiV3Segment}/authentication/export/${providerId}`)
+        .then(response => {
+          context.commit('setShowExportUserButton', response.data.enabled)
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+    },
+    fetchShowImportUserButton (context, providerId) {
+      axios.get(`${apiV3Segment}/authentication/import/${providerId}`)
+        .then(response => {
+          context.commit('setShowImportUserButton', response.data.enabled)
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+    },
+    importUser (context, data) {
+      return axios.post(`${apiV3Segment}/user_migration/import`, data)
+        .then(response => {
+          window.location.pathname = '/migration'
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+    },
+    goToExportUser () {
+      window.location.pathname = '/export-user'
     }
   }
 }

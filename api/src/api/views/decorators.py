@@ -160,6 +160,34 @@ def is_auto_register(f):  # TODO
     return decorated
 
 
+def has_migration_required_or_login_token(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        payload = get_header_jwt_payload()
+        payload_type = payload.get("type", "")
+
+        if payload_type == "user-migration-required":
+            kwargs["payload"] = payload
+            return f(*args, **kwargs)
+
+        elif payload_type not in ["login", ""]:
+            raise Error(
+                "forbidden",
+                "Token not valid for this operation.",
+                traceback.format_exc(),
+            )
+
+        api_sessions.get(
+            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+        )
+
+        maintenance()
+        kwargs["payload"] = payload
+        return f(*args, **kwargs)
+
+    return decorated
+
+
 def is_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -854,6 +882,7 @@ def canPerformActionDeployment(payload, domain_id, action):
     try:
         with app.app_context():
             domain = r.table("domains").get(domain_id).pluck("tag").run(db.conn)
+        with app.app_context():
             permissions = (
                 r.table("deployments")
                 .get(domain["tag"])
@@ -884,8 +913,12 @@ def can_use_bastion(payload):
     if not bastion_enabled:
         return False
 
-    bastion_alloweds = (
-        r.table("config").get(1).pluck({"bastion": "allowed"}).run(db.conn)["bastion"]
-    )
+    with app.app_context():
+        bastion_alloweds = (
+            r.table("config")
+            .get(1)
+            .pluck({"bastion": "allowed"})
+            .run(db.conn)["bastion"]
+        )
 
     return api_allowed.is_allowed(payload, bastion_alloweds, "config", True)

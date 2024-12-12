@@ -63,6 +63,7 @@ container_base_path = {
     "isard-api": "/api/v3",
     "isard-scheduler": "/scheduler",
     "isard-notifier": "/notifier",
+    "isard-authentication": "/authentication",
 }
 
 
@@ -78,9 +79,18 @@ class ApiRest:
                 actual_server = "isard-scheduler"
             if service == "isard-notifier":
                 actual_server = "isard-notifier"
-
+            if service == "isard-authentication":
+                actual_server = "isard-authentication"
             if actual_server:
-                if actual_server == "localhost" or actual_server.startswith("isard-"):
+                if actual_server == "isard-authentication":
+                    self.base_url = (
+                        "http://"
+                        + actual_server
+                        + ":1313"
+                        + container_base_path[service]
+                    )
+                    self.verify_cert = False
+                elif actual_server == "localhost" or actual_server.startswith("isard-"):
                     self.base_url = (
                         "http://"
                         + actual_server

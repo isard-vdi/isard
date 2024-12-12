@@ -840,3 +840,35 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 
 	return &oasAuthentication.ResetPasswordResponse{}, nil
 }
+
+func (a *AuthenticationServer) MigrateUser(ctx context.Context, req *oasAuthentication.MigrateUserRequest) (oasAuthentication.MigrateUserRes, error) {
+	tkn, ok := ctx.Value(tokenCtxKey).(string)
+	if !ok {
+		return &oasAuthentication.MigrateUserUnauthorized{
+			Error: oasAuthentication.MigrateUserErrorErrorMissingToken,
+			Msg:   "missing JWT token",
+		}, nil
+	}
+
+	migrateTkn, err := a.Authentication.MigrateUser(ctx, tkn, req.UserID)
+	if err != nil {
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.MigrateUserForbidden{
+				Error: oasAuthentication.MigrateUserErrorErrorInvalidToken,
+				Msg:   err.Error(),
+			}, nil
+
+		}
+
+		a.Log.Error().Err(err).Msg("migrate user error")
+
+		return &oasAuthentication.MigrateUserInternalServerError{
+			Error: oasAuthentication.MigrateUserErrorErrorInternalServer,
+			Msg:   "unknown error",
+		}, nil
+	}
+
+	return &oasAuthentication.MigrateUserResponse{
+		Token: migrateTkn,
+	}, nil
+}
