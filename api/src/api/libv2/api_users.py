@@ -2441,6 +2441,19 @@ class ApiUsers:
             self.update_user_migration(
                 migration_token, "migrated", migration_end_time=True
             )
+            with app.app_context():
+                provider_migration_config = (
+                    r.table("config")
+                    .get(1)["auth"][user_data["payload"]["provider"]]
+                    .run(db.conn)
+                )
+            action_after_migrate = provider_migration_config.get("migration", {}).get(
+                "action_after_migrate", ""
+            )
+            if action_after_migrate == "delete":
+                self.Delete(user_id, user_id, True)
+            elif action_after_migrate == "disable":
+                self.Update([user_id], {"active": False})
         return result
 
     def automigrate_user(self, user_id, user_data, migration_token):

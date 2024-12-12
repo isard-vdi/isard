@@ -944,7 +944,7 @@ def get_new_user_data(user_id):
         user = (
             r.table("users")
             .get(user_id)
-            .pluck("username", "category", "group", "role", "id")
+            .pluck("username", "category", "group", "role", "id", "provider")
             .run(db.conn)
         )
     new_user = {
@@ -959,6 +959,7 @@ def get_new_user_data(user_id):
         "category_id": user["category"],
         "user_id": user["id"],
         "group_id": user["group"],
+        "provider": user["provider"],
     }
 
     return {"new_user": new_user, "payload": payload}
