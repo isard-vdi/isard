@@ -364,7 +364,7 @@ $(document).ready(function () {
           }
           let actionName = actionMap[full.stats.last_action.action] || full.stats.last_action.action
 
-          let timeDiff = moment().unix() - full.stats.last_action.timestamp.toFixed(0)
+          let timeDiff = (moment().unix() - full.stats.last_action.timestamp).toFixed(3)
           if (timeDiff < 5) {
             return '<span title="Seconds since action: ' + timeDiff + '">' + '<i class="fa fa-circle" aria-hidden="true" style="color:red"></i> ' + actionName + '</span>'
           }
@@ -389,8 +389,8 @@ $(document).ready(function () {
             "orange": 2, // over 2 second
           }
           for (var color in timeMap) {
-            if (data > timeMap[color]) {
-              return '<span title="Seconds since action: ' + timeDiff + '">' + '<i class="fa fa-circle" aria-hidden="true" style="color:' + color + '"></i> ' + full.stats.last_action.action_time.toFixed(3) + '</span>'
+            if (full.stats.last_action.action_time.toFixed(3) > timeMap[color]) {
+              return '<i class="fa fa-circle" aria-hidden="true" style="color:' + color + '"></i> ' + full.stats.last_action.action_time.toFixed(3)
             }
           }
           return full.stats.last_action.action_time.toFixed(3)
