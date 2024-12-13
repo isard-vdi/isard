@@ -36,6 +36,7 @@
             v-model="importToken"
             :placeholder="$t(`forms.import.modal.placeholder`)"
             type="text"
+            autocomplete="off"
           />
         </b-input-group>
       </b-col>
