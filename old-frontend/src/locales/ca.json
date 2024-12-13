@@ -1022,7 +1022,7 @@
         "title": "Exporta els elements del teu usuari",
         "back": "Torna",
         "description": "Migra els elements mitjançant un codi de migració",
-        "migration-instructions1": "Genera i copia aquest codi de migració al porta-retalls. Guarda aquest codi, ja que el necessitaràs per la importació.",
+        "migration-instructions1": "Genera i copia aquest codi de migració al porta-retalls. Guarda aquest codi, ja que el necessitaràs per la importació. El codi és vàlid durant 1 hora.",
         "migration-instructions2": "Per migrar aquest usuari a un altre, tanca aquesta sessió i inicia sessió amb l'usuari nou. Al perfil del nou usuari hi trobaràs el botó d'importació on enganxar-hi aquest codi.",
         "warning": "ATENCIÓ",
         "migration-warning": "Si ja s'ha generat un codi de migració amb anterioritat per aquest usuari, generar-ne un de nou invalidarà l'anterior.",

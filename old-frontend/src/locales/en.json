@@ -1271,7 +1271,7 @@
             "title": "Export user's items",
             "back": "Go back",
             "description": "Migrate user's items via migration token",
-            "migration-instructions1": "Generate and copy this token into your clipboard. Save this token, you will need it to import the user's items.",
+            "migration-instructions1": "Generate and copy this token into your clipboard. Save this token, you will need it to import the user's items. The token is valid for 1 hour.",
             "migration-instructions2": "To migrate this user to another one, log out and log in with the new user. In the new user's profile, you will find the import button where you can paste this token.",
             "warning": "WARNING",
             "migration-warning": "If you have previously generated a migration token for this user, generating a new one will invalidate the previous token.",
