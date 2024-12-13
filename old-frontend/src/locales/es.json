@@ -1284,7 +1284,7 @@
       "title": "Exportar elementos del usuario",
       "back": "Volver",
       "description": "Migrar elementos del usuario mediante un código de migración",
-      "migration-instructions1": "Genera y copia este código de migración en el portapapeles. Guarda este código, ya que lo necesitarás para la importación",
+      "migration-instructions1": "Genera y copia este código de migración en el portapapeles. Guarda este código, ya que lo necesitarás para la importación. El código es valido durante 1 hora.",
       "migration-instructions2": "Para migrar este usuario a otro, cierra esta sesión e inicia sesión con el nuevo usuario. En el perfil del usuario nuevo encontrarás el botón de importación donde pegar este código",
       "warning": "ATENCIÓN",
       "migration-warning": "Si ya se ha generado un código de migración anteriormente para este usuario, generar uno nuevo invalidará el código anterior.",
