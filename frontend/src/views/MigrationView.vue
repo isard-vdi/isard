@@ -172,11 +172,16 @@ const form = useForm({
   validationSchema: toTypedSchema(schema)
 })
 
+const migrationSubmitted = ref(false)
 const migrationSuccess = ref(false)
 const migrationResponse = ref({} as PostUserMigrationAutoResponse)
 const onSubmit = form.handleSubmit(async (values) => {
-  console.log('suibmit')
-  console.log('values', values)
+  // Prevent multiple submissions
+  if (migrationSubmitted.value === true) {
+    return
+  }
+  migrationSubmitted.value = true
+
   const { data, error } = await postUserMigrationAuto()
 
   if (error !== undefined) {
@@ -449,7 +454,12 @@ const itemQuotaExceeded = (item: string) => {
             class="flex flex-row justify-center gap-8 items-start"
             @submit="onSubmit"
           >
-            <Button type="submit" hierarchy="primary" size="lg" :disabled="isPending">
+            <Button
+              type="submit"
+              hierarchy="primary"
+              size="lg"
+              :disabled="isPending || migrationSubmitted"
+            >
               {{ t('views.migration.form.submit') }}
             </Button>
           </AutoForm>
