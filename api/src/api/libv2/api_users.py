@@ -28,6 +28,7 @@ import bcrypt
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from isardvdi_common.api_exceptions import Error
+from rethinkdb.errors import ReqlNonExistenceError
 
 from api import app
 
@@ -36,7 +37,7 @@ from .api_notify import notify_custom
 from .api_sessions import revoke_user_session
 from .api_storage import remove_category_from_storage_pool
 from .bookings.api_booking import Bookings
-from .caches import get_cached_user_with_names
+from .caches import get_cached_user_with_names, get_document, invalidate_caches
 from .recycle_bin import get_user_recycle_bin_ids
 
 apib = Bookings()
@@ -109,13 +110,8 @@ def user_exists(user_id):
             raise Error("not_found", "User not found")
 
 
-cache_user = TTLCache(maxsize=100, ttl=10)
-
-
-@cached(cache_user)
 def get_user(user_id):
-    with app.app_context():
-        return r.table("users").get(user_id).without("password").run(db.conn)
+    return get_document("users", user_id)
 
 
 @cached(cache=TTLCache(maxsize=100, ttl=10))
@@ -881,7 +877,7 @@ class ApiUsers:
         if data.get("email_verified") == True:
             data["email_verified"] = int(time.time())
 
-        cache_user.clear()
+        invalidate_caches("users", user_ids)
 
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
@@ -2210,6 +2206,57 @@ class ApiUsers:
                 description_code="migration_not_found",
             )
 
+    def get_migrations(self):
+        with app.app_context():
+            migrations = list(
+                r.table("users_migrations")
+                .merge(
+                    lambda migration: {
+                        "origin_user": r.table("users")
+                        .get(migration["origin_user"])
+                        .default({"name": None, "category": None})
+                        .pluck("name", "category"),
+                        "target_username": r.branch(
+                            migration.has_fields("target_user"),
+                            r.table("users")
+                            .get(migration["target_user"])
+                            .default({"name": None})["name"],
+                            None,
+                        ),
+                    }
+                )
+                .merge(
+                    lambda migration: {
+                        "category": r.branch(
+                            migration["origin_user"]["category"],
+                            r.table("categories")
+                            .get(migration["origin_user"]["category"])
+                            .pluck("name")["name"],
+                            "[DELETED]",
+                        )
+                    }
+                )
+                .run(db.conn)
+            )
+        result = []
+        for migration in migrations:
+            result.append(
+                {
+                    "origin_username": (
+                        migration["origin_user"]["name"]
+                        if migration["origin_user"].get("name")
+                        else "[DELETED]"
+                    ),
+                    "target_username": (
+                        migration["target_username"]
+                        if migration["target_username"]
+                        else "[DELETED]"
+                    ),
+                    **{k: v for k, v in migration.items()},
+                }
+            )
+        return result
+
     def check_user_migration(self, migration_token, target_user_id):
         """
 
@@ -2767,6 +2814,32 @@ class ApiUsers:
             )
 
         return errors
+
+    def get_user_migration_status(self, migration_id):
+        with app.app_context():
+            return (
+                r.table("users_migrations")
+                .get(migration_id)
+                .pluck("status")
+                .run(db.conn)["status"]
+            )
+
+    def revoke_user_migration(self, migration_id):
+        try:
+            status = self.get_user_migration_status(migration_id)
+        except ReqlNonExistenceError:
+            pass
+
+        if status in ["exported", "imported", "migrating"]:
+            with app.app_context():
+                r.table("users_migrations").get(migration_id).update(
+                    {"status": "revoked"}
+                ).run(db.conn)
+        else:
+            raise Error(
+                "bad_request",
+                description=f'Migrations in status "{status}" cannot be revoked.',
+            )
 
 
 def validate_email_jwt(user_id, email, minutes=60):

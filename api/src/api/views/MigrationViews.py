@@ -354,3 +354,42 @@ def api_v3_user_migration_auto(payload):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/admin/migrations", methods=["GET"])
+@is_admin
+def api_v3_admin_migrations(payload):
+    """
+
+    Endpoint to retrieve the list of user migrations
+
+    :param payload: Data from JWT token
+    :type payload: dict
+    :return: The list of user migrations
+    :rtype: Set with Flask response values and data in JSON
+
+    """
+    return (
+        json.dumps(users.get_migrations()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/migrations/<migration_id>/revoke", methods=["PUT"])
+@is_admin
+def api_v3_admin_migration_revoke(payload, migration_id):
+    """
+
+    Endpoint to change the status of a user migration to "revoked"
+
+    :param payload: Data from JWT token
+    :type payload: dict
+
+    """
+    users.revoke_user_migration(migration_id)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )

@@ -78,6 +78,11 @@ def get_cached(table, item_id):
         return None
 
 
+def invalidate_caches(table, item_ids: list):
+    for item_id in item_ids:
+        invalidate_cache(table, item_id)
+
+
 def invalidate_cache(table, item_id):
     cache_key = (table, item_id)
     if cache_key in cache:

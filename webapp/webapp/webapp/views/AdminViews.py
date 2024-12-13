@@ -344,6 +344,18 @@ def admin_users_pwd_policies():
     )
 
 
+@app.route("/isard-admin/admin/users/migration", methods=["POST", "GET"])
+@login_required
+@isAdmin
+def admin_users_pwd_migration():
+    return render_template(
+        "admin/pages/migration.html",
+        nav="Migration",
+        title="Migration",
+        monitor_host=monitor_host,
+    )
+
+
 """
 USAGE
 """
