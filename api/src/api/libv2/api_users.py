@@ -92,6 +92,7 @@ from .helpers import (
     get_new_user_data,
     get_template_with_all_derivatives,
     revoke_hardware_permissions,
+    unassign_item_from_resource,
 )
 from .validators import _validate_item
 
@@ -876,6 +877,10 @@ class ApiUsers:
                             ).run(db.conn)
         if data.get("email_verified") == True:
             data["email_verified"] = int(time.time())
+
+        if data.get("active") is False:
+            for user_id in user_ids:
+                unassign_item_from_resource(user_id, "users", "deployments")
 
         invalidate_caches("users", user_ids)
 
