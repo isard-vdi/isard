@@ -356,6 +356,7 @@ def get_selected_users(
         query_group_users = (
             r.table("users")
             .get_all(r.args(selected["groups"]), index="group")
+            .filter(lambda user: user["active"].eq(True))
             .pluck("id", "username", "category", "group")
         )
         if payload["role_id"] != "admin":
@@ -367,6 +368,7 @@ def get_selected_users(
             secondary_groups_users = list(
                 r.table("users")
                 .get_all(r.args(selected["groups"]), index="secondary_groups")
+                .filter(lambda user: user["active"].eq(True))
                 .pluck("id", "username", "category", "group")
                 .run(db.conn)
             )
@@ -381,6 +383,7 @@ def get_selected_users(
         query_user_users = (
             r.table("users")
             .get_all(r.args(selected["users"]), index="id")
+            .filter(lambda user: user["active"].eq(True))
             .pluck("id", "username", "category", "group")
         )
     if payload["role_id"] != "admin":
