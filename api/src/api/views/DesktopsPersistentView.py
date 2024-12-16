@@ -87,6 +87,7 @@ def api_v3_desktop_start(payload, desktop_id):
 
     with active_status_requests[desktop_id]:
         pending_status_requests[desktop_id] = True
+        gevent.spawn_later(2, delayed_remove_status_lock, desktop_id)
 
         ownsDomainId(payload, desktop_id)
         if ownsDeploymentDesktopId(payload, desktop_id):
@@ -124,8 +125,6 @@ def api_v3_desktop_start(payload, desktop_id):
             user_request=request,
         )
         scheduler.add_desktop_timeouts(payload, desktop_id)
-
-    gevent.spawn_later(1, delayed_remove_status_lock, desktop_id)
 
     return (
         json.dumps({"id": desktop_id}),
@@ -176,12 +175,12 @@ def api_v3_desktop_stop(payload, desktop_id):
 
     with active_status_requests[desktop_id]:
         pending_status_requests[desktop_id] = True
+        gevent.spawn_later(1, delayed_remove_status_lock, desktop_id)
 
         ownsDomainId(payload, desktop_id)
         logs_domain_stop_api(desktop_id, action_user=payload.get("user_id"))
         desktop_id = desktops.Stop(desktop_id)
 
-    gevent.spawn_later(1, delayed_remove_status_lock, desktop_id)
     return (
         json.dumps({"id": desktop_id}),
         200,
