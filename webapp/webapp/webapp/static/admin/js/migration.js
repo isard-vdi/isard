@@ -100,7 +100,9 @@ function renderMigrationDataTable() {
             { "data": "target_username", "render": function (data, type, full, meta) {
                 return data ? data : "-"; }
             },
-            { "data": "category" },
+            { "data": "category", "render": function (data, type, full, meta) {
+                return data ? data : "-"; }
+            },
             { "data": "status" },
             { "data": "created", "render": function (data, type, full, meta) {
                 if (!data) { return "-"; }

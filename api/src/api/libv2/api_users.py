@@ -2207,55 +2207,104 @@ class ApiUsers:
             )
 
     def get_migrations(self):
+        query = r.table("users_migrations")
+
+        # Origin user data
+        query = query.outer_join(
+            r.table("users"),
+            lambda migration, user: user["id"] == migration["origin_user"],
+        )
+        query = query.map(
+            lambda migration: {
+                "left": migration["left"],
+                "right": {
+                    "origin_user": r.branch(
+                        migration.has_fields("right"),
+                        migration["right"].pluck("name", "category"),
+                        None,
+                    )
+                },
+            }
+        ).zip()
+
+        # Target user data
+        query = query.outer_join(
+            r.table("users"),
+            lambda migration, user: r.branch(
+                migration.has_fields("target_user"),
+                user["id"] == migration["target_user"],
+                None,
+            ),
+        )
+        query = query.map(
+            lambda migration: {
+                "left": migration["left"],
+                "right": {
+                    "target_username": r.branch(
+                        migration["left"]
+                        .has_fields("target_user")
+                        .and_(migration.has_fields("right")),
+                        migration["right"].pluck("name")["name"],
+                        migration["left"]
+                        .has_fields("target_user")
+                        .and_(r.not_(migration.has_fields("right"))),
+                        "[DELETED]",
+                        None,
+                    ),
+                    "target_category": r.branch(
+                        migration["left"]
+                        .has_fields("target_user")
+                        .and_(migration.has_fields("right")),
+                        migration["right"].pluck("category")["category"],
+                        None,
+                    ),
+                },
+            }
+        ).zip()
+
+        # Category data
+        query = query.outer_join(
+            r.table("categories"),
+            lambda migration, category: r.branch(
+                migration.has_fields("origin_user").and_(
+                    migration["origin_user"].has_fields("category")
+                ),
+                category["id"] == migration["origin_user"]["category"],
+                migration.has_fields("target_category").and_(
+                    migration["target_category"].ne(None)
+                ),
+                category["id"] == migration["target_category"],
+                None,
+            ),
+        )
+        query = query.map(
+            lambda migration: {
+                "left": migration["left"],
+                "right": {
+                    "category": r.branch(
+                        migration.has_fields("right"),
+                        migration["right"].pluck("name")["name"],
+                        None,
+                    )
+                },
+            }
+        ).zip()
+
+        # Origin username
+        query = query.merge(
+            lambda migration: {
+                "origin_username": r.branch(
+                    migration["origin_user"].and_(
+                        migration["origin_user"].has_fields("name")
+                    ),
+                    migration["origin_user"]["name"],
+                    "[DELETED]",
+                )
+            }
+        )
+
         with app.app_context():
-            migrations = list(
-                r.table("users_migrations")
-                .merge(
-                    lambda migration: {
-                        "origin_user": r.table("users")
-                        .get(migration["origin_user"])
-                        .default({"name": None, "category": None})
-                        .pluck("name", "category"),
-                        "target_username": r.branch(
-                            migration.has_fields("target_user"),
-                            r.table("users")
-                            .get(migration["target_user"])
-                            .default({"name": None})["name"],
-                            None,
-                        ),
-                    }
-                )
-                .merge(
-                    lambda migration: {
-                        "category": r.branch(
-                            migration["origin_user"]["category"],
-                            r.table("categories")
-                            .get(migration["origin_user"]["category"])
-                            .pluck("name")["name"],
-                            "[DELETED]",
-                        )
-                    }
-                )
-                .run(db.conn)
-            )
-        result = []
-        for migration in migrations:
-            result.append(
-                {
-                    "origin_username": (
-                        migration["origin_user"]["name"]
-                        if migration["origin_user"].get("name")
-                        else "[DELETED]"
-                    ),
-                    "target_username": (
-                        migration["target_username"]
-                        if migration["target_username"]
-                        else "[DELETED]"
-                    ),
-                    **{k: v for k, v in migration.items()},
-                }
-            )
-        return result
+            return list(query.run(db.conn))
 
     def check_user_migration(self, migration_token, target_user_id):
         """
