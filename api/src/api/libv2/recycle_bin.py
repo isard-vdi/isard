@@ -1415,8 +1415,7 @@ class RecycleBinDomain(RecycleBin):
             self._add_item_name(domain["name"])
         with app.app_context():
             r.table("domains").get(domain_id).delete().run(db.conn)
-        with app.app_context():
-            api_targets.delete_domain_target(domain_id)
+        api_targets.delete_domain_target(domain_id)
         return self._set_data(self.id)
 
     def add_domain(self, domain):
@@ -1741,6 +1740,11 @@ class RecycleBinUser(RecycleBin):
                     }
                 ).run(db.conn)
             isard_user_storage_disable_users([user])
+
+            with app.app_context():
+                r.table("users_migrations").get_all(
+                    user["id"], index="origin_user"
+                ).filter({"status": "exported"}).delete().run(db.conn)
 
 
 class RecycleBinGroup(RecycleBin):
