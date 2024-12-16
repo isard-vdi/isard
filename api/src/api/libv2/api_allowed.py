@@ -86,7 +86,7 @@ class ApiAllowed:
                 }
             )
         if table == "users":
-            query = query.merge(
+            query = query.filter(lambda user: user["active"].eq(True)).merge(
                 lambda d: {
                     "category_name": r.table("categories")
                     .get(d["category"])
