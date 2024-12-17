@@ -379,7 +379,8 @@ class ApiDesktopsPersistent:
                     with app.app_context():
                         users_in_roles = list(
                             r.table("users")
-                            .get_all(role, index="role")["id"]
+                            .get_all(role, index="role")
+                            .filter(lambda user: user["active"].eq(True))["id"]
                             .run(db.conn)
                         )
                     users = users + users_in_roles
@@ -393,7 +394,8 @@ class ApiDesktopsPersistent:
                 with app.app_context():
                     users_in_categories = list(
                         r.table("users")
-                        .get_all(r.args(selected["categories"]), index="category")["id"]
+                        .get_all(r.args(selected["categories"]), index="category")
+                        .filter(lambda user: user["active"].eq(True))["id"]
                         .run(db.conn)
                     )
                 users = users + users_in_categories
@@ -410,14 +412,16 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 users_in_groups = list(
                     r.table("users")
-                    .get_all(r.args(selected["groups"]), index="group")["id"]
+                    .get_all(r.args(selected["groups"]), index="group")
+                    .filter(lambda user: user["active"].eq(True))["id"]
                     .run(db.conn)
                 )
 
             with app.app_context():
                 users_in_secondary_groups = list(
                     r.table("users")
-                    .get_all(r.args(selected["groups"]), index="secondary_groups")["id"]
+                    .get_all(r.args(selected["groups"]), index="secondary_groups")
+                    .filter(lambda user: user["active"].eq(True))["id"]
                     .run(db.conn)
                 )
             users = users + users_in_groups + users_in_secondary_groups
@@ -428,7 +432,11 @@ class ApiDesktopsPersistent:
                 if payload["role_id"] == "manager":
                     query = query.get_all(payload["category_id"], index="category")
                 with app.app_context():
-                    selected["users"] = list(query.pluck("id")["id"].run(db.conn))
+                    selected["users"] = list(
+                        query.filter(lambda user: user["active"].eq(True))
+                        .pluck("id")["id"]
+                        .run(db.conn)
+                    )
             users = users + selected["users"]
 
         users = list(set(users))
