@@ -2364,10 +2364,14 @@ class ApiUsers:
         migration_start_time=False,
         migration_end_time=False,
         migrated_items=None,
-        migrated_desktops=False,
-        migrated_templates=False,
-        migrated_media=False,
-        migrated_deployments=False,
+        migrated_desktops: bool | None = None,
+        migrated_desktops_error: str | None = None,
+        migrated_templates: bool | None = None,
+        migrated_templates_error: str | None = None,
+        migrated_media: bool | None = None,
+        migrated_media_error: str | None = None,
+        migrated_deployments: bool | None = None,
+        migrated_deployments_error: str | None = None,
     ):
         """
         Updates a user migration status based on the migration token
@@ -2400,12 +2404,14 @@ class ApiUsers:
             "migration_start_time": int(time.time()) if migration_start_time else None,
             "migration_end_time": int(time.time()) if migration_end_time else None,
             "migrated_items": migrated_items,
-            "migrated_desktops": migrated_desktops if migrated_desktops else None,
-            "migrated_templates": migrated_templates if migrated_templates else None,
-            "migrated_media": migrated_media if migrated_media else None,
-            "migrated_deployments": (
-                migrated_deployments if migrated_deployments else None
-            ),
+            "migrated_desktops": migrated_desktops,
+            "migrated_desktops_error": migrated_desktops_error,
+            "migrated_templates": migrated_templates,
+            "migrated_templates_error": migrated_templates_error,
+            "migrated_media": migrated_media,
+            "migrated_media_error": migrated_media_error,
+            "migrated_deployments": migrated_deployments,
+            "migrated_deployments_error": migrated_deployments_error,
         }
         data = {k: v for k, v in data.items() if v is not None}
         with app.app_context():
@@ -2574,6 +2580,11 @@ class ApiUsers:
             try:
                 change_owner_desktops(user_resources["desktops"], user_data, user_id)
             except Error as e:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_desktops=False,
+                    migrated_desktops_error=str(e),
+                )
                 progress["migrated_desktops"] = False
                 progress["desktops_error"] = str(e)
                 notify_custom(
@@ -2583,6 +2594,11 @@ class ApiUsers:
                     user_id,
                 )
             except:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_desktops=False,
+                    migrated_desktops_error="unknown",
+                )
                 progress["migrated_desktops"] = False
                 progress["desktops_error"] = "unknown"
                 notify_custom(
@@ -2605,6 +2621,11 @@ class ApiUsers:
             try:
                 change_owner_templates(user_resources["templates"], user_data)
             except Error as e:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_templates=False,
+                    migrated_templates_error=str(e),
+                )
                 progress["migrated_templates"] = False
                 progress["templates_error"] = str(e)
                 notify_custom(
@@ -2614,6 +2635,11 @@ class ApiUsers:
                     user_id,
                 )
             except:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_templates=False,
+                    migrated_templates_error="unknown",
+                )
                 progress["migrated_templates"] = False
                 progress["templates_error"] = "unknown"
                 notify_custom(
@@ -2636,6 +2662,11 @@ class ApiUsers:
             try:
                 change_owner_medias(user_resources["media"], user_data)
             except Error as e:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_media=False,
+                    migrated_media_error=str(e),
+                )
                 progress["migrated_media"] = False
                 progress["media_error"] = str(e)
                 notify_custom(
@@ -2645,6 +2676,11 @@ class ApiUsers:
                     user_id,
                 )
             except:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_media=False,
+                    migrated_media_error="unknown",
+                )
                 progress["migrated_media"] = False
                 progress["media_error"] = "unknown"
                 notify_custom(
@@ -2669,6 +2705,11 @@ class ApiUsers:
                     user_resources["deployments"], user_data, user_id
                 )
             except Error as e:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_deployments=False,
+                    migrated_deployments_error=str(e),
+                )
                 progress["migrated_deployments"] = False
                 progress["deployments_error"] = str(e)
                 notify_custom(
@@ -2678,6 +2719,11 @@ class ApiUsers:
                     user_id,
                 )
             except:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_deployments=False,
+                    migrated_deployments_error="unknown",
+                )
                 progress["migrated_deployments"] = False
                 progress["deployments_error"] = "unknown"
                 notify_custom(

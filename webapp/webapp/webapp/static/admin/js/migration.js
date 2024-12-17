@@ -76,9 +76,50 @@ $(document).ready(function() {
             });
         }
     });
+
+    $('#migration-table tbody').on('click', 'td.details-control', function () {
+        var tr = $(this).closest("tr");
+        var row = migrationTable.row(tr);
+        if (row.child.isShown()) {
+            row.child.hide();
+            tr.removeClass("shown");
+        } else {
+            if (migrationTable.row('.shown').length) {
+                $('.details-control', migrationTable.row('.shown').node()).click();
+            }
+            row.child(renderDeploymentDetailPannel(row.data())).show()
+            tr.addClass('shown');
+        }
+    });
 });
 
+function renderDeploymentDetailPannel(d) {
+    $newPanel = $migration_detail.clone();
+    $newPanel.html(function (i, oldHtml) {
+        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
+    });
+
+    $newPanel.find("#desktops-migrated").text(d?.migrated_items?.desktops.length > 0 ? d.migrated_items.desktops.length : "-");
+    $newPanel.find("#desktops-failed").html(d?.migrated_desktops === false ? '<i class="fa fa-circle" aria-hidden="true" style="color:red"></i>' : "");
+    $newPanel.find("#desktops-detail").text("migrated_desktops_error" in d ? d.migrated_desktops_error : "");
+
+    $newPanel.find("#templates-migrated").text(d?.migrated_items?.templates.length > 0 ? d.migrated_items.templates.length : "-");
+    $newPanel.find("#templates-failed").html(d?.migrated_templates === false ? '<i class="fa fa-circle" aria-hidden="true" style="color:red"></i>' : "");
+    $newPanel.find("#templates-detail").text("migrated_templates_error" in d ? d.migrated_templates_error : "");
+
+    $newPanel.find("#media-migrated").text(d?.migrated_items?.media.length > 0 ? d.migrated_items.media.length : "-");
+    $newPanel.find("#media-failed").html(d?.migrated_media === false ? '<i class="fa fa-circle" aria-hidden="true" style="color:red"></i>' : "");
+    $newPanel.find("#media-detail").text("migrated_media_error" in d ? d.migrated_media_error : "");
+
+    $newPanel.find("#deployments-migrated").text(d?.migrated_items?.deployments.length > 0 ? d.migrated_items.deployments.length : "-");
+    $newPanel.find("#deployments-failed").html(d?.migrated_deployments === false ? '<i class="fa fa-circle" aria-hidden="true" style="color:red"></i>' : "");
+    $newPanel.find("#deployments-detail").text("migrated_deployments_error" in d ? d.migrated_deployments_error : "");
+
+    return $newPanel
+}
+
 function renderMigrationDataTable() {
+    $migration_detail = $(".template-migration-detail");
     migrationTable = $(`#migration-table`).DataTable({
         "ajax": {
             "url": `/api/v3/admin/migrations`,
@@ -96,6 +137,13 @@ function renderMigrationDataTable() {
         "info": false,
         "deferRender": true,
         "columns": [
+            {
+                "className": 'details-control',
+                "orderable": false,
+                "data": null,
+                "width": "10px",
+                "defaultContent": '<button class="btn btn-xs btn-info" type="button" data-placement="top" ><i class="fa fa-plus"></i></button>'
+            },
             { "data": "origin_username" },
             { "data": "target_username", "render": function (data, type, full, meta) {
                 return data ? data : "-"; }

@@ -20,6 +20,7 @@
         <table id="migration-table" class="table">
           <thead>
             <tr>
+              <th></th>
               <th>Origin User</th>
               <th>Target User</th>
               <th>Category</th>
@@ -34,6 +35,7 @@
           <tbody></tbody>
           <tfoot>
             <tr>
+              <th></th>
               <th>Origin User</th>
               <th>Target User</th>
               <th>Category</th>
@@ -50,6 +52,7 @@
     </div>
   </div>
 </div>
+{% include '/admin/pages/migration_detail.html' %}
 {% endblock %}
 {% block pagescript %}
 <script src="/isard-admin/static/admin/js/migration.js"></script>
