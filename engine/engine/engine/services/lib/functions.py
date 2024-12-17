@@ -134,7 +134,7 @@ def try_socket(hostname, port, timeout):
             sock.close()
             return True
         except socket.error as e:
-            log.error("trying socket has error: {}".format(e))
+            log.error(f"Error trying socket to {hostname}:{port}. Error: {e}")
             return False
         except Exception as e:
             logs.exception_id.debug("0047")
