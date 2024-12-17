@@ -28,6 +28,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .caches import get_cached_user_with_names, get_document
 from .flask_rethink import RDB
 
 r = RethinkDB()
@@ -57,16 +58,8 @@ def action_owner_deploy(action_owner, item_owner, tag=None, direct_viewer=False)
     if action_owner == item_owner:
         return "desktop-owner", action_owner
     if tag:
-        try:
-            with app.app_context():
-                deploy = (
-                    r.table("deployments")
-                    .get(tag)
-                    .default({"user": None, "name": ""})
-                    .pluck("user", "name", "co_owners")
-                    .run(db.conn)
-                )
-        except:
+        deploy = get_document("deployments", tag, ["user", "name", "co_owners"])
+        if deploy is None:
             log.warning("Unable to fetch deployment owner for logs")
             log.debug(traceback.format_exc())
             return None, None
@@ -148,21 +141,7 @@ def _logs_domain_start(
     else:
         action_by = action_owner(action_user, domain["user"], direct_viewer)
     try:
-        with app.app_context():
-            user = (
-                r.table("users")
-                .get(domain["user"])
-                .pluck("role", "category", "group")
-                .merge(
-                    lambda user: {
-                        "category_name": r.table("categories").get(user["category"])[
-                            "name"
-                        ],
-                        "group_name": r.table("groups").get(user["group"])["name"],
-                    }
-                )
-                .run(db.conn)
-            )
+        user = get_cached_user_with_names(domain["user"])
     except:
         log.warning("Unable to fetch user data for start logs id")
         log.debug(traceback.format_exc())
@@ -206,16 +185,12 @@ def _logs_domain_start(
         data["hardware_bookables_vgpus"] = domain["create_dict"]["reservables"]["vgpus"]
         if domain.get("booking_id"):
             try:
-                with app.app_context():
-                    booking = (
-                        r.table("bookings")
-                        .get(domain.get("booking_id"))
-                        .pluck("start", "end")
-                        .run(db.conn)
-                    )
-                    data["booking_id"] = domain["booking_id"]
-                    data["booking_start"] = booking["start"]
-                    data["booking_end"] = booking["end"]
+                booking = get_document(
+                    "bookings", domain["booking_id"], ["start", "end"]
+                )
+                data["booking_id"] = domain["booking_id"]
+                data["booking_start"] = booking["start"]
+                data["booking_end"] = booking["end"]
             except:
                 log.warning("Unable to fetch booking data for start logs id")
                 log.debug(traceback.format_exc())
@@ -271,15 +246,8 @@ def logs_domain_stop_api(dom_id, action_user=None):
 
 
 def _logs_domain_stop_api(desktop_id, action_user):
-    try:
-        with app.app_context():
-            domain = (
-                r.table("domains")
-                .get(desktop_id)
-                .pluck("start_logs_id", "tag", "user")
-                .run(db.conn)
-            )
-    except:
+    domain = get_document("domains", desktop_id, ["start_logs_id", "tag", "user"])
+    if domain is None:
         log.warning("Unable to get desktop start_logs_id")
         log.debug(traceback.format_exc())
         return
@@ -376,12 +344,8 @@ def logs_domain_event_viewer(domain_id, action_user, viewer_type, user_request=N
 
 
 def _logs_domain_event_viewer(domain_id, action_user, viewer_type, user_request=None):
-    try:
-        with app.app_context():
-            start_logs_id = (
-                r.table("domains").get(domain_id).pluck("start_logs_id").run(db.conn)
-            )["start_logs_id"]
-    except:
+    start_logs_id = get_document("domains", domain_id, ["start_logs_id"])
+    if start_logs_id is None:
         log.warning("Unable to update viewer event logs for domain: " + str(domain_id))
         log.debug(traceback.format_exc())
         return
@@ -409,12 +373,8 @@ def logs_domain_event_directviewer(
 def _logs_domain_event_directviewer(
     domain_id, action_user, viewer_type=None, user_request=None
 ):
-    try:
-        with app.app_context():
-            start_logs_id = (
-                r.table("domains").get(domain_id).pluck("start_logs_id").run(db.conn)
-            )["start_logs_id"]
-    except:
+    start_logs_id = get_document("domains", domain_id, ["start_logs_id"])
+    if start_logs_id is None:
         log.warning(
             "Unable to update directviewer event logs for domain: " + str(domain_id)
         )
