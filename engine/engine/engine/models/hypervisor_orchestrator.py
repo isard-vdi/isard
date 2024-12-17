@@ -282,7 +282,9 @@ class HypervisorsOrchestratorThread(threading.Thread):
             if status in ["Error", "Offline"]:
                 self.start_hyper_threads(hyp_id, capabilities, status, thread_status)
             else:
-                self.try_hyp_and_threads_alive(hyp_id)
+                if self.try_hyp_and_threads_alive(hyp_id) is False:
+                    update_hyp_status(hyp_id, "Error", "Hypervisor not reachable")
+
             # try
 
     def try_hyp_and_threads_alive(self, hyp_id):
@@ -302,7 +304,11 @@ class HypervisorsOrchestratorThread(threading.Thread):
 
         timeout = float(CONFIG_DICT["TIMEOUTS"]["ssh_paramiko_hyp_test_connection"])
         logs.main.debug(f"try socket {hostname}, {port}, {timeout}")
-        socket_ok = try_socket(hostname, port, timeout)
+        if try_socket(hostname, port, timeout) is False:
+            logs.main.error(
+                f"hypervisor {hyp_id} not socket reachable from hypervisor orchestrator thread"
+            )
+            return False
 
     def start_hyper_threads(self, hyp_id, capabilities, status, thread_status):
         logs.main.debug(
