@@ -1,0 +1,59 @@
+<!-- extend base layout -->
+{% extends "base.html" %} {% block content %}
+
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel" id="migration_panel">
+      <div class="x_title">
+        <h3>
+          <i class="fa fa-exchange"></i> Migration <small> Check user migrations status</small>
+        </h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li style="padding-right: 46px">
+            <a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="migration-table" class="table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Origin User</th>
+              <th>Target User</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Created time</th>
+              <th>Import time</th>
+              <th>Migration start time</th>
+              <th>Migration end time</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr>
+              <th></th>
+              <th>Origin User</th>
+              <th>Target User</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Created time</th>
+              <th>Import time</th>
+              <th>Migration start time</th>
+              <th>Migration end time</th>
+              <th>Action</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% include '/admin/pages/migration_detail.html' %}
+{% endblock %}
+{% block pagescript %}
+<script src="/isard-admin/static/admin/js/migration.js"></script>
+{% endblock %}

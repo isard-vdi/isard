@@ -28,6 +28,7 @@ import bcrypt
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from isardvdi_common.api_exceptions import Error
+from rethinkdb.errors import ReqlNonExistenceError
 
 from api import app
 
@@ -36,7 +37,7 @@ from .api_notify import notify_custom
 from .api_sessions import revoke_user_session
 from .api_storage import remove_category_from_storage_pool
 from .bookings.api_booking import Bookings
-from .caches import get_cached_user_with_names
+from .caches import get_cached_user_with_names, get_document, invalidate_caches
 from .recycle_bin import get_user_recycle_bin_ids
 
 apib = Bookings()
@@ -109,13 +110,8 @@ def user_exists(user_id):
             raise Error("not_found", "User not found")
 
 
-cache_user = TTLCache(maxsize=100, ttl=10)
-
-
-@cached(cache_user)
 def get_user(user_id):
-    with app.app_context():
-        return r.table("users").get(user_id).without("password").run(db.conn)
+    return get_document("users", user_id)
 
 
 @cached(cache=TTLCache(maxsize=100, ttl=10))
@@ -881,7 +877,7 @@ class ApiUsers:
         if data.get("email_verified") == True:
             data["email_verified"] = int(time.time())
 
-        cache_user.clear()
+        invalidate_caches("users", user_ids)
 
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
@@ -2210,6 +2206,106 @@ class ApiUsers:
                 description_code="migration_not_found",
             )
 
+    def get_migrations(self):
+        query = r.table("users_migrations")
+
+        # Origin user data
+        query = query.outer_join(
+            r.table("users"),
+            lambda migration, user: user["id"] == migration["origin_user"],
+        )
+        query = query.map(
+            lambda migration: {
+                "left": migration["left"],
+                "right": {
+                    "origin_user": r.branch(
+                        migration.has_fields("right"),
+                        migration["right"].pluck("name", "category"),
+                        None,
+                    )
+                },
+            }
+        ).zip()
+
+        # Target user data
+        query = query.outer_join(
+            r.table("users"),
+            lambda migration, user: r.branch(
+                migration.has_fields("target_user"),
+                user["id"] == migration["target_user"],
+                None,
+            ),
+        )
+        query = query.map(
+            lambda migration: {
+                "left": migration["left"],
+                "right": {
+                    "target_username": r.branch(
+                        migration["left"]
+                        .has_fields("target_user")
+                        .and_(migration.has_fields("right")),
+                        migration["right"].pluck("name")["name"],
+                        migration["left"]
+                        .has_fields("target_user")
+                        .and_(r.not_(migration.has_fields("right"))),
+                        "[DELETED]",
+                        None,
+                    ),
+                    "target_category": r.branch(
+                        migration["left"]
+                        .has_fields("target_user")
+                        .and_(migration.has_fields("right")),
+                        migration["right"].pluck("category")["category"],
+                        None,
+                    ),
+                },
+            }
+        ).zip()
+
+        # Category data
+        query = query.outer_join(
+            r.table("categories"),
+            lambda migration, category: r.branch(
+                migration.has_fields("origin_user").and_(
+                    migration["origin_user"].has_fields("category")
+                ),
+                category["id"] == migration["origin_user"]["category"],
+                migration.has_fields("target_category").and_(
+                    migration["target_category"].ne(None)
+                ),
+                category["id"] == migration["target_category"],
+                None,
+            ),
+        )
+        query = query.map(
+            lambda migration: {
+                "left": migration["left"],
+                "right": {
+                    "category": r.branch(
+                        migration.has_fields("right"),
+                        migration["right"].pluck("name")["name"],
+                        None,
+                    )
+                },
+            }
+        ).zip()
+
+        # Origin username
+        query = query.merge(
+            lambda migration: {
+                "origin_username": r.branch(
+                    migration["origin_user"].and_(
+                        migration["origin_user"].has_fields("name")
+                    ),
+                    migration["origin_user"]["name"],
+                    "[DELETED]",
+                )
+            }
+        )
+
+        with app.app_context():
+            return list(query.run(db.conn))
+
     def check_user_migration(self, migration_token, target_user_id):
         """
 
@@ -2268,10 +2364,14 @@ class ApiUsers:
         migration_start_time=False,
         migration_end_time=False,
         migrated_items=None,
-        migrated_desktops=False,
-        migrated_templates=False,
-        migrated_media=False,
-        migrated_deployments=False,
+        migrated_desktops: bool | None = None,
+        migrated_desktops_error: str | None = None,
+        migrated_templates: bool | None = None,
+        migrated_templates_error: str | None = None,
+        migrated_media: bool | None = None,
+        migrated_media_error: str | None = None,
+        migrated_deployments: bool | None = None,
+        migrated_deployments_error: str | None = None,
     ):
         """
         Updates a user migration status based on the migration token
@@ -2304,12 +2404,14 @@ class ApiUsers:
             "migration_start_time": int(time.time()) if migration_start_time else None,
             "migration_end_time": int(time.time()) if migration_end_time else None,
             "migrated_items": migrated_items,
-            "migrated_desktops": migrated_desktops if migrated_desktops else None,
-            "migrated_templates": migrated_templates if migrated_templates else None,
-            "migrated_media": migrated_media if migrated_media else None,
-            "migrated_deployments": (
-                migrated_deployments if migrated_deployments else None
-            ),
+            "migrated_desktops": migrated_desktops,
+            "migrated_desktops_error": migrated_desktops_error,
+            "migrated_templates": migrated_templates,
+            "migrated_templates_error": migrated_templates_error,
+            "migrated_media": migrated_media,
+            "migrated_media_error": migrated_media_error,
+            "migrated_deployments": migrated_deployments,
+            "migrated_deployments_error": migrated_deployments_error,
         }
         data = {k: v for k, v in data.items() if v is not None}
         with app.app_context():
@@ -2478,6 +2580,11 @@ class ApiUsers:
             try:
                 change_owner_desktops(user_resources["desktops"], user_data, user_id)
             except Error as e:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_desktops=False,
+                    migrated_desktops_error=str(e),
+                )
                 progress["migrated_desktops"] = False
                 progress["desktops_error"] = str(e)
                 notify_custom(
@@ -2487,6 +2594,11 @@ class ApiUsers:
                     user_id,
                 )
             except:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_desktops=False,
+                    migrated_desktops_error="unknown",
+                )
                 progress["migrated_desktops"] = False
                 progress["desktops_error"] = "unknown"
                 notify_custom(
@@ -2509,6 +2621,11 @@ class ApiUsers:
             try:
                 change_owner_templates(user_resources["templates"], user_data)
             except Error as e:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_templates=False,
+                    migrated_templates_error=str(e),
+                )
                 progress["migrated_templates"] = False
                 progress["templates_error"] = str(e)
                 notify_custom(
@@ -2518,6 +2635,11 @@ class ApiUsers:
                     user_id,
                 )
             except:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_templates=False,
+                    migrated_templates_error="unknown",
+                )
                 progress["migrated_templates"] = False
                 progress["templates_error"] = "unknown"
                 notify_custom(
@@ -2540,6 +2662,11 @@ class ApiUsers:
             try:
                 change_owner_medias(user_resources["media"], user_data)
             except Error as e:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_media=False,
+                    migrated_media_error=str(e),
+                )
                 progress["migrated_media"] = False
                 progress["media_error"] = str(e)
                 notify_custom(
@@ -2549,6 +2676,11 @@ class ApiUsers:
                     user_id,
                 )
             except:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_media=False,
+                    migrated_media_error="unknown",
+                )
                 progress["migrated_media"] = False
                 progress["media_error"] = "unknown"
                 notify_custom(
@@ -2573,6 +2705,11 @@ class ApiUsers:
                     user_resources["deployments"], user_data, user_id
                 )
             except Error as e:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_deployments=False,
+                    migrated_deployments_error=str(e),
+                )
                 progress["migrated_deployments"] = False
                 progress["deployments_error"] = str(e)
                 notify_custom(
@@ -2582,6 +2719,11 @@ class ApiUsers:
                     user_id,
                 )
             except:
+                self.update_user_migration(
+                    migration_token,
+                    migrated_deployments=False,
+                    migrated_deployments_error="unknown",
+                )
                 progress["migrated_deployments"] = False
                 progress["deployments_error"] = "unknown"
                 notify_custom(
@@ -2767,6 +2909,32 @@ class ApiUsers:
             )
 
         return errors
+
+    def get_user_migration_status(self, migration_id):
+        with app.app_context():
+            return (
+                r.table("users_migrations")
+                .get(migration_id)
+                .pluck("status")
+                .run(db.conn)["status"]
+            )
+
+    def revoke_user_migration(self, migration_id):
+        try:
+            status = self.get_user_migration_status(migration_id)
+        except ReqlNonExistenceError:
+            pass
+
+        if status in ["exported", "imported", "migrating"]:
+            with app.app_context():
+                r.table("users_migrations").get(migration_id).update(
+                    {"status": "revoked"}
+                ).run(db.conn)
+        else:
+            raise Error(
+                "bad_request",
+                description=f'Migrations in status "{status}" cannot be revoked.',
+            )
 
 
 def validate_email_jwt(user_id, email, minutes=60):
