@@ -156,6 +156,7 @@ class HypervisorsOrchestratorThread(threading.Thread):
             "disk_operations": self.q_disk_operations,
             "workers": self.q.workers,
         }
+        self.socket_tries = 0
 
     def run(self):
         self.tid = get_tid()
@@ -175,38 +176,10 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 if action["type"] == "thread_hyp_worker_dead":
                     hyp_id = action["hyp_id"]
                     # TRANSFER ACTIONS TO OTHER QUEUE IF AVAILABLE ELSE DELETE
-                    move_actions_to_others_hypers(
-                        hyp_id,
-                        self.d_queues,
-                        remove_stopping=True,
-                        remove_if_no_more_hyps=True,
-                    )
-
-                    # POP FROM MANAGER DICTIONARIES
-                    q_old = self.q.workers.pop(hyp_id)
-                    t_old = self.t_workers.pop(hyp_id)
-                    del t_old
-                    del q_old
-                    update_hyp_thread_status("worker", hyp_id, "Stopped")
-                    # if hyp_id in self.t_disk_operations.keys():
-                    #     self.t_disk_operations[hyp_id].stop = True
-                    #     self.q_disk_operations[hyp_id].put({'type':'stop_thread'})
-                    # if hyp_id in self.t_long_operations.keys():
-                    #     self.t_long_operations[hyp_id].stop = True
-                    #     self.q_long_operations[hyp_id].put({'type':'stop_thread'})
-
+                    self.set_hyp_thread_dead(hyp_id)
                 if action["type"] == "thread_disk_operations_dead":
                     hyp_id = action["hyp_id"]
-                    if self.q_disk_operations[hyp_id].empty() is False:
-                        d = {"disk_operations": self.q_disk_operations}
-                        move_actions_to_others_hypers(
-                            hyp_id, d, remove_stopping=True, remove_if_no_more_hyps=True
-                        )
-                    q_old = self.q_disk_operations.pop(hyp_id)
-                    t_old = self.t_disk_operations.pop(hyp_id)
-                    del t_old
-                    del q_old
-                    update_hyp_thread_status("disk_operations", hyp_id, "Stopped")
+                    self.set_disk_worker_dead(hyp_id)
 
                 if action["type"] == "new_hyper_in_db":
                     pass
@@ -249,6 +222,39 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 logs.main.error("Traceback: {}".format(traceback.format_exc()))
                 logs.main.error("----------------------------------")
                 return False
+
+    def set_hyp_thread_dead(self, hyp_id):
+        move_actions_to_others_hypers(
+            hyp_id,
+            self.d_queues,
+            remove_stopping=True,
+            remove_if_no_more_hyps=True,
+        )
+
+        # POP FROM MANAGER DICTIONARIES
+        q_old = self.q.workers.pop(hyp_id)
+        t_old = self.t_workers.pop(hyp_id)
+        del t_old
+        del q_old
+        update_hyp_thread_status("worker", hyp_id, "Stopped")
+        # if hyp_id in self.t_disk_operations.keys():
+        #     self.t_disk_operations[hyp_id].stop = True
+        #     self.q_disk_operations[hyp_id].put({'type':'stop_thread'})
+        # if hyp_id in self.t_long_operations.keys():
+        #     self.t_long_operations[hyp_id].stop = True
+        #     self.q_long_operations[hyp_id].put({'type':'stop_thread'})
+
+    def set_disk_worker_dead(self, hyp_id):
+        if self.q_disk_operations[hyp_id].empty() is False:
+            d = {"disk_operations": self.q_disk_operations}
+            move_actions_to_others_hypers(
+                hyp_id, d, remove_stopping=True, remove_if_no_more_hyps=True
+            )
+        q_old = self.q_disk_operations.pop(hyp_id)
+        t_old = self.t_disk_operations.pop(hyp_id)
+        del t_old
+        del q_old
+        update_hyp_thread_status("disk_operations", hyp_id, "Stopped")
 
     def disable_hyper(self, hyp_id, capabilities, status, thread_status):
         # status = get_hyp_status(hyp_id)
@@ -305,10 +311,21 @@ class HypervisorsOrchestratorThread(threading.Thread):
         timeout = float(CONFIG_DICT["TIMEOUTS"]["ssh_paramiko_hyp_test_connection"])
         logs.main.debug(f"try socket {hostname}, {port}, {timeout}")
         if try_socket(hostname, port, timeout) is False:
-            logs.main.error(
-                f"hypervisor {hyp_id} not socket reachable from hypervisor orchestrator thread"
-            )
-            return False
+            # if self.socket_tries less than 3 try again and log error
+            if self.socket_tries < 5:
+                self.socket_tries += 1
+                logs.main.error(
+                    f"hypervisor {hyp_id} socket not reachable from hypervisor orchestrator thread. Try {self.socket_tries}/5 "
+                )
+                return True
+            else:
+                logs.main.error(
+                    f"hypervisor {hyp_id} socket not reachable from hypervisor orchestrator thread. Last try {self.socket_tries}/5"
+                )
+                self.socket_tries = 0
+                return False
+        self.socket_tries = 0
+        return True
 
     def start_hyper_threads(self, hyp_id, capabilities, status, thread_status):
         logs.main.debug(

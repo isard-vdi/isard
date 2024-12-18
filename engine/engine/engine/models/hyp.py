@@ -943,8 +943,8 @@ class hyp(object):
 
         except Exception as e:
             log.error(
-                "hyp {} with id fail in get stats from libvirt {}".format(
-                    self.id_hyp_rethink, traceback.format_exc()
+                "hyp {} with id fail in get stats from libvirt".format(
+                    self.id_hyp_rethink
                 )
             )
 
