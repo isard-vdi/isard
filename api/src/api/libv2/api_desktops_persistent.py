@@ -108,23 +108,11 @@ class ApiDesktopsPersistent:
         None
 
     def Delete(self, desktop_id, agent_id, permanent):
-        with app.app_context():
-            desktop = r.table("domains").get(desktop_id).run(db.conn)
-        if desktop == None:
-            raise Error(
-                "not_found",
-                "Desktop not found",
-                traceback.format_exc(),
-                description_code="not_found",
-            )
+        get_document("domains", desktop_id)
         desktop_delete(desktop_id, agent_id, permanent)
 
     def Get(self, desktop_id):
-        with app.app_context():
-            desktop = r.table("domains").get(desktop_id).run(db.conn)
-        if not desktop:
-            raise Error("not_found", "Desktop not found", traceback.format_exc())
-        return desktop
+        return get_document("domains", desktop_id)
 
     def new_from_templateTh(self, desktops, deployment):
         def process_desktops():
@@ -643,21 +631,7 @@ class ApiDesktopsPersistent:
         return domain["id"]
 
     def UserDesktop(self, desktop_id):
-        try:
-            with app.app_context():
-                return (
-                    r.table("domains")
-                    .get(desktop_id)
-                    .pluck("user")
-                    .run(db.conn)["user"]
-                )
-        except:
-            raise Error(
-                "not_found",
-                "Desktop not found",
-                traceback.format_exc(),
-                description_code="not_found",
-            )
+        return get_document("domains", desktop_id, ["user"])
 
     def Start(self, desktop_id):
         desktop_start(desktop_id)
