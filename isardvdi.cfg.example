@@ -1,4 +1,4 @@
-# Isard main config v2.19.0
+# Isard main config v2.20.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -346,7 +346,7 @@ GOLANG_BUILD_IMAGE=golang:1.23-alpine3.20
 GOLANG_RUN_IMAGE=alpine:3.20
 
 # Image used in haproxy.build flavour to build base for all the HAProxy's
-HAPROXY_RUN_IMAGE=haproxy:2.9-alpine3.20
+HAPROXY_RUN_IMAGE=haproxy:3.1.1-alpine3.21
 
 ## Image used to build isard-nextcloud flavour/instance
 #NEXTCLOUD_BASE_IMAGE=nextcloud:28.0.1-fpm-alpine
