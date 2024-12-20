@@ -120,7 +120,10 @@ def get_group(group_id):
         return r.table("groups").get(group_id).run(db.conn)
 
 
-@cached(cache=TTLCache(maxsize=100, ttl=10), key=lambda groups: hashkey(str(groups)))
+@cached(
+    cache=TTLCache(maxsize=100, ttl=10),
+    key=lambda secondary_groups: hashkey(str(secondary_groups)),
+)
 def get_secondary_groups_data(secondary_groups):
     with app.app_context():
         return (
@@ -169,6 +172,19 @@ def check_category_domain(category_id, domain):
             "forbidden",
             "Register domain does not match category allowed domain",
             traceback.format_exc(),
+        )
+
+
+@cached(cache=TTLCache(maxsize=200, ttl=30))
+def get_policies_category_role(category_id, role_id):
+    with app.app_context():
+        return list(
+            r.table("authentication")
+            .filter(
+                (r.row["category"] in [category_id, "all"])
+                | (r.row["role"] in [role_id, "all"])
+            )
+            .run(db.conn)
         )
 
 
@@ -344,6 +360,10 @@ class ApiUsers:
             traceback.format_exc(),
         )
 
+    @cached(
+        cache=TTLCache(maxsize=300, ttl=60),
+        key=lambda self, payload: payload["user_id"],
+    )
     def Config(self, payload):
         show_bookings_button = (
             True
@@ -1887,24 +1907,22 @@ class ApiUsers:
         with app.app_context():
             r.table("users").get(user_id).update({"lang": lang}).run(db.conn)
 
+    @cached(
+        TTLCache(maxsize=100, ttl=10),
+        key=lambda self, subtype, category, role, user_id=None: (
+            subtype,
+            category,
+            role,
+            user_id,
+        ),
+    )
     def get_user_policy(self, subtype, category, role, user_id=None):
         if user_id:
-            with app.app_context():
-                user = (
-                    r.table("users").get(user_id).pluck("category", "role").run(db.conn)
-                )
+            user = get_document("users", user_id, ["category", "role"])
             category = user["category"]
             role = user["role"]
 
-        with app.app_context():
-            policies = list(
-                r.table("authentication")
-                .filter(
-                    (r.row["category"] in [category, "all"])
-                    | (r.row["role"] in [role, "all"])
-                )
-                .run(db.conn)
-            )
+        policies = get_policies_category_role(category, role)
         matching_policies = []
         for policy in policies:
             if policy["category"] == category and policy["role"] == role:
