@@ -36,7 +36,11 @@ from ..libv2.api_user_storage import (
 from ..libv2.quotas import Quotas
 from .bookings.api_booking import Bookings
 from .flask_rethink import RDB
-from .helpers import desktops_stop, get_template_with_all_derivatives
+from .helpers import (
+    desktops_stop,
+    get_template_with_all_derivatives,
+    unassign_item_from_resource,
+)
 
 quotas = Quotas()
 
@@ -1732,6 +1736,20 @@ class RecycleBinUser(RecycleBin):
             r.table("deployments").get_all(user["id"], index="user").delete().run(
                 db.conn
             )
+        # Remove the user from all the resources allowed field
+        for table in [
+            "deployments",
+            "domains",
+            "media",
+            "interfaces",
+            "videos",
+            "reservables_vgpus",
+            "boots",
+            "graphics",
+            "desktops_priority",
+            "qos_net",
+        ]:
+            unassign_item_from_resource(user["id"], "users", table)
         if delete_user:
             with app.app_context():
                 r.table("recycle_bin").get(self.id).update(
@@ -1824,6 +1842,20 @@ class RecycleBinGroup(RecycleBin):
                 }
             ).run(db.conn)
             r.table("users").get_all(group["id"], index="group").delete().run(db.conn)
+        # Remove the user from all the resources allowed field
+        for table in [
+            "deployments",
+            "domains",
+            "media",
+            "interfaces",
+            "videos",
+            "reservables_vgpus",
+            "boots",
+            "graphics",
+            "desktops_priority",
+            "qos_net",
+        ]:
+            unassign_item_from_resource(group["id"], "groups", table)
         isard_user_storage_disable_groups([group])
 
 
@@ -1897,7 +1929,7 @@ class RecycleBinCategory(RecycleBin):
             r.table("deployments").get_all(
                 r.args(users_ids), index="user"
             ).delete().run(db.conn)
-            groups = (
+            groups = list(
                 r.table("groups")
                 .get_all(category["id"], index="parent_category")
                 .run(db.conn)
@@ -1915,4 +1947,20 @@ class RecycleBinCategory(RecycleBin):
             r.table("groups").get_all(
                 category["id"], index="parent_category"
             ).delete().run(db.conn)
+        # Remove the user from all the resources allowed field
+        for table in [
+            "deployments",
+            "domains",
+            "media",
+            "interfaces",
+            "videos",
+            "reservables_vgpus",
+            "boots",
+            "graphics",
+            "desktops_priority",
+            "qos_net",
+        ]:
+            for group in groups:
+                unassign_item_from_resource(group["id"], "groups", table)
+            unassign_item_from_resource(category["id"], "categories", table)
         isard_user_storage_disable_categories([category])

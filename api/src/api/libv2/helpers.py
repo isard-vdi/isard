@@ -1270,3 +1270,93 @@ def desktops_stop(desktops_ids, wait_seconds=30):
     return wait_status(
         desktops_ids, current_status="Stopping", wait_seconds=wait_seconds
     )
+
+
+def get_resources_with_item_in_allowed(item_id, item_type, table):
+    """
+
+    Retrieves all the resources in the table that the given item is in the allowed field.
+
+    :param item_id: The id to search for
+    :type item_id: str
+    :param item_type: The type of the item to search for. Can be user, group or category
+    :type item_type: str
+    :param table: The resource table to search in
+    :type table: str
+    :return: A list of item ids from the given table
+    :rtype: list
+    """
+    try:
+        with app.app_context():
+            items = r.table(table)
+            # Note: In the domains table only templates consider the allowed field
+            if table == "domains":
+                items = items.get_all("template", index="kind")
+            items = list(
+                items.filter(
+                    lambda doc: (
+                        doc["create_dict"]["allowed"][item_type].ne(False)
+                        & doc["create_dict"]["allowed"][item_type].contains(item_id)
+                        if table == "deployments"
+                        else doc["allowed"][item_type].ne(False)
+                        & doc["allowed"][item_type].contains(item_id)
+                    )
+                )
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
+    except:
+        items = []
+    return items
+
+
+def unassign_item_from_resource(item_id, item_type, table):
+    """
+
+    Unassigns the given user from all the items of the given table.
+
+    :param item_id: The id of the item to unassign
+    :type item_id: str
+    :param item_type: The type of the item to unassign. Can be user, group or category
+    :type item_type: str
+    :param table: The resource table to unassign the user from
+    :type table: str
+
+    """
+    items = get_resources_with_item_in_allowed(item_id, item_type, table)
+    for i in range(0, len(items), 200):
+        batch_ids = items[i : i + 200]
+        if table == "deployments":
+            with app.app_context():
+                r.table("deployments").get_all(r.args(batch_ids), index="id").update(
+                    {
+                        "create_dict": {
+                            "allowed": {
+                                item_type: r.branch(
+                                    r.row["create_dict"]["allowed"][item_type]
+                                    .difference([item_id])
+                                    .is_empty(),
+                                    False,
+                                    r.row["create_dict"]["allowed"][
+                                        item_type
+                                    ].difference([item_id]),
+                                )
+                            }
+                        }
+                    }
+                ).run(db.conn)
+        else:
+            with app.app_context():
+                r.table(table).get_all(r.args(batch_ids), index="id").update(
+                    {
+                        "allowed": {
+                            item_type: r.branch(
+                                r.row["allowed"][item_type]
+                                .difference([item_id])
+                                .is_empty(),
+                                False,
+                                r.row["allowed"][item_type].difference([item_id]),
+                            )
+                        }
+                    }
+                ).run(db.conn)
