@@ -244,10 +244,10 @@ class Upgrade(object):
                     port=self.conf["RETHINKDB_PORT"],
                     db=self.conf["RETHINKDB_DB"],
                 ).repl()
-                print("Database server OK")
+                log.info("Database server ready")
                 ready = True
             except Exception as e:
-                print(
+                log.error(
                     "Upgrade error: Database server "
                     + self.cfg["RETHINKDB_HOST"]
                     + ":"
@@ -271,9 +271,11 @@ class Upgrade(object):
             )
 
     def upgrade_if_needed(self):
-        print(release_version)
-        print(self.cfg["version"])
+        log.info(
+            f"DB CODE RELEASE VERSION: {release_version} - DB IN USE VERSION: {self.cfg['version']}"
+        )
         if not release_version > self.cfg["version"]:
+            log.info("No database upgrade needed.")
             return False
         apply_upgrades = [
             i for i in range(self.cfg["version"] + 1, release_version + 1)
