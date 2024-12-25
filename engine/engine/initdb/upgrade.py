@@ -232,6 +232,7 @@ class Upgrade(object):
                     )
                 else:
                     log.info("No database upgrade needed.")
+        self.db_cleanup()
         self.upgrade_if_needed()
 
     def check_db(self):
@@ -256,8 +257,18 @@ class Upgrade(object):
                 time.sleep(0.5)
         ready = False
 
-    def do_backup(self):
-        None
+    def db_cleanup(self):
+        log.info("Cleaning database...")
+        result = (
+            r.table("storage")
+            .filter(lambda doc: doc.keys().count().eq(1).and_(doc.has_fields("id")))
+            .delete()
+            .run(self.conn)
+        )
+        if result.get("deleted"):
+            log.warning(
+                f"DBCLEANING: deleted {result['deleted']} incomplete storage entries."
+            )
 
     def upgrade_if_needed(self):
         print(release_version)
