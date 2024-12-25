@@ -25,6 +25,7 @@ services:
       - /opt/isard-local/environment:/usr/local/etc/environment:ro
     environment:
       ENV: /usr/local/etc/environment
+      PYTHONUNBUFFERED: 1
       STORAGE_DOMAIN:
       REDIS_HOST:
       REDIS_PORT:
