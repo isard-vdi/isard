@@ -3,6 +3,8 @@
 export STORAGE_DOMAIN
 export PYTHONWARNINGS="ignore:Unverified HTTPS request"
 
+wait_for_redis
+
 if ${CAPABILITIES_DISK:-true}
 then
   for priority in high default low
