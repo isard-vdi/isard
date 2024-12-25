@@ -69,6 +69,7 @@ class Scheduler:
         # app.sched.shutdown(wait=False)
         # self.add_scheduler('interval','stop_shutting_down_desktops','0','1')
 
+        self.clean_bad_jobs()
         for job in self.load_jobs():
             if job.get("kind") == "date" and job.get("kwargs", {}).get("plan_id"):
                 log.info(
@@ -102,6 +103,15 @@ class Scheduler:
                     id="admin.recycle_bin_delete_admin",
                     kwargs={"max_delete_period": "1"},
                 )
+
+    def clean_bad_jobs(self):
+        with app.app_context():
+            result = (
+                r.table("scheduler_jobs")
+                .filter(r.row.has_fields("name").not_())
+                .delete()
+                .run(db.conn)
+            )
 
     def load_jobs(self, job_id=None):
         if job_id:
