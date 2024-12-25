@@ -232,6 +232,7 @@ class Upgrade(object):
                     )
                 else:
                     log.info("No database upgrade needed.")
+        self.db_cleanup()
         self.upgrade_if_needed()
 
     def check_db(self):
@@ -243,10 +244,10 @@ class Upgrade(object):
                     port=self.conf["RETHINKDB_PORT"],
                     db=self.conf["RETHINKDB_DB"],
                 ).repl()
-                print("Database server OK")
+                log.info("Database server ready")
                 ready = True
             except Exception as e:
-                print(
+                log.error(
                     "Upgrade error: Database server "
                     + self.cfg["RETHINKDB_HOST"]
                     + ":"
@@ -256,13 +257,25 @@ class Upgrade(object):
                 time.sleep(0.5)
         ready = False
 
-    def do_backup(self):
-        None
+    def db_cleanup(self):
+        log.info("Cleaning database...")
+        result = (
+            r.table("storage")
+            .filter(lambda doc: doc.keys().count().eq(1).and_(doc.has_fields("id")))
+            .delete()
+            .run(self.conn)
+        )
+        if result.get("deleted"):
+            log.warning(
+                f"DBCLEANING: deleted {result['deleted']} incomplete storage entries."
+            )
 
     def upgrade_if_needed(self):
-        print(release_version)
-        print(self.cfg["version"])
+        log.info(
+            f"DB CODE RELEASE VERSION: {release_version} - DB IN USE VERSION: {self.cfg['version']}"
+        )
         if not release_version > self.cfg["version"]:
+            log.info("No database upgrade needed.")
             return False
         apply_upgrades = [
             i for i in range(self.cfg["version"] + 1, release_version + 1)
