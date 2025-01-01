@@ -1369,7 +1369,10 @@ class RecycleBin(object):
     def delete_old_entries(cls, rcb_list):
         with app.app_context():
             results = (
-                r.table("recycle_bin").get_all(r.args(rcb_list)).delete().run(db.conn)
+                r.table("recycle_bin")
+                .get_all(r.args(rcb_list))
+                .delete()
+                .run(db.conn, array_limit=500000)
             )
 
     # @classmethod
