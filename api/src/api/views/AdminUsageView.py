@@ -36,6 +36,7 @@ from ..libv2.api_usage import (
     add_usage_grouping,
     add_usage_limits,
     add_usage_parameters,
+    check_overlapping_credits,
     consolidate_consumptions,
     count_usage_consumers,
     delete_all_consumption_data,
@@ -647,6 +648,39 @@ def api_v3_admin_usage_delete_consumption_data(payload):
     gevent.spawn(delete_all_consumption_data)
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/admin/usage/check/overlapping/<credit_id>/<start_date>/<end_date>",
+    methods=["GET"],
+)
+@is_admin
+def api_v3_admin_usage_check_overlapping(payload, credit_id, start_date, end_date):
+    credit = get_usage_credits_by_id(credit_id)
+    start_date = start_date if start_date != "null" else None
+    end_date = end_date if end_date != "null" else None
+    try:
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").astimezone(pytz.UTC)
+        if end_date:
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").astimezone(pytz.UTC)
+    except:
+        raise Error("bad_request", "Incorrect date format. Expected format: %Y-%m-%d")
+
+    return (
+        json.dumps(
+            check_overlapping_credits(
+                credit["item_id"],
+                credit["item_type"],
+                credit["grouping_id"],
+                start_date,
+                end_date,
+                credit_id,
+            ),
+            default=str,
+        ),
         200,
         {"Content-Type": "application/json"},
     )
