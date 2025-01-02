@@ -953,6 +953,7 @@ def update_usage_credit(data):
             data["grouping_id"],
             data["start_date"],
             data["end_date"],
+            data["id"],
         )
     if data.get("limits"):
         check_usage_limits(data.get("limits"))
@@ -974,7 +975,9 @@ def delete_usage_credit(credit_id):
     return True
 
 
-def cut_existing_usage_credits(item_id, item_type, grouping_id, start_date, end_date):
+def cut_existing_usage_credits(
+    item_id, item_type, grouping_id, start_date, end_date, credit_id=None
+):
     if not end_date:
         end_date = datetime.now(pytz.utc)
 
@@ -996,6 +999,7 @@ def cut_existing_usage_credits(item_id, item_type, grouping_id, start_date, end_
         for c in credit
         if c["start_date"] <= start_date
         and (not c["end_date"] or c["end_date"] >= end_date)
+        and credit_id != c["id"]
     ]
     if len(outer):
         if len(outer) > 1:
@@ -1018,6 +1022,7 @@ def cut_existing_usage_credits(item_id, item_type, grouping_id, start_date, end_
             c["end_date"]
             and (c["end_date"] >= start_date and c["end_date"] <= end_date)
         )
+        and credit_id != c["id"]
     ]
     if len(before):
         if len(before) > 1:
@@ -1036,6 +1041,7 @@ def cut_existing_usage_credits(item_id, item_type, grouping_id, start_date, end_
         for c in credit
         if c["start_date"] >= start_date
         and (c["end_date"] and c["end_date"] <= end_date)
+        and credit_id != c["id"]
     ]
     if len(inner):
         if len(inner) > 1:
@@ -1053,6 +1059,7 @@ def cut_existing_usage_credits(item_id, item_type, grouping_id, start_date, end_
         for c in credit
         if c["start_date"] <= end_date
         and (not c["end_date"] or c["end_date"] >= end_date)
+        and credit_id != c["id"]
     ]
     if len(after):
         if len(after) > 1:
