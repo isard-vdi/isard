@@ -339,3 +339,65 @@ def update_usage_graph_conf(graph_conf_id, data):
 def delete_usage_graph_conf(graph_conf_id):
     with app.app_context():
         r.table("analytics").get(graph_conf_id).delete().run(db.conn)
+
+
+def get_oldest_unused_desktops(months_without_use=6, n=None):
+    cutoff_date = r.now().sub(r.expr(60 * 60 * 24 * 30 * months_without_use))
+
+    query = (
+        r.table("domains")
+        .get_all("desktop", index="kind")
+        .map(
+            lambda desktop: {
+                "id": desktop["id"],
+                "status": desktop["status"],
+                "last_accessed": r.branch(
+                    r.table("logs_desktops")
+                    .get_all(desktop["id"], index="desktop_id")
+                    .is_empty(),
+                    r.epoch_time(desktop["accessed"]).default(
+                        None
+                    ),  # Fallback to accessed
+                    r.table("logs_desktops")
+                    .get_all(desktop["id"], index="desktop_id")
+                    .order_by(r.desc("starting_time"))
+                    .nth(0)["starting_time"]
+                    .default(None),
+                ),
+                "storage_id": desktop["create_dict"]["hardware"]["disks"][0][
+                    "storage_id"
+                ],
+            }
+        )
+        .filter(
+            lambda desktop: (
+                (desktop["last_accessed"] == None)
+                | (desktop["last_accessed"].lt(cutoff_date))
+            )
+        )
+        .eq_join("storage_id", r.table("storage"))
+        .map(
+            lambda join_result: join_result["left"].merge(
+                {
+                    "directory_path": join_result["right"]["directory_path"],
+                    "type": join_result["right"]["type"],
+                    "storage_path": join_result["right"]["directory_path"]
+                    + "/"
+                    + join_result["left"]["storage_id"]
+                    + "."
+                    + join_result["right"]["type"],
+                    "size": join_result["right"]["qemu-img-info"][
+                        "actual-size"
+                    ].default(0)
+                    / 1073741824,  # Convert to GB
+                }
+            )
+        )
+        .order_by("last_accessed")  # Oldest first
+    )
+
+    if n:
+        query = query.limit(n)
+
+    with app.app_context():
+        return list(query.run())

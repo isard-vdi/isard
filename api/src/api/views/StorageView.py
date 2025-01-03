@@ -181,16 +181,8 @@ def set_storage_maintenance(payload, storage_id):
     :return: Storage object
     :rtype: isardvdi_common.storage.Storage
     """
-
-    check_storage_existence_and_permissions(payload, storage_id)
-    storage = Storage(storage_id)
-    if storage.status != "ready":
-        raise Error(
-            error="precondition_required",
-            description="Storage not ready",
-            description_code="storage_not_ready",
-        )
-    storage.status = "maintenance"
+    storage = get_storage(payload, storage_id)
+    storage.set_maintenance()
     return storage
 
 
@@ -354,6 +346,61 @@ def category_in_storage_pool(storage, destination_storage_pool):
             error="bad_request",
             description=f"Storage {storage.id} owned by category {storage.category} can't be moved to destination storage pool {destination_storage_pool.id} that doesn't have this category",
         )
+
+
+@app.route("/api/v3/storage/<path:storage_id>/status/maintenance", methods=["PUT"])
+@has_token
+def storage_maintenance(payload, storage_id):
+    """
+    Endpoint to set a storage to maintenance status.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: Storage ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    storage = set_storage_maintenance(payload, storage_id)
+    return jsonify(storage.id)
+
+
+@app.route("/api/v3/storage/<path:storage_id>/status/ready", methods=["PUT"])
+@has_token
+def storage_ready(payload, storage_id):
+    """
+    Endpoint to set a storage to ready status.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: Storage ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    storage = get_storage(payload, storage_id)
+    storage.set_ready()
+    return jsonify(storage.id)
+
+
+@app.route(
+    "/api/v3/storage/<path:storage_id>/storage_pool/<path:storage_pool_id>",
+    methods=["PUT"],
+)
+@has_token
+def storage_set_storage_pool(payload, storage_id, storage_pool_id):
+    """
+    Endpoint to set a storage to a storage pool.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :param storage_pool_id: Storage Pool ID
+    :type storage_pool_id: str
+    :return: Storage ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    storage = get_storage(payload, storage_id)
+    storage_pool = get_storage_pool(storage_pool_id)
+    storage.set_storage_pool(storage_pool)
+    return jsonify(storage.id)
 
 
 @app.route("/api/v3/storage/<path:storage_id>", methods=["GET"])

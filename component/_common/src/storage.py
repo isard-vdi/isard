@@ -96,6 +96,30 @@ class Storage(RethinkCustomBase):
             return f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
         return f"{storage_pool.mountpoint}/{self.category}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
 
+    def set_storage_pool(self, storage_pool):
+        """
+        Change storage pool.
+
+        :param storage_pool: Storage Pool object
+        :type storage_pool: isardvdi_common.storage_pool.StoragePool
+        """
+        if self.pool == storage_pool:
+            return
+        if self.pool_usage is None:
+            return None
+        if self.pool_usage != storage_pool.get_usage_by_path(self.directory_path):
+            raise Exception(
+                {
+                    "error": "precondition_required",
+                    "description": f"Storage {self.id} must be in the same usage as the destination storage pool",
+                    "description_code": "storage_usage_must_be_the_same",
+                }
+            )
+        if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
+            self.directory_path = f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(self.pool_usage)}"
+        else:
+            self.directory_path = f"{storage_pool.mountpoint}/{self.category}/{storage_pool.get_usage_path(self.pool_usage)}"
+
     @property
     def children(self):
         """
@@ -249,6 +273,14 @@ class Storage(RethinkCustomBase):
         :param action: Action
         :type action: str
         """
+        if self.status != "ready":
+            raise Exception(
+                {
+                    "error": "precondition_required",
+                    "description": f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
+                    "description_code": "storage_not_ready",
+                }
+            )
         for domain in self.domains:
             if domain.status not in ["Stopped", "Failed"]:
                 raise Exception(
@@ -262,6 +294,23 @@ class Storage(RethinkCustomBase):
             domain.status = "Maintenance"
             domain.current_action = action
         self.status = "maintenance"
+
+    def set_ready(self):
+        """
+        Set storage and it's domains to ready status.
+        """
+        if self.status != "maintenance":
+            raise Exception(
+                {
+                    "error": "precondition_required",
+                    "description": f"Storage {self.id} must be Maintenance in order to return back to ready status. It's actual status is {self.status}",
+                    "description_code": "storage_not_maintenance",
+                }
+            )
+        for domain in self.domains:
+            domain.status = "Ready"
+            domain.current_action = None
+        self.status = "ready"
 
     def rsync(
         self,
