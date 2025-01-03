@@ -31,6 +31,37 @@ from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
 from rq import Queue, get_current_job
 
 
+def _same_file(file1, file2):
+    """
+    Check if two files are the same.
+    Use filename, mtime and size to check if two files are the same.
+
+    :param file1: Path to first file
+    :type file1: str
+    :param file2: Path to second file
+    :type file2: str
+    :return: True if files are the same, False otherwise
+    :rtype: bool
+    """
+
+    if not isfile(file1) or not isfile(file2):
+        return False
+
+    return (
+        basename(file1) == basename(file2)
+        and isfile(file1)
+        and isfile(file2)
+        and (
+            check_output(["stat", "-c", "%Y", file1]).decode()
+            == check_output(["stat", "-c", "%Y", file2]).decode()
+        )
+        and (
+            check_output(["stat", "-c", "%s", file1]).decode()
+            == check_output(["stat", "-c", "%s", file2]).decode()
+        )
+    )
+
+
 def extract_progress_from_qemu_img_convert_output(process):
     """
     Extract progress from qemu-img convert standard output
@@ -314,6 +345,14 @@ def move(origin_path, destination_path, method, bwlimit=0, remove_source_file=Tr
     :return: Exit code of rsync command or 0 if rsync is False
     :rtype: int
     """
+    if not isfile(origin_path):
+        raise ValueError(f"Path {origin_path} not found")
+
+    if isfile(destination_path) and _same_file(origin_path, destination_path):
+        if remove_source_file:
+            return remove(origin_path)
+        return 0
+
     if not isdir(dirname(destination_path)):
         makedirs(dirname(destination_path), exist_ok=True)
     if method == "mv":
