@@ -101,3 +101,16 @@ def update_analytics_graph_conf(payload, conf_id):
 def delete_analytics_graph_conf(payload, conf_id):
     api_analytics.delete_usage_graph_conf(conf_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/analytics/desktops/usage", methods=["POST"])
+@is_admin
+def desktops_usage(payload):
+    params = request.get_json(force=True)
+    months = params.get("months")
+    limit = params.get("limit")
+    return (
+        json.dumps(api_analytics.get_oldest_unused_desktops(months, limit)),
+        200,
+        {"Content-Type": "application/json"},
+    )
