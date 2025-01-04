@@ -110,7 +110,9 @@ def desktops_usage(payload):
     months = params.get("months")
     limit = params.get("limit")
     return (
-        json.dumps(api_analytics.get_oldest_unused_desktops(months, limit)),
+        json.dumps(
+            api_analytics.get_oldest_unused_desktops(months, limit), default=str
+        ),
         200,
         {"Content-Type": "application/json"},
     )

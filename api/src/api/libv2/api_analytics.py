@@ -400,4 +400,4 @@ def get_oldest_unused_desktops(months_without_use=6, n=None):
         query = query.limit(n)
 
     with app.app_context():
-        return list(query.run())
+        return list(query.run(db.conn))
