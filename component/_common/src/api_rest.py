@@ -144,7 +144,7 @@ class ApiRest:
                 if max_retries >= 0:
                     max_retries -= 1
 
-    def get(self, url="", timeout=5):
+    def get(self, url="", timeout=30):
         resp = requests.get(
             self.base_url + url,
             headers=header_auth(self.service),
@@ -154,17 +154,18 @@ class ApiRest:
         resp.raise_for_status()
         return json.loads(resp.text)
 
-    def post(self, url, data={}):
+    def post(self, url, data={}, timeout=30):
         resp = requests.post(
             self.base_url + url,
             json=data,
             headers=header_auth(self.service),
             verify=self.verify_cert,
+            timeout=timeout,
         )
         resp.raise_for_status()
         return json.loads(resp.text)
 
-    def put(self, url, data={}, timeout=5):
+    def put(self, url, data={}, timeout=30):
         resp = requests.put(
             self.base_url + url,
             json=data,
@@ -175,12 +176,13 @@ class ApiRest:
         resp.raise_for_status()
         return json.loads(resp.text)
 
-    def delete(self, url, data={}):
+    def delete(self, url, data={}, timeout=30):
         resp = requests.delete(
             self.base_url + url,
             json=data,
             headers=header_auth(self.service),
             verify=self.verify_cert,
+            timeout=timeout,
         )
         resp.raise_for_status()
         return json.loads(resp.text)

@@ -18,6 +18,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from datetime import datetime, timedelta
+
 from rethinkdb import RethinkDB
 
 from api import app
@@ -341,28 +343,52 @@ def delete_usage_graph_conf(graph_conf_id):
         r.table("analytics").get(graph_conf_id).delete().run(db.conn)
 
 
-def get_oldest_unused_desktops(months_without_use=6, n=None):
-    cutoff_date = r.now().sub(r.expr(60 * 60 * 24 * 30 * months_without_use))
+def get_desktops_less_used(
+    days_before=30, limit=None, not_in_directory_path=None, status=False
+):
+    cutoff_date = r.now().sub(r.expr(60 * 60 * 24 * days_before))
 
+    query = r.table("domains")
+    if status:
+        query = query.get_all(["desktop", status], index="kind_status")
+    else:
+        query = query.get_all("desktop", index="kind")
     query = (
-        r.table("domains")
-        .get_all("desktop", index="kind")
-        .map(
+        query.map(
             lambda desktop: {
-                "id": desktop["id"],
-                "status": desktop["status"],
+                "desktop_id": desktop["id"],
+                "desktop_status": desktop["status"],
+                "desktop_category": desktop["category"],
                 "last_accessed": r.branch(
                     r.table("logs_desktops")
                     .get_all(desktop["id"], index="desktop_id")
-                    .is_empty(),
-                    r.epoch_time(desktop["accessed"]).default(
-                        None
-                    ),  # Fallback to accessed
+                    .filter(
+                        lambda log: r.expr(
+                            [
+                                "desktop-owner",
+                                "deployment-owner",
+                                "desktop-directviewer",
+                            ]
+                        ).contains(log["starting_by"])
+                    )
+                    .is_empty(),  # If no logs are found
+                    r.epoch_time(desktop["accessed"]).default(None),  # Use `accessed`
                     r.table("logs_desktops")
                     .get_all(desktop["id"], index="desktop_id")
-                    .order_by(r.desc("starting_time"))
+                    .filter(
+                        lambda log: r.expr(
+                            [
+                                "desktop-owner",
+                                "deployment-owner",
+                                "desktop-directviewer",
+                            ]
+                        ).contains(log["starting_by"])
+                    )
+                    .order_by(r.desc("starting_time"))  # Get the most recent log
                     .nth(0)["starting_time"]
-                    .default(None),
+                    .default(
+                        r.epoch_time(desktop["accessed"]).default(None)
+                    ),  # Fallback to `accessed`
                 ),
                 "storage_id": desktop["create_dict"]["hardware"]["disks"][0][
                     "storage_id"
@@ -376,28 +402,198 @@ def get_oldest_unused_desktops(months_without_use=6, n=None):
             )
         )
         .eq_join("storage_id", r.table("storage"))
-        .map(
-            lambda join_result: join_result["left"].merge(
-                {
-                    "directory_path": join_result["right"]["directory_path"],
-                    "type": join_result["right"]["type"],
-                    "storage_path": join_result["right"]["directory_path"]
-                    + "/"
-                    + join_result["left"]["storage_id"]
-                    + "."
-                    + join_result["right"]["type"],
-                    "size": join_result["right"]["qemu-img-info"][
-                        "actual-size"
-                    ].default(0)
-                    / 1073741824,  # Convert to GB
-                }
-            )
-        )
-        .order_by("last_accessed")  # Oldest first
     )
 
-    if n:
-        query = query.limit(n)
+    if not_in_directory_path:
+        query = query.filter(
+            lambda join_result: join_result["right"]["directory_path"]
+            != not_in_directory_path
+        )
+
+    query = query.map(
+        lambda join_result: join_result["left"].merge(
+            {
+                "directory_path": join_result["right"]["directory_path"],
+                "storage_path": join_result["right"]["directory_path"]
+                + "/"
+                + join_result["left"]["storage_id"]
+                + "."
+                + join_result["right"]["type"],
+                "storage_status": join_result["right"]["status"],
+                "size": join_result["right"]["qemu-img-info"]["actual-size"].default(0)
+                / 1073741824,
+            }
+        )
+    ).order_by(
+        "last_accessed"
+    )  # Oldest first
+
+    if limit:
+        query = query.limit(limit)
 
     with app.app_context():
         return list(query.run(db.conn))
+
+
+def get_desktops_recently_used(
+    days_before=30, limit=None, not_in_directory_path=None, status=False
+):
+    cutoff_date = r.now().sub(r.expr(60 * 60 * 24 * days_before))
+
+    query = r.table("domains")
+    if status:
+        query = query.get_all(["desktop", status], index="kind_status")
+    else:
+        query = query.get_all("desktop", index="kind")
+    query = (
+        query.map(
+            lambda desktop: {
+                "desktop_id": desktop["id"],
+                "desktop_status": desktop["status"],
+                "desktop_category": desktop["category"],
+                "last_accessed": r.branch(
+                    r.table("logs_desktops")
+                    .get_all(desktop["id"], index="desktop_id")
+                    .is_empty(),
+                    r.epoch_time(desktop["accessed"]).default(
+                        None
+                    ),  # Fallback to accessed
+                    r.table("logs_desktops")
+                    .get_all(desktop["id"], index="desktop_id")
+                    .order_by(r.desc("starting_time"))
+                    .nth(0)["starting_time"]
+                    .default(
+                        r.epoch_time(desktop["accessed"]).default(None)
+                    ),  # Fallback again
+                ),
+                "storage_id": desktop["create_dict"]["hardware"]["disks"][0][
+                    "storage_id"
+                ],
+            }
+        )
+        .filter(
+            lambda desktop: (
+                (desktop["last_accessed"] != None)
+                & (desktop["last_accessed"].ge(cutoff_date))
+            )
+        )
+        .eq_join("storage_id", r.table("storage"))
+    )
+
+    if not_in_directory_path:
+        query = query.filter(
+            lambda join_result: join_result["right"]["directory_path"]
+            != not_in_directory_path
+        )
+
+    query = query.map(
+        lambda join_result: join_result["left"].merge(
+            {
+                "directory_path": join_result["right"]["directory_path"],
+                "storage_path": join_result["right"]["directory_path"]
+                + "/"
+                + join_result["left"]["storage_id"]
+                + "."
+                + join_result["right"]["type"],
+                "storage_status": join_result["right"]["status"],
+                "size": join_result["right"]["qemu-img-info"]["actual-size"].default(0)
+                / 1073741824,
+            }
+        )
+    ).order_by(
+        r.desc("last_accessed")
+    )  # Most recent first
+
+    if limit:
+        query = query.limit(limit)
+
+    with app.app_context():
+        return list(query.run(db.conn))
+
+
+def get_desktops_most_used(
+    days_before=7, limit=None, not_in_directory_path=None, status=False
+):
+    """
+    Get the most started desktops in the last `days_before` days.
+
+    :param days_before: The number of days to look back
+    :param limit: The maximum number of results to return
+    :param not_in_directory_path: Skip desktops with a specific directory_path
+    :param status: Filter by desktop status
+    :return: A list of desktops
+    """
+
+    query = (
+        r.table("logs_desktops")
+        .filter(
+            lambda log: log["starting_time"].during(
+                r.now().sub(r.expr(60 * 60 * 24 * days_before)),
+                r.now(),
+            )
+        )
+        .group("desktop_id")
+        .count()
+        .ungroup()
+        .map(
+            lambda group: {
+                "desktop_id": group["group"],
+                "start_count": group["reduction"],
+            }
+        )
+        .order_by(r.desc("start_count"))
+    )
+
+    if status:
+        query = (
+            query.eq_join("desktop_id", r.table("domains"))
+            .filter({"right": {"status": status}})
+            .map(
+                lambda join_result: {
+                    "desktop_id": join_result["left"]["desktop_id"],
+                    "start_count": join_result["left"]["start_count"],
+                    "desktop_status": join_result["right"]["status"],
+                    "desktop_category": join_result["right"]["category"],
+                    "storage_id": join_result["right"]["create_dict"]["hardware"][
+                        "disks"
+                    ][0]["storage_id"],
+                }
+            )
+        )
+    else:
+        query = query.eq_join("desktop_id", r.table("domains"))
+
+    query = query.eq_join("storage_id", r.table("storage"))
+
+    if not_in_directory_path:
+        query = query.filter(
+            lambda join_result: join_result["right"]["directory_path"]
+            != not_in_directory_path
+        )
+
+    query = query.map(
+        lambda join_result: {
+            "desktop_id": join_result["left"]["desktop_id"],
+            "start_count": join_result["left"]["start_count"],
+            "desktop_status": join_result["left"]["desktop_status"],
+            "storage_id": join_result["left"]["storage_id"],
+            "storage_status": join_result["right"]["status"],
+            "directory_path": join_result["right"]["directory_path"],
+            "storage_path": join_result["right"]["directory_path"]
+            + "/"
+            + join_result["left"]["storage_id"]
+            + "."
+            + join_result["right"]["type"],
+            "desktop_category": join_result["left"]["desktop_category"],
+            "size": join_result["right"]["qemu-img-info"]["actual-size"].default(0)
+            / 1073741824,
+        }
+    )
+
+    if limit:
+        query = query.limit(limit)
+
+    with app.app_context():
+        results = list(query.run(db.conn))
+
+    return results
