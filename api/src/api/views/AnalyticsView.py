@@ -103,15 +103,60 @@ def delete_analytics_graph_conf(payload, conf_id):
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/analytics/desktops/usage", methods=["POST"])
+@app.route("/api/v3/analytics/desktops/less_used", methods=["POST"])
 @is_admin
-def desktops_usage(payload):
+def desktops_less_usage(payload):
     params = request.get_json(force=True)
-    months = params.get("months")
-    limit = params.get("limit")
+    days_before = params.get("days_before", 30)
+    limit = params.get("limit", 10)
+    not_in_directory_path = params.get("not_in_directory_path")
+    status = params.get("status", False)
     return (
         json.dumps(
-            api_analytics.get_oldest_unused_desktops(months, limit), default=str
+            api_analytics.get_desktops_less_used(
+                days_before, limit, not_in_directory_path, status
+            ),
+            default=str,
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/analytics/desktops/recently_used", methods=["POST"])
+@is_admin
+def desktops_most_usage(payload):
+    params = request.get_json(force=True)
+    days_before = params.get("days_before", 30)
+    limit = params.get("limit", 10)
+    not_in_directory_path = params.get("not_in_directory_path")
+    status = params.get("status", False)
+    return (
+        json.dumps(
+            api_analytics.get_desktops_recently_used(
+                days_before, limit, not_in_directory_path, status
+            ),
+            default=str,
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/analytics/desktops/most_used", methods=["POST"])
+@is_admin
+def desktops_most_used(payload):
+    params = request.get_json(force=True)
+    days_before = params.get("days_before", 30)
+    limit = params.get("limit", 10)
+    not_in_directory_path = params.get("not_in_directory_path")
+    status = params.get("status", False)
+    return (
+        json.dumps(
+            api_analytics.get_desktops_most_used(
+                days_before, limit, not_in_directory_path, status
+            ),
+            default=str,
         ),
         200,
         {"Content-Type": "application/json"},
