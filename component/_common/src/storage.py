@@ -264,7 +264,7 @@ class Storage(RethinkCustomBase):
         )
         return self.task
 
-    def set_maintenance(self, action):
+    def set_maintenance(self, action="system maintenance"):
         """
         Set storage and it's domains to maintenance status.
 
@@ -308,7 +308,7 @@ class Storage(RethinkCustomBase):
                 }
             )
         for domain in self.domains:
-            domain.status = "Ready"
+            domain.status = "Stopped"
             domain.current_action = None
         self.status = "ready"
 

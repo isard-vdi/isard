@@ -26,6 +26,9 @@ services:
     environment:
       ENV: /usr/local/etc/environment
       PYTHONUNBUFFERED: 1
+      DOMAIN:
+      API_ISARDVDI_SECRET:
+      API_DOMAIN:
       STORAGE_DOMAIN:
       REDIS_HOST:
       REDIS_PORT:

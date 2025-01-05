@@ -170,7 +170,7 @@ def check_storage_existence_and_permissions(payload, storage_id):
     ownsStorageId(payload, storage_id)
 
 
-def set_storage_maintenance(payload, storage_id):
+def set_storage_maintenance(payload, storage_id, action="maintenance"):
     """
     Set storage to maintenance status.
 
@@ -182,7 +182,7 @@ def set_storage_maintenance(payload, storage_id):
     :rtype: isardvdi_common.storage.Storage
     """
     storage = get_storage(payload, storage_id)
-    storage.set_maintenance()
+    storage.set_maintenance(action=action)
     return storage
 
 
@@ -359,7 +359,9 @@ def storage_maintenance(payload, storage_id):
     :return: Storage ID
     :rtype: Set with Flask response values and data in JSON
     """
-    storage = set_storage_maintenance(payload, storage_id)
+    params = request.get_json(force=True)
+    action = params.get("action", "system maintenance")
+    storage = set_storage_maintenance(payload, storage_id, action)
     return jsonify(storage.id)
 
 
