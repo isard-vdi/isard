@@ -1,4 +1,5 @@
 rq==2.0.0
 betterproto~=1.2
 rethinkdb==2.4.10.post1
+PyJWT==2.8.0
 tabulate
