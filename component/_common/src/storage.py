@@ -107,14 +107,7 @@ class Storage(RethinkCustomBase):
             return
         if self.pool_usage is None:
             return None
-        if self.pool_usage != storage_pool.get_usage_by_path(self.directory_path):
-            raise Exception(
-                {
-                    "error": "precondition_required",
-                    "description": f"Storage {self.id} must be in the same usage as the destination storage pool",
-                    "description_code": "storage_usage_must_be_the_same",
-                }
-            )
+
         if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
             self.directory_path = f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(self.pool_usage)}"
         else:
