@@ -18,14 +18,12 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from datetime import datetime, timedelta
-
+from cachetools import TTLCache, cached
 from rethinkdb import RethinkDB
 
 from api import app
 
 r = RethinkDB()
-import logging as log
 
 from .flask_rethink import RDB
 
@@ -33,7 +31,11 @@ db = RDB(app)
 db.init_app(app)
 
 
-def storage_usage(categories=None):
+@cached(
+    cache=TTLCache(maxsize=10, ttl=30),
+    key=lambda categories: frozenset(categories) if categories else (),
+)
+def storage_usage(categories=[]):
     storage = {}
     if categories:
         with app.app_context():
@@ -105,7 +107,11 @@ def storage_usage(categories=None):
     return storage
 
 
-def resource_count(categories=None):
+@cached(
+    cache=TTLCache(maxsize=10, ttl=30),
+    key=lambda categories: frozenset(categories) if categories else (),
+)
+def resource_count(categories=[]):
     count = {}
     if categories:
         with app.app_context():
@@ -187,23 +193,19 @@ def resource_count(categories=None):
     return count
 
 
-def suggested_removals(categories=None, months_without_use=6):
-    suggestions = {"empty_deployments": {}, "unused_desktops": {}}
+@cached(
+    cache=TTLCache(maxsize=10, ttl=30),
+    key=lambda categories: frozenset(categories) if categories else (),
+)
+def get_empty_deployments(categories=[]):
     empty_deployments_query = r.table("deployments").eq_join("user", r.table("users"))
-    unused_desktops_query = r.table("domains")
+
     if categories:
         empty_deployments_query = empty_deployments_query.filter(
             lambda deployment: r.expr(categories).contains(
                 deployment["right"]["category"]
             )
         )
-        unused_desktops_query = unused_desktops_query.get_all(
-            r.args(categories), index="category"
-        ).filter(lambda row: (row["kind"] == "desktop") & (~row["server"]))
-    else:
-        unused_desktops_query = unused_desktops_query.get_all(
-            "desktop", index="kind"
-        ).filter(lambda row: ~row["server"])
 
     empty_deployments_query = (
         empty_deployments_query.pluck(
@@ -226,34 +228,73 @@ def suggested_removals(categories=None, months_without_use=6):
         )
         .filter({"domains": 0})
     )
+
+    with app.app_context():
+        return list(empty_deployments_query.run(db.conn))
+
+
+@cached(
+    cache=TTLCache(maxsize=10, ttl=30),
+    key=lambda months_without_use, categories: (
+        months_without_use,
+        frozenset(categories) if categories else (),
+    ),
+)
+def get_unused_desktops(months_without_use=6, categories=[]):
+    unused_desktops_query = r.table("domains")
+    if categories:
+        unused_desktops_query = unused_desktops_query.get_all(
+            r.args(categories), index="category"
+        ).filter(lambda row: (row["kind"] == "desktop") & (~row["server"]))
+    else:
+        unused_desktops_query = unused_desktops_query.get_all(
+            "desktop", index="kind"
+        ).filter(lambda row: ~row["server"])
+
     unused_desktops_query = (
         unused_desktops_query.merge(
             lambda desktop: {
-                "logs": r.table("logs_desktops")
-                .get_all(desktop["id"], index="desktop_id")
-                .filter(
-                    lambda log: r.expr(
-                        ["desktop-owner", "deployment-owner", "desktop-directviewer"]
-                    ).contains(log["starting_by"])
-                )
-                .count(),
-                "logs_between": r.table("logs_desktops")
-                .get_all(desktop["id"], index="desktop_id")
-                .filter(
-                    lambda log: r.expr(
-                        ["desktop-owner", "deployment-owner", "desktop-directviewer"]
-                    ).contains(log["starting_by"])
-                )
-                .filter(
-                    lambda log: log["starting_time"].during(
-                        r.now().sub(r.expr(60 * 60 * 24 * 30 * months_without_use)),
-                        r.now(),
+                "last_accessed": r.branch(
+                    r.table("logs_desktops")
+                    .get_all(desktop["id"], index="desktop_id")
+                    .filter(
+                        lambda log: r.expr(
+                            [
+                                "desktop-owner",
+                                "deployment-owner",
+                                "desktop-directviewer",
+                            ]
+                        ).contains(log["starting_by"])
                     )
-                )
-                .count(),
+                    .is_empty(),  # If no logs are found
+                    # Fallback to the `accessed` field
+                    r.epoch_time(desktop["accessed"]).default(None),
+                    # Otherwise, get the most recent `starting_time` from logs
+                    r.table("logs_desktops")
+                    .get_all(desktop["id"], index="desktop_id")
+                    .filter(
+                        lambda log: r.expr(
+                            [
+                                "desktop-owner",
+                                "deployment-owner",
+                                "desktop-directviewer",
+                            ]
+                        ).contains(log["starting_by"])
+                    )
+                    .order_by(r.desc("starting_time"))  # Sort by most recent
+                    .nth(0)["starting_time"]
+                    .default(
+                        r.epoch_time(desktop["accessed"]).default(None)
+                    ),  # Fallback to `accessed`
+                ),
             }
         )
-        .filter(lambda desktop: (desktop["logs"] == 0) | (desktop["logs_between"] == 0))
+        .filter(
+            # Filter based on `last_accessed` logic
+            lambda desktop: desktop["last_accessed"].lt(
+                r.now().sub(r.expr(60 * 60 * 24 * 30 * months_without_use))
+            )
+        )
         .eq_join(
             r.row["create_dict"]["hardware"]["disks"][0]["storage_id"],
             r.table("storage"),
@@ -262,10 +303,6 @@ def suggested_removals(categories=None, months_without_use=6):
         .zip()
         .merge(
             lambda desktop: {
-                # "last_log": r.table("logs_desktops")
-                # .get_all(desktop["id"], index="desktop_id")
-                # .order_by(r.desc("starting_time"))
-                # .nth(-1),
                 "category_name": r.table("categories")
                 .get(desktop["category"])
                 .default({"name": "[DELETED] " + desktop["category"]})["name"],
@@ -277,32 +314,19 @@ def suggested_removals(categories=None, months_without_use=6):
         )
         .pluck("id", "name", "category_name", "group_name", "username", "size")
     )
-    with app.app_context():
-        suggestions["empty_deployments"] = list(empty_deployments_query.run(db.conn))
-    with app.app_context():
-        suggestions["unused_desktops"]["desktops"] = list(
-            unused_desktops_query.run(db.conn)
-        )
-    unused_desktops_ids = [
-        desktop["id"] for desktop in suggestions["unused_desktops"]["desktops"]
-    ]
-    with app.app_context():
-        suggestions["unused_desktops"]["size"] = (
-            r.table("domains")
-            .get_all(r.args(unused_desktops_ids))
-            .eq_join(
-                r.row["create_dict"]["hardware"]["disks"][0]["storage_id"],
-                r.table("storage"),
-            )
-            .zip()
-            .pluck({"qemu-img-info": "actual-size"})
-            .default({"qemu-img-info": {"actual-size": 0}})["qemu-img-info"][
-                "actual-size"
-            ]
-            .sum(lambda size: size.default(0))
-            .run(db.conn)
-        ) / 1073741824
 
+    with app.app_context():
+        unuseds = list(unused_desktops_query.run(db.conn))
+
+    total_size = sum([d["size"] for d in unuseds])
+    return {"size": total_size, "desktops": unuseds}
+
+
+def suggested_removals(categories=None, months_without_use=6):
+    suggestions = {
+        "empty_deployments": get_empty_deployments(categories),
+        "unused_desktops": get_unused_desktops(months_without_use, categories),
+    }
     return suggestions
 
 
