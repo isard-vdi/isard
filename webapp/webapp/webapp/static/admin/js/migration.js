@@ -134,7 +134,6 @@ function renderMigrationDataTable() {
         "paging": true,
         "footer": true,
         "order": [[4, 'desc']],
-        "info": false,
         "deferRender": true,
         "columns": [
             {
