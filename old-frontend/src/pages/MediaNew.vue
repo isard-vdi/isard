@@ -29,7 +29,7 @@
             type="text"
             size="sm"
             :state="v$.mediaUrl.$error ? false : null"
-            @blur="v$.mediaUrl.$touch"
+            @blur="setMediaName"
           />
           <b-form-invalid-feedback
             v-if="v$.mediaUrl.$error"
@@ -188,6 +188,13 @@ export default {
     const usersChecked = computed(() => $store.getters.getUsersChecked)
     const selectedUsers = computed(() => $store.getters.getSelectedUsers)
 
+    const setMediaName = () => {
+      if (name.value === '') {
+        const url = mediaUrl.value.split('/')
+        name.value = url[url.length - 1]
+      }
+    }
+
     const v$ = useVuelidate({
       mediaUrl: {
         required,
@@ -245,7 +252,8 @@ export default {
       mediaTypes,
       v$,
       submitForm,
-      navigate
+      navigate,
+      setMediaName
     }
   }
 }
