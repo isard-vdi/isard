@@ -191,7 +191,23 @@ $(document).ready(function () {
         // $('#modalAddCategoryForm #auto-desktops-data').hide();
         // autoDesktopsShow('#modalAddCategoryForm', {})
         maxTimeEnabledShow('#modalAddCategoryForm')
+        storagePoolEnabledShow('#modalAddCategoryForm')
         $("#modalAddCategoryForm #max-delete-data").hide();
+        $("#modalAddCategoryForm #storage_pool").empty();
+        $.ajax({
+            type: "GET",
+            url: "/api/v3/admin/storage_pools",
+            contentType: "application/json",
+            success: function (data) {
+                $.each(data, function (index, value) {
+                    const option = $('<option>', {
+                        value: value.id,
+                        text: value.name
+                    });
+                    if (!value.is_default) { $("#modalAddCategoryForm #storage_pool").append(option); }
+                });
+            }
+        });
         $('#maxtime_panel :checkbox').iCheck('uncheck').iCheck('update');
         api.ajax('/scheduler/recycle_bin_delete/max_time', 'GET', '').done(function (time) {
             if (time.time !== "null") {
@@ -223,6 +239,11 @@ $(document).ready(function () {
             } else {
                 delete data['ephimeral-enabled'];
                 data['ephimeral-minutes'] = parseInt(data['ephimeral-minutes'])
+            }
+            if (!('storage-pool-enabled' in data)) {
+                delete data['storage_pool'];
+            } else {
+                delete data['storage-pool-enabled'];
             }
             // if (!('auto-desktops-enabled' in data)) {
             //     delete data['auto-desktops'];
@@ -614,4 +635,14 @@ function maxTimeEnabledShow (form) {
     $(form + (" #max-time-enabled")).on('ifUnchecked', function(event){
         $(form + (" #max-delete-data")).hide();
     });
+}
+
+function storagePoolEnabledShow(form) {
+  $(form + " #storage-pool-data").hide();
+  $(form + " #storage-pool-enabled").on("ifChecked", function (event) {
+    $(form + " #storage-pool-data").show();
+  });
+  $(form + " #storage-pool-enabled").on("ifUnchecked", function (event) {
+    $(form + " #storage-pool-data").hide();
+  });
 }

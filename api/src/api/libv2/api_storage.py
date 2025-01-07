@@ -511,6 +511,15 @@ def remove_category_from_storage_pool(category_id):
         )
 
 
+def add_category_to_storage_pool(storage_pool_id, category_id):
+    if storage_pool_id == DEFAULT_STORAGE_POOL_ID:
+        raise Error("bad_request", "Unable to assign category to default storage pool")
+    with app.app_context():
+        r.table("storage_pool").get(storage_pool_id).update(
+            {"categories": r.row["categories"].append(category_id)}
+        ).run(db.conn)
+
+
 def get_storage_derivatives(storage_id):
     total = []
     domains = Storage(storage_id).domains
