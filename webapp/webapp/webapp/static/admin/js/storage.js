@@ -377,7 +377,7 @@ $(document).on('click', '.btn-convert', function () {
   element = $(this);
   var storageId = element.data("id");
   $.ajax({
-    url: `/api/v3/storage/${storageId}/check_storage_derivatives`,
+    url: `/api/v3/storage/${storageId}/has_derivatives`,
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
@@ -470,14 +470,14 @@ $(document).on('click', '.btn-increase', function () {
     contentType: "application/json",
   }).done(function (storage) {
     $.ajax({
-      url: `/api/v3/storage/${storageId}/check_storage_derivatives`,
+      url: `/api/v3/storage/${storageId}/has_derivatives`,
     }).done(function (data) {
       if (data.derivatives <= 1) {
         var virtual_size = storage.virtual_size / 1024 / 1024 / 1024
         $(modal + " #current-size").text(virtual_size.toFixed(0) + " GB");
         $(modal + " #current_size").val(virtual_size);
         $(modal + " #new-size").val(virtual_size.toFixed(0)).prop("min", (virtual_size + 1).toFixed(0));
-  
+
         $.ajax({
           url: "/api/v3/admin/user/appliedquota/" + storage["user_id"],
           type: 'GET',
@@ -695,7 +695,7 @@ $(document).on('click', '.btn-virt_win_reg', function () {
   var storageId = element.data("id");
   modal = "#modalVirtWinReg";
   $.ajax({
-    url: `/api/v3/storage/${storageId}/check_storage_derivatives`,
+    url: `/api/v3/storage/${storageId}/has_derivatives`,
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {
@@ -781,7 +781,7 @@ $(document).on('click', '.btn-move', function () {
   populateSelectMethod(modal);
   populateSelectAfterRSync(modal);
   $.ajax({
-    url: `/api/v3/storage/${storageId}/check_storage_derivatives`,
+    url: `/api/v3/storage/${storageId}/has_derivatives`,
     type: 'GET',
     contentType: "application/json",
   }).done(function (data) {

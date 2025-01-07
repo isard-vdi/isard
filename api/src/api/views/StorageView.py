@@ -10,7 +10,7 @@ from flask import jsonify, request
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.domain import Domain
-from isardvdi_common.storage import Storage
+from isardvdi_common.storage import Storage, new_storage_dict
 from isardvdi_common.storage_pool import StoragePool
 from isardvdi_common.task import Task
 from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
@@ -25,7 +25,6 @@ from api import app
 from ..libv2.api_desktop_events import desktops_stop
 
 MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024
-from api import socketio
 
 from ..libv2.api_admin import ApiAdmin
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
@@ -42,12 +41,11 @@ from ..libv2.quotas import Quotas
 desktops = ApiDesktopsPersistent()
 quotas = Quotas()
 from .decorators import (
-    canPerformActionDeployment,
+    allowed_deployment_action,
     has_token,
     is_admin,
     is_admin_or_manager,
     is_not_user,
-    ownsStorageId,
 )
 
 admins = ApiAdmin()
@@ -148,30 +146,6 @@ def not_storage_children(storage):
         )
 
 
-def not_same_storage_pool(storage_pool_id, destination_storage_pool_id):
-    if storage_pool_id == destination_storage_pool_id:
-        raise Error(
-            error="conflict",
-            description=f"Storage {storage_pool_id} and destination storage pool {destination_storage_pool_id} are the same. Can't execute operation",
-        )
-
-
-def set_storage_maintenance(payload, storage_id, action="maintenance"):
-    """
-    Set storage to maintenance status.
-
-    :param payload: Data from JWT
-    :type payload: dict
-    :param storage_id: Storage ID
-    :type storage_id: str
-    :return: Storage object
-    :rtype: isardvdi_common.storage.Storage
-    """
-    storage = get_storage(payload, storage_id)
-    storage.set_maintenance(action=action)
-    return storage
-
-
 def get_queue_from_storage_pools(storage_pool_origin, storage_pool_destination):
     if storage_pool_origin == storage_pool_destination:
         queue = storage_pool_origin.id
@@ -243,31 +217,7 @@ def check_move_by_path(payload, storage_id, request):
             description=f"Storage {storage.id} already in destination path {path}, no need to execute operation",
         )
 
-    if storage.status != "ready":
-        raise Error(
-            error="precondition_required",
-            description=f"Storage {storage.id} status is not ready ({storage.status}). Can't execute operation",
-            description_code="storage_not_ready",
-        )
-    if storage.children:
-        raise Error(
-            error="conflict",
-            description=f"Storage {storage.id} used as backing file for {', '.join([storage.id for storage in storage.children])} storages. Can't execute operation",
-        )
-
-    # Storage domains checks
-    ## Only one domain can be attached to an storage now, but we iterate
-    for domain in storage.domains:
-        if domain.status != "Stopped":
-            raise Error(
-                "precondition_required",
-                f"Domain {domain.id} must be 'Stopped' in order to operate with its' storage.",
-                description_code="desktops_not_stopped",
-            )
-
-    # We can create move action
-    set_storage_maintenance(payload, storage_id, "move")
-
+    storage.set_maintenance("move")
     storage_pool_origin = StoragePool.get_best_for_action("move", path=path)
 
     if storage_pool_origin is None:
@@ -277,55 +227,6 @@ def check_move_by_path(payload, storage_id, request):
         )
 
     return path, priority, storage, storage_pool_origin
-
-
-def check_move_by_storage_pool(payload, storage_id, destination_storage_pool_id):
-    """
-    Check move by storage_pool.
-
-    :param payload: Data from JWT
-    :type payload: dict
-    :param storage_id: Storage ID
-    :type storage_id: str
-    :param request: Request
-    :type request: Request
-    :return: Path, priority, storage
-    """
-    storage = get_storage(payload, storage_id)
-    if storage.status != "ready":
-        raise Error(
-            error="precondition_required",
-            description=f"Storage {storage.id} status is not ready ({storage.status}). Can't execute operation",
-            description_code="storage_not_ready",
-        )
-    if storage.children:
-        raise Error(
-            error="conflict",
-            description=f"Storage {storage.id} used as backing file for {len([storage.id for storage in storage.children])} storages. Can't execute operation",
-        )
-
-    destination_path = get_dest_storage_pool_path(storage, destination_storage_pool_id)
-    set_storage_maintenance(payload, storage_id, "move")
-
-    return storage_pool_id, priority, path, storage
-
-
-def category_in_storage_pool(storage, destination_storage_pool):
-    """
-    Check storage category.
-
-    :param storage: Storage
-    :type storage: Storage
-    :param destination_storage_pool: Destination Storage Pool
-    :type destination_storage_pool: StoragePool
-    """
-    if destination_storage_pool.id == DEFAULT_STORAGE_POOL_ID:
-        return
-    if not destination_storage_pool.has_category(storage.category):
-        raise Error(
-            error="bad_request",
-            description=f"Storage {storage.id} owned by category {storage.category} can't be moved to destination storage pool {destination_storage_pool.id} that doesn't have this category",
-        )
 
 
 @app.route("/api/v3/storage/<path:storage_id>/status/maintenance", methods=["PUT"])
@@ -341,7 +242,8 @@ def storage_maintenance(payload, storage_id):
     """
     params = request.get_json(force=True)
     action = params.get("action", "system maintenance")
-    storage = set_storage_maintenance(payload, storage_id, action)
+    storage = get_storage(payload, storage_id)
+    storage.set_maintenance(storage_id, action)
     return jsonify(storage.id)
 
 
@@ -395,7 +297,7 @@ def get_storage_id(payload, storage_id):
     :type storage_id: str
     :return: Storage object
     """
-    return ownsStorageId(payload, storage_id)
+    return get_storage(payload, storage_id)
 
 
 @app.route("/api/v3/storage/priority/<priority>", methods=["POST"])
@@ -618,7 +520,6 @@ def storage_task(payload, storage_id):
 @has_token
 def api_v3_storage(payload):
     disks = get_user_ready_disks(payload["user_id"])
-
     disks = parse_disks(disks)
 
     return (
@@ -641,7 +542,8 @@ def storage_delete(payload, storage_id):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    storage = set_storage_maintenance(payload, storage_id)
+    storage = get_storage(payload, storage_id)
+    storage.set_maintenance("delete")
     try:
         storage.create_task(
             user_id=payload.get("user_id"),
@@ -734,21 +636,8 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
             )
 
     storage = get_storage(payload, storage_id)
+    storage.set_maintenance("virt_win_reg")
 
-    storage_domains = get_storage_derivatives(storage.id)
-    if len(storage_domains) > 1:
-        raise Error(
-            "precondition_required",
-            "Unable to edit Windows registry of storage with derivatives",
-        )
-    if not _check_domains_status(storage_id):
-        raise Error(
-            "precondition_required",
-            "All desktops must be 'Stopped' for storage operations.",
-            description_code="desktops_not_stopped",
-        )
-
-    set_storage_maintenance(payload, storage_id, "virt_win_reg")
     try:
         storage.create_task(
             user_id=storage.user_id,
@@ -782,17 +671,14 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
                                         "storage": [storage.id],
                                     },
                                     "Stopped": {
-                                        "domain": [storage_domains],
+                                        "domain": [
+                                            domain.id for domain in storage.domains
+                                        ],
                                     },
                                 },
                             },
                         },
                     },
-                },
-                {
-                    "queue": "core",
-                    "task": "domains_update",
-                    "job_kwargs": {"kwargs": {"domain_list": storage_domains}},
                 },
             ],
         )
@@ -825,7 +711,7 @@ def storage_update_qemu_img_info(payload, storage_id):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    storage = set_storage_maintenance(payload, storage_id)
+    storage = get_storage(payload, storage_id)
     try:
         storage.create_task(
             user_id=payload.get("user_id"),
@@ -841,23 +727,6 @@ def storage_update_qemu_img_info(payload, storage_id):
                 {
                     "queue": "core",
                     "task": "storage_update",
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "update_status",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "statuses": {
-                                        "finished": {
-                                            "ready": {
-                                                "storage": [storage.id],
-                                            },
-                                        },
-                                    }
-                                }
-                            },
-                        }
-                    ],
                 }
             ],
         )
@@ -909,7 +778,7 @@ def storage_check_existence(payload, storage_id):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    storage = set_storage_maintenance(payload, storage_id)
+    storage = get_storage(payload, storage_id)
     try:
         storage.create_task(
             user_id=payload.get("user_id"),
@@ -957,7 +826,7 @@ def storage_update_parent(payload, storage_id):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    storage = set_storage_maintenance(payload, storage_id)
+    storage = get_storage(payload, storage_id)
     try:
         storage.create_task(
             user_id=payload.get("user_id"),
@@ -1106,11 +975,11 @@ def storage_move_by_path(payload, storage_id):
 
 
 @app.route(
-    "/api/v3/storage/<path:storage_id>/rsync/by-path",
+    "/api/v3/storage/<path:storage_id>/rsync/to-path",
     methods=["PUT"],
 )
 @is_admin
-def storage_rsync_by_path(payload, storage_id):
+def storage_rsync_to_path(payload, storage_id):
     """
     Endpoint to move a storage to another path with storage specifications as JSON in body request.
 
@@ -1137,7 +1006,6 @@ def storage_rsync_by_path(payload, storage_id):
     storage_status(storage, "ready")
     not_storage_children(storage)
     storage_pool_destination = get_storage_pool_by_path(data["destination_path"])
-    category_in_storage_pool(storage, storage_pool_destination)
 
     # Prepare data
     destination_path = storage.path_in_pool(storage_pool_destination)
@@ -1162,11 +1030,11 @@ def storage_rsync_by_path(payload, storage_id):
 
 
 @app.route(
-    "/api/v3/storage/<path:storage_id>/rsync/by-storage-pool",
+    "/api/v3/storage/<path:storage_id>/rsync/to-storage-pool",
     methods=["PUT"],
 )
 @is_admin
-def storage_rsync_by_storage_pool(payload, storage_id):
+def storage_rsync_to_storage_pool(payload, storage_id):
     """
     Endpoint to move a storage to another storage pool with storage specifications as JSON in body request.
 
@@ -1179,7 +1047,7 @@ def storage_rsync_by_storage_pool(payload, storage_id):
     }
 
     :param payload: Data from JWT
-    :type payload: dict
+    :type payload: dict: {"destination_storage_pool_id": "Storage Pool ID to rsync the storage", "bwlimit": "Bandwidth limit in KBytes/s", "remove_source_file": "Boolean to remove source file after rsync", "priority": "low, default or high",}
     :param storage_id: Storage ID
     :type storage_id: str
     :return: Task ID
@@ -1191,21 +1059,25 @@ def storage_rsync_by_storage_pool(payload, storage_id):
     data = _validate_item("storage_rsync_by_storage_pool", data)
 
     storage = get_storage(payload, storage_id)
-    storage_status(storage, "ready")
-    not_storage_children(storage)
-    not_same_storage_pool(storage.pool.id, data["destination_storage_pool_id"])
 
-    storage_pool_destination = get_storage_pool(data["destination_storage_pool_id"])
-    category_in_storage_pool(storage, storage_pool_destination)
-
-    # Prepare data
-    destination_path = storage.path_in_pool(storage_pool_destination)
+    if not StoragePool.exists(data["destination_storage_pool_id"]):
+        raise Error(
+            error="not_found",
+            description=f"Storage pool {data['destination_storage_pool_id']} not found",
+        )
+    destination_path = storage.path_in_pool(
+        StoragePool(data["destination_storage_pool_id"])
+    )
     if destination_path is None:
         raise Error(
             error="not_found",
             description="No pool found with the usage, it was not found to execute rsync operation",
         )
-
+    if storage.path == destination_path:
+        raise Error(
+            error="bad_request",
+            description=f"Storage {storage.id} already in destination pool path {destination_path} to execute rsync operation",
+        )
     # Create task
     return jsonify(
         {
@@ -1299,7 +1171,7 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
             )
 
     # We can create move action
-    set_storage_maintenance(payload, storage_id, "move")
+    storage.set_maintenance("move")
 
     storage_pool_origin = StoragePool.get_best_for_action(
         "move", path=storage.directory_path
@@ -1446,7 +1318,7 @@ def storage_convert(
         raise Error(
             "precondition_required", "Unable to convert storage with derivatives"
         )
-    set_storage_maintenance(payload, storage_id, "convert")
+    origin_storage.set_maintenance("convert")
     compress = request.url_rule.rule.endswith("/compress")
     new_storage = Storage(
         user_id=origin_storage.user_id,
@@ -1539,7 +1411,6 @@ def storage_update_by_status(payload, status):
     for storage_id in storages_ids:
         storage = get_storage(payload, storage_id)
         storage.check_backing_chain(user_id=payload.get("user_id"))
-
     return jsonify({})
 
 
@@ -1551,13 +1422,6 @@ def storage_update_by_status(payload, status):
 def storage_increase_size(payload, storage_id, increment, priority="low"):
     storage = get_storage(payload, storage_id)
     quota = quotas.get_applied_quota(storage.user_id).get("quota")
-
-    if payload["role_id"] != "admin":
-        priority = "low"
-    if priority not in ["low", "default", "high"]:
-        raise Error(
-            description="priority should be low, default or high",
-        )
     if quota and (
         quota.get("desktops_disk_size")
         < (
@@ -1567,31 +1431,14 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
     ):
         raise Error("bad_request", "Disk size quota exceeded")
 
-    storage_domains = get_storage_derivatives(storage_id)
-    if len(storage_domains) > 1:
+    if payload["role_id"] != "admin":
+        priority = "low"
+    if priority not in ["low", "default", "high"]:
         raise Error(
-            "precondition_required",
-            "Unable to increase size of storage with derivatives",
-            description_code="storage_has_derivatives",
-        )
-    if not _check_domains_status(storage_id):
-        raise Error(
-            "precondition_required",
-            "All desktops must be 'Stopped' for storage operations.",
-            description_code="desktops_not_stopped",
+            description="priority should be low, default or high",
         )
 
-    set_storage_maintenance(payload, storage_id, "increase")
-    socketio.emit(
-        "update_storage",
-        {
-            "id": storage.id,
-            "status": storage.status,
-            "size": getattr(storage, "qemu-img-info")["virtual-size"],
-        },
-        namespace="/userspace",
-        room=storage.user_id,
-    )
+    storage.set_maintenance()
 
     try:
         storage.create_task(
@@ -1615,41 +1462,6 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
                         {
                             "queue": "core",
                             "task": "storage_update",
-                        },
-                        {
-                            "queue": "core",
-                            "task": "update_status",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "statuses": {
-                                        "_all": {
-                                            "ready": {
-                                                "storage": [storage.id],
-                                            },
-                                            "Stopped": {
-                                                "domain": storage_domains,
-                                            },
-                                        },
-                                    }
-                                }
-                            },
-                            "dependents": [
-                                {
-                                    "queue": "core",
-                                    "task": "send_storage_socket_user",
-                                    "job_kwargs": {
-                                        "kwargs": {
-                                            "event": "update_storage",
-                                            "storage_id": storage.id,
-                                        }
-                                    },
-                                },
-                            ],
-                        },
-                        {
-                            "queue": "core",
-                            "task": "domains_update",
-                            "job_kwargs": {"kwargs": {"domain_list": storage_domains}},
                         },
                     ],
                 }
@@ -1677,26 +1489,19 @@ def storage_stop_all_desktops(payload, storage_id):
     return jsonify({}), 200
 
 
-@app.route("/api/v3/storage/<path:storage_id>/check_stopped_desktops", methods=["GET"])
+@app.route("/api/v3/storage/<path:storage_id>/has_derivatives", methods=["GET"])
 @is_admin_or_manager
-def storage_check_stopped_desktops(payload, storage_id):
+def storage_has_derivatives(payload, storage_id):
     storage = get_storage(payload, storage_id)
-    return jsonify({"is_stopped": storage._check_domains_status()}), 200
-
-
-@app.route(
-    "/api/v3/storage/<path:storage_id>/check_storage_derivatives", methods=["GET"]
-)
-@is_admin_or_manager
-def storage_check_storage_derivatives(payload, storage_id):
-    return jsonify({"derivatives": len(get_storage_derivatives(storage_id))}), 200
+    return jsonify({"derivatives": len(storage.children)}), 200
 
 
 @app.route("/api/v3/storage/<path:storage_id>/abort_operations", methods=["PUT"])
 @has_token
 def storage_abort(payload, storage_id):
     storage = get_storage(payload, storage_id)
-    storage_domains = get_storage_derivatives(storage_id)
+
+    # storage_domains = get_storage_derivatives(storage_id)
     storage_pool = StoragePool.get_best_for_action("abort")
     try:
         storage.create_task(
@@ -1711,80 +1516,24 @@ def storage_abort(payload, storage_id):
             },
             dependents=[
                 {
-                    "queue": "core",
-                    "task": "update_status",
+                    "queue": f"storage.{storage_pool.id}.default",
+                    "task": "qemu_img_info_backing_chain",
                     "job_kwargs": {
                         "kwargs": {
-                            "statuses": {
-                                "finished": {
-                                    "Failed": {
-                                        "domain": storage_domains,
-                                    },
-                                },
-                            }
+                            "storage_id": storage.id,
+                            "storage_path": storage.path,
                         }
                     },
                     "dependents": [
                         {
-                            "queue": f"storage.{storage_pool.id}.default",
-                            "task": "qemu_img_info_backing_chain",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "storage_id": storage.id,
-                                    "storage_path": storage.path,
-                                }
-                            },
-                            "dependents": [
-                                {
-                                    "queue": "core",
-                                    "task": "storage_update",
-                                    "dependents": [
-                                        {
-                                            "queue": "core",
-                                            "task": "update_status",
-                                            "job_kwargs": {
-                                                "kwargs": {
-                                                    "statuses": {
-                                                        "finished": {
-                                                            "StartingPaused": {
-                                                                "domain": storage_domains,
-                                                            },
-                                                            "ready": {
-                                                                "storage": [storage.id],
-                                                            },
-                                                        },
-                                                    }
-                                                }
-                                            },
-                                            "dependents": [
-                                                {
-                                                    "queue": "core",
-                                                    "task": "send_socket_user",
-                                                    "job_kwargs": {
-                                                        "kwargs": {
-                                                            "kind": "update_storage",
-                                                            "data": {
-                                                                "id": storage.id,
-                                                                "status": storage.status,
-                                                                "size": getattr(
-                                                                    storage,
-                                                                    "qemu-img-info",
-                                                                )["virtual-size"],
-                                                            },
-                                                            "owner_id": storage.user_id,
-                                                        }
-                                                    },
-                                                }
-                                            ],
-                                        },
-                                    ],
-                                }
-                            ],
+                            "queue": "core",
+                            "task": "storage_update",
                         }
                     ],
-                },
+                }
             ],
         )
+
     except Exception as e:
         raise Error(
             "internal_server_error",
@@ -1793,10 +1542,32 @@ def storage_abort(payload, storage_id):
     return jsonify(storage.task)
 
 
-@app.route("/api/v3/storage/<path:storage_id>/recreate", methods=["POST"])
 @app.route("/api/v3/domain/<domain_id>/recreate_disk", methods=["POST"])
 @has_token
-def storage_recreate_disk(payload, storage_id=None, domain_id=None):
+def domain_recreate_disk(payload, domain_id):
+    """
+    Endpoint to recreate a domain disk.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param domain_id: Domain ID
+    :type domain_id: str
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    allowed_deployment_action(payload, domain_id, "recreate")
+    if not Domain.exists(domain_id):
+        raise Error(
+            "not_found",
+            f"Domain {domain_id} not found",
+        )
+    storage_id = Domain(domain_id).storages[0].id
+    return recreate_storage(payload, storage_id)
+
+
+@app.route("/api/v3/storage/<path:storage_id>/recreate", methods=["POST"])
+@has_token
+def storage_recreate_disk(payload, storage_id):
     """
     Endpoint to recreate a storage with the same specifications and parent.
 
@@ -1810,29 +1581,43 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
     :type payload: dict
     :param storage_id: Storage ID
     :type storage_id: str
-    :param domain_id: Domain ID
-    :type domain_id: str
     :return: Storage ID
     :rtype: Set with Flask response values and data in JSON
     """
-    if domain_id:
-        canPerformActionDeployment(payload, domain_id, "recreate")
-        storage_id = admins.get_domain_storage(domain_id)[0]["id"]
+    return recreate_storage(payload, storage_id)
 
-    storage_orig = get_storage(payload, storage_id)
-    if len(storage_orig.domains) > 1:
-        raise Error(
-            "precondition_required",
-            "Unable to recreate storage with derivatives",
-        )
-    if not _check_domains_status(storage_id):
-        raise Error(
-            "precondition_required",
-            "All desktops must be 'Stopped' for storage operations.",
-            description_code="desktops_not_stopped",
-        )
 
-    set_storage_maintenance(payload, storage_id, "recreate")
+def recreate_storage(payload, storage_id, domain_id=None):
+    storage = get_storage(payload, storage_id)
+    if domain_id is None:
+        if len(storage.domains) > 1:
+            raise Error(
+                "precondition_required",
+                "Unable to recreate storage with more than one domain attached",
+            )
+        domain_id = storage.domains[0].id if len(storage.domains) == 1 else None
+    if storage.parent:
+        if not Storage.exists(storage.parent):
+            raise Error(
+                error="precondition_required",
+                description="Storage parent missing",
+                description_code="storage_has_no_parent",
+            )
+        storage_parent = Storage(storage.parent)
+        if storage_parent.status != "ready":
+            raise Error(
+                error="precondition_required",
+                description="Storage parent not ready",
+                description_code="storage_parent_not_ready",
+            )
+        parent_args = {
+            "parent_path": storage_parent.path,
+            "parent_type": storage_parent.type,
+        }
+    else:
+        storage_parent = None
+        parent_args = {}
+    storage_pool = StoragePool.get_best_for_action("delete", storage.directory_path)
 
     if request.is_json:
         request_json = request.get_json()
@@ -1849,164 +1634,94 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
                 description=f"Priority must be low, default or high",
             )
 
-    parent_args = {}
-    if storage_orig.parent:
-        parent = get_storage(payload, storage_orig.parent)
-        if parent.status != "ready":
-            raise Error(
-                error="precondition_required",
-                description="Storage not ready",
-                description_code="storage_not_ready",
-            )
+    storage.set_maintenance("recreate")
 
-        parent_args = {
-            "parent_path": parent.path,
-            "parent_type": parent.type,
-        }
-
-    if parent:
-        storage_pool = StoragePool.get_best_for_action("create", parent.directory_path)
-    else:
-        if request.get_json().get("user_id"):
-            storage_pool = StoragePool.get_by_user_kind(
-                request.get_json().get("user_id"),
-                storage_orig.type,
-            )
-
-        else:
-            storage_pool = StoragePool.get_best_for_action("create")
-
-    status_logs = storage_orig.status_logs
+    status_logs = storage.status_logs
     status_logs.append(
         {"time": int(time.time()), "status": f"recreated from {storage_id}"}
     )
 
-    storage = Storage(
-        status=storage_orig.status,
-        user_id=storage_orig.user_id,
-        type=storage_orig.type,
-        parent=storage_orig.parent,
-        directory_path=storage_orig.directory_path,
-        status_logs=status_logs,
-        perms=storage_orig.perms,
+    new_storage = new_storage_dict(
+        storage.user_id,
+        storage.pool_usage,
+        storage_parent.id if storage.parent else None,
+    )
+    new_storage_path = str(
+        new_storage["directory_path"]
+        + "/"
+        + new_storage["id"]
+        + "."
+        + new_storage["type"]
+    )
+    new_storage["status_logs"] = status_logs
+    new_storage_pool = StoragePool.get_best_for_action(
+        "create", new_storage["directory_path"]
     )
 
     try:
         task = Task(
             user_id=storage.user_id,
-            queue=f"storage.{storage_pool.id}.{priority}",
+            queue=f"storage.{new_storage_pool.id}.{priority}",
             task="create",
             job_kwargs={
                 "kwargs": {
-                    "storage_path": storage.path,
-                    "storage_type": storage.type,
+                    "storage_path": new_storage_path,
+                    "storage_type": new_storage["type"],
                     **parent_args,
                 },
             },
             dependents=[
                 {
-                    "queue": f"core",
-                    "task": "domain_change_storage",
+                    "queue": "core",
+                    "task": "storage_add",
                     "job_kwargs": {
-                        "kwargs": {
-                            "domain_id": domain_id,
-                            "storage_id": storage.id,
-                        }
+                        "kwargs": new_storage,
                     },
                     "dependents": [
+                        (
+                            {
+                                "queue": f"core",
+                                "task": "domain_change_storage",
+                                "job_kwargs": {
+                                    "kwargs": {
+                                        "domain_id": domain_id,
+                                        "storage_id": new_storage["id"],
+                                    },
+                                },
+                            }
+                            if domain_id
+                            else None
+                        ),
                         {
-                            "queue": f"storage.{storage_pool.id}.{priority}",
-                            "task": "delete",
+                            "queue": f"storage.{new_storage_pool.id}.{priority}",
+                            "task": "qemu_img_info_backing_chain",
                             "job_kwargs": {
                                 "kwargs": {
-                                    "path": storage_orig.path,
-                                },
+                                    "storage_id": new_storage["id"],
+                                    "storage_path": new_storage_path,
+                                }
                             },
                             "dependents": [
                                 {
+                                    "queue": "core",
+                                    "task": "storage_update",
+                                },
+                                {
                                     "queue": f"storage.{storage_pool.id}.{priority}",
-                                    "task": "qemu_img_info_backing_chain",
+                                    "task": "delete",
                                     "job_kwargs": {
                                         "kwargs": {
-                                            "storage_id": storage.id,
-                                            "storage_path": storage.path,
-                                        }
-                                    },
-                                    "dependents": [
-                                        {
-                                            "queue": "core",
-                                            "task": "storage_update",
-                                            "dependents": [
-                                                {
-                                                    "queue": "core",
-                                                    "task": "update_status",
-                                                    "job_kwargs": {
-                                                        "kwargs": {
-                                                            "statuses": {
-                                                                "canceled": {
-                                                                    "ready": {
-                                                                        "storage": [
-                                                                            storage.id
-                                                                        ],
-                                                                    },
-                                                                },
-                                                                "finished": (
-                                                                    {
-                                                                        "ready": {
-                                                                            "storage": [
-                                                                                storage.id
-                                                                            ],
-                                                                        },
-                                                                        "Stopped": {
-                                                                            "domain": [
-                                                                                domain_id
-                                                                            ],
-                                                                        },
-                                                                        "deleted": {
-                                                                            "storage": [
-                                                                                storage_orig.id
-                                                                            ],
-                                                                        },
-                                                                    }
-                                                                    if domain_id
-                                                                    else {
-                                                                        "ready": {
-                                                                            "storage": [
-                                                                                storage.id
-                                                                            ],
-                                                                        },
-                                                                        "deleted": {
-                                                                            "storage": [
-                                                                                storage_orig.id
-                                                                            ],
-                                                                        },
-                                                                    }
-                                                                ),
-                                                            },
-                                                        },
-                                                    },
-                                                    "dependents": [
-                                                        {
-                                                            "queue": "core",
-                                                            "task": "storage_delete",
-                                                            "job_kwargs": {
-                                                                "kwargs": {
-                                                                    "storage_id": storage.id
-                                                                }
-                                                            },
-                                                        },
-                                                    ],
-                                                },
-                                            ],
+                                            "path": storage.path,
                                         },
-                                    ],
-                                }
+                                    },
+                                },
                             ],
                         },
                     ],
                 },
             ],
         )
+
     except Exception as e:
         if e.args[0] == "precondition_required":
             raise Error(

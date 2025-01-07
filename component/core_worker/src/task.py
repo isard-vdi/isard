@@ -66,7 +66,10 @@ def feedback(task_id=None):
     task = Task(task_id)
     task_as_json = json.dumps(task.to_dict())
     if task.user_id != "isard-scheduler":
-        user = user_info(task.user_id)
+        try:
+            user = user_info(task.user_id)
+        except:
+            user = None
         if user:
             socketio(
                 [
@@ -224,15 +227,17 @@ def storage_update(**storage_dict):
     task = Task(get_current_job().id)
     if task.depending_status == "finished":
         if storage_dict:
+            if not Storage.exists(storage_dict["id"]):
+                return  # Storage was deleted
             storage_object = Storage(**storage_dict)
             if storage_dict.get("status") == "deleted":
-                for domain in storage_object.domains:
+                for domain in (
+                    storage_object.domains + storage_object.domains_derivatives
+                ):
                     domain.status = "Failed"
-                for child in storage_object.children:
+                for child in storage_object.derivatives:
                     if child.status != "deleted":
                         child.status = "orphan"
-                        for domain in child.domains:
-                            domain.status = "Failed"
             if storage_dict.get("status") == "ready":
                 for domain in storage_object.domains:
                     domain.status = "Stopped"
@@ -249,6 +254,16 @@ def storage_update(**storage_dict):
                         storage_update(**result)
 
 
+def storage_add(**storage_dict):
+    """
+    Add storage to database.
+
+    :param storage_dict: Storage data
+    :type storage_dict: dict
+    """
+    Storage(**storage_dict)
+
+
 def storage_delete(storage_id):
     """
     Delete storage from database
@@ -256,6 +271,8 @@ def storage_delete(storage_id):
     :param storage_id: Storage ID
     :type storage_id: str
     """
+    if not Storage.exists(storage_id):
+        return
     if Storage(storage_id).status == "deleted":
         Storage.delete(storage_id)
 
@@ -292,19 +309,6 @@ def media_update(**media_dict):
                     media_update(**dependency.result)
 
 
-def domains_update(domain_list):
-    """
-    Update domain if task success.
-
-    :param domain_list:List of domain IDs
-    :type domain_listt: list
-    """
-
-    if domain_list:
-        for domain_id in domain_list:
-            Domain(domain_id).current_status = None
-
-
 def delete_task(task_id):
     """
     Cancel task if task is queued.
@@ -323,6 +327,8 @@ def send_storage_socket_user(event, storage_id):
     :param storage_id: ID of the storage
     :type storage_id: str
     """
+    if not Storage.exists(storage_id):
+        return
     storage = Storage(storage_id)
     socketio(
         [
@@ -349,6 +355,8 @@ def domain_change_storage(domain_id, storage_id):
     :param storage_id: Storage ID
     :type storage_id: str
     """
+    if not Domain.exists(domain_id):
+        return
     domain = Domain(domain_id)
     c_dict = domain.create_dict
     c_dict["hardware"]["disks"][0]["storage_id"] = storage_id
@@ -356,3 +364,18 @@ def domain_change_storage(domain_id, storage_id):
     domain.force_update = (
         True  # Engine will recreate it's hardware dict before next start
     )
+
+
+def storage_domains_force_update(storage_id):
+    """
+    Force update domains of a storage.
+
+    :param storage_id: Storage ID
+    :type storage_id: str
+    """
+    if not Storage.exists(storage_id):
+        return
+    for domain in Storage(storage_id).domains:
+        domain.force_update = (
+            True  # Engine will recreate it's hardware dict before next start
+        )

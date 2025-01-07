@@ -17,6 +17,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from uuid import uuid4
+
 from isardvdi_common.storage_pool import StoragePool
 from isardvdi_common.user import User
 from rq.job import JobStatus
@@ -47,6 +49,46 @@ def get_queue_from_storage_pools(storage_pool_origin, storage_pool_destination):
         storage_pool_ids.sort()
         queue = ":".join(storage_pool_ids)
     return queue
+
+
+def new_storage_directory_path(user_id, pool_usage):
+    """
+    Create a new storage path.
+
+    :param user_id: User ID
+    :type user_id: str
+    :param pool_usage: Storage pool_usage: desktop or template
+    :type pool_usage: str
+    """
+    storage_pool = StoragePool.get_by_user_kind(user_id, pool_usage)
+    if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
+        return f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(pool_usage)}"
+    if User.exists(user_id):
+        return f"{storage_pool.mountpoint}/{User(user_id).category}/{storage_pool.get_usage_path(pool_usage)}"
+
+
+def new_storage_dict(user_id, pool_usage, parent_id=None, format="qcow2"):
+    """
+    Create a new storage dictionary.
+
+    :param user_id: User ID
+    :type user_id: str
+    :param pool_usage: Storage pool_usage: desktop or template
+    :type pool_usage: str
+    :param parent_id: Parent ID
+    :type parent_id: str
+    """
+
+    return {
+        "id": str(uuid4()),
+        "type": format,
+        "directory_path": new_storage_directory_path(user_id, pool_usage),
+        "parent": parent_id,
+        "user_id": user_id,
+        "status": "created",
+        "perms": ["r", "w"] if pool_usage == "desktop" else ["r"],
+        "status_logs": [],
+    }
 
 
 class Storage(RethinkCustomBase):
@@ -121,6 +163,25 @@ class Storage(RethinkCustomBase):
         return self.get_index([self.id], index="parent")
 
     @property
+    def derivatives(self):
+        """
+        Returns all the storages that have this storage as a parent,
+        recursively including all descendant children (leaf nodes).
+        NOTE: Does not include the storage itself.
+        """
+        # Get the direct children first
+        direct_children = self.children
+
+        # For each child, recursively get their children
+        all_children = []
+        for child in direct_children:
+            all_children.append(child)
+            # Recursively get children of the child
+            all_children.extend(child.children)
+
+        return all_children
+
+    @property
     def parents(self):
         """
         Returns the storage parents hierarchy.
@@ -144,6 +205,25 @@ class Storage(RethinkCustomBase):
         Returns the domains using this storage.
         """
         return domain.Domain.get_with_storage(self)
+
+    @property
+    def domains_derivatives(self):
+        """
+        Returns all domains attached to the storage and its descendants recursively.
+        NOTE: Does not include the storage domains itself.
+        """
+        # First, get the domains attached to the current storage object
+        storage_domains = self.domains
+
+        # Recursively get all child storages
+        all_children = self.children
+
+        # For each child storage, add its domains to the list
+        all_domains = []
+        for child in all_children:
+            all_domains.extend(child.domains)
+
+        return all_domains
 
     @property
     def category(self):
@@ -230,28 +310,6 @@ class Storage(RethinkCustomBase):
                 {
                     "queue": "core",
                     "task": "storage_update",
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "update_status",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "statuses": {
-                                        JobStatus.CANCELED: {
-                                            self.status: {
-                                                "storage": [self.id],
-                                            },
-                                        },
-                                        JobStatus.FAILED: {
-                                            self.status: {
-                                                "storage": [self.id],
-                                            },
-                                        },
-                                    }
-                                }
-                            },
-                        }
-                    ],
                 }
             ],
         )
@@ -274,13 +332,22 @@ class Storage(RethinkCustomBase):
                     "description_code": "storage_not_ready",
                 }
             )
-        for domain in self.domains:
-            if domain.status not in ["Stopped", "Failed"]:
+        domains = self.domains
+        if any(domain.status != "Stopped" for domain in domains):
+            raise Exception(
+                {
+                    "error": "precondition_required",
+                    "description": f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
+                    "description_code": "desktops_not_stopped",
+                }
+            )
+        if any(domain.kind != "desktop" for domain in domains):
+            if len(self.children) > 0:
                 raise Exception(
                     {
                         "error": "precondition_required",
-                        "description": f"Domain {domain.id} must be Stopped in order to operate with its' storage. It's actual status is {domain.status}",
-                        "description_code": "desktops_not_stopped",
+                        "description": f"Storage {self.id} has children storages. It must be empty in order to set it to maintenance.",
+                        "description_code": "storage_has_children",
                     }
                 )
         for domain in self.domains:
@@ -296,7 +363,7 @@ class Storage(RethinkCustomBase):
             raise Exception(
                 {
                     "error": "precondition_required",
-                    "description": f"Storage {self.id} must be Maintenance in order to return back to ready status. It's actual status is {self.status}",
+                    "description": f"Storage {self.id} must be maintenance in order to return back to ready status. It's actual status is {self.status}",
                     "description_code": "storage_not_maintenance",
                 }
             )
@@ -330,14 +397,7 @@ class Storage(RethinkCustomBase):
         :rtype: str
         """
         origin_path = self.path
-        if self.path == destination_path:
-            raise Exception(
-                {
-                    "error": "precondition_required",
-                    "description": "The origin and destination paths must be different",
-                    "description_code": "origin_destination_paths_must_be_different",
-                }
-            )
+
         queue_rsync = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
         queue_origin = f"storage.{StoragePool.get_best_for_action('check_existence', path=self.directory_path).id}.{priority}"
         self.set_maintenance("move")
