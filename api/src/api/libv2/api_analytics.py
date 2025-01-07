@@ -431,7 +431,8 @@ def get_desktops_less_used(
     if not_in_directory_path:
         query = query.filter(
             lambda join_result: join_result["right"]["directory_path"]
-            != not_in_directory_path
+            .match(f"^{not_in_directory_path}")
+            .not_()
         )
 
     query = query.map(
@@ -507,7 +508,8 @@ def get_desktops_recently_used(
     if not_in_directory_path:
         query = query.filter(
             lambda join_result: join_result["right"]["directory_path"]
-            != not_in_directory_path
+            .match(f"^{not_in_directory_path}")
+            .not_()
         )
 
     query = query.map(
@@ -592,7 +594,8 @@ def get_desktops_most_used(
     if not_in_directory_path:
         query = query.filter(
             lambda join_result: join_result["right"]["directory_path"]
-            != not_in_directory_path
+            .match(f"^{not_in_directory_path}")
+            .not_()
         )
 
     query = query.map(
