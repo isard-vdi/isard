@@ -23,7 +23,7 @@ function getGroupParam() {
 
 $(document).ready(function () {
   $template = $(".template-storage-detail");
-  storagesOtherTable=null;
+  storagesOtherTable = null;
   $('#status').attr('disabled', 'disabled')
   addCheckboxListeners();
   addRadioButtonsListeners();
@@ -264,7 +264,7 @@ $(document).on('click', '.btn-task-info', function () {
       element.html('<i class="fa fa-tasks"></i>')
       new PNotify({
         title: 'Last task info',
-        text: '<pre><li><b>TASK ID</b>: '+result.id+'</li><li><b>TASK</b>: '+result.task+'</li><li><b>USER ID</b>: '+result.user_id+'</li><li><b>TASK STATUS</b>: '+result.status+'</li><li><b>RESULT</b>: '+JSON.stringify(result.result, undefined, 2)+ '</li></pre>',
+        text: '<pre><li><b>TASK ID</b>: ' + result.id + '</li><li><b>TASK</b>: ' + result.task + '</li><li><b>USER ID</b>: ' + result.user_id + '</li><li><b>TASK STATUS</b>: ' + result.status + '</li><li><b>RESULT</b>: ' + JSON.stringify(result.result, undefined, 2) + '</li></pre>',
         hide: false,
         icon: '',
         opacity: 1,
@@ -327,48 +327,48 @@ $(document).on('click', '.btn-delete-scheduler', function () {
   var id = element.data("id");
   new PNotify({
     title: 'Confirmation Needed',
-        text: "Are you sure you want to delete the scheduler associated with this storage, if any?",
-        hide: false,
-        opacity: 0.9,
-        confirm: {
-            confirm: true
-        },
-        buttons: {
-            closer: false,
-            sticker: false
-        },
-        history: {
-            history: false
-        },
-        addclass: 'pnotify-center'
-    }).get().on('pnotify.confirm', function() {
-  $.ajax({
-    type: 'DELETE',
-    url: `/scheduler/${id}.stg_action`,
-    contentType: 'application/json',
-    success: function (result) {
-      new PNotify({
-        title: 'Deleted',
-        text: 'Job deleted',
-        hide: true,
-        delay: 2000,
-        icon: '',
-        opacity: 1,
-        type: 'success'
-      })
+    text: "Are you sure you want to delete the scheduler associated with this storage, if any?",
+    hide: false,
+    opacity: 0.9,
+    confirm: {
+      confirm: true
     },
-    error: function (data) {
-      new PNotify({
-        title: 'ERROR deleting scheduler',
-        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
-        hide: true,
-        delay: 3000,
-        icon: 'fa fa-warning',
-        opacity: 1,
-        type: 'error'
-      });
-    }
-  });
+    buttons: {
+      closer: false,
+      sticker: false
+    },
+    history: {
+      history: false
+    },
+    addclass: 'pnotify-center'
+  }).get().on('pnotify.confirm', function () {
+    $.ajax({
+      type: 'DELETE',
+      url: `/scheduler/${id}.stg_action`,
+      contentType: 'application/json',
+      success: function (result) {
+        new PNotify({
+          title: 'Deleted',
+          text: 'Job deleted',
+          hide: true,
+          delay: 2000,
+          icon: '',
+          opacity: 1,
+          type: 'success'
+        })
+      },
+      error: function (data) {
+        new PNotify({
+          title: 'ERROR deleting scheduler',
+          text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+          hide: true,
+          delay: 3000,
+          icon: 'fa fa-warning',
+          opacity: 1,
+          type: 'error'
+        });
+      }
+    });
   });
 });
 
@@ -490,8 +490,8 @@ $(document).on('click', '.btn-increase', function () {
             $(modal + " #max-quota-div").hide();
             $(modal + " #new-size").removeAttr("max");
           }
-  
-  
+
+
           $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
         }).fail(function (data) {
           new PNotify({
@@ -526,7 +526,7 @@ $(document).on('click', '.btn-increase', function () {
         opacity: 1
       });
     });
-   
+
   }).fail(function (data) {
     new PNotify({
       title: `ERROR`,
@@ -538,7 +538,7 @@ $(document).on('click', '.btn-increase', function () {
       opacity: 1
     });
   });
-  });
+});
 
 $("#modalIncreaseStorage #send").on("click", function () {
   var form = $('#modalIncreaseStorageForm');
@@ -1132,7 +1132,7 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         width: '65px',
         visible: $('meta[id=user_data]').attr('data-role') === 'admin',
         render: function (data, type, row, meta) {
-          return `<button type="button" data-id="${row.id }" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>
+          return `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>
                   ${data.status == "ready" ? `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>` : ""}`;
         }
       }
@@ -1226,12 +1226,13 @@ function detailButtons(storage) {
                       data-placement="top" title="Increase disk size"><i class="fa fa-external-link-square m-right-xs"></i>
                       Increase
                     </button>
-		    ${(function() { return ($("#user_data").data("role") == "admin") ? `
+		    ${(function () {
+      return ($("#user_data").data("role") == "admin") ? `
 	              <button class="btn btn-info btn-xs btn-create" data-id="${storage.id}" type="button"
 			 data-placement="top" title="Create new disk derivated from this one"><i class="fa fa-plus m-right-xs"></i>
 		       	 Add disk
 		      </button>` : ""
-		    })()}
+    })()}
                   </div>
                 </div>
               </div>
@@ -1433,7 +1434,7 @@ function performMoveOperation(formData, type) {
     case "rsync":
       switch (type) {
         case "byStoragePool":
-          url = `/api/v3/storage/${formData.storage_id}/rsync/by-storage-pool`;
+          url = `/api/v3/storage/${formData.storage_id}/rsync/to-storage-pool`;
           data = {
             storage_id: formData.storage_id,
             destination_storage_pool_id: formData.storage_pool,
@@ -1443,7 +1444,7 @@ function performMoveOperation(formData, type) {
           };
           break;
         case "byPath":
-          url = `/api/v3/storage/${formData.storage_id}/rsync/by-path`;
+          url = `/api/v3/storage/${formData.storage_id}/rsync/to-path`;
           data = {
             storage_id: formData.storage_id,
             destination_path: formData.destination_path,
@@ -1502,23 +1503,23 @@ function populateSelectByPool(modal, pool, data, isDefault) {
   $(modal + " .new_path").empty();
   var kind = $(modal + " #kind").val();
   $.each(pool.paths[kind], function (key, kindPath) {
-      var category = isDefault ? "" : data.category + "/";
-      if ($("#user_data").data("role") == "admin" && category) {
-        $.each(pool.categories, function (key, cat) {
-            optionPath = pool.mountpoint + "/" + cat + "/" + kindPath.path;
-            if (data.directory_path != optionPath) {
-                $(modal + " .new_path").append(`<option ${optionPath == data["directory_path"] ? 'selected' : ''} value="${optionPath}">${optionPath}</option>`);
-                emptySelect = false;
-            }
-        });
-      } else {
-        optionPath = pool.mountpoint + "/" + category + kindPath.path;
+    var category = isDefault ? "" : data.category + "/";
+    if ($("#user_data").data("role") == "admin" && category) {
+      $.each(pool.categories, function (key, cat) {
+        optionPath = pool.mountpoint + "/" + cat + "/" + kindPath.path;
         if (data.directory_path != optionPath) {
           $(modal + " .new_path").append(`<option ${optionPath == data["directory_path"] ? 'selected' : ''} value="${optionPath}">${optionPath}</option>`);
           emptySelect = false;
         }
+      });
+    } else {
+      optionPath = pool.mountpoint + "/" + category + kindPath.path;
+      if (data.directory_path != optionPath) {
+        $(modal + " .new_path").append(`<option ${optionPath == data["directory_path"] ? 'selected' : ''} value="${optionPath}">${optionPath}</option>`);
+        emptySelect = false;
       }
-      $(modal + " #origin_path").empty().text(data["directory_path"]);
+    }
+    $(modal + " #origin_path").empty().text(data["directory_path"]);
   });
   if (emptySelect) {
     $(modal + " .new_path").append(`<option selected disabled>-- No ${kind} paths available for this pool and category --</option>`);
