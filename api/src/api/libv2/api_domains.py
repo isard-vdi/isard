@@ -17,19 +17,13 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import time
-import traceback
+from xml.etree import ElementTree as ET
 
-from isardvdi_common.domain import Domain
 from rethinkdb import RethinkDB
 
 from api import app
 
-from ..libv2.validators import _validate_item
-from .api_cards import ApiCards
-
 r = RethinkDB()
-import logging as log
 
 from isardvdi_common.api_exceptions import Error
 
@@ -102,3 +96,48 @@ class ApiDomains:
                 )
         hardware["hardware"]["memory"] = hardware["hardware"]["memory"] / 1048576
         return hardware
+
+    def update_domain_path(self, domain_id, old_path, new_path):
+        """
+        Update all instances of a specific absolute path in a domain JSON document in RethinkDB.
+
+        :param domain_id: The ID of the domain to update.
+        :param old_path: The absolute path to replace.
+        :param new_path: The new absolute path.
+        """
+        with app.app_context():
+            domain = r.table("domains").get(domain_id).run(db.conn)
+
+        if not domain:
+            raise Error("not_found", f"Domain {domain_id} not found.")
+
+        # Recursive function to replace paths in the JSON structure
+        def replace_path(obj):
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    if isinstance(value, str) and value == old_path:
+                        obj[key] = new_path
+                    else:
+                        replace_path(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    replace_path(item)
+
+        # Replace paths in the JSON document
+        replace_path(domain)
+
+        # Special handling for XML strings if present
+        if "xml" in domain:
+            xml_content = domain["xml"]
+            try:
+                root = ET.fromstring(xml_content)
+                for source in root.findall(".//source"):
+                    if source.attrib.get("file") == old_path:
+                        source.set("file", new_path)
+                domain["xml"] = ET.tostring(root, encoding="unicode")
+            except ET.ParseError as e:
+                print("Error parsing XML:", e)
+
+        with app.app_context():
+            r.table("domains").get(domain_id).update(domain).run(db.conn)
+        return domain

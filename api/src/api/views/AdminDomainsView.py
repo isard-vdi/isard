@@ -618,3 +618,18 @@ def api_v3_desktops_status_category(payload, category, current_status, target_st
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/domain/<domain_id>/storage_path", methods=["PUT"])
+@is_admin
+def api_v3_domain_update_storage_path(payload, domain_id):
+    # ownsDomainId(payload, domain_id)
+    return (
+        json.dumps(
+            domains.update_domain_path(
+                domain_id, request.json["old_path"], request.json["new_path"]
+            )
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
