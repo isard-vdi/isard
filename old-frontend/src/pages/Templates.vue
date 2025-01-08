@@ -84,7 +84,8 @@
                   scale="0.75"
                 />
               </b-button>
-              <b-button
+              <!-- TODO: DESKTOP STORAGE PATH MUST NEVER BE IN TEMPLATE PATH -->
+              <!-- <b-button
                 class="rounded-circle px-2 mr-2 btn-purple"
                 :title="$t('views.templates.buttons.convert.title')"
                 @click="showConvertToDesktopModal(data.item)"
@@ -93,7 +94,7 @@
                   icon="tv"
                   scale="0.75"
                 />
-              </b-button>
+              </b-button> -->
               <b-button
                 class="rounded-circle px-2 mr-2"
                 :class="enabledClass(data.item)"

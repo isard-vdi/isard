@@ -324,6 +324,7 @@ class ApiDesktopsPersistent:
         new_desktop_data = {
             "status": "Updating",
             "create_dict": {
+                # TODO: disk path MUST be a path for desktops. NEVER a template path
                 "hardware": {"disks": template["create_dict"]["hardware"]["disks"]}
             },
             "xml": template["xml"],
