@@ -10,7 +10,7 @@ from flask import jsonify, request
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.domain import Domain
-from isardvdi_common.storage import Storage, new_storage_dict
+from isardvdi_common.storage import Storage, get_storage_id_from_path, new_storage_dict
 from isardvdi_common.storage_pool import StoragePool
 from isardvdi_common.task import Task
 from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
@@ -1743,3 +1743,38 @@ def recreate_storage(payload, storage_id, domain_id=None):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+def get_storage_statuses(storage):
+    domains = storage.domains
+    return {
+        "id": storage.id,
+        "status": storage.status,
+        "parent": storage.parent,
+        "domains": [
+            {
+                "id": domain.id,
+                "status": domain.status,
+                "kind": domain.kind,
+            }
+            for domain in domains
+        ],
+    }
+
+
+@app.route("/api/v3/storage/<path:storage_id>/statuses", methods=["GET"])
+@has_token
+def storage_statuses(payload, storage_id):
+    storage = get_storage(payload, storage_id)
+    return jsonify(storage.statuses)
+
+
+@app.route("/api/v3/storage/path/statuses", methods=["POST"])
+@has_token
+def storage_path_statuses(payload):
+    if not request.json["path"]:
+        raise Error(
+            description="Path query parameter is required",
+        )
+    storage = get_storage(get_storage_id_from_path(request.json["path"]))
+    return jsonify(storage.statuses)

@@ -265,6 +265,34 @@ class Storage(RethinkCustomBase):
         if cls.exists(storage_id):
             return cls(storage_id)
 
+    @property
+    def statuses(self):
+        """
+        Retrieve the status and IDs for a storage and its associated domain
+        based on the provided storage ID.
+
+        :param storage_id: The storage ID to filter by
+        :return: A list of dictionaries with storage and domain statuses and IDs
+        """
+        return {
+            "id": self.id,
+            "status": self.status,
+            "path": self.path,
+            "pool": self.pool.id,
+            "domains": [
+                {
+                    "id": domain.id,
+                    "status": domain.status,
+                    "kind": domain.kind,
+                }
+                for domain in self.domains
+            ],
+        }
+
+    """
+    Tasks
+    """
+
     def create_task(self, *args, **kwargs):
         """
         Create Task for a Storage.
