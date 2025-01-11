@@ -168,12 +168,77 @@ $(document).ready(function () {
     }
 
     delete data['end_date-cb'];
-    if (form.parsley().isValid()) {
-      editItem('credit', data, table_credits);
-    };
+    if (data['end_date'] == null || moment(data['end_date']).isAfter(data['start_date'])) {
+    $.ajax({
+      type: 'GET',
+      url: `/api/v3/admin/usage/check/overlapping/${data["id"]}/${data["start_date"]}/${data["end_date"]}`,
+      contentType: 'application/json',
+      success: function (xhr) {
+        if (xhr) {
+          var text = '';
+          text += `The credit with ID ${xhr["credit_id"]} will be <b>${xhr["action"]}</b> to avoid overlapping periods.`;
+          xhr["end_date"] ? text += ` The end date will be ${moment(xhr["end_date"]).format("DD-MM-YYYY")}` : '';
+          xhr["start_date"] ? text += `The start date will be ${moment(xhr["start_date"]).format("DD-MM-YYYY")}` : '';
 
+          new PNotify({
+            title: `The selected period overlaps with another credit`,
+            text: text,
+            hide: false,
+            addclass: 'pnotify-center-large',
+            confirm: {
+              confirm: true,
+              buttons: [
+                {
+                  text: 'Proceed', click: function (notice) {
+                    editItem('credit', data, table_credits);
+                    notice.remove();
+                  }
+                },
+                {
+                  text: 'Cancel', click: function (notice) {
+                    notice.remove();
+                  }
+                }
+              ]
+            },
+            buttons: {
+              closer: false,
+              sticker: false
+            },
+            opacity: 0.9,
+            type: 'warning'
+          });
+        } else {
+          if (form.parsley().isValid()) {
+            editItem('credit', data, table_credits);
+          }
+        }
+      },
+      error: function (xhr) {
+        new PNotify({
+          title: `ERROR updating credit`,
+          text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
+          type: 'error',
+          hide: true,
+          icon: 'fa fa-warning',
+          delay: 5000,
+          opacity: 1
+        })
+      }
+    });
+    } else {
+      new PNotify({
+        title: `ERROR updating credit`,
+        text: "The end date must be later than the start date.",
+        type: 'error',
+        hide: true,
+        icon: 'fa fa-warning',
+        delay: 5000,
+        opacity: 1
+      })
+    }
   });
-  
+
   // LIMITS
   
   $('#btn-limit_add').on('click', function () {
@@ -474,8 +539,14 @@ function render_table_credits() {
                   <button title="Delete" class="btn btn-xs btn-danger btn-delete-credit" type="button" data-placement="top" ><i class="fa fa-times"></i></button>`;
         }
       },
+      {
+        "data": "id",
+        "visible": false,
+        "title": "ID",
+      }
     ],
   });
+  adminShowIdCol(table_credits);
 
   table_credits.columns().every(function () {
     var that = this;
