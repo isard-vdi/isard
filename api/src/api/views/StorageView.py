@@ -156,20 +156,6 @@ def not_same_storage_pool(storage_pool_id, destination_storage_pool_id):
         )
 
 
-def check_storage_existence_and_permissions(payload, storage_id):
-    """
-    Check storage existence and permissions.
-
-    :param payload: Data from JWT
-    :type payload: dict
-    :param storage_id: Storage ID
-    :type storage_id: str
-    """
-    if not Storage.exists(storage_id):
-        raise Error(error="not_found", description=f"Storage {storage_id} not found")
-    ownsStorageId(payload, storage_id)
-
-
 def set_storage_maintenance(payload, storage_id, action="maintenance"):
     """
     Set storage to maintenance status.
@@ -250,9 +236,7 @@ def check_move_by_path(payload, storage_id, request):
         path = f"/{path}"
     priority = check_task_priority(payload, request_json.get("priority", "default"))
 
-    check_storage_existence_and_permissions(payload, storage_id)
-
-    storage = Storage(storage_id)
+    storage = get_storage(payload, storage_id)
     if storage.directory_path == path:
         raise Error(
             error="bad_request",
@@ -282,10 +266,7 @@ def check_move_by_path(payload, storage_id, request):
             )
 
     # We can create move action
-    for domain in storage.domains:
-        domain.status = "Maintenance"
-        domain.current_action = "move"
-    storage.status = "maintenance"
+    set_storage_maintenance(payload, storage_id, "move")
 
     storage_pool_origin = StoragePool.get_best_for_action("move", path=path)
 
@@ -324,8 +305,7 @@ def check_move_by_storage_pool(payload, storage_id, destination_storage_pool_id)
         )
 
     destination_path = get_dest_storage_pool_path(storage, destination_storage_pool_id)
-
-    set_maintenance(storage, "move")
+    set_storage_maintenance(payload, storage_id, "move")
 
     return storage_pool_id, priority, path, storage
 
@@ -467,11 +447,7 @@ def create_storage(payload, priority="low"):
             description="Must provide a parent storage or a user ID",
         )
     if "parent" in request_json:
-        if not Storage.exists(request_json.get("parent")):
-            raise Error(error="not_found", description="Parent storage not found")
-        parent = Storage(request_json.get("parent"))
-        if not parent.user_id:
-            raise Error("not_found", description_code="storage_not_found")
+        parent = get_storage(payload, request_json.get("parent"))
         if parent.status != "ready":
             raise Error(
                 error="precondition_required",
@@ -601,6 +577,7 @@ def create_storage(payload, priority="low"):
 @app.route("/api/v3/storage/<path:storage_id>/parents", methods=["GET"])
 @is_admin_or_manager
 def storage_parents(payload, storage_id):
+    storage = get_storage(payload, storage_id)
     return jsonify(
         [
             {
@@ -612,7 +589,7 @@ def storage_parents(payload, storage_id):
                     for domain in storage.domains
                 ],
             }
-            for storage in [Storage(storage_id)] + Storage(storage_id).parents
+            for storage in [storage] + storage.parents
         ]
     )
 
@@ -630,8 +607,7 @@ def storage_task(payload, storage_id):
     :return: Task as dict
     :rtype: Set with Flask response values and data in JSON
     """
-    check_storage_existence_and_permissions(payload, storage_id)
-    storage = Storage(storage_id)
+    storage = get_storage(payload, storage_id)
     task_dict = None
     if storage.task:
         task_dict = Task(storage.task).to_dict()
@@ -757,9 +733,7 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
                 description=f"Priority must be low, default or high",
             )
 
-    storage = Storage(storage_id)
-    if not storage.user_id:
-        raise Error("not_found", description_code="storage_not_found")
+    storage = get_storage(payload, storage_id)
 
     storage_domains = get_storage_derivatives(storage.id)
     if len(storage_domains) > 1:
@@ -774,10 +748,7 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
             description_code="desktops_not_stopped",
         )
 
-    desktops.set_desktops_maintenance(
-        payload, storage_id, "virt_win_reg", domains=storage_domains
-    )
-
+    set_storage_maintenance(payload, storage_id, "virt_win_reg")
     try:
         storage.create_task(
             user_id=storage.user_id,
@@ -916,8 +887,7 @@ def storage_check_check_backing_chain(payload, storage_id):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    check_storage_existence_and_permissions(payload, storage_id)
-    storage = Storage(storage_id)
+    storage = get_storage(payload, storage_id)
     return jsonify(
         storage.check_backing_chain(user_id=payload.get("user_id"), blocking=False)
     )
@@ -1284,7 +1254,7 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
         )
 
     # Storage move checks
-    check_storage_existence_and_permissions(payload, storage_id)
+    storage = get_storage(payload, storage_id)
     storage_derivatives = get_storage_derivatives(storage_id)
     if len(storage_derivatives) > 1:
         raise Error(
@@ -1300,7 +1270,7 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
             error="not_found",
             description=f"Destination storage pool for path {path} not found to execute move operation",
         )
-    storage = Storage(storage_id)
+
     if storage.directory_path == path:
         raise Error(
             error="bad_request",
@@ -1329,10 +1299,7 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
             )
 
     # We can create move action
-    for domain in storage.domains:
-        domain.status = "Maintenance"
-        domain.current_action = "move"
-    storage.status = "maintenance"
+    set_storage_maintenance(payload, storage_id, "move")
 
     storage_pool_origin = StoragePool.get_best_for_action(
         "move", path=storage.directory_path
@@ -1473,14 +1440,13 @@ def storage_convert(
     if payload["role_id"] != "admin":
         priority = "low"
 
-    origin_storage = Storage(storage_id)
-    if not origin_storage.user_id:
-        raise Error("not_found", description_code="storage_not_found")
+    origin_storage = get_storage(payload, storage_id)
+
     if len(get_storage_derivatives(storage_id)) > 1:
         raise Error(
             "precondition_required", "Unable to convert storage with derivatives"
         )
-    set_storage_maintenance(payload, storage_id)
+    set_storage_maintenance(payload, storage_id, "convert")
     compress = request.url_rule.rule.endswith("/compress")
     new_storage = Storage(
         user_id=origin_storage.user_id,
@@ -1560,8 +1526,7 @@ def storage_update_status(payload):
             description="Storage ids required",
         )
     for storage_id in storages_ids:
-        check_storage_existence_and_permissions(payload, storage_id)
-        storage = Storage(storage_id)
+        storage = get_storage(payload, storage_id)
         storage.check_backing_chain(user_id=payload.get("user_id"))
 
     return jsonify({})
@@ -1572,7 +1537,7 @@ def storage_update_status(payload):
 def storage_update_by_status(payload, status):
     storages_ids = get_disks_ids_by_status(status=status)
     for storage_id in storages_ids:
-        storage = Storage(storage_id)
+        storage = get_storage(payload, storage_id)
         storage.check_backing_chain(user_id=payload.get("user_id"))
 
     return jsonify({})
@@ -1584,10 +1549,7 @@ def storage_update_by_status(payload, status):
 )
 @is_not_user
 def storage_increase_size(payload, storage_id, increment, priority="low"):
-    storage = Storage(storage_id)
-    if not storage.user_id:
-        raise Error("not_found", description_code="storage_not_found")
-
+    storage = get_storage(payload, storage_id)
     quota = quotas.get_applied_quota(storage.user_id).get("quota")
 
     if payload["role_id"] != "admin":
@@ -1619,11 +1581,7 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
             description_code="desktops_not_stopped",
         )
 
-    desktops.set_desktops_maintenance(
-        payload, storage_id, "increase", domains=storage_domains
-    )
-    set_storage_maintenance(payload, storage_id)
-
+    set_storage_maintenance(payload, storage_id, "increase")
     socketio.emit(
         "update_storage",
         {
@@ -1713,9 +1671,8 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
 @app.route("/api/v3/storage/<path:storage_id>/stop", methods=["PUT"])
 @is_admin_or_manager
 def storage_stop_all_desktops(payload, storage_id):
-    domains = [
-        domain.id for domain in Storage(storage_id).domains if domain.kind == "desktop"
-    ]
+    storage = get_storage(payload, storage_id)
+    domains = [domain.id for domain in storage.domains if domain.kind == "desktop"]
     desktops_stop(domains, force=True)
     return jsonify({}), 200
 
@@ -1723,7 +1680,8 @@ def storage_stop_all_desktops(payload, storage_id):
 @app.route("/api/v3/storage/<path:storage_id>/check_stopped_desktops", methods=["GET"])
 @is_admin_or_manager
 def storage_check_stopped_desktops(payload, storage_id):
-    return jsonify({"is_stopped": Storage(storage_id)._check_domains_status()}), 200
+    storage = get_storage(payload, storage_id)
+    return jsonify({"is_stopped": storage._check_domains_status()}), 200
 
 
 @app.route(
@@ -1737,8 +1695,7 @@ def storage_check_storage_derivatives(payload, storage_id):
 @app.route("/api/v3/storage/<path:storage_id>/abort_operations", methods=["PUT"])
 @has_token
 def storage_abort(payload, storage_id):
-    storage = Storage(storage_id)
-    ownsStorageId(payload, storage_id)
+    storage = get_storage(payload, storage_id)
     storage_domains = get_storage_derivatives(storage_id)
     storage_pool = StoragePool.get_best_for_action("abort")
     try:
@@ -1862,9 +1819,8 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
         canPerformActionDeployment(payload, domain_id, "recreate")
         storage_id = admins.get_domain_storage(domain_id)[0]["id"]
 
-    ownsStorageId(payload, storage_id)
-
-    if len(Storage(storage_id).domains) > 1:
+    storage_orig = get_storage(payload, storage_id)
+    if len(storage_orig.domains) > 1:
         raise Error(
             "precondition_required",
             "Unable to recreate storage with derivatives",
@@ -1876,8 +1832,7 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
             description_code="desktops_not_stopped",
         )
 
-    desktops.set_desktops_maintenance(payload, storage_id, "recreate")
-    storage_orig = set_storage_maintenance(payload, storage_id)
+    set_storage_maintenance(payload, storage_id, "recreate")
 
     if request.is_json:
         request_json = request.get_json()
@@ -1894,12 +1849,9 @@ def storage_recreate_disk(payload, storage_id=None, domain_id=None):
                 description=f"Priority must be low, default or high",
             )
 
+    parent_args = {}
     if storage_orig.parent:
-        if not Storage.exists(storage_orig.parent):
-            raise Error(error="not_found", description="Parent storage not found")
-        parent = Storage(storage_orig.parent)
-        if not parent.user_id:
-            raise Error("not_found", description_code="storage_not_found")
+        parent = get_storage(payload, storage_orig.parent)
         if parent.status != "ready":
             raise Error(
                 error="precondition_required",
