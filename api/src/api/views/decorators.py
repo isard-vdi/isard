@@ -873,28 +873,19 @@ def allowedTemplateId(payload, template_id):
     )
 
 
-def canPerformActionDeployment(payload, domain_id, action):
+def allowed_deployment_action(payload, domain_id, action):
     ownsDomainId(payload, domain_id)
 
     if payload.get("role_id", "") in ["admin", "manager", "advanced"]:
         return True
 
-    try:
-        with app.app_context():
-            domain = r.table("domains").get(domain_id).pluck("tag").run(db.conn)
-        with app.app_context():
-            permissions = (
-                r.table("deployments")
-                .get(domain["tag"])
-                .pluck("user_permissions")
-                .run(db.conn)
-            )
-    except:
-        permissions = []
+    domain_tag = get_document("domains", domain_id, ["tag"])
+    user_permissions = get_document("deployments", domain_tag, ["user_permissions"])
+    if user_permissions is None:
+        user_permissions = []
 
-    if payload.get("role_id", "") == "user":
-        if action in permissions["user_permissions"]:
-            return True
+    if action in user_permissions:
+        return True
 
     raise Error(
         "unauthorized",
