@@ -23,7 +23,7 @@ from json import loads
 from os import environ, makedirs, remove, rename
 from os.path import basename, dirname, isdir, isfile, join
 from re import search
-from subprocess import PIPE, Popen, check_output, run
+from subprocess import PIPE, CalledProcessError, Popen, check_output, run
 from time import sleep
 
 from isardvdi_common.task import Task
@@ -460,17 +460,27 @@ def virt_win_reg(storage_path, registry_patch):
         with tempfile.NamedTemporaryFile() as fp:
             fp.write(registry_patch.encode())
             fp.flush()
-            run(
+            result = run(
                 [
                     "virt-win-reg",
                     "--merge",
                     storage_path,
                     fp.name,
                 ],
-                check=True,
-            ).returncode
+                capture_output=True,  # Capture stdout and stderr
+                text=True,  # Decode output as text
+                check=True,  # Raise CalledProcessError on failure
+            )
+            return result.returncode
+    except CalledProcessError as cpe:
+        # Return error details, including captured stderr
+        return (
+            f"Error: Command failed with return code {cpe.returncode}. "
+            f"stderr: {cpe.stderr.strip() or 'No error message provided.'}"
+        )
     except Exception as e:
-        return e
+        # Handle other exceptions
+        return f"Error: {str(e)}"
 
 
 def resize(storage_path, increment):
