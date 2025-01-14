@@ -176,59 +176,6 @@ def check_task_priority(payload, priority):
     return priority
 
 
-def check_move_by_path(payload, storage_id, request):
-    """
-    Check move by path request data.
-
-    :param payload: Data from JWT
-    :type payload: dict
-    :param storage_id: Storage ID
-    :type storage_id: str
-    :param path: Path
-    :type path: str
-    :param priority: Priority
-    :type priority: str
-    :param request: Request
-    :type request: Request
-    :return: Path, priority, storage, storage_pool_origin
-    :rtype: tuple
-    """
-    if not request.is_json:
-        raise Error(
-            description="No JSON in body request. dest_path must be specified, priority is optional",
-        )
-
-    request_json = request.get_json()
-
-    if not request_json.get("dest_path"):
-        raise Error(
-            description="Incorrect JSON of body request: dest_path must be specified",
-        )
-
-    path = request_json.get("dest_path")
-    if not path.startswith("/"):
-        path = f"/{path}"
-    priority = check_task_priority(payload, request_json.get("priority", "default"))
-
-    storage = get_storage(payload, storage_id)
-    if storage.directory_path == path:
-        raise Error(
-            error="bad_request",
-            description=f"Storage {storage.id} already in destination path {path}, no need to execute operation",
-        )
-
-    storage.set_maintenance("move")
-    storage_pool_origin = StoragePool.get_best_for_action("move", path=path)
-
-    if storage_pool_origin is None:
-        raise Error(
-            error="not_found",
-            description=f"Origin storage pool for path {path} not found to execute operation",
-        )
-
-    return path, priority, storage, storage_pool_origin
-
-
 @app.route("/api/v3/storage/<path:storage_id>/status/maintenance", methods=["PUT"])
 @has_token
 def storage_maintenance(payload, storage_id):
@@ -898,80 +845,44 @@ def storage_move_by_path(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
 
-    path, priority, storage, storage_pool_origin = check_move_by_path(
-        payload, storage_id, request
-    )
+    if not request.is_json:
+        raise Error(
+            description="No JSON in body request. dest_path must be specified, priority is optional",
+        )
 
-    move_job_kwargs = {
-        "kwargs": {
-            "origin_path": storage.path,
-            "destination_path": f"{path}/{storage.id}.{storage.type}",
-            "method": "mv",
-        }
-    }
+    request_json = request.get_json()
+
+    if not request_json.get("dest_path"):
+        raise Error(
+            description="Incorrect JSON of body request: dest_path must be specified",
+        )
+
+    path = request_json.get("dest_path")
+    if not path.startswith("/"):
+        path = f"/{path}"
+    priority = check_task_priority(payload, request_json.get("priority", "default"))
+
+    storage = get_storage(payload, storage_id)
+    if storage.directory_path == path:
+        raise Error(
+            error="bad_request",
+            description=f"Storage {storage.id} already in destination path {path}, no need to execute operation",
+        )
+
+    # TODO: make it less hardcoded
+    destination_path = f"{path}/{storage.id}.{storage.type}"
 
     try:
-        storage_domains_ids = [domain.id for domain in storage.domains]
-        storage.create_task(
-            user_id=storage.user_id,
-            queue=f"storage.{storage_pool_origin.id}.{priority}",
-            task="move",
-            job_kwargs=move_job_kwargs,
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "id": storage.id,
-                            "directory_path": path,
-                            "qemu-img-info": {
-                                "filename": f"{path}/{storage.id}.{storage.type}"
-                            },
-                        }
-                    },
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "update_status",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "statuses": {
-                                        "_all": {
-                                            "ready": {
-                                                "storage": [storage.id],
-                                            },
-                                            "Stopped": {
-                                                "domain": storage_domains_ids,
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            "queue": "core",
-                            "task": "domains_update",
-                            "job_kwargs": {
-                                "kwargs": {"domain_list": storage_domains_ids}
-                            },
-                        },
-                    ],
-                },
-            ],
+        return jsonify(
+            {
+                "id": storage.mv(
+                    path,
+                    priority,
+                )
+            }
         )
     except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
-            )
-        raise Error(
-            "internal_server_error",
-            "Error moving storage",
-        )
-
-    return jsonify(storage.task)
+        raise Error(*e.args)
 
 
 @app.route(

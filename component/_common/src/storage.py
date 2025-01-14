@@ -430,7 +430,7 @@ class Storage(RethinkCustomBase):
         timeout=1200,  # Default redis timeout is 180 (3 minutes)
     ):
         """
-        Create a task to move the storage.
+        Create a task to move the storage using rsync.
 
         :param user_id: User ID
         :type user_id: str
@@ -529,6 +529,83 @@ class Storage(RethinkCustomBase):
                     else []
                 )
             ),
+        )
+
+        return self.task
+
+    def mv(
+        self,
+        destination_path,
+        priority="default",
+    ):
+        """
+        Create a task to move the storage using mv.
+
+        :param destination_path: Destination path
+        :type destination_path: str
+        :param priority: Priority
+        :type priority: str
+        :return: Task ID
+        :rtype: str
+        """
+        origin_path = self.path
+
+        queue_mv = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
+
+        self.set_maintenance("move")
+        self.create_task(
+            user_id=self.user_id,
+            queue=queue_mv,
+            task="move",
+            job_kwargs={
+                "kwargs": {
+                    "origin_path": origin_path,
+                    "destination_path": f"{destination_path}/{self.id}.{self.type}",
+                    "method": "mv",
+                }
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "id": self.id,
+                            "directory_path": destination_path,
+                            "qemu-img-info": {
+                                "filename": f"{destination_path}/{self.id}.{self.type}"
+                            },
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "update_status",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "statuses": {
+                                        "_all": {
+                                            "ready": {
+                                                "storage": [self.id],
+                                            },
+                                            "Stopped": {
+                                                "domain": [
+                                                    domain.id for domain in self.domains
+                                                ],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            "queue": "core",
+                            "task": "storage_domains_force_update",
+                            "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                        },
+                    ],
+                },
+            ],
         )
 
         return self.task
