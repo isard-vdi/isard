@@ -787,10 +787,11 @@ def change_owner_domains(domain_ids, user_data, kind):
             )
         domain_data_list.extend(batch_domain_data)
 
-    checkDuplicatesDomains(
-        kind,
-        [domain["name"] for domain in domain_data_list],
+    update_duplicated_names(
+        "domains",
+        domain_data_list,
         user=user_data["new_user"]["user"],
+        kind=kind,
     )
 
     ## if new owner is from another category, delete
@@ -866,12 +867,12 @@ def change_owner_medias(media_ids, user_data):
         media_data = list(
             r.table("media")
             .get_all(r.args(media_ids))
-            .pluck("name", "category")
+            .pluck("id", "name", "category")
             .run(db.conn)
         )
-    checkDuplicates(
+    update_duplicated_names(
         "media",
-        [media["name"] for media in media_data],
+        media_data,
         user=user_data["new_user"]["user"],
     )
 
@@ -903,12 +904,12 @@ def change_owner_deployments(deployments_ids, user_data, old_user_id):
         deployments_data = list(
             r.table("deployments")
             .get_all(r.args(deployments_ids))
-            .pluck("name")
+            .pluck("id", "name")
             .run(db.conn)
         )
-    checkDuplicates(
+    update_duplicated_names(
         "deployments",
-        [deployment["name"] for deployment in deployments_data],
+        deployments_data,
         user=user_data["new_user"]["user"],
     )
     if deployments_ids:
@@ -1360,3 +1361,41 @@ def unassign_item_from_resource(item_id, item_type, table):
                         }
                     }
                 ).run(db.conn)
+
+
+def update_duplicated_names(item_table, items_data, user, kind=None):
+    """
+    Appends "(migrated)" to the duplicated names in the item_names list
+
+    :param item_table: The table where the items are stored
+    :type item_table: str
+    :param items_data: The items to update
+    :type items_data: list
+    :param user: The user id
+    :type user: str
+    :param kind: The kind of the item, either desktop or template
+    :type kind: str
+
+    """
+    try:
+        item_names = [item["name"] for item in items_data]
+        if item_table == "domains":
+            duplicated_items = checkDuplicatesDomains(
+                kind, item_names, user, raise_error=False
+            )
+        else:
+            duplicated_items = checkDuplicates(
+                item_table, item_names, user, raise_error=False
+            )
+        duplicated_names = [item["name"] for item in duplicated_items]
+        items_to_update = [
+            item["id"] for item in items_data if item["name"] in duplicated_names
+        ]
+
+        if items_to_update:
+            with app.app_context():
+                r.table(item_table).get_all(r.args(items_to_update)).update(
+                    {"name": r.row["name"] + " (migrated)"}
+                ).run(db.conn)
+    except Exception as e:
+        log.error(f"Error updating duplicated names: {e}")

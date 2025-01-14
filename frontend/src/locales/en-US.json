@@ -19,7 +19,7 @@
         "description": {
           "delete_user": "The previous user \"{old_user_name}\" ({old_user_provider} authentication) will be deleted.",
           "user_description": "Any running desktops will be stopped. \nThe user's recycle bin will be emptied. \nThe user's bookings will be deleted. \nNon-persistent desktops will be DELETED \nResources (such as networks, RAM, CPU, GPUS) not allowed for the new user will be removed or restricted.",
-          "description": "Any running desktops will be stopped. \nThe user's recycle bin will be emptied. \nThe user's bookings will be deleted. \nNon-persistent desktops will be DELETED \nThe list of co-owners in deployments will be deleted. \nDesktops belonging to other users in migrated deployments will remain intact. \nResources (such as networks, RAM, CPU, GPUS) not allowed for the new user will be removed or restricted.",
+          "description": "Any running desktops will be stopped. \nThe user's recycle bin will be emptied. \nThe user's bookings will be deleted. \nNon-persistent desktops will be DELETED \nThe list of co-owners in deployments will be deleted. \nDesktops belonging to other users in migrated deployments will remain intact. \nResources (such as networks, RAM, CPU, GPUS) not allowed for the new user will be removed or restricted. \nIf the destiny user has any matching name, the migrated items will have '(migrated)' added to their name.",
           "footer": "The migration process is irreversible."
         }
       },

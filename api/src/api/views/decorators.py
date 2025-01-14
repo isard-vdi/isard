@@ -716,7 +716,9 @@ def checkDuplicate(
         )
 
 
-def checkDuplicates(item_table, item_names, user, item_id=None, ignore_deleted=False):
+def checkDuplicates(
+    item_table, item_names, user, item_id=None, ignore_deleted=False, raise_error=True
+):
     query = (
         r.table(item_table)
         .get_all(r.args(item_names), index="name")
@@ -728,7 +730,7 @@ def checkDuplicates(item_table, item_names, user, item_id=None, ignore_deleted=F
         query = query.filter(lambda item: item["status"] != "deleted")
     with app.app_context():
         items = list(query.run(db.conn))
-    if items:
+    if items and raise_error:
         raise Error(
             "conflict",
             'Items with these names: "'
@@ -738,10 +740,11 @@ def checkDuplicates(item_table, item_names, user, item_id=None, ignore_deleted=F
             traceback.format_exc(),
             description_code="duplicated_name",
         )
+    return items
 
 
 def checkDuplicatesDomains(
-    kind, domain_names, user, item_id=None, ignore_deleted=False
+    kind, domain_names, user, item_id=None, ignore_deleted=False, raise_error=True
 ):
     query = (
         r.table("domains")
@@ -754,7 +757,7 @@ def checkDuplicatesDomains(
         query = query.filter(lambda item: item["status"] != "deleted")
     with app.app_context():
         items = list(query.run(db.conn))
-    if items:
+    if items and raise_error:
         raise Error(
             "conflict",
             'Items with these names: "'
@@ -763,6 +766,7 @@ def checkDuplicatesDomains(
             traceback.format_exc(),
             description_code="duplicated_name",
         )
+    return items
 
 
 def checkDuplicateUser(item_uid, category, provider):
