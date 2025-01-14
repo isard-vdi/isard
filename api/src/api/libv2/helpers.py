@@ -30,7 +30,7 @@ from ..libv2.caches import (
 )
 from ..libv2.isardViewer import isardViewer
 from ..libv2.quotas import Quotas
-from ..views.decorators import checkDuplicates, checkDuplicatesDomains
+from ..views.decorators import update_duplicated_names
 from .flask_rethink import RDB
 
 r = RethinkDB()
@@ -787,10 +787,11 @@ def change_owner_domains(domain_ids, user_data, kind):
             )
         domain_data_list.extend(batch_domain_data)
 
-    checkDuplicatesDomains(
-        kind,
-        [domain["name"] for domain in domain_data_list],
+    update_duplicated_names(
+        "domains",
+        domain_data_list,
         user=user_data["new_user"]["user"],
+        kind=kind,
     )
 
     ## if new owner is from another category, delete
@@ -866,12 +867,12 @@ def change_owner_medias(media_ids, user_data):
         media_data = list(
             r.table("media")
             .get_all(r.args(media_ids))
-            .pluck("name", "category")
+            .pluck("id", "name", "category")
             .run(db.conn)
         )
-    checkDuplicates(
+    update_duplicated_names(
         "media",
-        [media["name"] for media in media_data],
+        media_data,
         user=user_data["new_user"]["user"],
     )
 
@@ -903,12 +904,12 @@ def change_owner_deployments(deployments_ids, user_data, old_user_id):
         deployments_data = list(
             r.table("deployments")
             .get_all(r.args(deployments_ids))
-            .pluck("name")
+            .pluck("id", "name")
             .run(db.conn)
         )
-    checkDuplicates(
+    update_duplicated_names(
         "deployments",
-        [deployment["name"] for deployment in deployments_data],
+        deployments_data,
         user=user_data["new_user"]["user"],
     )
     if deployments_ids:
