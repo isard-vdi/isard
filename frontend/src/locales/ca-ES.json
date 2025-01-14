@@ -18,7 +18,7 @@
         "description": {
           "delete_user": "L'usuari anterior \"{old_user_name}\" (autenticació {old_user_provider}) serà eliminat.",
           "user_description": "Els escriptoris iniciats s'aturaran. \nLa paperera de l'usuari s'eliminarà. \nLes reserves de l'usuari s'eliminaran. \nEls escriptoris temporals seran ELIMINATS \nEls recursos (com ara xarxes, RAM, CPU, GPUS) no permesos per al nou usuari seran eliminats o restricts.",
-          "description": "Els escriptoris iniciats s'aturaran. \nLa paperera de l'usuari s'eliminarà. \nLes reserves de l'usuari s'eliminaran. \nEls escriptoris temporals seran ELIMINATS \nLa llista de co-propietaris en els desplegaments serà eliminada. \nEls escriptoris pertanyents a altres usuaris en els desplegaments migrats romandran intactes. \nEls recursos (com ara xarxes, RAM, CPU, GPUS) no permesos per al nou usuari seran eliminats o restricts.",
+          "description": "Els escriptoris iniciats s'aturaran. \nLa paperera de l'usuari s'eliminarà. \nLes reserves de l'usuari s'eliminaran. \nEls escriptoris temporals seran ELIMINATS \nLa llista de co-propietaris en els desplegaments serà eliminada. \nEls escriptoris pertanyents a altres usuaris en els desplegaments migrats romandran intactes. \nEls recursos (com ara xarxes, RAM, CPU, GPUS) no permesos per al nou usuari seran eliminats o restricts. \nSi l'usuari de destí té algun nom coincident, els elements migrats tindran '(migrat)' afegit al seu nom.",
           "footer": "El procés de migració és irreversible."
         }
       },

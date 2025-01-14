@@ -18,7 +18,7 @@
         "description": {
           "delete_user": "El usuario anterior \"{old_user_name}\" (autenticación {old_user_provider}) será eliminado.",
           "user_description": "Los escritorios iniciados se detendrán. \nLa papelera del usuario se eliminará. \nLas reservas del usuario se eliminarán. \nLos escritorios temporales serán ELIMINADOS \nLos recursos (como redes, RAM, CPU, GPUS) no permitidos para el nuevo usuario serán eliminados o restringidos.",
-          "description": "Los escritorios iniciados se detendrán. \nLa papelera del usuario se eliminará. \nLas reservas del usuario se eliminarán. \nLos escritorios temporales serán ELIMINADOS \nLa lista de co-propietarios en los despliegues será eliminada. \nLos escritorios pertenecientes a otros usuarios en los despliegues migrados permanecerán intactos. \nLos recursos (como redes, RAM, CPU, GPUS) no permitidos para el nuevo usuario serán eliminados o restringidos.",
+          "description": "Los escritorios iniciados se detendrán. \nLa papelera del usuario se eliminará. \nLas reservas del usuario se eliminarán. \nLos escritorios temporales serán ELIMINADOS \nLa lista de co-propietarios en los despliegues será eliminada. \nLos escritorios pertenecientes a otros usuarios en los despliegues migrados permanecerán intactos. \nLos recursos (como redes, RAM, CPU, GPUS) no permitidos para el nuevo usuario serán eliminados o restringidos. \nSi el usuario de destino tiene algún nombre coincidente, los elementos migrados tendrán '(migrated)' añadido a su nombre.",
           "footer": "El proceso de migración es irreversible."
         }
       },

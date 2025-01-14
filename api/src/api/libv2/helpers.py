@@ -30,7 +30,7 @@ from ..libv2.caches import (
 )
 from ..libv2.isardViewer import isardViewer
 from ..libv2.quotas import Quotas
-from ..views.decorators import update_duplicated_names
+from ..views.decorators import checkDuplicates, checkDuplicatesDomains
 from .flask_rethink import RDB
 
 r = RethinkDB()
@@ -1361,3 +1361,41 @@ def unassign_item_from_resource(item_id, item_type, table):
                         }
                     }
                 ).run(db.conn)
+
+
+def update_duplicated_names(item_table, items_data, user, kind=None):
+    """
+    Appends "(migrated)" to the duplicated names in the item_names list
+
+    :param item_table: The table where the items are stored
+    :type item_table: str
+    :param items_data: The items to update
+    :type items_data: list
+    :param user: The user id
+    :type user: str
+    :param kind: The kind of the item, either desktop or template
+    :type kind: str
+
+    """
+    try:
+        item_names = [item["name"] for item in items_data]
+        if item_table == "domains":
+            duplicated_items = checkDuplicatesDomains(
+                kind, item_names, user, raise_error=False
+            )
+        else:
+            duplicated_items = checkDuplicates(
+                item_table, item_names, user, raise_error=False
+            )
+        duplicated_names = [item["name"] for item in duplicated_items]
+        items_to_update = [
+            item["id"] for item in items_data if item["name"] in duplicated_names
+        ]
+
+        if items_to_update:
+            with app.app_context():
+                r.table(item_table).get_all(r.args(items_to_update)).update(
+                    {"name": r.row["name"] + " (migrated)"}
+                ).run(db.conn)
+    except Exception as e:
+        log.error(f"Error updating duplicated names: {e}")

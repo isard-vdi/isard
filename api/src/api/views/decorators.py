@@ -769,34 +769,6 @@ def checkDuplicatesDomains(
     return items
 
 
-def update_duplicated_names(item_table, items_data, user, kind=None):
-    """
-    Appends "(migrated)" to the duplicated names in the item_names list
-    """
-    try:
-        item_names = [item["name"] for item in items_data]
-        if item_table == "domains":
-            duplicated_items = checkDuplicatesDomains(
-                kind, item_names, user, raise_error=False
-            )
-        else:
-            duplicated_items = checkDuplicates(
-                item_table, item_names, user, raise_error=False
-            )
-        duplicated_names = [item["name"] for item in duplicated_items]
-        items_to_update = [
-            item["id"] for item in items_data if item["name"] in duplicated_names
-        ]
-
-        if items_to_update:
-            with app.app_context():
-                r.table(item_table).get_all(r.args(items_to_update)).update(
-                    {"name": r.row["name"] + " (migrated)"}
-                ).run(db.conn)
-    except Exception as e:
-        log.error(f"Error updating duplicated names: {e}")
-
-
 def checkDuplicateUser(item_uid, category, provider):
     query = r.table("users").get_all(
         [item_uid, category, provider], index="uid_category_provider"
