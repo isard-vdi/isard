@@ -228,3 +228,44 @@ def update_provider_config(provider, data):
             {"auth": {provider: r.row["auth"][provider].merge(data)}}
         ).run(db.conn)
     provider_config_cache.clear()
+
+
+def get_migrations_exceptions():
+    with app.app_context():
+        return list(
+            r.table("users_migrations_exceptions")
+            .merge(
+                lambda exception: {
+                    "item_name": r.table(exception["item_type"]).get(
+                        exception["item_id"]
+                    )["name"]
+                }
+            )
+            .run(db.conn)
+        )
+
+
+def add_migration_exception(data):
+    with app.app_context():
+        existing_ids = set(
+            r.table("users_migrations_exceptions")
+            .get_all(*data["item_ids"], index="item_id")["item_id"]
+            .run(db.conn)
+        )
+    new_items = [
+        {
+            "item_type": data["item_type"],
+            "item_id": item_id,
+            "created_at": r.now(),
+        }
+        for item_id in data["item_ids"]
+        if item_id not in existing_ids
+    ]
+    with app.app_context():
+        if new_items:
+            r.table("users_migrations_exceptions").insert(new_items).run(db.conn)
+
+
+def delete_migration_exception(exception_id):
+    with app.app_context():
+        r.table("users_migrations_exceptions").get(exception_id).delete().run(db.conn)

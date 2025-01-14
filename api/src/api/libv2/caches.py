@@ -433,3 +433,17 @@ def get_cached_desktops_priority():
         return list(
             r.table("desktops_priority").order_by(r.desc("priority")).run(db.conn)
         )
+
+
+### Users migrations exceptions
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=60))
+def get_cached_users_migrations_exceptions():
+    with app.app_context():
+        data = list(r.table("users_migrations_exceptions").run(db.conn))
+    roles = [item["item_id"] for item in data if item["item_type"] == "roles"]
+    categories = [item["item_id"] for item in data if item["item_type"] == "categories"]
+    groups = [item["item_id"] for item in data if item["item_type"] == "groups"]
+    users = [item["item_id"] for item in data if item["item_type"] == "users"]
+    return {"roles": roles, "categories": categories, "groups": groups, "users": users}

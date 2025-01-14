@@ -1279,8 +1279,9 @@
             "generate-token-warning": "Once the token is generated, it cannot be viewed again. If you lose it, you will need to generate a new one.",
             "copy-token": "Copy token",
             "copy": "Copy to clipboard",
-            "logout": "Logout and continue with the new user",
-            "logout-tooltip": "Generate and copy the token before logging out"
+            "logout-and-continue": "Logout and continue with the new user",
+            "logout": "Logout",
+            "logout-tooltip": "Generate and copy the token before logging out to continue with the migration"
         }
     },
     "messages": {

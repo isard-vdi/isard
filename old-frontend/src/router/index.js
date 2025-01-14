@@ -457,7 +457,10 @@ router.beforeEach(async (to, from, next) => {
         ) {
           store.dispatch('openSocket', {})
           if (isEmpty(store.getters.getConfig)) {
-            store.dispatch('fetchConfig')
+            await store.dispatch('fetchConfig')
+            if (store.getters.getConfig.migrationsBlock) {
+              window.location.pathname = '/export-user'
+            }
           }
           if (!store.getters.getMaxTime) {
             store.dispatch('fetchMaxTime')

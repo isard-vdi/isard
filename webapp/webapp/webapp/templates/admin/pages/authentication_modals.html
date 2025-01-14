@@ -81,7 +81,14 @@
                             <p><i class="fa fa-info-circle fa-md" aria-hidden="true"></i> This action will be applied to users migrated to this provider.</p>
                         </div>
                         </div>
-                        
+                    </div>
+                    <div class="x_panel force-migration-panel" style="display:none;">
+                        <div class="col-md-12 col-xs-12">
+                            <label>
+                                <input type="checkbox" id="force" name="force" class="flat"> Force Migration 
+                            </label>
+                            <span> (Users in this provider will be forced to the export user page)</span>
+                        </div>
                     </div>
                     <div class="x_panel">
                         <h4><i class="fa far fa-window-maximize"></i> Status bar notification</h4>
@@ -129,6 +136,66 @@
                 </ul>
                 <ul class="nav navbar-right panel_toolbox">
                     <li><button id="send" type="button" class="btn btn-info">Update</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+
+<div class="modal fade" id="modalExemptions" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title"> <i class="fa fa-plus"></i> Add exempted <span id="item_type-title"></span>
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalExemptionsForm" class="form-horizontal form-label-left">
+                    <input hidden name="item_type" id="item_type" />
+                    <div class="x_panel">
+                        <h5>If the migration in their provider is forced, the <span id="item_type-title"></span> in this list will not be forced to migrate</h5>
+                        <div class="x_content">
+                            <div class="col-md-9 col-xs-2" id="category-select" style="display:none;">
+                                <label class="control-label" for="category">Category</label>
+                                <select class="form-control" style="width:100%" name="category"
+                                    id="category"></select>
+                                <div class="select2-resize-handle"></div>
+                            </div>
+
+                            <div class="col-md-9 col-xs-2" id="item-select">
+                                <label class="control-label" for="item"><span class="text-capitalize" id="item_type-title"><span
+                                        class="required">*</span></label>
+                                <select class="form-control" style="width:100%" name="item_ids[]"
+                                    id="item"></select>
+                                <div class="select2-resize-handle"></div>
+                            </div>
+
+                        <div class="x_content">
+                            <div class="col-xs-12">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+                
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-info">Add exemption to list</button></li>
                 </ul>
             </div>
         </div>
