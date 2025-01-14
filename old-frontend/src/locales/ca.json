@@ -1030,8 +1030,9 @@
         "generate-token-warning": "Aquest codi de migració no serà accessible de nou. Assegureu-vos d’haver-lo copiat abans de continuar",
         "copy-token": "Copia el codi de migració",
         "copy": "Copia al porta-retalls",
-        "logout": "Tanca la sessió i continua amb l'usuari nou",
-        "logout-tooltip": "Genera i copia el codi de migració abans de tancar la sessió"
+        "logout-and-continue": "Tanca la sessió i continua amb l'usuari nou",
+        "logout": "Tanca la sessió",
+        "logout-tooltip": "Genera i copia el codi de migració abans de tancar la sessió per continuar la migració"
       }
   },
   "validations": {

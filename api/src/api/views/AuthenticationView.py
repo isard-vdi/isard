@@ -28,11 +28,14 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.api_authentication import (
+    add_migration_exception,
     add_policy,
+    delete_migration_exception,
     delete_policy,
     edit_policy,
     force_policy_at_login,
     get_disclaimer_template,
+    get_migrations_exceptions,
     get_policies,
     get_policy,
     get_provider_config,
@@ -259,6 +262,68 @@ def edit_provider_config_route(payload, provider):
     data = request.get_json()
     data = _validate_item("provider_config_update", data)
     update_provider_config(provider, data)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/authentication/migrations/exceptions", methods=["GET"])
+@is_admin
+def admin_get_migration_exceptions(payload):
+    """
+
+    Endpoint to get the migration exceptions.
+
+    :param payload: JWT payload
+    :type payload: dict
+    :return: list of migration exceptions
+    :rtype: list
+
+    """
+    return (
+        json.dumps(get_migrations_exceptions(), default=str),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/authentication/migrations/exceptions", methods=["POST"])
+@is_admin
+def admin_add_migration_exception(payload):
+    """
+
+    Endpoint to add a migration exception.
+
+    :param payload: JWT payload
+    :type payload: dict
+    """
+    data = request.get_json()
+    data = _validate_item("migration_exception", data)
+    add_migration_exception(data)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/authentication/migrations/exceptions/<exception_id>", methods=["DELETE"]
+)
+@is_admin
+def admin_delete_migration_exception(payload, exception_id):
+    """
+
+    Endpoint to delete a migration exception.
+
+    :param payload: JWT payload
+    :type payload: dict
+    :param exception_id: Exception id
+    :type exception_id: str
+    """
+    delete_migration_exception(exception_id)
     return (
         json.dumps({}),
         200,

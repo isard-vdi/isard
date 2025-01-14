@@ -1292,8 +1292,9 @@
       "generate-token-warning": "Este código de migración no será accesible de nuevo. Asegúrate de haberlo copiado antes de continuar.",
       "copy-token": "Copiar el código de migración",
       "copy": "Copiar al portapapeles",
-      "logout": "Cerrar sesión y cotinuar con el nuevo usuario",
-      "logout-tooltip": "Genera y copia el código de migración antes de cerrar la sesión"
+      "logout-and-continue": "Cerrar sesión y cotinuar con el nuevo usuario",
+      "logout": "Cerrar sesión",
+      "logout-tooltip": "Genera y copia el código de migración antes de cerrar la sesión para continuar con la migración"
     }
   },
   "messages": {

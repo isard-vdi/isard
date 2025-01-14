@@ -1,0 +1,15 @@
+item_type:
+  type: string
+  required: true
+  allowed:
+    - categories
+    - users
+    - groups
+    - roles
+  coerce: sanitize
+item_ids:
+  type: list
+  required: true
+  schema:
+    type: string
+    coerce: sanitize

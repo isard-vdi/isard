@@ -134,6 +134,7 @@ class Populate(object):
             "system_events",
             "targets",
             "users_migrations",
+            "users_migrations_exceptions",
             # "recycle_bin_archive",
             # config should be the last table to be created
             # api waits for config table to start
@@ -1973,5 +1974,28 @@ class Populate(object):
             log.error(e)
         try:
             r.table("users_migrations").index_create("target_user").run(self.conn)
+        except Exception as e:
+            log.error(e)
+
+    """
+    USERS_MIGRATIONS_EXCEPTIONS
+    """
+
+    def users_migrations_exceptions(self):
+        try:
+            log.info("Table users_migrations_exceptions not found, creating...")
+            r.table_create("users_migrations_exceptions", primary_key="id").run(
+                self.conn
+            )
+            r.table("users_migrations_exceptions").index_create("item_id").run(
+                self.conn
+            )
+            r.table("users_migrations_exceptions").insert(
+                {
+                    "created_at": r.now(),
+                    "item_id": "admin",
+                    "item_type": "roles",
+                }
+            ).run(self.conn)
         except Exception as e:
             log.error(e)

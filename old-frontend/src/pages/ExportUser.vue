@@ -104,11 +104,9 @@
                 style="background-color: #bb1414; border-radius: .5rem !important; border: none !important; font-weight: 600 !important;"
                 class="m-1 mb-4"
                 :title="$t('views.export-user.logout-tooltip')"
-                :style="{ cursor: !exportUserToken ? 'not-allowed' : 'pointer' }"
-                :disabled="!exportUserToken ? true : false"
                 @click="logout"
               >
-                {{ $t('views.export-user.logout') }}
+                {{ exportUserToken ? $t('views.export-user.logout-and-continue') : $t('views.export-user.logout') }}
               </b-button>
             </b-row>
           </b-col>

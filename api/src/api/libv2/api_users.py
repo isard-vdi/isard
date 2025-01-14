@@ -37,7 +37,13 @@ from .api_notify import notify_custom
 from .api_sessions import revoke_user_session
 from .api_storage import remove_category_from_storage_pool
 from .bookings.api_booking import Bookings
-from .caches import get_cached_user_with_names, get_document, invalidate_caches
+from .caches import (
+    get_cached_user_with_names,
+    get_cached_users_migrations_exceptions,
+    get_config,
+    get_document,
+    invalidate_caches,
+)
 from .recycle_bin import get_user_recycle_bin_ids
 
 apib = Bookings()
@@ -361,6 +367,26 @@ class ApiUsers:
             traceback.format_exc(),
         )
 
+    def is_blocked_migration(self, user_id):
+        user = get_document("users", user_id)
+        user_migration_forced = (
+            get_config()["auth"][user["provider"]]
+            .get("migration", {})
+            .get("force_migration", False)
+        )
+        if user_migration_forced:
+            exceptions = get_cached_users_migrations_exceptions()
+            if user["category"] in exceptions["categories"]:
+                return False
+            if user["role"] in exceptions["roles"]:
+                return False
+            if user["group"] in exceptions["groups"]:
+                return False
+            if user_id in exceptions["users"]:
+                return False
+            return True
+        return False
+
     @cached(
         cache=TTLCache(maxsize=300, ttl=60),
         key=lambda self, payload: payload["user_id"],
@@ -402,6 +428,7 @@ class ApiUsers:
                     "2222",
                 ),
                 "can_use_bastion": can_use_bastion(payload),
+                "migrations_block": self.is_blocked_migration(payload["user_id"]),
             },
         }
 
