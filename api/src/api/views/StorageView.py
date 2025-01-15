@@ -686,52 +686,14 @@ def storage_update_parent(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
     storage = get_storage(payload, storage_id)
-    try:
-        storage.create_task(
-            user_id=payload.get("user_id"),
-            queue="core",
-            task="storage_update_parent",
-            job_kwargs={
-                "kwargs": {
-                    "storage_id": storage.id,
-                }
-            },
-            dependencies=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                    "dependencies": [
-                        {
-                            "queue": f"storage.{StoragePool.get_best_for_action('check_backing_filename', path=storage.directory_path).id}.default",
-                            "task": "check_backing_filename",
-                            "dependencies": [
-                                {
-                                    "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=storage.directory_path).id}.default",
-                                    "task": "qemu_img_info",
-                                    "job_kwargs": {
-                                        "kwargs": {
-                                            "storage_id": storage.id,
-                                            "storage_path": storage.path,
-                                        }
-                                    },
-                                }
-                            ],
-                        }
-                    ],
-                }
-            ],
-        )
-    except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
+
+    return jsonify(
+        {
+            "id": storage.update_parent(
+                payload.get("user_id"),
             )
-        raise Error(
-            "internal_server_error",
-            "Error updating storage parent",
-        )
-    return jsonify(storage.task)
+        }
+    )
 
 
 @app.route(
