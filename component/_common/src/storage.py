@@ -666,6 +666,30 @@ class Storage(RethinkCustomBase):
 
         return self.task
 
+    def check_existence(
+        self,
+        user_id,
+    ):
+        self.create_task(
+            user_id=user_id,
+            queue=f"storage.{StoragePool.get_best_for_action('check_existence', path=self.directory_path).id}.default",
+            task="check_existence",
+            job_kwargs={
+                "kwargs": {
+                    "storage_id": self.id,
+                    "storage_path": self.path,
+                }
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                }
+            ],
+        )
+
+        return self.task
+
     def qemu_img_info(
         self,
         user_id,
