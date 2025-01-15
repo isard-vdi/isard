@@ -730,3 +730,49 @@ class Storage(RethinkCustomBase):
         )
 
         return self.task
+
+    def abort_operations(
+        self,
+        user_id,
+    ):
+        """
+        Create a task to abort the current storage operations.
+
+        :param user_id: User ID
+        :type user_id: str
+        :return: Task ID
+        :rtype: str
+        """
+        storage_pool = StoragePool.get_best_for_action("abort")
+
+        self.create_task(
+            user_id=user_id,
+            queue="core",
+            task="delete_task",
+            blocking=False,
+            job_kwargs={
+                "kwargs": {
+                    "task_id": self.task,
+                }
+            },
+            dependents=[
+                {
+                    "queue": f"storage.{storage_pool.id}.default",
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                        }
+                    ],
+                }
+            ],
+        )
+
+        return self.task

@@ -1325,44 +1325,13 @@ def storage_abort(payload, storage_id):
     storage = get_storage(payload, storage_id)
 
     # storage_domains = get_storage_derivatives(storage_id)
-    storage_pool = StoragePool.get_best_for_action("abort")
-    try:
-        storage.create_task(
-            user_id=storage.user_id,
-            queue="core",
-            task="delete_task",
-            blocking=False,
-            job_kwargs={
-                "kwargs": {
-                    "task_id": storage.task,
-                }
-            },
-            dependents=[
-                {
-                    "queue": f"storage.{storage_pool.id}.default",
-                    "task": "qemu_img_info_backing_chain",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "storage_id": storage.id,
-                            "storage_path": storage.path,
-                        }
-                    },
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "storage_update",
-                        }
-                    ],
-                }
-            ],
-        )
-
-    except Exception as e:
-        raise Error(
-            "internal_server_error",
-            "Error aborting storage operation",
-        )
-    return jsonify(storage.task)
+    return jsonify(
+        {
+            "id": storage.abort_operations(
+                payload.get("user_id"),
+            )
+        }
+    )
 
 
 @app.route("/api/v3/domain/<domain_id>/recreate_disk", methods=["POST"])
