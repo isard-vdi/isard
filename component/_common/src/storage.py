@@ -481,6 +481,11 @@ class Storage(RethinkCustomBase):
                                     },
                                 },
                             },
+                            {
+                                "queue": "core",
+                                "task": "storage_domains_force_update",
+                                "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                            },
                         ],
                     },
                 ]
