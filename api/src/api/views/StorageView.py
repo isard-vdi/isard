@@ -490,56 +490,14 @@ def storage_delete(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
     storage = get_storage(payload, storage_id)
-    storage.set_maintenance("delete")
-    try:
-        storage.create_task(
-            user_id=payload.get("user_id"),
-            queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
-            task="delete",
-            job_kwargs={
-                "kwargs": {
-                    "path": storage.path,
-                },
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "update_status",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "statuses": {
-                                "canceled": {
-                                    "ready": {
-                                        "storage": [storage.id],
-                                    },
-                                },
-                                "finished": {
-                                    "deleted": {
-                                        "storage": [storage.id],
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    "dependents": {
-                        "queue": "core",
-                        "task": "storage_delete",
-                        "job_kwargs": {"kwargs": {"storage_id": storage.id}},
-                    },
-                },
-            ],
-        )
-    except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
+
+    return jsonify(
+        {
+            "id": storage.delete(
+                payload.get("user_id"),
             )
-        raise Error(
-            "internal_server_error",
-            "Error deleting storage",
-        )
-    return jsonify(storage.task)
+        }
+    )
 
 
 @app.route(

@@ -610,6 +610,62 @@ class Storage(RethinkCustomBase):
 
         return self.task
 
+    def delete(
+        self,
+        user_id,
+        priority="default",
+    ):
+        """
+        Create a task to delete the storage.
+
+        :param user_id: User ID of the user executing the task
+        :type user_id: str
+        :param priority: Priority
+        :type priority: str
+        :return: Task ID
+        :rtype: str
+        """
+        self.set_maintenance("delete")
+        self.create_task(
+            user_id=user_id,
+            queue=f"storage.{StoragePool.get_best_for_action('delete', path=self.directory_path).id}.{priority}",
+            task="delete",
+            job_kwargs={
+                "kwargs": {
+                    "path": self.path,
+                },
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "canceled": {
+                                    "ready": {
+                                        "storage": [self.id],
+                                    },
+                                },
+                                "finished": {
+                                    "deleted": {
+                                        "storage": [self.id],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "dependents": {
+                        "queue": "core",
+                        "task": "storage_delete",
+                        "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                    },
+                },
+            ],
+        )
+
+        return self.task
+
     def virt_win_reg(
         self,
         registry_patch,
