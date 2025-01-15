@@ -609,3 +609,68 @@ class Storage(RethinkCustomBase):
         )
 
         return self.task
+
+    def virt_win_reg(
+        self,
+        registry_patch,
+        priority="default",
+    ):
+        """
+        Create a task to write a windows registry patch to the storage.
+        This task will only work with storages that have Windows XP or newer installed.
+        https://libguestfs.org/virt-win-reg.1.html
+
+        :param registry_patch: Windows registry patch
+        :type registry_patch: str
+        :param priority: Priority
+        :type priority: str
+        :return: Task ID
+        """
+        queue_virt_win_reg = f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=self.directory_path).id}.{priority}"
+
+        self.set_maintenance("virt_win_reg")
+        self.create_task(
+            user_id=self.user_id,
+            queue=queue_virt_win_reg,
+            task="virt_win_reg",
+            job_kwargs={
+                "kwargs": {
+                    "storage_path": self.path,
+                    "registry_patch": registry_patch,
+                },
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "finished": {
+                                    "ready": {
+                                        "storage": [self.id],
+                                    },
+                                    "Stopped": {
+                                        "domain": [
+                                            domain.id for domain in self.domains
+                                        ],
+                                    },
+                                },
+                                "canceled": {
+                                    "ready": {
+                                        "storage": [self.id],
+                                    },
+                                    "Stopped": {
+                                        "domain": [
+                                            domain.id for domain in self.domains
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+        )
+
+        return self.task

@@ -564,6 +564,7 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
             description="No JSON in body request with registry patch",
         )
     request_json = request.get_json()
+
     registry_patch = request_json.get("registry_patch")
     if not registry_patch:
         raise Error(
@@ -573,6 +574,7 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
         raise Error(
             description="The registry file is too large, exceeding the 1MB maximum"
         )
+
     if payload["role_id"] != "admin":
         priority = "low"
     else:
@@ -583,63 +585,15 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
             )
 
     storage = get_storage(payload, storage_id)
-    storage.set_maintenance("virt_win_reg")
 
-    try:
-        storage.create_task(
-            user_id=storage.user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=storage.directory_path).id}.{priority}",
-            task="virt_win_reg",
-            job_kwargs={
-                "kwargs": {
-                    "storage_path": storage.path,
-                    "registry_patch": registry_patch,
-                },
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "update_status",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "statuses": {
-                                "finished": {
-                                    "ready": {
-                                        "storage": [storage.id],
-                                    },
-                                    "Stopped": {
-                                        "domain": [
-                                            domain.id for domain in storage.domains
-                                        ],
-                                    },
-                                },
-                                "canceled": {
-                                    "ready": {
-                                        "storage": [storage.id],
-                                    },
-                                    "Stopped": {
-                                        "domain": [
-                                            domain.id for domain in storage.domains
-                                        ],
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            ],
-        )
-    except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
+    return jsonify(
+        {
+            "id": storage.virt_win_reg(
+                registry_patch,
+                priority,
             )
-        raise Error(
-            "internal_server_error",
-            "Error applying registry patch storage",
-        )
-    return jsonify(storage.task)
+        }
+    )
 
 
 @app.route(
