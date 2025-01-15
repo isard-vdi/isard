@@ -571,35 +571,14 @@ def storage_update_qemu_img_info(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
     storage = get_storage(payload, storage_id)
-    try:
-        storage.create_task(
-            user_id=payload.get("user_id"),
-            queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=storage.directory_path).id}.default",
-            task="qemu_img_info",
-            job_kwargs={
-                "kwargs": {
-                    "storage_id": storage.id,
-                    "storage_path": storage.path,
-                }
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                }
-            ],
-        )
-    except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
+
+    return jsonify(
+        {
+            "id": storage.qemu_img_info(
+                user_id=payload.get("user_id"),
             )
-        raise Error(
-            "internal_server_error",
-            "Error updating qemu img info for storage",
-        )
-    return jsonify(storage.task)
+        }
+    )
 
 
 @app.route("/api/v3/storage/<path:storage_id>/check_backing_chain", methods=["PUT"])
