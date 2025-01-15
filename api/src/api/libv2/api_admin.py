@@ -533,7 +533,11 @@ class ApiAdmin:
         )
         query = query.merge(
             lambda doc: {
-                "right": r.table("users").get(doc["right"]["user"]).pluck("role")
+                "right": r.table("users")
+                .get(doc["right"]["user"])
+                .pluck("role", "name")
+                .merge(lambda user: {"user_name": user["name"], "role": user["role"]})
+                .without("name")
             }
         )
         if categories:
@@ -555,7 +559,7 @@ class ApiAdmin:
                     "hyp_started",
                     "name",
                     "status",
-                    "username",
+                    "user_name",
                     "accessed",
                     "forced_hyp",
                     "favourite_hyp",

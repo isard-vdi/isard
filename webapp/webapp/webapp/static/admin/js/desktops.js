@@ -76,7 +76,7 @@ columns = [
         }
     },
     { "data": "create_dict.hardware.vcpus", "width": "10px" },
-    { "data": "username" },
+    { "data": "user_name" },
     { "data": "role" },
     { "data": "category_name" },
     { "data": "group_name" },
