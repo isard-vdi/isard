@@ -134,12 +134,12 @@ def admin_table_list(
                     }
                 )["group_name"]
                 .default(False),
-                "username": r.table("users")
-                .get(deploy["user"])["username"]
+                "user_name": r.table("users")
+                .get(deploy["user"])["name"]
                 .default(False),
-                "co_owners_usernames": r.expr(deploy["co_owners"]).map(
+                "co_owners_user_names": r.expr(deploy["co_owners"]).map(
                     lambda co_owner: r.table("users")
-                    .get(co_owner)["username"]
+                    .get(co_owner)["name"]
                     .default(False)
                 ),
                 "how_many_desktops": r.table("domains")
