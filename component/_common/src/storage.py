@@ -666,6 +666,58 @@ class Storage(RethinkCustomBase):
 
         return self.task
 
+    def increase_size(
+        self,
+        increment,
+        priority="default",
+    ):
+        """
+        Create a task to increase the storage size.
+
+        :param increment: Increment in GB
+        :type increment: int
+        :param priority: Priority
+        :type priority: str
+        """
+        resize_queue = (
+            f"storage.{StoragePool.get_best_for_action('resize').id}.{priority}"
+        )
+
+        self.set_maintenance("resize")
+        self.create_task(
+            user_id=self.user_id,
+            queue=resize_queue,
+            task="resize",
+            job_kwargs={
+                "kwargs": {"storage_path": self.path, "increment": increment},
+            },
+            dependents=[
+                {
+                    "queue": resize_queue,
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                        },
+                        {
+                            "queue": "core",
+                            "task": "storage_domains_force_update",
+                            "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                        },
+                    ],
+                }
+            ],
+        )
+
+        return self.task
+
     def virt_win_reg(
         self,
         registry_patch,

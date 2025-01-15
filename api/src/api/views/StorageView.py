@@ -1261,46 +1261,14 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
             description="priority should be low, default or high",
         )
 
-    storage.set_maintenance()
-
-    try:
-        storage.create_task(
-            user_id=storage.user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('resize').id}.{priority}",
-            task="resize",
-            job_kwargs={
-                "kwargs": {"storage_path": storage.path, "increment": increment},
-            },
-            dependents=[
-                {
-                    "queue": f"storage.{StoragePool.get_best_for_action('resize').id}.{priority}",
-                    "task": "qemu_img_info_backing_chain",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "storage_id": storage.id,
-                            "storage_path": storage.path,
-                        }
-                    },
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "storage_update",
-                        },
-                    ],
-                }
-            ],
-        )
-    except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
+    return jsonify(
+        {
+            "id": storage.increase_size(
+                increment,
+                priority,
             )
-        raise Error(
-            "internal_server_error",
-            "Error creating storage",
-        )
-    return jsonify(storage.task)
+        }
+    )
 
 
 @app.route("/api/v3/storage/<path:storage_id>/stop", methods=["PUT"])
