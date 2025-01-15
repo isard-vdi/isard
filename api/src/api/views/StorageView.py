@@ -945,84 +945,21 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
             description=f"Storage {storage.id} used as backing file for {', '.join([storage.id for storage in storage.children])} to execute move operation",
         )
 
-    # Storage domains checks
-    ## Only one domain can be attached to an storage now, but we iterate
-    for domain in storage.domains:
-        if domain.status != "Stopped":
-            raise Error(
-                "precondition_required",
-                f"Domain {domain.id} must be 'Stopped' for it's storage move operation.",
-                description_code="desktops_not_stopped",
-            )
-
     # We can create move action
-    storage.set_maintenance("move")
-
-    storage_pool_origin = StoragePool.get_best_for_action(
-        "move", path=storage.directory_path
-    )
-
-    queue = get_queue_from_storage_pools(storage_pool_origin, storage_pool_destination)
-
-    move_job_kwargs = {
-        "kwargs": {
-            "origin_path": storage.path,
-            "destination_path": f"{path}/{storage.id}.{storage.type}",
-            "method": method,
-        }
-    }
-    if method == "rsync":
-        move_job_kwargs["timeout"] = 3600
     try:
-        storage_domains_ids = [domain.id for domain in storage.domains]
-        storage.create_task(
-            user_id=storage.user_id,
-            queue=f"storage.{queue}.{priority}",
-            task="move",
-            job_kwargs=move_job_kwargs,
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "id": storage.id,
-                            "directory_path": path,
-                            "qemu-img-info": {
-                                "filename": f"{path}/{storage.id}.{storage.type}"
-                            },
-                        }
-                    },
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "update_status",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "statuses": {
-                                        "_all": {
-                                            "ready": {
-                                                "storage": [storage.id],
-                                            },
-                                            "Stopped": {
-                                                "domain": storage_domains_ids,
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            "queue": "core",
-                            "task": "domains_update",
-                            "job_kwargs": {
-                                "kwargs": {"domain_list": storage_domains_ids}
-                            },
-                        },
-                    ],
-                },
-            ],
-        )
+        match method:
+            case "rsync":
+                return storage.rsync(
+                    user_id=payload["user_id"],
+                    destination_path=f"{path}/{storage.id}.{storage.type}",
+                    priority=priority,
+                    timeout=3600,
+                )
+            case "mv":
+                return storage.mv(
+                    destination_path=f"{path}/{storage.id}.{storage.type}",
+                    priority=priority,
+                )
     except Exception as e:
         if e.args[0] == "precondition_required":
             raise Error(
