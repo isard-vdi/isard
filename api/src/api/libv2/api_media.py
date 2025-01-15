@@ -73,6 +73,7 @@ def get_media(status=None, category_id=None):
             .count(),
             "category_name": r.table("categories").get(media["category"])["name"],
             "group_name": r.table("groups").get(media["group"])["name"],
+            "user_name": r.table("users").get(media["user"])["name"],
         }
     )
 
