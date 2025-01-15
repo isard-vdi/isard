@@ -1753,6 +1753,11 @@ class RecycleBinUser(RecycleBin):
             "qos_net",
         ]:
             unassign_item_from_resource(user["id"], "users", table)
+        # Remove the user from the migration exceptions table
+        with app.app_context():
+            r.table("users_migrations_exceptions").get_all(
+                user["id"], index="item_id"
+            ).delete().run(db.conn)
         if delete_user:
             with app.app_context():
                 r.table("recycle_bin").get(self.id).update(
@@ -1859,6 +1864,11 @@ class RecycleBinGroup(RecycleBin):
             "qos_net",
         ]:
             unassign_item_from_resource(group["id"], "groups", table)
+        # Remove the group from the migration exceptions table
+        with app.app_context():
+            r.table("users_migrations_exceptions").get_all(
+                group["id"], index="item_id"
+            ).delete().run(db.conn)
         isard_user_storage_disable_groups([group])
 
 
@@ -1966,4 +1976,9 @@ class RecycleBinCategory(RecycleBin):
             for group in groups:
                 unassign_item_from_resource(group["id"], "groups", table)
             unassign_item_from_resource(category["id"], "categories", table)
+        # Remove the category from the migration exceptions table
+        with app.app_context():
+            r.table("users_migrations_exceptions").get_all(
+                category["id"], index="item_id"
+            ).delete().run(db.conn)
         isard_user_storage_disable_categories([category])
