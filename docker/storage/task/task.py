@@ -91,7 +91,7 @@ def extract_progress_from_rsync_output(process):
     lines = output.splitlines()
 
     # Find the line with the progress information
-
+    progress = 0.0
     for line in lines:
         if "%" in line:  # Look for lines that contain a percentage
             try:
