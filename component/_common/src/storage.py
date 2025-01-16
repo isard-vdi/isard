@@ -374,29 +374,23 @@ class Storage(RethinkCustomBase):
         """
         if self.status != "ready":
             raise Exception(
-                {
-                    "error": "precondition_required",
-                    "description": f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
-                    "description_code": "storage_not_ready",
-                }
+                "precondition_required",
+                f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
+                "storage_not_ready",
             )
         domains = self.domains
         if any(domain.status != "Stopped" for domain in domains):
             raise Exception(
-                {
-                    "error": "precondition_required",
-                    "description": f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
-                    "description_code": "desktops_not_stopped",
-                }
+                "precondition_required",
+                f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
+                "desktops_not_stopped",
             )
         if any(domain.kind != "desktop" for domain in domains):
             if len(self.children) > 0:
                 raise Exception(
-                    {
-                        "error": "precondition_required",
-                        "description": f"Storage {self.id} has children storages. It must be empty in order to set it to maintenance.",
-                        "description_code": "storage_has_children",
-                    }
+                    "precondition_required",
+                    f"Storage {self.id} has children storages. It must be empty in order to set it to maintenance.",
+                    "storage_has_children",
                 )
         for domain in self.domains:
             domain.status = "Maintenance"
@@ -409,11 +403,9 @@ class Storage(RethinkCustomBase):
         """
         if self.status != "maintenance":
             raise Exception(
-                {
-                    "error": "precondition_required",
-                    "description": f"Storage {self.id} must be maintenance in order to return back to ready status. It's actual status is {self.status}",
-                    "description_code": "storage_not_maintenance",
-                }
+                "precondition_required",
+                f"Storage {self.id} must be maintenance in order to return back to ready status. It's actual status is {self.status}",
+                "storage_not_maintenance",
             )
         for domain in self.domains:
             domain.status = "Stopped"

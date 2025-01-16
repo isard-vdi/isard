@@ -491,13 +491,16 @@ def storage_delete(payload, storage_id):
     """
     storage = get_storage(payload, storage_id)
 
-    return jsonify(
-        {
-            "id": storage.delete(
-                payload.get("user_id"),
-            )
-        }
-    )
+    try:
+        return jsonify(
+            {
+                "task_id": storage.delete(
+                    payload.get("user_id"),
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
 
 
 @app.route(
@@ -544,14 +547,17 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
 
     storage = get_storage(payload, storage_id)
 
-    return jsonify(
-        {
-            "id": storage.virt_win_reg(
-                registry_patch,
-                priority,
-            )
-        }
-    )
+    try:
+        return jsonify(
+            {
+                "task_id": storage.virt_win_reg(
+                    registry_patch,
+                    priority,
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
 
 
 @app.route(
@@ -572,13 +578,16 @@ def storage_update_qemu_img_info(payload, storage_id):
     """
     storage = get_storage(payload, storage_id)
 
-    return jsonify(
-        {
-            "id": storage.qemu_img_info(
-                user_id=payload.get("user_id"),
-            )
-        }
-    )
+    try:
+        return jsonify(
+            {
+                "task_id": storage.qemu_img_info(
+                    user_id=payload.get("user_id"),
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
 
 
 @app.route("/api/v3/storage/<path:storage_id>/check_backing_chain", methods=["PUT"])
@@ -618,13 +627,16 @@ def storage_check_existence(payload, storage_id):
     """
     storage = get_storage(payload, storage_id)
 
-    return jsonify(
-        {
-            "id": storage.check_existence(
-                user_id=payload.get("user_id"),
-            )
-        }
-    )
+    try:
+        return jsonify(
+            {
+                "task_id": storage.check_existence(
+                    user_id=payload.get("user_id"),
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
 
 
 @app.route(
@@ -645,13 +657,16 @@ def storage_update_parent(payload, storage_id):
     """
     storage = get_storage(payload, storage_id)
 
-    return jsonify(
-        {
-            "id": storage.update_parent(
-                payload.get("user_id"),
-            )
-        }
-    )
+    try:
+        return jsonify(
+            {
+                "task_id": storage.update_parent(
+                    payload.get("user_id"),
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
 
 
 @app.route(
@@ -707,7 +722,7 @@ def storage_move_by_path(payload, storage_id):
     try:
         return jsonify(
             {
-                "id": storage.mv(
+                "task_id": storage.mv(
                     path,
                     priority,
                 )
@@ -759,17 +774,20 @@ def storage_rsync_to_path(payload, storage_id):
         )
 
     # Create task
-    return jsonify(
-        {
-            "id": storage.rsync(
-                payload["user_id"],
-                destination_path,
-                data["bwlimit"],
-                data["remove_source_file"],
-                data["priority"],
-            )
-        }
-    )
+    try:
+        return jsonify(
+            {
+                "task_id": storage.rsync(
+                    payload["user_id"],
+                    destination_path,
+                    data["bwlimit"],
+                    data["remove_source_file"],
+                    data["priority"],
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
 
 
 @app.route(
@@ -822,17 +840,20 @@ def storage_rsync_to_storage_pool(payload, storage_id):
             description=f"Storage {storage.id} already in destination pool path {destination_path} to execute rsync operation",
         )
     # Create task
-    return jsonify(
-        {
-            "id": storage.rsync(
-                payload["user_id"],
-                destination_path,
-                data["bwlimit"],
-                data["remove_source_file"],
-                data["priority"],
-            )
-        }
-    )
+    try:
+        return jsonify(
+            {
+                "task_id": storage.rsync(
+                    payload["user_id"],
+                    destination_path,
+                    data["bwlimit"],
+                    data["remove_source_file"],
+                    data["priority"],
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
 
 
 @app.route(
@@ -1118,14 +1139,17 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
             description="priority should be low, default or high",
         )
 
-    return jsonify(
-        {
-            "id": storage.increase_size(
-                increment,
-                priority,
-            )
-        }
-    )
+    try:
+        return jsonify(
+            {
+                "task_id": storage.increase_size(
+                    increment,
+                    priority,
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
 
 
 @app.route("/api/v3/storage/<path:storage_id>/stop", methods=["PUT"])
@@ -1152,7 +1176,7 @@ def storage_abort(payload, storage_id):
     # storage_domains = get_storage_derivatives(storage_id)
     return jsonify(
         {
-            "id": storage.abort_operations(
+            "task_id": storage.abort_operations(
                 payload.get("user_id"),
             )
         }
