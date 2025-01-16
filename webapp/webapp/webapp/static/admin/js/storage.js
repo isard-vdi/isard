@@ -372,6 +372,38 @@ $(document).on('click', '.btn-delete-scheduler', function () {
   });
 });
 
+$(document).on('click', '.btn-find', function () {
+  element = $(this);
+  var id = element.data("id");
+  $.ajax({
+    type: 'GET',
+    url: '/api/v3/storage/' + id + '/find',
+    contentType: 'application/json',
+    success: function (result) {
+      new PNotify({
+        title: 'Find',
+        text: 'Storage found',
+        hide: true,
+        delay: 2000,
+        icon: '',
+        opacity: 1,
+        type: 'success'
+      })
+    },
+    error: function (xhr, ajaxOptions, thrownError) {
+      new PNotify({
+        title: 'Error',
+        text: xhr.responseJSON.description,
+        hide: true,
+        delay: 3000,
+        icon: 'fa fa-warning',
+        opacity: 1,
+        type: 'error'
+      });
+    }
+  });
+});
+
 
 $(document).on('click', '.btn-convert', function () {
   element = $(this);
@@ -1130,7 +1162,8 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         width: '65px',
         visible: $('meta[id=user_data]').attr('data-role') === 'admin',
         render: function (data, type, row, meta) {
-          return `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>
+          return `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>\
+                  <button type="button" data-id="${row.id}" class="btn btn-pill-right btn-info btn-xs btn-find" title="Find in storage"><i class="fa fa-exchange"></i></button>\
                   ${data.status == "ready" ? `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>` : ""}`;
         }
       }

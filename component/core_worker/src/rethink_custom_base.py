@@ -25,6 +25,8 @@ from isardvdi_common.rethink_base import RethinkBase
 from rethinkdb import r
 from rethinkdb.net import Connection
 
+export_r = r
+
 
 class Context:
     """

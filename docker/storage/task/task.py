@@ -20,8 +20,8 @@
 import shutil
 import tempfile
 from json import loads
-from os import environ, makedirs, remove, rename
-from os.path import basename, dirname, isdir, isfile, join
+from os import environ, makedirs, remove, rename, walk
+from os.path import basename, dirname, getmtime, isdir, isfile, join
 from re import search
 from subprocess import PIPE, CalledProcessError, Popen, check_output, run
 from time import sleep
@@ -505,3 +505,43 @@ def resize(storage_path, increment):
         ).returncode
     except Exception as e:
         return e
+
+
+def find(storage_id, storage_path):
+    """
+    Find storage path from storage_id recursively in base_path.
+    It assumes any isard-storage will have all mountpoints in /isard.
+
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: List of dicts with storage path, modified time, and qemu-img info backing chain
+    :rtype: list
+    """
+    root_dir = "/isard"
+    matching_files = []
+    status = "deleted"
+    for root, _, files in walk(root_dir):
+        for filename in files:
+            if storage_id in filename:
+                file_path = join(root, filename)
+                try:
+                    modified_time = getmtime(file_path)
+                except OSError:
+                    modified_time = None
+                # Skip if the file is not a qcow2 file or it is a hidden file (starts with a dot)
+                if not file_path.endswith(".qcow2") or basename(file_path).startswith(
+                    "."
+                ):
+                    storage_data = None
+                else:
+                    storage_data = qemu_img_info_backing_chain(storage_id, file_path)
+                matching_files.append(
+                    {
+                        "path": file_path,
+                        "mtime": modified_time,
+                        "storage_data": storage_data,
+                    }
+                )
+                if storage_path == file_path:
+                    status = storage_data["status"]
+    return {"id": storage_id, "status": status, "matching_files": matching_files}

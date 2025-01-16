@@ -1419,3 +1419,10 @@ def storage_path_statuses(payload):
         )
     storage = get_storage(get_storage_id_from_path(request.json["path"]))
     return jsonify(storage.statuses)
+
+
+@app.route("/api/v3/storage/<path:storage_id>/find", methods=["GET"])
+@has_token
+def storage_find(payload, storage_id):
+    storage = get_storage(payload, storage_id)
+    return jsonify(storage.find(payload.get("user_id")))

@@ -23,9 +23,10 @@ from cachetools import TTLCache, cached
 from isardvdi_common.api_rest import ApiRest
 from isardvdi_common.domain import Domain
 from isardvdi_common.media import Media
-from isardvdi_common.storage import Storage
+from isardvdi_common.storage import Storage, StoragePool
 from isardvdi_common.task import Task
 from requests.exceptions import HTTPError
+from rethink_custom_base import export_r as r
 from rq import get_current_job
 
 
@@ -378,4 +379,204 @@ def storage_domains_force_update(storage_id):
     for domain in Storage(storage_id).domains:
         domain.force_update = (
             True  # Engine will recreate it's hardware dict before next start
+        )
+
+
+def _valid_storage_pool(storage, new_path):
+    """
+    Update the storage pool if the new path matches the expected pool path.
+
+    :param storage: The storage object to update.
+    :param new_path: The new path to check.
+    :param storage_data: Data related to the storage.
+    :return: True if updated, False otherwise.
+    """
+    storage_pools = StoragePool.get_by_path(new_path)
+    if not storage_pools:
+        return None
+
+    pool_path = storage.get_storage_pool_path(storage_pools[0])
+
+    expected_path = f"{pool_path}/{storage.id}.qcow2" if pool_path else None
+    if expected_path == new_path:
+        return storage_pools[0]
+
+    return False
+
+
+def storage_update_pool(storage_id):
+    """
+    Update storage pool paths based on task dependencies.
+
+    :param storage_id: The ID of the storage to update.
+    """
+    task = Task(get_current_job().id)
+
+    if task.depending_status != "finished":
+        return
+
+    if not Storage.exists(storage_id):
+        return
+
+    storage = Storage(storage_id)
+
+    for dependency in task.dependencies:
+        if dependency.task != "find":
+            continue
+
+        dependency_results = dependency.result.get("matching_files", [])
+        if not dependency_results:
+            Storage(
+                **{
+                    "id": storage_id,
+                    "status": "deleted",
+                    "invalid_storages": [],
+                    "duplicated_storages": [],
+                    "move_deleted_storages": [],
+                }
+            )
+            return
+
+        invalid_storages = []
+        move_deleted_storages = []
+        duplicated_storages = []
+        not_in_pool_storages = []
+        bad_path_storages = []
+        matching_storage = None
+        for storage_data in dependency_results:
+            path = storage_data["path"]
+            data = storage_data.get("storage_data", {})
+
+            if (
+                not data
+                or f"/{storage_id}.qcow2" not in path
+                or data.get("qemu-img-info", {}).get("virtual-size", 0) == 0
+            ):
+                invalid_storages.append(storage_data)
+                continue
+
+            if f"/deleted/{storage_id}" in path:
+                move_deleted_storages.append(storage_data)
+                continue
+
+            if path == storage.path:
+                matching_storage = storage_data
+
+            valid_pool = _valid_storage_pool(storage, path)
+            storage_data["storage_pool"] = valid_pool
+            if valid_pool is None:
+                not_in_pool_storages.append(storage_data)
+            elif valid_pool is False:
+                bad_path_storages.append(storage_data)
+            else:
+                duplicated_storages.append(storage_data)
+
+        duplicated_storages.sort(key=lambda x: x["mtime"], reverse=True)
+
+        if (
+            len(duplicated_storages)
+            and matching_storage["path"] == duplicated_storages[0]["path"]
+        ):
+            # The actual storage is the most recent one
+            storage.set_storage_pool(duplicated_storages[0]["storage_pool"])
+            duplicated_storages.pop(0)
+            storage_update(
+                **{
+                    "id": storage_id,
+                    "status": matching_storage["storage_data"]["status"],
+                    "qemu-img-info": matching_storage["storage_data"]["qemu-img-info"],
+                    "mtime": (
+                        r.epoch_time(matching_storage["mtime"])
+                        if matching_storage and matching_storage.get("mtime")
+                        else r.epoch_time(0)
+                    ),
+                    "storages_with_uuid": [
+                        {"status": "duplicated", "path": s["path"]}
+                        for s in duplicated_storages
+                    ]
+                    + [
+                        {"status": "invalid", "path": s["path"]}
+                        for s in invalid_storages
+                    ]
+                    + [
+                        {"status": "move_deleted", "path": s["path"]}
+                        for s in move_deleted_storages
+                    ]
+                    + [
+                        {"status": "not_in_pool", "path": s["path"]}
+                        for s in not_in_pool_storages
+                    ]
+                    + [
+                        {"status": "bad_path", "path": s["path"]}
+                        for s in bad_path_storages
+                    ],
+                }
+            )
+            return
+
+        if len(duplicated_storages):
+            storage.set_storage_pool(duplicated_storages[0]["storage_pool"])
+            duplicated_storages.pop(0)
+            storage_update(
+                **{
+                    "id": storage_id,
+                    "status": duplicated_storages[0]["storage_data"]["status"],
+                    "qemu-img-info": duplicated_storages[0]["storage_data"][
+                        "qemu-img-info"
+                    ],
+                    "mtime": (
+                        r.epoch_time(matching_storage["mtime"])
+                        if matching_storage and matching_storage.get("mtime")
+                        else r.epoch_time(0)
+                    ),
+                    "storages_with_uuid": [
+                        {"status": "duplicated", "path": s["path"]}
+                        for s in duplicated_storages
+                    ]
+                    + [
+                        {"status": "invalid", "path": s["path"]}
+                        for s in invalid_storages
+                    ]
+                    + [
+                        {"status": "move_deleted", "path": s["path"]}
+                        for s in move_deleted_storages
+                    ]
+                    + [
+                        {"status": "not_in_pool", "path": s["path"]}
+                        for s in not_in_pool_storages
+                    ]
+                    + [
+                        {"status": "bad_path", "path": s["path"]}
+                        for s in bad_path_storages
+                    ],
+                }
+            )
+            return
+
+        storage_update(
+            **{
+                "id": storage_id,
+                "status": "deleted",
+                "mtime": (
+                    r.epoch_time(matching_storage["mtime"])
+                    if matching_storage and matching_storage.get("mtime")
+                    else r.epoch_time(0)
+                ),
+                "storages_with_uuid": [
+                    {"status": "duplicated", "path": s["path"]}
+                    for s in duplicated_storages
+                ]
+                + [{"status": "invalid", "path": s["path"]} for s in invalid_storages]
+                + [
+                    {"status": "move_deleted", "path": s["path"]}
+                    for s in move_deleted_storages
+                ]
+                + [
+                    {"status": "not_in_pool", "path": s["path"]}
+                    for s in not_in_pool_storages
+                ]
+                + [
+                    {"status": "bad_path", "path": s["path"]} for s in bad_path_storages
+                ],
+            }
         )
