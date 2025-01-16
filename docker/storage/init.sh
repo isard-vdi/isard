@@ -3,6 +3,12 @@
 export STORAGE_DOMAIN
 export PYTHONWARNINGS="ignore:Unverified HTTPS request"
 
+if [ "${REDIS_WORKERS}" -eq 0 ]
+then
+    echo "REDIS_WORKERS is set to 0, not starting any workers, sleeping forever"
+    sleep infinity
+fi
+
 if ${CAPABILITIES_DISK:-true}
 then
     for priority in high default low; do
