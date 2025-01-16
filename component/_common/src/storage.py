@@ -407,6 +407,7 @@ class Storage(RethinkCustomBase):
         bwlimit=0,
         remove_source_file=True,
         priority="default",
+        timeout=1200,  # Default redis timeout is 180 (3 minutes)
     ):
         """
         Create a task to move the storage.
@@ -421,6 +422,8 @@ class Storage(RethinkCustomBase):
         :type remove_source_file: bool
         :param priority: Priority
         :type priority: str
+        :param timeout: Timeout
+        :type timeout: int
         :return: Task ID
         :rtype: str
         """
@@ -434,7 +437,6 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=queue_rsync,
             task="move",
-            timeout=1200,  # Default redis timeout is 180 (3 minutes)
             job_kwargs={
                 "kwargs": {
                     "origin_path": self.path,
@@ -442,7 +444,8 @@ class Storage(RethinkCustomBase):
                     "method": "rsync",
                     "bwlimit": bwlimit,
                     "remove_source_file": remove_source_file,
-                }
+                },
+                "timeout": timeout,
             },
             dependents=(
                 [
