@@ -434,6 +434,7 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=queue_rsync,
             task="move",
+            timeout=1200,  # Default redis timeout is 180 (3 minutes)
             job_kwargs={
                 "kwargs": {
                     "origin_path": self.path,
