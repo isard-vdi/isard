@@ -12,6 +12,15 @@
         lg="10"
       >
         <b-row class="justify-content-center align-content-center h-100">
+          <b-alert
+            v-if="loginConfig.notification_cover"
+            variant="danger"
+            show
+            class="text-center"
+          >
+            <strong>{{ loginConfig.notification_cover.title }}</strong>
+            <p>{{ loginConfig.notification_cover.description }}</p>
+          </b-alert>
           <!-- HEADER -->
           <b-col
             sm="12"
@@ -184,6 +193,9 @@ export default {
       rdp: i18n.t('views.direct-viewer.description.rdp'),
       rdpgw: i18n.t('views.direct-viewer.description.rdpgw')
     }
+    const loginConfig = computed(() => $store.getters.getLoginConfig)
+
+    $store.dispatch('fetchLoginConfig')
 
     const resetDesktop = (action) => {
       const token = context.root.$route.params.pathMatch
@@ -223,7 +235,8 @@ export default {
       fileViewers,
       viewerDescription,
       resetDesktop,
-      status
+      status,
+      loginConfig
     }
   }
 }

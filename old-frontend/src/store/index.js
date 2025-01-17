@@ -50,7 +50,8 @@ export default new Vuex.Store({
       show: false,
       title: '',
       message: ''
-    }
+    },
+    loginConfig: {}
   },
   getters: {
     getCategories: state => {
@@ -61,6 +62,9 @@ export default new Vuex.Store({
     },
     getMessageModal: state => {
       return state.messageModal
+    },
+    getLoginConfig: state => {
+      return state.loginConfig
     }
   },
   mutations: {
@@ -89,6 +93,9 @@ export default new Vuex.Store({
     },
     setShowMessageModal: (state, show) => {
       state.messageModal.show = show
+    },
+    setLoginConfig: (state, loginConfig) => {
+      state.loginConfig = loginConfig
     }
   },
   actions: {
@@ -139,6 +146,13 @@ export default new Vuex.Store({
         if (response.status === 200) {
           context.dispatch('checkCreateQuota', data)
         }
+      })
+    },
+    fetchLoginConfig (context) {
+      return axios.get(`${apiV3Segment}/login_config`).then(response => {
+        context.commit('setLoginConfig', response.data)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     }
   },
