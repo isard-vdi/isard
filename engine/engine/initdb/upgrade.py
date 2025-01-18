@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 155
+release_version = 156
+# release 156: Remove user_permissions field from deployments create_dict
 # release 155: Add empty dict values to provider settings
 # release 154: Add bastion alloweds to config table
 # release 153: Add new field 'user_migration' to config table
@@ -3327,6 +3328,18 @@ password:s:%s"""
                 r.table(table).index_create(
                     "template", r.row["create_dict"]["template"]
                 ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 156:
+            try:
+                deployments = list(r.table(table).run(self.conn))
+
+                for deployment in deployments:
+                    ##### REMOVE FIELDS
+                    self.del_keys(
+                        table, [{"create_dict": {"user_permissions"}}], deployment["id"]
+                    )
             except Exception as e:
                 print(e)
 
