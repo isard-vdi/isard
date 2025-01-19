@@ -34,12 +34,12 @@
         />
 
         <fab-item
-          v-if="!desktop.editable && desktop.permissions.includes('recreate')"
+          v-if="desktop.permissions.includes('recreate')"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.recreate')}`,
                          placement: 'right',
                          customClass: 'isard-tooltip',
                          trigger: 'hover' }"
-          :idx="desktop.permissions.indexOf('recreate')"
+          :idx="desktop.editable ? 4 : desktop.permissions.indexOf('recreate')"
           icon="replay"
           color="#f3bc65"
           @clickItem="onClickRecreateDesktop({id: desktop.id, name: desktop.name})"
