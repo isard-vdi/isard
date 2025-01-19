@@ -231,7 +231,7 @@ def storage_update(**storage_dict):
             if not Storage.exists(storage_dict["id"]):
                 return  # Storage was deleted
             storage_object = Storage(**storage_dict)
-            if storage_dict.get("status") == "deleted":
+            if storage_dict.get("status") in ["deleted", "orphan", "broken_chain"]:
                 for domain in (
                     storage_object.domains + storage_object.domains_derivatives
                 ):
