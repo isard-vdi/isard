@@ -985,6 +985,28 @@ class RecycleBin(object):
         if self.item_type not in ["deployment", "user", "group", "category"]:
             self.check_can_restore()
 
+        if len(self.templates):
+            for template in self.templates:
+                if "duplicate_parent_template" in template:
+
+                    with app.app_context():
+                        if not (
+                            (
+                                template["duplicate_parent_template"]
+                                in [template["id"] for template in self.templates]
+                            )
+                            or (
+                                r.table("domains")
+                                .get(template["duplicate_parent_template"])
+                                .run(db.conn)
+                            )
+                        ):
+                            raise Error(
+                                "precondition_required",
+                                "Cannot restore duplicated template without parent template",
+                                description_code="parent_template_not_found",
+                            )
+
         with app.app_context():
             r.table("users").insert(self.users).run(db.conn)
             r.table("groups").insert(self.groups).run(db.conn)
