@@ -192,7 +192,7 @@ $(document).ready(function () {
                   var notify = new PNotify();
                   $.ajax({
                     type: "PUT",
-                    url: '/api/v3/storages/status/' + status,
+                    url: '/api/v3/storages/find/' + status,
                     contentType: "application/json",
                     success: function (data) {
                       $('.mactionsStorage option[value="none"]').prop("selected", true);
@@ -287,40 +287,40 @@ $(document).on('click', '.btn-task-info', function () {
   });
 })
 
-$(document).on('click', '.btn-check-qemu-img-info', function () {
-  element = $(this);
-  var id = element.data("id");
-  element.html('<i class="fa fa-spinner fa-pulse"></i>')
-  $.ajax({
-    type: 'PUT',
-    url: '/api/v3/storage/' + id + '/check_backing_chain',
-    contentType: 'application/json',
-    success: function (result) {
-      element.html('<i class="fa fa-refresh"></i>')
-      new PNotify({
-        title: 'Updated',
-        text: 'Storage backing chain succesfully',
-        hide: true,
-        delay: 2000,
-        icon: '',
-        opacity: 1,
-        type: 'success'
-      })
-    },
-    error: function (xhr, ajaxOptions, thrownError) {
-      element.html('<i class="fa fa-refresh" style="color:red" title="Error checking backing chain!"></i>')
-      new PNotify({
-        title: 'Error',
-        text: xhr.responseJSON.description,
-        hide: true,
-        delay: 3000,
-        icon: 'fa fa-warning',
-        opacity: 1,
-        type: 'error'
-      });
-    }
-  });
-});
+// $(document).on('click', '.btn-check-qemu-img-info', function () {
+//   element = $(this);
+//   var id = element.data("id");
+//   element.html('<i class="fa fa-spinner fa-pulse"></i>')
+//   $.ajax({
+//     type: 'PUT',
+//     url: '/api/v3/storage/' + id + '/check_backing_chain',
+//     contentType: 'application/json',
+//     success: function (result) {
+//       element.html('<i class="fa fa-refresh"></i>')
+//       new PNotify({
+//         title: 'Updated',
+//         text: 'Storage backing chain succesfully',
+//         hide: true,
+//         delay: 2000,
+//         icon: '',
+//         opacity: 1,
+//         type: 'success'
+//       })
+//     },
+//     error: function (xhr, ajaxOptions, thrownError) {
+//       element.html('<i class="fa fa-refresh" style="color:red" title="Error checking backing chain!"></i>')
+//       new PNotify({
+//         title: 'Error',
+//         text: xhr.responseJSON.description,
+//         hide: true,
+//         delay: 3000,
+//         icon: 'fa fa-warning',
+//         opacity: 1,
+//         type: 'error'
+//       });
+//     }
+//   });
+// });
 
 $(document).on('click', '.btn-delete-scheduler', function () {
   element = $(this);
@@ -1162,9 +1162,10 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         width: '65px',
         visible: $('meta[id=user_data]').attr('data-role') === 'admin',
         render: function (data, type, row, meta) {
-          return `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>\
-                  <button type="button" data-id="${row.id}" class="btn btn-pill-right btn-info btn-xs btn-find" title="Find in storage"><i class="fa fa-exchange"></i></button>\
+          return `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-info btn-xs btn-find" title="Find in storage"><i class="fa fa-search  "></i></button>\
                   ${data.status == "ready" ? `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>` : ""}`;
+          // <button type="button" data-id="${row.id}" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>\
+
         }
       }
     ],
