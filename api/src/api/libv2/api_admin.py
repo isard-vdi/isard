@@ -134,12 +134,12 @@ def admin_table_list(
                     }
                 )["group_name"]
                 .default(False),
-                "username": r.table("users")
-                .get(deploy["user"])["username"]
+                "user_name": r.table("users")
+                .get(deploy["user"])["name"]
                 .default(False),
-                "co_owners_usernames": r.expr(deploy["co_owners"]).map(
+                "co_owners_user_names": r.expr(deploy["co_owners"]).map(
                     lambda co_owner: r.table("users")
-                    .get(co_owner)["username"]
+                    .get(co_owner)["name"]
                     .default(False)
                 ),
                 "how_many_desktops": r.table("domains")
@@ -533,7 +533,11 @@ class ApiAdmin:
         )
         query = query.merge(
             lambda doc: {
-                "right": r.table("users").get(doc["right"]["user"]).pluck("role")
+                "right": r.table("users")
+                .get(doc["right"]["user"])
+                .pluck("role", "name")
+                .merge(lambda user: {"user_name": user["name"], "role": user["role"]})
+                .without("name")
             }
         )
         if categories:
@@ -555,7 +559,7 @@ class ApiAdmin:
                     "hyp_started",
                     "name",
                     "status",
-                    "username",
+                    "user_name",
                     "accessed",
                     "forced_hyp",
                     "favourite_hyp",
@@ -636,86 +640,67 @@ class ApiAdmin:
                 traceback.format_exc(),
             )
 
-    def ListTemplates(self, user_id):
-        with app.app_context():
-            if r.table("users").get(user_id).run(db.conn) == None:
-                raise Error(
-                    "not_found",
-                    "Not found user_id " + user_id,
-                    traceback.format_exc(),
-                )
+    def ListTemplates(self):
+        query = r.table("categories").eq_join(
+            "id", r.table("groups"), index="parent_category"
+        )
+        query = query.map(
+            lambda doc: {
+                "group_id": doc["right"]["id"],
+                "group_name": doc["right"]["name"],
+                "category_id": doc["left"]["id"],
+                "category_name": doc["left"]["name"],
+            }
+        )
+        query = query.eq_join("group_id", r.table("domains"), index="group").filter(
+            {"right": {"kind": "template"}}
+        )
+        query = query.merge(
+            lambda doc: {
+                "right": r.table("users")
+                .get(doc["right"]["user"])
+                .pluck("name")
+                .merge(lambda user: {"user_name": user["name"]})
+            }
+        )
 
-        try:
-            with app.app_context():
-                domains = list(
-                    r.table("domains")
-                    .get_all("template", index="kind")
-                    .pluck(
-                        "id",
-                        "icon",
-                        "image",
-                        "hyp_started",
-                        "name",
-                        "kind",
-                        "description",
-                        "username",
-                        "category",
-                        "group",
-                        "enabled",
-                        "derivates",
-                        "accessed",
-                        "detail",
-                        {
-                            "create_dict": {
-                                "hardware": {
-                                    "video": True,
-                                    "vcpus": True,
-                                    "memory": True,
-                                    "interfaces": True,
-                                    "graphics": True,
-                                    "videos": True,
-                                    "boot_order": True,
-                                    "forced_hyp": True,
-                                    "favourite_hyp": True,
-                                    "disk_bus": True,
-                                    "virtualization_nested": True,
-                                },
-                                "origin": True,
-                                "reservables": True,
-                            }
-                        },
-                        "forced_hyp",
-                        "favourite_hyp",
-                        "status",
-                    )
-                    .merge(
-                        lambda domain: {
-                            "derivates": r.db("isard")
-                            .table("domains")
-                            .get_all(domain["id"], index="parents")
-                            .distinct()
-                            .count(),
-                            "category_name": r.table("categories").get(
-                                domain["category"]
-                            )["name"],
-                            "group_name": r.table("groups").get(domain["group"])[
-                                "name"
-                            ],
-                            "interfaces": domain["create_dict"]["hardware"][
-                                "interfaces"
-                            ].map(lambda interface: interface["id"]),
+        query = query.pluck(
+            {
+                "right": [
+                    "id",
+                    "icon",
+                    "image",
+                    "name",
+                    "kind",
+                    "description",
+                    "user_name",
+                    "enabled",
+                    "accessed",
+                    "detail",
+                    {
+                        "create_dict": {
+                            "origin": True,
+                            "reservables": True,
                         }
-                    )
-                    .order_by("name")
-                    .run(db.conn)
-                )
-            return domains
-        except Exception:
-            raise Error(
-                "internal_server",
-                "Internal server error " + user_id,
-                traceback.format_exc(),
-            )
+                    },
+                    "forced_hyp",
+                    "favourite_hyp",
+                ],
+                "left": ["group_name", "category_name"],
+            }
+        ).zip()
+
+        query = query.merge(
+            lambda domain: {
+                "derivates": r.table("domains")
+                .get_all(domain["id"], index="parents")
+                .distinct()
+                .count(),
+            }
+        )
+
+        with app.app_context():
+            return list(query.run(db.conn))
 
     def domains_status_minimal(self, status):
         with app.app_context():

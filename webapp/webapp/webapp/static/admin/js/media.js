@@ -469,11 +469,11 @@ function createDatatable(tableId, status, initCompleteFn = null) {
             },
             {
                 title: 'Owner',
-                data: 'username',
+                data: 'user_name',
                 width: '10px',
                 render: function ( data, type, full, meta ) {
                     if(!('username' in full)){return full.user;}
-                    return full.username;
+                    return full.user_name;
                 }
             },
             {
