@@ -293,7 +293,6 @@ def new(
             "tag_visible": visible,
             "template": template_id,
             "image": new_data.get("image"),
-            "user_permissions": user_permissions,
         },
         "id": deployment_id,
         "name": name,
@@ -535,7 +534,7 @@ def edit_deployment(payload, deployment_id, data):
         )
     if data["reservables"].get("vgpus") == ["None"]:
         data["reservables"]["vgpus"] = None
-    data["user_permissions"] = data.get("user_permissions", [])
+    user_permissions = data.pop("user_permissions")
     with app.app_context():
         r.table("deployments").get(deployment_id).update(
             {
@@ -544,7 +543,7 @@ def edit_deployment(payload, deployment_id, data):
                     "guest_properties": r.literal(data["guest_properties"]),
                 },
                 "name": data["tag_name"],
-                "user_permissions": data["user_permissions"],
+                "user_permissions": user_permissions,
             }
         ).run(db.conn)
     invalidate_cache("deployments", deployment_id)
@@ -998,11 +997,11 @@ def change_owner_deployment(payload, deployment_id, owner_id):
 
 
 def get_deployment_permissions(deployment_id):
-    deployment = get_document("deployments", deployment_id, "user_permissions")
-    if deployment is None:
+    users_permissions = get_document("deployments", deployment_id, ["user_permissions"])
+    if users_permissions is None:
         raise Error(
             "not_found",
             "Could not find deployment",
             description_code="not_found",
         )
-    return deployment.get("user_permissions", [])
+    return users_permissions
