@@ -922,28 +922,87 @@ class RecycleBin(object):
                     "bad_request",
                     "Cannot restore user " + self.owner_name + " by itself",
                 )
-        for desktop in self.desktops:
-            if not desktop.get("tag"):
-                quotas.desktop_create(desktop["user"])
 
-        for template in self.templates:
-            quotas.template_create(template["user"])
-
-        for deployment in self.deployments:
-            users = [
-                {
-                    "id": desktop["user"],
-                    "username": desktop["username"],
-                    "category": desktop["category"],
-                    "group": desktop["group"],
-                }
-                for desktop in [
-                    desktop
-                    for desktop in self.desktops
-                    if desktop.get("tag") == deployment["id"]
-                ]
+        ## Check if any item has as owner a deleted user
+        users_to_check = set(
+            [(desktop["user"], desktop["username"]) for desktop in self.desktops]
+            + [(template["user"], template["username"]) for template in self.templates]
+            + [
+                (deployment["user"], deployment["username"])
+                for deployment in self.deployments
             ]
-            quotas.deployment_create(users, deployment["user"])
+        )
+        users_in_entry = set([user["id"] for user in self.users])
+        for user, username in users_to_check:
+            if user not in users_in_entry:
+                try:
+                    itemExists("users", user)
+                except Error as e:
+                    if e.status_code == 404:
+                        raise Error(
+                            "not_found",
+                            f'Can\'t restore. User "{str(username)}" has been deleted and owns items in this entry.',
+                            description_code="unable_to_restore_user",
+                            params={"user": username},
+                        )
+
+        ## Check if any item has associated deleted cateogry
+        categories_to_check = set(
+            [user["category"] for user in self.users]
+            + [group["parent_category"] for group in self.groups]
+        )
+        categories_in_entry = set([category["id"] for category in self.categories])
+        for category in categories_to_check:
+            if category not in categories_in_entry:
+                try:
+                    itemExists("categories", category)
+                except Error as e:
+                    if e.status_code == 404:
+                        raise Error(
+                            "not_found",
+                            f'Can\'t restore. Category "{str(category)}" has been deleted is associated to items in this entry.',
+                            description_code="unable_to_restore_category",
+                        )
+
+        ## Check if any item has associated deleted group
+        groups_to_check = set([user["group"] for user in self.users])
+        groups_in_entry = set([group["id"] for group in self.groups])
+        for group in groups_to_check:
+            if group not in groups_in_entry:
+                try:
+                    itemExists("groups", group)
+                except Error as e:
+                    if e.status_code == 404:
+                        raise Error(
+                            "not_found",
+                            f'Can\'t restore. Group "{str(group)}" has been deleted and is associated to items in this entry.',
+                            description_code="unable_to_restore_group",
+                        )
+
+        if self.item_type not in ["user", "group", "category"]:
+            ## Check quotas
+            for desktop in self.desktops:
+                if not desktop.get("tag"):
+                    quotas.desktop_create(desktop["user"])
+
+            for template in self.templates:
+                quotas.template_create(template["user"])
+
+            for deployment in self.deployments:
+                users = [
+                    {
+                        "id": desktop["user"],
+                        "username": desktop["username"],
+                        "category": desktop["category"],
+                        "group": desktop["group"],
+                    }
+                    for desktop in [
+                        desktop
+                        for desktop in self.desktops
+                        if desktop.get("tag") == deployment["id"]
+                    ]
+                ]
+                quotas.deployment_create(users, deployment["user"])
 
     def send_socket_user(self, kind, data):
         socketio.emit(
@@ -979,11 +1038,10 @@ class RecycleBin(object):
                     f"Can't restore entry. User "
                     + str(self.owner_name)
                     + " has been deleted.",
-                    description_code="user_not_found",
+                    description_code="unable_to_restore_user",
+                    params={"user": str(self.owner_name)},
                 )
-
-        if self.item_type not in ["deployment", "user", "group", "category"]:
-            self.check_can_restore()
+        self.check_can_restore()
 
         if len(self.templates):
             for template in self.templates:
