@@ -1,6 +1,6 @@
 export class ProfileUtils {
   static parseProfile (item) {
-    const { category_name: category, email, group_name: group, name, provider, quota, used, restriction_applied: restrictionApplied, role_name: role, username, photo, secondary_groups: secondaryGroups, total_disk_size: totalDiskSize, user_storage: userStorage, email_verified: emailVerified } = item
+    const { category_name: category, email, group_name: group, name, provider, quota, used, restriction_applied: restrictionApplied, role_name: role, username, photo, secondary_groups_names: secondaryGroups, total_disk_size: totalDiskSize, user_storage: userStorage, email_verified: emailVerified } = item
     return {
       category,
       email,

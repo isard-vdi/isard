@@ -225,6 +225,18 @@
                                   </h6>
                                 </b-col>
                               </b-row>
+                              <b-row>
+                                <b-col>
+                                  <h6 class="font-weight-bold mt-4">
+                                    {{ $t('components.profile.info.secondary_groups') }}
+                                  </h6>
+                                </b-col>
+                                <b-col>
+                                  <h6 class="mt-4">
+                                    {{ profile.secondaryGroups }}
+                                  </h6>
+                                </b-col>
+                              </b-row>
                             </b-col>
                           </b-row>
                         </b-col>

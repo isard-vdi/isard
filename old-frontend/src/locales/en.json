@@ -526,7 +526,8 @@
                 "role": "Role",
                 "category": "Category",
                 "group": "Group",
-                "user-storage": "User storage"
+                "user-storage": "User storage",
+                "secondary_groups": "Secondary groups"
             },
             "language": "Language",
             "quota": {

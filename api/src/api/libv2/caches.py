@@ -111,6 +111,10 @@ def get_cached_user_with_names(user_id):
             "category_name": get_document("categories", user["category"], ["name"]),
             "group_name": get_document("groups", user["group"], ["name"]),
             "user_name": user["name"],
+            "secondary_groups_names": [
+                get_document("groups", group_id, ["name"])
+                for group_id in user["secondary_groups"]
+            ],
         },
     )
 

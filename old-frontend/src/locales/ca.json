@@ -276,7 +276,8 @@
         "role": "Rol",
         "category": "Categoria",
         "group": "Grup",
-        "user-storage": "Emmagatzematge d'usuari"
+        "user-storage": "Emmagatzematge d'usuari",
+        "secondary-group": "Grups secundaris"
       },
       "language": "Idioma",
       "quota": {
