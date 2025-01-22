@@ -5,4 +5,4 @@ services:
       - ${BUILD_ROOT_PATH}/pkg/gen/proto/python_old:/opt/isardvdi/isardvdi_protobuf_old
       - ${BUILD_ROOT_PATH}/component/_common/src:/opt/isardvdi/isardvdi_common
       - ${BUILD_ROOT_PATH}/docker/storage/task:/opt/isardvdi/isardvdi_task
-      - ${BUILD_ROOT_PATH}/docker/storage/utils:/usr/local/sbin
+      - ${BUILD_ROOT_PATH}/docker/storage/utils:/utils

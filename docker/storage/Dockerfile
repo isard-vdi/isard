@@ -5,10 +5,10 @@ COPY docker/storage/requirements.txt /requirements.txt
 
 RUN dnf update -y \
     && dnf install -y libguestfs libguestfs-tools-c virt-v2v \
-        libvirt-daemon libvirt-daemon-config-network \
-        python3-pip python3-libvirt python3-libguestfs \
-        git autoconf automake pkg-config gettext-devel libtool python3-devel gcc rsync \
-        virt-install python3-cachetools virt-win-reg
+    libvirt-daemon libvirt-daemon-config-network \
+    python3-pip python3-libvirt python3-libguestfs \
+    git autoconf automake pkg-config gettext-devel libtool python3-devel gcc rsync \
+    virt-install python3-cachetools virt-win-reg
 
 RUN pip3 install --upgrade pip \
     && pip3 install --no-cache-dir -r requirements.txt
@@ -30,9 +30,11 @@ RUN useradd -ms /bin/bash v2v
 #WORKDIR /home/v2v
 
 ENV PYTHONPATH /opt/isardvdi
+ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/utils"
 COPY pkg/gen/proto/python_old /opt/isardvdi/isardvdi_protobuf_old
 COPY component/_common/src /opt/isardvdi/isardvdi_common
 COPY docker/storage/task /opt/isardvdi/isardvdi_task
 COPY docker/storage/init.sh /init.sh
-COPY docker/storage/utils /usr/local/sbin
+RUN mkdir /utils
+COPY docker/storage/utils /utils
 CMD ["/init.sh"]
