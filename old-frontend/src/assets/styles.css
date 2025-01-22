@@ -29,6 +29,33 @@
   margin-top: calc(10px + 2rem);
 }
 
+@media only screen and (max-width: 1600px) {
+  .header-wrapper.notification ~ #content {
+    margin-top: calc(30px + 2rem);
+  }
+}
+
+@media only screen and (max-width: 1210px) {
+  .header-wrapper.notification ~ #content {
+    margin-top: calc(50px + 2rem);
+  }
+}
+
+@media only screen and (max-width: 1115px) {
+  .header-wrapper.notification ~ #content {
+    margin-top: calc(70px + 2rem);
+  }
+}
+
+@media only screen and (max-width: 820px) {
+  .header-wrapper.notification ~ #content {
+    margin-top: 0px;
+  }
+  #notification {
+    display: none;
+  }
+}
+
 /* FLEX GRID */
 .flex-grow {
   flex-grow: 1;
@@ -644,6 +671,24 @@
 
 .header-wrapper.notification ~ .main-container {
   margin-top: calc(10rem) !important;
+}
+
+@media only screen and (max-width: 1600px) {
+  .header-wrapper.notification ~ .main-container {
+    margin-top: 12rem !important;
+  }
+}
+
+@media only screen and (max-width: 1200px) {
+  .header-wrapper.notification ~ .main-container {
+    margin-top: 15rem !important;
+  }
+}
+
+@media only screen and (max-width: 820px) {
+  .header-wrapper.notification ~ .main-container {
+    margin-top: 7rem !important;
+  }
 }
 
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
