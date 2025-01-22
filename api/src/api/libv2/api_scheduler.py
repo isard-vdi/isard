@@ -16,7 +16,9 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .api_nonpersistentdesktop_events import desktop_non_persistent_delete
 from .api_notify import notify_desktop, notify_user
+from .caches import get_config
 from .flask_rethink import RDB
 from .quotas import Quotas
 
@@ -400,3 +402,32 @@ class Scheduler:
             self.api_rest.delete("/delete_jobs", {"jobs_ids": ids})
         except:
             log.error("could not contact scheduler service at /delete_jobs")
+
+    def add_nonpersistent_desktop_delete_timeout(self, desktop_id):
+        nonpersistent_desktops_inactivity_limit = get_config()[
+            "nonpersistent_desktops_inactivity_limit"
+        ]
+        if nonpersistent_desktops_inactivity_limit is None:
+            return
+        elif nonpersistent_desktops_inactivity_limit == 0:
+            desktop_non_persistent_delete(desktop_id)
+            return
+        else:
+            try:
+                self.api_rest.post(
+                    "/advanced/date/desktop/nonpersistent_delete_timeout",
+                    {
+                        "id": desktop_id + ".nonpersistent_delete",
+                        "date": (
+                            datetime.now()
+                            + timedelta(minutes=nonpersistent_desktops_inactivity_limit)
+                        )
+                        .astimezone(pytz.UTC)
+                        .strftime("%Y-%m-%dT%H:%M%z"),
+                        "kwargs": {"desktop_id": desktop_id},
+                    },
+                )
+            except:
+                log.error(
+                    "could not contact scheduler service at /advanced/date/nonpersistent/delete"
+                )
