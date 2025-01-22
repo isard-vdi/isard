@@ -424,17 +424,11 @@ def storage_update_pool(storage_id):
         if dependency.task != "find":
             continue
 
+        # Empty storages_with_uuid array before updating it
+        storage.storages_with_uuid = list()
+
         dependency_results = dependency.result.get("matching_files", [])
         if not dependency_results:
-            Storage(
-                **{
-                    "id": storage_id,
-                    "status": "deleted",
-                    "invalid_storages": [],
-                    "duplicated_storages": [],
-                    "move_deleted_storages": [],
-                }
-            )
             return
 
         invalid_storages = []
@@ -474,7 +468,8 @@ def storage_update_pool(storage_id):
         duplicated_storages.sort(key=lambda x: x["mtime"], reverse=True)
 
         if (
-            len(duplicated_storages)
+            matching_storage
+            and len(duplicated_storages)
             and matching_storage["path"] == duplicated_storages[0]["path"]
         ):
             # The actual storage is the most recent one
@@ -485,11 +480,6 @@ def storage_update_pool(storage_id):
                     "id": storage_id,
                     "status": matching_storage["storage_data"]["status"],
                     "qemu-img-info": matching_storage["storage_data"]["qemu-img-info"],
-                    "mtime": (
-                        r.epoch_time(matching_storage["mtime"])
-                        if matching_storage and matching_storage.get("mtime")
-                        else r.epoch_time(0)
-                    ),
                     "storages_with_uuid": [
                         {"status": "duplicated", "path": s["path"]}
                         for s in duplicated_storages
@@ -515,20 +505,13 @@ def storage_update_pool(storage_id):
             return
 
         if len(duplicated_storages):
-            storage.set_storage_pool(duplicated_storages[0]["storage_pool"])
-            duplicated_storages.pop(0)
+            first_storage = duplicated_storages.pop(0)
+            storage.set_storage_pool(first_storage["storage_pool"])
             storage_update(
                 **{
                     "id": storage_id,
-                    "status": duplicated_storages[0]["storage_data"]["status"],
-                    "qemu-img-info": duplicated_storages[0]["storage_data"][
-                        "qemu-img-info"
-                    ],
-                    "mtime": (
-                        r.epoch_time(matching_storage["mtime"])
-                        if matching_storage and matching_storage.get("mtime")
-                        else r.epoch_time(0)
-                    ),
+                    "status": first_storage["storage_data"]["status"],
+                    "qemu-img-info": first_storage["storage_data"]["qemu-img-info"],
                     "storages_with_uuid": [
                         {"status": "duplicated", "path": s["path"]}
                         for s in duplicated_storages
@@ -557,11 +540,6 @@ def storage_update_pool(storage_id):
             **{
                 "id": storage_id,
                 "status": "deleted",
-                "mtime": (
-                    r.epoch_time(matching_storage["mtime"])
-                    if matching_storage and matching_storage.get("mtime")
-                    else r.epoch_time(0)
-                ),
                 "storages_with_uuid": [
                     {"status": "duplicated", "path": s["path"]}
                     for s in duplicated_storages
