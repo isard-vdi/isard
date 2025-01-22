@@ -526,7 +526,8 @@
         "role": "Rol",
         "category": "Categoría",
         "group": "Grupo",
-        "user-storage": "Almacenamiento de usuario"
+        "user-storage": "Almacenamiento de usuario",
+        "secondary-groups": "Grupos secundarios"
       },
       "language": "Idioma",
       "quota": {
