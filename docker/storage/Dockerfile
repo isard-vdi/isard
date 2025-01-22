@@ -5,10 +5,10 @@ COPY docker/storage/requirements.txt /requirements.txt
 
 RUN dnf update -y \
     && dnf install -y libguestfs libguestfs-tools-c virt-v2v \
-        libvirt-daemon libvirt-daemon-config-network \
-        python3-pip python3-libvirt python3-libguestfs \
-        git autoconf automake pkg-config gettext-devel libtool python3-devel gcc rsync \
-        virt-install python3-cachetools virt-win-reg
+    libvirt-daemon libvirt-daemon-config-network \
+    python3-pip python3-libvirt python3-libguestfs \
+    git autoconf automake pkg-config gettext-devel libtool python3-devel gcc rsync \
+    virt-install python3-cachetools virt-win-reg
 
 RUN pip3 install --upgrade pip \
     && pip3 install --no-cache-dir -r requirements.txt
