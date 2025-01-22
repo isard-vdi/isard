@@ -30,6 +30,8 @@ function socketio_on(){
         $('#modalAddUser').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddUserForm')[0].reset();
 
+        current_category = $('#modalAddUserForm #category').val();
+
         $('#modalAddUserForm #secondary_groups').select2({
             minimumInputLength: 2,
             multiple: true,
@@ -1157,6 +1159,7 @@ function actionsUserDetail(){
                 var newOption = new Option(group.name, group.id, true, true);
                 $("#modalEditUserForm #secondary_groups").append(newOption).trigger('change');
             })
+            current_category = $('#modalEditUserForm #category').val();
         });
 
 	});
