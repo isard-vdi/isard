@@ -1010,7 +1010,15 @@ function format(rowData) {
     '<table id="cl' +
     rowData.id.replaceAll("/", "_") +
     '" class="display compact nowrap w-100" width="100%">' +
-    "</table>";
+    "</table>" +
+    `<div id="ContainerStoragesWithUUID${rowData.id.replaceAll("/", "_")}">
+      <span id="TitleStoragesWithUUID${rowData.id.replaceAll("/", "_")}">
+        <b>Other storage files with the same UUID</b> (${rowData.id}):
+      </span>
+      <table id="StoragesWithUUID${rowData.id.replaceAll("/", "_")}" 
+        class="display compact nowrap w-100" width="100%">
+      </table>
+    </div>`;
   return $(childTable).toArray();
 }
 
@@ -1226,6 +1234,34 @@ function showRowDetails(table, tr, row) {
       ],
       order: [],
       select: false,
+    });
+
+    StoragesWithUUIDTable = $('#StoragesWithUUID' + row.data().id).DataTable({
+      dom: "t",
+      ajax: {
+        url: "/api/v3/storage/" + row.data().id + "/storages_with_uuid",
+        contentType: "application/json",
+        type: "GET",
+      },
+      sAjaxDataProp: "",
+      language: {
+        loadingRecords:
+          '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+      },
+      columns: [
+        { data: null, title: "#", render: function (data, type, full, meta) { return meta.row + 1; } },
+        { data: "path", title: "Storage path" },
+        { data: "status", title: "File status" },
+      ],
+      columnDefs: [
+      ],
+      order: [],
+      select: false,
+      fnInitComplete : function() {
+        if ($(this).find('tbody tr').length<=1) {
+          $(`#ContainerStoragesWithUUID${row.data().id.replaceAll("/", "_")}`).hide();
+        }
+      }
     });
     tr.addClass('shown')
   }

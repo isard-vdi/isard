@@ -1469,3 +1469,10 @@ def storages_find_by_status(payload, status):
             )
 
     return jsonify({})
+
+
+@app.route("/api/v3/storage/<path:storage_id>/storages_with_uuid", methods=["GET"])
+@is_admin_or_manager
+def storage_storages_with_uuid(payload, storage_id):
+    storage = get_storage(payload, storage_id)
+    return jsonify(storage.storages_with_uuid)
