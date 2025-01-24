@@ -36,6 +36,7 @@ from ..libv2.api_user_storage import (
 )
 from ..libv2.quotas import Quotas
 from .bookings.api_booking import Bookings
+from .caches import get_config
 from .flask_rethink import RDB
 from .helpers import (
     desktops_stop,
@@ -298,50 +299,75 @@ def get(recycle_bin_id=None, all_data=None):
 
 
 @cached(cache=TTLCache(maxsize=50, ttl=10))
-def get_recycle_bin_by_period(max_delete_period, category=None):
-    if category:
-        if max_delete_period == 0:
-            with app.app_context():
-                recycle_bin_list = list(
-                    r.table("recycle_bin")
-                    .get_all("recycled", index="status")
-                    .filter({"owner_category_id": category})["id"]
-                    .run(db.conn)
+def get_recycle_bin_entries_cutoff_time_surpassed():
+    """
+    Retrieve all recycle bin entries that have surpassed the cutoff time. It will consider the global
+    cutoff time or the category cutoff time.
+
+    :return: Recycle bin entries that have surpassed the cutoff time
+    :rtype: list
+    """
+    recycle_bin_entries = []
+    recycle_bin_cuttoff_time = get_recycle_bin_cuttoff_time()
+    recycle_bin_categories_cuttoff_time = get_categories_recycle_bin_cutoff_time()
+
+    if not recycle_bin_categories_cuttoff_time:
+        with app.app_context():
+            recycle_bin_entries = list(
+                r.table("recycle_bin")
+                .get_all("recycled", index="status")
+                .filter(
+                    r.row["accessed"]
+                    < (
+                        datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
+                    ).timestamp()
                 )
-        else:
-            max_delete_period = timedelta(hours=max_delete_period)
-            with app.app_context():
-                recycle_bin_list = list(
-                    r.table("recycle_bin")
-                    .get_all("recycled", index="status")
-                    .filter(
-                        r.row["accessed"]
-                        < (datetime.now() - max_delete_period).timestamp()
-                    )
-                    .filter({"owner_category_id": category})["id"]
-                    .run(db.conn)
-                )
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
     else:
-        if max_delete_period == 0:
+        for category in recycle_bin_categories_cuttoff_time:
             with app.app_context():
-                recycle_bin_list = list(
+                recycle_bin_entries += list(
                     r.table("recycle_bin")
-                    .get_all("recycled", index="status")["id"]
-                    .run(db.conn)
-                )
-        else:
-            max_delete_period = timedelta(hours=max_delete_period)
-            with app.app_context():
-                recycle_bin_list = list(
-                    r.table("recycle_bin")
-                    .get_all("recycled", index="status")
+                    .get_all(
+                        [category["id"], "recycled"], index="owner_category_status"
+                    )
                     .filter(
                         r.row["accessed"]
-                        < (datetime.now() - max_delete_period).timestamp()
-                    )["id"]
+                        < (
+                            datetime.now()
+                            - timedelta(hours=category["recycle_bin_cutoff_time"])
+                        ).timestamp()
+                    )
+                    .pluck("id")["id"]
                     .run(db.conn)
                 )
-    return recycle_bin_list
+
+        categories_to_exclude_ids = [
+            category["id"] for category in recycle_bin_categories_cuttoff_time
+        ]
+
+        with app.app_context():
+            recycle_bin_entries += list(
+                r.table("recycle_bin")
+                .get_all("recycled", index="status")
+                .filter(
+                    lambda rb: r.expr(categories_to_exclude_ids)
+                    .contains(rb["owner_category_id"])
+                    .not_()
+                )
+                .filter(
+                    r.row["accessed"]
+                    < (
+                        datetime.now() - timedelta(hours=recycle_bin_cuttoff_time)
+                    ).timestamp()
+                )
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
+
+    return set(recycle_bin_entries)
 
 
 def update_status(rb_id, owner_id, status):
@@ -569,45 +595,6 @@ def get_user_amount(user_id):
         )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=10))
-def get_recicle_delete_time(owner_category_id=None):
-    if owner_category_id is None:
-        try:
-            with app.app_context():
-                return (
-                    r.table("scheduler_jobs")
-                    .get("admin.recycle_bin_delete_admin")["kwargs"][
-                        "max_delete_period"
-                    ]
-                    .run(db.conn)
-                )
-        except:
-            return "null"
-    else:
-        with app.app_context():
-            try:
-                results = (
-                    r.table("scheduler_jobs")
-                    .get(owner_category_id + ".recycle_bin_delete")["kwargs"][
-                        "max_delete_period"
-                    ]
-                    .run(db.conn)
-                )
-            except:
-                try:
-                    with app.app_context():
-                        results = (
-                            r.table("scheduler_jobs")
-                            .get("admin.recycle_bin_delete_admin")["kwargs"][
-                                "max_delete_period"
-                            ]
-                            .run(db.conn)
-                        )
-                except:
-                    results = "null"
-        return results
-
-
 @cached(cache=TTLCache(maxsize=1, ttl=30))
 def get_old_entries_config():
     with app.app_context():
@@ -642,6 +629,143 @@ def get_delete_action():
             return r.table("config")[0]["recycle_bin"]["delete_action"].run(db.conn)
         except r.ReqlNonExistenceError:
             return "delete"
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=10))
+def get_user_recycle_bin_cutoff_time(user_id):
+    """
+    Retrieve the user recycle bin cutoff time.
+
+    :param user_id: User ID
+    :type user_id: str
+    :return: User recycle bin cutoff time (in hours)
+    :rtype: int
+    """
+    if user_id == "isard-scheduler":
+        return get_system_recycle_bin_cutoff_time()
+    with app.app_context():
+        user_category = (
+            r.table("users").get(user_id).pluck("category")["category"].run(db.conn)
+        )
+        return (
+            r.table("categories")
+            .get(user_category)
+            .pluck("recycle_bin_cutoff_time")["recycle_bin_cutoff_time"]
+            .run(db.conn)
+        )
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=10))
+def get_categories_recycle_bin_cutoff_time():
+    """
+    Retrieve all the categories cutoff time.
+
+    :return: Categories ids with its cutoff time (in hours)
+    :rtype: list
+    """
+    with app.app_context():
+        return list(
+            r.table("categories")
+            .pluck("id", "recycle_bin_cutoff_time")
+            .filter(lambda category: category["recycle_bin_cutoff_time"].ne(None))
+            .run(db.conn)
+        )
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=10))
+def get_category_recycle_bin_cuttoff_time(category_id):
+    """
+    Get the recycle bin cutoff time applied to a category.
+
+    :param category_id: Category ID
+    :type category_id: str
+    :return: Recycle bin cutoff time (in hours)
+    :rtype: int
+    """
+    with app.app_context():
+        recycle_bin_cutoff_time = (
+            r.table("categories")
+            .get(category_id)
+            .pluck("recycle_bin_cutoff_time")["recycle_bin_cutoff_time"]
+            .run(db.conn)
+        )
+    return (
+        recycle_bin_cutoff_time
+        if recycle_bin_cutoff_time is not None
+        else get_system_recycle_bin_cutoff_time()
+    )
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=10))
+def get_recycle_bin_cuttoff_time(category_id=None):
+    """
+    Get the recycle bin cutoff time for a category or the global cutoff time.
+
+    :param category_id: Category ID
+    :type category_id: str
+    :return: Recycle bin cutoff time (in hours)
+    :rtype: int
+    """
+    if category_id:
+        with app.app_context():
+            recycle_bin_cutoff_time = (
+                r.table("categories")
+                .get(category_id)
+                .pluck("recycle_bin_cutoff_time")["recycle_bin_cutoff_time"]
+                .run(db.conn)
+            )
+        return {
+            "category": (
+                recycle_bin_cutoff_time
+                if recycle_bin_cutoff_time is not None
+                else get_system_recycle_bin_cutoff_time()
+            ),
+            "system": get_system_recycle_bin_cutoff_time(),
+        }
+    return get_system_recycle_bin_cutoff_time()
+
+
+def get_system_recycle_bin_cutoff_time():
+    """
+    Get the global recycle bin cutoff time
+
+    :return: Recycle bin cutoff time (in hours)
+    :rtype: int
+    """
+    config = get_config()
+    return config["recycle_bin"]["recycle_bin_cutoff_time"]
+
+
+def set_system_recycle_bin_cutoff_time(cutoff_time, category_id=None):
+    """
+
+    Set the global recycle bin cutoff time or the category recycle bin cutoff time.
+
+    :param cutoff_time: Recycle bin cutoff time (in hours)
+    :type cutoff_time: int
+    :param category_id: Category ID
+    :type category_id: str
+
+    """
+    if category_id:
+        with app.app_context():
+            r.table("categories").get(category_id).update(
+                {"recycle_bin_cutoff_time": cutoff_time}
+            ).run(db.conn)
+    else:
+        # Check if any category has a cutoff_time bigger than the one that is being set. If so, set to the system cutoff_time
+        categories_cutoff_time = get_categories_recycle_bin_cutoff_time()
+        if categories_cutoff_time:
+            for category in categories_cutoff_time:
+                if category["recycle_bin_cutoff_time"] > cutoff_time:
+                    with app.app_context():
+                        r.table("categories").get(category["id"]).update(
+                            {"recycle_bin_cutoff_time": cutoff_time}
+                        ).run(db.conn)
+        with app.app_context():
+            r.table("config").get(1).update(
+                {"recycle_bin": {"recycle_bin_cutoff_time": cutoff_time}}
+            ).run(db.conn)
 
 
 def send_socket_user(kind, data, owner_id):

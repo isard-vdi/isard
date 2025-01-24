@@ -212,68 +212,6 @@ def delete_action(payload, category):
     )
 
 
-@app.route("/scheduler/recycle_bin/<max_time>/<category_id>", methods=["PUT"])
-@app.route("/scheduler/recycle_bin/<max_time>", methods=["PUT"])
-@is_admin_or_manager
-def add_recyclebin(payload, max_time, category_id=None):
-    kwargs = {"max_delete_period": max_time}
-
-    action = (
-        "recycle_bin_delete"
-        if payload["role_id"] == "manager" or category_id
-        else "recycle_bin_delete_admin"
-    )
-    if payload["role_id"] == "manager" or category_id:
-        if payload["role_id"] == "manager":
-            category_id = payload["category_id"]
-        ownsCategoryId(payload, category_id)
-        kwargs["category"] = category_id
-        itemExists("categories", category_id)
-        admin_max_time = app.scheduler.get_max_time()
-        if admin_max_time != "null" and int(max_time) > int(admin_max_time):
-            raise Error(
-                "forbidden",
-                "Category max_time can not be greater than " + admin_max_time,
-            )
-        try:
-            app.scheduler.remove_job(category_id + ".recycle_bin_delete")
-        except:
-            pass
-        job_id = category_id + ".recycle_bin_delete"
-    else:
-        if payload["role_id"] != "admin":
-            raise Error("forbidden", "Not enough rights")
-        app.scheduler.remove_job_action("recycle_bin_delete")
-        try:
-            app.scheduler.remove_job("admin.recycle_bin_delete_admin")
-        except:
-            pass
-        job_id = "admin.recycle_bin_delete_admin"
-    if max_time != "null":
-        try:
-            job_id = app.scheduler.add_job(
-                "system",
-                "interval",
-                action,
-                "00",
-                "05",
-                id=job_id,
-                kwargs=kwargs,
-            )
-            return (
-                json.dumps(job_id),
-                200,
-                {"Content-Type": "application/json"},
-            )
-        except:
-            raise Error("bad_request", "Unable to add job")
-    return (
-        json.dumps({}),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
 @app.route("/scheduler/recycle_bin/old_entries/<action>", methods=["PUT"])
 @is_admin
 def add_recyclebin_old_entries(payload, action):

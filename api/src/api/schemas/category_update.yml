@@ -58,3 +58,10 @@ uid:
   required: true
   empty: false
   coerce: sanitize
+recycle_bin_cutoff_time:
+  type: integer
+  nullable: true
+  empty: false
+  required: true
+  default: null
+  coerce: sanitize

@@ -1,6 +1,6 @@
 import i18n from '@/i18n'
 import axios from 'axios'
-import { apiV3Segment, schedulerSegment } from '../../shared/constants'
+import { apiV3Segment } from '../../shared/constants'
 import { RecycleBinUtils } from '../../utils/recycleBinUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
 
@@ -139,8 +139,8 @@ export default {
       })
     },
     fetchMaxTime (context, data) {
-      axios.get(`${schedulerSegment}/recycle_bin_delete/max_time`).then(response => {
-        context.commit('setMaxTime', RecycleBinUtils.parseMaxTime(response.data.time))
+      axios.get(`${apiV3Segment}/recycle-bin/user/cutoff-time`).then(response => {
+        context.commit('setMaxTime', RecycleBinUtils.parseMaxTime(response.data.recycle_bin_cuttoff_time))
       }).catch(e => {
       })
     },
