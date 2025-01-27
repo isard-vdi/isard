@@ -117,11 +117,12 @@ $(document).ready(function () {
             return data.enabled ?
               `<!--'<button id="btn-allowed" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>--> \
                   <button id="btn-edit" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
-                  <button id="btn-enable" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-power-off" style="color:darkgreen"></i></button>`
+                  <button id="btn-enable" class="btn btn-xs" type="button" data-placement="top" title="Enable storage pool"><i class="fa fa-power-off" style="color:darkgreen"></i>
+                  <button id="btn-enable-virt" class="btn btn-xs" type="button" data-placement="top" title="Enable virtualization"><i class="fa fa-rocket" style="color:darkgreen"></i></button>`
               :
               `<!--'<button id="btn-allowed" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>--> \
                   <button id="btn-edit" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
-                  <button id="btn-enable" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-power-off" style="color:darkgreen"></i></button> \
+                  <button id="btn-enable" class="btn btn-xs" type="button" data-placement="top" title="Enable storage pool"><i class="fa fa-power-off" style="color:darkgreen"></i> \
                   <button id="btn-delete" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>`
           }
         }
@@ -295,7 +296,7 @@ $(document).ready(function () {
         }
         break;
       case 'btn-enable':
-        let change = data["enabled"] ? "disable" : "enable";
+        var change = data["enabled"] ? "disable" : "enable";
 
         let prompt_msg = (change == "enable") ?
           "From now on, disks from this pool's categories will be created in the new paths defined"
@@ -346,6 +347,58 @@ $(document).ready(function () {
             error: function (xhr, ajaxOptions, thrownError) {
               new PNotify({
                 title: "ERROR updating pool",
+                text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
+                hide: true,
+                delay: 3000,
+                icon: 'fa fa-warning',
+                opacity: 1,
+                type: 'error'
+              });
+            }
+          });
+        }).on('pnotify.cancel', function () { });
+        break;
+      case 'btn-enable-virt':
+        var change = data["enabled_virt"] ? "disable" : "enable";
+        new PNotify({
+          title: "<b>WARNING</b>",
+          type: "error",
+          text: "Are you sure you want to <b>" + change + "</b> pool " + data["name"] + "'s virtualization?",
+          hide: false,
+          opacity: 0.9,
+          confirm: {
+            confirm: true
+          },
+          buttons: {
+            closer: false,
+            sticker: false
+          },
+          history: {
+            history: false
+          },
+          addclass: 'pnotify-center-large',
+          width: '550'
+        }).get().on('pnotify.confirm', function () {
+          $.ajax({
+            type: "PUT",
+            url: "/admin/storage_pool/" + data["id"],
+            data: JSON.stringify({ 'enabled_virt': !data.enabled_virt }),
+            contentType: "application/json",
+            success: function (data) {
+              new PNotify({
+                title: 'Virtualization ' + change + 'd successfully',
+                text: '',
+                hide: true,
+                delay: 7000,
+                icon: 'fa fa-' + data.icon,
+                opacity: 1,
+                type: 'success'
+              });
+              storage_pools_table.ajax.reload();
+            },
+            error: function (xhr, ajaxOptions, thrownError) {
+              new PNotify({
+                title: "ERROR updating virtualization on storage pool",
                 text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
                 hide: true,
                 delay: 3000,
