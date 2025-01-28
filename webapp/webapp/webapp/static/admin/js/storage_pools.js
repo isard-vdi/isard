@@ -346,7 +346,7 @@ $(document).ready(function () {
             error: function (xhr, ajaxOptions, thrownError) {
               new PNotify({
                 title: "ERROR updating pool",
-                text: xhr.responseJSON.description,
+                text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
                 hide: true,
                 delay: 3000,
                 icon: 'fa fa-warning',
@@ -525,42 +525,49 @@ $("#modalAddStoragePool #send").off('click').on('click', function (e) {
     data["paths"] = pathsTableAdd
     data["mountpoint"] = form.find(".path_base_mountpoint").text() + data.mountpoint
 
-    var notice = new PNotify({
-      text: 'Creating pool...',
-      hide: false,
-      opacity: 1,
-      icon: 'fa fa-spinner fa-pulse'
-    })
 
     $.ajax({
-      url: "/admin/storage_pool",
       type: "POST",
-      data: JSON.stringify(data),
+      url: `/api/v3/admin/storage_pool/check_category_availability`,
+      data: JSON.stringify({ "categories": data.categories, "storage_pool_id": data.id }),
       contentType: "application/json",
-      success: function (data) {
-        notice.update({
-          title: 'Created',
-          text: 'Pool created successfully',
-          hide: true,
-          delay: 1000,
-          icon: 'fa fa-' + data.icon,
-          opacity: 1,
-          type: 'success'
-        })
-        $('form').each(function () { this.reset() });
-        $('.modal').modal('hide');
-        storage_pools_table.ajax.reload();
+      success: function (xhr) {
+        if (xhr.available) {
+          createStoragePool(data);
+        } else {
+          new PNotify({
+            title: "Category in use",
+            type: "warning",
+            text: "One of the categories is in use by another pool. Proceeding will remove it from that pool. Do you want to continue?",
+            hide: false,
+            opacity: 0.9,
+            confirm: {
+              confirm: true
+            },
+            buttons: {
+              closer: false,
+              sticker: false
+            },
+            history: {
+              history: false
+            },
+            addclass: 'pnotify-center-large',
+            width: '550'
+          }).get().on('pnotify.confirm', function () {
+            createStoragePool(data);
+          });
+        }
       },
       error: function (xhr) {
-        notice.update({
-          title: 'ERROR creating pool',
-          text: xhr.responseJSON.description,
+        new PNotify({
+          title: 'ERROR checking category availability',
+          text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
           type: 'error',
           hide: true,
           icon: 'fa fa-warning',
           delay: 2000,
           opacity: 1
-        })
+        });
       }
     });
   }
@@ -608,33 +615,76 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
 
     data["paths"] = pathsTableEdit
     data["mountpoint"] = form.find(".path_base_mountpoint").text() + data.mountpoint;
+    data["categories"] = data["categories"] || [];
 
-    if (isDefault) {
-      new PNotify({
-        title: "WARNING. You're about to edit the default pool",
-        type: "warning",
-        text: "Editing the default pool settings may impact system operations. Are you sure you want to update?",
-        hide: false,
-        opacity: 0.9,
-        confirm: {
-          confirm: true
-        },
-        buttons: {
-          closer: false,
-          sticker: false
-        },
-        history: {
-          history: false
-        },
-        addclass: 'pnotify-center-large',
-        width: '550'
-      }).get().on('pnotify.confirm', function () {
-        updateStoragePool(data);
-      });
-    } else {
-      updateStoragePool(data);
-    }
-
+    $.ajax({
+      type: "POST",
+      url: `/api/v3/admin/storage_pool/check_category_availability`,
+      data: JSON.stringify({ "categories": data.categories, "storage_pool_id": data.id }),
+      contentType: "application/json",
+      success: function (xhr) {
+        if (xhr.available) {
+          if (isDefault) {
+            new PNotify({
+              title: "WARNING. You're about to edit the default pool",
+              type: "warning",
+              text: "Editing the default pool settings may impact system operations. Are you sure you want to update?",
+              hide: false,
+              opacity: 0.9,
+              confirm: {
+                confirm: true
+              },
+              buttons: {
+                closer: false,
+                sticker: false
+              },
+              history: {
+                history: false
+              },
+              addclass: 'pnotify-center-large',
+              width: '550'
+            }).get().on('pnotify.confirm', function () {
+              updateStoragePool(data);
+            });
+          } else {
+            updateStoragePool(data);
+          }
+        } else {
+          new PNotify({
+            title: "Category in use",
+            type: "warning",
+            text: "One of the categories is in use by another pool. Proceeding will remove it from that pool. Do you want to continue?",
+            hide: false,
+            opacity: 0.9,
+            confirm: {
+              confirm: true
+            },
+            buttons: {
+              closer: false,
+              sticker: false
+            },
+            history: {
+              history: false
+            },
+            addclass: 'pnotify-center-large',
+            width: '550'
+          }).get().on('pnotify.confirm', function () {
+            updateStoragePool(data);
+          });
+        }
+      },
+      error: function (xhr) {
+        new PNotify({
+          title: 'ERROR checking category availability',
+          text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
+          type: 'error',
+          hide: true,
+          icon: 'fa fa-warning',
+          delay: 2000,
+          opacity: 1
+        });
+      }
+    });
   }
 });
 
@@ -652,7 +702,6 @@ function populateQosDisk(modal, qos_disk_id) {
         $(modal + ' #qos_disk_id').append(
           `<option value="${value.id}">${value.name}</option>`
         );
-        $(modal + " #category").val(qos_disk_id).trigger("change");
       });
     }
   });
@@ -704,7 +753,7 @@ function updateStoragePool(data) {
     error: function (xhr) {
       notice.update({
         title: 'ERROR updating pool',
-        text: xhr.responseJSON.description,
+        text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
         type: 'error',
         hide: true,
         icon: 'fa fa-warning',
@@ -712,6 +761,48 @@ function updateStoragePool(data) {
         opacity: 1
       })
     }
+  });
+}
+
+function createStoragePool(data) {
+  var notice = new PNotify({
+    text: "Creating pool...",
+    hide: false,
+    opacity: 1,
+    icon: "fa fa-spinner fa-pulse",
+  });
+  $.ajax({
+    url: "/admin/storage_pool",
+    type: "POST",
+    data: JSON.stringify(data),
+    contentType: "application/json",
+    success: function (data) {
+      notice.update({
+        title: "Created",
+        text: "Pool created successfully",
+        hide: true,
+        delay: 1000,
+        icon: "fa fa-" + data.icon,
+        opacity: 1,
+        type: "success",
+      });
+      $("form").each(function () {
+        this.reset();
+      });
+      $(".modal").modal("hide");
+      storage_pools_table.ajax.reload();
+    },
+    error: function (xhr) {
+      notice.update({
+        title: "ERROR creating pool",
+        text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
+        type: "error",
+        hide: true,
+        icon: "fa fa-warning",
+        delay: 2000,
+        opacity: 1,
+      });
+    },
   });
 }
 

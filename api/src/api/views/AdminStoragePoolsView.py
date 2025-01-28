@@ -31,6 +31,7 @@ from api import app
 from ..libv2.api_hypervisors import check_create_storage_pool_availability
 from ..libv2.api_storage import (
     add_storage_pool,
+    check_category_storage_pool_availability,
     delete_storage_pool,
     get_storage_pool,
     get_storage_pools,
@@ -131,6 +132,25 @@ def admin_storage_pool_check_availability(payload):
 def admin_storage_pool_default_get(payload):
     return (
         json.dumps(get_storage_pool(DEFAULT_STORAGE_POOL_ID)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/storage_pool/check_category_availability", methods=["POST"])
+@is_admin
+def admin_check_category_storage_pool_availability(payload):
+    data = request.get_json()
+    categories = data.get("categories")
+    if not len(categories):
+        availability = True
+    else:
+        storage_pool_id = data.get("storage_pool_id", None)
+        availability = check_category_storage_pool_availability(
+            categories, storage_pool_id
+        )
+    return (
+        json.dumps({"available": availability}),
         200,
         {"Content-Type": "application/json"},
     )
