@@ -351,20 +351,11 @@ def add_storage_pool(data):
     if data.get("paths"):
         _check_with_validate_weight(data["paths"])
         _check_duplicated_paths(data["paths"])
-    with app.app_context():
-        existing_categories = list(r.table("storage_pool")["categories"].run(db.conn))
-    for categories in existing_categories:
-        if set(categories).intersection(set(data["categories"])):
-            raise Error(
-                "conflict",
-                "Pool with one of the selected categories already exists: "
-                + str(set(categories).intersection(set(data["categories"]))),
-            )
-
     if data.get("enabled") is False:
         data["enabled_virt"] = False
     else:
         data["enabled_virt"] = True
+    remove_common_categories_from_other_pools(data["categories"])
     with app.app_context():
         r.table("storage_pool").insert(data).run(db.conn)
 
@@ -421,24 +412,11 @@ def update_storage_pool(storage_pool_id, data):
                 data.pop(key)
         _check_default_paths(data["paths"])
 
-    if "categories" in data:
-        with app.app_context():
-            existing_pools = list(
-                r.table("storage_pool").pluck("categories", "id").run(db.conn)
-            )
-        for pool in existing_pools:
-            if (
-                set(pool["categories"]).intersection(set(data["categories"]))
-                and pool["id"] != storage_pool_id
-            ):
-                raise Error(
-                    "conflict",
-                    "Pool with one of the selected categories already exists",
-                )
     if data.get("enabled") is False:
         data["enabled_virt"] = False
     else:
         data["enabled_virt"] = True
+    remove_common_categories_from_other_pools(data["categories"])
     with app.app_context():
         r.table("storage_pool").get(storage_pool_id).update(data).run(db.conn)
 
@@ -590,3 +568,50 @@ def process_check_backing_chain(storages_ids, user_id):
                 "status": "failed",
             },
         )
+
+
+def remove_common_categories_from_other_pools(categories):
+    """
+    Remove categories from other storage pools so they can be added to another pool
+
+    :param categories: List of category ids
+    :type categories: list
+    """
+    if len(categories):
+        with app.app_context():
+            existing_pools = list(
+                r.table("storage_pool").pluck("categories", "id").run(db.conn)
+            )
+        for pool in existing_pools:
+            common_categories = set(pool["categories"]).intersection(set(categories))
+            if common_categories:
+                with app.app_context():
+                    r.table("storage_pool").get(pool["id"]).update(
+                        {
+                            "categories": r.row["categories"].difference(
+                                list(common_categories)
+                            )
+                        }
+                    ).run(db.conn)
+
+
+def check_category_storage_pool_availability(categories_ids, storage_pool_id=None):
+    """
+    Check if these categories are in another storage pool
+
+    :param categories_ids: List of category ids
+    :type categories_ids: list
+    :param storage_pool_id: Storage pool id
+    :type storage_pool_id: str
+    :return: True if none of the categories are in another storage pool, otherwise False
+    :rtype: bool
+    """
+    query = r.table("storage_pool").pluck("categories", "id")
+    if storage_pool_id:
+        query = query.filter(r.row["id"] != storage_pool_id)
+    existing_categories = list(query.run(db.conn))
+
+    return not any(
+        any(category_id in pool["categories"] for category_id in categories_ids)
+        for pool in existing_categories
+    )
