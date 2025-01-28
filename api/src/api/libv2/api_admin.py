@@ -661,6 +661,7 @@ class ApiAdmin:
                 .get(doc["right"]["user"])
                 .pluck("name")
                 .merge(lambda user: {"user_name": user["name"]})
+                .without("name")
             }
         )
 
