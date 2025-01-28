@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 157
+release_version = 158
+# release 158: Add unused_desktops notification template
 # release 157: Add unused_desktops_cutoff_time field to config table
 # release 156: Remove user_permissions field from deployments create_dict
 # release 155: Add empty dict values to provider settings
@@ -5693,6 +5694,46 @@ password:s:%s"""
                             "desktops": "<ul class='list-group'><li class='list-group-item'>Windows 11</li><li class='list-group-item'>Windows 10</li><li class='list-group-item'>Ubuntu 22.04</li></ul>",
                         },
                     }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+        if version == 158:
+            try:
+                r.table(table).insert(
+                    [
+                        {
+                            "default": "en",
+                            "description": "Text that will be associated with each notification sent to the user when a desktop is not used for a long time and is sent to the recycle bin.",
+                            "kind": "unused_desktops",
+                            "lang": {
+                                "ca": {
+                                    "body": "<p>L'escriptori <b>{name}</b>, que va ser utilitzat per últim cop en data <b>{accessed}</b>.</p>",
+                                    "footer": "Si us plau, esborreu els escriptoris que ja no s'utilitzaran.",
+                                    "title": "Escriptoris sense utilitzar han estat eliminats",
+                                },
+                                "en": {
+                                    "body": "<p>Desktop <b>{name}</b>, last time used at <b>{accessed}</b>.</p>",
+                                    "footer": "Please, delete desktops that won't be used anymore.",
+                                    "title": "Unused desktops have been deleted",
+                                },
+                                "es": {
+                                    "body": "<p>El escritorio <b>{name}</b>, que fue utilizado por última vez en fecha <b>{accessed}</b>.</p>",
+                                    "footer": "Por favor, elimine los escritorios que ya no se utilizarán.",
+                                    "title": "Escritorios sin utilizar han sido eliminados",
+                                },
+                            },
+                            "name": "Send unused desktops to recycle bin",
+                            "system": {
+                                "body": "<p>Desktop <b>{name}</b>, last time used at <b>{accessed}</b>.</p>",
+                                "footer": "Please, delete desktops that won't be used anymore.",
+                                "title": "Unused desktops have been deleted",
+                            },
+                            "vars": {
+                                "name": "Testing environment",
+                                "accessed": "12 Mar 2024 13:00",
+                            },
+                        },
+                    ]
                 ).run(self.conn)
             except Exception as e:
                 print(e)
