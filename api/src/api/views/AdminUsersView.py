@@ -41,6 +41,7 @@ from ..libv2.api_admin import (
 )
 from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_sessions import revoke_user_session
+from ..libv2.api_storage import add_category_to_storage_pool, get_storage_pool
 from ..libv2.api_users import (
     ApiUsers,
     Password,
@@ -693,6 +694,9 @@ def api_v3_admin_category_insert(payload):
     checkDuplicate("categories", category["name"])
     checkDuplicateUID(category["uid"])
     checkDuplicateCustomURL(category["custom_url_name"])
+    if data.get("storage_pool"):
+        storage_pool = data.pop("storage_pool")
+        add_category_to_storage_pool(storage_pool, category["id"])
     admin_table_insert("categories", category)
     admin_table_insert("groups", group)
     return (

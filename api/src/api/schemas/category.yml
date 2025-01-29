@@ -82,3 +82,7 @@ uid:
   type: string
   maxlength: 255
   coerce: sanitize
+storage_pool:
+  type: string
+  coerce: sanitize
+  required: false

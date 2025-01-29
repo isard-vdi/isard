@@ -1396,6 +1396,32 @@
                             </select>
                         </div>
                     </div>
+                    <div class="x_panel" id="storagepool_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Add to Storage Pool</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                <label class="control-label" for="storage_pool">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="storage-pool-enabled" name="storage-pool-enabled" class="flat"
+                                            style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                    Enabled
+                                </label>
+                            </div>
+                        </div>
+                        <div id="storage-pool-data" style="display:none">
+                            <label class="control-label" for="storage-pool">
+                                Storage Pool:
+                            </label>
+                            <select id="storage_pool" name="storage_pool" class="form-control" required>
+                            </select>
+                        </div>
+                    </div>
                 </form>
             </div>
 
