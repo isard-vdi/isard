@@ -176,59 +176,6 @@ def check_task_priority(payload, priority):
     return priority
 
 
-def check_move_by_path(payload, storage_id, request):
-    """
-    Check move by path request data.
-
-    :param payload: Data from JWT
-    :type payload: dict
-    :param storage_id: Storage ID
-    :type storage_id: str
-    :param path: Path
-    :type path: str
-    :param priority: Priority
-    :type priority: str
-    :param request: Request
-    :type request: Request
-    :return: Path, priority, storage, storage_pool_origin
-    :rtype: tuple
-    """
-    if not request.is_json:
-        raise Error(
-            description="No JSON in body request. dest_path must be specified, priority is optional",
-        )
-
-    request_json = request.get_json()
-
-    if not request_json.get("dest_path"):
-        raise Error(
-            description="Incorrect JSON of body request: dest_path must be specified",
-        )
-
-    path = request_json.get("dest_path")
-    if not path.startswith("/"):
-        path = f"/{path}"
-    priority = check_task_priority(payload, request_json.get("priority", "default"))
-
-    storage = get_storage(payload, storage_id)
-    if storage.directory_path == path:
-        raise Error(
-            error="bad_request",
-            description=f"Storage {storage.id} already in destination path {path}, no need to execute operation",
-        )
-
-    storage.set_maintenance("move")
-    storage_pool_origin = StoragePool.get_best_for_action("move", path=path)
-
-    if storage_pool_origin is None:
-        raise Error(
-            error="not_found",
-            description=f"Origin storage pool for path {path} not found to execute operation",
-        )
-
-    return path, priority, storage, storage_pool_origin
-
-
 @app.route("/api/v3/storage/<path:storage_id>/status/maintenance", methods=["PUT"])
 @has_token
 def storage_maintenance(payload, storage_id):
@@ -543,56 +490,17 @@ def storage_delete(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
     storage = get_storage(payload, storage_id)
-    storage.set_maintenance("delete")
+
     try:
-        storage.create_task(
-            user_id=payload.get("user_id"),
-            queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
-            task="delete",
-            job_kwargs={
-                "kwargs": {
-                    "path": storage.path,
-                },
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "update_status",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "statuses": {
-                                "canceled": {
-                                    "ready": {
-                                        "storage": [storage.id],
-                                    },
-                                },
-                                "finished": {
-                                    "deleted": {
-                                        "storage": [storage.id],
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    "dependents": {
-                        "queue": "core",
-                        "task": "storage_delete",
-                        "job_kwargs": {"kwargs": {"storage_id": storage.id}},
-                    },
-                },
-            ],
+        return jsonify(
+            {
+                "task_id": storage.delete(
+                    payload.get("user_id"),
+                )
+            }
         )
     except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
-            )
-        raise Error(
-            "internal_server_error",
-            "Error deleting storage",
-        )
-    return jsonify(storage.task)
+        raise Error(*e.args)
 
 
 @app.route(
@@ -617,6 +525,7 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
             description="No JSON in body request with registry patch",
         )
     request_json = request.get_json()
+
     registry_patch = request_json.get("registry_patch")
     if not registry_patch:
         raise Error(
@@ -626,6 +535,7 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
         raise Error(
             description="The registry file is too large, exceeding the 1MB maximum"
         )
+
     if payload["role_id"] != "admin":
         priority = "low"
     else:
@@ -636,63 +546,18 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
             )
 
     storage = get_storage(payload, storage_id)
-    storage.set_maintenance("virt_win_reg")
 
     try:
-        storage.create_task(
-            user_id=storage.user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=storage.directory_path).id}.{priority}",
-            task="virt_win_reg",
-            job_kwargs={
-                "kwargs": {
-                    "storage_path": storage.path,
-                    "registry_patch": registry_patch,
-                },
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "update_status",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "statuses": {
-                                "finished": {
-                                    "ready": {
-                                        "storage": [storage.id],
-                                    },
-                                    "Stopped": {
-                                        "domain": [
-                                            domain.id for domain in storage.domains
-                                        ],
-                                    },
-                                },
-                                "canceled": {
-                                    "ready": {
-                                        "storage": [storage.id],
-                                    },
-                                    "Stopped": {
-                                        "domain": [
-                                            domain.id for domain in storage.domains
-                                        ],
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            ],
+        return jsonify(
+            {
+                "task_id": storage.virt_win_reg(
+                    registry_patch,
+                    priority,
+                )
+            }
         )
     except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
-            )
-        raise Error(
-            "internal_server_error",
-            "Error applying registry patch storage",
-        )
-    return jsonify(storage.task)
+        raise Error(*e.args)
 
 
 @app.route(
@@ -712,35 +577,17 @@ def storage_update_qemu_img_info(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
     storage = get_storage(payload, storage_id)
+
     try:
-        storage.create_task(
-            user_id=payload.get("user_id"),
-            queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=storage.directory_path).id}.default",
-            task="qemu_img_info",
-            job_kwargs={
-                "kwargs": {
-                    "storage_id": storage.id,
-                    "storage_path": storage.path,
-                }
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                }
-            ],
+        return jsonify(
+            {
+                "task_id": storage.qemu_img_info(
+                    user_id=payload.get("user_id"),
+                )
+            }
         )
     except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
-            )
-        raise Error(
-            "internal_server_error",
-            "Error updating qemu img info for storage",
-        )
-    return jsonify(storage.task)
+        raise Error(*e.args)
 
 
 @app.route("/api/v3/storage/<path:storage_id>/check_backing_chain", methods=["PUT"])
@@ -779,35 +626,17 @@ def storage_check_existence(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
     storage = get_storage(payload, storage_id)
+
     try:
-        storage.create_task(
-            user_id=payload.get("user_id"),
-            queue=f"storage.{StoragePool.get_best_for_action('check_existence', path=storage.directory_path).id}.default",
-            task="check_existence",
-            job_kwargs={
-                "kwargs": {
-                    "storage_id": storage.id,
-                    "storage_path": storage.path,
-                }
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                }
-            ],
+        return jsonify(
+            {
+                "task_id": storage.check_existence(
+                    user_id=payload.get("user_id"),
+                )
+            }
         )
     except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
-            )
-        raise Error(
-            "internal_server_error",
-            "Error checking storage existence",
-        )
-    return jsonify(storage.task)
+        raise Error(*e.args)
 
 
 @app.route(
@@ -827,52 +656,17 @@ def storage_update_parent(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
     storage = get_storage(payload, storage_id)
+
     try:
-        storage.create_task(
-            user_id=payload.get("user_id"),
-            queue="core",
-            task="storage_update_parent",
-            job_kwargs={
-                "kwargs": {
-                    "storage_id": storage.id,
-                }
-            },
-            dependencies=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                    "dependencies": [
-                        {
-                            "queue": f"storage.{StoragePool.get_best_for_action('check_backing_filename', path=storage.directory_path).id}.default",
-                            "task": "check_backing_filename",
-                            "dependencies": [
-                                {
-                                    "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=storage.directory_path).id}.default",
-                                    "task": "qemu_img_info",
-                                    "job_kwargs": {
-                                        "kwargs": {
-                                            "storage_id": storage.id,
-                                            "storage_path": storage.path,
-                                        }
-                                    },
-                                }
-                            ],
-                        }
-                    ],
-                }
-            ],
+        return jsonify(
+            {
+                "task_id": storage.update_parent(
+                    payload.get("user_id"),
+                )
+            }
         )
     except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
-            )
-        raise Error(
-            "internal_server_error",
-            "Error updating storage parent",
-        )
-    return jsonify(storage.task)
+        raise Error(*e.args)
 
 
 @app.route(
@@ -898,80 +692,44 @@ def storage_move_by_path(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
 
-    path, priority, storage, storage_pool_origin = check_move_by_path(
-        payload, storage_id, request
-    )
+    if not request.is_json:
+        raise Error(
+            description="No JSON in body request. dest_path must be specified, priority is optional",
+        )
 
-    move_job_kwargs = {
-        "kwargs": {
-            "origin_path": storage.path,
-            "destination_path": f"{path}/{storage.id}.{storage.type}",
-            "method": "mv",
-        }
-    }
+    request_json = request.get_json()
+
+    if not request_json.get("dest_path"):
+        raise Error(
+            description="Incorrect JSON of body request: dest_path must be specified",
+        )
+
+    path = request_json.get("dest_path")
+    if not path.startswith("/"):
+        path = f"/{path}"
+    priority = check_task_priority(payload, request_json.get("priority", "default"))
+
+    storage = get_storage(payload, storage_id)
+    if storage.directory_path == path:
+        raise Error(
+            error="bad_request",
+            description=f"Storage {storage.id} already in destination path {path}, no need to execute operation",
+        )
+
+    # TODO: make it less hardcoded
+    destination_path = f"{path}/{storage.id}.{storage.type}"
 
     try:
-        storage_domains_ids = [domain.id for domain in storage.domains]
-        storage.create_task(
-            user_id=storage.user_id,
-            queue=f"storage.{storage_pool_origin.id}.{priority}",
-            task="move",
-            job_kwargs=move_job_kwargs,
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "id": storage.id,
-                            "directory_path": path,
-                            "qemu-img-info": {
-                                "filename": f"{path}/{storage.id}.{storage.type}"
-                            },
-                        }
-                    },
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "update_status",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "statuses": {
-                                        "_all": {
-                                            "ready": {
-                                                "storage": [storage.id],
-                                            },
-                                            "Stopped": {
-                                                "domain": storage_domains_ids,
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            "queue": "core",
-                            "task": "domains_update",
-                            "job_kwargs": {
-                                "kwargs": {"domain_list": storage_domains_ids}
-                            },
-                        },
-                    ],
-                },
-            ],
+        return jsonify(
+            {
+                "task_id": storage.mv(
+                    path,
+                    priority,
+                )
+            }
         )
     except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
-            )
-        raise Error(
-            "internal_server_error",
-            "Error moving storage",
-        )
-
-    return jsonify(storage.task)
+        raise Error(*e.args)
 
 
 @app.route(
@@ -1016,17 +774,20 @@ def storage_rsync_to_path(payload, storage_id):
         )
 
     # Create task
-    return jsonify(
-        {
-            "id": storage.rsync(
-                payload["user_id"],
-                destination_path,
-                data["bwlimit"],
-                data["remove_source_file"],
-                data["priority"],
-            )
-        }
-    )
+    try:
+        return jsonify(
+            {
+                "task_id": storage.rsync(
+                    payload["user_id"],
+                    destination_path,
+                    data["bwlimit"],
+                    data["remove_source_file"],
+                    data["priority"],
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
 
 
 @app.route(
@@ -1079,17 +840,20 @@ def storage_rsync_to_storage_pool(payload, storage_id):
             description=f"Storage {storage.id} already in destination pool path {destination_path} to execute rsync operation",
         )
     # Create task
-    return jsonify(
-        {
-            "id": storage.rsync(
-                payload["user_id"],
-                destination_path,
-                data["bwlimit"],
-                data["remove_source_file"],
-                data["priority"],
-            )
-        }
-    )
+    try:
+        return jsonify(
+            {
+                "task_id": storage.rsync(
+                    payload["user_id"],
+                    destination_path,
+                    data["bwlimit"],
+                    data["remove_source_file"],
+                    data["priority"],
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
 
 
 @app.route(
@@ -1160,84 +924,21 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
             description=f"Storage {storage.id} used as backing file for {', '.join([storage.id for storage in storage.children])} to execute move operation",
         )
 
-    # Storage domains checks
-    ## Only one domain can be attached to an storage now, but we iterate
-    for domain in storage.domains:
-        if domain.status != "Stopped":
-            raise Error(
-                "precondition_required",
-                f"Domain {domain.id} must be 'Stopped' for it's storage move operation.",
-                description_code="desktops_not_stopped",
-            )
-
     # We can create move action
-    storage.set_maintenance("move")
-
-    storage_pool_origin = StoragePool.get_best_for_action(
-        "move", path=storage.directory_path
-    )
-
-    queue = get_queue_from_storage_pools(storage_pool_origin, storage_pool_destination)
-
-    move_job_kwargs = {
-        "kwargs": {
-            "origin_path": storage.path,
-            "destination_path": f"{path}/{storage.id}.{storage.type}",
-            "method": method,
-        }
-    }
-    if method == "rsync":
-        move_job_kwargs["timeout"] = 3600
     try:
-        storage_domains_ids = [domain.id for domain in storage.domains]
-        storage.create_task(
-            user_id=storage.user_id,
-            queue=f"storage.{queue}.{priority}",
-            task="move",
-            job_kwargs=move_job_kwargs,
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "id": storage.id,
-                            "directory_path": path,
-                            "qemu-img-info": {
-                                "filename": f"{path}/{storage.id}.{storage.type}"
-                            },
-                        }
-                    },
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "update_status",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "statuses": {
-                                        "_all": {
-                                            "ready": {
-                                                "storage": [storage.id],
-                                            },
-                                            "Stopped": {
-                                                "domain": storage_domains_ids,
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            "queue": "core",
-                            "task": "domains_update",
-                            "job_kwargs": {
-                                "kwargs": {"domain_list": storage_domains_ids}
-                            },
-                        },
-                    ],
-                },
-            ],
-        )
+        match method:
+            case "rsync":
+                return storage.rsync(
+                    user_id=payload["user_id"],
+                    destination_path=f"{path}/{storage.id}.{storage.type}",
+                    priority=priority,
+                    timeout=3600,
+                )
+            case "mv":
+                return storage.mv(
+                    destination_path=f"{path}/{storage.id}.{storage.type}",
+                    priority=priority,
+                )
     except Exception as e:
         if e.args[0] == "precondition_required":
             raise Error(
@@ -1438,46 +1139,17 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
             description="priority should be low, default or high",
         )
 
-    storage.set_maintenance()
-
     try:
-        storage.create_task(
-            user_id=storage.user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('resize').id}.{priority}",
-            task="resize",
-            job_kwargs={
-                "kwargs": {"storage_path": storage.path, "increment": increment},
-            },
-            dependents=[
-                {
-                    "queue": f"storage.{StoragePool.get_best_for_action('resize').id}.{priority}",
-                    "task": "qemu_img_info_backing_chain",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "storage_id": storage.id,
-                            "storage_path": storage.path,
-                        }
-                    },
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "storage_update",
-                        },
-                    ],
-                }
-            ],
+        return jsonify(
+            {
+                "task_id": storage.increase_size(
+                    increment,
+                    priority,
+                )
+            }
         )
     except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
-            )
-        raise Error(
-            "internal_server_error",
-            "Error creating storage",
-        )
-    return jsonify(storage.task)
+        raise Error(*e.args)
 
 
 @app.route("/api/v3/storage/<path:storage_id>/stop", methods=["PUT"])
@@ -1502,44 +1174,13 @@ def storage_abort(payload, storage_id):
     storage = get_storage(payload, storage_id)
 
     # storage_domains = get_storage_derivatives(storage_id)
-    storage_pool = StoragePool.get_best_for_action("abort")
-    try:
-        storage.create_task(
-            user_id=storage.user_id,
-            queue="core",
-            task="delete_task",
-            blocking=False,
-            job_kwargs={
-                "kwargs": {
-                    "task_id": storage.task,
-                }
-            },
-            dependents=[
-                {
-                    "queue": f"storage.{storage_pool.id}.default",
-                    "task": "qemu_img_info_backing_chain",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "storage_id": storage.id,
-                            "storage_path": storage.path,
-                        }
-                    },
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "storage_update",
-                        }
-                    ],
-                }
-            ],
-        )
-
-    except Exception as e:
-        raise Error(
-            "internal_server_error",
-            "Error aborting storage operation",
-        )
-    return jsonify(storage.task)
+    return jsonify(
+        {
+            "task_id": storage.abort_operations(
+                payload.get("user_id"),
+            )
+        }
+    )
 
 
 @app.route("/api/v3/domain/<domain_id>/recreate_disk", methods=["POST"])

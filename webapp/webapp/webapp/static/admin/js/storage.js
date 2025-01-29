@@ -1454,6 +1454,7 @@ function performMoveOperation(formData, type) {
           };
           break;
       }
+      break;
     case "move":
       switch (type) {
         case "byPath":
@@ -1465,6 +1466,7 @@ function performMoveOperation(formData, type) {
           };
           break;
       }
+      break;
   }
   $.ajax({
     url: url,

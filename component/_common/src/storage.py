@@ -374,29 +374,23 @@ class Storage(RethinkCustomBase):
         """
         if self.status != "ready":
             raise Exception(
-                {
-                    "error": "precondition_required",
-                    "description": f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
-                    "description_code": "storage_not_ready",
-                }
+                "precondition_required",
+                f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
+                "storage_not_ready",
             )
         domains = self.domains
         if any(domain.status != "Stopped" for domain in domains):
             raise Exception(
-                {
-                    "error": "precondition_required",
-                    "description": f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
-                    "description_code": "desktops_not_stopped",
-                }
+                "precondition_required",
+                f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
+                "desktops_not_stopped",
             )
         if any(domain.kind != "desktop" for domain in domains):
             if len(self.children) > 0:
                 raise Exception(
-                    {
-                        "error": "precondition_required",
-                        "description": f"Storage {self.id} has children storages. It must be empty in order to set it to maintenance.",
-                        "description_code": "storage_has_children",
-                    }
+                    "precondition_required",
+                    f"Storage {self.id} has children storages. It must be empty in order to set it to maintenance.",
+                    "storage_has_children",
                 )
         for domain in self.domains:
             domain.status = "Maintenance"
@@ -409,11 +403,9 @@ class Storage(RethinkCustomBase):
         """
         if self.status != "maintenance":
             raise Exception(
-                {
-                    "error": "precondition_required",
-                    "description": f"Storage {self.id} must be maintenance in order to return back to ready status. It's actual status is {self.status}",
-                    "description_code": "storage_not_maintenance",
-                }
+                "precondition_required",
+                f"Storage {self.id} must be maintenance in order to return back to ready status. It's actual status is {self.status}",
+                "storage_not_maintenance",
             )
         for domain in self.domains:
             domain.status = "Stopped"
@@ -430,7 +422,7 @@ class Storage(RethinkCustomBase):
         timeout=1200,  # Default redis timeout is 180 (3 minutes)
     ):
         """
-        Create a task to move the storage.
+        Create a task to move the storage using rsync.
 
         :param user_id: User ID
         :type user_id: str
@@ -529,6 +521,407 @@ class Storage(RethinkCustomBase):
                     else []
                 )
             ),
+        )
+
+        return self.task
+
+    def mv(
+        self,
+        destination_path,
+        priority="default",
+    ):
+        """
+        Create a task to move the storage using mv.
+
+        :param destination_path: Destination path
+        :type destination_path: str
+        :param priority: Priority
+        :type priority: str
+        :return: Task ID
+        :rtype: str
+        """
+        origin_path = self.path
+
+        queue_mv = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
+
+        self.set_maintenance("move")
+        self.create_task(
+            user_id=self.user_id,
+            queue=queue_mv,
+            task="move",
+            job_kwargs={
+                "kwargs": {
+                    "origin_path": origin_path,
+                    "destination_path": f"{destination_path}/{self.id}.{self.type}",
+                    "method": "mv",
+                }
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "id": self.id,
+                            "directory_path": destination_path,
+                            "qemu-img-info": {
+                                "filename": f"{destination_path}/{self.id}.{self.type}"
+                            },
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "update_status",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "statuses": {
+                                        "_all": {
+                                            "ready": {
+                                                "storage": [self.id],
+                                            },
+                                            "Stopped": {
+                                                "domain": [
+                                                    domain.id for domain in self.domains
+                                                ],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        {
+                            "queue": "core",
+                            "task": "storage_domains_force_update",
+                            "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                        },
+                    ],
+                },
+            ],
+        )
+
+        return self.task
+
+    def delete(
+        self,
+        user_id,
+        priority="default",
+    ):
+        """
+        Create a task to delete the storage.
+
+        :param user_id: User ID of the user executing the task
+        :type user_id: str
+        :param priority: Priority
+        :type priority: str
+        :return: Task ID
+        :rtype: str
+        """
+        self.set_maintenance("delete")
+        self.create_task(
+            user_id=user_id,
+            queue=f"storage.{StoragePool.get_best_for_action('delete', path=self.directory_path).id}.{priority}",
+            task="delete",
+            job_kwargs={
+                "kwargs": {
+                    "path": self.path,
+                },
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "canceled": {
+                                    "ready": {
+                                        "storage": [self.id],
+                                    },
+                                },
+                                "finished": {
+                                    "deleted": {
+                                        "storage": [self.id],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "dependents": {
+                        "queue": "core",
+                        "task": "storage_delete",
+                        "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                    },
+                },
+            ],
+        )
+
+        return self.task
+
+    def check_existence(
+        self,
+        user_id,
+    ):
+        self.create_task(
+            user_id=user_id,
+            queue=f"storage.{StoragePool.get_best_for_action('check_existence', path=self.directory_path).id}.default",
+            task="check_existence",
+            job_kwargs={
+                "kwargs": {
+                    "storage_id": self.id,
+                    "storage_path": self.path,
+                }
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                }
+            ],
+        )
+
+        return self.task
+
+    def qemu_img_info(
+        self,
+        user_id,
+    ):
+        """
+        Create a task to update the storage qemu-img info.
+
+        :param user_id: User ID
+        :type user_id: str
+        :return: Task ID
+        :rtype: str
+        """
+        self.create_task(
+            user_id=user_id,
+            queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=self.directory_path).id}.default",
+            task="qemu_img_info",
+            job_kwargs={
+                "kwargs": {
+                    "storage_id": self.id,
+                    "storage_path": self.path,
+                }
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                }
+            ],
+        )
+
+        return self.task
+
+    def update_parent(
+        self,
+        user_id,
+    ):
+        """
+        Create a task to update the parent of the storage.
+
+        :param user_id: User ID
+        :type user_id: str
+        :return: Task ID
+        :rtype: str
+        """
+        self.create_task(
+            user_id=user_id,
+            queue="core",
+            task="storage_update_parent",
+            job_kwargs={
+                "kwargs": {
+                    "storage_id": self.id,
+                }
+            },
+            dependencies=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                    "dependencies": [
+                        {
+                            "queue": f"storage.{StoragePool.get_best_for_action('check_backing_filename', path=self.directory_path).id}.default",
+                            "task": "check_backing_filename",
+                            "dependencies": [
+                                {
+                                    "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=self.directory_path).id}.default",
+                                    "task": "qemu_img_info",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "storage_id": self.id,
+                                            "storage_path": self.path,
+                                        }
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        )
+
+        return self.task
+
+    def increase_size(
+        self,
+        increment,
+        priority="default",
+    ):
+        """
+        Create a task to increase the storage size.
+
+        :param increment: Increment in GB
+        :type increment: int
+        :param priority: Priority
+        :type priority: str
+        """
+        resize_queue = (
+            f"storage.{StoragePool.get_best_for_action('resize').id}.{priority}"
+        )
+
+        self.set_maintenance("resize")
+        self.create_task(
+            user_id=self.user_id,
+            queue=resize_queue,
+            task="resize",
+            job_kwargs={
+                "kwargs": {"storage_path": self.path, "increment": increment},
+            },
+            dependents=[
+                {
+                    "queue": resize_queue,
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                        },
+                        {
+                            "queue": "core",
+                            "task": "storage_domains_force_update",
+                            "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                        },
+                    ],
+                }
+            ],
+        )
+
+        return self.task
+
+    def virt_win_reg(
+        self,
+        registry_patch,
+        priority="default",
+    ):
+        """
+        Create a task to write a windows registry patch to the storage.
+        This task will only work with storages that have Windows XP or newer installed.
+        https://libguestfs.org/virt-win-reg.1.html
+
+        :param registry_patch: Windows registry patch
+        :type registry_patch: str
+        :param priority: Priority
+        :type priority: str
+        :return: Task ID
+        """
+        queue_virt_win_reg = f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=self.directory_path).id}.{priority}"
+
+        self.set_maintenance("virt_win_reg")
+        self.create_task(
+            user_id=self.user_id,
+            queue=queue_virt_win_reg,
+            task="virt_win_reg",
+            job_kwargs={
+                "kwargs": {
+                    "storage_path": self.path,
+                    "registry_patch": registry_patch,
+                },
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "finished": {
+                                    "ready": {
+                                        "storage": [self.id],
+                                    },
+                                    "Stopped": {
+                                        "domain": [
+                                            domain.id for domain in self.domains
+                                        ],
+                                    },
+                                },
+                                "canceled": {
+                                    "ready": {
+                                        "storage": [self.id],
+                                    },
+                                    "Stopped": {
+                                        "domain": [
+                                            domain.id for domain in self.domains
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+        )
+
+        return self.task
+
+    def abort_operations(
+        self,
+        user_id,
+    ):
+        """
+        Create a task to abort the current storage operations.
+
+        :param user_id: User ID
+        :type user_id: str
+        :return: Task ID
+        :rtype: str
+        """
+        storage_pool = StoragePool.get_best_for_action("abort")
+
+        self.create_task(
+            user_id=user_id,
+            queue="core",
+            task="delete_task",
+            blocking=False,
+            job_kwargs={
+                "kwargs": {
+                    "task_id": self.task,
+                }
+            },
+            dependents=[
+                {
+                    "queue": f"storage.{storage_pool.id}.default",
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                        }
+                    ],
+                }
+            ],
         )
 
         return self.task
