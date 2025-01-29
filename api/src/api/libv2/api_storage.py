@@ -412,11 +412,18 @@ def update_storage_pool(storage_pool_id, data):
                 data.pop(key)
         _check_default_paths(data["paths"])
 
-    if data.get("enabled") is False:
-        data["enabled_virt"] = False
-    else:
-        data["enabled_virt"] = True
-    remove_common_categories_from_other_pools(data["categories"])
+    # If the pool is disabled, the virt pool must be disabled too
+    if data.get("enabled") is not None:
+        data["enabled_virt"] = data["enabled"]
+    elif data.get("enabled_virt") and not get_storage_pool(storage_pool_id).get(
+        "enabled"
+    ):
+        raise Error(
+            "bad_request",
+            "The virtual pool cannot be enabled if the storage pool is disabled",
+        )
+    if "categories" in data:
+        remove_common_categories_from_other_pools(data["categories"])
     with app.app_context():
         r.table("storage_pool").get(storage_pool_id).update(data).run(db.conn)
 
