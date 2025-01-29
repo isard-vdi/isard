@@ -653,7 +653,7 @@ def itemExists(item_table, item_id):
                     item_table + " not found id: " + item_id,
                     traceback.format_exc(),
                 )
-        except:
+        except r.ReqlOpFailedError:
             raise Error(
                 "bad_request",
                 item_table + " is missing",
