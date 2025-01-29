@@ -138,6 +138,26 @@ class Storage(RethinkCustomBase):
             return f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
         return f"{storage_pool.mountpoint}/{self.category}/{storage_pool.get_usage_path(self.pool_usage)}/{self.id}.{self.type}"
 
+    def directory_path_as_usage(self, usage):
+        """
+        Returns the path of storage if it was used as the given usage.
+
+        :param usage: The usage to be used
+        :type usage: str
+        """
+        if usage not in ["desktop", "template"]:
+            raise Exception(
+                {
+                    "error": "bad_request",
+                    "description": f"Usage {usage} must be desktop or template",
+                }
+            )
+
+        if self.pool.get_usage_by_path(self.path) == usage:
+            return self.directory_path
+
+        return new_storage_directory_path(self.user_id, usage)
+
     def set_storage_pool(self, storage_pool):
         """
         Change storage pool.

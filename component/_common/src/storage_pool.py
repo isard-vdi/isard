@@ -138,7 +138,8 @@ class StoragePool(RethinkCustomBase):
             category_id = (
                 r.table("users").get(user_id)["category"].run(cls._rdb_connection)
             )
-        sps = list(r.table(cls._rdb_table).run(cls._rdb_connection))
+        with cls._rdb_context():
+            sps = list(r.table(cls._rdb_table).run(cls._rdb_connection))
         default = {}
 
         for sp in sps:

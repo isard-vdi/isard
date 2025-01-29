@@ -29,6 +29,7 @@ quotas = Quotas()
 
 from cachetools import TTLCache, cached
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.domain import Domain
 from rethinkdb import RethinkDB
 
 from api import app
@@ -292,10 +293,13 @@ class ApiDesktopsPersistent:
 
     def convert_template_to_desktop(self, data):
         data = _validate_item("template_to_desktop", data)
-        with app.app_context():
-            template = r.table("domains").get(data["template_id"]).run(db.conn)
+        if not Domain.exists(data["template_id"]):
+            raise Error(
+                error="not_found", description=f"Domain {data['template_id']} not found"
+            )
+        template = Domain(data["template_id"])
 
-        check_user_duplicated_domain_name(data["name"], template["user"], "desktop")
+        check_user_duplicated_domain_name(data["name"], template.user, "desktop")
 
         # TODO: Stop derivated running desktops
 
@@ -314,31 +318,49 @@ class ApiDesktopsPersistent:
 
         desktop_data = self.new_from_template(
             data["name"],
-            template["description"],
+            template.description,
             data["template_id"],
-            template["user"],
+            template.user,
             data["template_id"],
             insert=False,
         )
         # We are updating the domain
         new_desktop_data = {
-            "status": "Updating",
+            "status": "Stopped",
             "create_dict": {
-                # TODO: disk path MUST be a path for desktops. NEVER a template path
-                "hardware": {"disks": template["create_dict"]["hardware"]["disks"]}
+                "hardware": {"disks": template.create_dict["hardware"]["disks"]}
             },
-            "xml": template["xml"],
-            "parents": template["parents"] if template["parents"] else [None],
+            "xml": template.xml,
+            "parents": template.parents if template.parents else [None],
         }
         # Merge the new data with the existing desktop_data
         desktop_data = {**desktop_data, **new_desktop_data}
+
         # Permanently delete dependants in recycle bin
-        delete_dependants_recycle_bin_from_templates([template["id"]])
+        delete_dependants_recycle_bin_from_templates([data["template_id"]])
 
         with app.app_context():
             r.table("domains").get(data["template_id"]).update(desktop_data).run(
                 db.conn
             )
+
+        # move template disk to desktops path
+        if len(template.storages) > 0:
+            try:
+                # TODO: change to mv once properly implemented
+                template.storages[0].rsync(
+                    template.user,
+                    template.storages[0].directory_path_as_usage("desktop"),
+                    priority="low",
+                )
+            except:
+                raise Error(
+                    "internal_server",
+                    "Unable to move template disk to desktops path",
+                    traceback.format_exc(),
+                    description_code="unable_to_move_template_disk",
+                )
+
         return desktop_data
 
     def BulkDesktops(self, payload, data):
