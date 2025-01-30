@@ -180,6 +180,7 @@ def api_v3_desktop_stop(payload, desktop_id):
         ownsDomainId(payload, desktop_id)
         logs_domain_stop_api(desktop_id, action_user=payload.get("user_id"))
         desktop_id = desktops.Stop(desktop_id)
+        scheduler.remove_desktop_timeouts(desktop_id)
 
     return (
         json.dumps({"id": desktop_id}),
