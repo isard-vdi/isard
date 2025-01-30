@@ -22,6 +22,12 @@ const router = createRouter({
       name: 'migration',
       component: () => import('../views/MigrationView.vue'),
       meta: { title: 'router.titles.migration', requiresAuth: true }
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: () => import('../views/RegisterView.vue'),
+      meta: { title: 'router.titles.register' }
     }
   ]
 })

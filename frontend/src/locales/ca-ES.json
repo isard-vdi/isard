@@ -2,7 +2,8 @@
   "router": {
     "titles": {
       "home": "Inici",
-      "login": "Iniciar sessió"
+      "login": "Iniciar sessió",
+      "register": "Registre"
     }
   },
   "views": {
@@ -62,6 +63,9 @@
           "generic": "Hi ha hagut un error mentre es migraven els teus {type}, si us plau, contacta amb un administrador."
         }
       }
+    },
+    "register": {
+      "title": "Registre"
     }
   },
   "layouts": {
@@ -104,6 +108,13 @@
       "migration-item-box": {
         "quota_exceeded": "Les quotes de '{type}' es superaran"
       }
+    },
+    "register": {
+      "register-form": {
+        "code": "Codi de registre",
+        "register": "Registrar-se",
+        "cancel": "Cancel·lar"
+      }
     }
   },
   "authentication": {
@@ -114,7 +125,8 @@
         "invalid_credentials": "Usuari o contrasenya incorrecta",
         "user_disabled": "L'usuari està deshabilitat",
         "user_disallowed": "L'usuari no pot utilitzar IsardVDI",
-        "rate_limit": "S'han produït massa intents d'inici de sessió. Torni-ho a provar a {time}"
+        "rate_limit_date": "S'han produït massa intents d'inici de sessió. Torni-ho a provar a {time}",
+        "rate_limit": "S'han produït massa intents d'inici de sessió. Torni-ho a provar mes tard"
       }
     }
   },
@@ -134,6 +146,15 @@
         "migration_template_quota_error": "L'usuari té més plantilles que la quota del nou usuari",
         "migration_media_quota_error": "L'usuari té més mitjans que la quota del nou usuari",
         "migration_deployments_quota_error": "L'usuari té més desplegaments que la quota del nou usuari"
+      }
+    },
+    "register": {
+      "errors": {
+        "unauthorized": "Sessió expirada",
+        "forbidden": "El domini de correu electrònic que està intentant utilitzar no és autoritzat per a la seva categoria.",
+        "not_found": "Codi no trobat",
+        "conflict": "L'usuari ja existeix",
+        "internal_server": "Error en el servidor"
       }
     }
   },

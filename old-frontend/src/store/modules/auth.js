@@ -107,7 +107,7 @@ export default {
 
       const token = jwtDecode(response.data)
       if (token.type === 'register') {
-        router.push({ name: 'Register' })
+        window.location.pathname = '/register'
       } else if (token.type === 'category-select') {
         window.location.pathname = '/'
       } else {
@@ -228,49 +228,11 @@ export default {
         commit('setPageErrorMessage', 'views.login.errors.generic')
       }
     },
-    async register (context, code) {
-      const register = axios.create({
-        baseURL: apiV3Segment
-      })
-      register.interceptors.request.use(function (config) {
-        config.headers.Authorization = 'Bearer ' + getCookie('authorization')
-        return config
-      })
-      // TODO: Change to application/json
-      const data = new FormData()
-      data.append('code', code)
-      return register.post('/user/register', data).then(() => {
-        setCookie(sessionCookieName, getCookie('authorization'))
-        const registeredUser = jwtDecode(getCookie(sessionCookieName))
-        let provider = registeredUser.provider
-        if (provider === 'local' || provider === 'ldap') {
-          provider = 'form'
-        }
-        // TODO: Change to application/json
-        const loginData = new FormData()
-        loginData.append('provider', provider)
-        loginData.append('category_id', registeredUser.category_id)
-        loginData.append('username', registeredUser.username)
-        context.dispatch('login', loginData)
-      })
-    },
     async selectCategory (context, categoryId) {
       const loginData = new FormData()
       loginData.append('provider', 'saml')
       loginData.append('category_id', categoryId)
       context.dispatch('login', loginData)
-    },
-    handleRegisterError ({ commit }, error) {
-      if ([401, 403, 404, 409].includes(error.response.status)) {
-        commit(
-          'setPageErrorMessage',
-          `views.register.errors.${error.response.status}`
-        )
-      } else if (error.response.status === 429) {
-        commit('setPageErrorMessage', 'views.login.errors.429')
-      } else {
-        commit('setPageErrorMessage', 'views.register.errors.500')
-      }
     },
     fetchUser (context) {
       // Get basic user info from token

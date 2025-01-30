@@ -353,15 +353,6 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/register',
-      name: 'Register',
-      component: () => import('@/views/Register.vue'),
-      meta: {
-        title: i18n.t('router.titles.register'),
-        requiresAuth: true
-      }
-    },
-    {
       path: '/error/:code',
       name: 'Error',
       component: () => import('@/views/Error.vue'),
@@ -424,12 +415,7 @@ router.beforeEach(async (to, from, next) => {
     const sessionData = jwtDecode(session)
     // Handle user registration
     if (sessionData.type === 'register') {
-      if (to.name !== 'Register') {
-        next({ name: 'Register' })
-        return
-      }
-
-      next()
+      window.location.pathname = '/register'
       return
     } else if (sessionData.type === 'category-select') {
       window.location.pathname = '/login'

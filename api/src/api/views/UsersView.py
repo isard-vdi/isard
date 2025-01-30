@@ -72,6 +72,10 @@ def api_v3_user_data(payload, user_id=None):
 def api_v3_user_register(payload):
     try:
         code = request.form.get("code", type=str)
+        # New frontend
+        if not code:
+            json_data = request.get_json(force=True)
+            code = json_data.get("code")
     except:
         raise Error(
             "bad_request",

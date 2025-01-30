@@ -1,6 +1,8 @@
 import { type JwtPayload, jwtDecode } from 'jwt-decode'
 import { useCookies as vueuseCookies } from '@vueuse/integrations/useCookies'
 import type { CookieSetOptions } from 'universal-cookie'
+import { type RegisterUserError } from '@/gen/oas/api'
+import { type LoginError as AuthLoginError } from '@/gen/oas/authentication'
 
 interface ProviderUserData {
   provider: string
@@ -17,7 +19,8 @@ interface ProviderUserData {
 
 export enum TokenType {
   Login = 'login',
-  CategorySelect = 'category-select'
+  CategorySelect = 'category-select',
+  Register = 'register'
 }
 
 export interface TypeClaims extends JwtPayload {
@@ -54,12 +57,21 @@ export const isCategorySelectClaims = (claims: TypeClaims): claims is CategorySe
   return claims.type === TokenType.CategorySelect
 }
 
+export interface RegisterClaims extends TypeClaims {
+  category_id: string
+  provider: string
+}
+
+export const isRegisterClaims = (claims: TypeClaims): claims is RegisterClaims => {
+  return claims.type === TokenType.Register
+}
+
 const authorizationTokenName = 'authorization'
 const sessionTokenName = 'isardvdi_session'
 
 export const useCookies = () => vueuseCookies([authorizationTokenName, sessionTokenName])
 
-export const parseToken = (bearer: string): CategorySelectClaims | TypeClaims => {
+export const parseToken = (bearer: string): RegisterClaims | CategorySelectClaims | TypeClaims => {
   const jwt = jwtDecode(bearer) as TypeClaims
   switch (jwt.type) {
     case undefined:
@@ -71,6 +83,9 @@ export const parseToken = (bearer: string): CategorySelectClaims | TypeClaims =>
 
     case TokenType.CategorySelect:
       return jwt as CategorySelectClaims
+
+    case TokenType.Register:
+      return jwt as RegisterClaims
 
     default:
       return jwt
@@ -107,4 +122,54 @@ export const setToken = (cookies: ReturnType<typeof useCookies>, bearer: string)
 export const removeToken = (cookies: ReturnType<typeof useCookies>) => {
   cookies.remove(authorizationTokenName, cookieOpts)
   cookies.remove(sessionTokenName, cookieOpts)
+}
+
+// TODO: Type this!
+type LoginError = AuthLoginError['error'] | 'unknown' | 'missing_category'
+type RegisterError =
+  | RegisterUserError['error']
+  | AuthLoginError['error']
+  | 'unknown'
+  | 'missing_category'
+
+interface LoginRegisterReturn {
+  error?: LoginError | RegisterError
+  errorParams?: Date
+}
+export const checkLoginRegister = (
+  error: { error?: string | null }, // TODO: check this type
+  response: Response,
+  skipTokenCheck: boolean = false // for register
+): LoginRegisterReturn | undefined => {
+  if (error !== undefined) {
+    if (response.status === 429) {
+      if (response.headers.get('retry-after') === null) {
+        return { error: 'rate_limit' }
+      }
+      return {
+        error: 'rate_limit_date',
+        errorParams: new Date(response.headers.get('retry-after'))
+      }
+    }
+
+    if (error.error) {
+      return { error: error.error }
+    }
+
+    return { error: 'unknown' }
+  }
+
+  if (skipTokenCheck) {
+    return
+  }
+
+  const authorization = response.headers.get('authorization')
+  if (authorization === null) {
+    return { error: 'unknown' }
+  }
+
+  const bearer = authorization.replace(/^Bearer /g, '')
+  if (bearer.length === authorization.length) {
+    return { error: 'unknown' }
+  }
 }

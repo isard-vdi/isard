@@ -177,6 +177,89 @@
           }
         ]
       }
+    },
+    "/api/v3/user/register": {
+      "post": {
+        "operationId": "RegisterUser",
+        "summary": "Register a new user",
+        "description": "",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterUserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Session expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Code not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Invalid email domain",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -220,7 +303,11 @@
               "title": "An URL friendly name for the category"
             }
           },
-          "required": ["id", "name", "frontend"]
+          "required": [
+            "id",
+            "name",
+            "frontend"
+          ]
         }
       },
       "GetCategoryResponse": {
@@ -236,7 +323,10 @@
             "title": "The name of the category"
           }
         },
-        "required": ["id", "name"]
+        "required": [
+          "id",
+          "name"
+        ]
       },
       "GetLoginConfigResponse": {
         "type": "object",
@@ -377,7 +467,10 @@
                 "title": "Extra styles for the button. It will be added as `style=''` in the HTML"
               }
             },
-            "required": ["text", "url"]
+            "required": [
+              "text",
+              "url"
+            ]
           }
         }
       },
@@ -658,6 +751,59 @@
             }
           }
         }
+      },
+      "RegisterUserRequest": {
+        "type": "object",
+        "title": "",
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "The group's registration code"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "RegisterUserResponse": {
+        "type": "object",
+        "title": "New user id",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "The ID of the new user"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "RegisterError": {
+        "properties": {
+          "error": {
+            "title": "Error type",
+            "nullable": false,
+            "type": "string",
+            "enum": [
+              "unauthorized",
+              "forbidden",
+              "not_found",
+              "conflict",
+              "rate_limit",
+              "internal_server"
+            ]
+          },
+          "msg": {
+            "title": "Error message",
+            "nullable": false,
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "msg"
+        ],
+        "type": "object"
       }
     }
   },
