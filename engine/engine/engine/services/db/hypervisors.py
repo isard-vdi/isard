@@ -464,6 +464,9 @@ def get_hypers_online(
     )
     close_rethink_connection(r_conn)
 
+    # exclude gpu_only as this function is for non gpu desktops
+    hypers_online = [h for h in hypers_online if not h.get("gpu_only")]
+
     hypers_online = [
         hyp
         for hyp in hypers_online
