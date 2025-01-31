@@ -135,7 +135,7 @@ export default {
     loginWebapp (context) {
       webapp.get('/login', {}, { timeout: 25000 }).catch((e) => {
         if (e.response.status === 503) {
-          router.push({ name: 'Maintenance' })
+          window.location.pathname = '/maintenance'
         } else {
           console.log(e)
         }
