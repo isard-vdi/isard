@@ -928,7 +928,7 @@ class RecycleBin(object):
             [(desktop["user"], desktop["username"]) for desktop in self.desktops]
             + [(template["user"], template["username"]) for template in self.templates]
             + [
-                (deployment["user"], deployment["username"])
+                (deployment["user"], deployment["user"])
                 for deployment in self.deployments
             ]
         )
