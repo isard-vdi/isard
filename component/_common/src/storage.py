@@ -602,7 +602,7 @@ class Storage(RethinkCustomBase):
 
         return self.task
 
-    def delete(
+    def task_delete(
         self,
         user_id,
         priority="default",
