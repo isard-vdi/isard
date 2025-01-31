@@ -76,14 +76,14 @@ class Scheduler:
                 .pluck(
                     "name",
                     "user",
-                    "server",
+                    "server_autostart",
                     {"create_dict": {"reservables": "vgpus"}},
                     "tag",
                 )
                 .run(db.conn)
             )
 
-        if desktop.get("server"):
+        if desktop.get("server_autostart"):
             return
 
         data = {

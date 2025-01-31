@@ -857,25 +857,29 @@ class ApiHypervisors:
         if hypervisor.get("only_forced") and hypervisor.get("destroy_time"):
             return {"destroy_time": hypervisor.get("destroy_time")}
 
-        # Check max desktops timeout, if set
-        # If not set, we will use a default 12 hours timeout (12*60=720)
         with app.app_context():
-            desktops_max_timeout = list(
-                r.table("desktops_priority")
-                .has_fields({"shutdown": {"max": True}})
-                .order_by(r.desc(lambda priority: priority["shutdown"]["max"]))
+            running_desktops_shutdown_date = list(
+                r.table("domains")
+                .get_all(hyper_id, index="hyp_started")
+                .filter(
+                    lambda domain: domain.has_fields("server_autostart")
+                    .not_()
+                    .or_(domain["server_autostart"].ne(True))
+                )
+                .pluck("scheduled")["scheduled"]["shutdown"]
                 .run(db.conn)
             )
-        if not len(desktops_max_timeout):
-            # If no max timeout is set, we use a default 12 hours timeout (12*60=720)
-            desktops_max_timeout = 720
+        if running_desktops_shutdown_date:
+            shutdown_datetimes = [
+                datetime.datetime.strptime(dt, "%Y-%m-%dT%H:%M%z")
+                for dt in running_desktops_shutdown_date
+                if dt
+            ]
+            furthest_shutdown = max(shutdown_datetimes)
+            d = furthest_shutdown
         else:
-            desktops_max_timeout = desktops_max_timeout[0]["shutdown"]["max"]
-
-        # Get time now + desktops_max_timeout
-        d = datetime.datetime.utcnow() + datetime.timedelta(
-            minutes=desktops_max_timeout
-        )
+            # If no max timeout is set, we use a default 12 hours timeout (12*60=720)
+            d = datetime.datetime.utcnow() + datetime.timedelta(minutes=720)
         dtz = d.replace(tzinfo=pytz.UTC).isoformat()
 
         with app.app_context():
