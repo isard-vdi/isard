@@ -494,7 +494,7 @@ def storage_delete(payload, storage_id):
     try:
         return jsonify(
             {
-                "task_id": storage.delete(
+                "task_id": storage.task_delete(
                     payload.get("user_id"),
                 )
             }
