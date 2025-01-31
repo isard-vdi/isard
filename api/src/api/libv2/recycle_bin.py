@@ -1004,6 +1004,61 @@ class RecycleBin(object):
                 ]
                 quotas.deployment_create(users, deployment["user"])
 
+        ## Check if the recycled item has storage dependencies that are in the recycle bin or deleted
+        if self.desktops:
+            for desktop in self.desktops:
+                if "parents" in desktop:
+                    self.validate_parents(
+                        desktop["parents"],
+                        self.templates,
+                        "Cannot restore desktop without parent template {}",
+                    )
+
+        if self.deployments:
+            for deployment in self.deployments:
+                if deployment["create_dict"]["template"] not in [
+                    t["id"] for t in self.templates
+                ]:
+                    raise Error(
+                        "precondition_required",
+                        f"Cannot restore deployment without template {deployment['create_dict']['template']}",
+                        description_code="template_not_found",
+                    )
+
+        if self.templates:
+            for template in self.templates:
+                with app.app_context():
+                    parent_template = template.get("duplicate_parent_template")
+                    if parent_template:
+                        if not (
+                            parent_template in [t["id"] for t in self.templates]
+                            or r.table("domains").get(parent_template).run(db.conn)
+                        ):
+                            raise Error(
+                                "precondition_required",
+                                "Cannot restore duplicated template without parent template",
+                                description_code="parent_template_not_found",
+                            )
+                    elif "parents" in template:
+                        self.validate_parents(
+                            template["parents"],
+                            self.templates,
+                            "Cannot restore template without parent template {}",
+                        )
+
+    def validate_parents(self, parents, templates, error_message):
+        for parent in parents:
+            with app.app_context():
+                if not (
+                    r.table("domains").get(parent).run(db.conn)
+                    or any(t["id"] == parent for t in templates)
+                ):
+                    raise Error(
+                        "precondition_required",
+                        error_message.format(parent),
+                        description_code="parent_template_not_found",
+                    )
+
     def send_socket_user(self, kind, data):
         socketio.emit(
             kind,
@@ -1042,28 +1097,6 @@ class RecycleBin(object):
                     params={"user": str(self.owner_name)},
                 )
         self.check_can_restore()
-
-        if len(self.templates):
-            for template in self.templates:
-                if "duplicate_parent_template" in template:
-
-                    with app.app_context():
-                        if not (
-                            (
-                                template["duplicate_parent_template"]
-                                in [template["id"] for template in self.templates]
-                            )
-                            or (
-                                r.table("domains")
-                                .get(template["duplicate_parent_template"])
-                                .run(db.conn)
-                            )
-                        ):
-                            raise Error(
-                                "precondition_required",
-                                "Cannot restore duplicated template without parent template",
-                                description_code="parent_template_not_found",
-                            )
 
         with app.app_context():
             r.table("users").insert(self.users).run(db.conn)
