@@ -74,6 +74,55 @@ $(document).ready(function() {
                     },
                 });
             });
+        } else if ($(this).hasClass('btn-delete')) {
+            new PNotify({
+                title: 'Are you sure you want to delete this migration?',
+                text: 'The user will be able to migrate this user again.',
+                icon: 'fa fa-question-circle',
+                type: 'info',
+                hide: false,
+                confirm: {
+                    confirm: true
+                },
+                buttons: {
+                    closer: false,
+                    sticker: false
+                },
+                history: {
+                    history: false
+                },
+                addclass: "pnotify-center",
+            }).get().on('pnotify.confirm', function() {
+                $.ajax({
+                    url: `/api/v3/admin/migrations/${migrationId}`,
+                    type: 'DELETE',
+                    success: function() {
+                        new PNotify({
+                            title: `Migration deleted`,
+                            text: `Migration deleted successfully`,
+                            type: 'success',
+                            icon: 'fa fa-check',
+                            hide: true,
+                            delay: 5000,
+                            opacity: 1,
+                        })
+                        migrationTable.ajax.reload();
+                    },
+                    error: function (data) {
+                        new PNotify({
+                            title: `ERROR deleting migration`,
+                            text: data.responseJSON
+                                ? data.responseJSON.description
+                                : "Something went wrong",
+                            type: "error",
+                            hide: true,
+                            icon: "fa fa-warning",
+                            delay: 5000,
+                            opacity: 1,
+                        });
+                    },
+                });
+            });
         }
     });
 
@@ -175,7 +224,9 @@ function renderMigrationDataTable() {
             { "data": null, "render": function (data, type, full, meta) {
                 if (["exported", "imported", "migrating"].includes(full.status)) {
                     return `<button title="Change the status to 'revoked'" class="btn btn-xs btn-danger btn-revoke"><i class="fa fa-times-circle"></i> Revoke</button>`;
-                } else { return ""; } }
+                } else if ( full.status == "migrated" ) { 
+                    return `<button title="Delete this migration" class="btn btn-xs btn-danger btn-delete"><i class="fa fa-trash"></i> Delete</button>`;
+                } else{ return ""; } } 
             }
         ]
     });

@@ -2504,6 +2504,22 @@ class ApiUsers:
                 description_code="migration_not_found",
             )
 
+    def delete_user_migration_by_id(self, migration_id):
+        """
+        Deletes a user migration based on the migration id
+
+        :param migration_id: The migration id
+        :type migration_id: str
+        """
+        with app.app_context():
+            result = r.table("users_migrations").get(migration_id).delete().run(db.conn)
+        if result.get("deleted", 0) == 0:
+            raise Error(
+                "internal_server",
+                "No migration found when deleting",
+                description_code="migration_not_found",
+            )
+
     def reset_imported_user_migration_by_target_user(self, target_user_id):
         """
         Reset as exported all the imported migrations from the given target user id (remove the import_time and target_user fields too).
