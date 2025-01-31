@@ -1,10 +1,14 @@
 import json
 import traceback
+from datetime import timedelta
 
 import gevent
+from api.libv2.api_desktop_events import desktop_delete
+from api.libv2.api_desktops_persistent import get_unused_desktops
 from api.libv2.api_notify import notify_admins
 from flask import request
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.api_rest import ApiRest
 
 from api import app, socketio
 
@@ -19,13 +23,16 @@ from ..libv2.recycle_bin import (
     get_old_entries_config,
     get_recycle_bin_by_period,
     get_status,
+    get_unused_desktops_cutoff_time,
     get_user_amount,
     get_user_recycle_bin_ids,
+    set_unused_desktops_cutoff_time,
     update_task_status,
 )
 from .decorators import has_token, is_admin, is_admin_or_manager, ownsRecycleBinId
 
 rb_delete_queue = RecycleBinDeleteQueue()
+scheduler_client = ApiRest("isard-scheduler")
 
 
 @app.route("/api/v3/recycle_bin/<recycle_bin_id>", methods=["GET"])
@@ -418,6 +425,79 @@ def api_v3_admin_recycle_bin_delete_action_set(payload, action):
 def api_v3_admin_recycle_bin_delete_action(payload):
     return (
         json.dumps(get_delete_action()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle-bin/unused-desktops/cutoff-time", methods=["GET"])
+@is_admin
+def recycle_bin_cutoff_time(payload):
+    """
+    Get the cutoff time for unused desktops.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: Cutoff time
+    :rtype: Set with Flask response values and data in JSON
+    """
+    return (
+        json.dumps({"cutoff_time": get_unused_desktops_cutoff_time()}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle-bin/unused-desktops/cutoff-time", methods=["PUT"])
+@is_admin
+def recycle_bin_set_cutoff_time(payload):
+    """
+
+    Set the cutoff time for unused desktops.
+
+    Configuration specifications in JSON:
+    {
+        "cutoff_time": "Cutoff time in months"
+    }
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: None
+    :rtype: Set with Flask response values and data in JSON
+
+    """
+    data = request.get_json(force=True)
+    cutoff_time = data.get("cutoff_time")
+    set_unused_desktops_cutoff_time(cutoff_time)
+
+    scheduler_client.put(
+        "/recycle-bin/unused-desktops/cutoff-time",
+        data={"cutoff_time": cutoff_time},
+    )
+
+    return (
+        json.dumps({"cutoff_time": cutoff_time}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle-bin/unused-desktops/add", methods=["POST"])
+@is_admin
+def recycle_bin_add_unused_desktops(payload):
+    """
+    Send unused desktops to the recycle bin.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    cutoff_time = timedelta(days=get_unused_desktops_cutoff_time() * 30)
+    desktop_ids = get_unused_desktops(cutoff_time)
+    for domain_id in desktop_ids:
+        desktop_delete(domain_id, "isard-scheduler")
+    return (
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )

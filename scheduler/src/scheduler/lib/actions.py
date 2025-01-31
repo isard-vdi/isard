@@ -494,8 +494,18 @@ class Actions:
             {"max_delete_period": max_delete_period, "category": category},
         )
 
-    def recycle_bin_delete_admin_kwargs(**kwargs):
-        return []
+    def recycle_bin_unused_desktops_delete(**kwargs):
+        try:
+            api_client.post(
+                "/recycle-bin/unused-desktops/add",
+                {
+                    "cutoff_time": int(kwargs.get("cutoff_time", None)),
+                },
+            )
+        except:
+            log.error(
+                "Exception when deleting unused desktops: " + traceback.format_exc()
+            )
 
     def recycle_bin_delete_admin(**kwargs):
         max_delete_period = int(kwargs.get("max_delete_period"))

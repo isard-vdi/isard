@@ -53,6 +53,51 @@ $(document).ready(function () {
             });
         });
     });
+
+    selectUnusedDesktops();
+
+    $("#unused-desktops").on("change", function () {
+        var cutoffTime = $(this).val();
+        new PNotify({
+            title: "Confirm Change",
+            text: "Unused desktops older than the selected time will be permanently deleted. Proceed?",
+            hide: false,
+            type: 'info',
+            icon: 'fa fa-warning',
+            opacity: 0.9,
+            confirm: {
+                confirm: true,
+            },
+            buttons: {
+                closer: false,
+                sticker: false,
+            },
+            history: {
+                history: false,
+            },
+            addclass: "pnotify-center",
+        })
+            .get()
+            .on("pnotify.confirm", function () {
+                $.ajax({
+                    url: "/api/v3/recycle-bin/unused-desktops/cutoff-time",
+                    method: "PUT",
+                    data: JSON.stringify({ cutoff_time: parseInt(cutoffTime) }),
+                }).done(function (data) {
+                    new PNotify({
+                        title: "Desktops unused time set successfully",
+                        text: ``,
+                        hide: true,
+                        type: 'success',
+                        opacity: 0.9,
+                        addclass: "pnotify-center",
+                    })
+                });
+            })
+            .on("pnotify.cancel", function () {
+                selectUnusedDesktops();
+            });
+    })
 });
 
 function toggleOldEntriesAction(action) {
@@ -215,5 +260,17 @@ function checkDeleteAction() {
             delay: 5000,
             opacity: 1
         });
+    });
+}
+
+// Unused desktops
+
+function selectUnusedDesktops() {
+    $.ajax({
+        type: "GET",
+        url: "/api/v3/recycle-bin/unused-desktops/cutoff-time",
+        success: function (data) {
+            $('#unused-desktops').val(data["cutoff_time"])
+        }
     });
 }
