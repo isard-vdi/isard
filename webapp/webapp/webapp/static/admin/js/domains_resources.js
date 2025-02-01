@@ -441,9 +441,6 @@ $(document).ready(function () {
         switch ($(this).attr('id')) {
             case 'btn-alloweds':
                 modalAllowedsFormShow('qos_disk', data)
-                $('#modalAlloweds #alloweds_panel #categories_pannel').hide();
-                $('#modalAlloweds #alloweds_panel #groups_pannel').hide();
-                $('#modalAlloweds #alloweds_panel #users_pannel').hide();
                 $('#modalAlloweds #allowed-title h4').html('Apply to roles <small>This QoS will be applied to users roles desktops when starting</small>')
                 break;
             case 'btn-edit':

@@ -202,6 +202,15 @@
                 } else {
                     $('#modalAllowedsForm #allowed-warning').hide()
                 }
+                if (table == 'qos_disk') {
+                    $('#modalAlloweds #alloweds_panel #categories_pannel').hide();
+                    $('#modalAlloweds #alloweds_panel #groups_pannel').hide();
+                    $('#modalAlloweds #alloweds_panel #users_pannel').hide();
+                } else {
+                    $('#modalAlloweds #alloweds_panel #categories_pannel').show();
+                    $('#modalAlloweds #alloweds_panel #groups_pannel').show();
+                    $('#modalAlloweds #alloweds_panel #users_pannel').show();
+                }
                 $.each(alloweds,function(key, value)
                 {
                     $("#modalAllowedsForm #alloweds-add #a-"+key).empty().trigger('change')
