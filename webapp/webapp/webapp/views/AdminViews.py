@@ -1,5 +1,5 @@
 #
-#   Copyright © 2023 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#   Copyright © 2025 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
 #
 #   This file is part of IsardVDI.
 #
@@ -20,8 +20,7 @@
 
 import os
 
-import jwt
-from flask import flash, jsonify, make_response, redirect, render_template
+from flask import jsonify, make_response, redirect, render_template
 from flask_login import current_user, login_required, login_user, logout_user
 
 from webapp import app
@@ -401,6 +400,18 @@ def admin_hypervisors():
         title="Hypervisors",
         header="Hypervisors",
         nav="Hypervisors",
+        monitor_host=monitor_host,
+    )
+
+
+@app.route("/isard-admin/admin/operations", methods=["GET"])
+@login_required
+@isAdmin
+def admin_operations():
+    return render_template(
+        "admin/pages/operations.html",
+        title="Operations",
+        nav="Operations",
         monitor_host=monitor_host,
     )
 
