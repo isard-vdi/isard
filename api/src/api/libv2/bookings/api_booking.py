@@ -283,18 +283,19 @@ class Bookings:
                 traceback.format_stack(),
                 description_code="not_found",
             )
+        # If the booking is in progress, the desktop must be stopped
         if booking.get("start") <= datetime.now(pytz.utc) and booking.get(
             "end"
         ) >= datetime.now(pytz.utc):
             if booking.get("item_type") == "desktop":
                 with app.app_context():
-                    desktop = (
-                        r.table("domains").get(booking.get("item_id")).run(db.conn)
+                    desktop_status = (
+                        r.table("domains")
+                        .get(booking.get("item_id"))
+                        .pluck("status")["status"]
+                        .run(db.conn)
                     )
-                    r.table("domains").get(booking.get("item_id")).update(
-                        {"booking_id": False}
-                    ).run(db.conn)
-                if desktop.get("status") not in ["Stopped", "Failed"]:
+                if desktop_status not in ["Stopped", "Failed"]:
                     raise Error(
                         "precondition_required",
                         "In order to remove a booking in progress its desktop must be stopped",
@@ -302,29 +303,35 @@ class Bookings:
                         description_code="booking_desktop_delete_stop",
                     )
                 else:
+                    r.table("domains").get(booking.get("item_id")).update(
+                        {"booking_id": False}
+                    ).run(db.conn)
                     scheduler.remove_desktop_timeouts(booking.get("item_id"))
             elif booking.get("item_type") == "deployment":
                 with app.app_context():
                     desktops = (
                         r.table("domains")
                         .get_all(booking.get("item_id"), index="tag")
-                        .filter(
-                            lambda desktop: r.not_(
-                                r.expr(["Stopped", "Failed"]).contains(
-                                    desktop["status"]
-                                )
-                            )
-                        )
-                        .count()
+                        .pluck("status", "id")
                         .run(db.conn)
                     )
-                if desktops:
+                if any(d.get("status") not in ["Stopped", "Failed"] for d in desktops):
                     raise Error(
                         "precondition_required",
                         "In order to remove a booking in progress the deployment desktops must be stopped",
                         traceback.format_stack(),
                         description_code="booking_deployment_delete_stop",
                     )
+                else:
+                    with app.app_context():
+                        desktops = (
+                            r.table("domains")
+                            .get_all(booking.get("item_id"), index="tag")
+                            .update({"booking_id": False})
+                            .run(db.conn)
+                        )
+                    for desktop in desktops:
+                        scheduler.remove_desktop_timeouts(desktop.get("id"))
 
         with app.app_context():
             if not _check(
