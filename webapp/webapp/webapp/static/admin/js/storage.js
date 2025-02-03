@@ -961,18 +961,16 @@ function socketio_on() {
 }
 
 function showNotification(status) {
-  switch (status) {
-    default:
-      new PNotify({
-        title: 'Disk status changed to ' + status,
-        text: 'Disk is now ' + status + ' and moved to the other status disks table',
-        hide: true,
-        delay: 5000,
-        icon: '',
-        opacity: 1,
-        type: 'warning'
-      })
-  }
+  let storageTable = status === "ready" ? "ready" : "other status";
+  new PNotify({
+    title: `Disk status changed to ${status}`,
+    text: `Disk is now ${status} and moved to the ${storageTable} storage table`,
+    hide: true,
+    delay: 5000,
+    icon: '',
+    opacity: 1,
+    type: 'warning'
+  });
 }
 
 function format(rowData) {
