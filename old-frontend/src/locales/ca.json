@@ -621,7 +621,10 @@
           "co-owners": "Actualitzar copropietaris"
         }
       },
-      "alloweds-warning": "AVÍS! Eliminar usuaris d'aquest desplegament també eliminarà els seus escriptoris associats"
+      "alloweds-warning": "AVÍS! Eliminar usuaris d'aquest desplegament també eliminarà els seus escriptoris associats",
+      "videowall": {
+        "gpu-warning": "El videowall no funciona amb visors RDP"
+      }
     },
     "direct-viewer": {
       "title": "Accés a visors de l'escriptori:",

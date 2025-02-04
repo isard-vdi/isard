@@ -7,8 +7,19 @@
       <h5 class="font-weight-bold">
         {{ deployment.name }}
       </h5>
-      <hr class="mb-0">
-      <b-row class="pb-3 pt-2 scrollable-div">
+      <hr>
+      <b-alert
+        show
+        variant="info"
+        class="m-2"
+      >
+        <b-icon
+          class="mr-2"
+          icon="info-circle-fill"
+        />
+        {{ $t('views.deployment.videowall.gpu-warning') }}
+      </b-alert>
+      <b-row class="pb-3 scrollable-div">
         <DeploymentCard
           v-for="desktop in filteredDesktops"
           :key="desktop.id"

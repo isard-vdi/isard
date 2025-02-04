@@ -871,7 +871,10 @@
           "co-owners": "Actualizar copropietarios"
         }
       },
-      "alloweds-warning": "AVISO! Eliminar usuarios de este despliegue también eliminará sus escritorios asociados."
+      "alloweds-warning": "AVISO! Eliminar usuarios de este despliegue también eliminará sus escritorios asociados.",
+      "videowall": {
+        "gpu-warning": "El videowall no funciona con visores RDP"
+      }
     },
     "deployment-desktop-list": {
       "actions": {
