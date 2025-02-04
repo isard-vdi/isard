@@ -524,12 +524,9 @@ $(document).ready(function() {
             .find(".filter-box").val()==null) {
                 var values = [""]
             } else {
-                var values = $(this)
-                    .find(".filter-box").val()
-                    .map(function (value) {
-                        // matches the word exactly
-                        return '^' + value.trim() + '$'
-                    })
+                var values = $(this).find(".filter-box").val().map(value => 
+                    value === "Maintenance" ? value : `^${value.trim()}$`
+                );
             }
             var searchParams = values.join("|");
             if (title === "category") {
