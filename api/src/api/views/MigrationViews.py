@@ -393,3 +393,25 @@ def api_v3_admin_migration_revoke(payload, migration_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/admin/migrations/<migration_id>", methods=["DELETE"])
+@is_admin
+def api_v3_admin_migration_delete(payload, migration_id):
+    """
+
+    Endpoint to delete a user migration
+
+    :param payload: Data from JWT token
+    :type payload: dict
+    :param migration_id: The ID of the migration to delete
+    :type migration_id: str
+
+
+    """
+    users.delete_user_migration_by_id(migration_id)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )

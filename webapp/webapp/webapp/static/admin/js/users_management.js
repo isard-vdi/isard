@@ -91,39 +91,41 @@ function socketio_on(){
             user.group = user.group_id
             delete user.group_id
         });
-
-        $.ajax({
-            type: 'PUT',
-            url: '/api/v3/admin/users/csv',
-            data: JSON.stringify(data),
-            contentType: 'application/json',
-            success: function (xhr) {
-                $('form').each(function () {
-                    this.reset()
-                })
-                $('.modal').modal('hide')
-                new PNotify({
-                    title: 'Updated',
-                    text: data.users.length + ' user(s) updated successfully',
-                    hide: true,
-                    icon: 'fa fa-success',
-                    delay: 4000,
-                    opacity: 1,
-                    type: 'success'
-                })
-            },
-            error: function (xhr) {
-                new PNotify({
-                    title: 'ERROR updating multiple users',
-                    text: xhr.responseJSON.description,
-                    type: 'error',
-                    hide: true,
-                    icon: 'fa fa-warning',
-                    delay: 5000,
-                    opacity: 1
-                })
-            }
-        });
+        var users_to_enable = data['users'].map(user => user["active"] === true ? user["id"] : null).filter(id => id !== null);
+        checkMigratedAndProceed(users_to_enable, function () {
+            $.ajax({
+                type: 'PUT',
+                url: '/api/v3/admin/users/csv',
+                data: JSON.stringify(data),
+                contentType: 'application/json',
+                success: function (xhr) {
+                    $('form').each(function () {
+                        this.reset()
+                    })
+                    $('.modal').modal('hide')
+                    new PNotify({
+                        title: 'Updated',
+                        text: data.users.length + ' user(s) updated successfully',
+                        hide: true,
+                        icon: 'fa fa-success',
+                        delay: 4000,
+                        opacity: 1,
+                        type: 'success'
+                    })
+                },
+                error: function (xhr) {
+                    new PNotify({
+                        title: 'ERROR updating multiple users',
+                        text: xhr.responseJSON.description,
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 5000,
+                        opacity: 1
+                    })
+                }
+            });
+    })
     });
 
 	$('.btn-new-bulkusers').on('click', function () {
@@ -261,74 +263,66 @@ function socketio_on(){
                 update_data['active'] = (data['active'] === 'on');
             }
 
-            if (['active'] in update_data) {
-                $.ajax({
-                    type: 'PUT',
-                    url: '/api/v3/admin/users/bulk',
-                    data: JSON.stringify(update_data),
-                    contentType: 'application/json',
-                    async: false,
-                    success: function () {
-                        showAlert(form.find("#general-alert"), "Updated successfully", "success");
-                    },
-                    error: function (data) {
-                        hideModal = false;
-                        showAlert(form.find("#general-alert"), data.responseJSON.description, "error");
+            (async function () {
+                // every ajax call here is awaited so the modal can be hidden only if no errors are found
+                if (['active'] in update_data) {
+                    var action = update_data['active'] ? 'enable' : 'disable';
+                    if (update_data['active']) {
+                        await checkMigratedAndProceed(data['ids'], function () {
+                            hideModal = updateUserBulkData(update_data, form, hideModal);
+                        });
+                    } else {
+                        hideModal = updateUserBulkData(update_data, form, hideModal);
                     }
-                });
-            }
-
-            if (data["edit-secondary-group"] === 'on') {
-                $.ajax({
-                    type: 'PUT',
-                    url: `/api/v3/admin/user/secondary-groups/${data['action-secondary-group']}`,
-                    data: JSON.stringify({
-                        "secondary_groups": data['secondary_groups'] ? data['secondary_groups'] : [],
-                        "ids": data['ids']
-                    }),
-                    async: false,
-                    contentType: 'application/json',
-                    success: function () {
-                        showAlert(form.find(".edit-secondary-groups .alert"), "Updated successfully", "success");
-                    },
-                    error: function (data) {
-                        hideModal = false;
-                        showAlert(form.find(".edit-secondary-groups .alert"), data.responseJSON.description, "error");
-                    }
-                })
-            }
-
-            if (data["edit-email-verified"] === 'on') {
-                $.ajax({
-                    type: 'PUT',
-                    url: '/api/v3/admin/users/bulk',
-                    data: JSON.stringify({ "email_verified": data['email-verified'] === 'on', "ids": data['ids'] }),
-                    contentType: 'application/json',
-                    async: false,
-                    success: function () {
-                        showAlert(form.find("#general-alert"), "Updated successfully", "success");
-                    },
-                    error: function (data) {
-                        hideModal = false;
-                        showAlert(form.find("#general-alert"), data.responseJSON.description, "error");
-                    }
-                });
-            }
-
-            if (hideModal) {
-                $('.modal').modal('hide');
-                if (data["edit-active-inactive"] === 'on' || data["edit-secondary-group"] === 'on') {
-                    new PNotify({
-                        title: 'Updated',
-                        text: data['ids'].length + ' user(s) updated successfully',
-                        hide: true,
-                        icon: 'fa fa-success',
-                        delay: 4000,
-                        opacity: 1,
-                        type: 'success'
+                }
+                if (data["edit-secondary-group"] === 'on') {
+                    await $.ajax({
+                        type: 'PUT',
+                        url: `/api/v3/admin/user/secondary-groups/${data['action-secondary-group']}`,
+                        data: JSON.stringify({
+                            "secondary_groups": data['secondary_groups'] ? data['secondary_groups'] : [],
+                            "ids": data['ids']
+                        }),
+                        contentType: 'application/json',
+                        success: function () {
+                            showAlert(form.find(".edit-secondary-groups .alert"), "Updated successfully", "success");
+                        },
+                        error: function (data) {
+                            hideModal = false;
+                            showAlert(form.find(".edit-secondary-groups .alert"), data.responseJSON.description, "error");
+                        }
+                    })
+                }
+                if (data["edit-email-verified"] === 'on') {
+                    await $.ajax({
+                        type: 'PUT',
+                        url: '/api/v3/admin/users/bulk',
+                        data: JSON.stringify({ "email_verified": data['email-verified'] === 'on', "ids": data['ids'] }),
+                        contentType: 'application/json',
+                        success: function () {
+                            showAlert(form.find("#general-alert"), "Updated successfully", "success");
+                        },
+                        error: function (data) {
+                            hideModal = false;
+                            showAlert(form.find("#general-alert"), data.responseJSON.description, "error");
+                        }
                     });
                 }
-            };
+                if (hideModal) {
+                    $('.modal').modal('hide');
+                    if (data["edit-active-inactive"] === 'on' || data["edit-secondary-group"] === 'on') {
+                        new PNotify({
+                            title: 'Updated',
+                            text: data['ids'].length + ' user(s) updated successfully',
+                            hide: true,
+                            icon: 'fa fa-success',
+                            delay: 4000,
+                            opacity: 1,
+                            type: 'success'
+                        });
+                    }
+                };
+            })();
         }
     });
 
@@ -1286,53 +1280,24 @@ function actionsUserDetail(){
         var id=closest.attr("data-pk");
         var name=closest.attr("data-name");
         var active = !(users_table.row($(this).closest("tr").prev()).data().active)
+        var action = active ? 'enable' : 'disable';
         new PNotify({
             title: 'Confirmation Needed',
-            text: "Are you sure you want to enable/disable: "+name+"?",
+            text: "Are you sure you want to "+action+": "+name+"?",
             hide: false,
             opacity: 0.9,
-            confirm: {
-                confirm: true
-            },
-            buttons: {
-                closer: false,
-                sticker: false
-            },
-            history: {
-                history: false
-            },
+            confirm: { confirm: true },
+            buttons: { closer: false, sticker: false },
+            history: { history: false },
             addclass: 'pnotify-center'
         }).get().on('pnotify.confirm', function() {
-            $.ajax({
-                type: "PUT",
-                url: "/api/v3/admin/user/" + id,
-                data: JSON.stringify({ id, active }),
-                contentType: "application/json",
-                success: function(data) {
-                    $('form').each(function() { this.reset() });
-                    $('.modal').modal('hide');
-                    new PNotify({
-                        title: "Updated",
-                        text: "User status updated successfully",
-                        hide: true,
-                        delay: 4000,
-                        icon: 'fa fa-success',
-                        opacity: 1,
-                        type: "success"
-                    });
-                },
-                error: function(data) {
-                    new PNotify({
-                        title: "ERROR updating user",
-                        text: data.responseJSON.description,
-                        type: 'error',
-                        hide: true,
-                        icon: 'fa fa-warning',
-                        delay: 15000,
-                        opacity: 1
-                    });
-                }
-            });
+            if (active) {
+                checkMigratedAndProceed([id], function() {
+                    enableDisableUser(id, active);
+                });
+            } else {
+                enableDisableUser(id, active);
+            }
         }).on('pnotify.cancel', function() {});
     });
 
@@ -1952,5 +1917,113 @@ function render_users_to_edit_table(usersToEdit) {
             <td>${user["secondary_groups_names"].join(",")}</td>
         </tr>
         `)
+    });
+}
+
+function enableDisableUser(user_id, active) {
+    $.ajax({
+        type: "PUT",
+        url: "/api/v3/admin/user/" + user_id,
+        data: JSON.stringify({ user_id, active }),
+        contentType: "application/json",
+        success: function (data) {
+            $('form').each(function () { this.reset(); });
+            $('.modal').modal('hide');
+            new PNotify({
+                title: "Updated",
+                text: "User status updated successfully",
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: "success"
+            });
+        },
+        error: function (data) {
+            new PNotify({
+                title: "ERROR updating user",
+                text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                type: 'error',
+                hide: true,
+                icon: 'fa fa-warning',
+                delay: 15000,
+                opacity: 1
+            });
+        }
+    });
+}
+
+
+function updateUserBulkData(update_data, form, hideModal) {
+    $.ajax({
+        type: 'PUT',
+        url: '/api/v3/admin/users/bulk',
+        data: JSON.stringify(update_data),
+        contentType: 'application/json',
+        async: false,
+        success: function () {
+            showAlert(form.find("#general-alert"), "Updated successfully", "success");
+        },
+        error: function (data) {
+            hideModal = false;
+            showAlert(form.find("#general-alert"), data.responseJSON.description, "error");
+        }
+    });
+    return hideModal;
+}
+
+
+async function checkMigratedAndProceed(users, onSuccess) {
+    return new Promise((resolve, reject) => {
+        $.ajax({
+            type: "POST",
+            url: `/api/v3/admin/user/check/migrated`,
+            data: JSON.stringify({ "users": users }),
+            contentType: "application/json",
+            success: function (data) {
+                if (data.migrated) {
+                    new PNotify({
+                        title: 'Warning!',
+                        text: `You are about to enable a migrated user that was disabled by the system.`,
+                        hide: false, opacity: 0.9, type: 'error',
+                        confirm: {
+                            confirm: true,
+                            buttons: [
+                                {
+                                    text: "Ok", promptTrigger: true,
+                                    click: function (notice, value) {
+                                        notice.remove();
+                                        onSuccess();
+                                        resolve();
+                                    }
+                                },
+                                { 
+                                    text: "Cancel", promptTrigger: true,
+                                    click: function (notice) {
+                                        notice.remove();
+                                        reject();
+                                    }
+                                }
+                            ]
+                        }
+                    }).open()
+                } else {
+                    onSuccess();
+                    resolve();
+                }
+            },
+            error: function (xhr) {
+                new PNotify({
+                    title: "ERROR",
+                    text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                });
+                reject();
+            }
+        });
     });
 }

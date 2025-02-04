@@ -49,6 +49,7 @@ from ..libv2.api_users import (
     get_user_full_data,
     user_exists,
 )
+from ..libv2.caches import get_document
 from ..libv2.helpers import get_new_user_data
 from ..libv2.quotas import Quotas
 from ..libv2.quotas_process import QuotasProcess
@@ -218,17 +219,9 @@ def api_v3_admin_user_update(payload, user_id=None):
         data["ids"] = [user_id]
 
     for user_id in data["ids"]:
-        if user_id == payload["user_id"] and data.get("active") is not None:
-            raise Error("forbidden", "Can not deactivate your own account")
-
-        user = users.Get(user_id)
-        if (
-            user["username"] == "admin"
-            and users.GroupGet(user["group"])["name"] == "Default"
-            and users.CategoryGet(user["category"])["name"] == "Default"
-            and data.get("active") is not None
-        ):
-            raise Error("forbidden", "Can not deactivate default admin")
+        user = get_document("users", user_id)
+        if "active" in data:
+            users.enable_users_check(data["active"], payload, user=user)
 
         ownsUserId(payload, user_id)
         ownsCategoryId(payload, user["category"])
@@ -1412,3 +1405,25 @@ def admin_user_migrate_deployments(payload, user_id, target_user_id):
     user_data = get_new_user_data(target_user_id)
     users.change_owner_deployments(resource_list, user_data, user_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/user/check/migrated", methods=["POST"])
+@is_admin_or_manager
+def api_v3_check_enable_user(payload):
+    """
+    Check if user can be enabled
+
+    :param payload: JWT payload
+    :type payload: dict
+    :param user_id: User ID
+    :type user_id: str
+
+    :return: JSON response {migrated: bool}
+    :rtype: json
+    """
+    data = request.get_json()
+    migrated = False
+    for user_id in data["users"]:
+        if users.check_migrated_user(payload["role_id"], user_id=user_id):
+            migrated = True
+    return json.dumps({"migrated": migrated}), 200, {"Content-Type": "application/json"}

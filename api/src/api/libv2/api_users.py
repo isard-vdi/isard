@@ -2504,6 +2504,22 @@ class ApiUsers:
                 description_code="migration_not_found",
             )
 
+    def delete_user_migration_by_id(self, migration_id):
+        """
+        Deletes a user migration based on the migration id
+
+        :param migration_id: The migration id
+        :type migration_id: str
+        """
+        with app.app_context():
+            result = r.table("users_migrations").get(migration_id).delete().run(db.conn)
+        if result.get("deleted", 0) == 0:
+            raise Error(
+                "internal_server",
+                "No migration found when deleting",
+                description_code="migration_not_found",
+            )
+
     def reset_imported_user_migration_by_target_user(self, target_user_id):
         """
         Reset as exported all the imported migrations from the given target user id (remove the import_time and target_user fields too).
@@ -2985,6 +3001,70 @@ class ApiUsers:
                 "bad_request",
                 description=f'Migrations in status "{status}" cannot be revoked.',
             )
+
+    def check_migrated_user(self, role, user=None, user_id=None):
+        """
+        Check if the user trying to be enabled is a migrated user. If it is and the role is not admin, raise an error.
+
+        :param role: The role of the user doing the action
+        :type role: str
+        :param user_id: The user id to check
+        :type user_id: str
+
+        :return: True if the user is a migrated user, False otherwise
+        :rtype: bool
+        """
+        if not user:
+            if not user_id:
+                raise Error("bad_request", "User data or user_id must be provided")
+            user = get_document("users", user_id, ["active", "id"])
+        if user["active"] is False:
+            with app.app_context():
+                user_migrated = list(
+                    r.table("users_migrations")
+                    .get_all(user["id"], index="origin_user")
+                    .filter({"status": "migrated"})
+                    .run(db.conn)
+                )
+            if user_migrated:
+                if role == "admin":
+                    return True
+                else:
+                    raise Error(
+                        "bad_request",
+                        "Migrated user cannot be activated. Please contact an administrator.",
+                        description_code="migrated_user_activation_error",
+                    )
+            return False
+        return False
+
+    def enable_users_check(self, enable, payload, user=None, user_id=None):
+        """
+        Check if an user can be enabled or disabled. If the user data is not provided, it will be retrieved using the user_id.
+
+        :param enable: If the user is being enabled or disabled
+        :type enable: bool
+        :param payload: The payload of the user doing the action
+        :type payload: dict
+        :param user: The data of the user to enable or disable
+        :type user: dict
+
+        :return: True if the user can be enabled or disabled, False otherwise
+        :rtype: bool
+        """
+
+        if not user:
+            if not user_id:
+                raise Error("bad_request", "User data or user_id must be provided")
+            user = get_document("users", user_id, invalidate=True)
+        if enable:
+            return not self.check_migrated_user(payload["role_id"], user=user)
+        else:
+            if user["id"] == "local-default-admin-admin":
+                raise Error("forbidden", "Can not deactivate default admin")
+            if user["id"] == payload["user_id"]:
+                raise Error("forbidden", "Can not deactivate your own account")
+        return True
 
 
 def validate_email_jwt(user_id, email, minutes=60):
