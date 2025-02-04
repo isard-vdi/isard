@@ -28,6 +28,7 @@ MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024
 
 from ..libv2.api_admin import ApiAdmin
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
+from ..libv2.api_notify import notify_admin
 from ..libv2.api_storage import (
     _check_domains_status,
     get_disks_ids_by_status,
@@ -1419,3 +1420,59 @@ def storage_path_statuses(payload):
         )
     storage = get_storage(get_storage_id_from_path(request.json["path"]))
     return jsonify(storage.statuses)
+
+
+@app.route("/api/v3/storage/<path:storage_id>/find", methods=["GET"])
+@has_token
+def storage_find(payload, storage_id):
+    storage = get_storage(payload, storage_id)
+    return jsonify(storage.find(payload.get("user_id")))
+
+
+@app.route("/api/v3/storages/find", methods=["PUT"])
+@is_admin_or_manager
+def storages_find(payload):
+    if not request.is_json:
+        raise Error(
+            error="bad_request",
+            description="No JSON in body request with storage ids",
+        )
+    request_json = request.get_json()
+    storages_ids = request_json.get("ids")
+    if not storages_ids:
+        raise Error(
+            error="bad_request",
+            description="Storage ids required",
+        )
+    for storage_id in storages_ids:
+        storage = get_storage(payload, storage_id)
+        storage.find(payload.get("user_id"))
+
+    return jsonify({})
+
+
+@app.route("/api/v3/storages/find/<status>", methods=["PUT"])
+@is_admin_or_manager
+def storages_find_by_status(payload, status):
+    storages_ids = get_disks_ids_by_status(status=status)
+
+    for storage_id in storages_ids:
+        try:
+            storage = get_storage(payload, storage_id)
+            storage.find(payload.get("user_id"))
+        except:
+            notify_admin(
+                payload["user_id"],
+                "Error finding storage",
+                f"There was an error creating a task for {storage_id}",
+                type="error",
+            )
+
+    return jsonify({})
+
+
+@app.route("/api/v3/storage/<path:storage_id>/storages_with_uuid", methods=["GET"])
+@is_admin_or_manager
+def storage_storages_with_uuid(payload, storage_id):
+    storage = get_storage(payload, storage_id)
+    return jsonify(storage.storages_with_uuid)

@@ -192,7 +192,7 @@ $(document).ready(function () {
                   var notify = new PNotify();
                   $.ajax({
                     type: "PUT",
-                    url: '/api/v3/storages/status/' + status,
+                    url: '/api/v3/storages/find/' + status,
                     contentType: "application/json",
                     success: function (data) {
                       $('.mactionsStorage option[value="none"]').prop("selected", true);
@@ -287,40 +287,40 @@ $(document).on('click', '.btn-task-info', function () {
   });
 })
 
-$(document).on('click', '.btn-check-qemu-img-info', function () {
-  element = $(this);
-  var id = element.data("id");
-  element.html('<i class="fa fa-spinner fa-pulse"></i>')
-  $.ajax({
-    type: 'PUT',
-    url: '/api/v3/storage/' + id + '/check_backing_chain',
-    contentType: 'application/json',
-    success: function (result) {
-      element.html('<i class="fa fa-refresh"></i>')
-      new PNotify({
-        title: 'Updated',
-        text: 'Storage backing chain succesfully',
-        hide: true,
-        delay: 2000,
-        icon: '',
-        opacity: 1,
-        type: 'success'
-      })
-    },
-    error: function (xhr, ajaxOptions, thrownError) {
-      element.html('<i class="fa fa-refresh" style="color:red" title="Error checking backing chain!"></i>')
-      new PNotify({
-        title: 'Error',
-        text: xhr.responseJSON.description,
-        hide: true,
-        delay: 3000,
-        icon: 'fa fa-warning',
-        opacity: 1,
-        type: 'error'
-      });
-    }
-  });
-});
+// $(document).on('click', '.btn-check-qemu-img-info', function () {
+//   element = $(this);
+//   var id = element.data("id");
+//   element.html('<i class="fa fa-spinner fa-pulse"></i>')
+//   $.ajax({
+//     type: 'PUT',
+//     url: '/api/v3/storage/' + id + '/check_backing_chain',
+//     contentType: 'application/json',
+//     success: function (result) {
+//       element.html('<i class="fa fa-refresh"></i>')
+//       new PNotify({
+//         title: 'Updated',
+//         text: 'Storage backing chain succesfully',
+//         hide: true,
+//         delay: 2000,
+//         icon: '',
+//         opacity: 1,
+//         type: 'success'
+//       })
+//     },
+//     error: function (xhr, ajaxOptions, thrownError) {
+//       element.html('<i class="fa fa-refresh" style="color:red" title="Error checking backing chain!"></i>')
+//       new PNotify({
+//         title: 'Error',
+//         text: xhr.responseJSON.description,
+//         hide: true,
+//         delay: 3000,
+//         icon: 'fa fa-warning',
+//         opacity: 1,
+//         type: 'error'
+//       });
+//     }
+//   });
+// });
 
 $(document).on('click', '.btn-delete-scheduler', function () {
   element = $(this);
@@ -369,6 +369,38 @@ $(document).on('click', '.btn-delete-scheduler', function () {
         });
       }
     });
+  });
+});
+
+$(document).on('click', '.btn-find', function () {
+  element = $(this);
+  var id = element.data("id");
+  $.ajax({
+    type: 'GET',
+    url: '/api/v3/storage/' + id + '/find',
+    contentType: 'application/json',
+    success: function (result) {
+      new PNotify({
+        title: 'Find',
+        text: 'Storage found',
+        hide: true,
+        delay: 2000,
+        icon: '',
+        opacity: 1,
+        type: 'success'
+      })
+    },
+    error: function (xhr, ajaxOptions, thrownError) {
+      new PNotify({
+        title: 'Error',
+        text: xhr.responseJSON.description,
+        hide: true,
+        delay: 3000,
+        icon: 'fa fa-warning',
+        opacity: 1,
+        type: 'error'
+      });
+    }
   });
 });
 
@@ -978,7 +1010,15 @@ function format(rowData) {
     '<table id="cl' +
     rowData.id.replaceAll("/", "_") +
     '" class="display compact nowrap w-100" width="100%">' +
-    "</table>";
+    "</table>" +
+    `<div id="ContainerStoragesWithUUID${rowData.id.replaceAll("/", "_")}">
+      <span id="TitleStoragesWithUUID${rowData.id.replaceAll("/", "_")}">
+        <b>Other storage files with the same UUID</b> (${rowData.id}):
+      </span>
+      <table id="StoragesWithUUID${rowData.id.replaceAll("/", "_")}" 
+        class="display compact nowrap w-100" width="100%">
+      </table>
+    </div>`;
   return $(childTable).toArray();
 }
 
@@ -1130,8 +1170,10 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         width: '65px',
         visible: $('meta[id=user_data]').attr('data-role') === 'admin',
         render: function (data, type, row, meta) {
-          return `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>
+          return `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-info btn-xs btn-find" title="Find in storage"><i class="fa fa-search  "></i></button>\
                   ${data.status == "ready" ? `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>` : ""}`;
+          // <button type="button" data-id="${row.id}" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>\
+
         }
       }
     ],
@@ -1192,6 +1234,34 @@ function showRowDetails(table, tr, row) {
       ],
       order: [],
       select: false,
+    });
+
+    StoragesWithUUIDTable = $('#StoragesWithUUID' + row.data().id).DataTable({
+      dom: "t",
+      ajax: {
+        url: "/api/v3/storage/" + row.data().id + "/storages_with_uuid",
+        contentType: "application/json",
+        type: "GET",
+      },
+      sAjaxDataProp: "",
+      language: {
+        loadingRecords:
+          '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+      },
+      columns: [
+        { data: null, title: "#", render: function (data, type, full, meta) { return meta.row + 1; } },
+        { data: "path", title: "Storage path" },
+        { data: "status", title: "File status" },
+      ],
+      columnDefs: [
+      ],
+      order: [],
+      select: false,
+      fnInitComplete : function() {
+        if ($(this).find('tbody tr').length<=1) {
+          $(`#ContainerStoragesWithUUID${row.data().id.replaceAll("/", "_")}`).hide();
+        }
+      }
     });
     tr.addClass('shown')
   }

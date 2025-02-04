@@ -15,11 +15,11 @@
         {% if current_user.role == 'admin' %}
         <li>
           <a class="btn-add-storage">
-             <span style="color: #5499c7; ">
-                <i class="fa fa-plus"></i>
-                Create storage</span>
+            <span style="color: #5499c7; ">
+              <i class="fa fa-plus"></i>
+              Create storage</span>
           </a>
-       </li>
+        </li>
         {% endif %}
       </ul>
       <div class="clearfix"></div>
@@ -37,7 +37,7 @@
           <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
             <select class="form-control mactionsStorage" name="mactions" selectedTableId="storage" status="ready">
               <option value="none">Select action</option>
-              <option value="status">Check disk info</option>
+              <option value="find">Find & update disks</option>
             </select>
           </div>
         </div>
@@ -86,20 +86,19 @@
             </h4>
           </label>
           <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
-            <select class="form-control mactionsStorage" name="mactions" selectedTableId="storagesOtherTable"
-              status="">
+            <select class="form-control mactionsStorage" name="mactions" selectedTableId="storagesOtherTable" status="">
               <option value="none">Select action</option>
-              <option value="status">Check disk info</option>
+              <option value="find">Find & update disks</option>
             </select>
           </div>
         </div>
       </div>
       {% endif %}
       <table id="storagesOtherTable" class="table" width="100%">
-          <thead>
-          </thead>
-          <tbody>
-          </tbody>
+        <thead>
+        </thead>
+        <tbody>
+        </tbody>
       </table>
     </div>
   </div>

@@ -175,6 +175,21 @@ class Storage(RethinkCustomBase):
         else:
             self.directory_path = f"{storage_pool.mountpoint}/{self.category}/{storage_pool.get_usage_path(self.pool_usage)}"
 
+    def get_storage_pool_path(self, storage_pool):
+        """
+        Get storage in pool.
+
+        :param storage_pool: Storage Pool object
+        :type storage_pool: isardvdi_common.storage_pool.StoragePool
+        """
+        if self.pool_usage is None:
+            return None
+
+        if storage_pool.id == DEFAULT_STORAGE_POOL_ID:
+            return f"{storage_pool.mountpoint}/{storage_pool.get_usage_path(self.pool_usage)}"
+        else:
+            return f"{storage_pool.mountpoint}/{self.category}/{storage_pool.get_usage_path(self.pool_usage)}"
+
     @property
     def children(self):
         """
@@ -332,6 +347,44 @@ class Storage(RethinkCustomBase):
                 f"Storage {self.id} have the pending task {self.task}",
             )
         self.task = Task(*args, **kwargs).id
+
+    def find(self, user_id, blocking=True):
+        """
+        Create a task to find the storage.
+        It assumes any isard-storage will have all mountpoints in /isard.
+
+        :param user_id: User ID
+        :type user_id: str
+        :param blocking: Blocking
+        :type blocking: bool
+        :return: Task ID
+        :rtype: str
+        """
+
+        self.create_task(
+            blocking=blocking,
+            user_id=user_id,
+            queue=f"storage.{StoragePool.get_best_for_action('find', path=self.directory_path).id}.default",
+            task="find",
+            job_kwargs={
+                "kwargs": {
+                    "storage_id": self.id,
+                    "storage_path": self.path,
+                }
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update_pool",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                        }
+                    },
+                }
+            ],
+        )
+        return self.task
 
     def check_backing_chain(self, user_id, blocking=True):
         """
