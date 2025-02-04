@@ -479,7 +479,7 @@ def desktops_force_failed(desktops_ids, batch_size=100):
                     .get_all(*keys, index="kind_ids")
                     .filter(
                         lambda item: r.expr(
-                            ["Stopped", "Started", "Downloading"]
+                            ["Stopped", "Started", "Downloading", "Shutting-down"]
                         ).contains(item["status"])
                     )
                     .count()
@@ -488,7 +488,7 @@ def desktops_force_failed(desktops_ids, batch_size=100):
                 ):
                     raise Error(
                         "bad_request",
-                        "Cannot change to Failed status desktops from Stopped, Started or Downloading status",
+                        "Cannot change to Failed status desktops from Stopped, Started, Downloading or Shutting-down status",
                     )
                 r.table("domains").get_all(*keys, index="kind_ids").update(
                     {
