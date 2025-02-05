@@ -47,6 +47,7 @@ from .decorators import (
     is_admin,
     is_admin_or_manager,
     is_not_user,
+    ownsUserId,
 )
 
 admins = ApiAdmin()
@@ -1175,6 +1176,17 @@ def storage_abort(payload, storage_id):
     storage = get_storage(payload, storage_id)
 
     # storage_domains = get_storage_derivatives(storage_id)
+
+    task_agent_id = Task(storage.task).user_id
+    try:
+        ownsUserId(payload, task_agent_id)
+    except:
+        raise Error(
+            "forbidden",
+            "You are not authorized to cancel this operation as it was not initiated by you",
+            description_code="operation_not_owned",
+        )
+
     return jsonify(
         {
             "task_id": storage.abort_operations(

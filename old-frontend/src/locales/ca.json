@@ -1443,7 +1443,8 @@
     "migration_deployments_quota_error": "L'usuari té més desplegaments que la quota del nou usuari",
     "unable_to_restore_user": "No es pot restaurar. L'usuari esborrat {user} és propietari d'elements d'aquesta entrada",
     "unable_to_restore_group": "No es pot restaurar. El grup esborrat {group} està associat a elements d'aquesta entrada",
-    "unable_to_restore_category": "No es pot restaurar. La categoria esborrada {categoria} està associada a elements d'aquesta entrada"
+    "unable_to_restore_category": "No es pot restaurar. La categoria esborrada {categoria} està associada a elements d'aquesta entrada",
+    "operation_not_owned": "No estàs autoritzat a cancel·lar aquesta operació ja que no ha estat iniciada per tu"
     },
   "messages": {
     "title": {
