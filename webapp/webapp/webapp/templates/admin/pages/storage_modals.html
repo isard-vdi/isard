@@ -361,6 +361,51 @@
     </div>
 </div>
 
+<div class="modal fade" id="modalSparsify" tabindex="-1" role="dialog" aria-labelledby="modalSparsify"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel"><i class="fa fa-compress"></i> Sparsify disk</h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalSparsifyForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="storage_id" />
+                    <input hidden id="kind" name="kind" />
+                    <div class="x_panel">
+                        <div class="x_panel">
+                            <label class="control-label">Priority:</label>
+                            <select name="priority" id="priority" class="form-control tags-select roundbox"
+                                style="width:50%;">
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-success"><i class="fa fa-warning"></i>
+                            Apply</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="modal fade" id="modalMoveStorage" tabindex="-1" role="dialog" aria-labelledby="modalMoveStorage"
     aria-hidden="true">
