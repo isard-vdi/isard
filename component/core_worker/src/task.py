@@ -255,6 +255,28 @@ def storage_update(**storage_dict):
                         storage_update(**result)
 
 
+def storage_update_dict(**storage_dict):
+    """
+    Update storage with provided data.
+
+    :param storage_dict: Storage data
+    :type storage_dict: dict
+    """
+    if storage_dict:
+        if not Storage.exists(storage_dict["id"]):
+            return  # Storage was deleted
+        storage_object = Storage(**storage_dict)
+        if storage_dict.get("status") in ["deleted", "orphan", "broken_chain"]:
+            for domain in storage_object.domains + storage_object.domains_derivatives:
+                domain.status = "Failed"
+            for child in storage_object.derivatives:
+                if child.status != "deleted":
+                    child.status = "orphan"
+        if storage_dict.get("status") == "ready":
+            for domain in storage_object.domains:
+                domain.status = "Stopped"
+
+
 def storage_add(**storage_dict):
     """
     Add storage to database.

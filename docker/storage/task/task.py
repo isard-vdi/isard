@@ -22,6 +22,7 @@ import tempfile
 from json import loads
 from os import environ, makedirs, remove, rename, walk
 from os.path import basename, dirname, getmtime, isdir, isfile, join
+from pathlib import Path
 from re import search
 from subprocess import PIPE, CalledProcessError, Popen, check_output, run
 from time import sleep
@@ -549,3 +550,14 @@ def find(storage_id, storage_path):
                 if storage_path == file_path:
                     status = storage_data["status"]
     return {"id": storage_id, "status": status, "matching_files": matching_files}
+
+
+def touch(path):
+    """
+    Update the access and modification times of a file.
+
+    :param path: Path to file
+    :type path: str
+    """
+    if isfile(path):
+        Path(path).touch()

@@ -1252,13 +1252,24 @@ function showRowDetails(table, tr, row) {
         { data: null, title: "#", render: function (data, type, full, meta) { return meta.row + 1; } },
         { data: "path", title: "Storage path" },
         { data: "status", title: "File status" },
+        {
+          data: null, className: 'actions-control',
+          orderable: false, width: '0',
+          render: function (data, type, full, meta) {
+            buttons = `<button type="button" data-id="${row.data().id}" data-path="${full.path}" class="btn btn-pill-right btn-danger btn-xs btn-uuid-delete" title="Delete disk"><i class="fa fa-times"></i></button>`
+            if (["duplicated"].includes(full.status)) {
+              buttons += `<button type="button" data-id="${row.data().id}" data-path="${full.path}" class="btn btn-pill-right btn-info btn-xs btn-uuid-set-path" title="Set as storage path"><i class="fa fa-hdd-o"></i></button>`
+            }
+            return buttons;
+          }
+        }
       ],
       columnDefs: [
       ],
       order: [],
       select: false,
       fnInitComplete : function() {
-        if ($(this).find('tbody tr').length<=1) {
+        if ($(this).find('tbody tr').length<1) {
           $(`#ContainerStoragesWithUUID${row.data().id.replaceAll("/", "_")}`).hide();
         }
       }
@@ -1267,6 +1278,112 @@ function showRowDetails(table, tr, row) {
   }
 }
 
+$(document).on('click', '.btn-uuid-delete', function () {
+  var element = $(this);
+  var storage_id = element.data("id");
+  var path = element.data("path");
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: "Are you sure you want to delete the disk " + path + "?",
+    hide: false,
+    opacity: 1,
+    type: 'error',
+    confirm: {
+      confirm: true
+    },
+    buttons: {
+      closer: false,
+      sticker: false
+    },
+    history: {
+      history: false
+    },
+    addclass: 'pnotify-center'
+  }).get().on('pnotify.confirm', function () {
+    $.ajax({
+      type: 'DELETE',
+      url: `/api/v3/storage/${storage_id}/path`,
+      contentType: 'application/json',
+      data: JSON.stringify({ "path": path }),
+      success: function (result) {
+        new PNotify({
+          title: 'Deleted',
+          text: 'Disk deleted',
+          hide: true,
+          delay: 2000,
+          icon: '',
+          opacity: 1,
+          type: 'success'
+        })
+      },
+      error: function (data) {
+        new PNotify({
+          title: 'ERROR deleting disk',
+          text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+          hide: true,
+          delay: 3000,
+          icon: 'fa fa-warning',
+          opacity: 1,
+          type: 'error'
+        });
+      }
+    });
+  });
+});
+
+$(document).on('click', '.btn-uuid-set-path', function () {
+  var element = $(this);
+  var storage_id = element.data("id");
+  var path = element.data("path");
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: `Are you sure you want set this storage's disk to ${path}?
+    This might get changed if "find disk" is called again.`,
+    hide: false,
+    opacity: 1,
+    type: 'info',
+    confirm: {
+      confirm: true
+    },
+    buttons: {
+      closer: false,
+      sticker: false
+    },
+    history: {
+      history: false
+    },
+    addclass: 'pnotify-center'
+  }).get().on('pnotify.confirm', function () {
+    $.ajax({
+      type: 'PUT',
+      url: `/api/v3/storage/${storage_id}/path`,
+      contentType: 'application/json',
+      data: JSON.stringify({ "path": path }),
+      success: function (result) {
+        new PNotify({
+          title: 'Path set',
+          text: `Path for storage ${storage_id} set to ${path}`,
+          hide: true,
+          delay: 2000,
+          icon: '',
+          opacity: 1,
+          type: 'success'
+        })
+      },
+      error: function (data) {
+        new PNotify({
+          title: 'ERROR seting storage path',
+          text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+          hide: true,
+          delay: 3000,
+          icon: 'fa fa-warning',
+          opacity: 1,
+          type: 'error'
+        });
+      }
+    });
+  });
+});
 
 function detailButtons(storage) {
   return storage.status == "ready" ?
