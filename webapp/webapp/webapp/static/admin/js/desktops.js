@@ -105,7 +105,8 @@ columns = [
             } else {
                 return '-'
             }
-        }
+        },
+        "visible": $('meta[id=user_data]').attr('data-role') == 'admin'
     },
     {
         "data": "favourite_hyp", "width": "100px", "render": function (data, type, full, meta) {
@@ -123,7 +124,8 @@ columns = [
             } else {
                 return '-'
             }
-        }
+        },
+        "visible": $('meta[id=user_data]').attr('data-role') == 'admin'
     },
     {
         "data": "accessed", 'defaultContent': '', "render": function (data, type, full, meta) {
