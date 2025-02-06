@@ -631,3 +631,73 @@ def check_category_storage_pool_availability(categories_ids, storage_pool_id=Non
         any(category_id in pool["categories"] for category_id in categories_ids)
         for pool in existing_categories
     )
+
+
+def get_storages_with_uuid(category_id=None, status=None):
+    query = r.table("storage")
+
+    if category_id:
+        query = (
+            query.eq_join(
+                [r.row["user_id"], category_id], r.table("users"), index="user_category"
+            )
+            .pluck("left", {"right": {"category": True}})
+            .zip()
+        )
+
+    query = (
+        query.pluck("id", "storages_with_uuid")
+        .merge(
+            lambda storage: r.branch(
+                storage.has_fields("storages_with_uuid"),
+                storage["storages_with_uuid"].map(
+                    lambda doc: doc.merge({"id": storage["id"]})
+                ),
+                [],
+            )
+        )
+        .reduce(lambda acc, arr: acc.union(arr))
+    )
+
+    if status:
+        query = query.filter({"status": status})
+
+    with app.app_context():
+        return list(query.run(db.conn))
+
+
+def get_storages_with_uuid_status(category_id=None):
+    query = r.table("storage")
+
+    if category_id:
+        query = (
+            query.eq_join(
+                [r.row["user_id"], category_id], r.table("users"), index="user_category"
+            )
+            .pluck("left", {"right": {"category": True}})
+            .zip()
+        )
+
+    query = (
+        query.pluck("id", "storages_with_uuid")
+        .merge(
+            lambda storage: r.branch(
+                storage.has_fields("storages_with_uuid"),
+                storage["storages_with_uuid"].map(
+                    lambda doc: doc.merge({"id": storage["id"]})
+                ),
+                [],
+            )
+        )
+        .reduce(lambda acc, arr: acc.union(arr))
+    )
+
+    query = (
+        query.group("status")
+        .count()
+        .ungroup()
+        .map(lambda doc: {"status": doc["group"], "count": doc["reduction"]})
+    )
+
+    with app.app_context():
+        return list(query.run(db.conn))
