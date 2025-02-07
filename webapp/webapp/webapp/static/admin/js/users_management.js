@@ -1597,6 +1597,9 @@ function renderUsersDetailPannel ( d ) {
         })
         return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.username/g, d.username).replace(/d.secondary_groups/g, secondary_groups_names);
     });
+    if (d.provider !== "local") {
+        $newPanel.find('.btn-passwd').remove();
+    }
     return $newPanel
 }
 
