@@ -660,6 +660,45 @@ def storages_sparsify_by_status(payload, status):
 
 
 @app.route(
+    "/api/v3/storage/disconnect/<path:storage_id>/priority/<priority>",
+    methods=["PUT"],
+)
+@has_token
+def storage_disconnect(payload, storage_id, priority="low"):
+    """
+    Endpoint to disconnect a storage from its backing chain
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    if payload["role_id"] != "admin":
+        priority = "low"
+    else:
+        if priority not in ["low", "default", "high"]:
+            raise Error(
+                error="bad_request",
+                description=f"Priority must be low, default or high",
+            )
+
+    storage = get_storage(payload, storage_id)
+
+    try:
+        return jsonify(
+            {
+                "task_id": storage.disconnect_chain(
+                    priority,
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
+
+
+@app.route(
     "/api/v3/storage/<path:storage_id>/update_qemu_img_info",
     methods=["PUT"],
 )

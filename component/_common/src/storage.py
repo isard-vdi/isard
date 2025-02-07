@@ -989,6 +989,62 @@ class Storage(RethinkCustomBase):
 
         return self.task
 
+    def disconnect_chain(
+        self,
+        user_id,
+        priority="default",
+    ):
+        """
+        Create a task to disconnect the storage.
+
+        :param user_id: User ID
+        :type user_id: str
+        :param priority: Priority
+        :type priority: str
+        """
+        disconnect_queue = (
+            f"storage.{StoragePool.get_best_for_action('disconnect').id}.{priority}"
+        )
+
+        self.set_maintenance("disconnect")
+        self.create_task(
+            user_id=user_id,
+            queue=disconnect_queue,
+            task="disconnect",
+            job_kwargs={
+                "kwargs": {
+                    "storage_path": self.path,
+                },
+            },
+            dependents=[
+                {
+                    "queue": disconnect_queue,
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "storage_update_parent",
+                                    "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        )
+
+        return self.task
+
     def abort_operations(
         self,
         user_id,
