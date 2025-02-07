@@ -36,7 +36,7 @@ from .decorators import (
     checkDuplicate,
     has_token,
     is_admin_or_manager,
-    is_admin_or_manager_or_advanced,
+    is_not_user,
     ownsDomainId,
     ownsMediaId,
 )
@@ -55,7 +55,7 @@ def api_v3_media_check_quota(payload):
 
 # Add media
 @app.route("/api/v3/media", methods=["POST"])
-@is_admin_or_manager_or_advanced
+@is_not_user
 def api_v3_admin_media_insert(payload):
     try:
         data = request.get_json()
@@ -199,7 +199,7 @@ def api_v3_desktops_media_list(payload):
 
 # Media actions
 @app.route("/api/v3/media/<action>/<id>", methods=["POST"])
-@is_admin_or_manager_or_advanced
+@is_not_user
 def api_v3_media_actions(payload, action, id):
     if action == "abort":
         data = {"id": id, "status": "DownloadAborting"}
@@ -227,7 +227,7 @@ def api_v3_media_installs(payload):
 
 # Gets related desktops list at deleting media
 @app.route("/api/v3/media/desktops/<media_id>", methods=["GET"])
-@is_admin_or_manager_or_advanced
+@is_not_user
 def api_v3_admin_media_desktops(payload, media_id):
     ownsMediaId(payload, media_id)
     return (
@@ -238,7 +238,7 @@ def api_v3_admin_media_desktops(payload, media_id):
 
 
 @app.route("/api/v3/media/<media_id>", methods=["DELETE"])
-@is_admin_or_manager_or_advanced
+@is_not_user
 def api_v3_admin_media_delete(payload, media_id):
     """
     Endpoint to delete a media

@@ -262,38 +262,6 @@ def is_admin_or_manager(f):
     return decorated
 
 
-def is_admin_or_manager_or_advanced(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        payload = get_header_jwt_payload()
-        if payload.get("type", "") not in ["login", ""]:
-            raise Error(
-                "forbidden",
-                "Token not valid for this operation.",
-                traceback.format_exc(),
-            )
-        api_sessions.get(
-            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
-        )
-
-        if payload.get("role_id") != "admin":
-            maintenance(payload["category_id"])
-        if (
-            payload["role_id"] == "admin"
-            or payload["role_id"] == "manager"
-            or payload["role_id"] == "advanced"
-        ):
-            kwargs["payload"] = payload
-            return f(*args, **kwargs)
-        raise Error(
-            "forbidden",
-            "Not enough rights.",
-            traceback.format_exc(),
-        )
-
-    return decorated
-
-
 def is_not_user(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -307,7 +275,8 @@ def is_not_user(f):
         api_sessions.get(
             get_jwt_payload().get("session_id", ""), get_remote_addr(request)
         )
-
+        if payload.get("role_id") != "admin":
+            maintenance(payload["category_id"])
         if payload["role_id"] != "user":
             kwargs["payload"] = payload
             return f(*args, **kwargs)
