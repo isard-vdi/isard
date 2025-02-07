@@ -1530,8 +1530,8 @@
         "token_expired": "The token you provided has expired",
         "unable_to_restore_user": "Unable to restore. Deleted user {user} owns items in this entry",
         "unable_to_restore_group": "Unable to restore. Deleted group {group} is associated to items in this entry",
-        "unable_to_restore_category": "Unable to restore. Deleted category {category} is associated to items in this entry"
-
+        "unable_to_restore_category": "Unable to restore. Deleted category {category} is associated to items in this entry",
+        "operation_not_owned": "You are not authorized to cancel this operation as it was not initiated by you"
     },
     "router": {
         "titles": {

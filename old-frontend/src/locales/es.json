@@ -1543,7 +1543,8 @@
     "migration_deployments_quota_error": "El usuario tiene más despliegues que la cuota del nuevo usuario",
     "unable_to_restore_user": "No se puede restaurar. El usuario borrado {user} es propietario de elementos de esta entrada",
     "unable_to_restore_group": "No se puede restaurar. El grupo eliminado {group} está asociado a elementos de esta entrada",
-    "unable_to_restore_category": "No se puede restaurar. La categoría eliminada {category} está asociada a elementos de esta entrada"
+    "unable_to_restore_category": "No se puede restaurar. La categoría eliminada {category} está asociada a elementos de esta entrada",
+    "operation_not_owned": "No estás autorizado a cancelar esta operación ya que no ha sido iniciada por ti"
     },
   "router": {
     "titles": {
