@@ -1107,29 +1107,25 @@ class Storage(RethinkCustomBase):
             },
             dependents=[
                 {
-                    "queue": "core",
-                    "task": "update_status",
+                    "queue": f"storage.{StoragePool.get_best_for_action('find').id}.{priority}",
+                    "task": "find",
                     "job_kwargs": {
                         "kwargs": {
-                            "statuses": {
-                                "_all": {
-                                    "ready": {
-                                        "storage": [self.id],
-                                    },
-                                    "Stopped": {
-                                        "domain": [
-                                            domain.id for domain in self.domains
-                                        ],
-                                    },
-                                },
-                            },
-                        },
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
                     },
-                },
-                {
-                    "queue": "core",
-                    "task": "storage_domains_force_update",
-                    "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update_pool",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "storage_id": self.id,
+                                }
+                            },
+                        }
+                    ],
                 },
             ],
         )
