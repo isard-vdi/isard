@@ -75,6 +75,7 @@ HYPERVISOR_PARTS="
 	squid-hypervisor
 	stats
 	storage
+	backupninja
 "
 HYPERVISOR_STANDALONE_KEY="hypervisor-standalone"
 HYPERVISOR_STANDALONE_PARTS="
@@ -82,6 +83,7 @@ HYPERVISOR_STANDALONE_PARTS="
 	hypervisor
 	stats
 	storage
+	backupninja
 "
 VIDEO_STANDALONE_KEY="video-standalone"
 VIDEO_STANDALONE_PARTS="
@@ -96,6 +98,7 @@ STORAGE_PARTS="
 	network
 	storage
 	stats
+	backupninja
 "
 WEB_KEY="web"
 WEB_PARTS="
@@ -120,6 +123,7 @@ WEB_PARTS="
 	notifier
 	sessions
 	bastion
+	backupninja
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="
