@@ -168,3 +168,4 @@ from .views import (
 )
 from .views.bookings import BookingView, ReservablesView
 from .views.deployments import DeploymentsView
+from .views.notifications import NotificationsView

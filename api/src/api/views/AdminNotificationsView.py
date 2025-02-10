@@ -21,6 +21,10 @@
 
 import json
 
+from api.libv2.helpers import gen_payload_from_user
+from api.libv2.notifications.notifications import (
+    get_user_trigger_notifications_displays,
+)
 from flask import request
 from isardvdi_common.api_exceptions import Error
 
@@ -197,3 +201,18 @@ def api_v3_get_status_bar_notifications(payload):
             200,
             {"Content-Type": "application/json"},
         )
+
+
+@app.route(
+    "/api/v3/admin/notifications/user/displays/<user_id>/<trigger>", methods=["GET"]
+)
+@is_admin
+def api_v3_admin_get_user_notifications_displays(payload, user_id, trigger):
+    user_payload = gen_payload_from_user(user_id)
+    return (
+        json.dumps(
+            {"displays": get_user_trigger_notifications_displays(user_payload, trigger)}
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
