@@ -59,7 +59,7 @@ if [ "$BACKUP_DB_ENABLED" = "true" ]; then
 
     jobs="10-db-info.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 11-db-nfs-mount.sh"
-    jobs="$jobs 12-db-dump.sh 13-db-borg.borg"
+    jobs="$jobs 12-db-dump.sh 13-db-borg.borg 14-db-compact.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 19-db-nfs-umount.sh"
 
     for job in $jobs; do
@@ -78,7 +78,7 @@ if [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
 
     jobs="20-redis-info.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 21-redis-nfs-mount.sh"
-    jobs="$jobs 22-redis-dump.sh 23-redis-borg.borg"
+    jobs="$jobs 22-redis-dump.sh 23-redis-borg.borg 24-redis-compact.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 29-redis-nfs-umount.sh"
 
     for job in $jobs; do
@@ -97,7 +97,7 @@ if [ "$BACKUP_STATS_ENABLED" = "true" ]; then
 
     jobs="30-stats-info.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 31-stats-nfs-mount.sh"
-    jobs="$jobs 32-stats-dump.sh 33-stats-borg.borg"
+    jobs="$jobs 32-stats-dump.sh 33-stats-borg.borg 34-stats-compact.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 39-stats-nfs-umount.sh"
 
     for job in $jobs; do
@@ -116,7 +116,7 @@ if [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
 
     jobs="80-config-info.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 81-config-nfs-mount.sh"
-    jobs="$jobs 82-config-borg.borg"
+    jobs="$jobs 82-config-borg.borg 84-config-compact.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 89-config-nfs-umount.sh"
 
     for job in $jobs; do
@@ -162,7 +162,7 @@ if [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
 
     jobs="90-disks-info.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 91-disks-nfs-mount.sh"
-    jobs="$jobs 92-disks-borg.borg"
+    jobs="$jobs 92-disks-borg.borg 94-disks-compact.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 99-disks-nfs-umount.sh"
 
     for job in $jobs; do
