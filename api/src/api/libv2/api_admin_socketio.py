@@ -723,7 +723,10 @@ def socketio_admins_connect(auth=None):
 
 @socketio.on("disconnect", namespace="/administrators")
 def socketio_admins_disconnect(auth={}):
-    quit_admins_rooms(auth.get("jwt"))
+    try:
+        quit_admins_rooms(auth.get("jwt"))
+    except:
+        None
     return False
 
 
