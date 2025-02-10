@@ -1290,37 +1290,37 @@ def get_deployments_with_resource(table, item):
 
 def get_unused_desktops(cutoff_time):
     """
-    Retrieve a list of unused desktop IDs that have not been accessed within the specified maximum delete period.
+    Retrieve a list of unused desktops that have not been accessed within the specified maximum delete period.
 
     :param cutoff_time: The maximum period during which a desktop can be unused before being considered for deletion.
     :type cutoff_time: timedelta
-    :return: A list of IDs of desktops that have not been accessed within the specified period.
+    :return: A list of desktops that have not been accessed within the specified maximum delete period.
     :rtype: list
     """
 
     cutoff_timestamp = (datetime.now() - cutoff_time).timestamp()
     with app.app_context():
-        desktop_ids = (
+        desktops = (
             list(
                 r.table("domains")
                 .get_all(["desktop", "Stopped"], index="kind_status")
                 .filter(r.row["accessed"] < cutoff_timestamp)
-                .pluck("id")["id"]
+                .pluck("id", "user", "name", "accessed")
                 .run(db.conn)
             )
             + list(
                 r.table("domains")
                 .get_all(["desktop", "Maintenance"], index="kind_status")
                 .filter(r.row["accessed"] < cutoff_timestamp)
-                .pluck("id")["id"]
+                .pluck("id", "user", "name", "accessed")
                 .run(db.conn)
             )
             + list(
                 r.table("domains")
                 .get_all(["desktop", "Failed"], index="kind_status")
                 .filter(r.row["accessed"] < cutoff_timestamp)
-                .pluck("id")["id"]
+                .pluck("id", "user", "name", "accessed")
                 .run(db.conn)
             )
         )
-    return desktop_ids
+    return desktops
