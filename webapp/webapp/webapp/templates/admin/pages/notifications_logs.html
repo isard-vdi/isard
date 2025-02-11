@@ -1,0 +1,38 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="page-title">
+                <div class="title_left">
+                    <h3><i class="fa fa-file-text-o"></i> Notifications Logs<small></small></h3>
+                </div>
+            </div>
+            <div class="clearfix"></div>
+        </div>
+    </div>
+</div>
+
+<div class="clearfix"></div>
+
+<div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+        <div class="x_title">
+            <h3></h3>
+            <ul class="nav navbar-right panel_toolbox">
+            </ul>
+            <div class="clearfix"></div>
+        </div>
+        <div class="x_content">
+            <table class="table">
+            </table>
+        </div>
+    </div>
+</div>
+
+
+{% include '/admin/pages/notifications_modals.html' %}
+{% endblock %}
