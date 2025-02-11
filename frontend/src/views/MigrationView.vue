@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { MigrationLayout } from '@/layouts/migration'
+import { SinglePageLayout } from '@/layouts/single-page'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Icon } from '@/components/icon'
 import { MigrationItemBox, MigrationItemTable, MigrationResultItem } from '@/components/migration'
@@ -228,7 +228,7 @@ const itemQuotaExceeded = (item: string) => {
 </script>
 
 <template>
-  <MigrationLayout :go-back="true">
+  <SinglePageLayout :go-back="true">
     <template #title>
       <h1 class="mt-[46px] text-center text-display-md font-bold text-gray-warm-800">
         {{ t('views.migration.title') }}
@@ -466,5 +466,5 @@ const itemQuotaExceeded = (item: string) => {
         </div>
       </div>
     </template>
-  </MigrationLayout>
+  </SinglePageLayout>
 </template>
