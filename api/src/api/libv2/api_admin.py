@@ -686,6 +686,7 @@ class ApiAdmin:
                     },
                     "forced_hyp",
                     "favourite_hyp",
+                    "category",
                 ],
                 "left": ["group_name", "category_name"],
             }
