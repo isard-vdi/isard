@@ -14,6 +14,7 @@ services:
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+      - /opt/isard/monitor/grafana/data:/var/lib/grafana
       - /opt/isard/monitor/grafana/custom:/custom
     restart: unless-stopped
     environment:
