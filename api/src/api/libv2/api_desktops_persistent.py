@@ -930,12 +930,22 @@ class ApiDesktopsPersistent:
             )
         if (
             desktop.get("server_autostart")
-            and ("server_autostart" not in data or "server" not in data)
+            and (desktop["server_autostart"] not in data or "server" not in data)
             and desktop.get("status") != "Failed"
         ):
             raise Error(
                 "precondition_required",
                 "Autostart servers can't be edited",
+                traceback.format_exc(),
+            )
+
+        if data.get("server_autostart") is True and (
+            data.get("server") is False
+            or (data.get("server") is None and not desktop.get("server"))
+        ):
+            raise Error(
+                "precondition_required",
+                "Non-server desktops can't be set to autostart",
                 traceback.format_exc(),
             )
 
