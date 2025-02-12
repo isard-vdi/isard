@@ -408,10 +408,46 @@ create_docker_compose_file(){
 			;;
 	esac
 
-	if [ -n "$ENABLE_STATS" -a "$ENABLE_STATS" != "true" ]
-	then
+	if [ -n "$ENABLE_STATS" -a "$ENABLE_STATS" != "true" ]; then
 		parts="$(echo $parts | sed 's/monitor//' | sed 's/db-stats//' | sed 's/stats//')"
+	else
+		TARGET_DIR="/opt/isard/monitor/grafana/data"
+		REQUIRED_UID=472
+		REQUIRED_GID=472
+
+		# Check if directory exists
+		if [ -d "$TARGET_DIR" ]; then
+			# Directory exists, check ownership
+			CURRENT_UID=$(stat -c "%u" "$TARGET_DIR")
+			CURRENT_GID=$(stat -c "%g" "$TARGET_DIR")
+
+			if [ "$CURRENT_UID" -eq "$REQUIRED_UID" ] && [ "$CURRENT_GID" -eq "$REQUIRED_GID" ]; then
+				echo "✔ Grafana data directory exists with correct ownership. Skipping setup."
+			else
+				echo "⚠ Warning: Grafana data directory exists but has incorrect ownership."
+				echo "   Current:  UID=$CURRENT_UID, GID=$CURRENT_GID"
+				echo "   Expected: UID=$REQUIRED_UID, GID=$REQUIRED_GID"
+			fi
+		else
+			echo "📂 Creating Grafana data directory..."
+			if mkdir -p "$TARGET_DIR" 2>/dev/null; then
+				echo "✔ Directory created successfully."
+			else
+				echo "❌ Error: Failed to create directory. Check permissions."
+			fi
+		fi
+
+		# Ensure correct ownership
+		if chown -R "$REQUIRED_UID:$REQUIRED_GID" "$TARGET_DIR" 2>/dev/null; then
+			echo "✔ Ownership set correctly for Grafana data."
+		else
+			echo "⚠ Warning: Insufficient permissions to change ownership."
+			echo "   Please run the following manually:"
+			echo "   sudo chown -R $REQUIRED_UID:$REQUIRED_GID $TARGET_DIR"
+		fi
 	fi
+
+
 	if [ "$BACKUP_DB_ENABLED" = "false" ] && [ "$BACKUP_DISKS_ENABLED" = "false" ]
 	then
 		if [ "$FLAVOUR" = "backupninja" ]
