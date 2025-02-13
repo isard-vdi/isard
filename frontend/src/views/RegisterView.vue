@@ -216,6 +216,12 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
     }
   }
 
+  const location = response.headers.get('location')
+  if (location) {
+    window.location.pathname = location
+    return
+  }
+
   setAuthToken(cookies, bearer)
   window.location.pathname = '/'
 }

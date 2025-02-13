@@ -111,6 +111,10 @@ export default {
       } else if (token.type === 'category-select') {
         window.location.pathname = '/'
       } else {
+        const location = response.headers.get('location')
+        if (location) {
+          window.location.pathname = location
+        }
         context.dispatch('loginSuccess', response.data)
       }
     },

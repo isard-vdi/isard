@@ -67,6 +67,10 @@
     },
     "register": {
       "title": "Registre"
+    },
+    "notifications": {
+      "title": "Notificacions",
+      "no-notifications": "No hi ha notificacions pendents"
     }
   },
   "layouts": {
