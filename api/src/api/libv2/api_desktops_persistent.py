@@ -930,7 +930,7 @@ class ApiDesktopsPersistent:
             )
         if (
             desktop.get("server_autostart")
-            and (desktop["server_autostart"] not in data or "server" not in data)
+            and ("server_autostart" not in data or "server" not in data)
             and desktop.get("status") != "Failed"
         ):
             raise Error(

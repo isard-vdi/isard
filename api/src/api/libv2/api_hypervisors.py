@@ -547,7 +547,7 @@ class ApiHypervisors:
                 .get_all(hyper_id, index="hyp_started")["id"]
                 .run(db.conn)
             )
-        desktops_stop(desktops_ids, force=True)
+        desktops_stop(desktops_ids, force=True, update_accessed=False)
 
     def hypervisors_max_networks(self):
         ### There will be much more hypervisor networks available than dhcpsubnets
@@ -858,7 +858,7 @@ class ApiHypervisors:
             return {"destroy_time": hypervisor.get("destroy_time")}
 
         with app.app_context():
-            running_desktops_shutdown_date = list(
+            furthest_shutdown = (
                 r.table("domains")
                 .get_all(hyper_id, index="hyp_started")
                 .filter(
@@ -867,19 +867,19 @@ class ApiHypervisors:
                     .or_(domain["server_autostart"].ne(True))
                 )
                 .pluck("scheduled")["scheduled"]["shutdown"]
+                .max()
+                .default(None)
                 .run(db.conn)
             )
-        if running_desktops_shutdown_date:
-            shutdown_datetimes = [
-                datetime.datetime.strptime(dt, "%Y-%m-%dT%H:%M%z")
-                for dt in running_desktops_shutdown_date
-                if dt
-            ]
-            furthest_shutdown = max(shutdown_datetimes)
-            d = furthest_shutdown
+        if furthest_shutdown:
+            d = datetime.datetime.strptime(furthest_shutdown, "%Y-%m-%dT%H:%M%z")
         else:
-            # If no max timeout is set, we use a default 12 hours timeout (12*60=720)
-            d = datetime.datetime.utcnow() + datetime.timedelta(minutes=720)
+            # If no runnng desktops in the hypervisor, we use as default desktops max timeout
+            desktops_max_timeout = self.get_desktops_max_timeout()
+            d = datetime.datetime.utcnow() + datetime.timedelta(
+                minutes=desktops_max_timeout
+            )
+
         dtz = d.replace(tzinfo=pytz.UTC).isoformat()
 
         with app.app_context():
@@ -887,6 +887,18 @@ class ApiHypervisors:
                 {"only_forced": True, "destroy_time": dtz}
             ).run(db.conn)
         return {"destroy_time": dtz}
+
+    @cached(cache=TTLCache(maxsize=200, ttl=100))
+    def get_desktops_max_timeout(self):
+        with app.app_context():
+            return (
+                r.table("desktops_priority")
+                .has_fields({"shutdown": {"max": True}})
+                .order_by(r.desc(lambda priority: priority["shutdown"]["max"]))
+                .nth(0)["shutdown"]["max"]
+                .default(720)  # Default to 12 hours if no max timeout found (12*60=720)
+                .run(db.conn)
+            )
 
     def set_hyper_orchestrator_managed(self, hyper_id, reset=False):
         try:
