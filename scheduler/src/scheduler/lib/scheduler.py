@@ -150,9 +150,9 @@ class Scheduler:
             raise Error("bad_request", "Type not in system, bookings or alerts")
         if kind not in ["cron", "interval", "date"]:
             raise Error("bad_request", "Kind not in cron, interval or date")
-        if int(hour) not in range(0, 23):
+        if int(hour) not in range(0, 24):
             raise Error("bad_request", "Hour range must be within 0-24")
-        if int(minute) not in range(0, 59):
+        if int(minute) not in range(0, 60):
             raise Error("bad_request", "Minute range must be within 0-60")
         if not id:
             id = str(uuid4())
