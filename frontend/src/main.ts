@@ -20,14 +20,22 @@ authClient.setConfig({
   baseUrl: '/authentication'
 })
 
+import { watch } from 'vue'
+
 // Configure API OAS client
-apiClient.setConfig({
-  headers: bearer.value
-    ? {
-        Authorization: `Bearer ${bearer.value}`
-      }
-    : undefined
-})
+watch(
+  bearer,
+  (newValue) => {
+    apiClient.setConfig({
+      headers: newValue
+        ? {
+            Authorization: `Bearer ${newValue}`
+          }
+        : undefined
+    })
+  },
+  { immediate: true }
+)
 
 console.log(bearer)
 
