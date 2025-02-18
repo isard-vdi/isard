@@ -782,7 +782,9 @@ class RecycleBin(object):
             self.status = "recycled"
             self.agent_id = user_id
             self.item_type = item_type
-            self.agent_type = "user" if user_id else "system"
+            self.agent_type = (
+                "user" if user_id and user_id != "isard-scheduler" else "system"
+            )
             if self.agent_type == "user":
                 user = get_user_data(user_id)
                 self.agent_name = user["user_name"]
@@ -791,6 +793,13 @@ class RecycleBin(object):
                 self.agent_group_id = user["group_id"]
                 self.agent_group_name = user["group_name"]
                 self.agent_role = user["role"]
+            elif self.agent_type == "system":
+                self.agent_name = "system"
+                self.agent_category_id = None
+                self.agent_category_name = None
+                self.agent_group_id = None
+                self.agent_group_name = None
+                self.agent_role = None
             with app.app_context():
                 self.id = (
                     r.table("recycle_bin")
