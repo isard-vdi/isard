@@ -276,6 +276,7 @@ class Upgrade(object):
         )
         if not release_version > self.cfg["version"]:
             log.info("No database upgrade needed.")
+            self._system_upgrades()
             return False
         apply_upgrades = [
             i for i in range(self.cfg["version"] + 1, release_version + 1)
@@ -284,7 +285,7 @@ class Upgrade(object):
         for version in apply_upgrades:
             for table in tables:
                 eval("self." + table + "(" + str(version) + ")")
-
+        self._system_upgrades()
         r.table("config").get(1).update({"version": release_version}).run(self.conn)
 
     """
@@ -4815,23 +4816,9 @@ password:s:%s"""
 
         return True
 
-    """
-    GPU_PROFILES DISK TABLE UPGRADES
-    """
-
     def gpu_profiles(self, version):
-        table = "gpu_profiles"
-        log.info("UPGRADING " + table + " VERSION " + str(version))
-        if version in [74, 76, 132, 135]:
-            try:
-                f = open("./initdb/profiles/gpu_profiles.json")
-                gpu_profiles = json.loads(f.read())
-                f.close()
-                r.table("gpu_profiles").insert(gpu_profiles, conflict="update").run(
-                    self.conn
-                )
-            except Exception as e:
-                print(e)
+        ## Moved to _system_upgrades function that it's taken into account once each engine restart
+        ## so no more upgrades for gpu_profiles needed. But keeping the function to not break the code
         return True
 
     # def storage_node(self, version):
@@ -5804,3 +5791,25 @@ password:s:%s"""
             "url": "/assets/img/desktops/" + type + "/" + card_id,
             "type": type,
         }
+
+    """
+    System upgrades
+    """
+
+    def _system_upgrades(self):
+        """
+        GPU_PROFILES DISK TABLE UPGRADES
+        """
+
+        log.info("Checking for new gpu_profiles...")
+
+        try:
+            f = open("./initdb/profiles/gpu_profiles.json")
+            gpu_profiles = json.loads(f.read())
+            f.close()
+            r.table("gpu_profiles").insert(gpu_profiles, conflict="update").run(
+                self.conn
+            )
+        except Exception as e:
+            print(e)
+        return True
