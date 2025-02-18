@@ -60,3 +60,16 @@ def add_notification_action(action):
     """
     with app.app_context():
         return r.table("notifications_action").insert(action).run(db.conn)
+
+
+def get_all_notification_actions():
+    """
+
+    Gets all notification actions.
+
+    :return: The actions.
+    :rtype: list
+
+    """
+    with app.app_context():
+        return list(r.table("notifications_action").run(db.conn))

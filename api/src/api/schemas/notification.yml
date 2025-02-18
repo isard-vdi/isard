@@ -1,0 +1,57 @@
+id:
+  type: string
+  coerce: sanitize
+  default_setter: genuuid
+action_id:
+  type: string
+  coerce: sanitize
+  required: true
+allowed:
+  type: dict
+  schema: allowed
+  default:
+    roles: false
+    categories: false
+    groups: false
+    users: false
+display:
+  type: list
+  schema:
+    type: string
+    allowed: ["fullpage"]
+  default: ["fullpage"]
+force_accept:
+  type: boolean
+  required: true
+item_type:
+  type: string
+  allowed: ["user"]
+order:
+  type: integer
+  required: true
+  min: 0
+template_id:
+  type: string
+  coerce: sanitize
+  required: true
+trigger:
+  required: true
+  type: string
+  default: "login"
+enabled:
+  required: true
+  type: boolean
+name:
+  type: string
+  coerce: sanitize
+  required: true
+  maxlength: 100
+  minlength: 1
+ignore_after:
+  type: datetime
+  nullable: true
+  coerce: sanitize
+keep_time:
+  type: integer
+  nullable: true
+  coerce: sanitize

@@ -20,7 +20,9 @@
 
 
 import json
+from datetime import datetime
 
+import pytz
 from api.libv2.helpers import gen_payload_from_user
 from api.libv2.notifications.notifications import (
     get_user_trigger_notifications_displays,
@@ -31,20 +33,29 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.api_admin_notifications import (
+    add_notification,
     add_notification_template,
+    delete_notification,
     delete_notification_template,
+    get_all_notifications,
+    get_notification,
     get_notification_event_template,
     get_notification_template,
     get_notification_templates,
     get_status_bar_notification_by_provider,
+    update_notification,
     update_notification_template,
 )
 from ..libv2.api_authentication import get_provider_config
 from ..libv2.api_users import ApiUsers
+from ..libv2.notifications.notifications_action import get_all_notification_actions
 from ..libv2.validators import _validate_item
 from .decorators import has_token, is_admin
 
 users = ApiUsers()
+
+
+### NOTIFICATIONS TEMPLATES ###
 
 
 @app.route("/api/v3/admin/notifications/template/", methods=["POST"])
@@ -213,6 +224,129 @@ def api_v3_admin_get_user_notifications_displays(payload, user_id, trigger):
         json.dumps(
             {"displays": get_user_trigger_notifications_displays(user_payload, trigger)}
         ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+### NOTIFICATIONS MANAGEMENT ###
+
+
+@app.route("/api/v3/admin/notifications", methods=["GET"])
+@is_admin
+def api_v3_user_all_notifications(payload):
+    """
+    Retrieve all notifications for the user.
+
+    :return: A list of all the user's notifications.
+    :rtype: Set with Flask response values and data in JSON
+    """
+    return (
+        json.dumps(get_all_notifications(), default=str),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notification", methods=["POST"])
+@is_admin
+def api_v3_admin_add_notification(payload):
+    try:
+        data = request.get_json()
+    except:
+        raise Error("bad_request")
+
+    if data.get("ignore_after"):
+        data["ignore_after"] = datetime.strptime(
+            data.get("ignore_after"), "%Y-%m-%dT%H:%M"
+        ).astimezone(pytz.UTC)
+
+    data = _validate_item("notification", data)
+    add_notification(data)
+
+    return (
+        json.dumps({"id": data["id"]}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notification/actions/all", methods=["GET"])
+@is_admin
+def api_v3_user_all_notification_actions(payload):
+    """
+    Retrieve all notification actions.
+
+    :return: A list of all the notification actions.
+    :rtype: Set with Flask response values and data in JSON
+    """
+    return (
+        json.dumps(get_all_notification_actions(), default=str),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notification/<notification_id>", methods=["DELETE"])
+@is_admin
+def api_v3_admin_delete_notification(payload, notification_id):
+    """
+    Delete a notification by its ID.
+
+    :param notification_id: The ID of the notification to delete.
+    :return: A success message.
+    :rtype: Set with Flask response values and data in JSON
+    """
+    delete_logs = request.get_json("delete_logs")["delete_logs"]
+    delete_notification(notification_id, delete_logs=delete_logs)
+    return (
+        json.dumps({"delete_logs": delete_logs}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notification/<notification_id>", methods=["GET"])
+@is_admin
+def api_v3_admin_get_notification(payload, notification_id):
+    """
+    Retrieve a notification by its ID.
+
+    :param notification_id: The ID of the notification to retrieve.
+    :return: The notification.
+    :rtype: Set with Flask response values and data in JSON
+    """
+    return (
+        json.dumps(get_notification(notification_id), default=str),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notification/<notification_id>", methods=["PUT"])
+@is_admin
+def api_v3_admin_update_notification(payload, notification_id):
+    """
+    Update a notification by its ID.
+
+    :param notification_id: The ID of the notification to update.
+    :return: The updated notification.
+    :rtype: Set with Flask response values and data in JSON
+    """
+    try:
+        data = request.get_json()
+    except:
+        raise Error("bad_request")
+    if data.get("ignore_after"):
+        data["ignore_after"] = datetime.strptime(
+            data.get("ignore_after"), "%Y-%m-%dT%H:%M"
+        ).astimezone(pytz.UTC)
+
+    data = _validate_item("notification_update", data)
+    update_notification(notification_id, data)
+
+    return (
+        json.dumps({"id": notification_id}),
         200,
         {"Content-Type": "application/json"},
     )

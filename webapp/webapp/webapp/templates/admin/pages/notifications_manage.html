@@ -2,37 +2,49 @@
 {% extends "base.html" %}
 {% block css %}
 {% endblock %}
+
 {% block content %}
 <div class="row">
-    <div class="col-md-12 col-sm-12 col-xs-12">
-        <div class="x_panel">
-            <div class="page-title">
-                <div class="title_left">
-                    <h3><i class="fa fa-cogs"></i> Manage Notifications<small></small></h3>
-                </div>
-            </div>
-            <div class="clearfix"></div>
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="page-title">
+        <div class="title_left">
+          <h3><i class="fa fa-cogs"></i> Manage Notifications<small></small></h3>
         </div>
+      </div>
+      <div class="clearfix"></div>
     </div>
+  </div>
 </div>
 
 <div class="clearfix"></div>
 
 <div class="col-md-12 col-sm-12 col-xs-12">
-    <div class="x_panel">
-        <div class="x_title">
-            <h3></h3>
-            <ul class="nav navbar-right panel_toolbox">
-            </ul>
-            <div class="clearfix"></div>
-        </div>
-        <div class="x_content">
-            <table class="table">
-            </table>
-        </div>
+  <div class="x_panel">
+    <div class="x_title">
+      <h3><i class="fa fa-bell"></i> Notifications</h3>
+      <ul class="nav navbar-right panel_toolbox">
+        <li>
+          <a class="btn btn-add-notification" data-panel="custom-notification"><span style="color: #5499c7"><i
+            class="fa fa-plus"></i> Add notification</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="clearfix"></div>
     </div>
+    <div class="x_content">
+      <table class="table" id="notifications-table"><tfoot></tfoot>
+      </table>
+    </div>
+  </div>
 </div>
 
 
 {% include '/admin/pages/notifications_modals.html' %}
+{% include '/snippets/alloweds_form.html' %}
+{% endblock %}
+{% block pagescript %}
+<script src="/isard-admin/static/js/restful.js"></script>
+<script src="/isard-admin/static/admin/js/notifications_manage.js"></script>
 {% endblock %}

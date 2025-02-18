@@ -1,0 +1,40 @@
+action_id:
+  type: string
+  coerce: sanitize
+allowed:
+  type: dict
+  schema: allowed
+display:
+  type: list
+  schema:
+    type: string
+    allowed: ["fullpage"]
+force_accept:
+  type: boolean
+item_type:
+  type: string
+  allowed: ["desktop", "user"]
+order:
+  type: integer
+  min: 0
+template_id:
+  type: string
+  coerce: sanitize
+trigger:
+  type: string
+enabled:
+  type: boolean
+name:
+  type: string
+  coerce: sanitize
+  maxlength: 100
+  minlength: 1
+ignore_after:
+  nullable: true
+  type: datetime
+  coerce: sanitize
+keep_time:
+  type: integer
+  nullable: true
+  coerce: sanitize
+  
