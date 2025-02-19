@@ -34,6 +34,8 @@ from ..libv2.api_storage import (
     get_disks_ids_by_status,
     get_storage_category,
     get_storage_derivatives,
+    get_storages_with_uuid,
+    get_storages_with_uuid_status,
     get_user_ready_disks,
     parse_disks,
 )
@@ -1488,3 +1490,83 @@ def storages_find_by_status(payload, status):
 def storage_storages_with_uuid(payload, storage_id):
     storage = get_storage(payload, storage_id)
     return jsonify(storage.storages_with_uuid)
+
+
+@app.route("/api/v3/storage/storages_with_uuid", methods=["GET"])
+@app.route("/api/v3/storage/storages_with_uuid/<status>", methods=["GET"])
+@is_admin_or_manager
+def storage_all_storages_with_uuid(payload, status=None):
+    return jsonify(
+        get_storages_with_uuid(
+            category_id=(
+                payload["category_id"] if payload["role_id"] == "manager" else None
+            ),
+            status=status,
+        )
+    )
+
+
+@app.route("/api/v3/storage/storages_with_uuid/status", methods=["GET"])
+@is_admin_or_manager
+def storage_storages_with_uuid_status(payload):
+    return jsonify(
+        get_storages_with_uuid_status(
+            category_id=(
+                payload["category_id"] if payload["role_id"] == "manager" else None
+            )
+        )
+    )
+
+
+@app.route("/api/v3/storage/<path:storage_id>/path", methods=["PUT"])
+@is_admin_or_manager
+def storage_set_path(payload, storage_id):
+    if not request.is_json:
+        raise Error(
+            error="bad_request",
+            description="No JSON in body request with storage ids",
+        )
+    data = request.get_json()
+    if not data.get("path"):
+        raise Error(
+            error="bad_request",
+            description="Path query parameter is required",
+        )
+
+    storage = get_storage(payload, storage_id)
+    return jsonify(
+        {
+            "task_id": storage.set_path(
+                payload.get("user_id"),
+                request.json["path"],
+                priority=check_task_priority(payload, data.get("priority", "default")),
+            )
+        }
+    )
+
+
+@app.route("/api/v3/storage/<path:storage_id>/path/", methods=["DELETE"])
+@is_admin_or_manager
+def storage_path_delete(payload, storage_id):
+    if not request.is_json:
+        raise Error(
+            error="bad_request",
+            description="No JSON in body request with storage ids",
+        )
+    data = request.get_json()
+    if not data.get("path"):
+        raise Error(
+            error="bad_request",
+            description="Path query parameter is required",
+        )
+
+    storage = get_storage(payload, storage_id)
+    return jsonify(
+        {
+            "task_id": storage.delete_path(
+                payload.get("user_id"),
+                request.json["path"],
+                priority=check_task_priority(payload, data.get("priority", "default")),
+            )
+        }
+    )

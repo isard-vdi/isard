@@ -245,6 +245,92 @@ $(document).ready(function () {
     }
   });
 
+  // storagesDuplicatedUUID status dropdown populate
+  $.ajax({
+    type: "GET",
+    url: "/api/v3/storage/storages_with_uuid/status",
+    success: function (data) {
+      $('#uuid_status').removeAttr('disabled')
+      let notShownStatus = []
+      let uuid_status = data.filter((s) => !notShownStatus.includes(s.status))
+      $('#uuid_status').append($('<option>', {
+        value: "all",
+        id: "all",
+        text: `All (${uuid_status.reduce((acc, curr) => acc + curr.count, 0)} items)`
+      }));
+      $.each(uuid_status, function (index, currentStatus) {
+        if (currentStatus.status) {
+          $('#uuid_status').append($('<option>', {
+            value: currentStatus.status,
+            id: currentStatus.status,
+            text: `${currentStatus.status} (${currentStatus.count} items)`
+          }));
+        }
+      })
+    }
+  });
+
+  // storagesDuplicatedUUID
+  $('#uuid_status').on('change', (event) => {
+    newStatus = event.target.value
+    let tableId = '#storagesUUID'
+    if ($.fn.dataTable.isDataTable(tableId)) {
+      $(tableId).DataTable().destroy();
+      $(tableId).empty()
+    }
+
+    storagesUUID = $(tableId).DataTable({
+      ajax: {
+        url: newStatus === 'all' ? `/api/v3/storage/storages_with_uuid` : `/api/v3/storage/storages_with_uuid/${newStatus}`,
+        contentType: 'application/json',
+        type: 'GET',
+      },
+      sAjaxDataProp: '',
+      language: {
+        loadingRecords: '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+      },
+      rowId: 'id',
+      deferRender: true,
+      createdRow: function (row, data, dataIndex) {
+        if (status = "maintenance") {
+          $(row).attr('data-task', data.task);
+        }
+      },
+      columns: [
+        {
+          title: 'Id',
+          data: 'id',
+          "render": function ( data, type, full, meta ) {
+            if (type === 'display' || type === 'filter') {
+              return '<a href="/isard-admin/admin/domains/render/Storage?searchStorageId='+ data +'">'+ data +'</a>'
+            }
+            return data
+          }
+        },
+        {
+          title: 'Path',
+          data: 'path'
+        },
+        {
+          title: 'Status',
+          data: 'status',
+          filter: true
+        },
+        {
+          data: null, className: 'actions-control',
+          orderable: false, width: '65px',
+          render: function (data, type, row, meta) {
+            buttons = `<button type="button" data-id="${row.id}" data-path="${row.path}" class="btn btn-pill-right btn-danger btn-xs btn-uuid-delete" title="Delete disk"><i class="fa fa-times"></i></button>`
+            if (["duplicated"].includes(row.status)) {
+              buttons += `<button type="button" data-id="${row.id}" data-path="${row.path}" class="btn btn-pill-right btn-info btn-xs btn-uuid-set-path" title="Set as storage path"><i class="fa fa-hdd-o"></i></button>`
+            }
+            return buttons;
+          }
+        },
+      ],
+    });
+  })
+  
   // WS
   $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
@@ -1252,13 +1338,24 @@ function showRowDetails(table, tr, row) {
         { data: null, title: "#", render: function (data, type, full, meta) { return meta.row + 1; } },
         { data: "path", title: "Storage path" },
         { data: "status", title: "File status" },
+        {
+          data: null, className: 'actions-control',
+          orderable: false, width: '0',
+          render: function (data, type, full, meta) {
+            buttons = `<button type="button" data-id="${row.data().id}" data-path="${full.path}" class="btn btn-pill-right btn-danger btn-xs btn-uuid-delete" title="Delete disk"><i class="fa fa-times"></i></button>`
+            if (["duplicated"].includes(full.status)) {
+              buttons += `<button type="button" data-id="${row.data().id}" data-path="${full.path}" class="btn btn-pill-right btn-info btn-xs btn-uuid-set-path" title="Set as storage path"><i class="fa fa-hdd-o"></i></button>`
+            }
+            return buttons;
+          }
+        }
       ],
       columnDefs: [
       ],
       order: [],
       select: false,
       fnInitComplete : function() {
-        if ($(this).find('tbody tr').length<=1) {
+        if ($(this).find('tbody tr').length<1) {
           $(`#ContainerStoragesWithUUID${row.data().id.replaceAll("/", "_")}`).hide();
         }
       }
@@ -1267,6 +1364,112 @@ function showRowDetails(table, tr, row) {
   }
 }
 
+$(document).on('click', '.btn-uuid-delete', function () {
+  var element = $(this);
+  var storage_id = element.data("id");
+  var path = element.data("path");
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: "Are you sure you want to delete the disk " + path + "?",
+    hide: false,
+    opacity: 1,
+    type: 'error',
+    confirm: {
+      confirm: true
+    },
+    buttons: {
+      closer: false,
+      sticker: false
+    },
+    history: {
+      history: false
+    },
+    addclass: 'pnotify-center'
+  }).get().on('pnotify.confirm', function () {
+    $.ajax({
+      type: 'DELETE',
+      url: `/api/v3/storage/${storage_id}/path`,
+      contentType: 'application/json',
+      data: JSON.stringify({ "path": path }),
+      success: function (result) {
+        new PNotify({
+          title: 'Deleted',
+          text: 'Disk deleted',
+          hide: true,
+          delay: 2000,
+          icon: '',
+          opacity: 1,
+          type: 'success'
+        })
+      },
+      error: function (data) {
+        new PNotify({
+          title: 'ERROR deleting disk',
+          text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+          hide: true,
+          delay: 3000,
+          icon: 'fa fa-warning',
+          opacity: 1,
+          type: 'error'
+        });
+      }
+    });
+  });
+});
+
+$(document).on('click', '.btn-uuid-set-path', function () {
+  var element = $(this);
+  var storage_id = element.data("id");
+  var path = element.data("path");
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: `Are you sure you want set this storage's disk to ${path}?
+    This might get changed if "find disk" is called again.`,
+    hide: false,
+    opacity: 1,
+    type: 'info',
+    confirm: {
+      confirm: true
+    },
+    buttons: {
+      closer: false,
+      sticker: false
+    },
+    history: {
+      history: false
+    },
+    addclass: 'pnotify-center'
+  }).get().on('pnotify.confirm', function () {
+    $.ajax({
+      type: 'PUT',
+      url: `/api/v3/storage/${storage_id}/path`,
+      contentType: 'application/json',
+      data: JSON.stringify({ "path": path }),
+      success: function (result) {
+        new PNotify({
+          title: 'Path set',
+          text: `Path for storage ${storage_id} set to ${path}`,
+          hide: true,
+          delay: 2000,
+          icon: '',
+          opacity: 1,
+          type: 'success'
+        })
+      },
+      error: function (data) {
+        new PNotify({
+          title: 'ERROR seting storage path',
+          text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+          hide: true,
+          delay: 3000,
+          icon: 'fa fa-warning',
+          opacity: 1,
+          type: 'error'
+        });
+      }
+    });
+  });
+});
 
 function detailButtons(storage) {
   return storage.status == "ready" ?

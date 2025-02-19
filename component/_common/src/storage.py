@@ -978,3 +978,156 @@ class Storage(RethinkCustomBase):
         )
 
         return self.task
+
+    def set_path(
+        self,
+        user_id,
+        new_path,
+        priority="default",
+    ):
+        """
+        Create a task to set the storage path to a new path.
+
+        :param user_id: User ID
+        :type user_id: str
+        :param new_path: New path
+        :type new_path: str
+        :param priority: Priority
+        :type priority: str
+        :return: Task ID
+        :rtype: str
+        """
+        if get_storage_id_from_path(new_path) != self.id:
+            raise Exception(
+                "precondition_required",
+                f"Storage ID {self.id} does not match the path {new_path}",
+                "storage_id_mismatch",
+            )
+
+        if self.path == new_path:
+            raise Exception(
+                "bad_request",
+                f"Path {new_path} is the same as the storage path",
+            )
+
+        self.set_maintenance("set_path")
+        self.create_task(
+            blocking=True,
+            user_id=user_id,
+            queue="core",
+            task="storage_update_dict",
+            job_kwargs={
+                "kwargs": {
+                    "id": self.id,
+                    "status": "ready",
+                    "directory_path": new_path.split("/" + self.id)[0],
+                    "qemu-img-info": {
+                        "filename": new_path,
+                    },
+                }
+            },
+            dependents=[
+                {
+                    "queue": f"storage.{StoragePool.get_best_for_action('touch').id}.{priority}",
+                    "task": "touch",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "path": new_path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": f"storage.{StoragePool.get_best_for_action('find').id}.{priority}",
+                            "task": "find",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "storage_id": self.id,
+                                    "storage_path": self.path,
+                                }
+                            },
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "storage_update_pool",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "storage_id": self.id,
+                                        }
+                                    },
+                                }
+                            ],
+                        },
+                    ],
+                },
+            ],
+        )
+
+        return self.task
+
+    def delete_path(
+        self,
+        user_id,
+        path,
+        priority="default",
+    ):
+        """
+        Create a task to delete the disk image from the provided path.
+
+        :param user_id: User ID
+        :type user_id: str
+        :param path: Path to delete
+        :type path: str
+        :param priority: Priority
+        :type priority: str
+        :return: Task ID
+        :rtype: str
+        """
+        if get_storage_id_from_path(path) != self.id:
+            raise Exception(
+                "precondition_required",
+                f"Storage ID {self.id} does not match the path {path}",
+                "storage_id_mismatch",
+            )
+
+        if self.path == path:
+            raise Exception(
+                "bad_request",
+                f"Path {path} is the same as the storage path",
+            )
+
+        self.set_maintenance("delete_path")
+        self.create_task(
+            user_id=user_id,
+            queue=f"storage.{StoragePool.get_best_for_action('delete').id}.{priority}",
+            task="delete",
+            job_kwargs={
+                "kwargs": {
+                    "path": path,
+                },
+            },
+            dependents=[
+                {
+                    "queue": f"storage.{StoragePool.get_best_for_action('find').id}.{priority}",
+                    "task": "find",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update_pool",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "storage_id": self.id,
+                                }
+                            },
+                        }
+                    ],
+                },
+            ],
+        )
+
+        return self.task

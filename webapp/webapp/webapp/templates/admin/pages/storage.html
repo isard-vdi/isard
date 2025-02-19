@@ -103,6 +103,39 @@
     </div>
   </div>
 </div>
+
+<div class="row">
+  <div class="x_panel">
+    <div class="x_title">
+      <h3>Storage files found with duplicated UUIDs<small> Select status to load</small></h3>
+      <div class="clearfix"></div>
+    </div>
+    <div class="x_content">
+      <p class="text-muted font-13 m-b-30"></p>
+      <div style="display:inline-flex;">
+        <div id="uuid_status_wrapper" style="display:block; width: 15cm;">
+          <label class="control-label col-md-4 col-sm-4 col-xs-12 pull-left" for="uuid_status">
+            <h4>
+              Found file status
+            </h4>
+          </label>
+          <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+            <select class="form-control" id="uuid_status" name="uuid_status">
+              <option value="none">Select status</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <table id="storagesUUID" class="table" width="100%">
+        <thead>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% include '/admin/pages/storage_detail.html' %}
 {% include '/admin/pages/storage_modals.html' %}
 {% endblock %}
