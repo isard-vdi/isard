@@ -160,3 +160,19 @@ func (c *Client) AdminUserAutoRegister(ctx context.Context, registerTkn string, 
 
 	return *rsp.ID, nil
 }
+
+func (c *Client) AdminUserNotificationsDisplays(ctx context.Context, id string) ([]string, error) {
+	req, err := c.newRequest(http.MethodGet, fmt.Sprintf("admin/notifications/user/displays/%s/login", id), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	rsp := struct {
+		Displays []string `json:"displays,omitempty"`
+	}{}
+	if _, err := c.do(ctx, req, &rsp); err != nil {
+		return nil, fmt.Errorf("get user notification display: %w", err)
+	}
+
+	return rsp.Displays, nil
+}

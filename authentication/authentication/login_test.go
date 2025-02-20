@@ -112,6 +112,7 @@ func TestLogin(t *testing.T) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserNotificationsDisplays", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return([]string{}, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
@@ -203,6 +204,7 @@ func TestLogin(t *testing.T) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserNotificationsDisplays", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return([]string{}, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
@@ -293,6 +295,7 @@ func TestLogin(t *testing.T) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserNotificationsDisplays", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return([]string{}, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{

@@ -339,11 +339,22 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	}
 	cookie := c.String()
 
-	if redirect != "" {
+	if redirect != "" && redirect != "/notifications/login" {
 		return &oasAuthentication.LoginFound{
 			Location:      redirect,
 			Authorization: fmt.Sprintf("Bearer %s", tkn),
 			SetCookie:     oasAuthentication.NewOptString(cookie),
+		}, nil
+	}
+
+	if redirect == "/notifications/login" {
+		return &oasAuthentication.LoginOKHeaders{
+			Location:      oasAuthentication.NewOptString(redirect),
+			Authorization: fmt.Sprintf("Bearer %s", tkn),
+			SetCookie:     cookie,
+			Response: oasAuthentication.LoginOK{
+				Data: bytes.NewReader([]byte(tkn)),
+			},
 		}, nil
 	}
 

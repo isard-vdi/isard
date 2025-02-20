@@ -237,6 +237,20 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 		return "", "", err
 	}
 
+	// Call API to check if the user has fullpage notifications pending, if so redirect to /notifications/login
+	rsp, err := a.API.AdminUserNotificationsDisplays(ctx, u.ID)
+	if err != nil {
+		return "", "", fmt.Errorf("check if the user has notifications pending: %w", err)
+	}
+
+	a.Log.Info().Str("rsp", fmt.Sprintf("%v", rsp)).Msg("notifications displays")
+	for _, display := range rsp {
+		if display == "fullpage" {
+			redirect = "/notifications/login"
+			break
+		}
+	}
+
 	a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Str("redirect", redirect).Msg("login succeeded")
 
 	return ss, redirect, nil

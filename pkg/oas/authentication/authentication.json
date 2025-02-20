@@ -140,6 +140,12 @@
                     "200": {
                         "description": "",
                         "headers": {
+                            "Location": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": false
+                            },
                             "Authorization": {
                                 "schema": {
                                     "type": "string"
