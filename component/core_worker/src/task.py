@@ -451,6 +451,14 @@ def storage_update_pool(storage_id):
 
         dependency_results = dependency.result.get("matching_files", [])
         if not dependency_results:
+            if dependency.result.get("status") == "deleted":
+                storage_update(
+                    **{
+                        "id": storage_id,
+                        "status": "deleted",
+                        "storages_with_uuid": [],
+                    }
+                )
             return
 
         invalid_storages = []
