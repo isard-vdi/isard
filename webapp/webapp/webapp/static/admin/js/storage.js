@@ -29,6 +29,11 @@ $(document).ready(function () {
   addRadioButtonsListeners();
   addSelectMethodListeners();
 
+  // set the filter box category on loading the document
+  if (!getGroupParam()) {
+    initial_filters();
+  }
+
   // Storage ready table
   let tableId = '#storage'
   storage_ready = createDatatable(tableId, 'ready', function () {
@@ -330,7 +335,87 @@ $(document).ready(function () {
       ],
     });
   })
-  
+
+  const filter_list = ['category', 'user', 'parent', 'path'];
+  const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
+  $('#filter-select').append(options.join(''));
+  var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
+
+  $("#btn-search").on("click", function () {
+    var tables = [storage_ready, storagesOtherTable];
+    tables.forEach(table => {
+      // do for each item filter box
+      $("#filter-boxes .filter-item").each(function () {
+        var operator = $(this).find(".operator-select").val();
+        var title = $(this).find(".filter-box").attr("index");
+        if ($(this)
+          .find(".filter-box").val() == null) {
+          var values = [""]
+        } else {
+          var values = $(this).find(".filter-box").val().map(value => `^${value.trim()}$`);
+        }
+        var searchParams = values.join("|");
+        if (title === "category") {
+          if (JSON.stringify(selectedCategories) !== JSON.stringify(values)) {
+            selectedCategories = $(".filter-item #" + title).val();
+            table.ajax.reload();
+          }
+        } else {
+          // search in the loaded table content
+          table.columns().every(function () {
+            header = $(this.header()).text().trim().toLowerCase();
+            if (header === title) {
+              if (searchParams.length) {
+                if (operator === "is") {
+                  console.log(searchParams)
+                  const regex = searchParams ?
+                    '(?:' + searchParams + ')' : '';
+                  this.search(regex, true, false).draw();
+                } else if (operator === "is-not" && values.length) {
+                  const regex = "^(?!.*?(" + searchParams + ")).*$"
+                  this.search(regex, true, false).draw();
+                }
+              } else {
+                this.search("", false, false).draw()
+              }
+            }
+          });
+        }
+      });
+      if (!$("#filter-category").length && selectedCategories !== null) {
+        $('#category').empty();
+        selectedCategories = null;
+        table.ajax.reload();
+      }
+
+    });
+  });
+
+  $("#btn-reload").on("click", function () {
+    reloadOtherFiltersContent(domains_table);
+  });
+
+  $("#btn-clear").on("click", function () {
+    $('.filter-box').each(function () {
+      removeFilter($(this).attr('id'))
+    })
+  });
+
+  $('#filter-boxes').on('click', '.btn-delete-filter', function () {
+    var name = $(this).prop('name');
+    removeFilter(name);
+  });
+
+  $('#filter-select').on('change', function () {
+    const item = $(this).val();
+    if (item !== "null" && !$(`#filter-boxes #${item}`).length) {
+      const node = newFilterBox(item);
+      $('#filter-boxes').append(node);
+      populateSelect(item);
+      $(this).find(`option[value='${item}']`).remove();
+    }
+  });
+
   // WS
   $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
@@ -1133,7 +1218,17 @@ function createDatatable(tableId, status, initCompleteFn = null) {
     ajax: {
       url: `/api/v3/admin/storage/${status}`,
       contentType: 'application/json',
-      type: 'GET',
+      type: 'POST',
+      data: function () {
+        var categories = [];
+        categories = $('#filter-category #category').val();
+        if ($('#filter-category').length) {
+          return JSON.stringify({
+            'categories': categories
+          });
+        }
+        return JSON.stringify({});
+      }
     },
     sAjaxDataProp: '',
     language: {
@@ -1873,3 +1968,128 @@ function resetMoveForm() {
   $(modal + " #same_pool").iCheck("check").iCheck("update")
   populatePrioritySelect(modal);
 }
+
+
+function newFilterBox(item) {
+  $('#filter-select').val('null');
+  const operator =
+    item !== 'category'
+      ? `
+        <select class="form-control operator-select" id="operator-${item}" style="width: 100%;">
+          <option value="is" selected=""> is </option>
+          <option value="is-not"> is not </option>
+        </select>`
+      : ''
+  return `
+    <div class="filter-item col-md-3 col-sm-8 col-xs-12 select2-container--focus select2-container--resize" id="filter-${item}" style="margin-bottom:20px;margin-right:10px">
+      <button name="${item}" class="btn btn-delete-filter btn-xs" type="button" data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>
+      <label>
+        <h4>${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</h4>
+      </label>
+      <div style="display: inline-flex;margin-left: 10px;">
+        ${operator}
+      </div>
+      <select class="filter-box form-control" id="${item}" name="${item}[]"
+      ${$('meta[id=user_data]').attr('data-role') == 'manager' && item == 'category' ? "disabled" : ""} 
+      multiple="multiple"></select>
+      <div class="select2-resize-handle"></div>
+    </div>
+  `;
+}
+
+function populateSelect(item) {
+  const elem = $("#" + item)
+  elem.select2();
+  elem.attr("index", item);
+  switch (item) {
+    case ("category"):
+      $.ajax({
+        type: "GET",
+        async: false,
+        url: "/api/v3/admin/userschema",
+        success: function (d) {
+          $.each(d[item], function (pos, it) {
+            if (item == 'category') { var value = it.id } else { var value = it.name }
+            if ($("#" + item + " option:contains(" + it.name + ")").length == 0) {
+              elem.append('<option value=' + value + '>' + it.name + '</option>');
+            }
+          });
+        }
+      });
+      if (item == 'category') { elem.val([$('meta[id=user_data]').attr('data-categoryid')]); }
+      break;
+    case ("user"):
+      $.each(storage_ready.data(), function (pos, it) {
+        var itemName = "user_name";
+        if ($("#" + item + " option:contains(" + it[itemName] + ")").length == 0) {
+          elem.append('<option value=' + it[itemName] + '>' + it[itemName] + '</option>');
+        }
+      });
+      break;
+    case ("parent"):
+      $.each(storage_ready.data(), function (pos, it) {
+        var itemName = "parent";
+        if ($("#" + item + " option:contains(" + it[itemName] + ")").length == 0) {
+          elem.append('<option value=' + it[itemName] + '>' + it[itemName] + '</option>');
+        }
+      });
+      break;
+    case ("path"):
+      $.each(storage_ready.data(), function (pos, it) {
+        var itemName = "directory_path";
+        if ($("#" + item + " option:contains(" + it[itemName] + ")").length == 0) {
+          elem.append('<option value=' + it[itemName] + '>' + it[itemName] + '</option>');
+        }
+      });
+      break;
+    default:
+      break;
+  }
+  elem.html(elem.children('option').sort(function (a, b) {
+    return a.text.localeCompare(b.text);
+  }));
+}
+
+// set the filter box category on loading the document
+function initial_filters() {
+  var node = newFilterBox('category');
+  $('#filter-boxes').append(node);
+  populateSelect('category');
+  $('#filter-select').find(`option[value='category']`).remove();
+}
+
+function reloadOtherFiltersContent(table) {
+  table.draw(false);
+  $("#filter-boxes .filter-item[id!='filter-category']").each(function () {
+    index = $(this).find(".filter-box").attr("id")
+    populateSelect(index);
+  });
+}
+
+function removeFilter(name) {
+  if ($('#filter-' + name + ' #' + name).val() && name !== 'category') {
+    var title = $('#filter-' + name + ' #' + name).attr("index");
+    $('#domains').DataTable().columns().every(function () {
+      header = $(this.header()).text().trim().toLowerCase();
+      if (header === title) {
+        this.search('').draw();
+      }
+    });
+  }
+  if (name != 'category' || $('meta[id=user_data]').attr('data-role') == 'admin') {
+    $('#filter-' + name).remove();
+    $('#filter-select').append(`<option value="${name}">${name.charAt(0).toUpperCase() + name.slice(1).replace(/_/g, ' ')}</option>`);
+    $('#filter-select').children('option').sort(function (a, b) {
+      if (a.value === 'null') {
+        return -1;
+      } else if (b.value === 'null') {
+        return 1;
+      } else {
+        return a.text.localeCompare(b.text);
+      }
+    }).appendTo('#filter-select'); $('#filter-select').val('null');
+  }
+}
+
+
+

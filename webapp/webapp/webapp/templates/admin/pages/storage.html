@@ -26,6 +26,33 @@
     </div>
     {% if current_user.role == 'admin' %}
     <div class="x_content">
+      <div class="row" style="display:inline-flex;">
+         <div id="filter-section" style="display:grid;" class="x_content">
+            <div id="add_filter" style="width: 20cm">
+               <label class="control-label col-md-2 col-sm-4 col-xs-12 pull-left" for="mactions">
+                  <h4>
+                     Add Filter:
+                  </h4>
+               </label>
+               <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px; margin-right: 20px;">
+                  <select class="form-control" id="filter-select" name="filter-select">
+                     <option value="null">Select filter</option>
+                  </select>
+               </div>
+               <button type="button" id="btn-search" class="btn btn-pill-right btn-info"><i class="fa fa-search"></i>
+                  Search</button>
+               <button type="button" id="btn-reload" class="btn btn-pill-right btn-info"><i class="fa fa-refresh"></i>
+                  Reload</button>
+               <button type="button" id="btn-clear" class="btn btn-pill-right btn-danger"><i class="fa fa-eraser"></i>
+                  Clear</button>
+            </div>
+            <div id="filter-boxes" style="margin-bottom:-40px; margin-top:15px"></div>
+            <hr>
+         </div>
+      </div>
+    </div>
+
+    <div class="x_content">
       <p class="text-muted font-13 m-b-30"></p>
       <div style="display:inline-flex;">
         <div style="display:block; width: 15cm;">
