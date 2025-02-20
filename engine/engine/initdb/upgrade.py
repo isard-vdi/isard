@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 156
+release_version = 157
+# release 157: Add unused_desktops_cutoff_time field to config table
 # release 156: Remove user_permissions field from deployments create_dict
 # release 155: Add empty dict values to provider settings
 # release 154: Add bastion alloweds to config table
@@ -729,6 +730,14 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+            if version == 157:
+                try:
+                    r.table(table).get(1).update(
+                        {"unused_desktops_cutoff_time": None}
+                    ).run(self.conn)
+                except Exception as e:
+                    print(e)
         return True
 
     """
