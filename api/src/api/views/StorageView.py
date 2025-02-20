@@ -1370,6 +1370,34 @@ def recreate_storage(payload, storage_id, domain_id=None):
                                             "path": storage.path,
                                         },
                                     },
+                                    "dependents": [
+                                        {
+                                            "queue": "core",
+                                            "task": "update_status",
+                                            "job_kwargs": {
+                                                "kwargs": {
+                                                    "statuses": {
+                                                        "_all": {
+                                                            "deleted": {
+                                                                "storage": [storage.id],
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                            "dependents": [
+                                                {
+                                                    "queue": "core",
+                                                    "task": "storage_delete",
+                                                    "job_kwargs": {
+                                                        "kwargs": {
+                                                            "storage_id": storage.id
+                                                        }
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    ],
                                 },
                             ],
                         },
