@@ -133,7 +133,6 @@ function socketio_on(){
         $('#bulk-allow-update').iCheck('uncheck').iCheck('update');
         setQuotaMax('#bulkusers-quota',kind='category',id=false,disabled=false);
         $('#modalAddBulkUsers .apply').html('group quota');
-        $("#modalAddBulkUsers #send").attr("disabled", true);
         $('#modalAddBulkUsers').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddBulkUsersForm')[0].reset();
         $('#modalAddBulkUsersForm :checkbox').iCheck('uncheck').iCheck('update');
@@ -143,6 +142,7 @@ function socketio_on(){
             $("#csv_error").hide()
         }
         setModalUser();
+        $("#modalAddBulkUsers #send").attr("disabled", true);
 
         $('#modalAddBulkUsersForm #bulk_secondary_groups').select2({
             minimumInputLength: 2,
@@ -1767,15 +1767,21 @@ function parseCSV(csv) {
     users = []
     $.each(lines, function (n, l) {
         if (n != 0 && l.length > 10) {
-            // var regex = /("[^"]*"|[^,]+)(?=,|$)/g;
-            usr = toObject(header, l.split(separator));
-
-            // remove enclosing quotes and unescape fields
-            for (var key in usr) {
-                usr[key] = usr[key].replace(/^"(.*)"$/, '$1').replace(/""/g, '"');
+            // ignore separator inside quotes
+            var regex = new RegExp(`(?:${separator}|\\r?\\n|^)(?:"([^"]*(?:""[^"]*)*)"|([^"${separator}\\r\\n]*))`, 'g');
+            var matches = []; var match;
+            while (match = regex.exec(l)) {
+                matches.push(match[1] || match[2]);
             }
-            usr['id'] = usr['username']
-            users.push(usr)
+            usr = toObject(header, matches);
+            if (usr) {
+                // remove enclosing quotes and unescape fields
+                for (var key in usr) {
+                    usr[key] = usr[key].replace(/^"(.*)"$/, '$1').replace(/""/g, '"');
+                }
+                usr['id'] = usr['username']
+                users.push(usr)
+            }
         }
     })
     return { users: users, error: "" };
