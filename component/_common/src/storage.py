@@ -937,6 +937,7 @@ class Storage(RethinkCustomBase):
         self,
         user_id,
         priority="default",
+        secondary_priority="default",
         timeout=1200,  # Default redis timeout is 180 (3 minutes)
     ):
         """
@@ -947,6 +948,8 @@ class Storage(RethinkCustomBase):
         :rtype: str
         """
         queue_sparsify = f"storage.{StoragePool.get_best_for_action('sparsify', path=self.directory_path).id}.{priority}"
+        # Use a different queue to avoid having to wait when launching in bulk
+        queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain',path=self.directory_path).id}.{secondary_priority}"
 
         self.set_maintenance("sparsify")
         self.create_task(
@@ -961,7 +964,7 @@ class Storage(RethinkCustomBase):
             },
             dependents=[
                 {
-                    "queue": queue_sparsify,
+                    "queue": queue_backing_chain,
                     "task": "qemu_img_info_backing_chain",
                     "job_kwargs": {
                         "kwargs": {

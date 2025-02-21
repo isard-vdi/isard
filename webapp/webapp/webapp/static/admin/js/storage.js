@@ -134,7 +134,7 @@ $(document).ready(function () {
         var notify = new PNotify();
         $.ajax({
           type: "PUT",
-          url: '/api/v3/storages/status',
+          url: `/api/v3/storages/${action}`,
           data: JSON.stringify({
             ids: ids
           }),
@@ -192,7 +192,7 @@ $(document).ready(function () {
                   var notify = new PNotify();
                   $.ajax({
                     type: "PUT",
-                    url: '/api/v3/storages/find/' + status,
+                    url: `/api/v3/storages/${action}/${status}`,
                     contentType: "application/json",
                     success: function (data) {
                       $('.mactionsStorage option[value="none"]').prop("selected", true);
