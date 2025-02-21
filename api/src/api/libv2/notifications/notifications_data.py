@@ -105,3 +105,18 @@ def update_notification_data(data):
     """
     with app.app_context():
         r.table("notifications_data").get(data["id"]).update(data).run(db.conn)
+
+
+def delete_users_notifications_data(users_ids):
+    """
+    Delete the notifications data for a list of users.
+
+    :param users_ids: The list of users ids.
+    :type users_ids: list
+    """
+    for i in range(0, len(users_ids), 200):
+        batch_users_ids = users_ids[i : i + 200]
+        with app.app_context():
+            r.table("notifications_data").get_all(
+                r.args(batch_users_ids), index="user_id"
+            ).delete().run(db.conn)
