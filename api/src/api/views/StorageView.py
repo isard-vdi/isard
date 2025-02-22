@@ -565,6 +565,101 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
 
 
 @app.route(
+    "/api/v3/storage/sparsify/<path:storage_id>/priority/<priority>", methods=["PUT"]
+)
+@is_admin
+def storage_sparsify(payload, storage_id, priority="low"):
+    """
+    Endpoint to sparsify a storage qcow2
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    if priority not in ["low", "default", "high"]:
+        raise Error(
+            error="bad_request",
+            description=f"Priority must be low, default or high",
+        )
+
+    storage = get_storage(payload, storage_id)
+
+    try:
+        return jsonify(
+            {
+                "task_id": storage.sparsify(
+                    payload.get("user_id"),
+                    priority=priority,
+                    secondary_priority="high",
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
+
+
+@app.route("/api/v3/storages/sparsify", methods=["PUT"])
+@is_admin
+def storages_sparsifys(payload):
+    if not request.is_json:
+        raise Error(
+            error="bad_request",
+            description="No JSON in body request with storage ids",
+        )
+    request_json = request.get_json()
+    storages_ids = request_json.get("ids")
+    if not storages_ids:
+        raise Error(
+            error="bad_request",
+            description="Storage ids required",
+        )
+    for storage_id in storages_ids:
+        try:
+            storage = get_storage(payload, storage_id)
+            storage.sparsify(
+                payload.get("user_id"),
+                priority="default",
+                secondary_priority="high",
+            )
+        except:
+            notify_admin(
+                payload["user_id"],
+                "Error Sparsifying storage",
+                f"There was an error creating a task for {storage_id}",
+                type="error",
+            )
+
+    return jsonify({})
+
+
+@app.route("/api/v3/storages/sparsify/<status>", methods=["PUT"])
+@is_admin
+def storages_sparsify_by_status(payload, status):
+    storages_ids = get_disks_ids_by_status(status=status)
+
+    for storage_id in storages_ids:
+        try:
+            storage = get_storage(payload, storage_id)
+            storage.sparsify(
+                payload.get("user_id"),
+                priority="default",
+                secondary_priority="high",
+            )
+        except:
+            notify_admin(
+                payload["user_id"],
+                "Error Sparsifying storage",
+                f"There was an error creating a task for {storage_id}",
+                type="error",
+            )
+
+    return jsonify({})
+
+
+@app.route(
     "/api/v3/storage/<path:storage_id>/update_qemu_img_info",
     methods=["PUT"],
 )
@@ -1114,8 +1209,16 @@ def storage_update_status(payload):
 def storage_update_by_status(payload, status):
     storages_ids = get_disks_ids_by_status(status=status)
     for storage_id in storages_ids:
-        storage = get_storage(payload, storage_id)
-        storage.check_backing_chain(user_id=payload.get("user_id"))
+        try:
+            storage = get_storage(payload, storage_id)
+            storage.check_backing_chain(user_id=payload.get("user_id"))
+        except:
+            notify_admin(
+                payload["user_id"],
+                "Error finding storage",
+                f"There was an error creating a task for {storage_id}",
+                type="error",
+            )
     return jsonify({})
 
 
@@ -1465,14 +1568,14 @@ def storage_path_statuses(payload):
 
 
 @app.route("/api/v3/storage/<path:storage_id>/find", methods=["GET"])
-@has_token
+@is_admin
 def storage_find(payload, storage_id):
     storage = get_storage(payload, storage_id)
     return jsonify(storage.find(payload.get("user_id")))
 
 
 @app.route("/api/v3/storages/find", methods=["PUT"])
-@is_admin_or_manager
+@is_admin
 def storages_find(payload):
     if not request.is_json:
         raise Error(
@@ -1494,7 +1597,7 @@ def storages_find(payload):
 
 
 @app.route("/api/v3/storages/find/<status>", methods=["PUT"])
-@is_admin_or_manager
+@is_admin
 def storages_find_by_status(payload, status):
     storages_ids = get_disks_ids_by_status(status=status)
 

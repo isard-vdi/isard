@@ -134,7 +134,7 @@ $(document).ready(function () {
         var notify = new PNotify();
         $.ajax({
           type: "PUT",
-          url: '/api/v3/storages/status',
+          url: `/api/v3/storages/${action}`,
           data: JSON.stringify({
             ids: ids
           }),
@@ -192,7 +192,7 @@ $(document).ready(function () {
                   var notify = new PNotify();
                   $.ajax({
                     type: "PUT",
-                    url: '/api/v3/storages/find/' + status,
+                    url: `/api/v3/storages/${action}/${status}`,
                     contentType: "application/json",
                     success: function (data) {
                       $('.mactionsStorage option[value="none"]').prop("selected", true);
@@ -890,6 +890,45 @@ $("#modalVirtWinReg #send").on("click", function () {
 });
 
 
+$(document).on('click', '.btn-sparsify', function () {
+  element = $(this);
+  var storageId = element.data("id");
+  modal = "#modalSparsify";
+  $.ajax({
+    url: `/api/v3/storage/${storageId}/has_derivatives`,
+    type: 'GET',
+    contentType: "application/json",
+  }).done(function (data) {
+    $(modal + " #id").val(storageId);
+    populatePrioritySelect(modal);
+    $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+  }).fail(function (data) {
+    new PNotify({
+      title: `ERROR trying to sparsify the disk`,
+      text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+      type: 'error',
+      hide: true,
+      icon: 'fa fa-warning',
+      delay: 5000,
+      opacity: 1
+    });
+
+  });
+});
+
+
+$("#modalSparsify #send").on("click", function () {
+  var form = $('#modalSparsifyForm');
+  form.parsley().validate();
+  if (form.parsley().isValid()) {
+    data = form.serializeObject();
+    var priority = $("#user_data").data("role") == "admin" ? data.priority : "low";
+    var url = "/api/v3/storage/sparsify/" + data["storage_id"] + "/priority/" + priority;
+    performStorageOperation(data, data["storage_id"], "sparsify", url);
+  }
+});
+
+
 $(document).on('click', '.btn-move', function () {
   element = $(this);
   var storageId = element.data("id");
@@ -1497,13 +1536,17 @@ function detailButtons(storage) {
                       data-placement="top" title="Increase disk size"><i class="fa fa-external-link-square m-right-xs"></i>
                       Increase
                     </button>
-		    ${(function () {
-      return ($("#user_data").data("role") == "admin") ? `
-	              <button class="btn btn-info btn-xs btn-create" data-id="${storage.id}" type="button"
-			 data-placement="top" title="Create new disk derivated from this one"><i class="fa fa-plus m-right-xs"></i>
-		       	 Add disk
-		      </button>` : ""
-    })()}
+                ${(function () {
+                  return ($("#user_data").data("role") == "admin") ? `
+                    <button class="btn btn-info btn-xs btn-create" data-id="${storage.id}" type="button"
+                      data-placement="top" title="Create new disk derivated from this one"><i class="fa fa-plus m-right-xs"></i>
+                      Add disk
+                    </button>
+                    <button class="btn btn-info btn-xs btn-sparsify" data-id="${storage.id}" type="button"
+                      data-placement="top" title="Sparsify disk"><i class="fa fa-compress m-right-xs"></i>
+                      Sparsify disk
+                    </button>` : ""
+                  })()}
                   </div>
                 </div>
               </div>

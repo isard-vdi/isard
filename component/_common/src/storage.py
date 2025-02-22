@@ -933,6 +933,62 @@ class Storage(RethinkCustomBase):
 
         return self.task
 
+    def sparsify(
+        self,
+        user_id,
+        priority="default",
+        secondary_priority="default",
+        timeout=1200,  # Default redis timeout is 180 (3 minutes)
+    ):
+        """
+        Create a task to sparsify the storage.
+        https://libguestfs.org/virt-sparsify.1.html
+
+        :return: Task ID
+        :rtype: str
+        """
+        queue_sparsify = f"storage.{StoragePool.get_best_for_action('sparsify', path=self.directory_path).id}.{priority}"
+        # Use a different queue to avoid having to wait when launching in bulk
+        queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain',path=self.directory_path).id}.{secondary_priority}"
+
+        self.set_maintenance("sparsify")
+        self.create_task(
+            user_id=user_id,
+            queue=queue_sparsify,
+            task="sparsify",
+            job_kwargs={
+                "kwargs": {
+                    "storage_path": self.path,
+                },
+                "timeout": timeout,
+            },
+            dependents=[
+                {
+                    "queue": queue_backing_chain,
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": self.id,
+                            "storage_path": self.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                        },
+                        {
+                            "queue": "core",
+                            "task": "storage_domains_force_update",
+                            "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                        },
+                    ],
+                },
+            ],
+        )
+
+        return self.task
+
     def abort_operations(
         self,
         user_id,

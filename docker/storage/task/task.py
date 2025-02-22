@@ -561,3 +561,75 @@ def touch(path):
     """
     if isfile(path):
         Path(path).touch()
+
+
+def sparsify(storage_path):
+    """
+    Sparsify disk
+    `du` is used to get the actual disk usage of the file instead of the apparent size.
+
+    :param storage_path: Path to disk
+    :type storage_id: str
+    :return: Exit code of virt-sparsify command and saved space
+    :rtype: dict
+    """
+    try:
+        # Get the current size of the disk
+        old_size = run(
+            [
+                "du",
+                "-s",
+                storage_path,
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        old_size = old_size.split("\t")[0]  # Extract the size from the output
+    except:
+        old_size = 0
+
+    try:
+        # Sparsify the disk
+        result = run(
+            [
+                "virt-sparsify",
+                "--in-place",
+                storage_path,
+            ],
+            capture_output=True,  # Capture stdout and stderr
+            text=True,  # Decode output as text
+            check=True,  # Raise CalledProcessError on failure
+        )
+    except CalledProcessError as cpe:
+        # Return error details, including captured stderr
+        return (
+            f"Error: Command failed with return code {cpe.returncode}. "
+            f"stderr: {cpe.stderr.strip() or 'No error message provided.'}"
+        )
+    except Exception as e:
+        # Handle other exceptions
+        return f"Error: {str(e)}"
+
+    try:
+        # Get the new size of the disk
+        new_size = run(
+            [
+                "du",
+                "-s",
+                storage_path,
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        new_size = new_size.split("\t")[0]  # Extract the size from the output
+    except:
+        new_size = 0
+
+    return {
+        "exit_code": result.returncode,
+        "saved_space": int(old_size) - int(new_size),
+        "old_size": old_size,
+        "new_size": new_size,
+    }
