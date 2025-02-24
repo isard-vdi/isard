@@ -206,7 +206,7 @@ $(document).ready(function () {
                         opacity: 1
                       });
                     },
-                    error: function (xhr) {
+                    error: function (data) {
                       document.body.classList.remove('loading-cursor')
                       $('.mactionsStorage option[value="none"]').prop("selected", true);
                       notify.update({
@@ -1272,7 +1272,7 @@ function createDatatable(tableId, status, initCompleteFn = null) {
               return "N/A";
             }
           }
-          return last.time
+          return last?.time || "N/A";
         }
       },
       {
