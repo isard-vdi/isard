@@ -503,6 +503,15 @@ class Actions:
                 + traceback.format_exc()
             )
 
+    def delete_expired_notifications_data(**kwargs):
+        try:
+            api_client.delete("/notifications/expired")
+        except:
+            log.error(
+                "Exception when deleting expired notifications: "
+                + traceback.format_exc()
+            )
+
     def recycle_bin_delete_admin(**kwargs):
         max_delete_period = int(kwargs.get("max_delete_period"))
         api_client.put("/recycle_bin/delete", {"max_delete_period": max_delete_period})
