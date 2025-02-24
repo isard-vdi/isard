@@ -189,6 +189,8 @@ def update_status(statuses={}):
             for item_class, item_ids in items.items():
                 for item_id in item_ids:
                     globals()[item_class.capitalize()](item_id, status=item_status)
+                    if item_class.lower() == "storage":
+                        send_storage_status_socket(item_id, item_status)
 
 
 def storage_update_parent(storage_id):
@@ -242,6 +244,12 @@ def storage_update(**storage_dict):
             if storage_dict.get("status") == "ready":
                 for domain in storage_object.domains:
                     domain.status = "Stopped"
+
+            send_storage_status_socket(
+                storage_dict["id"],
+                storage_dict.get("status"),
+                task.user_id,
+            )
         else:
             for dependency in task.dependencies:
                 if dependency.task in (
@@ -588,3 +596,54 @@ def storage_update_pool(storage_id):
                 ],
             }
         )
+
+
+def send_storage_status_socket(storage_id, status, user_id=None):
+    """
+    Send storage status to users.
+
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :param status: Storage status
+    :type status: str
+    """
+    if user_id:
+        try:
+            user = user_info(user_id)
+        except:
+            user = None
+
+        if user:
+            socketio(
+                [
+                    {
+                        "event": "storage",
+                        "data": json.dumps({"id": storage_id, "status": status}),
+                        "namespace": "/administrators",
+                        "room": user.get("category"),
+                    },
+                    {
+                        "event": "storage",
+                        "data": json.dumps({"id": storage_id, "status": status}),
+                        "namespace": "/administrators",
+                        "room": user_id,
+                    },
+                    {
+                        "event": "storage",
+                        "data": json.dumps({"id": storage_id, "status": status}),
+                        "namespace": "/userspace",
+                        "room": user_id,
+                    },
+                ]
+            )
+
+    socketio(
+        [
+            {
+                "event": "storage",
+                "data": json.dumps({"id": storage_id, "status": status}),
+                "namespace": "/administrators",
+                "room": "admins",
+            }
+        ]
+    )

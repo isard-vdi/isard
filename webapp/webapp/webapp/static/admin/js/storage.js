@@ -1046,7 +1046,9 @@ function socketio_on() {
             table.row(id).remove().draw();
             if (newStatus && newStatus == data.status) {
               storagesOtherTable.row.add({ ...actual_data, ...data }).draw();
-              showNotification(data.status);
+              if (actual_data.status != data.status) {
+                showNotification(data.status);
+              }
             }
           } else {
             if (storagesOtherTable) {
