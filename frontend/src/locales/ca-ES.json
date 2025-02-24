@@ -70,7 +70,8 @@
     },
     "notifications": {
       "title": "Notificacions",
-      "no-notifications": "No hi ha notificacions pendents"
+      "no-notifications": "No hi ha notificacions pendents",
+      "go-to-desktops": "Ves als meus escriptoris"
     }
   },
   "layouts": {

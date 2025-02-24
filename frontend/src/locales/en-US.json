@@ -72,7 +72,8 @@
     },
     "notifications": {
       "title": "Notifications",
-      "no-notifications": "No notifications pending"
+      "no-notifications": "No notifications pending",
+      "go-to-desktops": "Go to desktops"
     }
   },
   "layouts": {

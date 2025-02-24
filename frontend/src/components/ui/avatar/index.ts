@@ -22,18 +22,18 @@ export const avatarVariant = cva(
         md: 'h-[40px] text-md',
         lg: 'h-[48px] text-lg',
         xl: 'h-[56px] text-xl',
-        '2xl': 'h-[64px] text-xl',
+        '2xl': 'h-[64px] text-xl'
       },
       shape: {
         circle: 'rounded-full',
-        square: 'rounded-xl',
-      },
+        square: 'rounded-xl'
+      }
     },
     defaultVariants: {
       size: 'md',
-      shape: 'circle',
+      shape: 'circle'
     }
-  },
+  }
 )
 
 export type AvatarVariants = VariantProps<typeof avatarVariant>

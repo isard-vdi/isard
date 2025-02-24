@@ -22,7 +22,6 @@ const meta = {
         args
       }
     },
-    // <AvatarImage src="https://gravatar.com/avatar/c052ebd55dd78dcb2af1e6e02bc58e2d009460efc84928adb97059aed586088c?d=identicon" alt="@radix-vue" />
     template: `
       <Avatar
         :size="args.size"
