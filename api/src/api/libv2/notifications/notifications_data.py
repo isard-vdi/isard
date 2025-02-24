@@ -18,6 +18,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging as log
+import time
+
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -215,3 +218,36 @@ def get_notification_statuses():
             .run(db.conn)
         )
     return notification_statuses
+
+
+def delete_expired_notifications_data():
+    """
+    Delete the expired notifications data.
+    """
+    while True:
+        log.debug("Notifications data: Deleting expired notifications data")
+        with app.app_context():
+            expired_ids = list(
+                r.table("notifications_data")
+                .eq_join("notification_id", r.table("notifications"))
+                .pluck({"left": ["id", "created_at"], "right": ["keep_time"]})
+                .zip()
+                .filter(
+                    lambda row: (
+                        (row["keep_time"].gt(0))
+                        & ((row["created_at"] + (row["keep_time"] * 3600)) < r.now())
+                    )
+                )
+                .pluck("id")["id"]
+                .limit(500)
+                .run(db.conn)
+            )
+
+            if not expired_ids:
+                log.debug("Notifications data: No more expired entries left to delete")
+                break  # Exit loop if no more expired entries
+
+            # Batch delete
+            r.table("notifications_data").get_all(*expired_ids).delete().run(db.conn)
+
+            time.sleep(1)  # Sleep for a second to avoid overloading the database
