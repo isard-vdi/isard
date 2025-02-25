@@ -206,7 +206,7 @@ $(document).ready(function () {
                         opacity: 1
                       });
                     },
-                    error: function (xhr) {
+                    error: function (data) {
                       document.body.classList.remove('loading-cursor')
                       $('.mactionsStorage option[value="none"]').prop("selected", true);
                       notify.update({
@@ -1046,7 +1046,9 @@ function socketio_on() {
             table.row(id).remove().draw();
             if (newStatus && newStatus == data.status) {
               storagesOtherTable.row.add({ ...actual_data, ...data }).draw();
-              showNotification(data.status);
+              if (actual_data.status != data.status) {
+                showNotification(data.status);
+              }
             }
           } else {
             if (storagesOtherTable) {
@@ -1272,7 +1274,7 @@ function createDatatable(tableId, status, initCompleteFn = null) {
               return "N/A";
             }
           }
-          return last.time
+          return last?.time || "N/A";
         }
       },
       {
