@@ -38,10 +38,22 @@ def api_v3_admin_storage_status(payload):
     )
 
 
-@app.route("/api/v3/admin/storage", methods=["GET"])
-@app.route("/api/v3/admin/storage/<status>", methods=["GET"])
+@app.route("/api/v3/admin/storage", methods=["GET", "POST"])
+@app.route("/api/v3/admin/storage/<status>", methods=["GET", "POST"])
 @is_admin_or_manager
 def api_v3_admin_storage(payload, status=None):
+    if request.method == "POST":
+        try:
+            data = request.get_json(force=True)
+        except:
+            raise Error(
+                "bad_request",
+                "Could not decode body data",
+                description_code="bad_request",
+            )
+    else:
+        data = {}
+
     if status == "delete_pending":
         disks = get_disks(
             status=status,
@@ -49,12 +61,18 @@ def api_v3_admin_storage(payload, status=None):
             category_id=(
                 payload["category_id"] if payload["role_id"] == "manager" else None
             ),
+            categories=(
+                data.get("categories", None) if payload["role_id"] == "admin" else None
+            ),
         )
     else:
         disks = get_disks(
             status=status,
             category_id=(
                 payload["category_id"] if payload["role_id"] == "manager" else None
+            ),
+            categories=(
+                data.get("categories", None) if payload["role_id"] == "admin" else None
             ),
         )
     return (

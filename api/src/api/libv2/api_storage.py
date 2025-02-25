@@ -71,7 +71,7 @@ def get_disks_ids_by_status(status=None):
         return list(query.pluck("id")["id"].run(db.conn))
 
 
-def get_disks(user_id=None, status=None, pluck=None, category_id=None):
+def get_disks(user_id=None, status=None, pluck=None, category_id=None, categories=None):
     query = r.table("storage")
     if user_id:
         query = query.get_all(user_id, index="user_id")
@@ -97,7 +97,13 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None):
                 {"qemu-img-info": {"virtual-size": True, "actual-size": True}},
             ]
         )
-    if category_id:
+    if categories:
+        query = query.filter(
+            lambda disk: r.expr(categories).contains(
+                r.table("users").get(disk["user_id"])["category"]
+            )
+        )
+    elif category_id:
         query = (
             query.eq_join(
                 [r.row["user_id"], category_id], r.table("users"), index="user_category"
