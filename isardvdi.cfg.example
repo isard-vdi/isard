@@ -1,4 +1,4 @@
-# Isard main config v2.20.0
+# Isard main config v2.21.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -767,3 +767,7 @@ WG_GUESTS_RESERVED_HOSTS=20
 #ORCHESTRATOR_ORCHESTRATOR_CHECK_FAIL_MAINTENANCE_MODE=true
 # If this is set to true, the check service will fail if it encounters a self signed certificate
 #ORCHESTRATOR_ORCHESTRATOR_CHECK_FAIL_SELF_SIGNED=true
+
+# ------ Operations -----------------------------------------------------
+# Control whether the operations menu should be shown in the webapp and the endpoints should be enabled. 
+#OPERATIONS_API_ENABLED=false

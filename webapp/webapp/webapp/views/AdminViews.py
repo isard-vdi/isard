@@ -35,20 +35,38 @@ if not monitor_host:
     monitor_host = f'https://{os.getenv("DOMAIN", "localhost")}/monitor'
 
 
+show_operations = os.getenv("OPERATIONS_API_ENABLED")
+if show_operations is None:
+    show_operations = False
+else:
+    show_operations = show_operations.lower() == "true"
+
+
+def render_webapp(*args, **kwargs):
+    """
+    Centralized render_template function with common parameters
+    """
+    return render_template(
+        *args,
+        **kwargs,
+        monitor_host=monitor_host,
+        show_operations=show_operations,
+    )
+
+
 @app.route("/isard-admin/admin/landing", methods=["GET"])
 @login_required
 @maintenance
 def admin_landing():
     if current_user.is_admin:
-        return render_template(
+        return render_webapp(
             "admin/pages/hypervisors.html",
             title="Hypervisors",
             header="Hypervisors",
             nav="Hypervisors",
-            monitor_host=monitor_host,
         )
     if current_user.role == "manager":
-        return render_template(
+        return render_webapp(
             "admin/pages/analytics.html", nav="Analytics", title="Analytics"
         )
 
@@ -56,12 +74,11 @@ def admin_landing():
 @app.route("/isard-admin/about", methods=["GET"])
 @maintenance
 def about():
-    return render_template(
+    return render_webapp(
         "pages/about.html",
         title="About",
         header="About",
         nav="About",
-        monitor_host=monitor_host,
     )
 
 
@@ -139,12 +156,11 @@ LANDING ADMIN PAGE
 @login_required
 @isAdmin
 def admin():
-    return render_template(
+    return render_webapp(
         "admin/pages/hypervisors.html",
         title="Hypervisors",
         header="Hypervisors",
         nav="Hypervisors",
-        monitor_host=monitor_host,
     )
 
 
@@ -161,90 +177,81 @@ def admin_domains(nav="Domains"):
     icon = ""
     if nav == "Desktops":
         icon = "desktop"
-        return render_template(
+        return render_webapp(
             "admin/pages/desktops.html",
             title=nav,
             nav=nav,
             icon=icon,
-            monitor_host=monitor_host,
         )
     if nav == "Templates":
         icon = "cubes"
-        return render_template(
+        return render_webapp(
             "admin/pages/templates.html",
             title=nav,
             nav=nav,
             icon=icon,
-            monitor_host=monitor_host,
         )
     if nav == "Deployments":
         icon = "tv"
-        return render_template(
+        return render_webapp(
             "admin/pages/deployments.html",
             title=nav,
             nav=nav,
             icon=icon,
-            monitor_host=monitor_host,
         )
     if nav == "Storage":
         icon = "folder-open"
-        return render_template(
+        return render_webapp(
             "admin/pages/storage.html",
             title=nav,
             nav=nav,
             icon=icon,
-            monitor_host=monitor_host,
         )
     if nav == "Bases":
         icon = "cubes"
     if nav == "Resources":
         icon = "arrows-alt"
-        return render_template(
+        return render_webapp(
             "admin/pages/domains_resources.html",
             title=nav,
             nav=nav,
             icon=icon,
-            monitor_host=monitor_host,
         )
     if nav == "Bookables":
         icon = "briefcase"
-        return render_template(
+        return render_webapp(
             "admin/pages/bookables.html",
             title=nav,
             nav=nav,
             icon=icon,
-            monitor_host=monitor_host,
         )
     if nav == "BookablesEvents":
         icon = "history"
-        return render_template(
+        return render_webapp(
             "admin/pages/bookables_events.html",
             title=nav,
             nav=nav,
             icon=icon,
-            monitor_host=monitor_host,
         )
     if nav == "Priority":
         icon = "briefcase"
-        return render_template(
+        return render_webapp(
             "admin/pages/bookables_priority.html",
             title=nav,
             nav=nav,
             icon=icon,
-            monitor_host=monitor_host,
         )
     if nav == "Recyclebin":
         icon = "trash"
-        return render_template(
+        return render_webapp(
             "admin/pages/recyclebin.html", title=nav, nav=nav, icon=icon
         )
 
-    return render_template(
+    return render_webapp(
         "admin/pages/desktops.html",
         title=nav,
         nav=nav,
         icon=icon,
-        monitor_host=monitor_host,
     )
 
 
@@ -255,12 +262,12 @@ def admin_domains(nav="Domains"):
 def admin_recyclebin(nav="Disks"):
     if nav == "Domains":
         icon = "dektop"
-        return render_template(
+        return render_webapp(
             "admin/pages/recyclebin_domains.html", title=nav, nav=nav, icon=icon
         )
     if nav == "Config":
         icon = "gears"
-        return render_template(
+        return render_webapp(
             "admin/pages/recyclebin_config.html", title=nav, nav=nav, icon=icon
         )
 
@@ -270,7 +277,7 @@ def admin_recyclebin(nav="Disks"):
 @isAdmin
 def admin_desktops_status(nav="Desktops Status"):
     icon = "dektop"
-    return render_template(
+    return render_webapp(
         "admin/pages/desktops_status.html", title=nav, nav=nav, icon=icon
     )
 
@@ -285,11 +292,10 @@ MEDIA
 @isAdminManager
 @maintenance
 def admin_media():
-    return render_template(
+    return render_webapp(
         "admin/pages/media.html",
         nav="Media",
         title="Media",
-        monitor_host=monitor_host,
     )
 
 
@@ -304,18 +310,16 @@ USERS
 @maintenance
 def admin_users(nav):
     if nav == "Management":
-        return render_template(
+        return render_webapp(
             "admin/pages/users_management.html",
             nav=nav,
             title="Management",
-            monitor_host=monitor_host,
         )
     elif nav == "QuotasLimits":
-        return render_template(
+        return render_webapp(
             "admin/pages/users_quotas_limits.html",
             nav=nav,
             title="Quotas / Limits",
-            monitor_host=monitor_host,
         )
 
 
@@ -323,11 +327,10 @@ def admin_users(nav):
 @login_required
 @isAdmin
 def admin_users_user_storage():
-    return render_template(
+    return render_webapp(
         "admin/pages/user_storage.html",
         nav="UserStorage",
         title="User Storage",
-        monitor_host=monitor_host,
     )
 
 
@@ -335,11 +338,10 @@ def admin_users_user_storage():
 @login_required
 @isAdmin
 def admin_users_pwd_policies():
-    return render_template(
+    return render_webapp(
         "admin/pages/users_pwd_policies.html",
         nav="Pwd Policies",
         title="Policies",
-        monitor_host=monitor_host,
     )
 
 
@@ -347,11 +349,10 @@ def admin_users_pwd_policies():
 @login_required
 @isAdmin
 def admin_users_pwd_migration():
-    return render_template(
+    return render_webapp(
         "admin/pages/migration.html",
         nav="Migration",
         title="Migration",
-        monitor_host=monitor_host,
     )
 
 
@@ -365,11 +366,10 @@ USAGE
 @isAdminManager
 @maintenance
 def admin_usage():
-    return render_template(
+    return render_webapp(
         "admin/pages/usage.html",
         nav="Usage",
         title="Usage",
-        monitor_host=monitor_host,
     )
 
 
@@ -378,11 +378,10 @@ def admin_usage():
 @isAdminManager
 @maintenance
 def admin_usage_config():
-    return render_template(
+    return render_webapp(
         "admin/pages/usage_config.html",
         nav="Usage config",
         title="Usage config",
-        monitor_host=monitor_host,
     )
 
 
@@ -395,25 +394,25 @@ INFRASTRUCTURE
 @login_required
 @isAdmin
 def admin_hypervisors():
-    return render_template(
+    return render_webapp(
         "admin/pages/hypervisors.html",
         title="Hypervisors",
         header="Hypervisors",
         nav="Hypervisors",
-        monitor_host=monitor_host,
     )
 
 
-@app.route("/isard-admin/admin/operations", methods=["GET"])
-@login_required
-@isAdmin
-def admin_operations():
-    return render_template(
-        "admin/pages/operations.html",
-        title="Operations",
-        nav="Operations",
-        monitor_host=monitor_host,
-    )
+if show_operations:
+
+    @app.route("/isard-admin/admin/operations", methods=["GET"])
+    @login_required
+    @isAdmin
+    def admin_operations():
+        return render_webapp(
+            "admin/pages/operations.html",
+            title="Operations",
+            nav="Operations",
+        )
 
 
 @app.route("/isard-admin/admin/queues", methods=["GET"])
@@ -423,11 +422,10 @@ def queues():
     """
     Storage Nodes
     """
-    return render_template(
+    return render_webapp(
         "admin/pages/queues.html",
         title="Queues registeres",
         nav="Queues",
-        monitor_host=monitor_host,
     )
 
 
@@ -438,7 +436,7 @@ def storage_pools():
     """
     Storage Pools
     """
-    return render_template(
+    return render_webapp(
         "admin/pages/storage_pools.html",
         title="Storage Pools",
         nav="Storage Pools",
@@ -454,11 +452,10 @@ UPDATES
 @login_required
 @isAdmin
 def admin_updates():
-    return render_template(
+    return render_webapp(
         "admin/pages/updates.html",
         title="Downloads",
         nav="Downloads",
-        monitor_host=monitor_host,
     )
 
 
@@ -471,11 +468,10 @@ CONFIG
 @login_required
 @isAdmin
 def admin_schedulers():
-    return render_template(
+    return render_webapp(
         "admin/pages/schedulers.html",
         nav="Schedulers",
         title="Schedulers",
-        monitor_host=monitor_host,
     )
 
 
@@ -483,11 +479,10 @@ def admin_schedulers():
 @login_required
 @isAdmin
 def admin_notifications():
-    return render_template(
+    return render_webapp(
         "admin/pages/notifications.html",
         nav="Notification",
         title="Notification",
-        monitor_host=monitor_host,
     )
 
 
@@ -495,11 +490,10 @@ def admin_notifications():
 @login_required
 @isAdmin
 def admin_viewers():
-    return render_template(
+    return render_webapp(
         "admin/pages/viewers_config.html",
         nav="Viewers config",
         title="Viewers configuration",
-        monitor_host=monitor_host,
     )
 
 
@@ -507,11 +501,10 @@ def admin_viewers():
 @login_required
 @isAdmin
 def admin_users_authentication():
-    return render_template(
+    return render_webapp(
         "admin/pages/authentication.html",
         nav="authentication",
         title="Authentication",
-        monitor_host=monitor_host,
     )
 
 
@@ -519,11 +512,10 @@ def admin_users_authentication():
 @login_required
 @isAdmin
 def admin_system():
-    return render_template(
+    return render_webapp(
         "admin/pages/system.html",
         nav="System",
         title="System",
-        monitor_host=monitor_host,
     )
 
 
@@ -537,7 +529,7 @@ ANALYTICS
 @isAdminManager
 @maintenance
 def admin_analytics():
-    return render_template(
+    return render_webapp(
         "admin/pages/analytics.html", nav="Analytics", title="Analytics"
     )
 
@@ -546,7 +538,7 @@ def admin_analytics():
 @login_required
 @isAdmin
 def admin_analytics_config():
-    return render_template(
+    return render_webapp(
         "admin/pages/analytics_config.html",
         nav="Analytics config",
         title="Analytics config",
@@ -562,11 +554,10 @@ LOGS
 @login_required
 @isAdmin
 def admin_logs_desktops():
-    return render_template(
+    return render_webapp(
         "admin/pages/logs_desktops.html",
         title="Logs desktops",
         nav="Logs desktops",
-        monitor_host=monitor_host,
     )
 
 
@@ -574,11 +565,10 @@ def admin_logs_desktops():
 @login_required
 @isAdmin
 def admin_logs_desktops_config():
-    return render_template(
+    return render_webapp(
         "admin/pages/logs_desktops_config.html",
         title="Logs desktops config",
         nav="Logs desktops config",
-        monitor_host=monitor_host,
     )
 
 
@@ -586,11 +576,10 @@ def admin_logs_desktops_config():
 @login_required
 @isAdmin
 def admin_logs_users():
-    return render_template(
+    return render_webapp(
         "admin/pages/logs_users.html",
         title="Logs users",
         nav="Logs users",
-        monitor_host=monitor_host,
     )
 
 
@@ -598,9 +587,8 @@ def admin_logs_users():
 @login_required
 @isAdmin
 def admin_logs_users_config():
-    return render_template(
+    return render_webapp(
         "admin/pages/logs_users_config.html",
         title="Logs users config",
         nav="Logs users config",
-        monitor_host=monitor_host,
     )
