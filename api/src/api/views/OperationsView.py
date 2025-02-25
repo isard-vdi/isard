@@ -23,11 +23,12 @@ import json
 from api import app
 
 from ..libv2.api_operations import list_hypervisors, start_hypervisor, stop_hypervisor
-from .decorators import is_admin
+from .decorators import is_admin, operations_api_enabled
 
 
 @app.route("/api/v3/operations/hypervisors", methods=["GET"])
 @is_admin
+@operations_api_enabled
 def api_v3_operations_hypervisors(payload):
     return (
         json.dumps(list_hypervisors()),
@@ -38,6 +39,7 @@ def api_v3_operations_hypervisors(payload):
 
 @app.route("/api/v3/operations/hypervisor/<hypervisor_id>", methods=["PUT"])
 @is_admin
+@operations_api_enabled
 def api_v3_operations_hypervisor_start(payload, hypervisor_id):
     return (
         json.dumps(start_hypervisor(hypervisor_id)),
@@ -48,6 +50,7 @@ def api_v3_operations_hypervisor_start(payload, hypervisor_id):
 
 @app.route("/api/v3/operations/hypervisor/<hypervisor_id>", methods=["DELETE"])
 @is_admin
+@operations_api_enabled
 def api_v3_operations_hypervisor_stop(payload, hypervisor_id):
     return (
         json.dumps(stop_hypervisor(hypervisor_id)),

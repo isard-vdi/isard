@@ -13,7 +13,7 @@ $(document).ready(function () {
       "contentType": "application/json",
       "type": 'GET',
       "error": function (xhr, error, thrown) {
-        if (xhr.status === 500) {
+        if ([500, 428].includes(xhr.status)) {
           $('#operations tbody').html('<tr class="odd"><td valign="top" colspan="7" class="dataTables_empty"><i class="fa fa-exclamation-triangle" style="color:red; font-size: 1.5em;"></i> Isard operations not available or not functional, review its logs</td></tr>');
         }
       }
