@@ -219,6 +219,12 @@ def storage_update_parent(storage_id):
             storage.parent = None
         storage.status = "ready"
 
+        send_storage_status_socket(
+            storage_id,
+            storage.status,
+            storage.user_id,
+        )
+
 
 def storage_update(**storage_dict):
     """
@@ -283,6 +289,11 @@ def storage_update_dict(**storage_dict):
         if storage_dict.get("status") == "ready":
             for domain in storage_object.domains:
                 domain.status = "Stopped"
+
+        send_storage_status_socket(
+            storage_dict["id"],
+            storage_dict.get("status"),
+        )
 
 
 def storage_add(**storage_dict):

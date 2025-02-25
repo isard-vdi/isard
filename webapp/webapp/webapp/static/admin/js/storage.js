@@ -1018,6 +1018,30 @@ $("#modalMoveStorage #send").on("click", function () {
 });
 
 
+
+$(document).on('click', '.btn-disconnect', function () {
+  element = $(this);
+  var storageId = element.data("id");
+  
+  modal = "#modalDisconnect";
+  $(modal + " #id").val(storageId);
+  
+  populatePrioritySelect(modal);
+  $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+});
+
+
+$("#modalDisconnect #send").on("click", function () {
+  var form = $('#modalDisconnectForm');
+  form.parsley().validate();
+  if (form.parsley().isValid()) {
+    data = form.serializeObject();
+    var priority = $("#user_data").data("role") == "admin" ? data.priority : "low";
+    var url = "/api/v3/storage/disconnect/" + data["storage_id"] + "/priority/" + priority;
+    performStorageOperation(data, data["storage_id"], "disconnect", url);
+  }
+});
+
 function socketio_on() {
   socket.on('storage', function (data) {
     var data = JSON.parse(data);
@@ -1547,6 +1571,10 @@ function detailButtons(storage) {
                     <button class="btn btn-info btn-xs btn-sparsify" data-id="${storage.id}" type="button"
                       data-placement="top" title="Sparsify disk"><i class="fa fa-compress m-right-xs"></i>
                       Sparsify disk
+                    </button>
+                    <button class="btn btn-info btn-xs btn-disconnect" data-id="${storage.id}" type="button"
+                      data-placement="top" title="Disconnect storage from backing chain"><i class="fa fa-plug m-right-xs"></i>
+                      Disconnect
                     </button>` : ""
                   })()}
                   </div>

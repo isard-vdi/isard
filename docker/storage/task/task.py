@@ -633,3 +633,39 @@ def sparsify(storage_path):
         "old_size": old_size,
         "new_size": new_size,
     }
+
+
+def disconnect(storage_path):
+    """
+    Disconnect storage_id from backing file
+
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Exit code of qemu-img command
+    :rtype: int
+    """
+    disconnected_path = storage_path + ".wo_chain"
+
+    try:
+        convert = run(
+            [
+                "qemu-img",
+                "convert",
+                "-f",
+                "qcow2",
+                "-O",
+                "qcow2",
+                storage_path,
+                disconnected_path,
+            ],
+            check=True,
+        )
+        if convert.returncode == 0:
+            remove(storage_path)
+            rename(disconnected_path, storage_path)
+        else:
+            remove(disconnected_path)
+
+        return convert.returncode
+    except Exception as e:
+        return f"Error: {str(e)}"
