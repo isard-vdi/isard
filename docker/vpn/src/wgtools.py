@@ -290,6 +290,17 @@ class Wg(object):
                     "25",
                 ]
             )
+            if peer["vpn"]["wireguard"]["extra_client_nets"] != None:
+                subprocess.run(
+                    [
+                        "ip",
+                        "route",
+                        "add",
+                        peer["vpn"]["wireguard"]["extra_client_nets"],
+                        "dev",
+                        self.interface,
+                    ]
+                )
             if self.table == "hypervisors":
                 if peer["id"] not in (
                     check_output(
@@ -378,6 +389,17 @@ class Wg(object):
         if table == False:
             table = self.table
         if "vpn" in peer.keys() and "wireguard" in peer["vpn"].keys():
+            if peer["vpn"]["wireguard"]["extra_client_nets"] != None:
+                subprocess.run(
+                    [
+                        "ip",
+                        "route",
+                        "del",
+                        peer["vpn"]["wireguard"]["extra_client_nets"],
+                        "dev",
+                        self.interface,
+                    ]
+                )
             check_output(
                 (
                     "/usr/bin/wg",
