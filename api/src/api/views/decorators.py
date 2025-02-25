@@ -937,3 +937,25 @@ def can_use_bastion(payload):
         )
 
     return api_allowed.is_allowed(payload, bastion_alloweds, "config", True)
+
+
+def operations_api_enabled(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        operations_api_enabled = os.getenv("OPERATIONS_API_ENABLED")
+        if operations_api_enabled is None:
+            operations_api_enabled = False
+        else:
+            operations_api_enabled = operations_api_enabled.lower() == "true"
+
+        if operations_api_enabled:
+            kwargs["operations_api_enabled"] = operations_api_enabled
+            return f(*args, **kwargs)
+
+        raise Error(
+            "precondition_required",
+            "Operations API is not enabled",
+            traceback.format_exc(),
+        )
+
+    return decorated

@@ -30,7 +30,8 @@
       <li>
         <a><i class="fa fa-trash"></i> Recycle Bin <span class="fa fa-chevron-down"></span></a>
         <ul class="nav child_menu">
-          <li><a href="/isard-admin/admin/domains/render/Recyclebin/Domains"><i class="fa fa-desktop"></i>Domains </a></li>
+          <li><a href="/isard-admin/admin/domains/render/Recyclebin/Domains"><i class="fa fa-desktop"></i>Domains </a>
+          </li>
         </ul>
       </li>
       <li>
@@ -90,112 +91,124 @@
           </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Users</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="limits-users-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="limits-users-bar progress-bar progress-bar-striped bg-info" role="progressbar"
+              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
           </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Deployments</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="limits-deployments-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="limits-deployments-bar progress-bar progress-bar-striped bg-info" role="progressbar"
+              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
           </p>
         </div>
       </div>
     </div>
 
-    {% if current_user.role == 'admin'  and current_user.role != 'manager' %}
+    {% if current_user.role == 'admin' and current_user.role != 'manager' %}
     <h3>Administrator</h3>
     <div class="clearfix"></div>
-      <ul class="nav side-menu">
-        <li><a href="/Desktops"><i class="fa fa-home"></i> Home</a>
-        </li>
-        <li>
-          <a><i class="fa fa-user"></i> Users<span class="fa fa-chevron-down"></span></a>
-          <ul class="nav child_menu">
-            <li><a href="/isard-admin/admin/users/Management"><i class="fa fa-book"></i> Management</a></li>
-            <li><a href="/isard-admin/admin/users/QuotasLimits"><i class="fa fa-minus-circle"></i> Quotas / Limits</a></li>
-            <li><a href="/isard-admin/admin/users/UserStorage"><i class="fa fa-folder-open"></i> User Storage</a></li>
-            <li><a href="/isard-admin/admin/users/pwd_policies"><i class="fa fas fa-asterisk"></i> Policies</a></li>
-            <li><a href="/isard-admin/admin/users/migration"><i class="fa fa-exchange"></i> Migration</a>
-          </ul>
-        </li>
-        <li>
-          <a><i class="fa fa-desktop"></i> Domains <span class="fa fa-chevron-down"></span></a>
-          <ul class="nav child_menu">
-            <li><a href="/isard-admin/admin/domains/render/Desktops"><i class="fa fa-desktop"></i> Desktops</a></li>
-            <li><a href="/isard-admin/admin/domains/render/status"><i class="fa fa-dashboard"></i> Desktops status</a></li>
-            <li><a href="/isard-admin/admin/domains/render/Templates"><i class="fa fa-cubes"></i> Templates</a></li>
-            <li><a href="/isard-admin/admin/domains/render/Deployments"><i class="fa fa-tv"></i> Deployments</a></li>
-            <li><a href="/isard-admin/admin/domains/render/Storage"><i class="fa fa-folder-open"></i> Storage</a></li>
-            <li><a href="/isard-admin/admin/isard-admin/media"><i class="fa fa-circle-o"></i>Media</a></li>
-            <li><a href="/isard-admin/admin/domains/render/Resources"><i class="fa fa-gears"></i>Resources</a></li>
-          </ul>
-          <li>
-            <a><i class="fa fa-briefcase"></i> Bookables <span class="fa fa-chevron-down"></span></a>
+    <ul class="nav side-menu">
+      <li><a href="/Desktops"><i class="fa fa-home"></i> Home</a>
+      </li>
+      <li>
+        <a><i class="fa fa-user"></i> Users<span class="fa fa-chevron-down"></span></a>
+        <ul class="nav child_menu">
+          <li><a href="/isard-admin/admin/users/Management"><i class="fa fa-book"></i> Management</a></li>
+          <li><a href="/isard-admin/admin/users/QuotasLimits"><i class="fa fa-minus-circle"></i> Quotas / Limits</a>
+          </li>
+          <li><a href="/isard-admin/admin/users/UserStorage"><i class="fa fa-folder-open"></i> User Storage</a></li>
+          <li><a href="/isard-admin/admin/users/pwd_policies"><i class="fa fas fa-asterisk"></i> Policies</a></li>
+          <li><a href="/isard-admin/admin/users/migration"><i class="fa fa-exchange"></i> Migration</a>
+        </ul>
+      </li>
+      <li>
+        <a><i class="fa fa-desktop"></i> Domains <span class="fa fa-chevron-down"></span></a>
+        <ul class="nav child_menu">
+          <li><a href="/isard-admin/admin/domains/render/Desktops"><i class="fa fa-desktop"></i> Desktops</a></li>
+          <li><a href="/isard-admin/admin/domains/render/status"><i class="fa fa-dashboard"></i> Desktops status</a>
+          </li>
+          <li><a href="/isard-admin/admin/domains/render/Templates"><i class="fa fa-cubes"></i> Templates</a></li>
+          <li><a href="/isard-admin/admin/domains/render/Deployments"><i class="fa fa-tv"></i> Deployments</a></li>
+          <li><a href="/isard-admin/admin/domains/render/Storage"><i class="fa fa-folder-open"></i> Storage</a></li>
+          <li><a href="/isard-admin/admin/isard-admin/media"><i class="fa fa-circle-o"></i>Media</a></li>
+          <li><a href="/isard-admin/admin/domains/render/Resources"><i class="fa fa-gears"></i>Resources</a></li>
+        </ul>
+      <li>
+        <a><i class="fa fa-briefcase"></i> Bookables <span class="fa fa-chevron-down"></span></a>
+        <ul class="nav child_menu">
+          <li><a href="/isard-admin/admin/domains/render/Priority"><i class="fa fa-star"></i>Priority</a></li>
+          <li><a href="/isard-admin/admin/domains/render/Bookables"><i class="fa fa-gears"></i>Resources</a></li>
+          <li><a href="/isard-admin/admin/domains/render/BookablesEvents"><i class="fa fa-history"></i>Events</a></li>
+        </ul>
+      </li>
+      </li>
+      <li>
+        <a><i class="fa fa-trash"></i> Recycle Bin <span class="fa fa-chevron-down"></span></a>
+        <ul class="nav child_menu">
+          <li><a href="/isard-admin/admin/domains/render/Recyclebin/Domains"><i class="fa fa-desktop"></i>Domains </a>
+          </li>
+          <li><a href="/isard-admin/admin/domains/render/Recyclebin/Config"><i class="fa fa-gears"></i>Config </a></li>
+        </ul>
+      </li>
+      <li>
+        <a>
+          <i class="fa fa-server"></i>
+          Infrastructure
+          <span class="fa fa-chevron-down"></span>
+        </a>
+        <ul class="nav child_menu">
+          <li><a href="/isard-admin/admin/hypervisors"><i class="fa fa-rocket"></i> Hypervisors</a></li>
+          {% if show_operations == true %}
+            <li><a href="/isard-admin/admin/operations"><i class="fa fa-gears"></i> Operations</a></li>
+          {% endif %}
+          <li><a href="/isard-admin/admin/queues"><i class="fa fa-tasks"></i> Tasks</a></li>
+          <li><a href="/isard-admin/admin/storage_pools"><i class="fa fa-object-group"></i> Storage Pools</a></li>
+        </ul>
+      </li>
+      <li>
+        <a><i class="fa fa-line-chart"></i> Metrics <span class="fa fa-chevron-down"></span></a>
+        <ul class="nav child_menu">
+          <li><a href="{{ monitor_host }}" target="_blank"><i class="fa fa-area-chart"></i> Monitoring</a></li>
+          <li><a href="/isard-admin/admin/usage"><i class="fa fa-bar-chart"></i> Usage<span
+                class="fa fa-chevron-down"></span></a>
             <ul class="nav child_menu">
-              <li><a href="/isard-admin/admin/domains/render/Priority"><i class="fa fa-star"></i>Priority</a></li>
-              <li><a href="/isard-admin/admin/domains/render/Bookables"><i class="fa fa-gears"></i>Resources</a></li>
-              <li><a href="/isard-admin/admin/domains/render/BookablesEvents"><i class="fa fa-history"></i>Events</a></li>
+              <li><a href="/isard-admin/admin/usage_config"><i class="fa fa-gears"></i> Config</a></li>
             </ul>
           </li>
-        </li>
-        <li>
-          <a><i class="fa fa-trash"></i> Recycle Bin <span class="fa fa-chevron-down"></span></a>
-            <ul class="nav child_menu">
-              <li><a href="/isard-admin/admin/domains/render/Recyclebin/Domains"><i class="fa fa-desktop"></i>Domains </a></li>
-              <li><a href="/isard-admin/admin/domains/render/Recyclebin/Config"><i class="fa fa-gears"></i>Config </a></li>
-            </ul>
-        </li>
-        <li>
-          <a>
-            <i class="fa fa-server"></i>
-            Infrastructure
-            <span class="fa fa-chevron-down"></span>
-          </a>
-          <ul class="nav child_menu">
-            <li><a href="/isard-admin/admin/hypervisors"><i class="fa fa-rocket"></i> Hypervisors</a></li>
-            <li><a href="/isard-admin/admin/queues"><i class="fa fa-tasks"></i> Tasks</a></li>
-            <li><a href="/isard-admin/admin/storage_pools"><i class="fa fa-object-group"></i> Storage Pools</a></li>
-          </ul>
-        </li>
-        <li>
-          <a><i class="fa fa-line-chart"></i> Metrics <span class="fa fa-chevron-down"></span></a>
-          <ul class="nav child_menu">
-            <li><a href="{{ monitor_host }}" target="_blank"><i class="fa fa-area-chart"></i> Monitoring</a></li>
-            <li><a href="/isard-admin/admin/usage"><i class="fa fa-bar-chart"></i> Usage<span class="fa fa-chevron-down"></span></a>
-            <ul class="nav child_menu">
-            <li><a href="/isard-admin/admin/usage_config"><i class="fa fa-gears"></i> Config</a></li>
-            </ul>
-          </li>
-          <li><a href="/isard-admin/admin/analytics"><i class="fa fa-pie-chart"></i> Analytics<span class="fa fa-chevron-down"></span></a>
+          <li><a href="/isard-admin/admin/analytics"><i class="fa fa-pie-chart"></i> Analytics<span
+                class="fa fa-chevron-down"></span></a>
 
-          <ul class="nav child_menu">
-          <li><a href="/isard-admin/admin/analytics_config"><i class="fa fa-gears"></i> Config</a></li>
-          </ul>
-          <li><a href="/isard-admin/admin/logs_desktops"><i class="fa fa-gears"></i> Logs Desktops<span class="fa fa-chevron-down"></span></a>
+            <ul class="nav child_menu">
+              <li><a href="/isard-admin/admin/analytics_config"><i class="fa fa-gears"></i> Config</a></li>
+            </ul>
+          <li><a href="/isard-admin/admin/logs_desktops"><i class="fa fa-gears"></i> Logs Desktops<span
+                class="fa fa-chevron-down"></span></a>
             <ul class="nav child_menu">
               <li><a href="/isard-admin/admin/logs_desktops_config"><i class="fa fa-gears"></i> Config</a></li>
             </ul>
           </li>
-          <li><a href="/isard-admin/admin/logs_users"><i class="fa fa-gears"></i> Logs Users<span class="fa fa-chevron-down"></span></a>
+          <li><a href="/isard-admin/admin/logs_users"><i class="fa fa-gears"></i> Logs Users<span
+                class="fa fa-chevron-down"></span></a>
             <ul class="nav child_menu">
               <li><a href="/isard-admin/admin/logs_users_config"><i class="fa fa-gears"></i> Config</a></li>
             </ul>
           </li>
-          </ul>
-        </li>
-        <li><a href="/isard-admin/admin/updates"><i class="fa fa-cloud-download"></i> Downloads</a></li>
-        <li><a><i class="fa fa-gear"></i> Config<span class="fa fa-chevron-down"></span></a>
-          <ul class="nav child_menu">
-            <li><a href="/isard-admin/admin/schedulers"><i class="fa fa-clock-o"></i> Schedulers</a></li>
-            <li><a href="/isard-admin/admin/notifications"><i class="fa fa-bell"></i> Notifications</a></li>
-            <li><a href="/isard-admin/admin/viewers"><i class="fa fa-eye"></i> Viewers</a></li>
-            <li><a href="/isard-admin/admin/users/authentication"><i class="fa fa-key"></i>Authentication</a></li>
-            <li><a href="/isard-admin/admin/system"><i class="fa fa-cogs"></i> System</a></li>
-          </ul>
-        </li>
-      </ul>
+        </ul>
+      </li>
+      <li><a href="/isard-admin/admin/updates"><i class="fa fa-cloud-download"></i> Downloads</a></li>
+      <li><a><i class="fa fa-gear"></i> Config<span class="fa fa-chevron-down"></span></a>
+        <ul class="nav child_menu">
+          <li><a href="/isard-admin/admin/schedulers"><i class="fa fa-clock-o"></i> Schedulers</a></li>
+          <li><a href="/isard-admin/admin/notifications"><i class="fa fa-bell"></i> Notifications</a></li>
+          <li><a href="/isard-admin/admin/viewers"><i class="fa fa-eye"></i> Viewers</a></li>
+          <li><a href="/isard-admin/admin/users/authentication"><i class="fa fa-key"></i>Authentication</a></li>
+          <li><a href="/isard-admin/admin/system"><i class="fa fa-cogs"></i> System</a></li>
+        </ul>
+      </li>
+    </ul>
     {% endif %}
 
     <div class="panel-body admin-status" style="display:none">
@@ -253,8 +266,8 @@
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Deployments</span>
           <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-            <div class="system-deployments progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;"
-              aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            <div class="system-deployments progress-bar progress-bar-striped bg-info" role="progressbar"
+              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
           </div>
           </p>
         </div>

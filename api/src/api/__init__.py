@@ -92,10 +92,11 @@ app.internal_users = InternalUsers()
 
 # # ###### GRPC client
 
-from isardvdi_common.grpc_client import create_sessions_client
+from isardvdi_common.grpc_client import create_operations_client, create_sessions_client
 
 # TODO: Get from env
 app.sessions_client = create_sessions_client("isard-sessions", 1312)
+app.operations_client = create_operations_client("isard-operations", 1312)
 
 print("Starting isard api...")
 
@@ -151,6 +152,7 @@ from .views import (
     MediaViews,
     MigrationViews,
     NotifyView,
+    OperationsView,
     PublicView,
     QueuesView,
     RecycleBinView,
