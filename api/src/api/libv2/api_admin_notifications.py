@@ -141,15 +141,25 @@ def delete_notification_template(template_id):
 
     with app.app_context():
         uses = (
-            r.table("authentication")
-            .get_all(template_id, index="disclaimer_template")
+            (
+                r.table("authentication")
+                .get_all(template_id, index="disclaimer_template")
+                .count()
+                .run(db.conn)
+            )
+            + r.table("config")
+            .get(1)["auth"]
+            .values()
+            .filter(
+                lambda provider: provider["migration"]["notification_bar"]["template"]
+                == template_id
+            )
             .count()
             .run(db.conn)
-        ) + r.table("config").get(1)["auth"].values().filter(
-            lambda provider: provider["migration"]["notification_bar"]["template"]
-            == template_id
-        ).count().run(
-            db.conn
+            + r.table("notifications")
+            .filter({"template_id": template_id})
+            .count()
+            .run(db.conn)
         )
     if uses > 0:
         raise Error("bad_request", "Unable to delete a template that is in use")
