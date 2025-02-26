@@ -35,7 +35,10 @@ def no_sanitize_href(href):
 
 sanitizer = Sanitizer(
     {
-        "attributes": {"a": ("href", "name", "target", "title", "id", "rel", "class")},
+        "attributes": {
+            "a": ("href", "name", "target", "title", "id", "rel", "class"),
+            "img": ("src", "alt", "title", "width", "height"),
+        },
         "tags": {
             "a",
             "h1",
@@ -52,8 +55,10 @@ sanitizer = Sanitizer(
             "sub",
             "sup",
             "hr",
+            "img",
         },
         "sanitize_href": no_sanitize_href,
+        "empty": {"img"},
     }
 )
 r = RethinkDB()
