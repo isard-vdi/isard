@@ -48,7 +48,17 @@ from ..libv2.api_admin_notifications import (
 )
 from ..libv2.api_authentication import get_provider_config
 from ..libv2.api_users import ApiUsers
+from ..libv2.helpers import gen_payload_from_user
+from ..libv2.notifications.notifications import get_user_trigger_notifications_displays
 from ..libv2.notifications.notifications_action import get_all_notification_actions
+from ..libv2.notifications.notifications_data import (
+    delete_all_notification_data,
+    delete_notifications_data,
+    delete_users_notifications_data,
+    get_notification_statuses,
+    get_notifications_data_by_status,
+    get_notifications_grouped_by_status,
+)
 from ..libv2.validators import _validate_item
 from .decorators import has_token, is_admin
 
@@ -347,6 +357,75 @@ def api_v3_admin_update_notification(payload, notification_id):
 
     return (
         json.dumps({"id": notification_id}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+### NOTIFICATIONS DATA ###
+
+
+@app.route("/api/v3/admin/notifications/data/<status>/<user_id>", methods=["GET"])
+@is_admin
+def api_v3_admin_get_notifications_data_by_status(payload, status, user_id):
+    return (
+        json.dumps(get_notifications_data_by_status(status, user_id), default=str),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notifications/statuses", methods=["GET"])
+@is_admin
+def api_v3_admin_get_notification_statuses(payload):
+    statuses = get_notification_statuses()
+    return (
+        json.dumps(statuses),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notifications/data/user/<status>", methods=["GET"])
+@is_admin
+def api_v3_admin_get_notifications_data_by_status(payload, status):
+    return (
+        json.dumps(get_notifications_grouped_by_status(status), default=str),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notifications/data/<user_id>", methods=["DELETE"])
+@is_admin
+def api_v3_admin_delete_notifications_data_by_user(payload, user_id):
+    delete_users_notifications_data([user_id])
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/admin/notifications/data/<notification_data_id>", methods=["DELETE"]
+)
+@is_admin
+def api_v3_admin_delete_notification_data(payload, notification_data_id):
+    delete_notifications_data(notification_data_id)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/notifications/data", methods=["DELETE"])
+@is_admin
+def api_v3_admin_delete_all_notification_data(payload):
+    delete_all_notification_data()
+    return (
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )

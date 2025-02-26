@@ -3,12 +3,22 @@
 {% block css %}
 {% endblock %}
 {% block content %}
+
+
+<style>
+  #notification_status li
+  {
+    margin-right: 50px;
+  }
+</style>
+
 <div class="row">
     <div class="col-md-12 col-sm-12 col-xs-12">
         <div class="x_panel">
             <div class="page-title">
                 <div class="title_left">
                     <h3><i class="fa fa-file-text-o"></i> Notifications Logs<small></small></h3>
+                   
                 </div>
             </div>
             <div class="clearfix"></div>
@@ -18,21 +28,65 @@
 
 <div class="clearfix"></div>
 
+
+
+
 <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
         <div class="x_title">
             <h3></h3>
+            <!-- <div style="display:inline-flex;">
+                <div id="other_status" style="display:block; width: 15cm;">
+                  <label class="control-label col-md-4 col-sm-4 col-xs-12 pull-left" for="action">
+                    <h4>
+                      Notification action
+                    </h4>
+                  </label>
+                  <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+                    <select class="form-control" id="action" name="action">
+                      <option value="none" disabled selected> -- Notification action --</option>
+                    </select>
+                  </div>
+                </div>
+              </div> -->
+              <div style="display:inline-flex;">
+                <div id="notification_status">
+                  <label class="control-label col-md-4 col-sm-4 col-xs-12 pull-left" for="action">
+                    <h4>
+                      Notification status
+                    </h4>
+                  </label>
+                  <div class="x_content">
+                    <ul class="nav navbar-right panel_toolbox">
+                      <li><select class="form-control" id="status" name="status">
+                      </select></li>
+                      <li>
+                        <button type="button" id="btn-delete-all-data" class="btn btn-pill-right btn-danger"><i class="fa fa-trash"></i>
+                          Delete all notification logs data</button>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             <ul class="nav navbar-right panel_toolbox">
             </ul>
             <div class="clearfix"></div>
         </div>
         <div class="x_content">
-            <table class="table">
+            <!-- <table class="table" id="notifications-logs-table">
+            </table> -->
+            <table class="table" id="notifications-users-table">
             </table>
         </div>
     </div>
 </div>
 
 
+{% include 'admin/pages/notifications_logs_detail.html' %}
 {% include '/admin/pages/notifications_modals.html' %}
+{% endblock %}
+
+{% block pagescript %}
+<script src="/isard-admin/static/js/restful.js"></script>
+<script src="/isard-admin/static/admin/js/notifications_logs.js"></script>
 {% endblock %}

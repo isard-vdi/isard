@@ -1,5 +1,5 @@
 #
-#   Copyright © 2025 Josep Maria Viñolas Auquer, Miriam Melina Gamboa Valdez
+#   Copyright © 2025 Josep Maria Viñolas Auquer, Miriam Melina Gamboa Valdez, Naomi Hidalgo Piñar
 #
 #   This file is part of IsardVDI.
 #
@@ -120,3 +120,98 @@ def delete_users_notifications_data(users_ids):
             r.table("notifications_data").get_all(
                 r.args(batch_users_ids), index="user_id"
             ).delete().run(db.conn)
+
+
+def delete_notifications_data(notification_data_id):
+    """
+    Delete a notification data.
+
+    :param notification_data_id: The notification data id.
+    :type users_ids: list
+    """
+    with app.app_context():
+        r.table("notifications_data").get(notification_data_id).delete().run(db.conn)
+
+
+def delete_all_notification_data():
+    """
+    Delete all notification data.
+    """
+    with app.app_context():
+        r.table("notifications_data").delete().run(db.conn)
+
+
+def get_notifications_data_by_status(status, user_id):
+    """
+    Get all notifications data by status
+
+    :param status: The status of the notification data (pending, notified, ...).
+    :type status: str
+    :param user_id: The ID of the user that received the notification.
+    :type user_id: str
+    :return: Notifications data.
+    :rtype: list
+    """
+    with app.app_context():
+        notifications_data = list(
+            r.table("notifications_data")
+            .filter({"status": status, "user_id": user_id})
+            .merge(
+                lambda doc: {
+                    "notification_name": r.table("notifications")
+                    .get(doc["notification_id"])
+                    .pluck("name")["name"]
+                }
+            )
+            .run(db.conn)
+        )
+    return notifications_data
+
+
+def get_notifications_grouped_by_status(status):
+    """
+    Get all notifications data grouped by status
+
+    :param status: The status of the notification data (pending, notified, ...).
+    :type status: str
+    :return: Notifications data.
+    :rtype: list
+    """
+    with app.app_context():
+        notifications_data = list(
+            r.table("notifications_data")
+            .filter({"status": status})
+            .pluck("user_id")
+            .group("user_id")
+            .ungroup()
+            .map(
+                lambda doc: {
+                    "user_id": doc["group"],
+                    "user_name": r.table("users")
+                    .get(doc["group"])
+                    .default({"name": "[DELETED]"})["name"],
+                    "notifications": doc["reduction"].count(),
+                }
+            )
+            .run(db.conn)
+        )
+    return notifications_data
+
+
+def get_notification_statuses():
+    """
+    Get all the distinct notification statuses.
+
+    :return: All notification statuses.
+    :rtype: list
+    """
+    with app.app_context():
+        notification_statuses = list(
+            r.table("notifications_data")
+            .group("status")
+            .ungroup()
+            .map(lambda doc: doc["group"])
+            .distinct()
+            .run(db.conn)
+        )
+    return notification_statuses
