@@ -472,7 +472,7 @@ class Storage(RethinkCustomBase):
         bwlimit=0,
         remove_source_file=True,
         priority="default",
-        timeout=1200,  # Default redis timeout is 180 (3 minutes)
+        timeout=1200,  # 20 minutes. Default redis timeout is 180 (3 minutes)
     ):
         """
         Create a task to move the storage using rsync.
@@ -872,6 +872,7 @@ class Storage(RethinkCustomBase):
         self,
         registry_patch,
         priority="default",
+        timeout=600,  # 10 minutes. Default redis timeout is 180 (3 minutes)
     ):
         """
         Create a task to write a windows registry patch to the storage.
@@ -882,7 +883,10 @@ class Storage(RethinkCustomBase):
         :type registry_patch: str
         :param priority: Priority
         :type priority: str
+        :param timeout: Timeout
+        :type timeout: int
         :return: Task ID
+        :rtype: str
         """
         queue_virt_win_reg = f"storage.{StoragePool.get_best_for_action('virt_win_reg', path=self.directory_path).id}.{priority}"
 
@@ -896,6 +900,7 @@ class Storage(RethinkCustomBase):
                     "storage_path": self.path,
                     "registry_patch": registry_patch,
                 },
+                "timeout": timeout,
             },
             dependents=[
                 {
@@ -938,12 +943,20 @@ class Storage(RethinkCustomBase):
         user_id,
         priority="default",
         secondary_priority="default",
-        timeout=1200,  # Default redis timeout is 180 (3 minutes)
+        timeout=900,  # 15 minutes. Default redis timeout is 180 (3 minutes)
     ):
         """
         Create a task to sparsify the storage.
         https://libguestfs.org/virt-sparsify.1.html
 
+        :param user_id: User ID
+        :type user_id: str
+        :param priority: Priority
+        :type priority: str
+        :param secondary_priority: Priority for the backing chain task
+        :type secondary_priority: str
+        :param timeout: Timeout
+        :type timeout: int
         :return: Task ID
         :rtype: str
         """
