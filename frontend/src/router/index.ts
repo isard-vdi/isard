@@ -34,6 +34,12 @@ const router = createRouter({
       name: 'maintenance',
       component: () => import('../views/MaintenanceView.vue'),
       meta: { title: 'router.titles.maintenance' }
+    },
+    {
+      path: '/notifications/:trigger',
+      name: 'notifications',
+      component: () => import('../views/NotificationsView.vue'),
+      meta: { title: 'router.titles.notifications', requiresAuth: true }
     }
   ]
 })

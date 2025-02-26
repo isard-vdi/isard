@@ -135,6 +135,9 @@ class Populate(object):
             "targets",
             "users_migrations",
             "users_migrations_exceptions",
+            "notifications",
+            "notifications_data",
+            "notifications_action",
             # "recycle_bin_archive",
             # config should be the last table to be created
             # api waits for config table to start
@@ -1884,6 +1887,89 @@ class Populate(object):
                                 "footer": "Si us plau, no respongueu a aquest correu electrònic, ja que ha estat generat automàticament.",
                             },
                         },
+                    },
+                ]
+            ).run(self.conn)
+        except Exception as e:
+            log.error(e)
+
+    """
+    NOTIFICATIONS
+    """
+
+    def notifications(self):
+        try:
+            log.info("Table notifications not found, creating...")
+            r.table_create("notifications", primary_key="id").run(self.conn)
+            r.table("notifications").index_create(
+                "trigger_enabled",
+                [r.row["trigger"], r.row["enabled"]],
+            ).run(self.conn)
+            r.table("notifications").index_create("action_id").run(self.conn)
+            r.table("notifications").insert(
+                [
+                    {
+                        "name": "User unused desktops have been sent to the recycle bin",
+                        "action_id": "unused_desktops",
+                        "allowed": {
+                            "roles": False,
+                            "categories": False,
+                            "groups": False,
+                            "users": False,
+                        },
+                        "trigger": "login",
+                        "item_type": "desktop",
+                        "template_id": "",
+                        "display": ["fullpage"],
+                        "order": 0,
+                        "force_accept": False,
+                        "enabled": False,
+                        "ignore_after": r.epoch_time(
+                            0
+                        ),  # Defines the time the notification data will be ignored. In this case it will be specified in each notification_data entry
+                        "keep_time": 0,  # Defines the amount of hours the notification data will be kept
+                    }
+                ]
+            ).run(self.conn)
+        except Exception as e:
+            log.error(e)
+
+    def notifications_data(self):
+        try:
+            log.info("Table notifications_data not found, creating...")
+            r.table_create("notifications_data", primary_key="id").run(self.conn)
+            r.table("notifications_data").index_create("notification_id").run(self.conn)
+            r.table("notifications_data").index_create(
+                "user_id_status_notification_id",
+                [r.row["user_id"], r.row["status"], r.row["notification_id"]],
+            ).run(self.conn)
+            r.table("notifications_data").index_create("user_id").run(self.conn)
+        except Exception as e:
+            log.error(e)
+
+    def notifications_action(self):
+        try:
+            log.info("Table notifications_action not found, creating...")
+            r.table_create("notifications_action", primary_key="id").run(self.conn)
+            r.table("notifications_action").insert(
+                [
+                    {
+                        "description": "Unused desktops are automatically recycled by the system",
+                        "id": "unused_desktops",
+                        "kwargs": ["name", "accessed"],
+                        "compute": None,
+                    },
+                    {
+                        "description": "The owner hasn't shut down the desktops",
+                        "id": "shutdown",
+                        "kwargs": ["name"],
+                        "compute": None,
+                    },
+                    {
+                        "description": "Custom",
+                        "id": "custom",
+                        "kwargs": [],
+                        "compute": None,
                     },
                 ]
             ).run(self.conn)

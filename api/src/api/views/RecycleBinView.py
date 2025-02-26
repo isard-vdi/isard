@@ -1,11 +1,16 @@
 import json
 import traceback
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import gevent
+import pytz
+from api.libv2.api_admin_notifications import get_notification_template
 from api.libv2.api_desktop_events import desktop_delete
 from api.libv2.api_desktops_persistent import get_unused_desktops
 from api.libv2.api_notify import notify_admins
+from api.libv2.notifications.notifications import get_notifications_by_action_id
+from api.libv2.notifications.notifications_action import get_notification_action
+from api.libv2.notifications.notifications_data import add_notification_data
 from flask import request
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.api_rest import ApiRest
@@ -21,6 +26,7 @@ from ..libv2.recycle_bin import (
     get_delete_action,
     get_item_count,
     get_old_entries_config,
+    get_recicle_delete_time,
     get_recycle_bin_by_period,
     get_status,
     get_unused_desktops_cutoff_time,
@@ -469,11 +475,6 @@ def recycle_bin_set_cutoff_time(payload):
     cutoff_time = data.get("cutoff_time")
     set_unused_desktops_cutoff_time(cutoff_time)
 
-    scheduler_client.put(
-        "/recycle-bin/unused-desktops/cutoff-time",
-        data={"cutoff_time": cutoff_time},
-    )
-
     return (
         json.dumps({"cutoff_time": cutoff_time}),
         200,
@@ -481,21 +482,63 @@ def recycle_bin_set_cutoff_time(payload):
     )
 
 
-@app.route("/api/v3/recycle-bin/unused-desktops/add", methods=["POST"])
+@app.route("/api/v3/recycle-bin/unused-items", methods=["POST"])
 @is_admin
-def recycle_bin_add_unused_desktops(payload):
+def recycle_bin_add_unused_items(payload):
     """
-    Send unused desktops to the recycle bin.
+    Send unused items to the recycle bin.
 
     :param payload: Data from JWT
     :type payload: dict
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    cutoff_time = timedelta(days=get_unused_desktops_cutoff_time() * 30)
-    desktop_ids = get_unused_desktops(cutoff_time)
-    for domain_id in desktop_ids:
-        desktop_delete(domain_id, "isard-scheduler")
+
+    # Send unused desktops to recycle bin
+    unused_desktops_cutoff_time = get_unused_desktops_cutoff_time()
+    if not unused_desktops_cutoff_time:
+        return (
+            json.dumps({}),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    desktops_cutoff_time = timedelta(days=unused_desktops_cutoff_time * 30)
+    desktops = get_unused_desktops(desktops_cutoff_time)
+    notification = get_notifications_by_action_id("unused_desktops")
+    notification_data = []
+
+    if notification and notification[0]["trigger"]:
+        notification = notification[0]
+        notification_action = get_notification_action(notification["action_id"])
+        max_delete_period = get_recicle_delete_time()
+
+    for desktop in desktops:
+        desktop_delete(desktop["id"], "isard-scheduler")
+        if notification:
+            notification_data.append(
+                {
+                    "item_id": desktop["id"],
+                    "item_type": "desktop",
+                    "status": "pending",
+                    "user_id": desktop["user"],
+                    "created_at": datetime.now().astimezone(pytz.UTC),
+                    "notified_at": None,
+                    "accepted_at": None,
+                    "notification_id": notification["id"],
+                    "vars": {
+                        var: desktop[var] for var in notification_action["kwargs"]
+                    },
+                    "ignore_after": (
+                        datetime.now() + timedelta(hours=int(max_delete_period))
+                    ).astimezone(pytz.UTC),
+                }
+            )
+
+    if notification_data:
+        add_notification_data(notification_data)
+
+    # TODO: Send unused deployments to recycle bin
+
     return (
         json.dumps({}),
         200,

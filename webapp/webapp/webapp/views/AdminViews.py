@@ -475,14 +475,38 @@ def admin_schedulers():
     )
 
 
-@app.route("/isard-admin/admin/notifications", methods=["GET"])
+@app.route("/isard-admin/admin/notifications_logs", methods=["GET"])
 @login_required
 @isAdmin
-def admin_notifications():
+def admin_notifications_logs():
     return render_webapp(
-        "admin/pages/notifications.html",
+        "admin/pages/notifications_logs.html",
         nav="Notification",
         title="Notification",
+    )
+
+
+@app.route("/isard-admin/admin/notifications_manage", methods=["GET"])
+@login_required
+@isAdmin
+def admin_notifications_manage():
+    return render_template(
+        "admin/pages/notifications_manage.html",
+        nav="Notification",
+        title="Manage notifications",
+        monitor_host=monitor_host,
+    )
+
+
+@app.route("/isard-admin/admin/notifications_templates", methods=["GET"])
+@login_required
+@isAdmin
+def admin_notifications_templates():
+    return render_template(
+        "admin/pages/notifications_templates.html",
+        nav="Notification",
+        title="Notification Templates",
+        monitor_host=monitor_host,
     )
 
 

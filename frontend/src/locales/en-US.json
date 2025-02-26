@@ -5,7 +5,8 @@
       "login": "Login",
       "migration": "Migration",
       "register": "Register",
-      "maintenance": "Maintenance"
+      "maintenance": "Maintenance",
+      "notifications": "Notifications"
     }
   },
   "views": {
@@ -68,6 +69,11 @@
     },
     "register": {
       "title": "Sign Up"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "no-notifications": "No notifications pending",
+      "go-to-desktops": "Go to desktops"
     }
   },
   "layouts": {

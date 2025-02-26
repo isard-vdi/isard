@@ -14,6 +14,7 @@ import threading
 import time
 from queue import Empty, Queue
 
+from api.libv2.notifications.notifications_data import delete_users_notifications_data
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.storage import Storage
 from isardvdi_common.storage_pool import StoragePool
@@ -1180,6 +1181,11 @@ class RecycleBin(object):
                 error="precondition_required",
                 description="Cannot delete entry with status " + str(self.status),
             )
+
+        # Delete the notifications_data user entries
+        if self.users:
+            users_ids = [user["id"] for user in self.users]
+            delete_users_notifications_data(users_ids)
 
         start = absolute_start = time.time()
         tasks = []

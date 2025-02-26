@@ -67,6 +67,11 @@
     },
     "register": {
       "title": "Registro"
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "no-notifications": "No hay notificaciones pendientes",
+      "go-to-desktops": "Ir a mis escritorios"
     }
   },
   "layouts": {

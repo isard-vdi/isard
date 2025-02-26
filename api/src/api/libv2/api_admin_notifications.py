@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import pytz
 from cachetools import TTLCache, cached
 from html_sanitizer import Sanitizer
 from isardvdi_common.api_exceptions import Error
@@ -140,15 +141,25 @@ def delete_notification_template(template_id):
 
     with app.app_context():
         uses = (
-            r.table("authentication")
-            .get_all(template_id, index="disclaimer_template")
+            (
+                r.table("authentication")
+                .get_all(template_id, index="disclaimer_template")
+                .count()
+                .run(db.conn)
+            )
+            + r.table("config")
+            .get(1)["auth"]
+            .values()
+            .filter(
+                lambda provider: provider["migration"]["notification_bar"]["template"]
+                == template_id
+            )
             .count()
             .run(db.conn)
-        ) + r.table("config").get(1)["auth"].values().filter(
-            lambda provider: provider["migration"]["notification_bar"]["template"]
-            == template_id
-        ).count().run(
-            db.conn
+            + r.table("notifications")
+            .filter({"template_id": template_id})
+            .count()
+            .run(db.conn)
         )
     if uses > 0:
         raise Error("bad_request", "Unable to delete a template that is in use")
@@ -195,3 +206,55 @@ def get_status_bar_notification_by_provider(provider):
             )
     except:
         raise Error("not_found", "Provider notification bar config not found")
+
+
+notifications_cache = TTLCache(maxsize=10, ttl=30)
+
+
+@cached(cache=notifications_cache)
+def get_all_notifications():
+    with app.app_context():
+        return list(
+            r.table("notifications")
+            .merge(
+                lambda notification: {
+                    "template": r.table("notification_tmpls")
+                    .get(notification["template_id"])
+                    .default({"name": ""})
+                    .pluck("name")["name"]
+                }
+            )
+            .run(db.conn)
+        )
+
+
+def add_notification(data):
+    if not data.get("ignore_after"):
+        data["ignore_after"] = r.epoch_time(0)
+    if not data.get("keep_time"):
+        data["keep_time"] = 0
+    with app.app_context():
+        r.table("notifications").insert(data).run(db.conn)
+    notifications_cache.clear()
+
+
+def delete_notification(notification_id, delete_logs=True):
+    with app.app_context():
+        r.table("notifications").get(notification_id).delete().run(db.conn)
+    if delete_logs:
+        with app.app_context():
+            r.table("notifications_data").filter(
+                {"notification_id": notification_id}
+            ).delete().run(db.conn)
+    notifications_cache.clear()
+
+
+def get_notification(notification_id):
+    with app.app_context():
+        return r.table("notifications").get(notification_id).run(db.conn)
+
+
+def update_notification(notification_id, data):
+    with app.app_context():
+        r.table("notifications").get(notification_id).update(data).run(db.conn)
+    notifications_cache.clear()

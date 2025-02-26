@@ -330,6 +330,87 @@
         "tags": [],
         "security": []
       }
+    },
+    "/api/v3/notification/user/displays/{trigger}": {
+      "get": {
+        "operationId": "GetUserNotificationsDisplays",
+        "summary": "Get the displays of the notifications for the user",
+        "description": "",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trigger",
+            "description": "The trigger for the notifications",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserNotificationsDisplaysResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v3/notification/user/{trigger}/{display}": {
+      "get": {
+        "operationId": "GetUserNotifications",
+        "summary": "Get the notifications for the user",
+        "description": "",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trigger",
+            "description": "The trigger for the notifications",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "display",
+            "description": "The display for the notifications",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserNotificationsResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -901,6 +982,104 @@
           }
         },
         "required": ["title", "body", "enabled"]
+      },
+      "NotificationTemplate": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "footer": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": ["body", "title"]
+      },
+      "NotificationItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "vars": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              },
+              "accessed": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": ["title", "body"]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": ["id"]
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "action_id": {
+            "type": "string"
+          },
+          "template_id": {
+            "type": "string"
+          },
+          "template": {
+            "$ref": "#/components/schemas/NotificationTemplate"
+          },
+          "force_accept": {
+            "type": "boolean"
+          },
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationItem"
+            }
+          }
+        },
+        "required": ["action_id", "template_id", "template", "force_accept", "notifications"]
+      },
+      "GetUserNotificationsResponse": {
+        "type": "object",
+        "title": "Notification data",
+        "properties": {
+          "notifications": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                { "$ref": "#/components/schemas/Notification" }
+              ]
+            }
+          }
+        },
+        "required": ["notifications"]
+      },
+      "GetUserNotificationsDisplaysResponse": {
+        "type": "object",
+        "title": "Notification display data",
+        "properties": {
+          "display": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "List of the displays that will be shown"
+          }
+        },
+        "required": ["display"]
       }
     }
   },

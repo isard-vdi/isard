@@ -269,3 +269,25 @@
     color: var(--gray-warm-600);
   }
 }
+
+@layer utilities {
+  /* Scrollbar */
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--brand-100);
+    border-radius: 20px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--brand-600);
+    border-radius: 20px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--brand-700);
+  }
+}

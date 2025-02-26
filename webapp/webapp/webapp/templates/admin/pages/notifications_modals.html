@@ -11,6 +11,19 @@
         padding-top: 20px;
         width: 100%;
     }
+
+    #preview-panel {
+        background-color: aliceblue;
+        margin-top: 5px;
+    }
+
+    .select2-selection {
+        height: 34px !important;
+    }
+
+    .select2-selection__choice~.select2-search {
+        width: 1px !important;
+    }
 </style>
 
 <div class="modal fade" id="modalNotificationTemplate" tabindex="-1" role="dialog"
@@ -40,7 +53,7 @@
                         </div>
                         <div class="row">
                             <div class="item form-group">
-                                <div class="col-md-6 col-sm-6 col-xs-12" style="margin-bottom:10px;">
+                                <div class="col-md-6 col-xs-12" style="margin-bottom:10px;">
                                     <label class="control-label" for="name">Name <span class="required">*</span>
                                     </label>
                                     <input id="name" class="form-control roundbox" maxlength="50"
@@ -123,6 +136,7 @@
                             </ul>
                         </div>
                     </div>
+                </form>
             </div>
 
             <!-- Modal Footer -->
@@ -132,6 +146,148 @@
                 </ul>
                 <ul class="nav navbar-right panel_toolbox">
                     <li><button id="send" type="button" class="btn btn-success"></button></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modalNotification" tabindex="-1" role="dialog" aria-labelledby="modalNotification"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="modalNotificationLabel"><i></i> <span
+                        id="modal-title"></span></h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalNotificationForm" class="form-inline form-label-left">
+                    <div class="x_panel">
+                        <div class="x_title">
+                            <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Notification Details</h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        <input hidden id="id" name="id"/>
+                        <input hidden id="operation" name="operation"/>
+                        <div class="row">
+                            <div class="col-md-12" style="margin-bottom:10px;">
+                                <label class="control-label" for="name">Name <span class="required">*</span></label>
+                                <input id="name" class="form-control roundbox" maxlength="100" name="name" placeholder="Notification name" required type="text" style="width:100%">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 col-xs-12 x_panel" style="margin-bottom:10px;">
+                                <input type="checkbox" id="enabled" checked name="enabled" class="flat">
+                                <label class="control-label" for="enabled">Enabled</label>
+                                <small> (Enable this notification so it can be seen by users)</small>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 col-xs-12" style="margin-bottom:10px;">
+                                <label class="control-label" for="item_type">Item Type <span
+                                        class="required">*</span></label>
+                                <select id="item_type" name="item_type" style="width:100%" class="form-control roundbox" required>
+                                </select>
+                            </div>
+                            <div class="col-md-6 col-xs-12" style="margin-bottom:10px;">
+                                <label class="control-label" for="action">Action<span
+                                        class="required">*</span></label>
+                                <select id="action_id" name="action_id" style="width:100%" class="form-control roundbox" required>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 col-xs-12" style="margin-bottom:10px;">
+                                <label class="control-label" for="trigger">Trigger <span
+                                        class="required">*</span></label>
+                                <select id="trigger" name="trigger" style="width:100%" class="form-control roundbox" required>
+                                    <option value="login">Login</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 col-xs-12" style="margin-bottom:10px;">
+                                <label class="control-label" for="display">Display <span
+                                        class="required">*</span></label>
+                                <select id="display" name="display[]" class="form-control roundbox" style="width:100%"
+                                    required multiple>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- <div class="row">
+                            <input id="compute" name="compute"">
+                        </div> -->
+                        <div class="row">
+                            <div class="col-md-6 col-xs-12" title="Until what time the notification will be shown to the user"
+                                style="margin-bottom:10px;">
+                                <label class="control-label" for="ignore_after">Ignore After <span class="required">*</span></label>
+                                <input style="width:100%;" id="ignore_after" class="form-control roundbox" name="ignore_after" type="datetime-local">
+                            </div>
+                            <div class="col-md-6 col-xs-12" title="Until what time the notification data will be stored in the database"
+                                style="margin-bottom:10px;">
+                                <label class="control-label" for="keep_time">Keep Time <span class="required">*</span></label>
+                                <select id="keep_time" name="keep_time" class="form-control roundbox" style="width:100%;" required>
+                                    <option selected value="168">1 week</option>
+                                    <option value="336">2 weeks</option>
+                                    <option value="504">3 weeks</option>
+                                    <option value="672">4 weeks</option>
+                                    <option value="840">5 weeks</option>
+                                    <option value="1680">10 weeks</option>
+                                    <option value="3360">20 weeks</option>
+                                    <option value="4200">25 weeks</option>
+                                    <option value="0">Never</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- <div class="row">
+                            <div class="col-md-12 col-xs-12 x_panel" style="margin-bottom:10px;">
+                                <input type="checkbox" id="force_accept" name="force_accept" class="flat">
+                                <label class="control-label" for="force_accept">Force Accept</label>
+                                <small> (Notification will be shown until it's dismissed by users)</small>
+                            </div>
+                        </div> -->
+                        <div class="row">
+                            <div class="col-md-12" style="margin-bottom:10px;">
+                                <label class="control-label" for="template_id">Notification Template <span
+                                        class="required">*</span></label>
+                                <select id="template_id" style="width:100%" name="template_id" class="form-control roundbox" required>
+                                </select>
+                                <p><i>(Edit templates at
+                                    <a href="/isard-admin/admin/notifications_templates">Notification templates</a>)
+                                </i></p>
+                            </div>
+                        </div>
+                        <div class="x_panel" id="preview-panel">
+                            <div id="template-preview"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12" style="margin-bottom:10px;">
+                                <label class="control-label" for="order">Order <span
+                                        class="required">*</span></label>
+                                <input id="order" class="form-control roundbox" name="order" type="number"
+                                    placeholder="Lower number appears first" aria-valuemin="0" style="width:100%" required>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success"><span
+                                id="send-button-text"></span></button></li>
                 </ul>
             </div>
 

@@ -6,7 +6,7 @@ import { createClient, createConfig, type Options as ClientOptions } from '@hey-
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { providersOptions } from '@/gen/oas/authentication/@tanstack/vue-query.gen'
 import { login, type LoginData, type LoginError as AuthLoginError } from '@/gen/oas/authentication'
-import type { GetCategoriesResponse } from '@/gen/oas/api'
+import { getUserNotificationsDisplays, type GetCategoriesResponse } from '@/gen/oas/api'
 import {
   getCategoriesOptions,
   getCategoriesQueryKey,
@@ -403,6 +403,12 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
   }
 
   setAuthToken(cookies, bearer)
+  const location = response.headers.get('location')
+  if (location) {
+    window.location.pathname = location
+    return
+  }
+
   window.location.pathname = '/'
 }
 
