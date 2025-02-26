@@ -388,7 +388,7 @@ def api_v3_admin_get_notification_statuses(payload):
 
 @app.route("/api/v3/admin/notifications/data/user/<status>", methods=["GET"])
 @is_admin
-def api_v3_admin_get_notifications_data_by_status(payload, status):
+def api_v3_admin_get_notifications_user_data_by_status(payload, status):
     return (
         json.dumps(get_notifications_grouped_by_status(status), default=str),
         200,
