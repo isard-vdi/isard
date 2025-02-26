@@ -475,11 +475,6 @@ def recycle_bin_set_cutoff_time(payload):
     cutoff_time = data.get("cutoff_time")
     set_unused_desktops_cutoff_time(cutoff_time)
 
-    scheduler_client.put(
-        "/recycle-bin/unused-desktops/cutoff-time",
-        data={"cutoff_time": cutoff_time},
-    )
-
     return (
         json.dumps({"cutoff_time": cutoff_time}),
         200,
@@ -487,19 +482,22 @@ def recycle_bin_set_cutoff_time(payload):
     )
 
 
-@app.route("/api/v3/recycle-bin/unused-desktops/add", methods=["POST"])
+@app.route("/api/v3/recycle-bin/unused-items", methods=["POST"])
 @is_admin
-def recycle_bin_add_unused_desktops(payload):
+def recycle_bin_add_unused_items(payload):
     """
-    Send unused desktops to the recycle bin.
+    Send unused items to the recycle bin.
 
     :param payload: Data from JWT
     :type payload: dict
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    cutoff_time = timedelta(days=get_unused_desktops_cutoff_time() * 30)
-    desktops = get_unused_desktops(cutoff_time)
+
+    # Send unused desktops to recycle bin
+
+    desktops_cutoff_time = timedelta(days=get_unused_desktops_cutoff_time() * 30)
+    desktops = get_unused_desktops(desktops_cutoff_time)
     notification = get_notifications_by_action_id("unused_desktops")
     notification_data = []
 
@@ -532,6 +530,8 @@ def recycle_bin_add_unused_desktops(payload):
 
     if notification_data:
         add_notification_data(notification_data)
+
+    # TODO: Send unused deployments to recycle bin
 
     return (
         json.dumps({}),

@@ -104,6 +104,22 @@ class Scheduler:
                     kwargs={"max_delete_period": "1"},
                 )
 
+        with app.app_context():
+            unused_item = (
+                r.table("scheduler_jobs")
+                .get("system.send_unused_items_to_recycle_bin")
+                .run(db.conn)
+            )
+        if not unused_item:
+            self.add_job(
+                "system",
+                "cron",
+                "send_unused_items_to_recycle_bin",
+                "23",
+                "30",
+                "system.send_unused_items_to_recycle_bin",
+            )
+
     def clean_bad_jobs(self):
         with app.app_context():
             result = (

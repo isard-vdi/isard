@@ -303,59 +303,6 @@ def add_recyclebin_old_entries(payload, action):
         )
 
 
-@app.route("/scheduler/recycle-bin/unused-desktops/cutoff-time", methods=["PUT"])
-@is_admin
-def add_recyclebin_unused_desktops_cutoff_time(payload):
-    """
-
-    Add a job to remove unused desktops from recycle bin after a certain time.
-
-    Cutoff time specifications in JSON:
-    {
-        "cutoff_time": "Cutoff time in months"
-    }
-    :param payload: Data from JWT
-    :type payload: dict
-    :return:
-    :rtype: Set with Flask response values and data in JSON
-
-    """
-
-    try:
-        data = request.get_json(force=True)
-
-        if "cutoff_time" not in data:
-            raise Error("bad_request", "Cutoff time not provided")
-
-        if data.get("cutoff_time") and not isinstance(data["cutoff_time"], int):
-            try:
-                data["cutoff_time"] = int(data["cutoff_time"])
-
-            except:
-                raise Error("bad_request", "Cutoff time must be an integer")
-
-        app.scheduler.remove_job("recycle_bin_unused_desktops_delete")
-        if data.get("cutoff_time"):
-            app.scheduler.add_job(
-                "system",
-                "cron",
-                "recycle_bin_unused_desktops_delete",
-                "23",
-                "30",
-                "recycle_bin_unused_desktops_delete",
-                kwargs=data,
-            )
-    except Exception as e:
-        app.logger.error(e)
-        raise Error("bad_request", "Unable to add job")
-
-    return (
-        json.dumps({}),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
 @app.route("/scheduler/logs_desktops/old_entries/<action>", methods=["PUT"])
 @is_admin
 def add_logs_desktops_entries(payload, action):

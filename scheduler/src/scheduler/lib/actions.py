@@ -494,17 +494,13 @@ class Actions:
             {"max_delete_period": max_delete_period, "category": category},
         )
 
-    def recycle_bin_unused_desktops_delete(**kwargs):
+    def send_unused_items_to_recycle_bin(**kwargs):
         try:
-            api_client.post(
-                "/recycle-bin/unused-desktops/add",
-                {
-                    "cutoff_time": int(kwargs.get("cutoff_time", None)),
-                },
-            )
+            api_client.post("/recycle-bin/unused-items")
         except:
             log.error(
-                "Exception when deleting unused desktops: " + traceback.format_exc()
+                "Exception when sending to recycle bin unused items: "
+                + traceback.format_exc()
             )
 
     def recycle_bin_delete_admin(**kwargs):
