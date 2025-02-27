@@ -49,7 +49,7 @@ const token = computed(() => getBearer(cookies))
 
 router.beforeEach((to, from, next) => {
   if (to.matched.some((record) => record.meta.requiresAuth)) {
-    if (!token || !token.value || token.value === 'login') {
+    if (!token.value || !token.value || token.value === 'login') {
       next({ name: 'login' })
     } else {
       next()

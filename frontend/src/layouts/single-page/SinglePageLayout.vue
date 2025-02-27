@@ -25,11 +25,11 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   goBack: false,
   avatar: false,
-  user: {
+  user: () => ({
     name: '',
     role: '',
     img: ''
-  }
+  })
 })
 
 const cookies = useAuthCookies()
