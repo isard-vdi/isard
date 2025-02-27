@@ -698,36 +698,6 @@ def storage_disconnect(payload, storage_id, priority="low"):
         raise Error(*e.args)
 
 
-@app.route(
-    "/api/v3/storage/<path:storage_id>/update_qemu_img_info",
-    methods=["PUT"],
-)
-@has_token
-def storage_update_qemu_img_info(payload, storage_id):
-    """
-    Endpoint that creates a Task to update storage qemu-img info.
-
-    :param payload: Data from JWT
-    :type payload: dict
-    :param storage_id: Storage ID
-    :type storage_id: str
-    :return: Task ID
-    :rtype: Set with Flask response values and data in JSON
-    """
-    storage = get_storage(payload, storage_id)
-
-    try:
-        return jsonify(
-            {
-                "task_id": storage.qemu_img_info(
-                    user_id=payload.get("user_id"),
-                )
-            }
-        )
-    except Exception as e:
-        raise Error(*e.args)
-
-
 @app.route("/api/v3/storage/<path:storage_id>/check_backing_chain", methods=["PUT"])
 @has_token
 def storage_check_check_backing_chain(payload, storage_id):
