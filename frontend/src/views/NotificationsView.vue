@@ -70,7 +70,7 @@ const goToDesktops = () => {
         <div v-if="!data?.notifications" class="text-center">
           <p>{{ t('views.notifications.no-notifications') }}</p>
         </div>
-        <div class="flex flex-col" v-else>
+        <div v-else class="flex flex-col">
           <div v-for="notification in data?.notifications" :key="notification.id">
             <Alert
               v-for="(value, itemType) in notification"
@@ -83,19 +83,17 @@ const goToDesktops = () => {
               <hr />
               <div v-if="value.notifications && value.action_id != 'custom'">
                 <div v-for="(n, index) in value.notifications" :key="index">
-                  <!-- eslint-disable-next-line vue/no-v-html -->
-                  <AlertDescription
-                    class="overflow-y-auto max-h-80"
-                    v-html="n.text"
-                  ></AlertDescription>
+                  <AlertDescription class="overflow-y-auto max-h-80">
+                    <!-- eslint-disable-next-line vue/no-v-html -->
+                    <span v-html="n.text" />
+                  </AlertDescription>
                 </div>
               </div>
               <span v-else>
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <AlertDescription
-                  class="overflow-y-auto max-h-64 pr-2"
-                  v-html="value.template.body"
-                ></AlertDescription>
+                <AlertDescription class="overflow-y-auto max-h-64 pr-2">
+                  <!-- eslint-disable-next-line vue/no-v-html -->
+                  <span v-html="value.template.body" />
+                </AlertDescription>
               </span>
               <footer class="text-sm text-gray-500">{{ value.template.footer }}</footer>
             </Alert>
