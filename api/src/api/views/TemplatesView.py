@@ -53,14 +53,14 @@ from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .decorators import (
     allowedTemplateId,
     has_token,
-    is_admin_or_manager_or_advanced,
+    is_not_user,
     ownsDeploymentId,
     ownsDomainId,
 )
 
 
 @app.route("/api/v3/templates/new/check_quota", methods=["GET"])
-@is_admin_or_manager_or_advanced
+@is_not_user
 def api_v3_templates_check_quota(payload):
     quotas.template_create(payload["user_id"])
     return (
@@ -71,7 +71,7 @@ def api_v3_templates_check_quota(payload):
 
 
 @app.route("/api/v3/template", methods=["POST"])
-@is_admin_or_manager_or_advanced
+@is_not_user
 def api_v3_template_new(payload):
     quotas.template_create(payload["user_id"])
     data = request.get_json(force=True)
@@ -106,7 +106,7 @@ def api_v3_template_new(payload):
 
 
 @app.route("/api/v3/template/duplicate/<template_id>", methods=["POST"])
-@is_admin_or_manager_or_advanced
+@is_not_user
 def api_v3_template_duplicate(payload, template_id):
     allowedTemplateId(payload, template_id)
     data = request.get_json(force=True)
@@ -150,7 +150,7 @@ def api_v3_template(payload, template_id):
 
 
 @app.route("/api/v3/template/<template_id>", methods=["DELETE"])
-@is_admin_or_manager_or_advanced
+@is_not_user
 def api_v3_template_delete(payload, template_id):
     ownsDomainId(payload, template_id)
     template = templates.Get(template_id)
@@ -175,7 +175,7 @@ def api_v3_template_delete(payload, template_id):
 
 # Disable or enable template
 @app.route("/api/v3/template/update", methods=["PUT"])
-@is_admin_or_manager_or_advanced
+@is_not_user
 def api_v3_template_update(payload):
     data = request.get_json(force=True)
     template_id = data.pop("id")
@@ -193,7 +193,7 @@ def api_v3_template_update(payload):
 
 
 @app.route("/api/v3/user/templates", methods=["GET"])
-@is_admin_or_manager_or_advanced
+@is_not_user
 def api_v3_user_templates(payload):
     with app.app_context():
         group = r.table("groups").get(payload["group_id"])["uid"].run(db.conn)
@@ -276,7 +276,7 @@ def api_v3_user_templates_allowed(payload, kind):
 
 
 @app.route("/api/v3/template/tree/<template_id>", methods=["GET"])
-@is_admin_or_manager_or_advanced
+@is_not_user
 def api_v3_template_delete_tree(payload, template_id):
     template = templates.Get(template_id)
     tree = admin.get_template_tree_list(template["id"], payload["user_id"])[0]
