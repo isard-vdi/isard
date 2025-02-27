@@ -745,55 +745,6 @@ class Storage(RethinkCustomBase):
 
         return self.task
 
-    def update_parent(
-        self,
-        user_id,
-    ):
-        """
-        Create a task to update the parent of the storage.
-
-        :param user_id: User ID of the user executing the task
-        :type user_id: str
-        :return: Task ID
-        :rtype: str
-        """
-        self.create_task(
-            user_id=user_id,
-            queue="core",
-            task="storage_update_parent",
-            job_kwargs={
-                "kwargs": {
-                    "storage_id": self.id,
-                }
-            },
-            dependencies=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                    "dependencies": [
-                        {
-                            "queue": f"storage.{StoragePool.get_best_for_action('check_backing_filename', path=self.directory_path).id}.default",
-                            "task": "check_backing_filename",
-                            "dependencies": [
-                                {
-                                    "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=self.directory_path).id}.default",
-                                    "task": "qemu_img_info",
-                                    "job_kwargs": {
-                                        "kwargs": {
-                                            "storage_id": self.id,
-                                            "storage_path": self.path,
-                                        }
-                                    },
-                                }
-                            ],
-                        }
-                    ],
-                }
-            ],
-        )
-
-        return self.task
-
     def increase_size(
         self,
         user_id,

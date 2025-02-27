@@ -749,36 +749,6 @@ def storage_check_existence(payload, storage_id):
 
 
 @app.route(
-    "/api/v3/storage/<path:storage_id>/update_parent",
-    methods=["PUT"],
-)
-@has_token
-def storage_update_parent(payload, storage_id):
-    """
-    Endpoint that creates a Task to update storage parent.
-
-    :param payload: Data from JWT
-    :type payload: dict
-    :param storage_id: Storage ID
-    :type storage_id: str
-    :return: Task ID
-    :rtype: Set with Flask response values and data in JSON
-    """
-    storage = get_storage(payload, storage_id)
-
-    try:
-        return jsonify(
-            {
-                "task_id": storage.update_parent(
-                    payload.get("user_id"),
-                )
-            }
-        )
-    except Exception as e:
-        raise Error(*e.args)
-
-
-@app.route(
     "/api/v3/storage/<path:storage_id>/move/by-path",
     methods=["PUT"],
 )
