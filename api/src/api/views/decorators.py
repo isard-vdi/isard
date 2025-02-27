@@ -949,7 +949,6 @@ def operations_api_enabled(f):
             operations_api_enabled = operations_api_enabled.lower() == "true"
 
         if operations_api_enabled:
-            kwargs["operations_api_enabled"] = operations_api_enabled
             return f(*args, **kwargs)
 
         raise Error(
