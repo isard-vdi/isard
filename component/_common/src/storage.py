@@ -502,7 +502,7 @@ class Storage(RethinkCustomBase):
         origin_path = self.path
 
         queue_rsync = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
-        queue_origin = f"storage.{StoragePool.get_best_for_action('check_existence', path=self.directory_path).id}.{priority}"
+        queue_origin = f"storage.{StoragePool.get_best_for_action('move_delete', path=self.directory_path).id}.{priority}"
         self.set_maintenance("move")
         self.create_task(
             blocking=True,
@@ -716,30 +716,6 @@ class Storage(RethinkCustomBase):
                         "job_kwargs": {"kwargs": {"storage_id": self.id}},
                     },
                 },
-            ],
-        )
-
-        return self.task
-
-    def check_existence(
-        self,
-        user_id,
-    ):
-        self.create_task(
-            user_id=user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('check_existence', path=self.directory_path).id}.default",
-            task="check_existence",
-            job_kwargs={
-                "kwargs": {
-                    "storage_id": self.id,
-                    "storage_path": self.path,
-                }
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                }
             ],
         )
 

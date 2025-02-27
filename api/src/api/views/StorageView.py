@@ -719,36 +719,6 @@ def storage_check_check_backing_chain(payload, storage_id):
 
 
 @app.route(
-    "/api/v3/storage/<path:storage_id>/check_existence",
-    methods=["PUT"],
-)
-@has_token
-def storage_check_existence(payload, storage_id):
-    """
-    Endpoint that creates a Task to check storage existence.
-
-    :param payload: Data from JWT
-    :type payload: dict
-    :param storage_id: Storage ID
-    :type storage_id: str
-    :return: Task ID
-    :rtype: Set with Flask response values and data in JSON
-    """
-    storage = get_storage(payload, storage_id)
-
-    try:
-        return jsonify(
-            {
-                "task_id": storage.check_existence(
-                    user_id=payload.get("user_id"),
-                )
-            }
-        )
-    except Exception as e:
-        raise Error(*e.args)
-
-
-@app.route(
     "/api/v3/storage/<path:storage_id>/move/by-path",
     methods=["PUT"],
 )
