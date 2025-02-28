@@ -1478,6 +1478,7 @@
         "deployment_desktop_new_group_limit_exceeded": "Group '{group}' desktop creation limit has been exceeded",
         "deployment_desktop_new_category_limit_exceeded": "Category '{category}' desktop creation limit has been exceeded",
         "deployment_stop": "To perform this action the deployment desktops must be stopped",
+        "deployment_recreate_booking_not_enough_units": "The deployment can't be recreated because there are not enough units available for the scheduled bookings",
         "desktop_not_booked": "The desktop needs a booking to be started",
         "desktop_not_booked_until": "The desktop can't be started until its next booking: {start}",
         "incorrect_new_plan_body_data": "Incorrect new plan body data",

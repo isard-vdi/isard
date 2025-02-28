@@ -657,6 +657,10 @@ def recreate(payload, deployment_id):
             "Not found deployment id to recreate: " + str(deployment_id),
             description_code="not_found",
         )
+    # If the deployment has bookings check if the new deployment can be recreated considering the booked units
+    deployment_booking = _parse_deployment_booking(deployment)
+    if deployment_booking.get("next_booking_end"):
+        check_deployment_bookings(payload, deployment)
 
     users = get_selected_users(
         payload,
@@ -691,6 +695,33 @@ def recreate(payload, deployment_id):
         "tag_visible": deployment["create_dict"]["tag_visible"],
     }
     create_deployment_desktops(deployment_tag, desktop, users)
+
+
+def check_deployment_bookings(payload, deployment):
+    with app.app_context():
+        deployment_bookings = list(
+            r.table("bookings")
+            .get_all(deployment["id"], index="item_id")
+            .filter(lambda booking: booking["end"].gt(r.now()))
+            .run(db.conn)
+        )
+
+    deployment_users = get_selected_users(
+        payload,
+        deployment["create_dict"]["allowed"],
+        deployment["create_dict"]["name"],
+        deployment["id"],
+        existing_desktops_error=False,
+        include_existing_desktops=True,
+    )
+
+    for booking in deployment_bookings:
+        if booking["units"] < len(deployment_users):
+            raise Error(
+                "precondition_required",
+                f'The deployment {deployment["id"]} has a future booking ({booking["start"]} - {booking["end"]}) with only {booking["units"]} units booked and recreating would require {len(deployment_users)} units',
+                description_code="deployment_recreate_booking_not_enough_units",
+            )
 
 
 def start(deployment_id):

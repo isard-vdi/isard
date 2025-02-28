@@ -1506,6 +1506,7 @@
     "no_reservables": "El ítem no tiene reservables",
     "incorrect_new_plan_body_data": "Datos de nuevo plan incorrectos",
     "cant_edit_booked_deployment": "No se pueden editar los reservables un despliegue con reservas planeadas",
+    "deployment_recreate_booking_not_enough_units": "El despliegue no puede recrearse porque no hay suficientes unidades disponibles para las reservas planeadas",
     "temporal_new_reservable": "No se puede crear un escritorio temporal de una plantilla con reservables",
     "password_character_length": "La contraseña debe tener al menos {num} caracter(es)",
     "password_uppercase": "La contraseña debe tener al menos {num} caracter(es) en mayúscula",
