@@ -555,6 +555,7 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
         return jsonify(
             {
                 "task_id": storage.virt_win_reg(
+                    payload["user_id"],
                     registry_patch,
                     priority,
                 )
@@ -831,6 +832,7 @@ def storage_move_by_path(payload, storage_id):
         return jsonify(
             {
                 "task_id": storage.mv(
+                    payload["user_id"],
                     path,
                     priority,
                 )
@@ -1044,6 +1046,7 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
                 )
             case "mv":
                 return storage.mv(
+                    user_id=payload["user_id"],
                     destination_path=f"{path}/{storage.id}.{storage.type}",
                     priority=priority,
                 )
@@ -1259,6 +1262,7 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
         return jsonify(
             {
                 "task_id": storage.increase_size(
+                    payload["user_id"],
                     increment,
                     priority,
                 )
