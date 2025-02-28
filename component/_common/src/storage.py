@@ -406,7 +406,7 @@ class Storage(RethinkCustomBase):
         self.create_task(
             blocking=blocking,
             user_id=user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=self.directory_path).id}.default",
+            queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.default",
             task="qemu_img_info_backing_chain",
             job_kwargs={
                 "kwargs": {
@@ -726,38 +726,6 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('check_existence', path=self.directory_path).id}.default",
             task="check_existence",
-            job_kwargs={
-                "kwargs": {
-                    "storage_id": self.id,
-                    "storage_path": self.path,
-                }
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                }
-            ],
-        )
-
-        return self.task
-
-    def qemu_img_info(
-        self,
-        user_id,
-    ):
-        """
-        Create a task to update the storage qemu-img info.
-
-        :param user_id: User ID
-        :type user_id: str
-        :return: Task ID
-        :rtype: str
-        """
-        self.create_task(
-            user_id=user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=self.directory_path).id}.default",
-            task="qemu_img_info",
             job_kwargs={
                 "kwargs": {
                     "storage_id": self.id,
