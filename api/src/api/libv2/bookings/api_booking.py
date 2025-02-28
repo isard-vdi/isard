@@ -324,12 +324,9 @@ class Bookings:
                     )
                 else:
                     with app.app_context():
-                        desktops = (
-                            r.table("domains")
-                            .get_all(booking.get("item_id"), index="tag")
-                            .update({"booking_id": False})
-                            .run(db.conn)
-                        )
+                        r.table("domains").get_all(
+                            booking.get("item_id"), index="tag"
+                        ).update({"booking_id": False}).run(db.conn)
                     for desktop in desktops:
                         scheduler.remove_desktop_timeouts(desktop.get("id"))
 
