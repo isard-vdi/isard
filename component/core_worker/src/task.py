@@ -261,7 +261,6 @@ def storage_update(**storage_dict):
                 if dependency.task in (
                     "qemu_img_info",
                     "qemu_img_info_backing_chain",
-                    "check_existence",
                 ):
                     storage_update(**dependency.result)
                 if dependency.task == "check_backing_filename":

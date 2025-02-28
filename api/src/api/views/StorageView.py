@@ -555,6 +555,7 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
         return jsonify(
             {
                 "task_id": storage.virt_win_reg(
+                    payload["user_id"],
                     registry_patch,
                     priority,
                 )
@@ -718,66 +719,6 @@ def storage_check_check_backing_chain(payload, storage_id):
 
 
 @app.route(
-    "/api/v3/storage/<path:storage_id>/check_existence",
-    methods=["PUT"],
-)
-@has_token
-def storage_check_existence(payload, storage_id):
-    """
-    Endpoint that creates a Task to check storage existence.
-
-    :param payload: Data from JWT
-    :type payload: dict
-    :param storage_id: Storage ID
-    :type storage_id: str
-    :return: Task ID
-    :rtype: Set with Flask response values and data in JSON
-    """
-    storage = get_storage(payload, storage_id)
-
-    try:
-        return jsonify(
-            {
-                "task_id": storage.check_existence(
-                    user_id=payload.get("user_id"),
-                )
-            }
-        )
-    except Exception as e:
-        raise Error(*e.args)
-
-
-@app.route(
-    "/api/v3/storage/<path:storage_id>/update_parent",
-    methods=["PUT"],
-)
-@has_token
-def storage_update_parent(payload, storage_id):
-    """
-    Endpoint that creates a Task to update storage parent.
-
-    :param payload: Data from JWT
-    :type payload: dict
-    :param storage_id: Storage ID
-    :type storage_id: str
-    :return: Task ID
-    :rtype: Set with Flask response values and data in JSON
-    """
-    storage = get_storage(payload, storage_id)
-
-    try:
-        return jsonify(
-            {
-                "task_id": storage.update_parent(
-                    payload.get("user_id"),
-                )
-            }
-        )
-    except Exception as e:
-        raise Error(*e.args)
-
-
-@app.route(
     "/api/v3/storage/<path:storage_id>/move/by-path",
     methods=["PUT"],
 )
@@ -831,6 +772,7 @@ def storage_move_by_path(payload, storage_id):
         return jsonify(
             {
                 "task_id": storage.mv(
+                    payload["user_id"],
                     path,
                     priority,
                 )
@@ -1044,6 +986,7 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
                 )
             case "mv":
                 return storage.mv(
+                    user_id=payload["user_id"],
                     destination_path=f"{path}/{storage.id}.{storage.type}",
                     priority=priority,
                 )
@@ -1259,6 +1202,7 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
         return jsonify(
             {
                 "task_id": storage.increase_size(
+                    payload["user_id"],
                     increment,
                     priority,
                 )

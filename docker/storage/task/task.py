@@ -281,23 +281,6 @@ def qemu_img_info_backing_chain(storage_id, storage_path):
     return storage_data
 
 
-def check_existence(storage_id, storage_path):
-    """
-    Returns Storage data with `ready` status if file exists otherwise with `deleted` status.
-
-    :param storage_path: Storage path
-    :type storage_id: str
-    :return: Storage data to update
-    :rtype: dict
-    """
-    storage = {"id": storage_id}
-    if isfile(storage_path):
-        storage["status"] = "ready"
-    else:
-        storage["status"] = "deleted"
-    return storage
-
-
 def check_media_existence(media_id, path):
     """
     Returns Media data with `Downloaded` status if file exists otherwise with `deleted` status.

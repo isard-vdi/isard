@@ -353,7 +353,7 @@ class Storage(RethinkCustomBase):
         Create a task to find the storage.
         It assumes any isard-storage will have all mountpoints in /isard.
 
-        :param user_id: User ID
+        :param user_id: User ID of the user executing the task
         :type user_id: str
         :param blocking: Blocking
         :type blocking: bool
@@ -397,7 +397,7 @@ class Storage(RethinkCustomBase):
         """
         Create a task to check the storage.
 
-        :param user_id: User ID
+        :param user_id: User ID of the user executing the task
         :type user_id: str
         :return: Task ID
         :rtype: str
@@ -484,7 +484,7 @@ class Storage(RethinkCustomBase):
         """
         Create a task to move the storage using rsync.
 
-        :param user_id: User ID
+        :param user_id: User ID of the user executing the task
         :type user_id: str
         :param destination_path: Destination path
         :type destination_path: str
@@ -502,7 +502,7 @@ class Storage(RethinkCustomBase):
         origin_path = self.path
 
         queue_rsync = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
-        queue_origin = f"storage.{StoragePool.get_best_for_action('check_existence', path=self.directory_path).id}.{priority}"
+        queue_origin = f"storage.{StoragePool.get_best_for_action('move_delete', path=self.directory_path).id}.{priority}"
         self.set_maintenance("move")
         self.create_task(
             blocking=True,
@@ -587,12 +587,15 @@ class Storage(RethinkCustomBase):
 
     def mv(
         self,
+        user_id,
         destination_path,
         priority="default",
     ):
         """
         Create a task to move the storage using mv.
 
+        :param user_id: User ID of the user executing the task
+        :type user_id: str
         :param destination_path: Destination path
         :type destination_path: str
         :param priority: Priority
@@ -606,7 +609,7 @@ class Storage(RethinkCustomBase):
 
         self.set_maintenance("move")
         self.create_task(
-            user_id=self.user_id,
+            user_id=user_id,
             queue=queue_mv,
             task="move",
             job_kwargs={
@@ -718,87 +721,17 @@ class Storage(RethinkCustomBase):
 
         return self.task
 
-    def check_existence(
-        self,
-        user_id,
-    ):
-        self.create_task(
-            user_id=user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('check_existence', path=self.directory_path).id}.default",
-            task="check_existence",
-            job_kwargs={
-                "kwargs": {
-                    "storage_id": self.id,
-                    "storage_path": self.path,
-                }
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                }
-            ],
-        )
-
-        return self.task
-
-    def update_parent(
-        self,
-        user_id,
-    ):
-        """
-        Create a task to update the parent of the storage.
-
-        :param user_id: User ID
-        :type user_id: str
-        :return: Task ID
-        :rtype: str
-        """
-        self.create_task(
-            user_id=user_id,
-            queue="core",
-            task="storage_update_parent",
-            job_kwargs={
-                "kwargs": {
-                    "storage_id": self.id,
-                }
-            },
-            dependencies=[
-                {
-                    "queue": "core",
-                    "task": "storage_update",
-                    "dependencies": [
-                        {
-                            "queue": f"storage.{StoragePool.get_best_for_action('check_backing_filename', path=self.directory_path).id}.default",
-                            "task": "check_backing_filename",
-                            "dependencies": [
-                                {
-                                    "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=self.directory_path).id}.default",
-                                    "task": "qemu_img_info",
-                                    "job_kwargs": {
-                                        "kwargs": {
-                                            "storage_id": self.id,
-                                            "storage_path": self.path,
-                                        }
-                                    },
-                                }
-                            ],
-                        }
-                    ],
-                }
-            ],
-        )
-
-        return self.task
-
     def increase_size(
         self,
+        user_id,
         increment,
         priority="default",
     ):
         """
         Create a task to increase the storage size.
 
+        :param user_id: User ID of the user executing the task
+        :type user_id: str
         :param increment: Increment in GB
         :type increment: int
         :param priority: Priority
@@ -810,7 +743,7 @@ class Storage(RethinkCustomBase):
 
         self.set_maintenance("resize")
         self.create_task(
-            user_id=self.user_id,
+            user_id=user_id,
             queue=resize_queue,
             task="resize",
             job_kwargs={
@@ -840,6 +773,7 @@ class Storage(RethinkCustomBase):
 
     def virt_win_reg(
         self,
+        user_id,
         registry_patch,
         priority="default",
         timeout=600,  # 10 minutes. Default redis timeout is 180 (3 minutes)
@@ -849,6 +783,8 @@ class Storage(RethinkCustomBase):
         This task will only work with storages that have Windows XP or newer installed.
         https://libguestfs.org/virt-win-reg.1.html
 
+        :param user_id: User ID of the user executing the task
+        :type user_id: str
         :param registry_patch: Windows registry patch
         :type registry_patch: str
         :param priority: Priority
@@ -862,7 +798,7 @@ class Storage(RethinkCustomBase):
 
         self.set_maintenance("virt_win_reg")
         self.create_task(
-            user_id=self.user_id,
+            user_id=user_id,
             queue=queue_virt_win_reg,
             task="virt_win_reg",
             job_kwargs={
@@ -919,7 +855,7 @@ class Storage(RethinkCustomBase):
         Create a task to sparsify the storage.
         https://libguestfs.org/virt-sparsify.1.html
 
-        :param user_id: User ID
+        :param user_id: User ID of the user executing the task
         :type user_id: str
         :param priority: Priority
         :type priority: str
@@ -975,7 +911,7 @@ class Storage(RethinkCustomBase):
         """
         Create a task to disconnect the storage.
 
-        :param user_id: User ID
+        :param user_id: User ID of the user executing the task
         :type user_id: str
         :param priority: Priority
         :type priority: str
@@ -1030,7 +966,7 @@ class Storage(RethinkCustomBase):
         """
         Create a task to abort the current storage operations.
 
-        :param user_id: User ID
+        :param user_id: User ID of the user executing the task
         :type user_id: str
         :return: Task ID
         :rtype: str
@@ -1078,7 +1014,7 @@ class Storage(RethinkCustomBase):
         """
         Create a task to set the storage path to a new path.
 
-        :param user_id: User ID
+        :param user_id: User ID of the user executing the task
         :type user_id: str
         :param new_path: New path
         :type new_path: str
@@ -1172,7 +1108,7 @@ class Storage(RethinkCustomBase):
         """
         Create a task to delete the disk image from the provided path.
 
-        :param user_id: User ID
+        :param user_id: User ID of the user executing the task
         :type user_id: str
         :param path: Path to delete
         :type path: str
