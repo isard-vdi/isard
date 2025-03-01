@@ -515,8 +515,14 @@ HAPROXY_LOGGING=.
 #HTTPS_PORT=8443
 
 # ------ Bastion -------------------------------------------------------------
-# TODO: Document this
+## Docs: https://isard.gitlab.io/isardvdi-docs/admin/bastion/
+##  The Bastion feature allows access to virtual desktops through the
+##  same server running the IsardVDI web interface, instead of 
+##  relying exclusively on a VPN connection (Wireguard).
+
+## Wether the bastion service will be enabled
 #BASTION_ENABLED=false
+## The port where the bastion service will listen to SSH connections
 #BASTION_SSH_PORT=2222
 
 # ------ Video proxy host ----------------------------------------------------
