@@ -1,0 +1,25 @@
+priority:
+  required: false
+  type: string
+  allowed:
+    - low
+    - default
+    - high
+  default: default
+new_storage_type:
+  required: true
+  type: string
+  allowed:
+    - qcow2
+    - vmdk
+new_storage_status:
+  required: false
+  type: string
+  allowed:
+    - ready
+    - downloadable
+  default: ready
+compress:
+  required: false
+  type: boolean
+  default: false

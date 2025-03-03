@@ -28,7 +28,6 @@ from subprocess import PIPE, CalledProcessError, Popen, check_output, run
 from time import sleep
 
 from isardvdi_common.task import Task
-from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
 from rq import Queue, get_current_job
 
 
@@ -382,28 +381,32 @@ def move_delete(path):
         raise ValueError(f"Path {path} not found")
 
 
-def convert(convert_request):
+def convert(source_disk_path, dest_disk_path, format, compression):
     """
     Convert disk.
 
-    :param convert_request: Protobuf Message
-    :type convert_request: isardvdi_protobuf_old.queue.storage.v1.ConvertRequest
+
+    :param source_disk_path: Path of the original file
+    :type source_disk_path: str
+    :param dest_disk_path: Path of the destination file
+    :type dest_disk_path: str
+    :param format: Format of the destination file. Supported formats: qcow2, vmdk
+    :type format: str
+    :param compression: True to compress the destination file. Only supported for qcow and qcow2 formats.
+    :type compression: bool
     :return: Exit code of qemu-img command
     :rtype: int
     """
-    if (
-        convert_request.compression
-        # https://github.com/danielgtaylor/python-betterproto/issues/174
-        and convert_request.format == DiskFormat.DISK_FORMAT_QCOW2
-    ):
+    format = format.lower()
+
+    if format not in ["qcow2", "vmdk"]:
+        raise ValueError(f"{format} is not a valid disk format.")
+
+    if compression and format == "qcow2":
         compress = ["-c"]
     else:
         compress = []
-    # https://github.com/danielgtaylor/python-betterproto/issues/174
-    if convert_request.format == DiskFormat.DISK_FORMAT_UNSPECIFIED:
-        raise ValueError("Please specify a disk format")
-    if convert_request.format > 2:
-        raise ValueError("Format convert_request.format not supported")
+
     return run_with_progress(
         [
             "qemu-img",
@@ -411,10 +414,9 @@ def convert(convert_request):
             "-p",
             *compress,
             "-O",
-            # https://github.com/danielgtaylor/python-betterproto/issues/174
-            DiskFormat(convert_request.format).name.rsplit("_")[-1].lower(),
-            convert_request.source_disk_path,
-            convert_request.dest_disk_path,
+            format,
+            source_disk_path,
+            dest_disk_path,
         ],
         extract_progress_from_qemu_img_convert_output,
     )

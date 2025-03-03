@@ -13,7 +13,6 @@ from isardvdi_common.domain import Domain
 from isardvdi_common.storage import Storage, get_storage_id_from_path, new_storage_dict
 from isardvdi_common.storage_pool import StoragePool
 from isardvdi_common.task import Task
-from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
 from rethinkdb import RethinkDB
 
 from ..libv2.validators import _validate_item
@@ -1003,31 +1002,9 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
     return jsonify(storage.task)
 
 
-@app.route(
-    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/priority/<priority>",
-    methods=["POST"],
-)
-@app.route(
-    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/<new_storage_status>/priority/<priority>",
-    methods=["POST"],
-)
-@app.route(
-    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/compress/priority/<priority>",
-    methods=["POST"],
-)
-@app.route(
-    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/<new_storage_status>/compress/priority/<priority>",
-    methods=["POST"],
-)
+@app.route("/api/v3/storage/<path:storage_id>/convert", methods=["POST"])
 @has_token
-def storage_convert(
-    payload,
-    storage_id,
-    new_storage_type,
-    new_storage_status="ready",
-    compress=None,
-    priority="low",
-):
+def storage_convert(payload, storage_id):
     """
     Endpoint that creates a Task to convert an storage to a new storage.
 
@@ -1035,105 +1012,46 @@ def storage_convert(
     :type payload: dict
     :param storage_id: Storage ID
     :type storage_id: str
-    :param new_storage_type: New storage format
-    :type new_storage_type: str
-    :param compress: if 'compress' compress new qcow2 storage
-    :type compress: str
-    :return: New storage ID
+    :return: Task ID and new storage ID
     :rtype: Set with Flask response values and data in JSON
     """
-    # https://github.com/danielgtaylor/python-betterproto/issues/174
-    disk_format = f"DISK_FORMAT_{new_storage_type.upper()}"
-    if not hasattr(DiskFormat, disk_format):
+    try:
+        data = request.get_json()
+    except:
         raise Error(
-            error="bad_request",
-            description=f"Storage type {new_storage_type} not supported",
+            "bad_request",
+            "Unable to parse body data.",
         )
-    if new_storage_status not in ["ready", "downloadable"]:
-        raise Error(
-            error="bad_request",
-            description=f"Storage status {new_storage_status} not supported",
-            description_code="status_not_ready",
-        )
-    if not _check_domains_status(storage_id):
-        raise Error(
-            "precondition_required",
-            "All desktops must be 'Stopped' for storage operations.",
-            description_code="desktops_not_stopped",
-        )
-    if payload["role_id"] != "admin":
-        priority = "low"
+    data = _validate_item("storage_convert", data)
+    data["priority"] = check_task_priority(payload, data["priority"])
 
     origin_storage = get_storage(payload, storage_id)
-
-    if len(get_storage_derivatives(storage_id)) > 1:
-        raise Error(
-            "precondition_required", "Unable to convert storage with derivatives"
-        )
     origin_storage.set_maintenance("convert")
-    compress = request.url_rule.rule.endswith("/compress")
+
     new_storage = Storage(
         user_id=origin_storage.user_id,
         status="creating",
-        type=new_storage_type.lower(),
+        type=data["new_storage_type"].lower(),
         directory_path=origin_storage.directory_path,
         converted_from=origin_storage.id,
     )
+
     try:
-        origin_storage.create_task(
-            user_id=new_storage.user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('convert', path=origin_storage.directory_path).id}.{priority}",
-            task="convert",
-            job_kwargs={
-                "timeout": 4096,
-                "args": [
-                    ConvertRequest(
-                        source_disk_path=origin_storage.path,
-                        dest_disk_path=new_storage.path,
-                        format=getattr(DiskFormat, disk_format),
-                        compression=compress,
-                    )
-                ],
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "update_status",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "statuses": {
-                                "_all": {
-                                    "ready": {
-                                        "storage": [origin_storage.id],
-                                    },
-                                },
-                                "finished": {
-                                    new_storage_status: {
-                                        "storage": [new_storage.id],
-                                    },
-                                },
-                                "canceled": {
-                                    "deleted": {
-                                        "storage": [new_storage.id],
-                                    },
-                                },
-                            }
-                        }
-                    },
-                }
-            ],
+        return jsonify(
+            {
+                "new_storage_id": new_storage.id,
+                "task_id": origin_storage.convert(
+                    user_id=payload["user_id"],
+                    new_storage=new_storage,
+                    new_storage_type=data["new_storage_type"],
+                    new_storage_status=data["new_storage_status"],
+                    compress=data["compress"],
+                    priority=data["priority"],
+                ),
+            }
         )
     except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {origin_storage.id} already has a pending task.",
-            )
-        raise Error(
-            "internal_server_error",
-            "Error converting storage",
-        )
-    return jsonify(new_storage.id)
+        raise Error(*e.args)
 
 
 @app.route("/api/v3/storages/status", methods=["PUT"])
