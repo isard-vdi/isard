@@ -21,9 +21,9 @@ from ..libv2.api_hypervisors import (
 )
 from ..libv2.api_scheduler import Scheduler
 from ..libv2.quotas import Quotas
-from .api_desktop_events import (
+from .api_desktop_events import desktop_start
+from .api_nonpersistentdesktop_events import (
     desktop_non_persistent_delete,
-    desktop_start,
     desktops_non_persistent_delete,
 )
 
