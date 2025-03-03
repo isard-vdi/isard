@@ -13,7 +13,6 @@ from isardvdi_common.domain import Domain
 from isardvdi_common.storage import Storage, get_storage_id_from_path, new_storage_dict
 from isardvdi_common.storage_pool import StoragePool
 from isardvdi_common.task import Task
-from isardvdi_protobuf_old.queue.storage.v1 import ConvertRequest, DiskFormat
 from rethinkdb import RethinkDB
 
 from ..libv2.validators import _validate_item
@@ -1042,13 +1041,12 @@ def storage_convert(
     :return: New storage ID
     :rtype: Set with Flask response values and data in JSON
     """
-    # https://github.com/danielgtaylor/python-betterproto/issues/174
-    disk_format = f"DISK_FORMAT_{new_storage_type.upper()}"
-    if not hasattr(DiskFormat, disk_format):
+    if new_storage_type.lower() not in ["qcow2", "vmdk"]:
         raise Error(
             error="bad_request",
-            description=f"Storage type {new_storage_type} not supported",
+            description=f"Storage type {new_storage_type.lower()} not supported",
         )
+
     if new_storage_status not in ["ready", "downloadable"]:
         raise Error(
             error="bad_request",
@@ -1085,15 +1083,13 @@ def storage_convert(
             queue=f"storage.{StoragePool.get_best_for_action('convert', path=origin_storage.directory_path).id}.{priority}",
             task="convert",
             job_kwargs={
+                "kwargs": {
+                    "source_disk_path": origin_storage.path,
+                    "dest_disk_path": new_storage.path,
+                    "format": new_storage_type.lower(),
+                    "compression": compress,
+                },
                 "timeout": 4096,
-                "args": [
-                    ConvertRequest(
-                        source_disk_path=origin_storage.path,
-                        dest_disk_path=new_storage.path,
-                        format=getattr(DiskFormat, disk_format),
-                        compression=compress,
-                    )
-                ],
             },
             dependents=[
                 {
