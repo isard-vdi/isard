@@ -1002,31 +1002,9 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
     return jsonify(storage.task)
 
 
-@app.route(
-    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/priority/<priority>",
-    methods=["POST"],
-)
-@app.route(
-    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/<new_storage_status>/priority/<priority>",
-    methods=["POST"],
-)
-@app.route(
-    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/compress/priority/<priority>",
-    methods=["POST"],
-)
-@app.route(
-    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/<new_storage_status>/compress/priority/<priority>",
-    methods=["POST"],
-)
+@app.route("/api/v3/storage/<path:storage_id>/convert", methods=["POST"])
 @has_token
-def storage_convert(
-    payload,
-    storage_id,
-    new_storage_type,
-    new_storage_status="ready",
-    compress=None,
-    priority="low",
-):
+def storage_convert(payload, storage_id):
     """
     Endpoint that creates a Task to convert an storage to a new storage.
 
@@ -1034,39 +1012,26 @@ def storage_convert(
     :type payload: dict
     :param storage_id: Storage ID
     :type storage_id: str
-    :param new_storage_type: New storage format
-    :type new_storage_type: str
-    :param compress: if 'compress' compress new qcow2 storage
-    :type compress: str
-    :return: New storage ID
+    :return: Task ID and new storage ID
     :rtype: Set with Flask response values and data in JSON
     """
-    if new_storage_type.lower() not in ["qcow2", "vmdk"]:
+    try:
+        data = request.get_json()
+    except:
         raise Error(
-            error="bad_request",
-            description=f"Storage type {new_storage_type.lower()} not supported",
+            "bad_request",
+            "Unable to parse body data.",
         )
-
-    if new_storage_status not in ["ready", "downloadable"]:
-        raise Error(
-            error="bad_request",
-            description=f"Storage status {new_storage_status} not supported",
-            description_code="status_not_ready",
-        )
-
-    if payload["role_id"] != "admin":
-        priority = "low"
-
-    compress = request.url_rule.rule.endswith("/compress")
+    data = _validate_item("storage_convert", data)
+    data["priority"] = check_task_priority(payload, data["priority"])
 
     origin_storage = get_storage(payload, storage_id)
-
     origin_storage.set_maintenance("convert")
 
     new_storage = Storage(
         user_id=origin_storage.user_id,
         status="creating",
-        type=new_storage_type.lower(),
+        type=data["new_storage_type"].lower(),
         directory_path=origin_storage.directory_path,
         converted_from=origin_storage.id,
     )
@@ -1078,10 +1043,10 @@ def storage_convert(
                 "task_id": origin_storage.convert(
                     user_id=payload["user_id"],
                     new_storage=new_storage,
-                    new_storage_type=new_storage_type,
-                    new_storage_status=new_storage_status,
-                    compress=compress,
-                    priority=priority,
+                    new_storage_type=data["new_storage_type"],
+                    new_storage_status=data["new_storage_status"],
+                    compress=data["compress"],
+                    priority=data["priority"],
                 ),
             }
         )

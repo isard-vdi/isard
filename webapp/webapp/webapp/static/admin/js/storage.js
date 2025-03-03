@@ -611,14 +611,20 @@ $("#modalConvertStorage #send").on("click", function () {
   form.parsley().validate();
   if (form.parsley().isValid()) {
     formData = form.serializeObject();
-    var priority = formData.priority ? formData.priority : "low";
-    var new_storage_status = formData["change_status-cb"] ? "/" + formData["new_status"] : "";
-    var compress = formData["compress-cb"] ? "/compress" : "";
+
+    body = {
+      new_storage_type: formData.new_storage_type,
+      priority: formData.priority ? formData.priority : "low",
+      compress: formData["compress-cb"] === "on"
+    }
+    if (formData["change_status-cb"] === "on") {
+      body.new_storage_status = formData["new_status"];
+    }
 
     $.ajax({
-      url: `/api/v3/storage/${formData.storage_id}/convert/${formData.new_storage_type}${new_storage_status}${compress}/priority/${priority}`,
+      url: `/api/v3/storage/${formData.storage_id}/convert`,
       type: 'POST',
-      data: JSON.stringify(formData),
+      data: JSON.stringify(body),
       contentType: 'application/json'
     }).done(function () {
       new PNotify({
