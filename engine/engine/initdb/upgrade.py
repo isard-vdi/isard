@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 158
+release_version = 159
+# release 159: Add nonpersistent desktops delete timeout to config table
 # release 158: Add unused_desktops notification template
 # release 157: Add unused_desktops_cutoff_time field to config table
 # release 156: Remove user_permissions field from deployments create_dict
@@ -738,6 +739,14 @@ password:s:%s"""
                 r.table(table).get(1).update({"unused_desktops_cutoff_time": None}).run(
                     self.conn
                 )
+            except Exception as e:
+                print(e)
+
+        if version == 159:
+            try:
+                r.table(table).get(1).update(
+                    {"nonpersistent_desktops_inactivity_limit": 60}  # 60 minutes
+                ).run(self.conn)
             except Exception as e:
                 print(e)
 
