@@ -733,13 +733,14 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
-            if version == 157:
-                try:
-                    r.table(table).get(1).update(
-                        {"unused_desktops_cutoff_time": None}
-                    ).run(self.conn)
-                except Exception as e:
-                    print(e)
+        if version == 157:
+            try:
+                r.table(table).get(1).update({"unused_desktops_cutoff_time": None}).run(
+                    self.conn
+                )
+            except Exception as e:
+                print(e)
+
         return True
 
     """
