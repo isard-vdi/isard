@@ -959,6 +959,77 @@ class Storage(RethinkCustomBase):
 
         return self.task
 
+    def convert(
+        self,
+        user_id,
+        new_storage: "Storage",
+        new_storage_type,
+        new_storage_status,
+        compress,
+        priority="default",
+    ):
+        """
+        Create a task to convert the storage.
+
+        :param user_id: User ID of the user executing the task
+        :type user_id: str
+        :param new_storage: New storage object
+        :type new_storage: isardvdi_common.storage.Storage
+        :param new_storage_type: New storage type. Supported formats: qcow2, vmdk
+        :type new_storage_type: str
+        :param new_storage_status: New storage status
+        :type new_storage_status: str
+        :param compress: Whether to compress the new storage or not
+        :type compress: bool
+        :param priority: Priority
+        :type priority: str
+        """
+
+        self.set_maintenance("convert")
+        self.create_task(
+            user_id=user_id,
+            queue=f"storage.{StoragePool.get_best_for_action('convert', path=self.directory_path).id}.{priority}",
+            task="convert",
+            job_kwargs={
+                "kwargs": {
+                    "source_disk_path": self.path,
+                    "dest_disk_path": new_storage.path,
+                    "format": new_storage_type.lower(),
+                    "compression": compress,
+                },
+                "timeout": 4096,
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "_all": {
+                                    "ready": {
+                                        "storage": [self.id],
+                                    },
+                                },
+                                "finished": {
+                                    new_storage_status: {
+                                        "storage": [new_storage.id],
+                                    },
+                                },
+                                "canceled": {
+                                    "deleted": {
+                                        "storage": [new_storage.id],
+                                    },
+                                },
+                            }
+                        }
+                    },
+                }
+            ],
+        )
+
+        pass
+
     def abort_operations(
         self,
         user_id,

@@ -1053,23 +1053,16 @@ def storage_convert(
             description=f"Storage status {new_storage_status} not supported",
             description_code="status_not_ready",
         )
-    if not _check_domains_status(storage_id):
-        raise Error(
-            "precondition_required",
-            "All desktops must be 'Stopped' for storage operations.",
-            description_code="desktops_not_stopped",
-        )
+
     if payload["role_id"] != "admin":
         priority = "low"
 
+    compress = request.url_rule.rule.endswith("/compress")
+
     origin_storage = get_storage(payload, storage_id)
 
-    if len(get_storage_derivatives(storage_id)) > 1:
-        raise Error(
-            "precondition_required", "Unable to convert storage with derivatives"
-        )
     origin_storage.set_maintenance("convert")
-    compress = request.url_rule.rule.endswith("/compress")
+
     new_storage = Storage(
         user_id=origin_storage.user_id,
         status="creating",
@@ -1077,59 +1070,23 @@ def storage_convert(
         directory_path=origin_storage.directory_path,
         converted_from=origin_storage.id,
     )
+
     try:
-        origin_storage.create_task(
-            user_id=new_storage.user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('convert', path=origin_storage.directory_path).id}.{priority}",
-            task="convert",
-            job_kwargs={
-                "kwargs": {
-                    "source_disk_path": origin_storage.path,
-                    "dest_disk_path": new_storage.path,
-                    "format": new_storage_type.lower(),
-                    "compression": compress,
-                },
-                "timeout": 4096,
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "update_status",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "statuses": {
-                                "_all": {
-                                    "ready": {
-                                        "storage": [origin_storage.id],
-                                    },
-                                },
-                                "finished": {
-                                    new_storage_status: {
-                                        "storage": [new_storage.id],
-                                    },
-                                },
-                                "canceled": {
-                                    "deleted": {
-                                        "storage": [new_storage.id],
-                                    },
-                                },
-                            }
-                        }
-                    },
-                }
-            ],
+        return jsonify(
+            {
+                "new_storage_id": new_storage.id,
+                "task_id": origin_storage.convert(
+                    user_id=payload["user_id"],
+                    new_storage=new_storage,
+                    new_storage_type=new_storage_type,
+                    new_storage_status=new_storage_status,
+                    compress=compress,
+                    priority=priority,
+                ),
+            }
         )
     except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {origin_storage.id} already has a pending task.",
-            )
-        raise Error(
-            "internal_server_error",
-            "Error converting storage",
-        )
-    return jsonify(new_storage.id)
+        raise Error(*e.args)
 
 
 @app.route("/api/v3/storages/status", methods=["PUT"])
