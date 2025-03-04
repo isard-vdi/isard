@@ -10,7 +10,7 @@ from flask import jsonify, request
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from isardvdi_common.domain import Domain
-from isardvdi_common.storage import Storage, get_storage_id_from_path, new_storage_dict
+from isardvdi_common.storage import Storage, get_storage_id_from_path
 from isardvdi_common.storage_pool import StoragePool
 from isardvdi_common.task import Task
 from rethinkdb import RethinkDB
@@ -1185,18 +1185,39 @@ def domain_recreate_disk(payload, domain_id):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    allowed_deployment_action(payload, domain_id, "recreate")
+    if request.is_json:
+        request_json = request.get_json()
+    else:
+        request_json = {}
+
+    priority = request_json.get("priority", "default")
+    priority = check_task_priority(payload, priority)
+
     if not Domain.exists(domain_id):
         raise Error(
             "not_found",
             f"Domain {domain_id} not found",
         )
+    allowed_deployment_action(payload, domain_id, "recreate")
+
     storage_id = Domain(domain_id).storages[0].id
-    return recreate_storage(payload, storage_id)
+    storage = get_storage(payload, storage_id)
+
+    try:
+        return jsonify(
+            {
+                "task_id": storage.recreate(
+                    payload.get("user_id"),
+                    domain_id,
+                )
+            }
+        )
+    except Exception as e:
+        raise Error(*e.args)
 
 
 @app.route("/api/v3/storage/<path:storage_id>/recreate", methods=["POST"])
-@has_token
+@is_admin_or_manager
 def storage_recreate_disk(payload, storage_id):
     """
     Endpoint to recreate a storage with the same specifications and parent.
@@ -1214,193 +1235,33 @@ def storage_recreate_disk(payload, storage_id):
     :return: Storage ID
     :rtype: Set with Flask response values and data in JSON
     """
-    return recreate_storage(payload, storage_id)
-
-
-def recreate_storage(payload, storage_id, domain_id=None):
-    storage = get_storage(payload, storage_id)
-    if domain_id is None:
-        if len(storage.domains) > 1:
-            raise Error(
-                "precondition_required",
-                "Unable to recreate storage with more than one domain attached",
-            )
-        domain_id = storage.domains[0].id if len(storage.domains) == 1 else None
-    if storage.parent:
-        if not Storage.exists(storage.parent):
-            raise Error(
-                error="precondition_required",
-                description="Storage parent missing",
-                description_code="storage_has_no_parent",
-            )
-        storage_parent = Storage(storage.parent)
-        if storage_parent.status != "ready":
-            raise Error(
-                error="precondition_required",
-                description="Storage parent not ready",
-                description_code="storage_parent_not_ready",
-            )
-        parent_args = {
-            "parent_path": storage_parent.path,
-            "parent_type": storage_parent.type,
-        }
-    else:
-        storage_parent = None
-        parent_args = {}
-    storage_pool = StoragePool.get_best_for_action("delete", storage.directory_path)
-
     if request.is_json:
         request_json = request.get_json()
     else:
         request_json = {}
 
     priority = request_json.get("priority", "default")
-    if payload["role_id"] != "admin":
-        priority = "low"
-    else:
-        if priority not in ["low", "default", "high"]:
-            raise Error(
-                error="bad_request",
-                description=f"Priority must be low, default or high",
-            )
+    priority = check_task_priority(payload, priority)
 
-    storage.set_maintenance("recreate")
-
-    status_logs = storage.status_logs
-    status_logs.append(
-        {"time": int(time.time()), "status": f"recreated from {storage_id}"}
-    )
-
-    new_storage = new_storage_dict(
-        storage.user_id,
-        storage.pool_usage,
-        storage_parent.id if storage.parent else None,
-    )
-    new_storage_path = str(
-        new_storage["directory_path"]
-        + "/"
-        + new_storage["id"]
-        + "."
-        + new_storage["type"]
-    )
-    new_storage["status_logs"] = status_logs
-    new_storage_pool = StoragePool.get_best_for_action(
-        "create", new_storage["directory_path"]
-    )
+    storage = get_storage(payload, storage_id)
+    if len(storage.domains) > 1:
+        raise Error(
+            "precondition_required",
+            "Unable to recreate storage with more than one domain attached",
+        )
+    domain_id = storage.domains[0].id if len(storage.domains) == 1 else None
 
     try:
-        task = Task(
-            user_id=storage.user_id,
-            queue=f"storage.{new_storage_pool.id}.{priority}",
-            task="create",
-            job_kwargs={
-                "kwargs": {
-                    "storage_path": new_storage_path,
-                    "storage_type": new_storage["type"],
-                    **parent_args,
-                },
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "storage_add",
-                    "job_kwargs": {
-                        "kwargs": new_storage,
-                    },
-                    "dependents": [
-                        (
-                            {
-                                "queue": f"core",
-                                "task": "domain_change_storage",
-                                "job_kwargs": {
-                                    "kwargs": {
-                                        "domain_id": domain_id,
-                                        "storage_id": new_storage["id"],
-                                    },
-                                },
-                            }
-                            if domain_id
-                            else None
-                        ),
-                        {
-                            "queue": f"storage.{new_storage_pool.id}.{priority}",
-                            "task": "qemu_img_info_backing_chain",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "storage_id": new_storage["id"],
-                                    "storage_path": new_storage_path,
-                                }
-                            },
-                            "dependents": [
-                                {
-                                    "queue": "core",
-                                    "task": "storage_update",
-                                },
-                                {
-                                    "queue": f"storage.{storage_pool.id}.{priority}",
-                                    "task": "delete",
-                                    "job_kwargs": {
-                                        "kwargs": {
-                                            "path": storage.path,
-                                        },
-                                    },
-                                    "dependents": [
-                                        {
-                                            "queue": "core",
-                                            "task": "update_status",
-                                            "job_kwargs": {
-                                                "kwargs": {
-                                                    "statuses": {
-                                                        "_all": {
-                                                            "deleted": {
-                                                                "storage": [storage.id],
-                                                            },
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                            "dependents": [
-                                                {
-                                                    "queue": "core",
-                                                    "task": "storage_delete",
-                                                    "job_kwargs": {
-                                                        "kwargs": {
-                                                            "storage_id": storage.id
-                                                        }
-                                                    },
-                                                },
-                                            ],
-                                        },
-                                    ],
-                                },
-                            ],
-                        },
-                    ],
-                },
-            ],
-        )
-
-    except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
-            )
-        raise Error(
-            "internal_server_error",
-            "Error creating storage",
-        )
-
-    return (
-        json.dumps(
+        return jsonify(
             {
-                "old_id": storage_id,
-                "new_id": storage.id,
+                "task_id": storage.recreate(
+                    payload.get("user_id"),
+                    domain_id,
+                )
             }
-        ),
-        200,
-        {"Content-Type": "application/json"},
-    )
+        )
+    except Exception as e:
+        raise Error(*e.args)
 
 
 def get_storage_statuses(storage):

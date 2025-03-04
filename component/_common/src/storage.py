@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from time import time
 from uuid import uuid4
 
 from isardvdi_common.storage_pool import StoragePool
@@ -67,30 +68,6 @@ def new_storage_directory_path(user_id, pool_usage):
         return f"{storage_pool.mountpoint}/{User(user_id).category}/{storage_pool.get_usage_path(pool_usage)}"
 
 
-def new_storage_dict(user_id, pool_usage, parent_id=None, format="qcow2"):
-    """
-    Create a new storage dictionary.
-
-    :param user_id: User ID
-    :type user_id: str
-    :param pool_usage: Storage pool_usage: desktop or template
-    :type pool_usage: str
-    :param parent_id: Parent ID
-    :type parent_id: str
-    """
-
-    return {
-        "id": str(uuid4()),
-        "type": format,
-        "directory_path": new_storage_directory_path(user_id, pool_usage),
-        "parent": parent_id,
-        "user_id": user_id,
-        "status": "created",
-        "perms": ["r", "w"] if pool_usage == "desktop" else ["r"],
-        "status_logs": [],
-    }
-
-
 class Storage(RethinkCustomBase):
     """
     Manage Storage Objects
@@ -101,6 +78,37 @@ class Storage(RethinkCustomBase):
     """
 
     _rdb_table = "storage"
+
+    @classmethod
+    def new_dict(cls, user_id, pool_usage, parent_id=None, format="qcow2") -> "Storage":
+        """
+        Create a new storage dictionary.
+
+        :param user_id: User ID
+        :type user_id: str
+        :param pool_usage: Storage pool_usage: desktop or template
+        :type pool_usage: str
+        :param parent_id: Parent ID
+        :type parent_id: str
+        """
+        if parent_id and not cls.exists(parent_id):
+            raise Exception(
+                "precondition_required",
+                f"Parent {parent_id} does not exist",
+            )
+
+        storage_dict = {
+            "id": str(uuid4()),
+            "type": format,
+            "directory_path": new_storage_directory_path(user_id, pool_usage),
+            "parent": parent_id,
+            "user_id": user_id,
+            "status": "non_existing",
+            "perms": ["r", "w"] if pool_usage == "desktop" else ["r"],
+            "status_logs": [],
+        }
+
+        return Storage(**storage_dict)
 
     @property
     def path(self):
@@ -1029,6 +1037,174 @@ class Storage(RethinkCustomBase):
         )
 
         pass
+
+    def recreate(
+        self,
+        user_id,
+        domain_id,
+        priority="default",
+    ):
+        """
+        Create a task to recreate the storage.
+        This tasks will delete the current storage and create a new one with the same parent. The domains passed as argument will be updated to use the new storage.
+
+        :param user_id: User ID of the user executing the task
+        :type user_id: str
+        :param domain_id: Domain ID to update the storage
+        :type domain_id: str
+        :param priority: Priority
+        :type priority: str
+        :return: Task ID
+        :rtype: str
+        """
+        if not self.parent:
+            raise Exception(
+                "precondition_required",
+                "Storage parent missing",
+                "storage_has_no_parent",
+            )
+
+        if not self.operational:
+            raise Exception(
+                "precondition_required",
+                "Storage parent not ready",
+                "storage_parent_not_ready",
+            )
+
+        if not Storage.exists(self.parent):
+            raise Exception(
+                "precondition_required",
+                "Storage parent missing",
+                "storage_has_no_parent",
+            )
+        storage_parent = Storage(self.parent)
+        parent_args = {
+            "parent_path": storage_parent.path,
+            "parent_type": storage_parent.type,
+        }
+
+        status_logs = self.status_logs
+        status_logs.append({"time": int(time()), "status": f"recreated from {self.id}"})
+
+        new_storage = Storage().new_dict(
+            self.user_id,
+            self.pool_usage,
+            storage_parent.id,
+        )
+        new_storage.status_logs = status_logs
+
+        new_storage_path = str(
+            new_storage.directory_path + "/" + new_storage.id + "." + new_storage.type
+        )
+
+        self.set_maintenance("recreate")
+        self.create_task(
+            user_id=user_id,
+            queue=f"storage.{StoragePool.get_best_for_action('create', new_storage.directory_path).id}.{priority}",
+            task="create",
+            job_kwargs={
+                "kwargs": {
+                    "storage_path": new_storage_path,
+                    "storage_type": new_storage.type,
+                    **parent_args,
+                },
+            },
+            dependents=[
+                {
+                    "queue": f"core",
+                    "task": "domain_change_storage",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "domain_id": domain_id,
+                            "storage_id": new_storage.id,
+                        },
+                    },
+                    "dependents": [
+                        {
+                            "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', new_storage.directory_path).id}.{priority}",
+                            "task": "qemu_img_info_backing_chain",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "storage_id": new_storage.id,
+                                    "storage_path": new_storage_path,
+                                }
+                            },
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "storage_update",
+                                }
+                            ],
+                        },
+                        {
+                            "queue": f"storage.{StoragePool.get_best_for_action('delete', self.directory_path).id}.{priority}",
+                            "task": "delete",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "path": self.path,
+                                }
+                            },
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "storage_delete",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "storage_id": self.id,
+                                        }
+                                    },
+                                    "dependents": [
+                                        {
+                                            "queue": "core",
+                                            "task": "update_status",
+                                            "job_kwargs": {
+                                                "kwargs": {
+                                                    "statuses": {
+                                                        "_all": {
+                                                            "deleted": {
+                                                                "storage": [self.id],
+                                                            }
+                                                        },
+                                                        JobStatus.FAILED: {
+                                                            new_storage.status: {
+                                                                "storage": [
+                                                                    new_storage.id
+                                                                ],
+                                                            },
+                                                            "Failed": {
+                                                                "domain": [
+                                                                    domain.id
+                                                                    for domain in new_storage.domains
+                                                                ],
+                                                            },
+                                                        },
+                                                        JobStatus.CANCELED: {
+                                                            new_storage.status: {
+                                                                "storage": [
+                                                                    new_storage.id
+                                                                ],
+                                                            },
+                                                            "Stopped": {
+                                                                "domain": [
+                                                                    domain.id
+                                                                    for domain in new_storage.domains
+                                                                ]
+                                                            },
+                                                        },
+                                                    }
+                                                }
+                                            },
+                                        }
+                                    ],
+                                }
+                            ],
+                        },
+                    ],
+                }
+            ],
+        )
+
+        return self.task
 
     def abort_operations(
         self,
