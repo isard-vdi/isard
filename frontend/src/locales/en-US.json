@@ -82,7 +82,8 @@
       "works-with": "Works with"
     },
     "single-page": {
-      "go-back": "Go back"
+      "go-back": "Go back",
+      "logout": "Logout"
     },
     "maintenance": {
       "title": "Under maintenance",

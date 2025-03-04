@@ -80,7 +80,8 @@
       "works-with": "Funciona con"
     },
     "single-page": {
-      "go-back": "Volver atrás"
+      "go-back": "Volver atrás",
+      "logout": "Cerrar sesión"
     },
     "maintenance": {
       "title": "En mantenimiento",
