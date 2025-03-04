@@ -81,8 +81,12 @@ const logOut = () => {
             <p>{{ props.user.role }}</p>
           </div>
         </div>
-        <Button icon="log-out-01" hierarchy="link-gray" class="opacity-80 mt-3 ml-1" @click="logOut"
-          >Log out</Button
+        <Button
+          icon="log-out-01"
+          hierarchy="link-gray"
+          class="opacity-80 mt-3 ml-1"
+          @click="logOut"
+          >{{ t('layouts.single-page.logout') }}</Button
         >
       </div>
     </div>
