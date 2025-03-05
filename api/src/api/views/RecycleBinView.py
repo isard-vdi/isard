@@ -493,17 +493,8 @@ def recycle_bin_add_unused_items(payload):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-
     # Send unused desktops to recycle bin
-    unused_desktops_cutoff_time = get_unused_desktops_cutoff_time()
-    if not unused_desktops_cutoff_time:
-        return (
-            json.dumps({}),
-            200,
-            {"Content-Type": "application/json"},
-        )
-    desktops_cutoff_time = timedelta(days=unused_desktops_cutoff_time * 30)
-    desktops = get_unused_desktops(desktops_cutoff_time)
+    desktops = get_unused_desktops()
     notification = get_notifications_by_action_id("unused_desktops")
     notification_data = []
 
