@@ -251,8 +251,6 @@ def get_storage_id(payload, storage_id):
 
 
 @app.route("/api/v3/storage/priority/<priority>", methods=["POST"])
-# TODO: Quotas should be implemented before open this endpoint
-# @has_token
 @is_admin
 def create_storage(payload, priority="low"):
     """
@@ -260,11 +258,11 @@ def create_storage(payload, priority="low"):
 
     Storage specifications in JSON:
     {
-        "usage_type": "Usage: desktop, media, template, volatile",
-        "storage_type": "disk format of the new storage",
-        "size": "string with the size of new storage like qemu-img command",
+        "usage": "Usage: desktop, template",
+        "storage_type": "Disk format of the new storage: qcow2, vmdk",
         "parent": "Storage ID to be used as backing file",
-        "priority": "low, default or high",
+        "size": "string with the size of new storage like qemu-img command",
+        "user_id": "User ID of the owner of the new storage. If not specified, the user_id from JWT is used",
     }
 
     :param payload: Data from JWT
@@ -272,45 +270,15 @@ def create_storage(payload, priority="low"):
     :return: Storage ID
     :rtype: Set with Flask response values and data in JSON
     """
-    if not request.is_json:
+    try:
+        data = request.get_json()
+    except:
         raise Error(
-            description="No JSON in body request with storage specifications",
+            "bad_request",
+            "Unable to parse body data.",
         )
-    request_json = request.get_json()
-    for specification in ["usage_type", "storage_type"]:
-        if specification not in request_json:
-            raise Error(
-                description=f"No {specification} in JSON of body request",
-            )
-    if "size" not in request_json and "parent" not in request_json:
-        raise Error(
-            description="size or parent must be specified in JSON of body request",
-        )
-    priority = request_json.get("priority", "default")
-    if priority not in ["low", "default", "high"]:
-        raise Error(
-            description="priority should be low, default or high",
-        )
-    parent_args = {}
-    parent = ""
-    if not "parent" in request_json and not "user_id" in request_json:
-        raise Error(
-            error="bad_request",
-            description="Must provide a parent storage or a user ID",
-        )
-    if "parent" in request_json:
-        parent = get_storage(payload, request_json.get("parent"))
-        if parent.status != "ready":
-            raise Error(
-                error="precondition_required",
-                description="Storage not ready",
-                description_code="storage_not_ready",
-            )
+    data = _validate_item("storage_create", data)
 
-        parent_args = {
-            "parent_path": parent.path,
-            "parent_type": parent.type,
-        }
     if payload["role_id"] != "admin":
         priority = "low"
     else:
@@ -320,110 +288,31 @@ def create_storage(payload, priority="low"):
                 description=f"Priority must be low, default or high",
             )
 
-    if request.get_json().get("storage_pool"):
-        storage_pool = StoragePool(request.get_json().get("storage_pool"))
-        if not storage_pool.paths[request_json.get("usage_type")]:
-            storage_pool = StoragePool(DEFAULT_STORAGE_POOL_ID)
-    else:
-        if parent:
-            storage_pool = StoragePool.get_best_for_action(
-                "create", parent.directory_path
-            )
-        else:
-            if request.get_json().get("user_id"):
-                storage_pool = StoragePool.get_by_user_kind(
-                    request.get_json().get("user_id"),
-                    request.get_json().get("usage_type"),
-                )
-
-            else:
-                storage_pool = StoragePool.get_best_for_action("create")
-
-    category = ""
-    if "parent" in request_json and storage_pool.id != DEFAULT_STORAGE_POOL_ID:
-        category = get_storage_category(parent) + "/"
-
-    usage_path = storage_pool.get_usage_path(request_json.get("usage_type"))
-    user_id = (
-        request.get_json().get("user_id")
-        if request.get_json().get("user_id")
-        else payload.get("user_id")
-    )
+    ownsUserId(payload, data.get("user_id", payload["user_id"]))
+    user_id = data.get("user_id", payload["user_id"])
 
     quota = quotas.get_applied_quota(user_id).get("quota")
-    if quota and quota.get("desktops_disk_size") < int(request_json.get("size")[:-1]):
+    if quota and quota.get("desktops_disk_size") < int(data["size"][:-1]):
         raise Error("bad_request", "Disk size quota exceeded")
 
-    storage = Storage(
-        status="maintenance",
-        user_id=user_id,
-        type=request_json.get("storage_type"),
-        parent=request_json.get("parent"),
-        directory_path=f"{storage_pool.mountpoint}/{category}{usage_path}",
-        status_logs=[{"time": int(time.time()), "status": "created"}],
-        perms=["r", "w"] if request_json.get("usage_type") != "template" else ["r"],
-    )
-
     try:
-        storage.create_task(
-            user_id=storage.user_id,
-            queue=f"storage.{storage_pool.id}.{priority}",
-            task="create",
-            job_kwargs={
-                "kwargs": {
-                    "storage_path": storage.path,
-                    "storage_type": storage.type,
-                    "size": request_json.get("size"),
-                    **parent_args,
-                },
-            },
-            dependents=[
-                {
-                    "queue": f"storage.{storage_pool.id}.default",
-                    "task": "qemu_img_info_backing_chain",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "storage_id": storage.id,
-                            "storage_path": storage.path,
-                        }
-                    },
-                    "dependents": [
-                        {
-                            "queue": "core",
-                            "task": "storage_update",
-                            "dependents": [
-                                {
-                                    "queue": "core",
-                                    "task": "update_status",
-                                    "job_kwargs": {
-                                        "kwargs": {
-                                            "statuses": {
-                                                "finished": {
-                                                    "ready": {
-                                                        "storage": [storage.id],
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                }
-                            ],
-                        }
-                    ],
-                },
-            ],
+        storage, task_id = Storage().create_new_storage(
+            user_id=user_id,
+            pool_usage=data["usage"],
+            parent_id=data["parent"],
+            storage_type=data["storage_type"],
+            size=str(data["size"]),
+            priority=priority,
         )
     except Exception as e:
-        if e.args[0] == "precondition_required":
-            raise Error(
-                "precondition_required",
-                f"Storage {storage.id} already has a pending task.",
-            )
-        raise Error(
-            "internal_server_error",
-            "Error creating storage",
-        )
-    return jsonify(storage.id)
+        raise Error(*e.args)
+
+    return jsonify(
+        {
+            "storage_id": storage.id,
+            "task_id": task_id,
+        }
+    )
 
 
 @app.route("/api/v3/storage/<path:storage_id>/parents", methods=["GET"])
