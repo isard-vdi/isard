@@ -138,6 +138,7 @@ class Populate(object):
             "notifications",
             "notifications_data",
             "notifications_action",
+            "unused_item_timeout",
             # "recycle_bin_archive",
             # config should be the last table to be created
             # api waits for config table to start
@@ -1515,6 +1516,47 @@ class Populate(object):
                 },
             ]
             r.table("desktops_priority").insert(priority).run(self.conn)
+        except:
+            None
+
+    def unused_item_timeout(self):
+        try:
+            log.info("Table unused_item_timeout not found, creating...")
+            r.table_create("unused_item_timeout", primary_key="id").run(self.conn)
+        except:
+            None
+
+        # Retrieve the unused_desktops_cutoff_time field from the config table
+        try:
+            unused_desktops_cutoff_time = (
+                r.table("config")
+                .get(1)
+                .pluck({"recycle_bin": ["unused_desktops_cutoff_time"]})["recycle_bin"][
+                    "unused_desktops_cutoff_time"
+                ]
+                .run(self.conn)
+            )
+        except:
+            unused_desktops_cutoff_time = None
+
+        try:
+            timeout = [
+                {
+                    "id": str(uuid.uuid4()),
+                    "name": "default",
+                    "op": "send_unused_desktops_to_recycle_bin",
+                    "description": "Keep only the desktops that have been used in the last selected cutoff time. Send the rest of unused desktops to recycle bin automatically.",
+                    "allowed": {
+                        "roles": [],  ## Matches all
+                        "categories": False,
+                        "groups": False,
+                        "users": False,
+                    },
+                    "priority": 0,
+                    "cutoff_time": unused_desktops_cutoff_time,
+                },
+            ]
+            r.table("unused_item_timeout").insert(timeout).run(self.conn)
         except:
             None
 
