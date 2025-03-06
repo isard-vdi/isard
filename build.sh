@@ -468,10 +468,16 @@ create_docker_compose_file(){
 		fi
 	fi
 
+	if [ -n "$REDIS_PASSWORD" ]
+	then
+		echo "REDIS_PASSWORD is true, adding redis password part"
+		parts="$parts redis.passwd"
+	fi
+
 	# Add openapi container
 	if [ "$ENABLE_OPENAPI" = "true" ]
 	then
-	echo "Adding openapi"
+		echo "Adding openapi"
 		parts="$parts openapi"
 	fi
 
