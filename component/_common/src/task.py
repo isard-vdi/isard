@@ -106,7 +106,13 @@ class Task(RedisBase):
                     "Provide task to create a new task or id keyword to get an existing one"
                 )
             kwargs.setdefault("job_kwargs", {}).setdefault("connection", self._redis)
-            kwargs["job_kwargs"].setdefault("result_ttl", -1)
+            kwargs["job_kwargs"].setdefault(
+                "result_ttl",
+                os.environ.get(
+                    "REDIS_TASK_RESULT_TTL",
+                    2592000,  # 30 days
+                ),
+            )
             kwargs["job_kwargs"].setdefault("meta", {}).setdefault(
                 "user_id", kwargs.get("user_id")
             )
