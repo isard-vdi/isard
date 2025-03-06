@@ -1206,6 +1206,100 @@ class Storage(RethinkCustomBase):
 
         return self.task
 
+    @classmethod
+    def create_new_storage(
+        cls,
+        user_id,
+        pool_usage,
+        parent_id,
+        size,
+        storage_type="qcow2",
+        priority="default",
+    ):
+        """
+        Create a new storage.
+
+        :param user_id: User ID of the user executing the task and owner of the new storage.
+        :type user_id: str
+        :param pool_usage: Pool usage
+        :type pool_usage: str
+        :param parent_id: Parent storage ID
+        :type parent_id: str
+        :param size: Size like qemu-img command
+        :type size: str
+        :param storage_type: Storage type. Supported formats: qcow2, vmdk
+        :type storage_type: str
+        :param priority: Priority
+        :type priority: str
+        :return: Tuple with the new storage and the task ID
+        :rtype: Tuple[isardvdi_common.storage.Storage, str]
+        """
+        if not Storage.exists(parent_id):
+            raise Exception(
+                "not_found",
+                f"Parent storage {parent_id} not found",
+            )
+        storage_parent = Storage(parent_id)
+        if storage_parent.status != "ready":
+            raise Exception(
+                "precondition_required",
+                "Parent storage is not ready",
+                "storage_not_ready",
+            )
+        if storage_parent.type != storage_type:
+            raise Exception(
+                "precondition_required",
+                "Parent storage type does not match",
+            )
+
+        parent_args = {
+            "parent_path": storage_parent.path,
+            "parent_type": storage_parent.type,
+        }
+
+        storage = Storage().new_dict(
+            user_id=user_id,
+            pool_usage=pool_usage,
+            parent_id=parent_id,
+            format=storage_type,
+        )
+        storage.status_logs = [{"time": int(time()), "status": "created"}]
+
+        storage.set_maintenance("create")
+        storage.create_task(
+            user_id=storage.user_id,
+            queue=f"storage.{storage.pool.id}.{priority}",
+            task="create",
+            job_kwargs={
+                "kwargs": {
+                    "storage_path": storage.path,
+                    "storage_type": storage.type,
+                    "size": size,
+                    **parent_args,
+                },
+            },
+            dependents=[
+                {
+                    "queue": f"storage.{storage.pool.id}.{priority}",
+                    "task": "qemu_img_info_backing_chain",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "storage_id": storage.id,
+                            "storage_path": storage.path,
+                        }
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_update",
+                        }
+                    ],
+                },
+            ],
+        )
+
+        return (storage, storage.task)
+
     def abort_operations(
         self,
         user_id,

@@ -1,0 +1,25 @@
+usage:
+  required: true
+  type: string
+  allowed:
+    - desktop
+    - template
+storage_type:
+  required: false
+  type: string
+  allowed:
+    - qcow2
+    - vmdk
+  default: qcow2
+parent:
+  required: true
+  type: string
+  coerce: sanitize
+size:
+  required: true
+  type: string
+  coerce: sanitize
+user_id:
+  required: false
+  type: string
+  coerce: sanitize
