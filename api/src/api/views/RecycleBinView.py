@@ -4,9 +4,10 @@ from datetime import datetime, timedelta
 
 import gevent
 import pytz
-from api.libv2.api_desktop_events import desktop_delete
+from api.libv2.api_desktop_events import deployment_delete, desktop_delete
 from api.libv2.api_desktops_persistent import get_unused_desktops
 from api.libv2.api_notify import notify_admins
+from api.libv2.deployments.api_deployments import get_unused_deployments
 from api.libv2.notifications.notifications import get_notifications_by_action_id
 from api.libv2.notifications.notifications_action import get_notification_action
 from api.libv2.notifications.notifications_data import add_notification_data
@@ -478,7 +479,38 @@ def recycle_bin_add_unused_items(payload):
     if notification_data:
         add_notification_data(notification_data)
 
-    # TODO: Send unused deployments to recycle bin
+    # Send unused deployments to recycle bin
+    deployments = get_unused_deployments()
+    notification = get_notifications_by_action_id("unused_deployments")
+    notification_data = []
+
+    if notification and notification[0]["trigger"]:
+        notification = notification[0]
+        notification_action = get_notification_action(notification["action_id"])
+        max_delete_period = get_recicle_delete_time()
+
+    for deployment in deployments:
+        deployment_delete(deployment["id"], "isard-scheduler")
+        if notification:
+            common_data = {
+                "item_id": deployment["id"],
+                "item_type": "deployment",
+                "status": "pending",
+                "created_at": datetime.now().astimezone(pytz.UTC),
+                "notified_at": None,
+                "accepted_at": None,
+                "notification_id": notification["id"],
+                "vars": {var: deployment[var] for var in notification_action["kwargs"]},
+                "ignore_after": (
+                    datetime.now() + timedelta(hours=int(max_delete_period))
+                ).astimezone(pytz.UTC),
+            }
+            notification_data.append({**common_data, "user_id": deployment["user"]})
+            for co_owner in deployment["co_owners"]:
+                notification_data.append({**common_data, "user_id": co_owner})
+
+    if notification_data:
+        add_notification_data(notification_data)
 
     return (
         json.dumps({}),
