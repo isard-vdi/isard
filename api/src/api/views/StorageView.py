@@ -180,7 +180,7 @@ def check_task_priority(payload, priority):
 
 
 @app.route("/api/v3/storage/<path:storage_id>/status/maintenance", methods=["PUT"])
-@has_token
+@is_admin
 def storage_maintenance(payload, storage_id):
     """
     Endpoint to set a storage to maintenance status.
@@ -198,7 +198,7 @@ def storage_maintenance(payload, storage_id):
 
 
 @app.route("/api/v3/storage/<path:storage_id>/status/ready", methods=["PUT"])
-@has_token
+@is_admin
 def storage_ready(payload, storage_id):
     """
     Endpoint to set a storage to ready status.
@@ -217,7 +217,7 @@ def storage_ready(payload, storage_id):
     "/api/v3/storage/<path:storage_id>/storage_pool/<path:storage_pool_id>",
     methods=["PUT"],
 )
-@has_token
+@is_admin
 def storage_set_storage_pool(payload, storage_id, storage_pool_id):
     """
     Endpoint to set a storage to a storage pool.
@@ -336,7 +336,7 @@ def storage_parents(payload, storage_id):
 
 
 @app.route("/api/v3/storage/<path:storage_id>/task", methods=["GET"])
-@has_token
+@is_admin_or_manager
 def storage_task(payload, storage_id):
     """
     Endpoint that get Task as dict of a Storage.
@@ -369,7 +369,7 @@ def api_v3_storage(payload):
 
 
 @app.route("/api/v3/storage/<path:storage_id>", methods=["DELETE"])
-@has_token
+@is_admin
 def storage_delete(payload, storage_id):
     """
     Endpoint to delete a storage
@@ -399,7 +399,7 @@ def storage_delete(payload, storage_id):
     "/api/v3/storage/virt-win-reg/<path:storage_id>/priority/<priority>",
     methods=["PUT"],
 )
-@has_token
+@is_admin
 def storage_virt_win_reg(payload, storage_id, priority="low"):
     """
     Endpoint to apply a registry patch to a storage qcow2
@@ -552,7 +552,7 @@ def storages_sparsify_by_status(payload, status):
     "/api/v3/storage/disconnect/<path:storage_id>/priority/<priority>",
     methods=["PUT"],
 )
-@has_token
+@is_admin
 def storage_disconnect(payload, storage_id, priority="low"):
     """
     Endpoint to disconnect a storage from its backing chain
@@ -588,7 +588,7 @@ def storage_disconnect(payload, storage_id, priority="low"):
 
 
 @app.route("/api/v3/storage/<path:storage_id>/check_backing_chain", methods=["PUT"])
-@has_token
+@is_admin_or_manager
 def storage_check_check_backing_chain(payload, storage_id):
     """
     Endpoint that creates a Task to check storage backing chain.
@@ -798,7 +798,7 @@ def storage_rsync_to_storage_pool(payload, storage_id):
     "/api/v3/storage/<path:storage_id>/path/<path:path>/priority/<priority>/<method>",
     methods=["PUT"],
 )
-@has_token
+@is_admin
 def storage_move(payload, storage_id, path, priority="low", method="mv"):
     """
     Endpoint to move a storage to another path
@@ -892,7 +892,7 @@ def storage_move(payload, storage_id, path, priority="low", method="mv"):
 
 
 @app.route("/api/v3/storage/<path:storage_id>/convert", methods=["POST"])
-@has_token
+@is_admin
 def storage_convert(payload, storage_id):
     """
     Endpoint that creates a Task to convert an storage to a new storage.
@@ -1171,14 +1171,14 @@ def get_storage_statuses(storage):
 
 
 @app.route("/api/v3/storage/<path:storage_id>/statuses", methods=["GET"])
-@has_token
+@is_admin
 def storage_statuses(payload, storage_id):
     storage = get_storage(payload, storage_id)
     return jsonify(storage.statuses)
 
 
 @app.route("/api/v3/storage/path/statuses", methods=["POST"])
-@has_token
+@is_admin
 def storage_path_statuses(payload):
     if not request.json["path"]:
         raise Error(
