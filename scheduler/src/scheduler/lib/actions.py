@@ -483,16 +483,8 @@ class Actions:
                         + traceback.format_exc()
                     )
 
-    def recycle_bin_delete_kwargs(**kwargs):
-        return []
-
-    def recycle_bin_delete(**kwargs):
-        max_delete_period = int(kwargs.get("max_delete_period"))
-        category = kwargs.get("category")
-        api_client.put(
-            "/recycle_bin/delete",
-            {"max_delete_period": max_delete_period, "category": category},
-        )
+    def recycle_bin_cutoff_time_system_delete():
+        api_client.delete("/recycle-bin/cutoff-time-surpassed")
 
     def send_unused_items_to_recycle_bin(**kwargs):
         try:

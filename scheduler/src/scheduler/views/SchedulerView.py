@@ -73,21 +73,6 @@ def action(payload, action_id):
     )
 
 
-@app.route(
-    "/scheduler/recycle_bin_delete/max_time_category/<category_id>", methods=["GET"]
-)
-@is_admin_or_manager
-def max_time_category(payload, category_id=None):
-    if category_id:
-        ownsCategoryId(payload, category_id)
-    max_time = app.scheduler.get_max_time_category(category_id)
-    return (
-        json.dumps(max_time),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
 @app.route("/scheduler", methods=["GET"])
 @app.route("/scheduler/<job_id>", methods=["GET"])
 @is_admin
