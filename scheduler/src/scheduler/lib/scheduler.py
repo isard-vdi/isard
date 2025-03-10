@@ -120,6 +120,24 @@ class Scheduler:
                 "system.send_unused_items_to_recycle_bin",
             )
 
+        with app.app_context():
+            delete_expired_notifications_data = (
+                r.table("scheduler_jobs")
+                .get("system.delete_expired_notifications_data")
+                .run(db.conn)
+            )
+        if not delete_expired_notifications_data:
+            # By default remove the expired notifications data
+            self.add_job(
+                "system",
+                "cron",
+                "delete_expired_notifications_data",
+                "23",
+                "15",
+                id="system.delete_expired_notifications_data",
+                kwargs=None,
+            )
+
     def clean_bad_jobs(self):
         with app.app_context():
             result = (

@@ -23,6 +23,7 @@ from api.libv2.notifications.notifications import (
     get_user_trigger_notifications,
     get_user_trigger_notifications_displays,
 )
+from api.libv2.notifications.notifications_data import delete_expired_notifications_data
 
 from api import app
 
@@ -64,6 +65,23 @@ def api_v3_user_notification_trigger(payload, trigger, display):
         json.dumps(
             {"notifications": get_user_trigger_notifications(payload, trigger, display)}
         ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/notifications/expired", methods=["DELETE"])
+@has_token
+def api_v3_user_notifications_expired_delete(payload):
+    """
+    Delete the expired users notifications data.
+
+    :return: The response.
+    :rtype: Set with Flask response values and data in JSON
+    """
+    delete_expired_notifications_data()
+    return (
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )
