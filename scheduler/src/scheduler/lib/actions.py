@@ -585,3 +585,6 @@ class Actions:
 
     def logs_users_old_entries_action_delete(**kwargs):
         api_client.put("/logs_users/old_entries/delete")
+
+    def nonpersistent_delete_timeout(**kwargs):
+        api_client.delete(f'/nonpersistent/{kwargs["desktop_id"]}')

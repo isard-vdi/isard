@@ -21,9 +21,9 @@ from ..libv2.api_hypervisors import (
 )
 from ..libv2.api_scheduler import Scheduler
 from ..libv2.quotas import Quotas
-from .api_desktop_events import (
+from .api_desktop_events import desktop_start
+from .api_nonpersistentdesktop_events import (
     desktop_non_persistent_delete,
-    desktop_start,
     desktops_non_persistent_delete,
 )
 
@@ -71,6 +71,9 @@ class ApiDesktopsNonPersistent:
                 return desktops[0]["id"]
             check_virt_storage_pool_availability(desktops[0]["id"])
             desktop_start(desktops[0]["id"], wait_seconds=1)
+            scheduler.add_desktop_timeouts(
+                gen_payload_from_user(user_id), desktops[0]["id"]
+            )
             return desktops[0]["id"]
 
         # If not, delete all nonpersistent desktops based on this template from user

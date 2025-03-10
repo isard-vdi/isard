@@ -448,20 +448,6 @@ def templates_delete(template_id, agent_id):
         rcb.delete_storage(agent_id)
 
 
-def desktops_non_persistent_delete(user_id, template):
-    with app.app_context():
-        r.table("domains").get_all(user_id, index="user").filter(
-            {"from_template": template, "persistent": False}
-        ).update({"status": "ForceDeleting"}).run(db.conn)
-
-
-def desktop_non_persistent_delete(desktop_id):
-    with app.app_context():
-        r.table("domains").get(desktop_id).update({"status": "ForceDeleting"}).run(
-            db.conn
-        )
-
-
 def desktop_updating(desktop_id):
     with app.app_context():
         r.table("domains").get(desktop_id).update({"status": "Updating"}).run(db.conn)

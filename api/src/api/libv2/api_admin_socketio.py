@@ -86,6 +86,7 @@ class DomainsThread(threading.Thread):
                             "description",
                             "progress",
                             "server_autostart",
+                            "persistent",
                         )
                         .changes(include_initial=False, squash=0.5)
                         .run(db.conn)
@@ -179,6 +180,10 @@ class DomainsThread(threading.Thread):
                                         api_scheduler.remove_desktop_timeouts(
                                             data.get("id")
                                         )
+                                        if data["persistent"] == False:
+                                            api_scheduler.add_nonpersistent_desktop_delete_timeout(
+                                                data.get("id")
+                                            )
                                 else:
                                     if c["new_val"].get("status") == "Started" and c[
                                         "old_val"
