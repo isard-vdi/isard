@@ -429,6 +429,17 @@ def queues():
     )
 
 
+@app.route("/isard-admin/admin/queues_config", methods=["GET"])
+@login_required
+@isAdmin
+def queues_config():
+    return render_webapp(
+        "admin/pages/queues_config.html",
+        title="Queues config",
+        nav="Queues config",
+    )
+
+
 @app.route("/isard-admin/admin/storage_pools", methods=["GET"])
 @login_required
 @isAdmin

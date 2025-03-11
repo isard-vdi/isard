@@ -1,0 +1,86 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block content %}
+
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="page-title">
+                <div class="title_left" style="width:100%">
+                    <h3><i class="fa fa-gears"></i> Queues config <small></small></h3>
+                </div>
+                <div class="clearfix"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="clearfix"></div>
+
+<div class="row">
+    <div class="col-md-6 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-archive"></i> Delete old tasks from redis</h3><br>
+                <div class="clearfix"></div>
+            </div>
+            <form>
+                <div class="x_content">
+                    <label class="control-label col-md-6 col-sm-6 col-xs-12 pull-left" for="maxtime">
+                        <h4><b>After the task has been finished for:</b></h4>
+                    </label>
+                    <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+                        <select class="form-control" id="maxtime" name="maxtime">
+                            <option value="24">1 day</option>
+                            <option value="48">2 days</option>
+                            <option value="120">5 days</option>
+                            <option value="240">10 days</option>
+                            <option value="336">2 weeks</option>
+                            <option value="672">4 weeks</option>
+                            <option value="1008">6 weeks</option>
+                            <option value="1344">8 weeks</option>
+                            <option value="8766">1 year</option>
+                            <option value="13149">1.5 years</option>
+                            <option value="17532">2 years</option>
+                            <option hidden value="null">Never</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="x_content" id="registries_wrapper">
+                    <label class="control-label col-md-6 col-sm-6 col-xs-12 pull-left" for="registries">
+                        <h4><b>Task statuses to check:</b></h4>
+                    </label>
+                    <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+                        <select class="form-control" id="registries" name="registries">
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="col-md-6 col-sm-6 col-xs-12">
+                        <div class="checkbox">
+                            <label class="">
+                                <div class="icheckbox_flat-green" style="position: relative;">
+                                    <input type="checkbox" id="enabled-check" name="enabled-check" class="flat"
+                                        style="position: absolute; opacity: 0;">
+                                    <ins class="iCheck-helper"
+                                        style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                    </ins>
+                                </div> Enabled
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-sm-6 col-xs-12">
+                        <button id="btn-update-config" type="button" class="btn btn-success">Update config</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block pagescript %}
+<script src="/isard-admin/static/admin/js/queues_config.js"></script>
+{% endblock %}
