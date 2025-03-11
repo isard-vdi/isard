@@ -421,8 +421,10 @@ def get_cached_available_domain_storage_pool_id(domain_id):
 
 ## Config
 
+config_cache = TTLCache(maxsize=1, ttl=60)
 
-@cached(cache=TTLCache(maxsize=1, ttl=60))
+
+@cached(config_cache)
 def get_config():
     with app.app_context():
         return r.table("config").get(1).run(db.conn)

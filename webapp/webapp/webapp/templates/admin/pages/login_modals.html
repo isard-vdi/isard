@@ -1,0 +1,154 @@
+<div class="modal fade" id="modalEditLoginNotification" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-pencil fa-1x"></i> Edit login notification
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalEditLoginNotificationForm">
+                    <div class="col-md-6 col-sm-6 col-xs-12" id="cover-panel">
+                        <h4>Left login area <small>Over the cover image</small></h4> 
+                        <div class="row">
+                            <div class="col-md-11">
+                                <label for="cover_icon">Icon: </label>
+                                <select name="cover_icon" id="cover_icon" class="form-control roundbox" style="margin-bottom: 1rem;">
+                                    <option selected value="null">None</option>
+                                    <option value="info-circle"><i class="fa fa-info-circle"></i> Info</option>
+                                    <option value="alert-triangle"><i class="fa fa-exclamation-triangle"></i> Warning</option>
+                                    <option value="tool-01"><i class="fa fa-wrench"></i> Maintenance</option>
+                                </select>
+                            </div>
+                            <i id="icon_display" class="fa roundbox" style="margin-top: 2.5rem;padding: 7px;"></i>
+                        </div>
+                    
+                        <label for="cover_title">Title: </label>
+                        <input type="text" name="cover_title" id="cover_title" class="form-control roundbox" maxlength="150"
+                            data-parsley-length="[1, 150]" data-parsley-trigger="change" style="margin-bottom: 1rem;"
+                            placeholder="Title of the notification.">
+                    
+                        <label for="cover_description">Description: </label>
+                        <textarea name="cover_description" id="cover_description" rows="4" class="form-control roundbox" maxlength="500"
+                            data-parsley-length="[1, 500]" data-parsley-trigger="change"
+                            style="width: 100%; resize: vertical; margin-bottom: 1rem;" placeholder="Body of the notification"></textarea>
+                    
+                        <div class="row">
+                            <div class="col-md-6 col-xs-12 ">
+                                <label for="cover_link_text">Link text: </label>
+                                <input type="text" name="cover_link_text" id="cover_link_text" class="ol-xs-12 form-control roundbox"
+                                    maxlength="50" data-parsley-length="[1, 50]" data-parsley-trigger="change" style="margin-bottom: 1rem;"
+                                    placeholder="Click here">
+                            </div>
+                            <div class="col-md-6 col-xs-12 ">
+                                <label for="cover_link_url">Link URL: </label>
+                                <input type="text" name="cover_link_url" id="cover_link_url" class="form-control roundbox"
+                                    data-parsley-trigger="change" style="margin-bottom: 1rem;" placeholder="https://www.example.com">
+                            </div>
+                        </div>
+                    
+                        <div class="row">
+                            <div class="col-md-8 col-xs-12 ">
+                                <label for="cover_link_color">Link color: </label>
+                                <input type="color" name="cover_link_color" id="cover_link_color" class="form-control roundbox"
+                                    style="margin-bottom: 1rem;" data-parsley-trigger="change">
+                            </div>
+                            <div class="col-md-4 col-xs-12" style="margin-top:2rem;">
+                                <button type="button" class="btn btn-primary btn-default-link-color">Use default color</button>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-8 col-xs-12">
+                                <label for="cover_background_color">Notification background color: </label>
+                                <input type="color" name="cover_background_color" id="cover_background_color" class="form-control roundbox"
+                                    style="margin-bottom: 1rem;" data-parsley-trigger="change">
+                            </div>
+                            <div class="col-md-4 col-xs-12 " style="margin-top:2rem;">
+                                <button type="button" class="btn btn-primary btn-default-background-color">Use default color</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 col-sm-6 col-xs-12" id="form-panel">
+                    <h4>Right login area <small>On top of the login form</small></h4>
+                    <div class="row">
+                        <div class="col-md-11">
+                            <label for="form_icon">Icon: </label>
+                            <select name="form_icon" id="form_icon" class="form-control roundbox" style="margin-bottom: 1rem;">
+                                <option selected value="null">None</option>
+                                <option value="info-circle"><i class="fa fa-info-circle"></i> Info</option>
+                                <option value="alert-triangle"><i class="fa fa-exclamation-triangle"></i> Warning</option>
+                                <option value="tool-01"><i class="fa fa-wrench"></i> Maintenance</option>
+                            </select>
+                        </div>
+                        <i id="icon_display" class="fa roundbox" style="margin-top: 2.5rem;padding: 7px;"></i>
+                    </div>
+
+                    <label for="form_title">Title: </label>
+                    <input type="text" name="form_title" id="form_title" class="form-control roundbox" maxlength="150"
+                        data-parsley-length="[1, 150]" data-parsley-trigger="change" style="margin-bottom: 1rem;"
+                        placeholder="Title of the notification.">
+
+                    <label for="form_description">Description: </label>
+                    <textarea name="form_description" id="form_description" rows="4" class="form-control roundbox" maxlength="500"
+                        data-parsley-length="[1, 500]" data-parsley-trigger="change"
+                        style="width: 100%; resize: vertical; margin-bottom: 1rem;" placeholder="Body of the notification"></textarea>
+
+                    <div class="row">
+                        <div class="col-md-6 col-xs-12 ">
+                            <label for="form_link_text">Link text: </label>
+                            <input type="text" name="form_link_text" id="form_link_text" class="ol-xs-12 form-control roundbox"
+                                maxlength="50" data-parsley-length="[1, 50]" data-parsley-trigger="change" style="margin-bottom: 1rem;"
+                                placeholder="Click here">
+                        </div>
+                        <div class="col-md-6 col-xs-12 ">
+                            <label for="form_link_url">Link URL: </label>
+                            <input type="text" name="form_link_url" id="form_link_url" class="form-control roundbox"
+                                data-parsley-trigger="change" style="margin-bottom: 1rem;" placeholder="https://www.example.com">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8 col-xs-12 ">
+                            <label for="form_link_color">Link color: </label>
+                            <input type="color" name="form_link_color" id="form_link_color" class="form-control roundbox"
+                                style="margin-bottom: 1rem;" data-parsley-trigger="change">
+                        </div>
+                        <div class="col-md-4 col-xs-12" style="margin-top:2rem;">
+                            <button type="button" class="btn btn-primary btn-default-link-color">Use default color</button>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-8 col-xs-12">
+                            <label for="form_background_color">Notification background color: </label>
+                            <input type="color" name="form_background_color" id="form_background_color" class="form-control roundbox"
+                                style="margin-bottom: 1rem;" data-parsley-trigger="change">
+                        </div>
+                        <div class="col-md-4 col-xs-12 " style="margin-top:2rem;">
+                            <button type="button" class="btn btn-primary btn-default-background-color">Use default color</button>
+                        </div>
+                    </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-info">Edit</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

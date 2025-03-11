@@ -589,6 +589,10 @@
         "type": "object",
         "title": "Config of the notification that will be shown",
         "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Whether the notification is enabled"
+          },
           "icon": {
             "type": "string",
             "title": "The icon that the notification will have"

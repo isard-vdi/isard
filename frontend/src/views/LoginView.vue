@@ -545,7 +545,7 @@ watch(categoryError, (newErr) => {
     :title="category?.name || config?.info?.title"
     :description="categorySelectToken ? t('views.login.select-category') : description"
   >
-    <template v-if="config?.notification_cover" #cover>
+    <template v-if="config?.notification_cover?.enabled" #cover>
       <LoginNotification :config="config.notification_cover" class="border-error-600" />
     </template>
 
@@ -558,7 +558,10 @@ watch(categoryError, (newErr) => {
         }}</Alert>
 
         <template v-else>
-          <LoginNotification v-if="config?.notification_form" :config="config.notification_form" />
+          <LoginNotification
+            v-if="config?.notification_form?.enabled"
+            :config="config.notification_form"
+          />
           <Alert v-if="loginError" variant="destructive">
             <AlertDescription>{{ loginErrorMsg }}</AlertDescription>
           </Alert>

@@ -1,0 +1,4 @@
+cover:
+  schema: login_notification
+form:
+  schema: login_notification

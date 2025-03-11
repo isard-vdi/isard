@@ -1,0 +1,96 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    #preview-panel {
+        background-color: aliceblue;
+    }
+
+    #preview-panel .x_panel {
+        border: 1px solid hsl(23, 7%, 83%, 1);
+        border-radius: 12px;
+        color: #56524d;
+        width: 47%;
+        margin-right: 3%;
+    }
+
+    #preview-panel #cover_panel {
+        border-color: #bf4a4c;
+    }
+
+    #preview-panel #form_panel {
+        border-color: #d8d4d2;
+    }
+
+    #preview-panel .x_panel i {
+        padding: 0.5rem;
+    }
+
+    #preview-panel .x_panel .notification-body {
+        margin-left: 2.5rem;
+    }
+
+    .disabled-preview {
+        opacity: 50%;
+    }
+</style>
+
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="page-title">
+                <div class="title_left">
+                    <h3><i class="fa fa-cogs"></i> Login <small> Isard login page configurations</small></h3>
+                </div>
+            </div>
+            <div class="clearfix"></div>
+        </div>
+    </div>
+</div>
+
+<div class="clearfix"></div>
+
+<div class="row">
+    <div class="col-md-6 col-sm-12 col-xs-12">
+        <div class="x_panel" id="LoginNotificationsPanel">
+            <div class="x_title">
+                <h3><i class="fa fa-file-text-o"></i> Login Notifications <small> Notification contents for the login
+                        page</small></h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <a id="btnEditLoginNotification"><span style="color: #5499c7;">
+                            <i class="fa fa-pencil"></i> Edit</span>
+                        </a>
+                    </li>
+                </ul>
+                <div class="clearfix"></div>
+            </div>
+            <div>
+                <div class="x_content">
+                    <span id="enable_cover_notification_wrapper" class="col-md-6 col-sm-6 col-xs-12">
+                        <input id="enable_cover_notification_checkbox" type="checkbox">
+                        <label for="enable_cover_notification_checkbox">Enable left login notification</label>
+                    </span>
+                    <span id="enable_form_notification_wrapper" class="col-md-6 col-sm-6 col-xs-12">
+                        <input id="enable_form_notification_checkbox" type="checkbox">
+                        <label for="enable_form_notification_checkbox">Enable right login notification</label>
+                    </span>
+                </div>
+                <hr>
+            </div>
+            <div class="x_panel" id="preview-panel"></div>
+        </div>
+    </div>
+    <div class="clearfix"></div>
+</div>
+
+
+{% include '/snippets/alloweds_form.html' %}
+{% include '/admin/pages/login_modals.html' %}
+{% endblock %}
+{% block pagescript %}
+<script src="/isard-admin/static/js/restful.js"></script>
+<script src="/isard-admin/static/admin/js/login.js"></script>
+<script src="/isard-admin/static/js/snippets/form_items.js"></script>
+{% endblock %}

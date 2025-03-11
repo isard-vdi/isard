@@ -543,6 +543,15 @@ def admin_system():
     )
 
 
+@app.route("/isard-admin/admin/login", methods=["GET"])
+@login_required
+@isAdmin
+def admin_login():
+    return render_webapp(
+        "admin/pages/login.html", nav="Login config", title="Login configuration"
+    )
+
+
 """
 ANALYTICS
 """

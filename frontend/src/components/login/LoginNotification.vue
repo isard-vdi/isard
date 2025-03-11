@@ -12,7 +12,10 @@ const props = defineProps<Props>()
 </script>
 
 <template>
-  <Alert class="bg-white border-gray-warm-300">
+  <Alert
+    class="bg-white border-gray-warm-300"
+    :style="'white-space: pre-wrap; ' + props.config.extra_styles"
+  >
     <Icon
       v-if="props.config.icon"
       :name="props.config.icon"
@@ -23,7 +26,7 @@ const props = defineProps<Props>()
       <p v-if="props.config.description">{{ props.config.description }}</p>
 
       <Button
-        v-if="props.config.button"
+        v-if="props.config.button?.text && props.config.button?.url"
         hierarchy="link-color"
         class="p-0 mt-4"
         as="a"

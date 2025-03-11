@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 159
+release_version = 160
+# release 160: Add enabled field to login notifications
 # release 159: Add nonpersistent desktops delete timeout to config table
 # release 158: Add unused_desktops notification template
 # release 157: Add unused_desktops_cutoff_time field to config table
@@ -675,6 +676,7 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
         if version == 155:
             try:
                 r.table(table).get(1).update(
@@ -747,6 +749,99 @@ password:s:%s"""
                 r.table(table).get(1).update(
                     {"nonpersistent_desktops_inactivity_limit": 60}  # 60 minutes
                 ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 160:
+            try:
+                current_login_config = (
+                    r.table("config")
+                    .get(1)
+                    .run(self.conn)
+                    .get(
+                        "login",
+                        {
+                            "notification_cover": {
+                                "enabled": False,
+                                "title": None,
+                                "description": None,
+                                "icon": None,
+                                "extra_styles": None,
+                                "button": {
+                                    "extra_styles": None,
+                                    "text": None,
+                                    "url": None,
+                                },
+                            },
+                            "notification_form": {
+                                "enabled": False,
+                                "title": None,
+                                "description": None,
+                                "icon": None,
+                                "extra_styles": None,
+                                "button": {
+                                    "extra_styles": None,
+                                    "text": None,
+                                    "url": None,
+                                },
+                            },
+                        },
+                    )
+                )
+                notification_cover = (
+                    current_login_config.get("notification_cover") or {}
+                )
+                notification_form = current_login_config.get("notification_form") or {}
+                login_config = {
+                    "notification_cover": {
+                        "enabled": (
+                            True
+                            if notification_cover.get("title")
+                            or notification_cover.get("description")
+                            or (
+                                notification_cover.get("button", {}).get("text")
+                                and notification_cover.get("button", {}).get("url")
+                            )
+                            else False
+                        ),
+                        "title": notification_cover.get("title"),
+                        "description": notification_cover.get("description"),
+                        "icon": notification_cover.get("icon"),
+                        "extra_styles": notification_cover.get("extra_styles"),
+                        "button": {
+                            "extra_styles": notification_cover.get("button", {}).get(
+                                "extra_styles"
+                            ),
+                            "text": notification_cover.get("button", {}).get("text"),
+                            "url": notification_cover.get("button", {}).get("url"),
+                        },
+                    },
+                    "notification_form": {
+                        "enabled": (
+                            True
+                            if notification_form.get("title")
+                            or notification_form.get("description")
+                            or (
+                                notification_form.get("button", {}).get("text")
+                                and notification_form.get("button", {}).get("url")
+                            )
+                            else False
+                        ),
+                        "title": notification_form.get("title"),
+                        "description": notification_form.get("description"),
+                        "icon": notification_form.get("icon"),
+                        "extra_styles": notification_form.get("extra_styles"),
+                        "button": {
+                            "extra_styles": notification_form.get("button", {}).get(
+                                "extra_styles"
+                            ),
+                            "text": notification_form.get("button", {}).get("text"),
+                            "url": notification_form.get("button", {}).get("url"),
+                        },
+                    },
+                }
+
+                r.table("config").get(1).update({"login": login_config}).run(self.conn)
             except Exception as e:
                 print(e)
 
