@@ -680,6 +680,7 @@ class Storage(RethinkCustomBase):
     ):
         """
         Create a task to delete the storage.
+        This task will delete the storages but will not delete the domains.
 
         :param user_id: User ID of the user executing the task
         :type user_id: str
@@ -688,6 +689,9 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
+        domains_to_failed = [domain.id for domain in self.domains]
+        domains_to_failed.extend([domain.id for domain in self.domains_derivatives])
+
         self.set_maintenance("delete")
         self.create_task(
             user_id=user_id,
@@ -709,10 +713,23 @@ class Storage(RethinkCustomBase):
                                     "ready": {
                                         "storage": [self.id],
                                     },
+                                    "Stopped": {
+                                        "domain": [
+                                            domain.id for domain in self.domains
+                                        ],
+                                    },
                                 },
                                 "finished": {
                                     "deleted": {
                                         "storage": [self.id],
+                                    },
+                                    "orphan": {
+                                        "storage": [
+                                            storage.id for storage in self.derivatives
+                                        ]
+                                    },
+                                    "Failed": {
+                                        "domain": domains_to_failed,
                                     },
                                 },
                             },
