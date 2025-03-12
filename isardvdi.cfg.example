@@ -1,4 +1,4 @@
-# Isard main config v2.21.0
+# Isard main config v2.22.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -638,6 +638,11 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## Amount of workers used by the isard-storage service
 ## WARNING: The increase of workers could lead to cpu overload
 #REDIS_WORKERS=1
+
+# Redis task result TTL
+## The time to live of the task results in the redis database in seconds
+## Default is 30 days. Set it to -1 so the results never expire
+#REDIS_TASK_RESULT_TTL=2592000
 
 ##################################################################
 ## STATS PARAMETERS                                             ##

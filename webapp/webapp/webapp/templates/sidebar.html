@@ -164,7 +164,12 @@
           {% if show_operations == true %}
             <li><a href="/isard-admin/admin/operations"><i class="fa fa-gears"></i> Operations</a></li>
           {% endif %}
-          <li><a href="/isard-admin/admin/queues"><i class="fa fa-tasks"></i> Tasks</a></li>
+          <li><a href="/isard-admin/admin/queues"><i class="fa fa-tasks"></i> Tasks<span
+                class="fa fa-chevron-down"></span></a>
+            <ul class="nav child_menu">
+              <li><a href="/isard-admin/admin/queues_config"><i class="fa fa-gears"></i> Config</a></li>
+            </ul>
+          </li>
           <li><a href="/isard-admin/admin/storage_pools"><i class="fa fa-object-group"></i> Storage Pools</a></li>
         </ul>
       </li>

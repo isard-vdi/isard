@@ -359,3 +359,32 @@ def add_logs_users_entries(payload, action):
             200,
             {"Content-Type": "application/json"},
         )
+
+
+@app.route("/scheduler/queues/old_tasks/<action>", methods=["PUT"])
+@is_admin
+def add_queues_old_tasks(payload, action):
+    # if action not in ["archive", "delete"]:
+    #     raise Error("bad_request", 'Action must be "archive" or "delete"')
+    if action not in ["delete", "none"]:
+        raise Error("bad_request", 'Action must be "delete"')
+    # app.scheduler.remove_job(f"queues_old_tasks_action_archive")
+    app.scheduler.remove_job(f"queues_old_tasks_action_delete")
+    if action == "none":
+        return (json.dumps({}), 200, {"Content-Type": "application/json"})
+    else:
+        return (
+            json.dumps(
+                app.scheduler.add_job(
+                    "system",
+                    "cron",
+                    f"queues_old_tasks_action_{action}",
+                    "22",
+                    "30",
+                    f"queues_old_tasks_action_{action}",
+                    kwargs={},
+                )
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )

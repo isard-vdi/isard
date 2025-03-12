@@ -588,3 +588,9 @@ class Actions:
 
     def nonpersistent_delete_timeout(**kwargs):
         api_client.delete(f'/nonpersistent/{kwargs["desktop_id"]}')
+
+    def queues_old_tasks_action_delete_kwargs(**kwargs):
+        return []
+
+    def queues_old_tasks_action_delete(**kwargs):
+        api_client.delete("/redis/old_tasks/auto")

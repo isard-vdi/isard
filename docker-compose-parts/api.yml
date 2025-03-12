@@ -51,6 +51,7 @@ services:
       REDIS_HOST:
       REDIS_PORT:
       REDIS_PASSWORD:
+      REDIS_TASK_RESULT_TTL:
       WEBAPP_ADMIN_PWD:
       NEXTCLOUD_INSTANCE:
       HTTP_PORT:
