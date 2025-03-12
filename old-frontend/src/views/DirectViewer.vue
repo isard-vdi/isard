@@ -13,7 +13,7 @@
       >
         <b-row class="justify-content-center align-content-center h-100">
           <b-alert
-            v-if="loginConfig.notification_cover"
+            v-if="loginConfig.notification_cover.enabled"
             variant="danger"
             show
             class="text-center"
