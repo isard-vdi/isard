@@ -358,7 +358,7 @@ def _parse_deployment_desktop(desktop):
 
 
 def _parse_desktop_booking(desktop):
-    if not desktop["create_dict"].get("reservables") or not any(
+    if not desktop.get("create_dict", {}).get("reservables") or not any(
         list(desktop["create_dict"]["reservables"].values())
     ):
         return {
