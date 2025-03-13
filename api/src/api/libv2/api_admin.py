@@ -640,34 +640,45 @@ class ApiAdmin:
                 traceback.format_exc(),
             )
 
-    def ListTemplates(self):
-        query = r.table("categories").eq_join(
-            "id", r.table("groups"), index="parent_category"
-        )
-        query = query.map(
-            lambda doc: {
-                "group_id": doc["right"]["id"],
-                "group_name": doc["right"]["name"],
-                "category_id": doc["left"]["id"],
-                "category_name": doc["left"]["name"],
-            }
-        )
-        query = query.eq_join("group_id", r.table("domains"), index="group").filter(
-            {"right": {"kind": "template"}}
-        )
-        query = query.merge(
-            lambda doc: {
-                "right": r.table("users")
-                .get(doc["right"]["user"])
-                .pluck("name")
-                .merge(lambda user: {"user_name": user["name"]})
-                .without("name")
-            }
-        )
+    def ListTemplates(self, category=None):
+        if not category:
+            query = r.table("domains").get_all("template", index="kind")
+        else:
+            query = r.table("domains").get_all(
+                ["template", category], index="kind_category"
+            )
 
-        query = query.pluck(
-            {
-                "right": [
+        query = (
+            query.eq_join("group", r.table("groups"))
+            .map(
+                lambda template: template["left"]
+                .merge(
+                    {
+                        "group_id": template["right"]["id"],
+                        "group_name": template["right"]["name"],
+                        "category_id": template["right"]["parent_category"],
+                    }
+                )
+                .without("right")
+            )
+            .eq_join("category_id", r.table("categories"))
+            .map(
+                lambda template: template["left"]
+                .merge(
+                    {
+                        "category_name": template["right"]["name"],
+                    }
+                )
+                .without("right")
+            )
+            .eq_join("user", r.table("users"))
+            .map(
+                lambda template: template["left"].merge(
+                    {"user_name": template["right"]["name"]}
+                )
+            )
+            .pluck(
+                [
                     "id",
                     "icon",
                     "image",
@@ -687,20 +698,19 @@ class ApiAdmin:
                     "forced_hyp",
                     "favourite_hyp",
                     "category",
-                ],
-                "left": ["group_name", "category_name"],
-            }
-        ).zip()
-
-        query = query.merge(
-            lambda domain: {
-                "derivates": r.table("domains")
-                .get_all(domain["id"], index="parents")
-                .distinct()
-                .count(),
-            }
+                    "group_name",
+                    "category_name",
+                ]
+            )
+            .merge(
+                lambda domain: {
+                    "derivates": r.table("domains")
+                    .get_all(domain["id"], index="parents")
+                    .distinct()
+                    .count(),
+                }
+            )
         )
-
         with app.app_context():
             return list(query.run(db.conn))
 
