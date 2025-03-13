@@ -1,0 +1,18 @@
+allowed:
+  schema: allowed
+cutoff_time: 
+  type: integer
+  nullable: true
+description: 
+  type: string
+  coerce: sanitize
+  maxlength: 255
+name:
+  type: string
+  coerce: sanitize
+  maxlength: 50
+op:
+  type: string
+  coerce: sanitize
+priority:
+  type: integer

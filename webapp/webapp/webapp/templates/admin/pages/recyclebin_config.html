@@ -18,7 +18,8 @@
 <div class="clearfix"></div>
 
 <div class="row">
-    <div class="col-md-6 col-sm-12 col-xs-12">
+  
+    <div class="col-md-6 col-sm-6 col-xs-12">
         <div class="x_panel">
             <div class="x_title">
                 <h3><i class="fa fa-archive"></i> Old entries </h3><br>
@@ -109,7 +110,30 @@
         </div>
     </div>
 </div>
+<div class="row">
+    <div class="col-md-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-hourglass-o"></i> Unused items rules <small> Automatically move unused items to the recycle bin based on user, group, category, or role and a priority system</small></h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                      <a class="btn btn-add-unused-desktop-rule"><span style="color: #5499c7"><i
+                        class="fa fa-plus"></i> Add rule</span>
+                      </a>
+                    </li>
+                  </ul>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <table class="table" id="unused-desktops-table"><tfoot></tfoot>
+                </table>
+              </div>
+        </div>
+    </div>
+</div>
 
+{% include '/snippets/alloweds_form.html' %}
+{% include '/admin/pages/recyclebin_config_modals.html' %}
 {% endblock %}
 
 {% block pagescript %}
