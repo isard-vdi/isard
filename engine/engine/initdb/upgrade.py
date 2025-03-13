@@ -18,7 +18,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 161
+release_version = 162
+# release 162: Add unused_deployments notification template
+#              Add send_unused_deployments_to_recycle_bin rule to unused_item_timeouts table
 # release 161: Delete the unused_desktops_cutoff_time field from the config table
 # release 160: Add enabled field to login notifications
 # release 159: Add nonpersistent desktops delete timeout to config table
@@ -204,6 +206,9 @@ tables = [
     "notification_tmpls",
     "system_events",
     "bookings",
+    "unused_item_timeout",
+    "notifications",
+    "notifications_action",
 ]
 
 
@@ -5850,6 +5855,48 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 162:
+            try:
+                r.table(table).insert(
+                    [
+                        {
+                            "default": "en",
+                            "description": "Text that will be associated with each notification sent to the user when a deployment is not used for a long time and is sent to the recycle bin.",
+                            "kind": "unused_deployments",
+                            "lang": {
+                                "ca": {
+                                    "body": "<p>El desplegament <b>{name}</b>, que va ser utilitzat per últim cop en data <b>{accessed}</b>.</p>",
+                                    "footer": "Si us plau, esborreu els desplegaments que ja no s'utilitzaran.",
+                                    "title": "Desplegaments sense utilitzar han estat eliminats",
+                                },
+                                "en": {
+                                    "body": "<p>Deployment <b>{name}</b>, last time used at <b>{accessed}</b>.</p>",
+                                    "footer": "Please, delete deployments that won't be used anymore.",
+                                    "title": "Unused deployments have been deleted",
+                                },
+                                "es": {
+                                    "body": "<p>El despliegue <b>{name}</b>, que fue utilizado por última vez en fecha <b>{accessed}</b>.</p>",
+                                    "footer": "Por favor, elimine los despliegues que ya no se utilizarán.",
+                                    "title": "Despliegues sin utilizar han sido eliminados",
+                                },
+                            },
+                            "name": "Send unused deployments to recycle bin",
+                            "system": {
+                                "body": "<p>Deployment <b>{name}</b>, last time used at <b>{accessed}</b>.</p>",
+                                "footer": "Please, delete desployments that won't be used anymore.",
+                                "title": "Unused deployments have been deleted",
+                            },
+                            "vars": {
+                                "name": "Testing environment deployment",
+                                "accessed": "12 Mar 2024 13:00",
+                            },
+                        },
+                    ]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -5880,6 +5927,93 @@ password:s:%s"""
                     .run(self.conn)
                 )
                 print(result)
+            except Exception as e:
+                print(e)
+        return True
+
+    """
+    UNUSED ITEMS TIMEOUT TABLE UPGRADES
+    """
+
+    def unused_item_timeout(self, version):
+        table = "unused_item_timeout"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+        if version == 162:
+            try:
+                r.table(table).insert(
+                    {
+                        "name": "default",
+                        "op": "send_unused_deployments_to_recycle_bin",
+                        "description": "Keep only the deployments that desktops that have been used in the last selected cutoff time. Send the rest of unused deployments to recycle bin automatically.",
+                        "allowed": {
+                            "roles": [],  ## Matches all
+                            "categories": False,
+                            "groups": False,
+                            "users": False,
+                        },
+                        "priority": 0,
+                        "cutoff_time": None,
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+        return True
+
+    """
+    NOTIFICATIONS TABLE UPGRADES
+    """
+
+    def notifications(self, version):
+        table = "notifications"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+        if version == 162:
+            try:
+                r.table(table).insert(
+                    [
+                        {
+                            "name": "User unused deployments have been sent to the recycle bin",
+                            "action_id": "unused_deployments",
+                            "allowed": {
+                                "roles": False,
+                                "categories": False,
+                                "groups": False,
+                                "users": False,
+                            },
+                            "trigger": "login",
+                            "item_type": "deployment",
+                            "template_id": "",
+                            "display": ["fullpage"],
+                            "order": 0,
+                            "force_accept": False,
+                            "enabled": False,
+                            "ignore_after": r.epoch_time(
+                                0
+                            ),  # Defines the time the notification data will be ignored. In this case it will be specified in each notification_data entry
+                            "keep_time": 0,  # Defines the amount of hours the notification data will be kept
+                        }
+                    ]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+        return True
+
+    """
+    NOTIFICATIONS ACTION TABLE UPGRADES
+    """
+
+    def notifications_action(self, version):
+        table = "notifications_action"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+        if version == 162:
+            try:
+                r.table(table).insert(
+                    {
+                        "description": "Unused deployments are automatically recycled by the system",
+                        "id": "unused_deployments",
+                        "kwargs": ["id", "user", "co_owners", "name", "accessed"],
+                        "compute": None,
+                    }
+                ).run(self.conn)
             except Exception as e:
                 print(e)
         return True

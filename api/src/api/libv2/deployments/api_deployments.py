@@ -8,8 +8,11 @@
 import copy
 import csv
 import io
+import logging as log
 import os
+import time
 import traceback
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from api.libv2.quotas import Quotas
@@ -50,10 +53,12 @@ from ..helpers import (
     _parse_deployment_booking,
     _parse_deployment_desktop,
     change_owner_deployments,
+    gen_payload_from_user,
     get_new_user_data,
     parse_domain_insert,
     parse_domain_update,
 )
+from ..rules import get_unused_item_timeout
 from ..validators import _validate_item
 
 apib = Bookings()
@@ -1036,3 +1041,90 @@ def get_deployment_permissions(deployment_id):
             description_code="not_found",
         )
     return users_permissions
+
+
+def get_unused_deployments():
+    """
+    Retrieve a list of unused deployments that have not been accessed considering the specified cutoff time in the unused_item_timeout table.
+
+    :return: List of deployments that have not been accessed within the specified cutoff_time.
+    :rtype: list
+    """
+    deployments = []
+    start = absolute_start = time.time()
+
+    with app.app_context():
+        users_with_deployments = list(
+            r.table("deployments").pluck("user").distinct()["user"].run(db.conn)
+        )
+
+    log.debug(
+        "api_deployments get unused desktops: Retrieved users with desktops in %s seconds",
+        time.time() - start,
+    )
+
+    for user in users_with_deployments:
+        start = time.time()
+        try:
+            payload = gen_payload_from_user(user)
+            user_timeout_rule = get_unused_item_timeout(
+                payload, "send_unused_deployments_to_recycle_bin"
+            )
+        except TypeError as e:
+            # If the user does not exist then send to the recycle bin all of its deployments
+            log.error(
+                "api_deployments get unused deployments: Could not generate payload for user %s",
+                user,
+            )
+            user_timeout_rule = {"cutoff_time": 0}
+            pass
+
+        log.debug(
+            "api_deployments get unused desktops: User %s applied rule %s",
+            user,
+            user_timeout_rule,
+        )
+        if user_timeout_rule is False or user_timeout_rule["cutoff_time"] is None:
+            continue
+        cutoff_time = timedelta(days=user_timeout_rule["cutoff_time"] * 30)
+        cutoff_timestamp = (datetime.now() - cutoff_time).timestamp()
+        with app.app_context():
+            user_deployments = list(
+                r.table("deployments")
+                .get_all(user, index="user")
+                .eq_join("id", r.table("domains"), index="tag")
+                .pluck(
+                    {"left": ["id", "user", "name", "co_owners"]},
+                    {"right": ["accessed"]},
+                )
+                .group(r.row["left"]["id"])
+                .max(r.row["right"]["accessed"])
+                .ungroup()
+                .filter(
+                    lambda row: row["reduction"]["right"]["accessed"] < cutoff_timestamp
+                )
+                .map(
+                    lambda row: {
+                        "id": row["reduction"]["left"]["id"],
+                        "accessed": row["reduction"]["right"]["accessed"],
+                        "user": row["reduction"]["left"]["user"],
+                        "name": row["reduction"]["left"]["name"],
+                        "co_owners": row["reduction"]["left"]["co_owners"],
+                    }
+                )
+                .run(db.conn)
+            )
+
+        log.debug(
+            "api_deployments get unused desktops: Retrieved deployments and applied rule in %s seconds",
+            time.time() - start,
+        )
+
+        deployments += user_deployments
+
+    log.debug(
+        "api_deployments get unused deployments: Retrieved users with deployments in %s seconds",
+        time.time() - absolute_start,
+    )
+
+    return deployments
