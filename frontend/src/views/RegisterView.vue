@@ -322,7 +322,7 @@ watch(config, (newCfg) => {
     :hide-logo="config?.logo?.hide"
     :title="t('views.register.title')"
   >
-    <template v-if="config?.notification_cover" #cover>
+    <template v-if="config?.notification_cover?.enabled" #cover>
       <LoginNotification :config="config.notification_cover" class="border-error-600" />
     </template>
 
@@ -335,7 +335,10 @@ watch(config, (newCfg) => {
         }}</Alert>
 
         <template v-else>
-          <LoginNotification v-if="config?.notification_form" :config="config.notification_form" />
+          <LoginNotification
+            v-if="config?.notification_form?.enabled"
+            :config="config.notification_form"
+          />
           <Alert v-if="registerError" variant="destructive">
             <AlertDescription>{{ registerErrorMsg }}</AlertDescription>
           </Alert>
