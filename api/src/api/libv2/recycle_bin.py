@@ -644,23 +644,6 @@ def get_delete_action():
             return "delete"
 
 
-def get_unused_desktops_cutoff_time():
-    with app.app_context():
-        try:
-            return r.table("config")[0]["recycle_bin"][
-                "unused_desktops_cutoff_time"
-            ].run(db.conn)
-        except r.ReqlNonExistenceError:
-            return None
-
-
-def set_unused_desktops_cutoff_time(cutoff_time):
-    with app.app_context():
-        r.table("config").get(1).update(
-            {"recycle_bin": {"unused_desktops_cutoff_time": cutoff_time}}
-        ).run(db.conn)
-
-
 def send_socket_user(kind, data, owner_id):
     socketio.emit(
         kind,

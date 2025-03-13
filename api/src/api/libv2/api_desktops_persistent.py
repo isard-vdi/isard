@@ -7,6 +7,7 @@
 
 import copy
 import json
+import logging as log
 import secrets
 import time
 import traceback
@@ -81,6 +82,7 @@ from .helpers import (
     parse_domain_update,
     set_current_booking,
 )
+from .rules import get_unused_item_timeout
 
 MIN_AUTOBOOKING_TIME = 30
 MAX_BOOKING_TIME = 12 * 60  # 12h
@@ -1288,43 +1290,94 @@ def get_deployments_with_resource(table, item):
         )
 
 
-def get_unused_desktops(cutoff_time, from_deployments=False):
+def get_unused_desktops(from_deployments=False):
     """
-    Retrieve a list of unused desktops that have not been accessed within the specified maximum delete period.
+    Retrieve a list of unused desktops that have not been accessed considering the specified cutoff time defined in the unused_item_timeout table.
 
-    :param cutoff_time: The maximum period during which a desktop can be unused before being considered for deletion.
-    :type cutoff_time: timedelta
-    :return: A list of desktops that have not been accessed within the specified maximum delete period.
+    :return: A list of desktops that have not been accessed within the specified cutoff_time.
     :rtype: list
     """
 
-    cutoff_timestamp = (datetime.now() - cutoff_time).timestamp()
-    query = r.row["accessed"] < cutoff_timestamp
-    if not from_deployments:
-        query = query & (r.row["tag"] == False)
+    desktops = []
+    start = absolute_start = time.time()
 
     with app.app_context():
-        desktops = (
-            list(
-                r.table("domains")
-                .get_all(["desktop", "Stopped"], index="kind_status")
-                .filter(query)
-                .pluck("id", "user", "name", "accessed")
-                .run(db.conn)
+        users_with_desktops = list(
+            r.table("domains")
+            .get_all(
+                r.args(
+                    [
+                        ["desktop", "Stopped"],
+                        ["desktop", "Maintenance"],
+                        ["desktop", "Failed"],
+                    ]
+                ),
+                index="kind_status",
             )
-            + list(
-                r.table("domains")
-                .get_all(["desktop", "Maintenance"], index="kind_status")
-                .filter(query)
-                .pluck("id", "user", "name", "accessed")
-                .run(db.conn)
-            )
-            + list(
-                r.table("domains")
-                .get_all(["desktop", "Failed"], index="kind_status")
-                .filter(query)
-                .pluck("id", "user", "name", "accessed")
-                .run(db.conn)
-            )
+            .pluck("user")
+            .distinct()["user"]
+            .run(db.conn)
         )
+
+    log.debug(
+        "api_desktops_persistent get unused desktops: Retrieved users with desktops in %s seconds",
+        time.time() - start,
+    )
+
+    for user in users_with_desktops:
+        start = time.time()
+        try:
+            payload = gen_payload_from_user(user)
+            user_timeout_rule = get_unused_item_timeout(
+                payload, "send_unused_desktops_to_recycle_bin"
+            )
+        except TypeError as e:
+            # If the user does not exist then send to the recycle bin all of its deployments
+            log.error(
+                "api_desktops_persistent get unused desktops: Could not generate payload for user %s",
+                user,
+            )
+            user_timeout_rule = {"cutoff_time": 0}
+
+        if user_timeout_rule is False or user_timeout_rule["cutoff_time"] is None:
+            continue
+        log.debug(
+            "api_desktops_persistent get unused desktops: User %s applied rule %s",
+            user,
+            user_timeout_rule,
+        )
+        cutoff_time = timedelta(days=user_timeout_rule["cutoff_time"] * 30)
+        cutoff_timestamp = (datetime.now() - cutoff_time).timestamp()
+        query = r.row["accessed"] < cutoff_timestamp
+        if not from_deployments:
+            query = query & (r.row["tag"] == False)
+
+        with app.app_context():
+            user_desktops = list(
+                r.table("domains")
+                .get_all(
+                    r.args(
+                        [
+                            ["desktop", "Stopped", user],
+                            ["desktop", "Maintenance", user],
+                            ["desktop", "Failed", user],
+                        ]
+                    ),
+                    index="kind_status_user",
+                )
+                .filter(query)
+                .pluck("id", "user", "name", "accessed")
+                .run(db.conn)
+            )
+        log.debug(
+            "api_desktops_persistent get unused desktops: Retrieved user unused desktops and applied rule in %s seconds",
+            time.time() - start,
+        )
+        desktops += user_desktops
+
+    log.debug(
+        "api_desktops_persistent get unused desktops: Retrieved users with desktops in %s seconds",
+        time.time() - absolute_start,
+    )
+
     return desktops

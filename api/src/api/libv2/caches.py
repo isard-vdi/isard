@@ -453,3 +453,17 @@ def get_cached_users_migrations_exceptions():
     groups = [item["item_id"] for item in data if item["item_type"] == "groups"]
     users = [item["item_id"] for item in data if item["item_type"] == "users"]
     return {"roles": roles, "categories": categories, "groups": groups, "users": users}
+
+
+## Unused item timeout
+
+
+@cached(cache=TTLCache(maxsize=5, ttl=60))
+def get_cached_unused_item_timeout_by_op(op):
+    with app.app_context():
+        return list(
+            r.table("unused_item_timeout")
+            .filter({"op": op})
+            .order_by(r.desc("priority"))
+            .run(db.conn)
+        )

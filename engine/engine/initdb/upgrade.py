@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 160
+release_version = 161
+# release 161: Delete the unused_desktops_cutoff_time field from the config table
 # release 160: Add enabled field to login notifications
 # release 159: Add nonpersistent desktops delete timeout to config table
 # release 158: Add unused_desktops notification template
@@ -842,6 +843,13 @@ password:s:%s"""
                 }
 
                 r.table("config").get(1).update({"login": login_config}).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 161:
+            try:
+                self.del_keys(table, ["unused_desktops_cutoff_time"])
+                self.del_keys(table, [{"recycle_bin": {"unused_desktops_cutoff_time"}}])
             except Exception as e:
                 print(e)
 
