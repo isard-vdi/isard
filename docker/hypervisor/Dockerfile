@@ -112,8 +112,8 @@ RUN apk add --no-cache \
     libusb \
     usbredir \
     coreutils
-    #vde2-libs 
-    #libpulse
+#vde2-libs 
+#libpulse
 
 COPY docker/hypervisor/kvm/qemu-kvm /usr/libexec/qemu-kvm
 COPY docker/hypervisor/kvm/qemu-kvm /usr/bin/qemu-kvm
@@ -135,7 +135,7 @@ RUN sed -i \
     -e 's|[#]*UsePAM yes|UsePAM yes|g' \
     -e 's|[#]*Port 22|Port 2022|g' \
     /etc/ssh/sshd_config
-    
+
 # Libvirt configuration and certs
 COPY docker/hypervisor/kvm/50-libvirt.rules /etc/polkit-1/rules.d/50-libvirt.rules
 RUN sed -i "/^wheel:x:10:root/c\wheel:x:10:root,qemu" /etc/group
@@ -173,6 +173,9 @@ RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/
 
 RUN apk add wireguard-tools
+
+# Traffic control
+RUN apk add speedtest-cli
 
 ## MDEVCTL
 RUN mkdir -p \
