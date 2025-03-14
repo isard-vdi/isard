@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 163
+release_version = 164
+# release 164: Add field reservables to all domains
 # release 163: Move category allowed_domain to allowed_domains as an array of providers
 # release 162: Add unused_deployments notification template
 #              Add send_unused_deployments_to_recycle_bin rule to unused_item_timeouts table
@@ -3204,6 +3205,25 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 164:
+            try:
+                r.table("domains").filter(
+                    r.row["create_dict"].has_fields("reservables").not_()
+                ).update(
+                    {
+                        "create_dict": {
+                            "reservables": {
+                                "vgpus": None,
+                            }
+                        }
+                    }
+                ).run(
+                    self.conn
+                )
+            except Exception as e:
+                print(e)
+
         return True
 
     """
