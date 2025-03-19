@@ -40,7 +40,7 @@ $(document).ready(function () {
             { "data": "name", className: "xe-name" },
             { "data": "description", className: "xe-description" },
             { "data": "frontend", className: "xe-frontend" },
-            { "data": "allowed_domains", className: "xe-allowed_domains" },
+            { "data": "authentication", className: "xe-authentication" },
             { "data": "ephemeral_desktops", className: "xe-ephemeral_desktops" },
             {
                 'data': 'maintenance',
@@ -71,28 +71,41 @@ $(document).ready(function () {
                 "targets": 4,
                 "render": function (data, type, full, meta) {
                     domains = ""
+                    
+                    console.warn(full)
 
-                    if (full.allowed_domains) {
-                        if (full.allowed_domains.local && full.allowed_domains.local.length > 0) {
-                            domains += '<span title="local">' + full.allowed_domains.local.join(', ') + '</span>'
+                    if (full.authentication) {
+                        if (
+                            full.authentication.local &&
+                            full.authentication.local.enabled !== false &&
+                            full.authentication.local.allowed_domains
+                        ) {
+                            const domainsText = full.authentication.local.allowed_domains.length === 0 ? 'Only users without email will be able to login' : full.authentication.local.allowed_domains.join(', ')
+                            domains += `Local: <span title="local">${domainsText}</span>`
                         }
-                        if (full.allowed_domains.google && full.allowed_domains.google.length > 0) {
-                            if (domains.length > 0) {
-                                domains += ' │ '
-                            }
-                            domains += '<span title="google">' + full.allowed_domains.google.join(', ') + '</span>'
+                        if (
+                            full.authentication.google &&
+                            full.authentication.google.enabled !== false &&
+                            full.authentication.google.allowed_domains
+                        ) {
+                            const domainsText = full.authentication.google.allowed_domains.length === 0 ? 'Only users without email will be able to login' : full.authentication.google.allowed_domains.join(', ')
+                            domains += ` Google: <span title="google">${domainsText}</span>`
                         }
-                        if (full.allowed_domains.saml && full.allowed_domains.saml.length > 0) {
-                            if (domains.length > 0) {
-                                domains += ' │ '
-                            }
-                            domains += '<span title="saml">' + full.allowed_domains.saml.join(', ') + '</span>'
+                        if (
+                            full.authentication.saml &&
+                            full.authentication.saml.enabled !== false &&
+                            full.authentication.saml.allowed_domains
+                        ) {
+                            const domainsText = full.authentication.saml.allowed_domains.length === 0 ? 'Only users without email will be able to login' : full.authentication.saml.allowed_domains.join(', ')
+                            domains += ` SAML: <span title="saml">${domainsText}</span>`
                         }
-                        if (full.allowed_domains.ldap && full.allowed_domains.ldap.length > 0) {
-                            if (domains.length > 0) {
-                                domains += ' │ '
-                            }
-                            domains += '<span title="ldap">' + full.allowed_domains.ldap.join(', ') + '</span>'
+                        if (
+                            full.authentication.ldap &&
+                            full.authentication.ldap.enabled !== false &&
+                            full.authentication.ldap.allowed_domains
+                        ) {
+                            const domainsText = full.authentication.ldap.allowed_domains.length === 0 ? 'Only users without email will be able to login' : full.authentication.ldap.allowed_domains.join(', ')
+                            domains += ` LDAP: <span title="ldap">${domainsText}</span>`
                         }
 
                         return domains
@@ -205,6 +218,77 @@ $(document).ready(function () {
         });
     });
 
+    $("#modalAuthentication #send").on('click', function (e) {
+        var form = $('#modalAuthenticationForm');
+        form.parsley().validate();
+        if (form.parsley().isValid()) {
+            var formData = form.serializeObject();
+            var data = {};
+            data.authentication = {}
+            if ('local-enabled' in formData) {
+                data["authentication"]["local"] = {
+                    "enabled": formData['local-enabled'] === 'true' ? true : formData['local-enabled'] === 'false' ? false : null,
+                    "allowed_domains": formData['local-domains'] || []
+                };
+            }
+            if ('google-enabled' in formData) {
+                data["authentication"]["google"] = {
+                    "enabled": formData['google-enabled'] === 'true' ? true : formData['google-enabled'] === 'false' ? false : null,
+                    "allowed_domains": formData['google-domains'] || []
+                };
+            }
+            if ('saml-enabled' in formData) {
+                data["authentication"]["saml"] = {
+                    "enabled": formData['saml-enabled'] === 'true' ? true : formData['saml-enabled'] === 'false' ? false : null,
+                    "allowed_domains": formData['saml-domains'] || []
+                };
+            }
+            if ('ldap-enabled' in formData) {
+                data["authentication"]["ldap"] = {
+                    "enabled": formData['ldap-enabled'] === 'true' ? true : formData['ldap-enabled'] === 'false' ? false : null,
+                    "allowed_domains": formData['ldap-domains'] || []
+                };
+            }
+        };
+        var notice = new PNotify({
+            text: 'Updating allowed domains...',
+            hide: false,
+            opacity: 1,
+            icon: 'fa fa-spinner fa-pulse'
+        });
+        $.ajax({
+            type: "PUT",
+            url: "/api/v3/admin/category/" + formData['id'] + "/authentication",
+            data: JSON.stringify(data),
+            contentType: "application/json",
+            success: function (response) {
+                notice.update({
+                    title: 'Updated',
+                    text: 'Authentication updated successfully',
+                    hide: true,
+                    delay: 2000,
+                    icon: '',
+                    opacity: 1,
+                    type: 'success'
+                });
+                $('form').each(function () { this.reset(); });
+                $('.modal').modal('hide');
+            },
+            error: function (data) {
+                notice.update({
+                    title: 'ERROR updating authentication',
+                    text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                });
+            }
+        });
+        
+    });
+
     $('.btn-new-category').on('click', function () {
         $('#modalAddCategory').modal({
             backdrop: 'static',
@@ -270,15 +354,6 @@ $(document).ready(function () {
                 delete data['storage_pool'];
             } else {
                 delete data['storage-pool-enabled'];
-            }
-            // if (!('auto-desktops-enabled' in data)) {
-            //     delete data['auto-desktops'];
-            // }
-            data["allowed_domains"] = {
-                "local": splitAllowedDomains(data["allowed_domains_local"]),
-                "google": splitAllowedDomains(data["allowed_domains_google"]),
-                "saml": splitAllowedDomains(data["allowed_domains_saml"]),
-                "ldap": splitAllowedDomains(data["allowed_domains_ldap"])
             }
             data = JSON.unflatten(data);
             max_time = false;
@@ -373,25 +448,6 @@ function actionsCategoryDetail() {
             $('#modalEditCategoryForm #uid').val(category.uid);
             $('#modalEditCategoryForm #description').val(category.description);
             $('#modalEditCategoryForm #id').val(category.id);
-
-            api.ajax('/api/v3/admin/authentication/providers', 'GET', '').done(function (providers) {
-                if (providers.local === true) {
-                    $('#modalEditCategoryForm #allowed_domains_local_container').attr('hidden', false);
-                    $('#modalEditCategoryForm #allowed_domains_local').val(category.allowed_domains.local);
-                }
-                if (providers.google === true) {
-                    $('#modalEditCategoryForm #allowed_domains_google_container').attr('hidden', false);
-                    $('#modalEditCategoryForm #allowed_domains_google').val(category.allowed_domains.google);
-                }
-                if (providers.saml === true) {
-                    $('#modalEditCategoryForm #allowed_domains_saml_container').attr('hidden', false);
-                    $('#modalEditCategoryForm #allowed_domains_saml').val(category.allowed_domains.saml);
-                }
-                if (providers.ldap === true) {
-                    $('#modalEditCategoryForm #allowed_domains_ldap_container').attr('hidden', false);
-                    $('#modalEditCategoryForm #allowed_domains_ldap').val(category.allowed_domains.ldap);
-                }
-            });
             api.ajax('/scheduler/recycle_bin_delete/max_time_category/' + category.id, 'GET', '').done(function (time) {
                 if (time != null) {
                     $(("#modalEditCategoryForm #max-time-enabled")).iCheck('check').iCheck('update');
@@ -443,20 +499,10 @@ function actionsCategoryDetail() {
                     delete data['ephimeral-enabled'];
                     data['ephimeral-minutes'] = parseInt(data['ephimeral-minutes'])
                 }
-                // if (!('auto-desktops-enabled' in data)) {
-                //     delete data['auto-desktops'];
-                //     data['auto'] = false;
-                // }
-                data["allowed_domains"] = {
-                    "local": splitAllowedDomains(data["allowed_domains_local"]),
-                    "google": splitAllowedDomains(data["allowed_domains_google"]),
-                    "saml": splitAllowedDomains(data["allowed_domains_saml"]),
-                    "ldap": splitAllowedDomains(data["allowed_domains_ldap"])
-                }
-                delete data["allowed_domains_local"];
-                delete data["allowed_domains_google"];
-                delete data["allowed_domains_saml"];
-                delete data["allowed_domains_ldap"];
+                delete data["authentication_local"];
+                delete data["authentication_google"];
+                delete data["authentication_saml"];
+                delete data["authentication_ldap"];
                 data = JSON.unflatten(data);
                 var notice = new PNotify({
                     text: 'Updating category...',
@@ -573,6 +619,68 @@ function actionsCategoryDetail() {
             (items.storage_pools > 0) ? $("#modalDeleteCategory #storage-pool-warning").show() :  $("#modalDeleteCategory #storage-pool-warning").hide();
         });
     });
+
+    $("#categories .btn-authentication").off("click").on("click", function () {
+        var pk = $(this).closest("div").attr("data-pk");
+        var modal = "#modalAuthentication";
+        $.ajax({
+          type: "GET",
+          url: "/api/v3/admin/authentication/providers",
+          contentType: "application/json",
+          success: function (providers) {
+            $.each(providers, function (key, value) {
+              if (value) {
+                $(modal + " #" + key + "-panel").show();
+                $(modal + " #" + key + "-panel select").attr('disabled', false);
+              } else {
+                $(modal + " #" + key + "-panel").hide();
+                $(modal + " #" + key + "-panel select").attr('disabled', true);
+              }
+            });
+          },
+        });
+        $.ajax({
+          type: "GET",
+          url: "/api/v3/admin/category/" + pk,
+          contentType: "application/json",
+          success: function (category) {
+            if (category.is_default) {
+                $(modal + " #default-category-alert").show();
+            } else {
+                $(modal + " #default-category-alert").hide();
+            }
+            $.each(category.authentication, function (key, value) {
+            var enabledValue = value.enabled === null ? "null" : value.enabled.toString();
+              $(modal + " #" + key + "-enabled").val(enabledValue).trigger('change');
+              $(modal + ` .authentication-panel #${key}-domains`).empty();
+              $.each(value.allowed_domains, function (_, domain) {
+                var newOption = new Option(domain, domain, true, true);
+                $(modal + ` .authentication-panel #${key}-domains`).append(newOption);
+              });
+            });
+          },
+        });
+        $(modal + " .enabled-select").off("change").on("change", function () {
+            if ($(this).val() === "true" || $(this).val() === "null") {
+              $(this).parents().eq(3).find(".authentication-panel").show();
+              $(this).parents().eq(3).find(".authentication-panel select").attr('disabled', false);
+            } else {
+              $(this).parents().eq(3).find(".authentication-panel").hide();
+              $(this).parents().eq(3).find(".authentication-panel select").attr('disabled', true);
+            }
+          }).trigger("change");
+        $(modal + "  .authentication-panel select").select2({
+          tags: true,
+          tokenSeparators: [",", " "],
+          placeholder: "Type one or multiple domains. Empty means any domain",
+          width: "100%",
+        });
+        $(modal + " #id").val(pk);
+        $(modal).modal({
+            backdrop: "static",
+            keyboard: false,
+          }).modal("show");
+      });
 }
 
 function customURLChange(titlestr) {
@@ -704,8 +812,4 @@ function storagePoolEnabledShow(form) {
   $(form + " #storage-pool-enabled").on("ifUnchecked", function (event) {
     $(form + " #storage-pool-data").hide();
   });
-}
-
-function splitAllowedDomains(data) {
-    return data.split(',').map(function (item) { return item.trim() }).filter(function (item) { return item.length > 0 });
 }

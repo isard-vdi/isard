@@ -18,33 +18,57 @@ frontend:
   type: boolean
   nullable: true 
   default: false
-allowed_domains:
+authentication:
   type: dict
   schema:
     local:
-      type: list
+      type: dict
       schema:
-        type: string
-        nullable: false
-        coerce: sanitize
+        enabled:
+          type: boolean
+          nullable: true
+        allowed_domains:
+          type: list
+          schema:
+            type: string
+            nullable: false
+            coerce: sanitize
     google:
-      type: list
+      type: dict
       schema:
-        type: string
-        nullable: false
-        coerce: sanitize
+        enabled:
+          type: boolean
+          nullable: true
+        allowed_domains:
+          type: list
+          schema:
+            type: string
+            nullable: false
+            coerce: sanitize
     saml:
-      type: list
+      type: dict
       schema:
-        type: string
-        nullable: false
-        coerce: sanitize
+        enabled:
+          type: boolean
+          nullable: true
+        allowed_domains:
+          type: list
+          schema:
+            type: string
+            nullable: false
+            coerce: sanitize
     ldap:
-      type: list
+      type: dict
       schema:
-        type: string
-        nullable: false
-        coerce: sanitize
+        enabled:
+          type: boolean
+          nullable: true
+        allowed_domains:
+          type: list
+          schema:
+            type: string
+            nullable: false
+            coerce: sanitize
 auto:
   type:
     - dict

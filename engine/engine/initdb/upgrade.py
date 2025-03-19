@@ -5310,14 +5310,16 @@ password:s:%s"""
 
         if version == 163:
             try:
-                categories = list(r.table(table).run(self.conn))
+                categories = list(
+                    r.table(table).pluck("allowed_domain", "id").run(self.conn)
+                )
 
                 for category in categories:
                     try:
-                        allowed_domain = (
+                        allowed_domains = (
                             [category["allowed_domain"]]
-                            if category.get("allowed_domain", "") != ""
-                            else None
+                            if category.get("allowed_domain")
+                            else []
                         )
 
                         self.add_keys(
@@ -5327,19 +5329,19 @@ password:s:%s"""
                                     "authentication": {
                                         "local": {
                                             "enabled": None,
-                                            "allowed_domains": allowed_domain,
+                                            "allowed_domains": allowed_domains,
                                         },
                                         "google": {
                                             "enabled": None,
-                                            "allowed_domains": allowed_domain,
+                                            "allowed_domains": allowed_domains,
                                         },
                                         "saml": {
                                             "enabled": None,
-                                            "allowed_domains": allowed_domain,
+                                            "allowed_domains": allowed_domains,
                                         },
                                         "ldap": {
                                             "enabled": None,
-                                            "allowed_domains": allowed_domain,
+                                            "allowed_domains": allowed_domains,
                                         },
                                     }
                                 }
@@ -5350,16 +5352,9 @@ password:s:%s"""
                     except Exception as e:
                         print(e)
 
-                    try:
-                        self.del_keys(
-                            table,
-                            ["allowed_domain"],
-                            id=category["id"],
-                        )
-
-                    except Exception as e:
-                        print(e)
-
+                r.table(table).replace(
+                    lambda category: category.without("allowed_domain")
+                ).run(self.conn)
             except Exception as e:
                 print(e)
 

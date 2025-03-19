@@ -928,6 +928,159 @@
     </div>
 </div>
 
+<div class="modal fade" id="modalAuthentication" tabindex="-1" role="dialog" aria-labelledby="modalAuthentication"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-globe"></i> Allowed Domains
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalAuthenticationForm" class="form-horizontal form-label-left">
+                    <input hidden name="id" id="id">
+                    <div class="x_panel">
+                        <div class="x_title">
+                            <h4><i class="fa fa-user"></i> Local</h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        <div class="x_content" id="local-panel" style="display:none;">
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12"
+                                    for="local-enabled">Enabled</label>
+                                <div class="col-md-9 col-sm-9 col-xs-12">
+                                    <select id="local-enabled" name="local-enabled" class="enabled-select form-control">
+                                        <option value="true">Allowed in this category</option>
+                                        <option value="null">Use system default authentication settings</option>
+                                        <option value="false">Not allowed in this category</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="item form-group authentication-panel">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="local-domains">Allowed
+                                    Domains</label>
+                                <div class="col-md-9 col-sm-9 col-xs-12">
+                                    <select id="local-domains" name="local-domains[]" class="tags-select roundbox"
+                                        multiple="multiple" style="width: 100%;">
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="x_panel" id="google-panel" style="display:none;">
+                        <div class="x_title">
+                            <h4><i class="fa fa-google"></i> Google</h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        <div class="x_content">
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12"
+                                    for="google-enabled">Enabled</label>
+                                <div class="col-md-9 col-sm-9 col-xs-12">
+                                    <select id="google-enabled" name="google-enabled" class="enabled-select form-control">
+                                        <option value="true">Allowed in this category</option>
+                                        <option value="null">Use system default authentication settings</option>
+                                        <option value="false">Not allowed in this category</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="item form-group authentication-panel">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="google-domains">Allowed
+                                    Domains</label>
+                                <div class="col-md-9 col-sm-9 col-xs-12">
+                                    <select id="google-domains" name="google-domains[]" class="tags-select roundbox"
+                                        multiple="multiple" style="width: 100%;">
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="x_panel" id="ldap-panel" style="display:none;">
+                        <div class="x_title">
+                            <h4><i class="fa fa-sitemap"></i> LDAP</h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        <div class="x_content">
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12"
+                                    for="ldap-enabled">Enabled</label>
+                                <div class="col-md-9 col-sm-9 col-xs-12">
+                                    <select id="ldap-enabled" name="ldap-enabled" class="enabled-select form-control">
+                                        <option value="true">Allowed in this category</option>
+                                        <option value="null">Use system default authentication settings</option>
+                                        <option value="false">Not allowed in this category</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="item form-group authentication-panel">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ldap-domains">Allowed
+                                    Domains</label>
+                                <div class="col-md-9 col-sm-9 col-xs-12">
+                                    <select id="ldap-domains" name="ldap-domains[]" class="tags-select roundbox"
+                                        multiple="multiple" style="width: 100%;">
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="x_panel" id="saml-panel" style="display:none;">
+                        <div class="x_title">
+                            <h4><i class="fa fa-lock"></i> SAML</h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        <div class="x_content">
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12"
+                                    for="saml-enabled">Enabled</label>
+                                <div class="col-md-9 col-sm-9 col-xs-12">
+                                    <select id="saml-enabled" name="saml-enabled" class="enabled-select form-control">
+                                        <option value="true">Allowed in this category</option>
+                                        <option value="null">Use system default authentication settings</option>
+                                        <option value="false">Not allowed in this category</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="item form-group authentication-panel">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="saml-domains">Allowed
+                                    Domains</label>
+                                <div class="col-md-9 col-sm-9 col-xs-12">
+                                    <select id="saml-domains" name="saml-domains[]" class="tags-select roundbox"
+                                        multiple="multiple" style="width: 100%;">
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="x_panel" id="default-category-alert" style="display:none;">
+                        <div class="alert alert-info">
+                            <i class="fa fas fa-info-circle"></i> The default category will always have the default admin enabled in local authentication.
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Save changes</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="modalDeleteCategory" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
     aria-hidden="true">
     <div class="modal-dialog" style="width: 75%">
@@ -1225,7 +1378,6 @@
                                     placeholder="Category description" type="text" style="width:100%">
                             </div>
                             <div class="col-md-12 col-sm-12 col-xs-12">
-                                {% include '/snippets/category_modal_domain.html' %}
                                 <div class="row">
                                     <div class="col-md-12 col-sm-12 col-xs-12">
                                         <label class="control-label" for="name">
@@ -1239,7 +1391,7 @@
                                             name="custom_url_name"
                                             type="text"
                                             class="roundbox"
-                                            pattern="^[a-zA-Z0-9-_]+$"
+                                            pattern="^[a-zA-Z0-9\-_]+$"
                                             data-parsley-trigger="change"
                                             data-parsley-pattern-message="The field can only contain numbers, letters, '_' or '-'"
                                             placeholder="Custom login URL name to login directly"
@@ -1485,7 +1637,6 @@
                                     placeholder="Category description" type="text" style="width:100%">
                             </div>
                             <div class="col-md-12 col-sm-12 col-xs-12">
-                                {% include '/snippets/category_modal_domain.html' %}
                                 <div class="row">
                                     <div class="col-md-12 col-sm-12 col-xs-12">
                                         <label class="control-label" for="name">

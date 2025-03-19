@@ -1,0 +1,51 @@
+authentication:
+  type: dict
+  schema:
+    local:
+      type: dict
+      schema:
+        enabled:
+          type: boolean
+          nullable: true
+        allowed_domains:
+          type: list
+          schema:
+            type: string
+            nullable: false
+            coerce: sanitize
+    google:
+      type: dict
+      schema:
+        enabled:
+          type: boolean
+          nullable: true
+        allowed_domains:
+          type: list
+          schema:
+            type: string
+            nullable: false
+            coerce: sanitize
+    saml:
+      type: dict
+      schema:
+        enabled:
+          type: boolean
+          nullable: true
+        allowed_domains:
+          type: list
+          schema:
+            type: string
+            nullable: false
+            coerce: sanitize
+    ldap:
+      type: dict
+      schema:
+        enabled:
+          type: boolean
+          nullable: true
+        allowed_domains:
+          type: list
+          schema:
+            type: string
+            nullable: false
+            coerce: sanitize
