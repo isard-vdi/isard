@@ -1529,6 +1529,31 @@ class RecycleBin(object):
                 db.conn
             )
 
+    @classmethod
+    def get_all_unused_item_timeout(cls):
+        with app.app_context():
+            return list(r.db("isard").table("unused_item_timeout").run(db.conn))
+
+    @classmethod
+    def get_unused_item_timeout(cls, rule_id):
+        with app.app_context():
+            return r.table("unused_item_timeout").get(rule_id).run(db.conn)
+
+    @classmethod
+    def update_unused_item_timeout(cls, rule_id, data):
+        with app.app_context():
+            r.table("unused_item_timeout").get(rule_id).update(data).run(db.conn)
+
+    @classmethod
+    def create_unused_item_timeout(cls, data):
+        with app.app_context():
+            r.table("unused_item_timeout").insert(data).run(db.conn)
+
+    @classmethod
+    def delete_unused_item_timeout(cls, rule_id):
+        with app.app_context():
+            r.table("unused_item_timeout").get(rule_id).delete().run(db.conn)
+
 
 class RecycleBinDomain(RecycleBin):
     def __init__(self, id=None, item_type="desktop", user_id=None):

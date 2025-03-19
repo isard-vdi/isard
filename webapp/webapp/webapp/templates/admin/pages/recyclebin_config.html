@@ -21,6 +21,47 @@
     <div class="col-md-6 col-sm-12 col-xs-12">
         <div class="x_panel">
             <div class="x_title">
+                <h3><i class="fa fa-times"></i> Enable Recycle Bin by default </h3><br>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <h4><b> By default send items to recycle bin instead of deleting them permanently</b></h4>
+                <span id="default-delete_wrapper" class="x_panel">
+                    <input id="default-delete-checkbox" type="checkbox">
+                    <label for="default-delete-checkbox">Send to recycle bin by default</label>
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-folder"></i> Actions after deleting storage </h3><br>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <h4><b> After the storage is automatically deleted from the recycle bin:</b></h4>
+
+                <span id="default-action_wrapper" class="x_panel">
+                    <div class="row">
+                        <div class="col-md-6 col-xs-12">
+                            <input id="delete-action-radio" type="radio" name="deleted-action" value="delete">
+                            <label for="delete-action-radio">Delete disk files permanently</label>
+                        </div>
+                        <div class="col-md-6 col-xs-12">
+                            <input id="move-action-radio" type="radio" name="deleted-action" value="move">
+                            <label for="move-action-radio">Keep files as a back up in a subfolder</label>
+                        </div>
+                    </div>
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6 col-sm-6 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
                 <h3><i class="fa fa-archive"></i> Old entries </h3><br>
                 <div class="clearfix"></div>
             </div>
@@ -67,49 +108,32 @@
             </div>
         </div>
     </div>
-    <div class="col-md-6 col-sm-12 col-xs-12">
-        <div class="x_panel">
-            <div class="x_title">
-                <h3><i class="fa fa-times"></i> Enable Recycle Bin by default </h3><br>
-                <div class="clearfix"></div>
-            </div>
-            <div class="x_content">
-                <h4><b> By default send items to recycle bin instead of deleting them permanently</b></h4>
-                <span id="default-delete_wrapper" class="x_panel">
-                    <input id="default-delete-checkbox" type="checkbox">
-                    <label for="default-delete-checkbox">Send to recycle bin by default</label>
-                </span>
-            </div>
-        </div>
-    </div>
 </div>
 <div class="row">
-    <div class="col-md-6 col-sm-12 col-xs-12">
+    <div class="col-md-12">
         <div class="x_panel">
             <div class="x_title">
-                <h3><i class="fa fa-folder"></i> Actions after deleting storage </h3><br>
+                <h3><i class="fa fa-hourglass-o"></i> Unused items rules <small> Automatically move unused items to the recycle bin based on user, group, category, or role and a priority system</small></h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <a class="btn btn-add-unused-desktop-rule"><span style="color: #5499c7"><i
+                            class="fa fa-plus"></i> Add rule</span>
+                        </a>
+                    </li>
+                </ul>
                 <div class="clearfix"></div>
             </div>
             <div class="x_content">
-                <h4><b> After the storage is automatically deleted from the recycle bin:</b></h4>
-
-                <span id="default-action_wrapper" class="x_panel">
-                    <div class="row">
-                        <div class="col-md-6 col-xs-12">
-                            <input id="delete-action-radio" type="radio" name="deleted-action" value="delete">
-                            <label for="delete-action-radio">Delete disk files permanently</label>
-                        </div>
-                        <div class="col-md-6 col-xs-12">
-                            <input id="move-action-radio" type="radio" name="deleted-action" value="move">
-                            <label for="move-action-radio">Keep files as a back up in a subfolder</label>
-                        </div>
-                    </div>
-                </span>
+                <table class="table" id="unused-desktops-table">
+                    <tfoot></tfoot>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
+{% include '/snippets/alloweds_form.html' %}
+{% include '/admin/pages/recyclebin_config_modals.html' %}
 {% endblock %}
 
 {% block pagescript %}

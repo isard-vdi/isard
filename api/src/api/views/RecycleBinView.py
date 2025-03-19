@@ -11,6 +11,7 @@ from api.libv2.deployments.api_deployments import get_unused_deployments
 from api.libv2.notifications.notifications import get_notifications_by_action_id
 from api.libv2.notifications.notifications_action import get_notification_action
 from api.libv2.notifications.notifications_data import add_notification_data
+from api.libv2.validators import _validate_item
 from flask import request
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.api_rest import ApiRest
@@ -512,6 +513,67 @@ def recycle_bin_add_unused_items(payload):
     if notification_data:
         add_notification_data(notification_data)
 
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/unused_item_timeout_rules", methods=["GET"])
+@is_admin
+def get_all_unused_item_timeouts(payload):
+    rules = RecycleBin.get_all_unused_item_timeout()
+    return (
+        json.dumps(rules),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/unused_item_timeout_rule/<rule_id>", methods=["GET"])
+@is_admin
+def get_unused_item_timeout(payload, rule_id):
+    rules = RecycleBin.get_unused_item_timeout(rule_id)
+    return (
+        json.dumps(rules),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/unused_item_timeout_rule/<rule_id>", methods=["PUT"])
+@is_admin
+def update_unused_item_timeout(payload, rule_id):
+    data = request.get_json(force=True)
+    data = _validate_item("unused_item_timeout_update", data)
+
+    RecycleBin.update_unused_item_timeout(rule_id, data)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/unused_item_timeout_rules", methods=["POST"])
+@is_admin
+def create_unused_item_timeout_rule(payload):
+    data = request.get_json(force=True)
+
+    data = _validate_item("unused_item_timeout", data)
+    RecycleBin.create_unused_item_timeout(data)
+    return (
+        json.dumps({"id": data["id"]}),
+        201,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle_bin/unused_item_timeout_rule/<rule_id>", methods=["DELETE"])
+@is_admin
+def delete_unused_item_timeout_rule(payload, rule_id):
+    RecycleBin.delete_unused_item_timeout(rule_id)
     return (
         json.dumps({}),
         200,

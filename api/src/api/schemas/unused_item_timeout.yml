@@ -1,0 +1,28 @@
+allowed:
+  schema: allowed
+  default: {}
+id:
+  required: yes
+  type: string
+  default_setter: genuuid
+  coerce: sanitize
+cutoff_time: 
+  required: yes
+  type: integer
+  nullable: true
+description: 
+  type: string
+  coerce: sanitize
+  maxlength: 255
+name:
+  required: yes
+  type: string
+  coerce: sanitize
+  maxlength: 50
+op:
+  type: string
+  required: yes
+  coerce: sanitize
+priority:
+  type: integer
+  required: yes
