@@ -14,6 +14,7 @@
       <DomainInfo />
       <DomainViewers />
       <DomainHardware :show-disk-size="true" />
+      <DomainBookables />
       <DomainOSHardwareTemplate />
 
       <!-- Buttons -->
@@ -42,6 +43,7 @@ import { computed, onUnmounted, onMounted } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import DomainViewers from '@/components/domain/DomainViewers.vue'
 import DomainHardware from '@/components/domain/DomainHardware.vue'
+import DomainBookables from '@/components/domain/DomainBookables.vue'
 import DomainInfo from '@/components/domain/DomainInfo.vue'
 import DomainOSHardwareTemplate from '@/components/domain/DomainOSHardwareTemplate.vue'
 
@@ -49,6 +51,7 @@ export default {
   components: {
     DomainViewers,
     DomainHardware,
+    DomainBookables,
     DomainInfo,
     DomainOSHardwareTemplate
   },
@@ -106,7 +109,8 @@ export default {
           interfaces: domain.value.hardware.interfaces,
           memory: domain.value.hardware.memory,
           vcpus: domain.value.hardware.vcpus,
-          videos: domain.value.hardware.videos
+          videos: domain.value.hardware.videos,
+          reservables: domain.value.reservables
         }
       }
       $store.dispatch('createNewDesktopFromMedia', domainData)

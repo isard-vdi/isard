@@ -585,6 +585,11 @@ class ApiDesktopsPersistent:
         else:
             disks = []
 
+        if data["hardware"].get("reservables", {"vgpus": None}).get("vgpus") == [
+            "None"
+        ]:
+            data["hardware"]["reservables"]["vgpus"] = None
+
         domain = {
             "id": data["id"],
             "name": data["name"],
@@ -635,6 +640,7 @@ class ApiDesktopsPersistent:
                     "vcpus": int(data["hardware"]["vcpus"]),
                     "qos_disk_id": False,
                 },
+                "reservables": data["hardware"]["reservables"],
             },
             "tag": False,
             "tag_name": False,
