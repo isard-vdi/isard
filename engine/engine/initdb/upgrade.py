@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 164
+release_version = 165
+# release 165: Delete missing users and groups from migration exceptions
 # release 164: Add field reservables to all domains
 # release 163: Move category allowed_domain to allowed_domains as an array of providers
 # release 162: Add unused_deployments notification template
@@ -209,6 +210,7 @@ tables = [
     "system_events",
     "bookings",
     "unused_item_timeout",
+    "users_migrations_exceptions",
     "notifications",
     "notifications_action",
 ]
@@ -6032,6 +6034,31 @@ password:s:%s"""
                         "cutoff_time": None,
                     }
                 ).run(self.conn)
+            except Exception as e:
+                print(e)
+        return True
+
+    """
+    USERS MIGRATIONS EXCEPTIONS TABLE UPGRADES
+    """
+
+    def users_migrations_exceptions(self, version):
+        table = "users_migrations_exceptions"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+        if version == 165:
+            try:
+                items = list(
+                    r.table(table).pluck("id", "item_type", "item_id").run(self.conn)
+                )
+                missing_items = [
+                    item["id"]
+                    for item in items
+                    if not r.table(item["item_type"])
+                    .get(item["item_id"])
+                    .run(self.conn)
+                ]
+                if missing_items:
+                    r.table(table).get_all(*missing_items).delete().run(self.conn)
             except Exception as e:
                 print(e)
         return True
