@@ -720,6 +720,49 @@ def delete_dependants_recycle_bin_from_templates(templates):
         RecycleBin(rcb["id"]).delete_storage(rcb["agent_id"])
 
 
+def delete_items_from_migration_exceptions(item_id, kind):
+    with app.app_context():
+        # Delete exemption for this item
+        r.table("users_migrations_exceptions").get_all(
+            item_id, index="item_id"
+        ).delete().run(db.conn)
+    if kind == "group":
+        # Delete exemptions of users in groups
+        with app.app_context():
+            user_ids = list(
+                r.table("users")
+                .get_all(item_id, index="group")
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
+            r.table("users_migrations_exceptions").get_all(
+                r.args(user_ids), index="item_id"
+            ).delete().run(db.conn)
+    if kind == "category":
+        # Delete exemptions of users in categories
+        with app.app_context():
+            user_ids = list(
+                r.table("users")
+                .get_all(item_id, index="category")
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
+            r.table("users_migrations_exceptions").get_all(
+                r.args(user_ids), index="item_id"
+            ).delete().run(db.conn)
+        # Delete exemptions of groups in categories
+        with app.app_context():
+            group_ids = list(
+                r.table("groups")
+                .get_all(item_id, index="parent_category")
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
+            r.table("users_migrations_exceptions").get_all(
+                r.args(group_ids), index="item_id"
+            ).delete().run(db.conn)
+
+
 class RecycleBin(object):
     id = None
     status = None
@@ -1916,10 +1959,7 @@ class RecycleBinUser(RecycleBin):
         ]:
             unassign_item_from_resource(user["id"], "users", table)
         # Remove the user from the migration exceptions table
-        with app.app_context():
-            r.table("users_migrations_exceptions").get_all(
-                user["id"], index="item_id"
-            ).delete().run(db.conn)
+        delete_items_from_migration_exceptions(user["id"], "user")
         if delete_user:
             with app.app_context():
                 r.table("recycle_bin").get(self.id).update(
@@ -2001,6 +2041,9 @@ class RecycleBinGroup(RecycleBin):
             )
         rcb_deployments = RecycleBinDeployment(id=self.id, user_id=self.agent_id)
         rcb_deployments.add_deployments(deployments)
+
+        # Remove the group from the migration exceptions table
+        delete_items_from_migration_exceptions(group["id"], "group")
         with app.app_context():
             r.table("deployments").get_all(
                 r.args(users_ids), index="user"
@@ -2026,11 +2069,6 @@ class RecycleBinGroup(RecycleBin):
             "qos_net",
         ]:
             unassign_item_from_resource(group["id"], "groups", table)
-        # Remove the group from the migration exceptions table
-        with app.app_context():
-            r.table("users_migrations_exceptions").get_all(
-                group["id"], index="item_id"
-            ).delete().run(db.conn)
         isard_user_storage_disable_groups([group])
 
 
@@ -2100,6 +2138,9 @@ class RecycleBinCategory(RecycleBin):
             )
         rcb_deployments = RecycleBinDeployment(id=self.id, user_id=self.agent_id)
         rcb_deployments.add_deployments(deployments)
+
+        # Remove the category from the migration exceptions table
+        delete_items_from_migration_exceptions(category["id"], "category")
         with app.app_context():
             r.table("deployments").get_all(
                 r.args(users_ids), index="user"
@@ -2138,9 +2179,4 @@ class RecycleBinCategory(RecycleBin):
             for group in groups:
                 unassign_item_from_resource(group["id"], "groups", table)
             unassign_item_from_resource(category["id"], "categories", table)
-        # Remove the category from the migration exceptions table
-        with app.app_context():
-            r.table("users_migrations_exceptions").get_all(
-                category["id"], index="item_id"
-            ).delete().run(db.conn)
         isard_user_storage_disable_categories([category])
