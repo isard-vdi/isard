@@ -508,6 +508,241 @@ function actionsGroupDetail(){
         });
     });
 
+    $('#groups .btn-migrate').off('click').on('click', function () {
+        var pk = $(this).closest("div").attr("data-pk");
+        $('#modalMigrateUsersGroup').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        $("#modalMigrateUsersGroupForm")[0].reset();
+        $('#modalMigrateUsersGroupForm #id').val(pk);
+        $('#modalMigrateUsersGroupForm #category').prop('disabled', true)
+
+
+        var current_category = null
+        $.ajax({
+            type: "GET",
+            url: "/api/v3/admin/userschema",
+            async: false,
+            success: function (d) {
+                $.each(d, function (key, value) {
+                    $("#modalMigrateUsersGroup ." + key).find('option').remove().end();
+                    $("#modalMigrateUsersGroup .group").append('<option value="null" disabled selected>--Please select a group--</option>');
+                    for (var i in d[key]) {
+                        if (key == 'group') {
+                            $("#modalMigrateUsersGroup ." + key).append('<option value=' + value[i].id + ' parent-category=' + value[i].parent_category + '>' + value[i].name + '</option>');
+                        } else {
+                            $("#modalMigrateUsersGroup ." + key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                        }
+                    }
+                });
+                current_category = d['group'].find(x => x.id == pk).parent_category
+                $('#modalMigrateUsersGroup #category').val(current_category).trigger("change")
+                filter_groups($("#modalMigrateUsersGroup #category"), $('#modalMigrateUsersGroup #group'), pk)
+                $('#modalMigrateUsersGroup #group').val("null").trigger("change")
+            }
+        });
+
+        function filter_groups(category_select, group_select, current_group=null) {
+            // Hide all options
+            group_select.find('option').attr("hidden", "hidden")
+            // Show groups from the selected category
+            group_select.find('option[parent-category=' + category_select.val() + ']').removeAttr('hidden')
+            // If current_group is provided, hide it from the dropdown
+            console.log(current_group)
+            if (current_group) {
+                group_select.find('option[value=' + current_group + ']').attr("hidden", "hidden")
+            }
+
+        }
+
+        $("#modalMigrateUsersGroup #category").on('change', function () {
+            filter_groups($(this), $('#modalMigrateUsersGroup #group'))
+        })
+
+        showLoadingData('#modalMigrateUsersGroup #table_modal_migrate_users_group')
+        $.ajax({
+            type: "POST",
+            url: "/api/v3/admin/group/delete/check",
+            data: JSON.stringify({
+                "ids": [pk]
+            }),
+            contentType: "application/json"
+        }).done(function (items) {
+            populateDeleteModalTable(items.users, $('#modalMigrateUsersGroup #table_modal_migrate_users_group'));
+        });
+
+
+        $("#modalMigrateUsersGroup #send").off('click').on('click', function (e) {
+            var form = $('#modalMigrateUsersGroupForm');
+            form.parsley().validate();
+            if (form.parsley().isValid()) {
+                data = form.serializeObject();
+                $.ajax({
+                    type: "GET",
+                    url: "/api/v3/admin/group/" + data['id'] + "/users/",
+                    contentType: "application/json",
+                    success: function (users) {
+                        data = JSON.unflatten(data)
+                        var notice = new PNotify({
+                            text: 'Updating users...',
+                            hide: false,
+                            opacity: 1,
+                            icon: 'fa fa-spinner fa-pulse'
+                        })
+                        $.ajax({
+                            type: "PUT",
+                            url: "/api/v3/admin/users/bulk/",
+                            data: JSON.stringify({
+                                ids: users,
+                                category: data['category'],
+                                group: data['group']
+                            }),
+                            contentType: "application/json",
+                            success: function (data) {
+                                notice.update({
+                                    hide: true,
+                                    delay: 1000,
+                                })
+                                $('form').each(function () { this.reset() });
+                                $('.modal').modal('hide');
+                            },
+                            error: function (data) {
+                                notice.update({
+                                    title: 'Error updating users',
+                                    text: data.responseJSON.description,
+                                    type: 'error',
+                                    hide: true,
+                                    icon: 'fa fa-warning',
+                                    delay: 2000,
+                                    opacity: 1
+                                })
+                            }
+                        });
+                    },
+                    error: function (data) {
+                        notice.update({
+                            title: 'Error getting users',
+                            text: data.responseJSON.description,
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 2000,
+                            opacity: 1
+                        })
+                    }
+                });
+            }
+        });
+    });
+
+    $('#groups .btn-empty').off('click').on('click', function () {
+        var pk = $(this).closest("div").attr("data-pk");
+
+        $("#modalEmptyGroupForm")[0].reset();
+        $('#modalEmptyGroupForm :checkbox').iCheck('uncheck').iCheck('update');
+        $('#modalEmptyGroupForm').parsley().reset();
+
+        $('#modalEmptyGroupForm #id').val(pk);
+        $('#modalEmptyGroupForm #delete-action :radio').prop('required', true)
+        $('#modalEmptyGroupForm #delete-action :radio').iCheck('uncheck').iCheck('update');
+        $('#modalEmptyGroupForm #delete-action #delete-user').iCheck('check').iCheck('update');
+        $('#modalEmptyGroup h4 #group-name').text($(this).closest("div").data("name"));
+
+        $('#modalEmptyGroup').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+
+        showLoadingData('#modalEmptyGroup #table_modal_delete_desktops')
+        showLoadingData('#modalEmptyGroup #table_modal_delete_templates')
+        showLoadingData('#modalEmptyGroup #table_modal_delete_deployments')
+        showLoadingData('#modalEmptyGroup #table_modal_delete_media')
+        showLoadingData('#modalEmptyGroup #table_modal_delete_users')
+        showLoadingData('#modalEmptyGroup #table_modal_delete_groups')
+        $.ajax({
+            type: "POST",
+            url: "/api/v3/admin/group/delete/check",
+            data: JSON.stringify({
+                "ids": [pk]
+            }),
+            contentType: "application/json"
+        }).done(function (items) {
+            populateDeleteModalTable(items.desktops, $('#modalEmptyGroup #table_modal_delete_desktops'));
+            populateDeleteModalTable(items.templates, $('#modalEmptyGroup #table_modal_delete_templates'));
+            populateDeleteModalTable(items.deployments, $('#modalEmptyGroup #table_modal_delete_deployments'));
+            populateDeleteModalTable(items.media, $('#modalEmptyGroup #table_modal_delete_media'));
+            populateDeleteModalTable(items.users, $('#modalEmptyGroup #table_modal_delete_users'));
+            populateDeleteModalTable(items.groups, $('#modalEmptyGroup #table_modal_delete_groups'));
+        });
+
+
+        $("#modalEmptyGroup #send").off('click').on('click', function (e) {
+            var form = $('#modalEmptyGroupForm');
+            form.parsley().validate();
+            if (form.parsley().isValid()) {
+                data = form.serializeObject();
+                $.ajax({
+                    type: "GET",
+                    url: "/api/v3/admin/group/" + pk + "/users/",
+                    contentType: "application/json",
+                    success: function (users) {
+                        var notice = new PNotify({
+                            text: 'Deleting users...',
+                            hide: false,
+                            opacity: 1,
+                            icon: 'fa fa-spinner fa-pulse'
+                        })
+                        $.ajax({
+                            type: "DELETE",
+                            url: "/api/v3/admin/user",
+                            data: JSON.stringify({
+                                user: users,
+                                delete_user: data['delete-user']
+                            }),
+                            contentType: "application/json",
+                            success: function (data) {
+                                notice.update({
+                                    title: 'Deleted',
+                                    text: 'Starting users deletion',
+                                    hide: true,
+                                    delay: 1000,
+                                    icon: 'fa fa-sad',
+                                    opacity: 1,
+                                    type: 'success'
+                                })
+                                $('form').each(function () { this.reset() });
+                                $('.modal').modal('hide');
+                            },
+                            error: function (data) {
+                                notice.update({
+                                    title: 'ERROR deleting users',
+                                    text: data.responseJSON.description,
+                                    type: 'error',
+                                    hide: true,
+                                    icon: 'fa fa-warning',
+                                    delay: 2000,
+                                    opacity: 1
+                                })
+                            }
+                        });
+                    },
+                    error: function (data) {
+                        notice.update({
+                            title: 'ERROR getting users',
+                            text: data.responseJSON.description,
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 2000,
+                            opacity: 1
+                        })
+                    }
+                });
+            }
+        });
+    });
+
     $('#manager-check').unbind('ifChecked').on('ifChecked', function(event){
         if($('#manager-key').val()==''){
             const data = {}

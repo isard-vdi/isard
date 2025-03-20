@@ -25,6 +25,7 @@ import uuid
 from datetime import datetime, timedelta
 
 import bcrypt
+import gevent
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from isardvdi_common.api_exceptions import Error
@@ -32,8 +33,10 @@ from rethinkdb.errors import ReqlNonExistenceError
 
 from api import app
 
-from ..libv2.recycle_bin import RecycleBinDeleteQueue
-from .api_notify import notify_custom
+from ..libv2.api_desktops_persistent import (
+    unassign_resource_from_desktops_and_deployments,
+)
+from .api_notify import notify_admin, notify_custom
 from .api_sessions import revoke_user_session
 from .api_storage import remove_category_from_storage_pool
 from .bookings.api_booking import Bookings
@@ -48,10 +51,23 @@ from .recycle_bin import get_user_recycle_bin_ids
 
 apib = Bookings()
 
-from .api_desktop_events import category_delete, group_delete, user_delete
+from ..libv2.api_domains import ApiDomains
+from ..libv2.recycle_bin import (
+    RecycleBin,
+    RecycleBinDeleteQueue,
+    get_user_recycle_bin_ids,
+)
+from .api_desktop_events import (
+    category_delete,
+    desktops_stop,
+    group_delete,
+    user_delete,
+)
 from .quotas import Quotas
 
+domains = ApiDomains()
 quotas = Quotas()
+rb_delete_queue = RecycleBinDeleteQueue()
 
 
 from string import ascii_lowercase, digits
@@ -86,6 +102,7 @@ from .api_admin import (
     get_user_migration_config,
 )
 from .api_notify import notify_admin, notify_admins
+from .api_sessions import revoke_user_session
 from .helpers import (
     _check,
     _parse_desktop,
@@ -883,7 +900,31 @@ class ApiUsers:
         isard_user_storage_add_user(user_id)
         return user_id
 
-    def Update(self, user_ids, data):
+    def update_multiple_users_th(self, user_ids, data, payload):
+        gevent.spawn(
+            self.update_multiple_users,
+            user_ids,
+            data,
+            str(uuid.uuid4()),
+            payload,
+        )
+
+    def update_multiple_users(self, user_ids, data, batch_id=None, payload=None):
+        total = len(user_ids)
+        amount = 0
+        if not batch_id:
+            batch_id = str(uuid.uuid4())
+
+        if (
+            "local-default-admin-admin" in user_ids
+            and data.get("group") != "default-default"
+        ):
+            raise Error(
+                "forbidden",
+                "User local-default-admin-admin can not be moved to another group",
+                traceback.format_exc(),
+            )
+
         for user_id in user_ids:
             revoke_user_session(user_id)
 
@@ -894,36 +935,69 @@ class ApiUsers:
         if data.get("ids"):
             data.pop("ids")
 
-        if os.environ.get("NOTIFY_EMAIL") and data.get("email"):
-            for user_id in user_ids:
-                with app.app_context():
-                    user = (
-                        r.table("users")
-                        .get(user_id)
-                        .pluck("email", "category", "role", "email_verified")
-                        .run(db.conn)
-                    )
+        with app.app_context():
+            users = (
+                r.table("users")
+                .get_all(r.args(user_ids))
+                .pluck("id", "category", "group", "uid")
+                .run(db.conn)
+            )
+
+        for user in users:
+            if os.environ.get("NOTIFY_EMAIL") and data.get("email"):
                 if data.get("email") != user["email"]:
                     if self.get_email_policy(user["category"], user["role"]):
-                        token = validate_email_jwt(user_id, data["email"])["jwt"]
+                        token = validate_email_jwt(user["id"], data["email"])["jwt"]
                         with app.app_context():
-                            r.table("users").get(user_id).update(
+                            r.table("users").get(user["id"]).update(
                                 {
                                     "email_verification_token": token,
                                     "email_verified": False,
                                 }
                             ).run(db.conn)
-                        send_verification_email(data.get("email"), user_id, token)
+                        send_verification_email(data.get("email"), user["id"], token)
                     else:
                         with app.app_context():
-                            r.table("users").get(user_id).update(
+                            r.table("users").get(user["id"]).update(
                                 {
                                     "email_verification_token": None,
                                     "email_verified": False,
                                 }
                             ).run(db.conn)
-        if data.get("email_verified") == True:
-            data["email_verified"] = int(time.time())
+
+            if data.get("email_verified") == True:
+                data["email_verified"] = int(time.time())
+
+            if data.get("category") and user["category"] != data["category"]:
+                raise Error(
+                    "bad_request",
+                    "Category can not be changed",
+                    traceback.format_exc(),
+                )
+
+            if data.get("group") and user["group"] != data["group"]:
+                group = self.GroupGet(data["group"])
+                if group["parent_category"] != user["category"]:
+                    raise Error(
+                        "bad_request",
+                        f"Group {data['group']} does not belong to category {user['category']}",
+                        traceback.format_exc(),
+                    )
+                data["quota"] = False
+            if payload:
+                amount += 1
+                notify_admin(
+                    payload["user_id"],
+                    "User validated",
+                    f"User '{user['uid']}' data validated \n{amount}/{total}",
+                    notify_id=batch_id,
+                    type="info",
+                    params={
+                        "hide": False,
+                        "delay": 1000,
+                        "icon": "check",
+                    },
+                )
 
         if data.get("active") is False:
             for user_id in user_ids:
@@ -931,12 +1005,23 @@ class ApiUsers:
 
         invalidate_caches("users", user_ids)
 
+        if payload:
+            amount = 0
+            notify_admin(
+                payload["user_id"],
+                False,
+                f"Updating {total} users...",
+                notify_id=batch_id,
+                type="",
+                params={
+                    "hide": False,
+                    "delay": 1000,
+                    "icon": "spinner fa-spin",
+                },
+            )
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
         for user_id in user_ids:
-            # second revoke to ensure changes are applied if the user logs in again during the update
-            revoke_user_session(user_id)
-
             isard_user_storage_update_user(
                 user_id=user_id,
                 email=data.get("email"),
@@ -944,6 +1029,126 @@ class ApiUsers:
                 role=data.get("role"),
                 enabled=data.get("active"),
             )
+
+            if data.get("group") and user["group"] != data["group"]:
+                self.change_user_group(
+                    user_id,
+                    data["group"],
+                )
+
+            if payload:
+                amount += 1
+                notify_admin(
+                    payload["user_id"],
+                    "User updated",
+                    f"{amount}/{total} updated",
+                    notify_id=batch_id,
+                    type="info",
+                    params={
+                        "hide": False,
+                        "delay": 1000,
+                        "icon": "user-plus",
+                    },
+                )
+
+            # second revoke to ensure changes are applied if the user logs in again during the update
+            revoke_user_session(user_id)
+
+        if payload:
+            notify_admin(
+                payload["user_id"],
+                title="Bulk user update",
+                description=f"{len(user_ids)} users updated",
+                type="success",
+                notify_id=batch_id,
+                params={"hide": True},
+            )
+
+    def update_user(self, user_id, data):
+        if (
+            user_id == "local-default-admin-admin"
+            and data.get("group") != "default-default"
+        ):
+            raise Error(
+                "forbidden",
+                "User local-default-admin-admin can not be moved to another group",
+                traceback.format_exc(),
+            )
+
+        revoke_user_session(user_id)
+
+        if data.get("password"):
+            self.change_password(data["password"], user_id)
+            data.pop("password")
+
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("id", "email", "category", "role", "email_verified", "group")
+                .run(db.conn)
+            )
+
+        if os.environ.get("NOTIFY_EMAIL") and data.get("email"):
+            if data.get("email") != user["email"]:
+                if self.get_email_policy(user["category"], user["role"]):
+                    token = validate_email_jwt(user["id"], data["email"])["jwt"]
+                    with app.app_context():
+                        r.table("users").get(user["id"]).update(
+                            {
+                                "email_verification_token": token,
+                                "email_verified": None,
+                            }
+                        ).run(db.conn)
+                    send_verification_email(data.get("email"), user["id"], token)
+                else:
+                    with app.app_context():
+                        r.table("users").get(user["id"]).update(
+                            {
+                                "email_verification_token": None,
+                                "email_verified": None,
+                            }
+                        ).run(db.conn)
+
+        if data.get("category") and user["category"] != data["category"]:
+            raise Error(
+                "bad_request",
+                "Category can not be changed",
+                traceback.format_exc(),
+            )
+
+        if data.get("group") and user["group"] != data["group"]:
+            group = self.GroupGet(data["group"])
+            if group["parent_category"] != user["category"]:
+                raise Error(
+                    "bad_request",
+                    f"Group {data['group']} does not belong to category {user['category']}",
+                    traceback.format_exc(),
+                )
+            data["quota"] = False
+
+            self.change_user_group(
+                user["id"],
+                data["group"],
+            )
+
+        with app.app_context():
+            r.table("users").get(user_id).update(data).run(db.conn)
+        isard_user_storage_update_user(
+            user_id=user_id,
+            email=data.get("email"),
+            displayname=data.get("name"),
+            role=data.get("role"),
+            enabled=data.get("active"),
+        )
+
+        if data.get("group") and user["group"] != data["group"]:
+            self.change_user_group(
+                user["id"],
+                data["group"],
+            )
+        # second revoke to ensure changes are applied if the user logs in again during the update
+        revoke_user_session(user_id)
 
     def Templates(self, payload):
         try:
@@ -2112,6 +2317,157 @@ class ApiUsers:
             r.table("users").get(user_id).update(
                 {"vpn": {"wireguard": {"keys": False}}}
             ).run(db.conn)
+
+    def get_users_by_group(self, group_id):
+        with app.app_context():
+            return list(
+                r.table("users")
+                .get_all(group_id, index="group")
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
+
+    def get_users_by_category(self, category_id):
+        with app.app_context():
+            return (
+                r.table("users")
+                .get_all(category_id, index="category")
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
+
+    def change_user_group(self, user_id, group_id):
+        user_gen_payload = gen_payload_from_user(user_id, invalidate_cache=True)
+        user_gen_payload["group_id"] = group_id
+
+        with app.app_context():
+            user_domains = list(
+                r.table("domains")
+                .get_all(user_id, index="user")
+                .pluck("id", "create_dict", "kind")
+                .run(db.conn)
+            )
+        desktops_ids = list(
+            map(
+                lambda d: d["id"],
+                filter(lambda d: (d["kind"] == "desktop"), user_domains),
+            )
+        )
+
+        # Stop user desktops
+        try:
+            desktops_stop(desktops_ids, force=True)
+        except:
+            raise Error(
+                "internal_server",
+                "Unable to stop desktops when changing the user group",
+                traceback.format_exc(),
+                description_code="generic_error",
+            )
+
+        ## Empty Recycle Bin
+        try:
+            rb_ids = get_user_recycle_bin_ids(user_id, "recycled")
+            for rb_id in rb_ids:
+                rb_delete_queue.enqueue(
+                    {
+                        "action": "delete",
+                        "recycle_bin_id": rb_id,
+                        "user_id": user_id,
+                    }
+                )
+        except:
+            raise Error(
+                "internal_server",
+                "Unable to empty recycle bin when changing the user group",
+                traceback.format_exc(),
+                description_code="generic_error",
+            )
+
+        ## Change the domains group and limit their hardware considering the new group permissions
+        try:
+            for domain in user_domains:
+                revoke_hardware_permissions(domain, user_gen_payload)
+                with app.app_context():
+                    r.table("domains").get(domain["id"]).update(
+                        {
+                            "create_dict": domain["create_dict"],
+                            "reservables": domain.get("reservables"),
+                            "group": group_id,
+                        }
+                    ).run(db.conn)
+        except:
+            raise Error(
+                "internal_server",
+                "Unable to limit user hardware allowed when changing the users domains group",
+                traceback.format_exc(),
+                description_code="generic_error",
+            )
+
+        if user_gen_payload["role_id"] != "user":
+            # Change media group
+            with app.app_context():
+                r.table("media").get_all(user_id, index="user").update(
+                    {"group": group_id}
+                ).run(db.conn)
+
+            # Check hardware allowed for deployments and deployment desktops
+            # Note: There's no need to update the group in the deployments table
+            try:
+                with app.app_context():
+                    deployments = list(
+                        r.table("deployments")
+                        .get_all(user_id, index="user")
+                        .pluck("id", "create_dict")
+                        .run(db.conn)
+                    )
+            except:
+                raise Error(
+                    "internal_server",
+                    "Unable to get deployments when changing the users group",
+                    traceback.format_exc(),
+                    description_code="generic_error",
+                )
+
+            for deployment in deployments:
+                revoke_hardware_permissions(deployment, user_gen_payload)
+                new_create_dict = {
+                    "hardware": deployment["create_dict"]["hardware"],
+                    "reservables": deployment["create_dict"]["reservables"],
+                }
+                with app.app_context():
+                    r.table("deployments").get(deployment["id"]).update(
+                        {"create_dict": new_create_dict}
+                    ).run(db.conn)
+
+                # Limit deployment desktops hardware
+                allowed_interfaces = new_create_dict["hardware"]["interfaces"]
+                with app.app_context():
+                    r.table("domains").get_all(deployment["id"], index="tag").update(
+                        lambda desktop: {
+                            "create_dict": {
+                                "hardware": {
+                                    "interfaces": desktop["create_dict"]["hardware"][
+                                        "interfaces"
+                                    ].filter(
+                                        lambda interface: r.expr(
+                                            allowed_interfaces
+                                        ).contains(interface["id"])
+                                    ),
+                                    "boot_order": new_create_dict["hardware"][
+                                        "boot_order"
+                                    ],
+                                    "disk_bus": new_create_dict["hardware"]["disk_bus"],
+                                    "floppies": new_create_dict["hardware"]["floppies"],
+                                    "isos": new_create_dict["hardware"]["isos"],
+                                    "memory": new_create_dict["hardware"]["memory"],
+                                    "vcpus": new_create_dict["hardware"]["vcpus"],
+                                    "videos": new_create_dict["hardware"]["videos"],
+                                },
+                                "reservables": new_create_dict["reservables"],
+                            }
+                        }
+                    ).run(db.conn)
 
     def bulk_user_check(self, payload, user, item_type):
         if item_type == "csv":

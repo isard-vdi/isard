@@ -165,7 +165,7 @@ def api_v3_user_update(payload):
         users.verify_password(payload["user_id"], data["current_password"])
     data = _validate_item("user_update_frontend", data)
 
-    users.Update(
+    users.update_user(
         [payload["user_id"]],
         data,
     )

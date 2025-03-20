@@ -3,7 +3,7 @@
         background: #e3e4e4
     }
 
-    #modalDeleteUserForm td, #modalDeleteGroupForm td, #modalDeleteCategoryForm td{
+    #modalDeleteUserForm td, #modalDeleteGroupForm td, #modalDeleteCategoryForm td, #modalEmptyGroupForm td {
         text-overflow: ellipsis;
         overflow-x: hidden;
         max-width: 75px;
@@ -17,6 +17,17 @@
     #modalMigrateUser .qty {
         margin-right: 5px;
         font-size: 30px;
+    }
+
+    #modalDeleteUserForm .table-wrapper, #modalDeleteGroupForm .table-wrapper, #modalDeleteCategoryForm .table-wrapper, #modalEmptyGroupForm .table-wrapper {
+        overflow-y: scroll;
+        overflow-x: hidden;
+        max-height: 443px;
+    }
+    #modalMigrateUsersGroup .table-wrapper {
+        overflow-y: scroll;
+        overflow-x: hidden;
+        max-height: 256px;
     }
 </style>
 <div class="modal fade" id="modalAddUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
@@ -243,8 +254,13 @@
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span
                                         class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="group" name="group" class="form-control group" disabled required>
+                                    <select id="group" name="group" class="form-control group" required>
                                     </select>
+                                    <p class="fa fa-exclamation-triangle" style="color:rgb(186, 127, 60); margin-top: 1rem;">
+                                        Changing the user's main group will stop all of their desktops, and empty their
+                                        recycle bin. Their resources could be affected by the
+                                         new group's permissions. <b>Surpassed quotas and group limits will not be checked</b>
+                                    </p>
                                 </div>
                             </div>
                             <div class="item form-group">
@@ -515,6 +531,13 @@
                                     <br>
                                     <small>You can download a CSV file with the current users data using "<b>CSV for update</b>"</small>
                                     <br>
+                                    <small>If the group of the user is changed:
+                                        <ul>
+                                            <li>Moving the users to another group will stop all of their desktops and empty their recycle bin</li>
+                                            <li>The users' resources could be affected by the new group's permissions</li>
+                                            <li>Surpassed quotas and group limits will not be checked</li>
+                                        </ul>
+                                    </small>
                                     <small>CSV file should have these columns:
                                         <ul>
                                             <li>active / name / provider / category / uid / group / 
@@ -1180,6 +1203,216 @@
                 </ul>
                 <ul class="nav navbar-right panel_toolbox">
                     <li><button id="send" type="button" class="btn btn-danger">Delete group</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalMigrateUsersGroup" tabindex="-1" role="dialog" aria-labelledby="modalMigrateUsersGroup"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="modalMigrateUsersGroup">
+                    <i class="fa fa-users"></i> Move users to another group
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalMigrateUsersGroupForm" class="form-horizontal form-label-left">
+                    <input hidden id="id" name="id" />
+                    <div class="row">
+                        <div class="x_panel">
+                            <div class="col-md-12 col-sm-12 col-xs-12">
+                                <p class="fa fa-exclamation-triangle" style="color:rgb(186, 127, 60);"> Moving the users to
+                                     another group will stop all of their desktops and empty their recycle bin.
+                                </p>
+                                <p class="fa fa-exclamation-triangle" style="color:rgb(186, 127, 60);"> The users' desktops resources could be 
+                                    affected by the new group's permissions.
+                                </p>
+                                <p class="fa fas fa-exclamation-triangle" style="color:rgb(186, 127, 60);">
+                                    Surpassed quotas and group limits will not be checked.
+                                </p>
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category:
+                                        <span class="required">*</span></label>
+                                    <div class="col-md-6 col-sm-6 col-xs-12">
+                                        <select id="category" name="category" class="form-control category" required>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span
+                                            class="required">*</span></label>
+                                    <div class="col-md-6 col-sm-6 col-xs-12">
+                                        <select id="group" name="group" class="form-control group" required>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <hr>
+                                <h4>Users that will be moved: </h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_migrate_users_group" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Username</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    </li>
+                    </li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-success">Update group</button>
+                    </li>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEmptyGroup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog" style="width: 75%">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-user-times"> </i> Empty Group <small> Delete all users within the group "<span id="group-name"></span>" along with their items, but the group itself will <b>not be deleted</b>.</small>
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalEmptyGroupForm">
+                    <input hidden id="id" name="id" />
+                    <div class="row">
+                        <div class="x_panel">
+                            <div class="item form-group col-md-6">
+                                <h4><i class="fa fa-desktop"></i> Desktops</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_desktops" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="item form-group col-md-6">
+                                <h4><i class="fa fa-cube"></i> Templates</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_templates" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="x_panel">
+                            <div class="item form-group col-md-6">
+                                <h4><i class="fa fa-tv"></i> Deployments</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_deployments" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="item form-group col-md-6">
+                                <h4> <i class="fa fa-circle-o"></i> Media</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_media" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="x_panel">
+                            <div class="item form-group col-md-6">
+                                <h4> <i class="fa fa-circle-o"></i> Users</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_users" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Username</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item form-group" id="delete-check" style="text-align: center; padding: 0 8rem;">
+                        <hr>
+                        <div class="col-md-6">
+                            <label class="form-check-label" for="delete-check">
+                                I'm aware that all these items will be deleted and I want to proceed
+                            </label>
+                            <input class="form-check-input mx-2" type="checkbox" name="delete-check" value="true" id="delete-check" required data-parsley-error-message="You must check this box to proceed">
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-danger">Empty group</button></li>
                 </ul>
             </div>
         </div>

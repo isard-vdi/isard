@@ -1311,41 +1311,34 @@ class Quotas:
                 }
                 create_dict["hardware"]["memory"] = user_hardware["quota"]["memory"]
 
+        # Note: Desktops have interfaces as an array of objects (id and mac), deployments as an array of strings
         if len(create_dict["hardware"].get("interfaces", [])):
             limited["interfaces"] = {"old_value": [], "new_value": []}
+            interfaces_requested = create_dict["hardware"].get("interfaces")
             interfaces_allowed = [uh["id"] for uh in user_hardware["interfaces"]]
-            interfaces_requested = create_dict["hardware"]["interfaces"]
             for interface_requested in interfaces_requested:
-                if interface_requested["id"] not in interfaces_allowed:
+                interface_id = (
+                    interface_requested["id"]
+                    if isinstance(interface_requested, dict)
+                    else interface_requested
+                )
+                if interface_id not in interfaces_allowed:
                     with app.app_context():
                         limited["interfaces"]["old_value"].append(
                             {
-                                "id": interface_requested["id"],
+                                "id": interface_id,
                                 "name": r.table("interfaces")
-                                .get(interface_requested["id"])
+                                .get(interface_id)
                                 .pluck("name")
                                 .run(db.conn)["name"],
                             }
                         )
-
-            create_dict["hardware"]["interfaces"] = [
-                x
-                for x in create_dict["hardware"]["interfaces"]
-                if x["id"] not in [i["id"] for i in limited["interfaces"]["old_value"]]
-            ]
-
-            if not len(limited["interfaces"]["old_value"]):
-                del limited["interfaces"]
-
-            if not len(create_dict["hardware"]["interfaces"]):
-                with app.app_context():
-                    limited["interfaces"]["new_value"] = [
-                        r.table("interfaces")
-                        .get("default")
-                        .pluck("id", "name")
-                        .run(db.conn),
-                    ]
-                create_dict["hardware"]["interfaces"] = ["default"]
+                create_dict["hardware"]["interfaces"] = [
+                    x
+                    for x in create_dict["hardware"]["interfaces"]
+                    if (x["id"] if isinstance(x, dict) else x)
+                    not in [i["id"] for i in limited["interfaces"]["old_value"]]
+                ]
 
         if len(create_dict["hardware"].get("videos", [])):
             videos = [uh["id"] for uh in user_hardware["videos"]]
@@ -1712,3 +1705,84 @@ class Quotas:
                 .run(db.conn)
             )
         return migration_quota_check
+
+    def check_users_group_quota(self, user_ids: list, group_id):
+        with app.app_context():
+            group = (
+                r.table("groups")
+                .get(group_id)
+                .pluck("name", "quota", "limits", "parent_category")
+                .run(db.conn)
+            )
+
+        new_quota = group["quota"]
+        if new_quota == False:
+            with app.app_context():
+                new_quota = (
+                    r.table("categories")
+                    .get(group["parent_category"])
+                    .pluck("quota")
+                    .run(db.conn)["quota"]
+                )
+
+        new_limits = group["limits"]
+        if new_limits == False:
+            with app.app_context():
+                new_limits = (
+                    r.table("categories")
+                    .get(group["parent_category"])
+                    .pluck("limits")
+                    .run(db.conn)["limits"]
+                )
+        new_quota = {
+            "quota": new_quota,
+            "limits": new_limits,
+        }
+
+        total = {}
+
+        if new_quota["quota"] == False and new_quota["limits"] == False:
+            return
+
+        for user_id in user_ids:
+            user_quota_data = self.Get(user_id=user_id, started_info=False)
+
+            for key, value in user_quota_data["used"].items():
+                if key in new_quota["quota"]:
+                    if value > new_quota["quota"][key]:
+                        raise Error(
+                            "precondition_required",
+                            description_code="quota_exceeded",
+                            description=f"user {user_id} exceeds the '{key}' quota in group '{group['name']}'",
+                            params={"user": user_id, "key": key},
+                        )
+                    total[key] = total.get(key, 0) + value
+
+        gqp = qp.process_group_limits(group_id)
+        if gqp == False:
+            return
+        group_used = {
+            "desktops": gqp.get("d", 0),
+            "templates": gqp.get("t", 0),
+            "isos": gqp.get("i", 0),
+            "deployments_total": gqp.get("deployments", 0),
+        }
+
+        for key, value in group_used.items():
+            self.check_field_limits(
+                user={"group": group_id, "category": group["parent_category"]},
+                quota_key=key,
+                quantity=total.get(key, 0),
+                group_quantity=value,
+                category_quantity=0,
+                limits_error={
+                    "group": {
+                        "error_description": f"limits for '{key}' would be exceeded",
+                        "error_description_code": "limits_exceeded",
+                    },
+                    "category": {
+                        "error_description": f"used '{key}' exceed the category limits",
+                        "error_description_code": "limits_exceeded",
+                    },
+                },
+            )
