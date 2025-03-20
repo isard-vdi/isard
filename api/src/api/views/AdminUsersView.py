@@ -198,7 +198,7 @@ def api_v3_admin_user_csv(payload):
                 0  # password must be restored by user after an admin changes it
             )
 
-        users.Update([user_data["id"]], user_data)
+        users.update_user(user_data["id"], user_data)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
@@ -240,6 +240,8 @@ def api_v3_admin_user_update(payload, user_id=None):
                 match["group"], data["category"]
             )["id"]
 
+    user_ids = data.get("ids", [""])
+
     if "quota" in data:
         data = _validate_item("user_update_quota", data)
         if payload["role_id"] != "admin":
@@ -272,7 +274,11 @@ def api_v3_admin_user_update(payload, user_id=None):
             0  # password must be restored by user after an admin changes it
         )
 
-    users.Update(data["ids"], data)
+    if user_id:
+        users.update_user(user_id, data)
+    else:
+        users.update_multiple_users_th(user_ids, data, payload)
+
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
@@ -1323,6 +1329,28 @@ def admin_user_migrate(payload, user_id, target_user_id):
     gevent.spawn(users.process_migrate_user, user_id, target_user_id)
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/group/<group_id>/users", methods=["GET"])
+@is_admin_or_manager
+def admin_users_by_group(payload, group_id):
+    ownsCategoryId(payload, users.GroupGet(group_id)["parent_category"])
+    return (
+        json.dumps(users.get_users_by_group(group_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/category/<category_id>/users", methods=["GET"])
+@is_admin_or_manager
+def admin_users_by_category(payload, category_id):
+    ownsCategoryId(payload, category_id)
+    return (
+        json.dumps(users.get_users_by_category(category_id)),
         200,
         {"Content-Type": "application/json"},
     )

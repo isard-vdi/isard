@@ -688,8 +688,8 @@ def get_user_data(user_id="admin"):
     }
 
 
-def gen_payload_from_user(user_id):
-    user = get_document("users", user_id)
+def gen_payload_from_user(user_id, invalidate_cache=False):
+    user = get_document("users", user_id, invalidate=invalidate_cache)
     return {
         "provider": user["provider"],
         "user_id": user["id"],

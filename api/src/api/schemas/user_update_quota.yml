@@ -6,8 +6,3 @@ quota:
     - dict
     - boolean
   schema: quotas
-ids:
-  type: list
-  schema:
-    type: string
-    coerce: sanitize

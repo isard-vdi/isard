@@ -19,6 +19,8 @@ role:
     - user
     - admin
     - advanced
+group:
+  type: string
 secondary_groups:
   required: false
   type: list
@@ -29,8 +31,3 @@ password:
   type: string
 active:
   type: boolean
-ids:
-  type: list
-  schema:
-    type: string
-    coerce: sanitize

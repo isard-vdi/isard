@@ -464,6 +464,11 @@ function socketio_on(){
         filter_groups($(this), $('#bulk-group'))
         $("#secondary_groups").empty().trigger('change')
     })
+    $("#modalEditUserForm #category ").on('change', function () {
+        current_category = ($(this).val())
+        filter_groups($(this), $('#modalEditUserForm #group'))
+        $("#secondary_groups").empty().trigger('change')
+    })
 
     $("#modalAddUser #send").on('click', function(e){
         var form = $('#modalAddUserForm');
@@ -1146,6 +1151,7 @@ function actionsUserDetail(){
             $('#modalEditUserForm #role option[value="'+user.role+'"]').prop("selected",true);
             $('#modalEditUserForm #category option:selected').prop("selected", false);
             $('#modalEditUserForm #category option[value="'+user.category+'"]').prop("selected",true);
+            $("#modalEditUserForm #category").trigger('change');
             $('#modalEditUserForm #group option:selected').prop("selected", false);
             $('#modalEditUserForm #group option[value="'+user.group+'"]').prop("selected",true);
             $('#modalEditUserForm').parsley().validate();
@@ -1275,7 +1281,7 @@ function actionsUserDetail(){
     }
     });
 
-    $('.btn-active').on('click', function () {
+    $('#users .btn-active').on('click', function () {
         var closest=$(this).closest("div");
         var id=closest.attr("data-pk");
         var name=closest.attr("data-name");
@@ -1301,7 +1307,7 @@ function actionsUserDetail(){
         }).on('pnotify.cancel', function() {});
     });
 
-    $('.btn-migrate').on('click', function () {
+    $('#users .btn-migrate').on('click', function () {
         var closest = $(this).closest("div");
         var id = closest.attr("data-pk");
         var rowData = users_table.row("#" + id).data();
