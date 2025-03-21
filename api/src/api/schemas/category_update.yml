@@ -14,11 +14,7 @@ description:
   coerce: sanitize
 frontend:
   type: boolean
-  nullable: true 
-allowed_domain:
-  type: string
-  nullable: false
-  coerce: sanitize
+  nullable: true
 auto:
   type:
     - dict

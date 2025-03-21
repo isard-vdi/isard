@@ -188,17 +188,6 @@ def get_user_full_data(user_id):
     return user
 
 
-def check_category_domain(category_id, domain):
-    allowed_domain = get_category(category_id).get("allowed_domain")
-    allowed = not allowed_domain or domain == allowed_domain
-    if not allowed:
-        raise Error(
-            "forbidden",
-            "Register domain does not match category allowed domain",
-            traceback.format_exc(),
-        )
-
-
 @cached(cache=TTLCache(maxsize=200, ttl=30))
 def get_policies_category_role(category_id, role_id):
     with app.app_context():
@@ -1792,6 +1781,10 @@ class ApiUsers:
         change_category_items_owner("media", category_id)
         category_delete(agent_id, category_id)
         remove_category_from_storage_pool(category_id)
+
+    def update_category(self, category_id, data):
+        with app.app_context():
+            r.table("categories").get(category_id).update(data).run(db.conn)
 
     def GroupGet(self, group_id):
         group = get_group(group_id)

@@ -43,7 +43,7 @@ from ..libv2.api_authentication import (
     update_provider_config,
 )
 from ..libv2.validators import _validate_item
-from .decorators import has_disclaimer_token, has_token, is_admin
+from .decorators import has_disclaimer_token, has_token, is_admin, is_admin_or_manager
 
 
 @app.route("/api/v3/admin/authentication/policy", methods=["POST"])
@@ -111,7 +111,7 @@ def admin_authentication_policy_delete(payload, policy_id):
 
 
 @app.route("/api/v3/admin/authentication/providers", methods=["GET"])
-@is_admin
+@is_admin_or_manager
 def admin_authentication_providers(payload):
     providers = get_providers()
     return (

@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 162
+release_version = 163
+# release 163: Move category allowed_domain to allowed_domains as an array of providers
 # release 162: Add unused_deployments notification template
 #              Add send_unused_deployments_to_recycle_bin rule to unused_item_timeouts table
 # release 161: Delete the unused_desktops_cutoff_time field from the config table
@@ -5304,6 +5305,62 @@ password:s:%s"""
         if version == 143:
             try:
                 r.table(table).index_create("uid").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 163:
+            try:
+                categories = list(
+                    r.table(table).pluck("allowed_domain", "id").run(self.conn)
+                )
+
+                for category in categories:
+                    try:
+                        allowed_domains = (
+                            [category["allowed_domain"]]
+                            if category.get("allowed_domain")
+                            else []
+                        )
+
+                        self.add_keys(
+                            table,
+                            [
+                                {
+                                    "authentication": {
+                                        "local": {
+                                            "enabled": None,
+                                            "allowed_domains": allowed_domains,
+                                        },
+                                        "google": {
+                                            "enabled": None,
+                                            "allowed_domains": allowed_domains,
+                                        },
+                                        "saml": {
+                                            "enabled": None,
+                                            "allowed_domains": allowed_domains,
+                                        },
+                                        "ldap": {
+                                            "enabled": None,
+                                            "allowed_domains": allowed_domains,
+                                        },
+                                    }
+                                }
+                            ],
+                            id=category["id"],
+                        )
+
+                    except Exception as e:
+                        print(e)
+
+                r.table(table).replace(
+                    lambda category: category.without("allowed_domain")
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_drop("allowed_domain").run(self.conn)
+
             except Exception as e:
                 print(e)
 

@@ -577,8 +577,10 @@ def api_v3_admin_user_desktops(payload, user_id=None):
 @is_admin
 def api_v3_admin_category(payload, category_id):
     ownsCategoryId(payload, category_id)
+    category = users.CategoryGet(category_id, True)
+    category["is_default"] = True if (category["id"] == "default") else False
     return (
-        json.dumps(users.CategoryGet(category_id, True)),
+        json.dumps(category),
         200,
         {"Content-Type": "application/json"},
     )
@@ -603,6 +605,23 @@ def api_v3_admin_edit_category(payload, category_id):
     checkDuplicateCustomURL(data["custom_url_name"], category_id=data["id"])
     admin_table_update("categories", data)
     return json.dumps(data), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/category/<category_id>/authentication", methods=["PUT"])
+@is_admin
+def api_v3_admin_category_authentication(payload, category_id):
+    ownsCategoryId(payload, category_id)
+    try:
+        data = request.get_json()
+    except:
+        raise Error(
+            "bad_request",
+            "Unable to parse body data.",
+            traceback.format_exc(),
+        )
+    data = _validate_item("category_authentication", data)
+    users.update_category(category_id, data)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/quota/group/<group_id>", methods=["PUT"])
@@ -696,6 +715,12 @@ def api_v3_admin_category_insert(payload):
     if data.get("storage_pool"):
         storage_pool = data.pop("storage_pool")
         add_category_to_storage_pool(storage_pool, category["id"])
+    category["authentication"] = {
+        "google": {"allowed_domains": [], "enabled": None},
+        "ldap": {"allowed_domains": [], "enabled": None},
+        "local": {"allowed_domains": [], "enabled": None},
+        "saml": {"allowed_domains": [], "enabled": None},
+    }
     admin_table_insert("categories", category)
     admin_table_insert("groups", group)
     return (

@@ -107,6 +107,29 @@ func TestLogin(t *testing.T) {
 				})).Return(r.WriteResponse{
 					Updated: 1,
 				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"google": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.net"},
+							},
+							"ldap": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.io"},
+							},
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.org"},
+							},
+							"saml": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.com"},
+							},
+						},
+					},
+				}, nil)
 			},
 			PrepareAPI: func(c *sdk.MockSdk) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
@@ -424,6 +447,17 @@ func TestLogin(t *testing.T) {
 						"email_verified":       &now,
 					},
 				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": nil,
+							},
+						},
+					},
+				}, nil)
 			},
 			RemoteAddr: "127.0.0.1",
 			Provider:   "form",
@@ -461,6 +495,17 @@ func TestLogin(t *testing.T) {
 						"name":                 "Néfix Estrada",
 						"email":                "nefix@example.org",
 						"email_verified":       nil,
+					},
+				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": nil,
+							},
+						},
 					},
 				}, nil)
 			},
@@ -524,6 +569,17 @@ func TestLogin(t *testing.T) {
 						"name":                 "Néfix Estrada",
 						"email":                "nefix@example.org",
 						"email_verified":       nil,
+					},
+				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": nil,
+							},
+						},
 					},
 				}, nil)
 			},
@@ -593,6 +649,17 @@ func TestLogin(t *testing.T) {
 						"email_verified":       nil,
 					},
 				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": nil,
+							},
+						},
+					},
+				}, nil)
 			},
 			PrepareAPI: func(c *sdk.MockSdk) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
@@ -635,6 +702,253 @@ func TestLogin(t *testing.T) {
 				}, claims)
 			},
 			ExpectedRedirect: "",
+		},
+		"should return a ErrUserDisallowed error if the user's email is not in the category's allowed domains for the provider": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("uid"), "pau"),
+					r.Eq(r.Row.Field("provider"), "local"),
+					r.Eq(r.Row.Field("category"), "default"),
+				), r.FilterOpts{})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                   "905d7714-df00-499a-8b0a-7d7a0a40191f",
+						"uid":                  "pau",
+						"username":             "pau",
+						"password":             "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm",
+						"password_reset_token": "",
+						"provider":             "local",
+						"active":               false,
+						"category":             "default",
+						"role":                 "user",
+						"group":                "default-default",
+						"name":                 "Pau Abril",
+						"email":                "🐐@💌.kz",
+						"email_verified":       &now,
+					},
+				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"google": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.net"},
+							},
+							"ldap": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.io"},
+							},
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.org"},
+							},
+							"saml": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.com"},
+							},
+						},
+					},
+				}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "pau"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
+				}
+			},
+			ExpectedRedirect: "",
+			ExpectedErr:      provider.ErrUserDisallowed.Error(),
+		},
+		"should return a ErrUserDisallowed error if the user doesn't have an email and the category has allowed domains for the provider": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("uid"), "nefix"),
+					r.Eq(r.Row.Field("provider"), "local"),
+					r.Eq(r.Row.Field("category"), "default"),
+				), r.FilterOpts{})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                   "905d7714-df00-499a-8b0a-7d7a0a40191f",
+						"uid":                  "pau",
+						"username":             "pau",
+						"password":             "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm",
+						"password_reset_token": "",
+						"provider":             "local",
+						"active":               false,
+						"category":             "default",
+						"role":                 "user",
+						"group":                "default-default",
+						"name":                 "Pau Abril",
+						"email_verified":       &now,
+					},
+				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"google": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.net"},
+							},
+							"ldap": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.io"},
+							},
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.org"},
+							},
+							"saml": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.com"},
+							},
+						},
+					},
+				}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
+				}
+			},
+			ExpectedRedirect: "",
+			ExpectedErr:      provider.ErrUserDisallowed.Error(),
+		},
+		"should return an error if the user doesn't have a valid email and the category has allowed domains for the provider": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("uid"), "nefix"),
+					r.Eq(r.Row.Field("provider"), "local"),
+					r.Eq(r.Row.Field("category"), "default"),
+				), r.FilterOpts{})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                   "905d7714-df00-499a-8b0a-7d7a0a40191f",
+						"uid":                  "pau",
+						"username":             "pau",
+						"password":             "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm",
+						"password_reset_token": "",
+						"provider":             "local",
+						"active":               false,
+						"category":             "default",
+						"role":                 "user",
+						"group":                "default-default",
+						"name":                 "Pau Abril",
+						"email":                "🐐",
+						"email_verified":       &now,
+					},
+				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"google": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.net"},
+							},
+							"ldap": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.io"},
+							},
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.org"},
+							},
+							"saml": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.com"},
+							},
+						},
+					},
+				}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
+				}
+			},
+			ExpectedRedirect: "",
+			ExpectedErr:      "parse user email address: '🐐': mail: missing '@' or angle-addr",
+		},
+		"should return an error if the category has that provider disabled": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("uid"), "nefix"),
+					r.Eq(r.Row.Field("provider"), "local"),
+					r.Eq(r.Row.Field("category"), "default"),
+				), r.FilterOpts{})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                   "905d7714-df00-499a-8b0a-7d7a0a40191f",
+						"uid":                  "pau",
+						"username":             "pau",
+						"password":             "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm",
+						"password_reset_token": "",
+						"provider":             "local",
+						"active":               false,
+						"category":             "default",
+						"role":                 "user",
+						"group":                "default-default",
+						"name":                 "Pau Abril",
+						"email":                "🐐",
+						"email_verified":       &now,
+					},
+				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"google": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.net"},
+							},
+							"ldap": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.io"},
+							},
+							"local": map[string]interface{}{
+								"enabled":         false,
+								"allowed_domains": nil,
+							},
+							"saml": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": []string{"example.com"},
+							},
+						},
+					},
+				}, nil)
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
+				}
+			},
+			ExpectedRedirect: "",
+			ExpectedErr:      provider.ErrUserDisallowed.Error(),
 		},
 	}
 

@@ -22,7 +22,7 @@ r = RethinkDB()
 db = RDB(app)
 db.init_app(app)
 
-from ..libv2.api_users import ApiUsers, check_category_domain
+from ..libv2.api_users import ApiUsers
 
 users = ApiUsers()
 
@@ -92,8 +92,6 @@ def api_v3_user_register(payload):
         )
 
     checkDuplicateUser(payload["user_id"], payload["category_id"], payload["provider"])
-
-    check_category_domain(data.get("category"), payload["email"].split("@")[-1])
 
     user_id = users.Create(
         payload["provider"],
