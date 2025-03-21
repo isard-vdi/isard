@@ -37,8 +37,6 @@ watch(
   { immediate: true }
 )
 
-console.log(bearer)
-
 localStorage.language ? setLocale(localStorage.language) : setBrowserLocale(i18n)
 
 const vueQueryPluginOptions: VueQueryPluginOptions = {
