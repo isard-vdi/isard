@@ -198,6 +198,8 @@ class ApiDesktopsPersistent:
                     "reservables"
                 ]
                 template["create_dict"]["hardware"].pop("reservables")
+            else:
+                template["create_dict"]["reservables"] = {"vgpus": None}
         else:
             # In template interfaces are a list of dicts (as we inherited from existing template)
             # so we need to convert them to a list of ids
@@ -277,11 +279,10 @@ class ApiDesktopsPersistent:
             else int(template["create_dict"]["hardware"]["memory"])
         )
 
-        if create_dict.get("reservables"):
-            new_desktop["create_dict"] = {
-                **new_desktop["create_dict"],
-                **{"reservables": create_dict["reservables"]},
-            }
+        new_desktop["create_dict"] = {
+            **new_desktop["create_dict"],
+            **{"reservables": create_dict.get("reservables", {"vgpus": None})},
+        }
         if insert:
             with app.app_context():
                 r.table("domains").insert(new_desktop).run(db.conn)
@@ -584,6 +585,11 @@ class ApiDesktopsPersistent:
         else:
             disks = []
 
+        if data["hardware"].get("reservables", {"vgpus": None}).get("vgpus") == [
+            "None"
+        ]:
+            data["hardware"]["reservables"]["vgpus"] = None
+
         domain = {
             "id": data["id"],
             "name": data["name"],
@@ -634,6 +640,7 @@ class ApiDesktopsPersistent:
                     "vcpus": int(data["hardware"]["vcpus"]),
                     "qos_disk_id": False,
                 },
+                "reservables": data["hardware"]["reservables"],
             },
             "tag": False,
             "tag_name": False,

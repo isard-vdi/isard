@@ -60,6 +60,9 @@ floppies:
         coerce: sanitize
 reservables:
   type: dict
+  default: {
+    "vgpus": null
+  }
   schema:
     vgpus:
       type: list
