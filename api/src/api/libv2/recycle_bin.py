@@ -1294,15 +1294,17 @@ class RecycleBin(object):
                             start = time.time()
                             exists = Storage.exists(storage["id"])
                             log.debug(
-                                "RecycleBin %s delete_storage: Checked if storage %s exists or status is deleted in %s seconds",
+                                "RecycleBin %s delete_storage: Checked if storage %s exists in %s seconds",
                                 rb.id,
                                 storage["id"],
                                 time.time() - start,
                             )
-                            if not exists or storage["status"] == "deleted":
+                            if not exists:
                                 continue
                             start = time.time()
                             storage = Storage(storage["id"])
+                            if storage.status == "deleted":
+                                continue
                             if storage.status != "recycled":
                                 storage.status = "recycled"
                             move = get_delete_action() == "move"
