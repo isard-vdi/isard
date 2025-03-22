@@ -65,8 +65,11 @@ class MediaThread(threading.Thread):
                     ):
                         if self.stop == True:
                             break
-                        if c["new_val"] == None or c["new_val"]["status"] == "deleted":
+                        if c["new_val"] == None:
                             data = c["old_val"]
+                            event = "delete"
+                        elif c["new_val"]["status"] == "deleted":
+                            data = c["new_val"]
                             event = "delete"
                         elif c["old_val"] == None:
                             data = c["new_val"]
