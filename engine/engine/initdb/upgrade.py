@@ -5380,12 +5380,6 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
-            try:
-                r.table(table).index_drop("allowed_domain").run(self.conn)
-
-            except Exception as e:
-                print(e)
-
         return True
 
     def qos_net(self, version):
