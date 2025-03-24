@@ -210,6 +210,7 @@
 import { computed, watch, ref } from '@vue/composition-api'
 import { mapGetters } from 'vuex'
 import i18n from '@/i18n'
+import { ErrorUtils } from '@/utils/errorUtils'
 
 export default {
   setup (props, context) {
@@ -234,6 +235,16 @@ export default {
         showBastionOptions.value = true
       } else {
         showBastionOptions.value = false
+      }
+      if (!wireguard.value) {
+        if (newVal) {
+          showBastionOptions.value = true
+          ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.bastion-wireguard-network-added'), '', true, 5000)
+          domain.value.hardware.interfaces = [...domain.value.hardware.interfaces, 'wireguard']
+          $store.commit('setDomain', domain.value)
+        } else {
+          showBastionOptions.value = false
+        }
       }
     })
 
@@ -293,6 +304,16 @@ export default {
         copyTooltipText.value = i18n.t('forms.domain.bastion.copy')
       }, 750)
     }
+
+    const domain = computed(() => $store.getters.getDomain)
+    const wireguard = computed(() => domain.value.hardware.interfaces.includes('wireguard'))
+
+    watch(wireguard, (newVal, prevVal) => {
+      if (!wireguard.value) {
+        ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.wireguard-bastion-removed'), '', true, 5000)
+        bastion.value = false
+      }
+    })
 
     return {
       showBastionOptions,
