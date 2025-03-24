@@ -20,17 +20,17 @@ func TestIsRateLimited(t *testing.T) {
 		ExpectedErr  string
 	}{
 		"should not return an error if the user hasn't failed an attempt": {
-			Username:   "néfix",
+			Username:   "jdoe",
 			CategoryID: "default",
 			Provider:   "form",
 		},
 		"should not return an error if the user has no active rate": {
-			Username:   "néfix",
+			Username:   "jdoe",
 			CategoryID: "default",
 			Provider:   "form",
 			PrepareCache: func(cache *ttlcache.Cache[rateLimitedKey, rateLimitedValue]) {
 				cache.Set(rateLimitedKey{
-					Username:   "néfix",
+					Username:   "jdoe",
 					CategoryID: "default",
 					Provider:   "form",
 				}, rateLimitedValue{
@@ -40,12 +40,12 @@ func TestIsRateLimited(t *testing.T) {
 			},
 		},
 		"should return an error if there's an active rate limit on the user": {
-			Username:   "néfix",
+			Username:   "jdoe",
 			CategoryID: "default",
 			Provider:   "form",
 			PrepareCache: func(cache *ttlcache.Cache[rateLimitedKey, rateLimitedValue]) {
 				cache.Set(rateLimitedKey{
-					Username:   "néfix",
+					Username:   "jdoe",
 					CategoryID: "default",
 					Provider:   "form",
 				}, rateLimitedValue{
@@ -53,7 +53,7 @@ func TestIsRateLimited(t *testing.T) {
 					RetryAfter: time.Now().Add(1 * time.Hour),
 				}, ttlcache.NoTTL)
 			},
-			ExpectedErr: "you have been rate limited, try again at '",
+			ExpectedErr: "user 'jdoe' has been rate limited, try again at '",
 		},
 	}
 
@@ -89,18 +89,18 @@ func TestRecordFailedAttempt(t *testing.T) {
 		CheckRetryTime   func(time.Time)
 	}{
 		"shouldn't return an error if it's the first failed attempt": {
-			Username:         "néfix",
+			Username:         "jdoe",
 			CategoryID:       "default",
 			Provider:         "form",
 			ExpectedAttempts: 1,
 		},
 		"shouldn't return an error and increase the attempts counter if there have been less than 10 attempts": {
-			Username:   "néfix",
+			Username:   "jdoe",
 			CategoryID: "default",
 			Provider:   "form",
 			PrepareCache: func(cache *ttlcache.Cache[rateLimitedKey, rateLimitedValue]) {
 				cache.Set(rateLimitedKey{
-					Username:   "néfix",
+					Username:   "jdoe",
 					CategoryID: "default",
 					Provider:   "form",
 				}, rateLimitedValue{
@@ -110,12 +110,12 @@ func TestRecordFailedAttempt(t *testing.T) {
 			ExpectedAttempts: 9,
 		},
 		"should return the current retry time if is currently active": {
-			Username:   "néfix",
+			Username:   "jdoe",
 			CategoryID: "default",
 			Provider:   "form",
 			PrepareCache: func(cache *ttlcache.Cache[rateLimitedKey, rateLimitedValue]) {
 				cache.Set(rateLimitedKey{
-					Username:   "néfix",
+					Username:   "jdoe",
 					CategoryID: "default",
 					Provider:   "form",
 				}, rateLimitedValue{
@@ -123,19 +123,19 @@ func TestRecordFailedAttempt(t *testing.T) {
 					RetryAfter: time.Now().Add(1 * time.Hour),
 				}, ttlcache.NoTTL)
 			},
-			ExpectedErr:      "you have been rate limited, try again at '",
+			ExpectedErr:      "user 'jdoe' has been rate limited, try again at '",
 			ExpectedAttempts: 1000,
 			CheckRetryTime: func(t time.Time) {
 				assert.True(t.After(time.Now().Add(59 * time.Minute)))
 			},
 		},
 		"should set a new retry time if the current has already expired": {
-			Username:   "néfix",
+			Username:   "jdoe",
 			CategoryID: "default",
 			Provider:   "form",
 			PrepareCache: func(cache *ttlcache.Cache[rateLimitedKey, rateLimitedValue]) {
 				cache.Set(rateLimitedKey{
-					Username:   "néfix",
+					Username:   "jdoe",
 					CategoryID: "default",
 					Provider:   "form",
 				}, rateLimitedValue{
@@ -143,7 +143,7 @@ func TestRecordFailedAttempt(t *testing.T) {
 					RetryAfter: time.Now().Add(-1 * time.Hour),
 				}, ttlcache.NoTTL)
 			},
-			ExpectedErr:      "you have been rate limited, try again at '",
+			ExpectedErr:      "user 'jdoe' has been rate limited, try again at '",
 			ExpectedAttempts: 13,
 			CheckRetryTime: func(t time.Time) {
 				assert.True(t.After(time.Now().Add(3 * time.Minute * 3).Add(-1 * time.Second)))
@@ -151,12 +151,12 @@ func TestRecordFailedAttempt(t *testing.T) {
 			},
 		},
 		"should honor the max_time configuration": {
-			Username:   "néfix",
+			Username:   "jdoe",
 			CategoryID: "default",
 			Provider:   "form",
 			PrepareCache: func(cache *ttlcache.Cache[rateLimitedKey, rateLimitedValue]) {
 				cache.Set(rateLimitedKey{
-					Username:   "néfix",
+					Username:   "jdoe",
 					CategoryID: "default",
 					Provider:   "form",
 				}, rateLimitedValue{
@@ -164,7 +164,7 @@ func TestRecordFailedAttempt(t *testing.T) {
 					RetryAfter: time.Now().Add(-1 * time.Hour),
 				}, ttlcache.NoTTL)
 			},
-			ExpectedErr:      "you have been rate limited, try again at '",
+			ExpectedErr:      "user 'jdoe' has been rate limited, try again at '",
 			ExpectedAttempts: 1000,
 			CheckRetryTime: func(t time.Time) {
 				assert.True(t.After(time.Now().Add(15 * time.Minute).Add(-1 * time.Second)))
