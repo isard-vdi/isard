@@ -302,6 +302,7 @@ def api_v3_desktop_from_media(payload):
         payload["user_id"],
     )
     quotas.desktop_create(payload["user_id"])
+    desktops.check_viewers(data, data)
     desktop_id = desktops.NewFromMedia(payload, data)
     return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
 

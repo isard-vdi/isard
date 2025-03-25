@@ -164,6 +164,7 @@ def api_v3_desktop_info(payload, domain_id):
         "domains",
         domain_id,
         ["id", "kind", "name", "description", "image", "guest_properties"],
+        invalidate=True,
     )
     domain = {
         **domain_def,
