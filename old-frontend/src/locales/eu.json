@@ -933,13 +933,13 @@
             "viewers": {
                 "fullscreen-disabled": "Pantaila osoa desaktibatuta",
                 "fullscreen-enabled": "Pantaila osoa aktibatuta",
-                "guest": {
-                    "title": "RDP saio-hasiera",
-                    "password": "Pasahitza",
-                    "warning": "OHARRA: Gonbidatuen pasahitzak testu lauan gordeko dira!",
-                    "username": "Erabiltzaile izena"
-                },
                 "title": "Ikusleak"
+            },
+            "guest": {
+                "title": "RDP saio-hasiera",
+                "password": "Pasahitza",
+                "warning": "OHARRA: Gonbidatuen pasahitzak testu lauan gordeko dira!",
+                "username": "Erabiltzaile izena"
             },
             "hardware": {
                 "title": "Hardware",

@@ -10,7 +10,15 @@
         </h4>
       </b-row>
       <DomainInfo />
-      <DomainViewers />
+      <DomainViewers @rdpViewersSelected="value => rdpViewersEnabled = value" />
+      <DomainBastion
+        v-if="config.canUseBastion && domain.kind == 'desktop'"
+        @toggleBastion="value => bastionEnabled = value"
+      />
+      <DomainCredentials
+        v-if="showCredentialsForm"
+        :can-use-bastion="config.canUseBastion"
+      />
       <DomainHardware />
       <DomainBookables />
       <DomainMedia />
@@ -41,6 +49,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from '@vue/composition-api'
 import DomainInfo from '@/components/domain/DomainInfo.vue'
 import DomainViewers from '@/components/domain/DomainViewers.vue'
+import DomainBastion from '@/components/domain/DomainBastion.vue'
+import DomainCredentials from '@/components/domain/DomainCredentials.vue'
 import DomainHardware from '@/components/domain/DomainHardware.vue'
 import DomainMedia from '@/components/domain/DomainMedia.vue'
 import DomainBookables from '@/components/domain/DomainBookables.vue'
@@ -52,6 +62,8 @@ export default {
   components: {
     DomainInfo,
     DomainViewers,
+    DomainBastion,
+    DomainCredentials,
     DomainHardware,
     DomainMedia,
     DomainBookables,
@@ -62,9 +74,13 @@ export default {
 
     const v$ = useVuelidate()
 
+    const config = computed(() => $store.getters.getConfig)
     const domainId = computed(() => $store.getters.getEditDomainId)
     const domain = computed(() => $store.getters.getDomain)
     const domainName = ref('') // Displayed name in the form title
+    const rdpViewersEnabled = ref(false)
+    const bastionEnabled = ref(false)
+    const showCredentialsForm = computed(() => rdpViewersEnabled.value || bastionEnabled.value)
 
     watch(domain, (newVal, prevVal) => {
       domainName.value = newVal.name
@@ -161,7 +177,11 @@ export default {
       domain,
       domainName,
       submitForm,
-      navigate
+      navigate,
+      config,
+      rdpViewersEnabled,
+      bastionEnabled,
+      showCredentialsForm
     }
   }
 }

@@ -150,31 +150,32 @@
       "viewers": {
         "title": "Visores",
         "fullscreen-disabled": "Pantalla completa desactivada",
-        "fullscreen-enabled": "Pantalla completa activada",
-        "guest": {
-          "title": "Login RDP",
-          "warning": "ATENCIÓN: La contraseña se guardará como texto plano!!",
-          "username": "Usuario",
-          "password": "Contraseña"
+        "fullscreen-enabled": "Pantalla completa activada"
+      },
+      "bastion": {
+        "disabled": "Bastión deshabilitado",
+        "enabled": "Bastión habilitado",
+        "title": "Bastión",
+        "http": {
+          "checkbox": "HTTP",
+          "http-port": "Puerto HTTP",
+          "https-port": "Puerto HTTPS"
         },
-        "bastion": {
-          "disabled": "Bastión deshabilitado",
-          "enabled": "Bastión habilitado",
-          "title": "Opciones de bastión",
-          "http": {
-            "checkbox": "HTTP",
-            "http-port": "Puerto HTTP",
-            "https-port": "Puerto HTTPS"
-          },
-          "ssh": {
-            "checkbox": "SSH",
-            "port": "Puerto SSH",
-            "authorized-keys": "Claves autorizadas (una por línea)"
-          },
-          "port-tooltip": "El puerto utilizado por tu escritorio. Externamente, se asignará al puerto {port}.",
-          "copy": "Copiar al portapapeles",
-          "copied": "Copiado!"
-        }
+        "ssh": {
+          "checkbox": "SSH",
+          "port": "Puerto SSH",
+          "authorized-keys": "Claves autorizadas (una por línea)"
+        },
+        "port-tooltip": "El puerto utilizado por tu escritorio. Externamente, se asignará al puerto {port}.",
+        "copy": "Copiar al portapapeles",
+        "copied": "Copiado!"
+      },
+      "guest": {
+        "title": "Credenciales del escritorio",
+        "rdp-bastion": "Estas credenciales sirven para la conexión mediante RDP o bastión",
+        "warning": "ATENCIÓN: La contraseña se guardará como texto plano!!",
+        "username": "Usuario",
+        "password": "Contraseña"
       },
       "hardware": {
         "warning": "ATENCIÓN: El siguiente hardware se modificó por permisos:",
@@ -352,10 +353,10 @@
         }
       },
       "notification": {
-          "migrate-button": {
-            "import": "Importar usuario ahora",
-            "export": "Exportar usuario ahora"
-          }
+        "migrate-button": {
+          "import": "Importar usuario ahora",
+          "export": "Exportar usuario ahora"
+        }
       }
     },
     "desktop-cards": {
@@ -1368,7 +1369,9 @@
       "edit-desktop-server": "No se puede editar un servidor",
       "delete-desktop-stop": "Para eliminar un escritorio es necesario que esté parado",
       "wireguard-network-added": "Se ha añadido la red wireguard ya que es necesaria para los visores RDP",
+      "bastion-wireguard-network-added": "Se ha añadido la red wireguard ya que es necesaria para bastión",
       "wireguard-viewers-removed": "Los visores RDP se han eliminado ya que requieren la red wireguard",
+      "wireguard-bastion-removed": "Bastión se ha eliminado ya que requiere la red wireguard",
       "wireguard-network-required": "No se pueden seleccionar visores RDP ya que la red wireguard es necesaria. Contacta con el administrador para utilizar la red wireguard",
       "deleting-template": "Eliminando plantilla",
       "retry-desktop": "Comprobando el estado del escritorio",
@@ -1528,7 +1531,7 @@
     "hypervisors_not_available": "No se ha podido iniciar el escritorio. El sistema puede estar sobrecargado. Inténtelo de nuevo más tarde.",
     "duplicate": "Esta plantilla es una duplicada de otra plantilla y no se puede convertir en un escritorio. Contacta con tu administrador.",
     "convert_template_with_derivatives": "Esta plantilla tiene dependencias y no puede ser convertida a escritorio. Contacta con tu administrador.",
-    "migration_not_found":"No se ha encontrado este código de migración",
+    "migration_not_found": "No se ha encontrado este código de migración",
     "multiple_migrations_found_origin_user": "Se encontraron múltiples migraciones para el usuario de origen. Contacta con tu administrador",
     "multiple_migrations_found_target_user": "Se encontraron múltiples migraciones para el usuario de destino. Contacta con tu administrador",
     "multiple_migrations_found_token": "Se encontraron múltiples migraciones para el mismo código de migración. Contacta con tu administrador",
@@ -1546,7 +1549,7 @@
     "unable_to_restore_group": "No se puede restaurar. El grupo eliminado {group} está asociado a elementos de esta entrada",
     "unable_to_restore_category": "No se puede restaurar. La categoría eliminada {category} está asociada a elementos de esta entrada",
     "operation_not_owned": "No estás autorizado a cancelar esta operación ya que no ha sido iniciada por ti"
-    },
+  },
   "router": {
     "titles": {
       "desktops": "Escritorios",

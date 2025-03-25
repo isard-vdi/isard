@@ -392,15 +392,15 @@
         "title": "Information"
       },
       "viewers": {
-        "guest": {
-          "username": "Benutzername",
-          "password": "Passwort",
-          "warning": "WARNUNG: Das Gast-Passwort wird im Klartext gespeichert!",
-          "title": "RDP-Anmeldung"
-        },
         "title": "Betrachter",
         "fullscreen-enabled": "Vollbild aktiviert",
         "fullscreen-disabled": "Vollbild deaktiviert"
+      },
+      "guest": {
+        "username": "Benutzername",
+        "password": "Passwort",
+        "warning": "WARNUNG: Das Gast-Passwort wird im Klartext gespeichert!",
+        "title": "RDP-Anmeldung"
       },
       "hardware": {
         "memory": "Speicher (GB)",

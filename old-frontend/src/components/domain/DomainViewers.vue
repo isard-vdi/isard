@@ -67,81 +67,20 @@
         </b-row>
       </b-form-checkbox-group>
     </b-form-group>
-    <!-- Guest username -->
-    <span v-if="showRDPLogin">
-      <h4>
-        <strong>{{ $t('forms.domain.viewers.guest.title') }}</strong>
-      </h4>
-      <p class="text-danger font-weight-bold">
-        <b-icon
-          class="mr-2"
-          variant="danger"
-          icon="exclamation-triangle-fill"
-        />
-        {{ $t('forms.domain.viewers.guest.warning') }}
-      </p>
-      <b-row>
-        <b-col
-          cols="4"
-          xl="2"
-        >
-          <label for="usernameField">{{ $t('forms.domain.viewers.guest.username') }}</label>
-        </b-col>
-        <b-col
-          cols="6"
-          xl="4"
-        >
-          <b-form-input
-            id="usernameField"
-            v-model="username"
-            type="text"
-            size="sm"
-          />
-        </b-col>
-      </b-row>
-
-      <!-- Guest password -->
-      <b-row class="my-4">
-        <b-col
-          cols="4"
-          xl="2"
-        >
-          <label for="passwordField">{{ $t('forms.domain.viewers.guest.password') }}</label>
-        </b-col>
-        <b-col
-          cols="6"
-          xl="4"
-        >
-          <b-form-input
-            id="passwordField"
-            v-model="password"
-            type="text"
-            size="sm"
-          />
-        </b-col>
-      </b-row>
-    </span>
-    <DomainBastion v-if="getConfig.canUseBastion" />
   </div>
 </template>
 
 <script>
-import { computed, watch, ref } from '@vue/composition-api'
+import { computed, watch } from '@vue/composition-api'
 import { availableViewers } from '@/shared/constants'
 import { orderBy } from 'lodash'
 import i18n from '@/i18n'
 import { ErrorUtils } from '@/utils/errorUtils'
-import DomainBastion from '@/components/domain/DomainBastion.vue'
-import { mapGetters } from 'vuex/dist/vuex.common.js'
 
 export default {
-  components: {
-    DomainBastion
-  },
   setup (props, context) {
     const $store = context.root.$store
     const domain = computed(() => $store.getters.getDomain)
-    const showRDPLogin = ref(false)
     const fullscreen = computed({
       get: () => $store.getters.getDomain.guestProperties.fullscreen,
       set: (value) => {
@@ -156,21 +95,6 @@ export default {
         $store.commit('setDomain', domain.value)
       }
     })
-    const username = computed({
-      get: () => $store.getters.getDomain.guestProperties.credentials.username,
-      set: (value) => {
-        domain.value.guestProperties.credentials.username = value
-        $store.commit('setDomain', domain.value)
-      }
-    })
-    const password = computed({
-      get: () => $store.getters.getDomain.guestProperties.credentials.password,
-      set: (value) => {
-        domain.value.guestProperties.credentials.password = value
-        $store.commit('setDomain', domain.value)
-      }
-    })
-
     const wireguard = computed(() => domain.value.hardware.interfaces.includes('wireguard'))
     const availableHardware = computed(() => $store.getters.getHardware)
     watch(wireguard, (newVal, prevVal) => {
@@ -186,7 +110,7 @@ export default {
       const currentViewers = newVal.map((viewer) => Object.keys(viewer)[0])
       // If has selected any wireguard viewer
       if (currentViewers.some(viewer => wireguardViewers.includes(viewer))) {
-        showRDPLogin.value = true
+        context.emit('rdpViewersSelected', true)
         // Add the wireguard network
         if (!wireguard.value) {
           if (availableHardware.value.interfaces.filter(i => i.id === 'wireguard').length) {
@@ -199,25 +123,17 @@ export default {
           }
         }
       } else {
-        showRDPLogin.value = false
+        context.emit('rdpViewersSelected', false)
       }
     })
 
     return {
       viewers,
-      username,
-      password,
       orderBy,
       wireguard,
       fullscreen,
-      availableViewers,
-      showRDPLogin
+      availableViewers
     }
-  },
-  computed: {
-    ...mapGetters([
-      'getConfig'
-    ])
   }
 }
 </script>
