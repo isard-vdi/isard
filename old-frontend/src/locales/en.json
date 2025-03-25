@@ -1231,7 +1231,8 @@
                     "id": "Bastion ID:",
                     "ssh": "SSH:",
                     "http": "HTTP URL:",
-                    "https": "HTTPS URL:"
+                    "https": "HTTPS URL:",
+                    "authorized-keys-ssh": "Authorized keys for SSH"
                 },
                 "titles": {
                     "id_copy": "Copy bastion ID",
@@ -1241,7 +1242,11 @@
                     "http_port": "HTTP: {http_port}",
                     "http_copy": "Copy HTTP URL",
                     "https_port": "HTTPS: {https_port}",
-                    "https_copy": "Copy HTTPS URL"
+                    "https_copy": "Copy HTTPS URL",
+                    "authorized-keys-ssh": "Authorized keys for SSH"
+                },
+                "buttons": {
+                    "update-authorized-keys": "Update authorized keys"
                 }
             }
         },
@@ -1371,7 +1376,8 @@
             "recreate-desktop-stop": "To recreate a desktop it must be stopped",
             "increasing-storage": "Increasing storage size. This may take a while",
             "converting-template": "Converting template to desktop",
-            "token-copied": "Token copied to clipboard"
+            "token-copied": "Token copied to clipboard",
+            "authorized-ssh-keys-updated": "Authorized SSH keys updated"
         },
         "loading": "Loading"
     },

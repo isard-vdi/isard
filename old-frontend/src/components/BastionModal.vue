@@ -39,37 +39,6 @@
     </b-row>
     <hr>
     <b-row
-      v-if="modal.bastion.ssh.enabled"
-      class="ml-2 pr-3"
-    >
-      <label
-        for="bastionSshUrl"
-        class="ml-2 mb-0"
-        :title="$t('views.desktop.bastion_modal.titles.ssh_port', { ssh_port: modal.bastion.ssh.port })"
-      >
-        {{ $t('views.desktop.bastion_modal.labels.ssh') }}
-      </label>
-      <b-input-group
-        id="bastionSshUrl"
-        class="mb-3"
-      >
-        <b-form-input
-          readonly
-          :value="sshUrl"
-        />
-        <b-input-group-append>
-          <b-button
-            :title="$t('views.desktop.bastion_modal.titles.ssh_copy')"
-            @click="copyToClipboard(sshUrl)"
-          >
-            <b-icon
-              icon="clipboard"
-            />
-          </b-button>
-        </b-input-group-append>
-      </b-input-group>
-    </b-row>
-    <b-row
       v-if="modal.bastion.http.enabled"
       class="ml-2 pr-3"
     >
@@ -145,6 +114,66 @@
         </b-input-group-append>
       </b-input-group>
     </b-row>
+    <hr>
+    <b-row
+      v-if="modal.bastion.ssh.enabled"
+      class="ml-2 pr-3"
+    >
+      <label
+        for="bastionSshUrl"
+        class="ml-2 mb-0"
+        :title="$t('views.desktop.bastion_modal.titles.ssh_port', { ssh_port: modal.bastion.ssh.port })"
+      >
+        {{ $t('views.desktop.bastion_modal.labels.ssh') }}
+      </label>
+      <b-input-group
+        id="bastionSshUrl"
+        class="mb-3"
+      >
+        <b-form-input
+          readonly
+          :value="sshUrl"
+        />
+        <b-input-group-append>
+          <b-button
+            :title="$t('views.desktop.bastion_modal.titles.ssh_copy')"
+            @click="copyToClipboard(sshUrl)"
+          >
+            <b-icon
+              icon="clipboard"
+            />
+          </b-button>
+        </b-input-group-append>
+      </b-input-group>
+    </b-row>
+    <b-row
+      v-if="modal.bastion.ssh.enabled"
+      class="ml-2 pr-3"
+    >
+      <label
+        for="sshAuthorizedKeysField"
+        class="ml-2 mb-0"
+        :title="$t('views.desktop.bastion_modal.titles.authorized-keys-ssh')"
+      >
+        {{ $t('views.desktop.bastion_modal.labels.authorized-keys-ssh') }}
+      </label>
+      <b-form-textarea
+        id="sshAuthorizedKeysField"
+        v-model="sshAuthorizedKeys"
+        size="sm"
+        rows="3"
+        no-resize
+        placeholder="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7..."
+      />
+      <div class="w-100">
+        <b-button
+          class="mt-2 btn-blue float-right"
+          @click="updateSshAuthorizedKeys"
+        >
+          {{ $t('views.desktop.bastion_modal.buttons.update-authorized-keys') }}
+        </b-button>
+      </div>
+    </b-row>
   </b-modal>
 </template>
 <script>
@@ -176,13 +205,31 @@ export default {
       $store.dispatch('showNotification', { message: i18n.t('forms.domain.viewers.bastion.copied') })
     }
 
+    const splitNewLine = (text) => text.split(/\r?\n/)
+    const joinNewLine = (array) => array.join('\n')
+
+    const sshAuthorizedKeys = computed({
+      get: () => joinNewLine($store.getters.getBastionModal.bastion.ssh.authorized_keys),
+      set: (value) => {
+        modal.value.bastion.ssh.authorized_keys = splitNewLine(value)
+        $store.commit('setBastion', modal.value)
+      }
+    })
+
+    const updateSshAuthorizedKeys = () => {
+      $store.dispatch('updateBastionAuthorizedKeys', modal.value.bastion)
+    }
+
     return {
       modal,
       closeModal,
       sshUrl,
       httpUrl,
       httpsUrl,
-      copyToClipboard
+      copyToClipboard,
+      sshAuthorizedKeys,
+      joinNewLine,
+      updateSshAuthorizedKeys
     }
   }
 }
