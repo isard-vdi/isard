@@ -1244,7 +1244,8 @@
           "id": "ID del bastión:",
           "ssh": "SSH:",
           "http": "URL HTTP:",
-          "https": "URL HTTPS:"
+          "https": "URL HTTPS:",
+          "authorized-keys-ssh": "Claves SSH autorizadas"
         },
         "titles": {
           "id_copy": "Copiar ID del bastión",
@@ -1254,7 +1255,11 @@
           "http_port": "HTTP: {http_port}",
           "http_copy": "Copiar URL HTTP",
           "https_port": "HTTPS: {https_port}",
-          "https_copy": "Copiar URL HTTPS"
+          "https_copy": "Copiar URL HTTPS",
+          "authorized-keys-ssh": "Claves SSH autorizadas"
+        },
+        "buttons": {
+            "update-authorized-keys": "Actualizar claves SSH autorizadas"
         }
       }
     },
@@ -1384,7 +1389,8 @@
       "recreate-desktop-stop": "Para recrear un escritorio es necesario que esté parado",
       "increasing-storage": "Incrementando tamaño de disco. Esto podría tomar unos momentos",
       "converting-template": "Convirtiendo la plantilla a escritorio",
-      "token-copied": "Código de migración copiado en el portapapeles"
+      "token-copied": "Código de migración copiado en el portapapeles",
+      "authorized-ssh-keys-updated": "Claves SSH autorizadas actualizadas"
     },
     "loading": "Cargando"
   },

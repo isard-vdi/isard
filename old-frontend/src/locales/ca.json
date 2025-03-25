@@ -981,7 +981,8 @@
           "id": "ID del bastió:",
           "ssh": "SSH:",
           "http": "URL HTTP:",
-          "https": "URL HTTPS:"
+          "https": "URL HTTPS:",
+          "authorized-keys-ssh": "Claus SSH autoritzades"
         },
         "titles": {
           "id_copy": "Copiar ID del bastió",
@@ -991,7 +992,11 @@
           "http_port": "HTTP: {http_port}",
           "http_copy": "Copiar URL HTTP",
           "https_port": "HTTPS: {https_port}",
-          "https_copy": "Copiar URL HTTPS"
+          "https_copy": "Copiar URL HTTPS",
+          "authorized-keys-ssh": "Claus SSH autoritzades"
+        },
+        "buttons": {
+            "update-authorized-keys": "Actualitzar claus SSH autoritzades"
         }
       }
     },
@@ -1531,7 +1536,8 @@
       "recreate-desktop-stop": "Per recrear un escriptori, aquest ha d'estar aturat",
       "increasing-storage": "Incrementant mida del disc. Això pot trigar una estona",
       "converting-template": "Convertint la plantilla a l'escriptori",
-      "token-copied": "Codi de migració copiat al porta-retalls"
+      "token-copied": "Codi de migració copiat al porta-retalls",
+      "authorized-ssh-keys-updated": "Claus SSH autoritzades actualitzades"
     },
     "loading": "Carregant"
   },

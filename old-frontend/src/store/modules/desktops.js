@@ -499,6 +499,13 @@ export default {
     },
     bastionModalShow (context, data) {
       context.commit('setBastionModal', data)
+    },
+    updateBastionAuthorizedKeys (context, data) {
+      axios.put(`${apiV3Segment}/desktop/bastion/${data.desktop_id}`, data).then(response => {
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.authorized-ssh-keys-updated'))
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
     }
   }
 }
