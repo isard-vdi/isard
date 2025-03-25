@@ -11,7 +11,7 @@
       </b-row>
       <DomainInfo />
       <DomainViewers />
-      <DomainBastion v-if="config.canUseBastion" />
+      <DomainBastion v-if="config.canUseBastion && domain.kind == 'desktop'" />
       <DomainHardware />
       <DomainBookables />
       <DomainMedia />
