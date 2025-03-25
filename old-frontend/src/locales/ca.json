@@ -103,10 +103,10 @@
         }
       },
       "notification": {
-          "migrate-button": {
-            "import": "Importa usuari ara",
-            "export": "Exporta usuari ara"
-          }
+        "migrate-button": {
+          "import": "Importa usuari ara",
+          "export": "Exporta usuari ara"
+        }
       }
     },
     "desktop-cards": {
@@ -1023,21 +1023,21 @@
       "disclaimer-accepted": "S'ha acceptat l'avís legal. Redirigint a l'inici de sessió en {seconds} segons."
     },
     "export-user": {
-        "title": "Exporta els elements del teu usuari",
-        "back": "Torna",
-        "description": "Migra els elements mitjançant un codi de migració",
-        "migration-instructions1": "Genera i copia aquest codi de migració al porta-retalls. Guarda aquest codi, ja que el necessitaràs per la importació. El codi és vàlid durant 1 hora.",
-        "migration-instructions2": "Per migrar aquest usuari a un altre, tanca aquesta sessió i inicia sessió amb l'usuari nou. Al perfil del nou usuari hi trobaràs el botó d'importació on enganxar-hi aquest codi.",
-        "warning": "ATENCIÓ",
-        "migration-warning": "Si ja s'ha generat un codi de migració amb anterioritat per aquest usuari, generar-ne un de nou invalidarà l'anterior.",
-        "generate-token": "Genera un codi de migració",
-        "generate-token-warning": "Aquest codi de migració no serà accessible de nou. Assegureu-vos d’haver-lo copiat abans de continuar",
-        "copy-token": "Copia el codi de migració",
-        "copy": "Copia al porta-retalls",
-        "logout-and-continue": "Tanca la sessió i continua amb l'usuari nou",
-        "logout": "Tanca la sessió",
-        "logout-tooltip": "Genera i copia el codi de migració abans de tancar la sessió per continuar la migració"
-      }
+      "title": "Exporta els elements del teu usuari",
+      "back": "Torna",
+      "description": "Migra els elements mitjançant un codi de migració",
+      "migration-instructions1": "Genera i copia aquest codi de migració al porta-retalls. Guarda aquest codi, ja que el necessitaràs per la importació. El codi és vàlid durant 1 hora.",
+      "migration-instructions2": "Per migrar aquest usuari a un altre, tanca aquesta sessió i inicia sessió amb l'usuari nou. Al perfil del nou usuari hi trobaràs el botó d'importació on enganxar-hi aquest codi.",
+      "warning": "ATENCIÓ",
+      "migration-warning": "Si ja s'ha generat un codi de migració amb anterioritat per aquest usuari, generar-ne un de nou invalidarà l'anterior.",
+      "generate-token": "Genera un codi de migració",
+      "generate-token-warning": "Aquest codi de migració no serà accessible de nou. Assegureu-vos d’haver-lo copiat abans de continuar",
+      "copy-token": "Copia el codi de migració",
+      "copy": "Copia al porta-retalls",
+      "logout-and-continue": "Tanca la sessió i continua amb l'usuari nou",
+      "logout": "Tanca la sessió",
+      "logout-tooltip": "Genera i copia el codi de migració abans de tancar la sessió per continuar la migració"
+    }
   },
   "validations": {
     "required": "El camp {property} és requerit.",
@@ -1196,25 +1196,25 @@
           "warning": "ATENCIÓ: La contrasenya es guardarà com a text pla!!",
           "username": "Usuari",
           "password": "Contrasenya"
-        },
-        "bastion": {
-          "disabled": "Bastió deshabilitat",
-          "enabled": "Basitó habilitat",
-          "title": "Opcions de bastió",
-          "http": {
-            "checkbox": "HTTP",
-            "http-port": "Port HTTP",
-            "https-port": "Port HTTPS"
-          },
-          "ssh": {
-            "checkbox": "SSH",
-            "port": "Port SSH",
-            "authorized-keys": "Claus autoritzades (una per línia)"
-          },
-          "port-tooltip": "El port utilitzat pel teu escriptori. Externament, s'assignarà al port {port}.",
-          "copy": "Copiar al porta-retalls",
-          "copied": "Copiat!"
         }
+      },
+      "bastion": {
+        "disabled": "Bastió deshabilitat",
+        "enabled": "Bastió habilitat",
+        "title": "Bastió",
+        "http": {
+          "checkbox": "HTTP",
+          "http-port": "Port HTTP",
+          "https-port": "Port HTTPS"
+        },
+        "ssh": {
+          "checkbox": "SSH",
+          "port": "Port SSH",
+          "authorized-keys": "Claus autoritzades (una per línia)"
+        },
+        "port-tooltip": "El port utilitzat pel teu escriptori. Externament, s'assignarà al port {port}.",
+        "copy": "Copiar al porta-retalls",
+        "copied": "Copiat!"
       },
       "hardware": {
         "warning": "ATENCIÓ: El següent hardware ha estat modificat per permisos:",
@@ -1268,18 +1268,18 @@
     },
     "import": {
       "modal": {
-          "title": "Importa l'usuari",
-          "description": "Importa els elements d'un altre usuari a aquest compte",
-          "migration-instructions1": "Per començar, necessiteu un codi de migració de l'usuari que voleu importar.",
-          "migration-instructions2": "Si no en teniu cap, primer heu d'iniciar sessió en el compte que voleu migrar, cliqueu \"Exporta usuari\" al perfil i seguiu les instruccions indicades.",
-          "migration-instructions3": "Un cop tingueu el codi de migració, enganxeu-lo aquí: ",
-          "placeholder": "Introdueix el codi de migració",
-          "migrate-tooltip": "Ves a la pàgina de migració per continuar el procés",
-          "buttons": {
-              "migrate": "Inicia la migració"
-          }
+        "title": "Importa l'usuari",
+        "description": "Importa els elements d'un altre usuari a aquest compte",
+        "migration-instructions1": "Per començar, necessiteu un codi de migració de l'usuari que voleu importar.",
+        "migration-instructions2": "Si no en teniu cap, primer heu d'iniciar sessió en el compte que voleu migrar, cliqueu \"Exporta usuari\" al perfil i seguiu les instruccions indicades.",
+        "migration-instructions3": "Un cop tingueu el codi de migració, enganxeu-lo aquí: ",
+        "placeholder": "Introdueix el codi de migració",
+        "migrate-tooltip": "Ves a la pàgina de migració per continuar el procés",
+        "buttons": {
+          "migrate": "Inicia la migració"
+        }
       }
-  },
+    },
     "filter-placeholder": "Escriu per cercar",
     "clear": "Neteja",
     "cancel": "Cancel·la",
@@ -1446,7 +1446,7 @@
     "unable_to_restore_group": "No es pot restaurar. El grup esborrat {group} està associat a elements d'aquesta entrada",
     "unable_to_restore_category": "No es pot restaurar. La categoria esborrada {categoria} està associada a elements d'aquesta entrada",
     "operation_not_owned": "No estàs autoritzat a cancel·lar aquesta operació ja que no ha estat iniciada per tu"
-    },
+  },
   "messages": {
     "title": {
       "delete": "Esborrar"

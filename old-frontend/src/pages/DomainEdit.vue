@@ -11,6 +11,7 @@
       </b-row>
       <DomainInfo />
       <DomainViewers />
+      <DomainBastion v-if="config.canUseBastion" />
       <DomainHardware />
       <DomainBookables />
       <DomainMedia />
@@ -41,6 +42,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from '@vue/composition-api'
 import DomainInfo from '@/components/domain/DomainInfo.vue'
 import DomainViewers from '@/components/domain/DomainViewers.vue'
+import DomainBastion from '@/components/domain/DomainBastion.vue'
 import DomainHardware from '@/components/domain/DomainHardware.vue'
 import DomainMedia from '@/components/domain/DomainMedia.vue'
 import DomainBookables from '@/components/domain/DomainBookables.vue'
@@ -52,6 +54,7 @@ export default {
   components: {
     DomainInfo,
     DomainViewers,
+    DomainBastion,
     DomainHardware,
     DomainMedia,
     DomainBookables,
@@ -62,6 +65,7 @@ export default {
 
     const v$ = useVuelidate()
 
+    const config = computed(() => $store.getters.getConfig)
     const domainId = computed(() => $store.getters.getEditDomainId)
     const domain = computed(() => $store.getters.getDomain)
     const domainName = ref('') // Displayed name in the form title
@@ -161,7 +165,8 @@ export default {
       domain,
       domainName,
       submitForm,
-      navigate
+      navigate,
+      config
     }
   }
 }

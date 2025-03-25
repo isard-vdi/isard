@@ -1,6 +1,9 @@
 <template>
   <div>
-    <!-- bastion check -->
+    <!-- Title -->
+    <h4 class="my-2">
+      <strong>{{ $t('forms.domain.bastion.title') }}</strong>
+    </h4>
     <b-row>
       <b-col cols="12">
         <div class="d-flex">
@@ -11,7 +14,7 @@
             icon="door-closed"
             class="mr-2"
             variant="danger"
-          />{{ $t('forms.domain.viewers.bastion.disabled') }}</label>
+          />{{ $t('forms.domain.bastion.disabled') }}</label>
           <b-form-checkbox
             id="checkbox-bastion"
             v-model="bastion"
@@ -21,7 +24,7 @@
               class="mr-2"
               icon="door-open"
               variant="success"
-            />{{ $t('forms.domain.viewers.bastion.enabled') }}
+            />{{ $t('forms.domain.bastion.enabled') }}
           </b-form-checkbox>
         </div>
       </b-col>
@@ -30,9 +33,6 @@
     <span
       v-if="showBastionOptions"
     >
-      <h4>
-        <strong>{{ $t('forms.domain.viewers.bastion.title') }}</strong>
-      </h4>
       <div
         v-if="bastionId"
         class="d-flex align-items-start"
@@ -58,7 +58,7 @@
             v-model="httpEnabled"
             switch
           >
-            {{ $t('forms.domain.viewers.bastion.http.checkbox') }}
+            {{ $t('forms.domain.bastion.http.checkbox') }}
           </b-form-checkbox>
         </b-col>
       </b-row>
@@ -71,9 +71,9 @@
             xl="2"
           >
             <label for="httpPortField">
-              {{ $t('forms.domain.viewers.bastion.http.http-port') }}
+              {{ $t('forms.domain.bastion.http.http-port') }}
               <b-icon
-                v-b-tooltip="{ title: $t('forms.domain.viewers.bastion.port-tooltip', { port: getConfig.httpPort }),
+                v-b-tooltip="{ title: $t('forms.domain.bastion.port-tooltip', { port: getConfig.httpPort }),
                                placement: 'top',
                                customClass: 'isard-tooltip isard-tooltip-lg',
                                trigger: 'hover' }"
@@ -103,9 +103,9 @@
             xl="2"
           >
             <label for="httpPortField">
-              {{ $t('forms.domain.viewers.bastion.http.https-port') }}
+              {{ $t('forms.domain.bastion.http.https-port') }}
               <b-icon
-                v-b-tooltip="{ title: $t('forms.domain.viewers.bastion.port-tooltip', { port: getConfig.httpsPort }),
+                v-b-tooltip="{ title: $t('forms.domain.bastion.port-tooltip', { port: getConfig.httpsPort }),
                                placement: 'top',
                                customClass: 'isard-tooltip isard-tooltip-lg',
                                trigger: 'hover' }"
@@ -139,7 +139,7 @@
             v-model="sshEnabled"
             switch
           >
-            {{ $t('forms.domain.viewers.bastion.ssh.checkbox') }}
+            {{ $t('forms.domain.bastion.ssh.checkbox') }}
           </b-form-checkbox>
         </b-col>
       </b-row>
@@ -152,9 +152,9 @@
             xl="2"
           >
             <label for="sshPortField">
-              {{ $t('forms.domain.viewers.bastion.ssh.port') }}
+              {{ $t('forms.domain.bastion.ssh.port') }}
               <b-icon
-                v-b-tooltip="{ title: $t('forms.domain.viewers.bastion.port-tooltip', { port: getConfig.bastionSshPort }),
+                v-b-tooltip="{ title: $t('forms.domain.bastion.port-tooltip', { port: getConfig.bastionSshPort }),
                                placement: 'top',
                                customClass: 'isard-tooltip isard-tooltip-lg',
                                trigger: 'hover' }"
@@ -185,7 +185,7 @@
             <label
               for="sshAuthorizedKeysField"
               class="mb-0"
-            >{{ $t('forms.domain.viewers.bastion.ssh.authorized-keys') }}</label>
+            >{{ $t('forms.domain.bastion.ssh.authorized-keys') }}</label>
           </b-col>
           <b-col
             cols="6"
@@ -285,12 +285,12 @@ export default {
         $store.commit('setBastion', bastionData.value)
       }
     })
-    const copyTooltipText = ref(i18n.t('forms.domain.viewers.bastion.copy'))
+    const copyTooltipText = ref(i18n.t('forms.domain.bastion.copy'))
     const copyToClipboard = (text) => {
       navigator.clipboard.writeText(text)
-      copyTooltipText.value = i18n.t('forms.domain.viewers.bastion.copied')
+      copyTooltipText.value = i18n.t('forms.domain.bastion.copied')
       setTimeout(() => {
-        copyTooltipText.value = i18n.t('forms.domain.viewers.bastion.copy')
+        copyTooltipText.value = i18n.t('forms.domain.bastion.copy')
       }, 750)
     }
 

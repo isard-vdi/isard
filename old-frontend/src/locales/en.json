@@ -156,25 +156,25 @@
                     "warning": "WARNING: Guest password will be stored in plain text!!",
                     "username": "Username",
                     "password": "Password"
-                },
-                "bastion": {
-                    "disabled": "Bastion disabled",
-                    "enabled": "Bastion enabled",
-                    "title": "Bastion options",
-                    "http": {
-                        "checkbox": "HTTP",
-                        "http-port": "HTTP port",
-                        "https-port": "HTTPS port"
-                    },
-                    "ssh": {
-                        "checkbox": "SSH",
-                        "port": "SSH port",
-                        "authorized-keys": "Authorized keys (one per line)"
-                    },
-                    "port-tooltip": "The port used by your desktop. Externaly, it will be assigned to port {port}.",
-                    "copy": "Copy to clipboard",
-                    "copied": "Copied!"
                 }
+            },
+            "bastion": {
+                "disabled": "Bastion disabled",
+                "enabled": "Bastion enabled",
+                "title": "Bastion",
+                "http": {
+                    "checkbox": "HTTP",
+                    "http-port": "HTTP port",
+                    "https-port": "HTTPS port"
+                },
+                "ssh": {
+                    "checkbox": "SSH",
+                    "port": "SSH port",
+                    "authorized-keys": "Authorized keys (one per line)"
+                },
+                "port-tooltip": "The port used by your desktop. Externaly, it will be assigned to port {port}.",
+                "copy": "Copy to clipboard",
+                "copied": "Copied!"
             },
             "hardware": {
                 "warning": "WARNING: This hardware was modified due to user permissions:",
@@ -551,7 +551,7 @@
                 "deployments_total": "Created deployments / Total deployments",
                 "deployment_desktops": "Max desktops per deployment",
                 "started_deployment_desktops": {
-                    "title": "Running deployment desktops / Total running deployment desktops", 
+                    "title": "Running deployment desktops / Total running deployment desktops",
                     "description": "Ammount of deployment desktops that the user can start"
                 }
             },
