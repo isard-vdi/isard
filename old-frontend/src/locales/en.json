@@ -150,13 +150,7 @@
             "viewers": {
                 "title": "Viewers",
                 "fullscreen-disabled": "Fullscreen disabled",
-                "fullscreen-enabled": "Fullscreen enabled",
-                "guest": {
-                    "title": "RDP Login",
-                    "warning": "WARNING: Guest password will be stored in plain text!!",
-                    "username": "Username",
-                    "password": "Password"
-                }
+                "fullscreen-enabled": "Fullscreen enabled"
             },
             "bastion": {
                 "disabled": "Bastion disabled",
@@ -175,6 +169,13 @@
                 "port-tooltip": "The port used by your desktop. Externaly, it will be assigned to port {port}.",
                 "copy": "Copy to clipboard",
                 "copied": "Copied!"
+            },
+            "guest": {
+                "title": "Domain credentials",
+                "rdp-bastion": "These credentials are used for the connection through RDP or bastion",
+                "warning": "WARNING: Guest password will be stored in plain text!!",
+                "username": "Username",
+                "password": "Password"
             },
             "hardware": {
                 "warning": "WARNING: This hardware was modified due to user permissions:",

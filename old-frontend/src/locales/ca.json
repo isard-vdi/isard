@@ -1190,13 +1190,7 @@
       "viewers": {
         "title": "Visors",
         "fullscreen-disabled": "Pantalla completa desactivada",
-        "fullscreen-enabled": "Pantalla completa activada",
-        "guest": {
-          "title": "Login RDP",
-          "warning": "ATENCIÓ: La contrasenya es guardarà com a text pla!!",
-          "username": "Usuari",
-          "password": "Contrasenya"
-        }
+        "fullscreen-enabled": "Pantalla completa activada"
       },
       "bastion": {
         "disabled": "Bastió deshabilitat",
@@ -1215,6 +1209,13 @@
         "port-tooltip": "El port utilitzat pel teu escriptori. Externament, s'assignarà al port {port}.",
         "copy": "Copiar al porta-retalls",
         "copied": "Copiat!"
+      },
+      "guest": {
+        "title": "Credencials de l'escriptori",
+        "rdp-bastion": "Aquestes credencials serveixen per a la connexió mitjançant RDP o bastió",
+        "warning": "ATENCIÓ: La contrasenya es guardarà com a text pla!!",
+        "username": "Usuari",
+        "password": "Contrasenya"
       },
       "hardware": {
         "warning": "ATENCIÓ: El següent hardware ha estat modificat per permisos:",

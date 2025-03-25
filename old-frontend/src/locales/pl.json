@@ -57,15 +57,15 @@
                 "placeholder": "Wpisz co najmniej 2 litery, aby wyszukać."
             },
             "viewers": {
-                "guest": {
-                    "title": "Logowanie Pulpitu Zdalnego (RDP)",
-                    "warning": "OSTRZEŻENIE: Hasło gościa będzie przechowywane w postaci zwykłego tekstu!!!",
-                    "username": "Nazwa użytkownika",
-                    "password": "Hasło"
-                },
                 "fullscreen-disabled": "Tryb pełnoekranowy wyłączony",
                 "fullscreen-enabled": "Tryb pełnoekranowy włączony",
                 "title": "Sposoby dostępu"
+            },
+            "guest": {
+                "title": "Logowanie Pulpitu Zdalnego (RDP)",
+                "warning": "OSTRZEŻENIE: Hasło gościa będzie przechowywane w postaci zwykłego tekstu!!!",
+                "username": "Nazwa użytkownika",
+                "password": "Hasło"
             },
             "info": {
                 "name": "Nazwa",

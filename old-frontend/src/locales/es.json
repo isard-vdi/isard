@@ -150,13 +150,7 @@
       "viewers": {
         "title": "Visores",
         "fullscreen-disabled": "Pantalla completa desactivada",
-        "fullscreen-enabled": "Pantalla completa activada",
-        "guest": {
-          "title": "Login RDP",
-          "warning": "ATENCIÓN: La contraseña se guardará como texto plano!!",
-          "username": "Usuario",
-          "password": "Contraseña"
-        }
+        "fullscreen-enabled": "Pantalla completa activada"
       },
       "bastion": {
         "disabled": "Bastión deshabilitado",
@@ -175,6 +169,13 @@
         "port-tooltip": "El puerto utilizado por tu escritorio. Externamente, se asignará al puerto {port}.",
         "copy": "Copiar al portapapeles",
         "copied": "Copiado!"
+      },
+      "guest": {
+        "title": "Credenciales del escritorio",
+        "rdp-bastion": "Estas credenciales sirven para la conexión mediante RDP o bastión",
+        "warning": "ATENCIÓN: La contraseña se guardará como texto plano!!",
+        "username": "Usuario",
+        "password": "Contraseña"
       },
       "hardware": {
         "warning": "ATENCIÓN: El siguiente hardware se modificó por permisos:",

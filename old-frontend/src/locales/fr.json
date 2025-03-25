@@ -504,10 +504,8 @@
       "media": {
         "title": "Média"
       },
-      "viewers": {
-        "guest": {
-          "password": "Mot de passe"
-        }
+      "guest": {
+        "password": "Mot de passe"
       }
     },
     "clear": "Effacer",
