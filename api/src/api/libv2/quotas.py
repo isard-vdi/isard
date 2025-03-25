@@ -1340,6 +1340,10 @@ class Quotas:
                     not in [i["id"] for i in limited["interfaces"]["old_value"]]
                 ]
 
+        # If limited interfaces hasn't old values we remove the key
+        if not len(limited["interfaces"]["old_value"]):
+            limited.pop("interfaces")
+
         if len(create_dict["hardware"].get("videos", [])):
             videos = [uh["id"] for uh in user_hardware["videos"]]
             for video in create_dict["hardware"]["videos"]:
