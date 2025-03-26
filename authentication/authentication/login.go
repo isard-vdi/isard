@@ -119,8 +119,8 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 			return "", "", provider.ErrUserDisallowed
 		}
 
-		// if there are allowed domains, check the user is in the allowed domains
-		if categoryAuth.AllowedDomains != nil && len(*categoryAuth.AllowedDomains) != 0 {
+		// If there are allowed domains, check the user is in the allowed domains
+		if categoryAuth.Enabled != nil && *categoryAuth.Enabled && categoryAuth.AllowedDomains != nil && len(*categoryAuth.AllowedDomains) != 0 {
 			if u.Email != "" {
 				// Parse the email address of the user
 				addr, err := mail.ParseAddress(u.Email)
