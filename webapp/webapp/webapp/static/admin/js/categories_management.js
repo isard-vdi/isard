@@ -661,7 +661,7 @@ function actionsCategoryDetail() {
           },
         });
         $(modal + " .enabled-select").off("change").on("change", function () {
-            if ($(this).val() === "true" || $(this).val() === "null") {
+            if ($(this).val() === "true" || $(this).val() === null) {
               $(this).parents().eq(3).find(".authentication-panel").show();
               $(this).parents().eq(3).find(".authentication-panel select").attr('disabled', false);
             } else {

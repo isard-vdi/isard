@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 165
+release_version = 166
+# release 166: Local allowed domain removed
 # release 165: Delete missing users and groups from migration exceptions
 # release 164: Add field reservables to all domains
 # release 163: Move category allowed_domain to allowed_domains as an array of providers
@@ -5376,6 +5377,14 @@ password:s:%s"""
 
                 r.table(table).replace(
                     lambda category: category.without("allowed_domain")
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 166:
+            try:
+                r.table(table).update(
+                    {"authentication": {"local": {"allowed_domains": []}}}
                 ).run(self.conn)
             except Exception as e:
                 print(e)
