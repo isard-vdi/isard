@@ -798,7 +798,7 @@ $(document).ready(function () {
 });
 
 $("#maxtime").on("change", function () {
-  var max_delete_period = $(this).val();
+  var recycle_bin_cutoff_time = $(this).val();
   new PNotify({
     title: "Confirm Change",
     text: ($('meta[id=user_data]').attr('data-role') == 'admin') ?
@@ -823,8 +823,10 @@ $("#maxtime").on("change", function () {
     .get()
     .on("pnotify.confirm", function () {
       $.ajax({
-        url: "/scheduler/recycle_bin/" + max_delete_period,
+        url: "/api/v3/recycle-bin/system/cutoff-time",
         method: "PUT",
+        data: JSON.stringify({ recycle_bin_cuttoff_time: parseInt(recycle_bin_cutoff_time) }),
+        contentType: "application/json",
       }).done(function (data) {
         new PNotify({
           title: "Maximum delete period set successfully",
@@ -844,16 +846,18 @@ $("#maxtime").on("change", function () {
 function selectAutomaticDelete() {
   $.ajax({
     type: "GET",
-    url: "/scheduler/recycle_bin_delete/max_time",
+    url: "/api/v3/recycle-bin/system/cutoff-time",
     success: function (data) {
-      $('#maxtime').val(data.time)
-      if (data.max_time !== "null" && $('meta[id=user_data]').attr('data-role') != 'admin') {
-        var maxTime = parseInt(data.max_time);
+      if ($('meta[id=user_data]').attr('data-role') != 'admin') {
+        $('#maxtime').val(data.recycle_bin_cuttoff_time.category)
+        var maxTime = parseInt(data.recycle_bin_cuttoff_time.system);
         $('#maxtime option').each(function () {
           if (($(this).val() > maxTime || $(this).val() == "null")) {
             $(this).remove();
           }
         });
+      } else {
+        $('#maxtime').val(data.recycle_bin_cuttoff_time)
       }
     }
   });

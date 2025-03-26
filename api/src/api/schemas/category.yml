@@ -131,3 +131,10 @@ storage_pool:
   type: string
   coerce: sanitize
   required: false
+recycle_bin_cutoff_time:
+  type: integer
+  nullable: true
+  empty: false
+  required: true
+  default: null
+  coerce: sanitize

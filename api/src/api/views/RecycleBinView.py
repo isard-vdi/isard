@@ -23,15 +23,17 @@ from ..libv2.recycle_bin import (
     RecycleBinDeleteQueue,
     check_older_than_old_entry_max_time,
     get,
+    get_category_recycle_bin_cuttoff_time,
     get_default_delete,
     get_delete_action,
     get_item_count,
     get_old_entries_config,
-    get_recicle_delete_time,
-    get_recycle_bin_by_period,
+    get_recycle_bin_cuttoff_time,
+    get_recycle_bin_entries_cutoff_time_surpassed,
     get_status,
     get_user_amount,
     get_user_recycle_bin_ids,
+    set_system_recycle_bin_cutoff_time,
     update_task_status,
 )
 from .decorators import has_token, is_admin, is_admin_or_manager, ownsRecycleBinId
@@ -182,13 +184,20 @@ def rcb_delete(payload, recycle_bin_id=None):
 @app.route("/api/v3/recycle_bin/delete", methods=["PUT"])
 @has_token
 def rcb_delete_bulk(payload):
+    """
+    Definitely delete the recycle bin sent recycle bin items.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: None
+    :rtype: Set with Flask response values and data in JSON
+    """
+
     data = request.get_json(force=True)
     if data.get("recycle_bin_ids"):
         recycle_bin_ids = data["recycle_bin_ids"]
     else:
-        recycle_bin_ids = get_recycle_bin_by_period(
-            data.get("max_delete_period"), data.get("category")
-        )
+        raise Error("bad_request", "No recycle_bin_ids in request")
 
     def process_bulk_delete():
         exceptions = []
@@ -246,6 +255,165 @@ def rcb_delete_bulk(payload):
     gevent.spawn(process_bulk_delete)
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle-bin/cutoff-time-surpassed", methods=["DELETE"])
+@is_admin
+def rcb_cutoff_time_surpass_delete(payload):
+    """
+    Definitely delete recycle bin items that have surpassed the cutoff time.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: None
+    :rtype: Set with Flask response values and data in JSON
+    """
+    recycle_bin_ids = get_recycle_bin_entries_cutoff_time_surpassed()
+
+    def process_bulk_delete():
+        exceptions = []
+        try:
+            for rb_id in recycle_bin_ids:
+                try:
+                    rb_delete_queue.enqueue(
+                        {
+                            "action": "delete",
+                            "recycle_bin_id": rb_id,
+                            "user_id": payload["user_id"],
+                        }
+                    )
+                except Error as e:
+                    exceptions.append(e.args[1])
+            notify_admins(
+                "recyclebin_action",
+                {
+                    "action": "delete",
+                    "count": len(recycle_bin_ids),
+                    "status": "completed",
+                },
+            )
+
+        except Error as e:
+            app.logger.error(e)
+            error_message = str(e)
+            if isinstance(e.args, tuple) and len(e.args) > 1:
+                error_message = e.args[1]
+            notify_admins(
+                (
+                    "recyclebin_action",
+                    {
+                        "action": "delete",
+                        "count": len(recycle_bin_ids),
+                        "msg": error_message,
+                        "status": "failed",
+                    },
+                )
+            )
+
+        except Exception as e:
+            app.logger.error(e)
+            notify_admins(
+                "recyclebin_action",
+                {
+                    "action": "delete",
+                    "count": len(recycle_bin_ids),
+                    "msg": str(e),
+                    "status": "failed",
+                },
+            )
+
+    gevent.spawn(process_bulk_delete)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle-bin/user/cutoff-time", methods=["GET"])
+@has_token
+def rcb_get_user_cutoff_time(payload):
+    """
+    Retrieve the user applied cutoff time.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: Cutoff time in hours
+    :rtype: Set with Flask response values and data in JSON
+    """
+    return (
+        json.dumps(
+            {
+                "recycle_bin_cuttoff_time": get_category_recycle_bin_cuttoff_time(
+                    payload["category_id"]
+                )
+            }
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle-bin/system/cutoff-time", methods=["GET"])
+@is_admin_or_manager
+def rcb_get_system_cutoff_time(payload):
+    """
+    Retrieve the system cutoff time.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: Cutoff time in hours
+    :rtype: Set with Flask response values and data in JSON
+    """
+    return (
+        json.dumps(
+            {
+                "recycle_bin_cuttoff_time": get_recycle_bin_cuttoff_time(
+                    category_id=(
+                        payload["category_id"]
+                        if payload["role_id"] == "manager"
+                        else None
+                    )
+                )
+            }
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/recycle-bin/system/cutoff-time", methods=["PUT"])
+@is_admin_or_manager
+def rcb_update_system_cutoff_time(payload):
+    """
+    Update the system cutoff time.
+    If the user is a manager, the cutoff time will be applied to the category.
+    If the user is an admin, the cutoff time will be applied to the system.
+
+    Configuration specifications in JSON:
+    {
+        "cutoff_time": "Cutoff time in hours"
+    }
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: None
+    :rtype: Set with Flask response values and data in JSON
+    """
+    data = request.get_json(force=True)
+    recycle_bin_cuttoff_time = data.get("recycle_bin_cuttoff_time")
+    if not isinstance(recycle_bin_cuttoff_time, (int, float)):
+        raise Error("bad_request", "recycle_bin_cuttoff_time must be a number")
+
+    set_system_recycle_bin_cutoff_time(
+        recycle_bin_cuttoff_time,
+        payload["category_id"] if payload["role_id"] == "manager" else None,
+    )
+
+    return (
+        json.dumps({"recycle_bin_cuttoff_time": recycle_bin_cuttoff_time}),
         200,
         {"Content-Type": "application/json"},
     )
@@ -453,7 +621,7 @@ def recycle_bin_add_unused_items(payload):
     if notification and notification[0]["trigger"]:
         notification = notification[0]
         notification_action = get_notification_action(notification["action_id"])
-        max_delete_period = get_recicle_delete_time()
+        recycle_bin_cutoff_time = get_recycle_bin_cuttoff_time()
 
     for desktop in desktops:
         desktop_delete(desktop["id"], "isard-scheduler")
@@ -472,7 +640,7 @@ def recycle_bin_add_unused_items(payload):
                         var: desktop[var] for var in notification_action["kwargs"]
                     },
                     "ignore_after": (
-                        datetime.now() + timedelta(hours=int(max_delete_period))
+                        datetime.now() + timedelta(hours=int(recycle_bin_cutoff_time))
                     ).astimezone(pytz.UTC),
                 }
             )
@@ -488,7 +656,7 @@ def recycle_bin_add_unused_items(payload):
     if notification and notification[0]["trigger"]:
         notification = notification[0]
         notification_action = get_notification_action(notification["action_id"])
-        max_delete_period = get_recicle_delete_time()
+        recycle_bin_cutoff_time = get_recycle_bin_cuttoff_time()
 
     for deployment in deployments:
         deployment_delete(deployment["id"], "isard-scheduler")
@@ -503,7 +671,7 @@ def recycle_bin_add_unused_items(payload):
                 "notification_id": notification["id"],
                 "vars": {var: deployment[var] for var in notification_action["kwargs"]},
                 "ignore_after": (
-                    datetime.now() + timedelta(hours=int(max_delete_period))
+                    datetime.now() + timedelta(hours=int(recycle_bin_cutoff_time))
                 ).astimezone(pytz.UTC),
             }
             notification_data.append({**common_data, "user_id": deployment["user"]})

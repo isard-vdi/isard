@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 166
+release_version = 167
+# release 167: Recycle bin scheduled jobs interval changed to 1 hour, recycle_bin_cutoff_time field added to categories
 # release 166: Local allowed domain removed
 # release 165: Delete missing users and groups from migration exceptions
 # release 164: Add field reservables to all domains
@@ -27,7 +28,6 @@ release_version = 166
 #              Add send_unused_deployments_to_recycle_bin rule to unused_item_timeouts table
 # release 161: Delete the unused_desktops_cutoff_time field from the config table
 # release 160: Add enabled field to login notifications
-# release 159: Add nonpersistent desktops delete timeout to config table
 # release 158: Add unused_desktops notification template
 # release 157: Add unused_desktops_cutoff_time field to config table
 # release 156: Remove user_permissions field from deployments create_dict
@@ -860,6 +860,27 @@ password:s:%s"""
             try:
                 self.del_keys(table, ["unused_desktops_cutoff_time"])
                 self.del_keys(table, [{"recycle_bin": {"unused_desktops_cutoff_time"}}])
+            except Exception as e:
+                print(e)
+
+        if version == 167:
+            try:
+                max_delete_period = (
+                    r.table("scheduler_jobs")
+                    .get("admin.recycle_bin_delete_admin")
+                    .pluck("kwargs")
+                    .default({"kwargs": {"max_delete_period": 1}})
+                    .run(self.conn)["kwargs"]["max_delete_period"]
+                )
+                # The old field max_delete_period will be from now on recycle_bin_cutoff_time under the config table
+                r.table("config").update(
+                    {"recycle_bin": {"recycle_bin_cutoff_time": int(max_delete_period)}}
+                ).run(
+                    self.conn
+                )  # Defines the amount of time in hours that the recycle bin will keep the deleted items before being permanently deleted
+                r.table("scheduler_jobs").get(
+                    "admin.recycle_bin_delete_admin"
+                ).delete().run(self.conn)
             except Exception as e:
                 print(e)
 
@@ -5049,6 +5070,7 @@ password:s:%s"""
                 r.table(table).index_create("action").run(self.conn)
             except Exception as e:
                 print(e)
+
         return True
 
     """
@@ -5386,6 +5408,30 @@ password:s:%s"""
                 r.table(table).update(
                     {"authentication": {"local": {"allowed_domains": []}}}
                 ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 167:
+            try:
+                self.del_keys("categories", ["max_delete_period"])
+                deleted_job_categories = list(
+                    r.table("scheduler_jobs")
+                    .filter(lambda job: job["id"].match("\\.recycle_bin_delete$"))
+                    .pluck("kwargs")["kwargs"]
+                    .run(self.conn)
+                )
+                self.add_keys("categories", [{"recycle_bin_cutoff_time": None}])
+                for category_job in deleted_job_categories:
+                    r.table("categories").get(category_job["category"]).update(
+                        {
+                            "recycle_bin_cutoff_time": int(
+                                category_job["max_delete_period"]
+                            )
+                        }
+                    ).run(self.conn)
+                r.table("scheduler_jobs").filter(
+                    lambda job: job["id"].match("\\.recycle_bin_delete$")
+                ).delete().run(self.conn)
             except Exception as e:
                 print(e)
 

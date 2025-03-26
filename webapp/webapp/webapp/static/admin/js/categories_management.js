@@ -302,7 +302,7 @@ $(document).ready(function () {
         // autoDesktopsShow('#modalAddCategoryForm', {})
         maxTimeEnabledShow('#modalAddCategoryForm')
         storagePoolEnabledShow('#modalAddCategoryForm')
-        $("#modalAddCategoryForm #max-delete-data").hide();
+        $("#modalAddCategoryForm #max-recycle-bin-cutoff-time-data").hide();
         $("#modalAddCategoryForm #storage_pool").empty();
         $.ajax({
             type: "GET",
@@ -319,21 +319,11 @@ $(document).ready(function () {
             }
         });
         $('#maxtime_panel :checkbox').iCheck('uncheck').iCheck('update');
-        api.ajax('/scheduler/recycle_bin_delete/max_time', 'GET', '').done(function (time) {
-            if (time.time !== "null") {
-                var maxTime = parseInt(time.time);
-                $('#modalAddCategoryForm #max-delete option').each(function () {
-                    if (($(this).val() > maxTime || $(this).val() == "null")) {
-                        $(this).remove();
-                    }
-                });
-            };
-        });
         ephemeralDesktopsShow('#modalAddCategoryForm', {})
 
     });
 
-    $("#modalAddCategory #send").on('click', function (e) {
+    $('#modalAddCategory #send').on('click', function (e) {
         var form = $('#modalAddCategoryForm');
         form.parsley().validate();
         if (form.parsley().isValid()) {
@@ -355,11 +345,15 @@ $(document).ready(function () {
             } else {
                 delete data['storage-pool-enabled'];
             }
+            if ($('#modalAddCategoryForm #recycle-bin-cutoff-time-enabled').iCheck('update')[0].checked) {
+                data['recycle_bin_cutoff_time'] = parseInt($('#modalAddCategoryForm #recycle-bin-cutoff-time').val());
+            } else {
+                data['recycle_bin_cutoff_time'] = null
+            }
+            // if (!('auto-desktops-enabled' in data)) {
+            //     delete data['auto-desktops'];
+            // }
             data = JSON.unflatten(data);
-            max_time = false;
-            if (data['max']['time'] == 'on') {
-                max_time = data['max']['delete'];
-            };
             var notice = new PNotify({
                 text: 'Creating...',
                 hide: false,
@@ -374,13 +368,6 @@ $(document).ready(function () {
                 success: function (data) {
                     $('form').each(function () { this.reset() });
                     $('.modal').modal('hide');
-                    if (max_time){
-                        $.ajax({
-                            type: "PUT",
-                            url: "/scheduler/recycle_bin/" + max_time + "/" + data['id'],
-                            contentType: "application/json",
-                        });
-                    }
                     notice.update({
                         title: 'Created',
                         text: 'Category created successfully',
@@ -430,8 +417,8 @@ function actionsCategoryDetail() {
     $('.btn-edit-category').off('click').on('click', function () {
         var pk = $(this).closest("div").attr("data-pk");
         $("#modalEditCategoryForm")[0].reset();
-        $("#modalEditCategoryForm #max-delete-data").hide();
-        $('#maxtime_panel #max-time-enabled').iCheck('uncheck').iCheck('update');
+        $("#modalEditCategoryForm #recycle-bin-cutoff-time-data").hide();
+        $('#maxtime_panel #recycle-bin-cutoff-time-enabled').iCheck('uncheck').iCheck('update');
         $('#modalEditCategoryForm #id').val(pk);
         $('#modalEditCategory').modal({
             backdrop: 'static',
@@ -448,25 +435,14 @@ function actionsCategoryDetail() {
             $('#modalEditCategoryForm #uid').val(category.uid);
             $('#modalEditCategoryForm #description').val(category.description);
             $('#modalEditCategoryForm #id').val(category.id);
-            api.ajax('/scheduler/recycle_bin_delete/max_time_category/' + category.id, 'GET', '').done(function (time) {
-                if (time != null) {
-                    $(("#modalEditCategoryForm #max-time-enabled")).iCheck('check').iCheck('update');
-                    $('#modalEditCategoryForm #max-delete').val(time)
-                } else {
-                    $(("#modalEditCategoryForm #max-time-enabled")).iCheck('uncheck').iCheck('update');
-                }
-            });
-            api.ajax('/scheduler/recycle_bin_delete/max_time', 'GET', '').done(function (time) {
-                if (time.time !== "null") {
-                    var maxTime = parseInt(time.time);
-                    $('#modalEditCategoryForm #max-delete option').each(function () {
-                        if (($(this).val() > maxTime || $(this).val() === "null")) {
-                            $("#modalAddCategoryForm #max-delete-data").show();
-                            $(this).remove();
-                        }
-                    });
-                };
-            });
+            $('#modalEditCategoryForm #allowed_domain').val(category.allowed_domain);
+
+            if (category.recycle_bin_cutoff_time != null) {
+                $("#modalEditCategoryForm #recycle-bin-cutoff-time-enabled").iCheck('check').iCheck('update');
+                $('#modalEditCategoryForm #recycle-bin-cutoff-time').val(category.recycle_bin_cutoff_time);
+                $("#modalEditCategoryForm #recycle-bin-cutoff-time-data").show();
+            }
+
             if (category['frontend'] == true) {
                 $('#modalEditCategoryForm #frontend').iCheck('check').iCheck('update');
             } else {
@@ -503,6 +479,16 @@ function actionsCategoryDetail() {
                 delete data["authentication_google"];
                 delete data["authentication_saml"];
                 delete data["authentication_ldap"];
+
+                if ($('#modalEditCategoryForm #recycle-bin-cutoff-time-enabled').iCheck('update')[0].checked) {
+                    data['recycle_bin_cutoff_time'] = parseInt($('#modalEditCategoryForm #recycle-bin-cutoff-time').val())
+                } else {
+                    data['recycle_bin_cutoff_time'] = null
+                }
+                // if (!('auto-desktops-enabled' in data)) {
+                //     delete data['auto-desktops'];
+                //     data['auto'] = false;
+                // }
                 data = JSON.unflatten(data);
                 var notice = new PNotify({
                     text: 'Updating category...',
@@ -516,57 +502,16 @@ function actionsCategoryDetail() {
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function (response) {
-                        if (data['max']['time'] == 'on') {
-                            max_time = data['max']['delete'];
-                            $.ajax({
-                                type: "PUT",
-                                url: "/scheduler/recycle_bin/" + max_time + "/" + data['id'],
-                                contentType: "application/json",
-                                success: function (data) {
-                                    notice.update({
-                                        title: 'Updated',
-                                        text: 'Category updated successfully',
-                                        hide: true,
-                                        delay: 1000,
-                                        icon: 'fa fa-' + data.icon,
-                                        opacity: 1,
-                                        type: 'success'
-                                    })
-                                    $('form').each(function () { this.reset() });
-                                    $('.modal').modal('hide');
-                                },
-                                error: function (data) {
-                                    new PNotify({
-                                        title: 'ERROR changing automatic delete time',
-                                        text: response.responseJSON.description,
-                                        type: 'error',
-                                        hide: true,
-                                        icon: 'fa fa-warning',
-                                        delay: 2000,
-                                        opacity: 1
-                                    })
-                                }
-                            });
-                        } else {
-                            $.ajax({
-                                type: "DELETE",
-                                url: "/scheduler/delete/recycle_bin/" + data['id'],
-                                contentType: "application/json",
-                                success: function (data) {
-                                    notice.update({
-                                        title: 'Updated',
-                                        text: 'Category updated successfully',
-                                        hide: true,
-                                        delay: 1000,
-                                        icon: '',
-                                        opacity: 1,
-                                        type: 'success'
-                                    })
-                                    $('form').each(function () { this.reset() });
-                                    $('.modal').modal('hide');
-                                }
-                            })
-                        }
+                        notice.update({
+                            title: 'Updated',
+                            text: 'Category updated successfully',
+                            hide: true,
+                            delay: 2000,
+                            icon: '',
+                            opacity: 1,
+                            type: 'success'
+                        })
+                        $('.modal').modal('hide');
                     },
                     error: function (data) {
                         notice.update({
@@ -796,11 +741,11 @@ function ephemeralDesktopsShow(form, item) {
 // }
 
 function maxTimeEnabledShow (form) {
-    $(form + (" #max-time-enabled")).on('ifChecked', function(event){
-        $(form + (" #max-delete-data")).show();
+    $(form + (" #recycle-bin-cutoff-time-enabled")).on('ifChecked', function(event){
+        $(form + (" #recycle-bin-cutoff-time-data")).show();
     });
-    $(form + (" #max-time-enabled")).on('ifUnchecked', function(event){
-        $(form + (" #max-delete-data")).hide();
+    $(form + (" #recycle-bin-cutoff-time-enabled")).on('ifUnchecked', function(event){
+        $(form + (" #recycle-bin-cutoff-time-data")).hide();
     });
 }
 
