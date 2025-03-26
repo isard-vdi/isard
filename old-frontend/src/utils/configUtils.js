@@ -9,6 +9,7 @@ export class ConfigUtils {
       http_port: httpPort,
       https_port: httpsPort,
       bastion_ssh_port: bastionSshPort,
+      can_use_bastion: canUseBastion,
       migrations_block: migrationsBlock
     } = config
     return {
@@ -20,7 +21,7 @@ export class ConfigUtils {
       httpPort,
       httpsPort,
       bastionSshPort,
-      canUseBastion: true,
+      canUseBastion,
       migrationsBlock
     }
   }
