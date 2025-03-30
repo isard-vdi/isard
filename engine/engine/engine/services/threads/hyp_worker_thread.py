@@ -530,7 +530,7 @@ class HypWorkerThread(threading.Thread):
                                     + str(e)
                                 ),
                             )
-                            logs.workers.info(
+                            logs.workers.error(
                                 "exception 01 in start_domain action {}: ".format(e)
                             )
                             log_action(
@@ -558,7 +558,7 @@ class HypWorkerThread(threading.Thread):
                                     + str(e)
                                 ),
                             )
-                            logs.workers.info(
+                            logs.workers.error(
                                 "exception 02 in start_domain action {}: ".format(e)
                             )
                             log_action(
@@ -640,7 +640,7 @@ class HypWorkerThread(threading.Thread):
                                         "Exception when starting domain: " + str(e)
                                     ),
                                 )
-                                logs.workers.debug(
+                                logs.workers.error(
                                     "exception 03 in start_domain action {}: ".format(e)
                                 )
 
