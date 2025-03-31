@@ -541,6 +541,29 @@ class HypWorkerThread(threading.Thread):
                                 time.time() - action_time,
                                 "Failed",
                             )
+                            if "internal error: client socket is closed" in str(e):
+                                # Hypervisor is lost. We should mark it as Error and stop the worker
+                                update_hyp_status(self.hyp_id, "Error", detail=str(e))
+                                self.stop = True
+                                # Remove al queued actions for this hypervisor
+                                for action in self.queue_actions.queue:
+                                    if action.get("hyp_id") == self.hyp_id:
+                                        if action.get("type") == "start_domain":
+                                            update_domain_status(
+                                                "Stopped",
+                                                action["id_domain"],
+                                                hyp_id=self.hyp_id,
+                                                detail="Domain has stopped in worker thread due to hypervisor error",
+                                            )
+                                        else:
+                                            update_domain_status(
+                                                "Failed",
+                                                action["id_domain"],
+                                                hyp_id=self.hyp_id,
+                                                detail="Domain has failed in worker thread due to hypervisor error",
+                                            )
+                                        self.queue_actions.queue.remove(action)
+                                update_domains_started_in_hyp_to_unknown(self.hyp_id)
                     else:
                         try:
                             lt = time.time()
