@@ -1196,7 +1196,7 @@ class ApiUsers:
                             "guest_properties",
                             "tag",
                             "tag_visible",
-                            {"viewer": "guest_ip"},
+                            {"viewer": {"guest_ip", "passwd"}},
                             {
                                 "create_dict": {
                                     "hardware": ["interfaces", "videos", "disks"],

@@ -207,6 +207,8 @@ def parse_frontend_desktop_status(desktop):
         and desktop["status"] != "CreatingAndStarting"
     ):
         desktop["status"] = "Creating"
+    if desktop["status"] == "Started" and not desktop.get("viewer", {}).get("passwd"):
+        desktop["status"] = "Starting"
     return desktop
 
 
