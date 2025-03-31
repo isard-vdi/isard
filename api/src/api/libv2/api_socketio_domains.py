@@ -181,7 +181,7 @@ class DomainsThread(threading.Thread):
                             )
                             and data.get("jumperurl")
                             and c.get("new_val", {}).get("status") == "Started"
-                            and c.get("new_val", {}).get("viewer", {}).get("tls", {})
+                            and c.get("new_val", {}).get("viewer", {}).get("passwd")
                         ):
                             try:
                                 viewers = common.DesktopViewerFromToken(
