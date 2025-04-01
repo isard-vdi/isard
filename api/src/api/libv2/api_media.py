@@ -84,10 +84,9 @@ def get_media(status=None, category_id=None):
 
 
 def media_task_delete(media_id, user_id=None, keep_status=None):
-    media = Media(media_id)
-
     if not Media.exists(media_id):
         raise Error(error="not_found", description="Media not found")
+    media = Media(media_id)
 
     if media.status not in [
         "Downloaded",
@@ -150,10 +149,10 @@ def media_task_delete(media_id, user_id=None, keep_status=None):
 
 
 def media_task_check(media_id, user_id=None):
-    media = Media(media_id)
-
     if not Media.exists(media_id):
         raise Error(error="not_found", description="Media not found")
+    media = Media(media_id)
+
     if not media.path_downloaded:
         media.status = "deleted"
         return
