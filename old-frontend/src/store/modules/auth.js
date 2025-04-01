@@ -173,11 +173,6 @@ export default {
         config.headers.Authorization = bearer
         return config
       })
-      logoutAxios.post(
-        `${authenticationSegment}/logout`,
-        {}
-      )
-
       if (getCookie(sessionCookieName)) {
         const session = jwtDecode(context.getters.getSession)
         if (!session.type) {
@@ -189,12 +184,16 @@ export default {
           }
         }
       }
-      context.commit('setSession', false)
-      context.commit('resetStore')
-      context.dispatch('closeSocket')
+      logoutAxios.post(
+        `${authenticationSegment}/logout`,
+        {}
+      )
       if (redirect) {
         window.location.pathname = '/login'
       }
+      context.commit('setSession', false)
+      context.commit('resetStore')
+      context.dispatch('closeSocket')
     },
     saveNavigation (context, payload) {
       const currentRoute = payload.url.name
