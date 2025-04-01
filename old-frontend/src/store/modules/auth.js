@@ -29,7 +29,11 @@ export default {
       message: '',
       args: {}
     },
-    userCategories: []
+    userCategories: [],
+    expiredSessionModal: {
+      show: false,
+      kind: 'renew'
+    }
   },
   getters: {
     getSession: (state) => {
@@ -49,6 +53,9 @@ export default {
     },
     getUserCategories: (state) => {
       return state.userCategories
+    },
+    getExpiredSessionModal: (state) => {
+      return state.expiredSessionModal
     }
   },
   mutations: {
@@ -84,6 +91,9 @@ export default {
     },
     setUserCategories (state, categories) {
       state.userCategories = categories
+    },
+    setExpiredSessionModal (state, payload) {
+      state.expiredSessionModal = payload
     }
   },
   actions: {
@@ -145,7 +155,7 @@ export default {
         }
       })
     },
-    renew (context) {
+    renew (context, closeModal = false) {
       const authentication = axios.create({
         baseURL: authenticationSegment
       })
@@ -156,14 +166,17 @@ export default {
       return authentication
         .post('/renew', {})
         .then((response) => {
+          if (closeModal) {
+            context.commit('setExpiredSessionModal', { show: false, kind: 'renew' })
+          }
           context.commit('setSession', response.data.token)
           context.dispatch('updateTimeDrift', jwtDecode(response.data.token))
           context.dispatch('openSocket', {})
           context.dispatch('fetchUser')
+          context.dispatch('fetchConfig')
         })
         .catch((e) => {
-          console.log(e)
-          context.dispatch('logout')
+          context.dispatch('showExpiredSessionModal', 'expired')
         })
     },
     logout (context, redirect = true) {
@@ -325,6 +338,9 @@ export default {
         `${authenticationSegment}/reset-password`,
         data
       )
+    },
+    showExpiredSessionModal (context, kind) {
+      context.commit('setExpiredSessionModal', { show: true, kind: kind })
     }
   }
 }

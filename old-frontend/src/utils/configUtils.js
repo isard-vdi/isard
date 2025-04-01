@@ -12,7 +12,12 @@ export class ConfigUtils {
       bastion_ssh_port: bastionSshPort,
       can_use_bastion: canUseBastion,
       can_use_bastion_individual_domains: canUseBastionIndividualDomains,
-      migrations_block: migrationsBlock
+      migrations_block: migrationsBlock,
+      session: {
+        id,
+        max_renew_time: maxRenewTime,
+        max_time: maxTime
+      }
     } = config
     return {
       showBookingsButton,
@@ -26,7 +31,12 @@ export class ConfigUtils {
       bastionSshPort,
       canUseBastion,
       canUseBastionIndividualDomains,
-      migrationsBlock
+      migrationsBlock,
+      session: {
+        id,
+        maxRenewTime,
+        maxTime
+      }
     }
   }
 }
