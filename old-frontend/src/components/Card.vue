@@ -170,7 +170,7 @@
             class="ml-4 d-flex flex-row justify-left"
           >
             <b-spinner
-              v-if="[desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.maintenance].includes(desktopState.toLowerCase())"
+              v-if="[desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.maintenance, desktopStates.unknown].includes(desktopState.toLowerCase())"
               small
               variant="light"
               class="align-self-center mr-2 status-spinner"
@@ -456,7 +456,8 @@ export default {
         working: 'status-orange',
         downloading: 'status-orange',
         paused: 'status-red',
-        maintenance: 'status-orange'
+        maintenance: 'status-orange',
+        unknown: 'status-orange'
       }
       return stateColors[this.desktopState]
     },
