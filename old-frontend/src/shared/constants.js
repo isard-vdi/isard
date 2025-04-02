@@ -28,7 +28,8 @@ export const desktopStates = {
   paused: 'paused',
   updating: 'updating',
   maintenance: 'maintenance',
-  creating: 'creating'
+  creating: 'creating',
+  unknown: 'unknown'
 }
 
 export const status = {
@@ -86,6 +87,10 @@ export const status = {
     action: 'cancel',
     icon: 'dash-circle',
     variant: 'warning'
+  },
+  unknown: {
+    action: '',
+    icon: ''
   }
 }
 

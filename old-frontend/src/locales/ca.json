@@ -557,6 +557,9 @@
         "maintenance": {
           "text": "En manteniment",
           "action": "Cancel·lar operació"
+        },
+        "unknown": {
+          "text": "Temporalment no disponible"
         }
       }
     },

@@ -808,6 +808,9 @@
                 "maintenance": {
                     "text": "In maintenance",
                     "action": "Cancel operation"
+                },
+                "unknown": {
+                    "text": "Temporarily unavailable"
                 }
             }
         },
