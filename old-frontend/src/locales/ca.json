@@ -196,15 +196,22 @@
         "unstable": "La connexió amb el servidor és inestable",
         "error": "Error de connexió",
         "cookie-error": "No s'ha trobat la galeta necessaria per realitzar la connexió",
-        "cookie-expired": "La galeta necessaria per realitzar la connexió ha expirat"
+        "cookie-expired": "La galeta necessaria per realitzar la connexió ha expirat",
+        "retrying": "Reintent {retry} de {maxRetries}",
+        "rdp-not-running": "El servei RDP a l'escriptori no existeix o no està en execució"
       },
       "title": {
         "connecting": "Connectant",
         "disconnected": "Desconnectat",
         "unstable": "Inestable",
-        "error": "Error"
+        "error": "Error",
+        "retrying": "Esperant a que l'RDP de l'escriptori estigui disponible",
+        "rdp-not-running": "El servei RDP no està en execució"
       },
-      "button-refresh": "Recarregar"
+      "buttons": {
+        "retry": "Reintentar",
+        "refresh": "Recarregar"
+      }
     },
     "bookings": {
       "item": {

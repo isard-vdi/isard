@@ -447,15 +447,22 @@
         "unstable": "La conexión con el servidor es inestable",
         "error": "Error de conexión",
         "cookie-error": "No se ha encontrado la cookie necesaria para realizar la conexión",
-        "cookie-expired": "La cookie necesaria para realizar la conexión ha caducado"
+        "cookie-expired": "La cookie necesaria para realizar la conexión ha caducado",
+        "retrying": "Reintento {retry} de {maxRetries}",
+        "rdp-not-running": "El servicio RDP en el escritorio no existe o no está en ejecución"
       },
       "title": {
         "connecting": "Conectando",
         "disconnected": "Desconectado",
         "unstable": "Inestable",
-        "error": "Error"
+        "error": "Error",
+        "retrying": "Esperando a que el RDP del escritorio esté disponible",
+        "rdp-not-running": "El servicio RDP no está en ejecución"
       },
-      "button-refresh": "Recargar"
+      "buttons": {
+        "retry": "Reintentar",
+        "refresh": "Recarregar"
+      }
     },
     "bookings": {
       "item": {

@@ -6,6 +6,8 @@
     <modal
       v-show="clientState!==3"
       ref="modal"
+      :retry="clientRetries"
+      :max-retries="maxClientRetries"
     />
     <!-- trick AudioContext to think the user has clicked in order to be able to start the viewer -->
     <p
@@ -56,7 +58,9 @@ export default {
       loggedIn: false,
       host: '',
       desktopIp: '',
-      clientState: 0
+      clientState: 0,
+      clientRetries: 0,
+      maxClientRetries: 3
     }
   },
   watch: {
@@ -213,6 +217,10 @@ export default {
         // eslint-disable-next-line no-console
         console.error(`Tunnel failed ${JSON.stringify(status)}`)
         this.connectionState = states.TUNNEL_ERROR
+        // Retry connection
+        setTimeout(() => {
+          this.startViewer()
+        }, 5000)
       }
 
       tunnel.onstatechange = (state) => {
@@ -274,9 +282,19 @@ export default {
         this.client.disconnect()
         // eslint-disable-next-line no-console
         console.error(`Client error ${JSON.stringify(error)}`)
-        this.errorMessage = error.message
-        this.connectionState = states.CLIENT_ERROR
-        this.clientState = -1
+        this.connectionState = states.RETRYING
+        // Retry to connect until the max number of retries is reached. Each retry must be done after 5 seconds
+        if (this.clientRetries < this.maxClientRetries) {
+          this.clientRetries++
+          console.log('Client error. Retrying connection in 5 seconds...')
+          // Retry connection
+          setTimeout(() => {
+            this.startViewer()
+          }, 5000)
+        } else {
+          console.log('Max number of retries reached. Disconnecting.')
+          this.connectionState = states.RDP_NOT_RUNNING
+        }
       }
 
       this.client.onsync = () => {}

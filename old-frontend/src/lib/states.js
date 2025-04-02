@@ -67,5 +67,21 @@ export default {
    *
    * @type String
    */
-  COOKIE_EXPIRED: 'COOKIE_EXPIRED'
+  COOKIE_EXPIRED: 'COOKIE_EXPIRED',
+
+  /**
+   * The Guacamole connection has terminated due to an error in the client
+   * The associated error code is stored in statusCode.
+   *
+   * @type String
+   */
+  RETRYING: 'RETRYING',
+
+  /**
+   * The Guacamole connection cannot be established because the desktop does not
+   * have the RDP feature enabled or it is not running.
+   *
+   * @type String
+   */
+  RDP_NOT_RUNNING: 'RDP_NOT_RUNNING'
 }
