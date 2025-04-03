@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 171
+release_version = 172
+# release 172: New deployment structure to match future labs feature
 # release 171: Add 'start' notification action and bastion notification
 # release 170: Global and category bastion_domain
 # release 169: Set secrets role to manager
@@ -33,6 +34,7 @@ release_version = 171
 #              Add send_unused_deployments_to_recycle_bin rule to unused_item_timeouts table
 # release 161: Delete the unused_desktops_cutoff_time field from the config table
 # release 160: Add enabled field to login notifications
+# release 159: Add nonpersistent desktops delete timeout to config table
 # release 158: Add unused_desktops notification template
 # release 157: Add unused_desktops_cutoff_time field to config table
 # release 156: Remove user_permissions field from deployments create_dict
@@ -3545,6 +3547,103 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 172:
+            try:
+                deployments = r.table(table).run(self.conn)
+                updates = []
+                for deployment in deployments:
+                    create_dict_data = deployment["create_dict"]
+                    update_data = {}
+                    if not isinstance(create_dict_data, list):
+
+                        # data that will be moved or added from create_dict into the root
+                        update_data = {
+                            "allowed": create_dict_data.get("allowed"),
+                            "description": create_dict_data.get("description"),
+                            "tag": create_dict_data.get("tag"),
+                            "tag_name": create_dict_data.get("tag_name"),
+                            "tag_visible": create_dict_data.get("tag_visible"),
+                            "image": {"id": "1.jpg", "type": "stock", "url": ""},
+                            "resources": [],
+                        }
+
+                        # data that will be added with empty value to match desktop structure
+                        update_data["create_dict"] = {
+                            "image": {"url": ""},
+                            "hardware": {"disks": []},
+                        }
+                    updates.append({"id": deployment["id"], "data": update_data})
+
+                if updates:
+                    # update with new data structure
+                    r.table(table).update(
+                        lambda row: row.merge(
+                            r.expr({u["id"]: u["data"] for u in updates})
+                            .default({})[row["id"]]
+                            .default({})
+                        )
+                    ).run(self.conn)
+
+                    # remove old fields from create_dict
+                    r.table(table).update(
+                        lambda row: {
+                            "create_dict": [
+                                r.literal(
+                                    row["create_dict"].without(
+                                        "allowed",
+                                        "description",
+                                        "tag",
+                                        "tag_name",
+                                        "tag_visible",
+                                    )
+                                )
+                            ]
+                        }
+                    ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                # Fix deployments with missing description and url fields
+                deployments = r.table(table).run(self.conn)
+                for deployment in deployments:
+                    update_data = {}
+                    needs_update = False
+
+                    if "description" not in deployment:
+                        update_data["description"] = ""
+                        needs_update = True
+
+                    if "image" in deployment and "url" not in deployment["image"]:
+                        update_data["image"] = deployment["image"].copy()
+                        update_data["image"]["url"] = ""
+                        needs_update = True
+
+                    if "create_dict" in deployment and isinstance(
+                        deployment["create_dict"], list
+                    ):
+                        create_dict = []
+                        for cd in deployment["create_dict"]:
+
+                            if "description" not in cd:
+                                cd["description"] = ""
+                                needs_update = True
+
+                            if "image" in cd and "url" not in cd["image"]:
+                                cd["image"]["url"] = ""
+                                needs_update = True
+
+                            create_dict.append(cd)
+
+                        update_data["create_dict"] = create_dict
+
+                    if needs_update:
+                        r.table(table).get(deployment["id"]).update(update_data).run(
+                            self.conn
+                        )
+
+            except Exception as e:
+                print(e)
         return True
 
     """
