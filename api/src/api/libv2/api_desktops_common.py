@@ -249,12 +249,13 @@ class ApiDesktopsCommon:
     def parse_desktop_queues(self, data):
         # Fetch domains using the list of desktop_ids
         desktop_ids = [d["desktop_id"] for d in data]
-        domains = (
-            r.table("domains")
-            .get_all(r.args(desktop_ids), index="id")
-            .pluck("id", "user")
-            .run(db.conn)
-        )
+        with app.app_context():
+            domains = (
+                r.table("domains")
+                .get_all(r.args(desktop_ids), index="id")
+                .pluck("id", "user")
+                .run(db.conn)
+            )
 
         # Map domains by desktop_id for quick lookup
         domain_map = {domain["id"]: domain["user"] for domain in domains}
