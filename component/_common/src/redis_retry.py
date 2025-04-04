@@ -21,6 +21,7 @@ from time import sleep
 
 from redis import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 RETRY_INTERVAL = 5
 
@@ -30,7 +31,11 @@ class RedisRetry(Redis):
         while True:
             try:
                 return super().execute_command(*args, **kwargs)
-            except (ConnectionError, RedisConnectionError) as exception:
+            except (
+                ConnectionError,
+                RedisConnectionError,
+                RedisTimeoutError,
+            ) as exception:
                 print(
                     f"Redis Connection Error: {exception} Retrying in {RETRY_INTERVAL} secconds",
                     flush=True,
