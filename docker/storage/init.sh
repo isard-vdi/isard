@@ -3,6 +3,8 @@
 export STORAGE_DOMAIN
 export PYTHONWARNINGS="ignore:Unverified HTTPS request"
 
+REDIS_WORKERS=${REDIS_WORKERS:-1}
+
 if [ "${REDIS_WORKERS}" -eq 0 ]
 then
     echo "REDIS_WORKERS is set to 0, not starting any workers, sleeping forever"
@@ -25,7 +27,7 @@ then
         done
     done
 
-    for worker in $(seq 1 ${REDIS_WORKERS:-1}); do
+    for worker in $(seq 1 ${REDIS_WORKERS}); do
         rq worker \
             --connection-class="isardvdi_common.redis_retry.RedisRetry" \
             --url "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}" \
