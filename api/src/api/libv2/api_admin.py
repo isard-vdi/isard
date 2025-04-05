@@ -540,8 +540,6 @@ class ApiAdmin:
                 .without("name")
             }
         )
-        if categories:
-            query.filter(r.row["right"]["category"] in categories)
 
         query = query.pluck(
             {
