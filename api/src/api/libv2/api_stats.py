@@ -152,58 +152,68 @@ def Kind(kind):
 @cached(cache=TTLCache(maxsize=1, ttl=30))
 def GroupByCategories():
     # Used by stats go
-    query = {}
+    result = {}
+
+    # Open a single app context for all operations
     with app.app_context():
-        categories = r.table("categories").pluck("id")["id"].run(db.conn)
-    for category in categories:
-        query[category] = {
-            "users": {
-                "total": "",
-                "status": {"enabled": "", "disabled": ""},
-                "roles": {
-                    "admin": "",
-                    "manager": "",
-                    "advanced": "",
-                    "user": "",
+        # Get all categories in one query
+        categories = list(r.table("categories").pluck("id")["id"].run(db.conn))
+
+        # Initialize the result structure for all categories at once
+        for category in categories:
+            result[category] = {
+                "users": {
+                    "total": "",
+                    "status": {"enabled": "", "disabled": ""},
+                    "roles": {
+                        "admin": "",
+                        "manager": "",
+                        "advanced": "",
+                        "user": "",
+                    },
                 },
-            },
-            "desktops": {
-                "total": "",
-                "status": {
-                    "Started": "",
-                    "Stopped": "",
-                    "Failed": "",
-                    "Unknown": "",
-                    "Other": "",
+                "desktops": {
+                    "total": "",
+                    "status": {
+                        "Started": "",
+                        "Stopped": "",
+                        "Failed": "",
+                        "Unknown": "",
+                        "Other": "",
+                    },
                 },
-            },
-            "templates": {
-                "total": "",
-                "status": {"enabled": "", "disabled": ""},
-            },
-        }
-        with app.app_context():
-            query[category]["users"]["total"] = (
+                "templates": {
+                    "total": "",
+                    "status": {"enabled": "", "disabled": ""},
+                },
+            }
+
+        # Process all user-related data in a minimal number of queries
+        for category in categories:
+            # Users total count and enabled count in two queries
+            result[category]["users"]["total"] = (
                 r.table("users")
                 .get_all(category, index="category")
                 .count()
                 .run(db.conn)
             )
-        with app.app_context():
-            query[category]["users"]["status"]["enabled"] = (
+
+            result[category]["users"]["status"]["enabled"] = (
                 r.table("users")
                 .get_all(category, index="category")
                 .filter({"active": True})
                 .count()
                 .run(db.conn)
             )
-        query[category]["users"]["status"]["disabled"] = (
-            query[category]["users"]["total"]
-            - query[category]["users"]["status"]["enabled"]
-        )
 
-        with app.app_context():
-            query[category]["users"]["roles"] = (
+            # Calculate disabled users
+            result[category]["users"]["status"]["disabled"] = (
+                result[category]["users"]["total"]
+                - result[category]["users"]["status"]["enabled"]
+            )
+
+            # User roles data
+            result[category]["users"]["roles"] = (
                 r.table("users")
                 .get_all(category, index="category")
                 .group("role")
@@ -211,16 +221,19 @@ def GroupByCategories():
                 .run(db.conn)
             )
 
-        with app.app_context():
-            query[category]["desktops"]["total"] = (
+        # Process all desktop-related data
+        for category in categories:
+            # Desktop total count
+            result[category]["desktops"]["total"] = (
                 r.table("domains")
                 .get_all(["desktop", category], index="kind_category")
                 .count()
                 .run(db.conn)
             )
-        for status in stable_status:
-            with app.app_context():
-                query[category]["desktops"]["status"][status] = (
+
+            # Status counts for each status type
+            for status in stable_status:
+                result[category]["desktops"]["status"][status] = (
                     r.table("domains")
                     .get_all(
                         ["desktop", status, category], index="kind_status_category"
@@ -228,8 +241,9 @@ def GroupByCategories():
                     .count()
                     .run(db.conn)
                 )
-        with app.app_context():
-            query[category]["desktops"]["status"]["Other"] = (
+
+            # Other desktop status count
+            result[category]["desktops"]["status"]["Other"] = (
                 r.table("domains")
                 .get_all(["desktop", category], index="kind_category")
                 .filter(
@@ -241,15 +255,18 @@ def GroupByCategories():
                 .run(db.conn)
             )
 
-        with app.app_context():
-            query[category]["templates"]["total"] = (
+        # Process all template-related data
+        for category in categories:
+            # Template total count
+            result[category]["templates"]["total"] = (
                 r.table("domains")
                 .get_all(["template", category], index="kind_category")
                 .count()
                 .run(db.conn)
             )
-        with app.app_context():
-            query[category]["templates"]["status"]["enabled"] = (
+
+            # Enabled templates count
+            result[category]["templates"]["status"]["enabled"] = (
                 r.table("domains")
                 .get_all(
                     ["template", True, category], index="template_enabled_category"
@@ -257,8 +274,9 @@ def GroupByCategories():
                 .count()
                 .run(db.conn)
             )
-        with app.app_context():
-            query[category]["templates"]["status"]["disabled"] = (
+
+            # Disabled templates count
+            result[category]["templates"]["status"]["disabled"] = (
                 r.table("domains")
                 .get_all(
                     ["template", False, category], index="template_enabled_category"
@@ -266,7 +284,8 @@ def GroupByCategories():
                 .count()
                 .run(db.conn)
             )
-    return query
+
+    return result
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=30))
