@@ -266,7 +266,12 @@ def desktop_stop(desktop_id, force=False, wait_seconds=0):
 
 
 def desktops_stop(
-    desktops_ids, force=False, include_shutting_down=True, batch_size=20, wait_seconds=1
+    desktops_ids,
+    force=False,
+    include_shutting_down=True,
+    batch_size=20,
+    wait_seconds=1,
+    update_accessed=True,
 ):
     action = "stop"
     try:
@@ -279,6 +284,10 @@ def desktops_stop(
         else:
             status_updates.append(("Started", "Shutting-down"))
 
+        update_data = {"status": new_status}
+        if update_accessed:
+            update_data["accessed"] = int(time.time())
+
         with app.app_context():
             for i in range(0, len(desktops_ids), batch_size):
                 batch_ids = desktops_ids[i : i + batch_size]
@@ -286,9 +295,7 @@ def desktops_stop(
                 for current_status, new_status in status_updates:
                     r.table("domains").get_all(*keys, index="kind_ids").filter(
                         {"status": current_status}
-                    ).update({"status": new_status, "accessed": int(time.time())}).run(
-                        db.conn
-                    )
+                    ).update(update_data).run(db.conn)
             time.sleep(wait_seconds)
         notify_admins(
             "desktop_action",

@@ -939,6 +939,16 @@ class ApiDesktopsPersistent:
                 traceback.format_exc(),
             )
 
+        if data.get("server_autostart") is True and (
+            data.get("server") is False
+            or (data.get("server") is None and not desktop.get("server"))
+        ):
+            raise Error(
+                "precondition_required",
+                "Non-server desktops can't be set to autostart",
+                traceback.format_exc(),
+            )
+
         if desktop.get("create_dict", {}).get("reservables", {}).get("vgpus") and (
             data.get("server")
         ):
