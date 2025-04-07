@@ -97,7 +97,7 @@ func (s *Sessions) New(ctx context.Context, userID string, remoteAddr string) (*
 }
 
 func (s *Sessions) Get(ctx context.Context, id, remoteAddr string) (*model.Session, error) {
-	if id == "isardvdi-service" {
+	if id == "isardvdi-service" || id == "api-key" {
 		now := time.Now()
 		return &model.Session{
 			ID: "isardvdi-service",
