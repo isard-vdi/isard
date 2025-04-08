@@ -107,19 +107,22 @@ def alloweds_table_term(payload, table):
             )
         if table == "categories":
             result = alloweds.get_table_term(
-                table, "name", data["term"], pluck=data["pluck"]
+                table,
+                "name",
+                data["term"],
+                pluck=data["pluck"],
+                index_key="id",
+                index_value=payload["category_id"],
             )
-            result = [c for c in result if c["id"] == payload["category_id"]]
         if table == "groups":
             result = alloweds.get_table_term(
                 table,
                 "name",
                 data["term"],
                 pluck=["id", "name", "parent_category", "category_name"],
+                index_key="parent_category",
+                index_value=payload["category_id"],
             )
-            result = [
-                g for g in result if g["parent_category"] == payload["category_id"]
-            ]
         if table == "users":
             if data.get("roles"):
                 result = alloweds.get_table_term(
@@ -127,13 +130,19 @@ def alloweds_table_term(payload, table):
                     "name",
                     data["term"],
                     pluck=["id", "name", "category", "uid", "role"],
+                    index_key="category",
+                    index_value=payload["category_id"],
                 )
                 result = [u for u in result if u["role"] not in data.get("roles", [])]
             else:
                 result = alloweds.get_table_term(
-                    table, "name", data["term"], pluck=["id", "name", "category", "uid"]
+                    table,
+                    "name",
+                    data["term"],
+                    pluck=["id", "name", "category", "uid"],
+                    index_key="category",
+                    index_value=payload["category_id"],
                 )
-            result = [u for u in result if u["category"] == payload["category_id"]]
         if table == "media":
             if data["kind"] == "isos":
                 kind = "iso"
