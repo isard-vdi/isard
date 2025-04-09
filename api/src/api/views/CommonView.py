@@ -19,7 +19,6 @@ from ..libv2.quotas import Quotas
 templates = ApiTemplates()
 quotas = Quotas()
 
-from ..libv2.api_admin import admin_table_get
 from ..libv2.api_desktops_common import ApiDesktopsCommon
 
 common = ApiDesktopsCommon()

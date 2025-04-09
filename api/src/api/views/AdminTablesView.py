@@ -19,6 +19,8 @@ from ..libv2.api_admin import (
     admin_table_insert,
     admin_table_list,
     admin_table_update,
+    manager_table_get,
+    manager_table_list,
 )
 from ..libv2.api_desktops_persistent import (
     unassign_resource_from_desktops_and_deployments,
@@ -34,40 +36,38 @@ def api_v3_admin_table(payload, table):
     else:
         options = request.get_json(force=True)
     if options.get("id") and not options.get("index"):
-        result = admin_table_get(table, options.get("id"), pluck=options.get("pluck"))
+        if payload["role_id"] == "admin":
+            result = admin_table_get(
+                table, options.get("id"), pluck=options.get("pluck")
+            )
+        elif payload["role_id"] == "manager":
+            result = manager_table_get(
+                table,
+                payload["category_id"],
+                options.get("id"),
+                pluck=options.get("pluck"),
+            )
+
     else:
-        result = admin_table_list(
-            table,
-            options.get("order_by"),
-            options.get("pluck"),
-            options.get("without"),
-            options.get("id"),
-            options.get("index"),
-        )
-
-        if payload["role_id"] == "manager":
-            if table == "categories":
-                result = [
-                    {**r, **{"editable": False}}
-                    for r in result
-                    if r["id"] == payload["category_id"]
-                ]
-            if table == "groups":
-                result = [
-                    r
-                    for r in result
-                    if "parent_category" in r.keys()
-                    and r["parent_category"] == payload["category_id"]
-                ]
-            if table == "roles":
-                result = [r for r in result if r["id"] != "admin"]
-            if table == "media":
-                result = [r for r in result if r["category"] == payload["category_id"]]
-            if table == "secrets":
-                raise Error("forbidden", "Not enough rights.")
-            if table == "deployments":
-                result = [r for r in result if r["category"] == payload["category_id"]]
-
+        if payload["role_id"] == "admin":
+            result = admin_table_list(
+                table,
+                options.get("order_by"),
+                options.get("pluck"),
+                options.get("without"),
+                options.get("id"),
+                options.get("index"),
+            )
+        elif payload["role_id"] == "manager":
+            result = manager_table_list(
+                table,
+                payload["category_id"],
+                options.get("order_by"),
+                options.get("pluck"),
+                options.get("without"),
+                options.get("id"),
+                options.get("index"),
+            )
     return (
         json.dumps(result),
         200,
