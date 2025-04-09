@@ -46,9 +46,9 @@ def alloweds_table_term(payload, table):
                 "name",
                 data["term"],
                 pluck=["id", "name", "parent_category", "category_name"],
+                index_key="parent_category" if data.get("category") else None,
+                index_value=data["category"] if data.get("category") else None,
             )
-            if data.get("category"):
-                result = [g for g in result if g["parent_category"] == data["category"]]
         elif table == "users":
             if data.get("roles"):
                 result = alloweds.get_table_term(
@@ -56,8 +56,12 @@ def alloweds_table_term(payload, table):
                     "name",
                     data["term"],
                     pluck=["id", "name", "uid", "role", "category_name", "group_name"],
+                    query_filter=lambda user: (
+                        user["role"] not in data.get("roles", [])
+                        if data.get("roles")
+                        else None
+                    ),
                 )
-                result = [u for u in result if u["role"] not in data.get("roles", [])]
             elif data.get("category"):
                 result = alloweds.get_table_term(
                     table,
@@ -107,19 +111,22 @@ def alloweds_table_term(payload, table):
             )
         if table == "categories":
             result = alloweds.get_table_term(
-                table, "name", data["term"], pluck=data["pluck"]
+                table,
+                "name",
+                data["term"],
+                pluck=data["pluck"],
+                index_key="id",
+                index_value=payload["category_id"],
             )
-            result = [c for c in result if c["id"] == payload["category_id"]]
         if table == "groups":
             result = alloweds.get_table_term(
                 table,
                 "name",
                 data["term"],
                 pluck=["id", "name", "parent_category", "category_name"],
+                index_key="parent_category",
+                index_value=payload["category_id"],
             )
-            result = [
-                g for g in result if g["parent_category"] == payload["category_id"]
-            ]
         if table == "users":
             if data.get("roles"):
                 result = alloweds.get_table_term(
@@ -127,13 +134,23 @@ def alloweds_table_term(payload, table):
                     "name",
                     data["term"],
                     pluck=["id", "name", "category", "uid", "role"],
+                    index_key="category",
+                    index_value=payload["category_id"],
+                    query_filter=lambda user: (
+                        user["role"] not in data.get("roles", [])
+                        if data.get("roles")
+                        else None
+                    ),
                 )
-                result = [u for u in result if u["role"] not in data.get("roles", [])]
             else:
                 result = alloweds.get_table_term(
-                    table, "name", data["term"], pluck=["id", "name", "category", "uid"]
+                    table,
+                    "name",
+                    data["term"],
+                    pluck=["id", "name", "category", "uid"],
+                    index_key="category",
+                    index_value=payload["category_id"],
                 )
-            result = [u for u in result if u["category"] == payload["category_id"]]
         if table == "media":
             if data["kind"] == "isos":
                 kind = "iso"
