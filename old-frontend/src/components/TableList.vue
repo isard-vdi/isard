@@ -64,18 +64,9 @@
               <template #cell(image)="data">
                 <!-- INFO -->
                 <b-icon
-                  v-if="data.item.desktopSize !== -1"
                   v-b-tooltip="{ title: `${data.item.description ? data.item.description : $t(`components.desktop-cards.no-info-default`)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
                   icon="info-circle-fill"
                   class="info-icon position-absolute cursor-pointer"
-                />
-                <!-- ERROR -->
-                <b-icon
-                  v-if="data.item.desktopSize === -1"
-                  v-b-tooltip="{ title: $t(`errors.desktop_storage_does_not_exist`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
-                  icon="exclamation-triangle-fill"
-                  variant="danger"
-                  class="danger-icon position-absolute cursor-pointer"
                 />
                 <!-- IMAGE -->
                 <div
@@ -91,11 +82,6 @@
               <template #cell(description)="data">
                 <p class="text-dark-gray m-0">
                   {{ data.item.description }}
-                </p>
-              </template>
-              <template #cell(desktopSize)="data">
-                <p class="text-dark-gray m-0">
-                  {{ (data.item.desktopSize / 1024 / 1024 / 1024).toFixed(1) + 'GB' }}
                 </p>
               </template>
               <template #cell(ip)="data">
@@ -439,16 +425,6 @@ export default {
       }
     ]
 
-    if (props.persistent) {
-      desktopFields.splice(3, 0, {
-        key: 'desktopSize',
-        sortable: true,
-        label: `${i18n.t('components.desktop-cards.table-header.desktop-size')}`,
-        thStyle: { width: '5%' },
-        tdClass: 'desktopSize'
-      })
-    }
-
     const $store = context.root.$store
 
     const changeDesktopStatus = (desktop, data) => {
@@ -472,7 +448,6 @@ export default {
     const rowClass = (item, type) => {
       if (!item || type !== 'row') return
       if (item.needsBooking) return 'list-orange-bar'
-      if (item.desktopSize === -1) return 'list-red-bar'
     }
 
     const notifyWaitingIp = () => {

@@ -31,7 +31,6 @@ export class DesktopUtils {
       nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : '',
       shutdown: scheduled.shutdown ? i18n.t('components.desktop-cards.notification-bar.shutdown', { name: name, date: DateUtils.formatAsTime(DateUtils.utcToLocalTime(scheduled.shutdown)) }) : false,
       server,
-      desktopSize,
       tag,
       reservables,
       interfaces,
@@ -66,7 +65,6 @@ export class DesktopUtils {
       editable,
       allowed,
       enabled,
-      desktopSize,
       status: this.getState(status)
     }
   }
