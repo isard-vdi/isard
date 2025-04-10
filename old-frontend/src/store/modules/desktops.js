@@ -430,6 +430,9 @@ export default {
       document.body.removeChild(el)
     },
     updateCurrentTab (context, currentTab) {
+      if (currentTab === 'sharedTemplates' && !context.getters.getSharedTemplatesLoaded) {
+        context.dispatch('fetchAllowedTemplates', 'shared')
+      }
       context.commit('setCurrentTab', currentTab)
     },
     fetchDirectLink (context, domainId) {

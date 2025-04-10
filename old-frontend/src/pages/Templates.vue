@@ -119,11 +119,6 @@
         @click="updateCurrentTab('sharedTemplates')"
       >
         <template #title>
-          <b-spinner
-            v-if="!(getSharedTemplatesLoaded)"
-            type="border"
-            small
-          />
           <span class="d-inline d-xl-none">{{ $t('views.templates.tabs.shared-templates-compact') }}</span><span class="ml-2 d-none d-xl-inline">{{ $t('views.templates.tabs.shared-templates') }}</span>
         </template>
         <template v-if="getSharedTemplatesLoaded && getSharedTemplates.length === 0">
@@ -214,7 +209,6 @@ export default {
 
     const $store = context.root.$store
     $store.dispatch('fetchTemplates')
-    $store.dispatch('fetchAllowedTemplates', 'shared')
 
     const templateId = computed(() => $store.getters.getId)
 
