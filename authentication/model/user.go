@@ -256,4 +256,9 @@ func (u *User) LoadWithoutOverride(u2 *User) {
 	if u.Accessed == 0 {
 		u.Accessed = u2.Accessed
 	}
+
+	if u.ApiKey == "" {
+		u.ApiKey = u2.ApiKey
+	}
+
 }
