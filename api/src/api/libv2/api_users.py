@@ -265,6 +265,7 @@ class ApiUsers:
             new_user["email_verified"] = (
                 int(time.time()) if data.get("email_verified") else False
             )
+            new_user["api_key"] = None
             new_users.append(new_user)
 
             amount += 1
@@ -883,6 +884,7 @@ class ApiUsers:
             "password_history": [password],
             "email_verification_token": None,
             "email_verified": False,
+            "api_key": None,
         }
         with app.app_context():
             r.table("users").insert(user).run(db.conn)

@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 167
+release_version = 168
+# release 168: Add new field api_key to all users
 # release 167: Recycle bin scheduled jobs interval changed to 1 hour, recycle_bin_cutoff_time field added to categories
 # release 166: Local allowed domain removed
 # release 165: Delete missing users and groups from migration exceptions
@@ -4461,6 +4462,11 @@ password:s:%s"""
                 r.table("users").filter(
                     lambda user: r.not_(user.has_fields("email_verified"))
                 ).update(lambda user: {"email_verified": None}).run(self.conn)
+            except Exception as e:
+                print(e)
+        if version == 168:
+            try:
+                self.add_keys(table, [{"api_key": None}])
             except Exception as e:
                 print(e)
         return True

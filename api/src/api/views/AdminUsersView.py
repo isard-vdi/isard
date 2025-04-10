@@ -403,6 +403,7 @@ def api_v3_admin_user_insert(payload):
     data["password_history"] = [data["password"]]
     data["password_last_updated"] = int(time.time())
     data["email_verification_token"] = None
+    data["api_key"] = None
     admin_table_insert("users", data)
 
     return (
