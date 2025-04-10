@@ -285,20 +285,6 @@ def _parse_desktop(desktop):
             desktop["permissions"] = permissions
             desktop["permissions"].sort()
 
-    # TODO: Sum all the desktop storages instead of getting only the first one, call get_domain_storage function to retrieve them
-    desktop_size = 0
-    if desktop.get("type") == "persistent" and desktop["create_dict"]["hardware"].get(
-        "disks", [{}]
-    )[0].get("storage_id"):
-        storage = get_document(
-            "storage", desktop["create_dict"]["hardware"]["disks"][0]["storage_id"]
-        )
-        if storage is None:
-            # It could be in new creations, while engine updates this info after creation.
-            # So, no raise
-            desktop_size = -1
-        else:
-            desktop_size = storage.get("qemu-img-info", {}).get("actual-size", 0)
     return {
         **{
             "id": desktop["id"],
@@ -316,7 +302,6 @@ def _parse_desktop(desktop):
             "scheduled": desktop.get("scheduled", {"shutdown": False}),
             "server": desktop.get("server"),
             "accessed": desktop.get("accessed"),
-            "desktop_size": desktop_size,
             "tag": desktop.get("tag"),
             "visible": desktop.get("tag_visible"),
             "user": desktop.get("user"),

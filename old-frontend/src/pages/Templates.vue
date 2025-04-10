@@ -57,11 +57,6 @@
               {{ data.item.description }}
             </p>
           </template>
-          <template #cell(desktopSize)="data">
-            <p class="text-dark-gray m-0">
-              {{ (data.item.desktopSize / 1024 / 1024 / 1024).toFixed(1) + "GB" }}
-            </p>
-          </template>
           <template #cell(actions)="data">
             <div class="d-flex justify-content-center align-items-center">
               <b-button
@@ -172,11 +167,6 @@
               {{ data.item.description }}
             </p>
           </template>
-          <template #cell(desktopSize)="data">
-            <p class="text-dark-gray m-0">
-              {{ (data.item.desktopSize / 1024 / 1024 / 1024).toFixed(1) + "GB" }}
-            </p>
-          </template>
           <template #cell(actions)="data">
             <div class="d-flex justify-content-center align-items-center">
               <b-button
@@ -263,12 +253,6 @@ export default {
         key: 'description',
         sortable: true,
         label: i18n.t('views.templates.table-header.description'),
-        thStyle: { width: '35%' }
-      },
-      {
-        key: 'desktopSize',
-        sortable: true,
-        label: i18n.t('views.templates.table-header.template-size'),
         thStyle: { width: '35%' }
       },
       {
