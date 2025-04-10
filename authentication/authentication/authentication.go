@@ -37,6 +37,7 @@ type Interface interface {
 	MigrateUser(ctx context.Context, tkn string, UserID string) (migrationTkn string, err error)
 	// External
 	ExternalUser(ctx context.Context, tkn string, UserID string, role string, username string, name string, email string, photo string) (apiKey string, err error)
+	GenerateAPIKey(ctx context.Context, tkn string, expirationMinutes int) (apiKey string, err error)
 
 	SAML() *samlsp.Middleware
 

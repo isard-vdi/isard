@@ -116,6 +116,29 @@ func (c ExternalClaims) Validate() error {
 	return nil
 }
 
+type ApiKeyClaims struct {
+	TypeClaims
+	SessionID string           `json:"session_id"`
+	Data      ApiKeyClaimsData `json:"data"`
+}
+
+type ApiKeyClaimsData struct {
+	Provider   string `json:"provider"`
+	ID         string `json:"user_id"`
+	RoleID     string `json:"role_id"`
+	CategoryID string `json:"category_id"`
+	GroupID    string `json:"group_id"`
+	Name       string `json:"name"`
+}
+
+func (c ApiKeyClaims) Validate() error {
+	if c.Type != TypeExternal {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
 type DisclaimerAcknowledgementRequiredClaims struct {
 	TypeClaims
 	UserID string `json:"user_id"`

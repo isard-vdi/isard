@@ -307,3 +307,32 @@ func SignUserMigrationToken(secret string, userID string) (string, error) {
 
 	return ss, nil
 }
+
+func SignApiKey(secret string, u *model.User, expirationMinutes int) (string, error) {
+	tkn := jwt.NewWithClaims(signingMethod, &ApiKeyClaims{
+		TypeClaims: TypeClaims{
+			RegisteredClaims: &jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expirationMinutes) * time.Minute)), // A year
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Issuer:    issuer,
+			},
+			KeyID: keyID,
+			Type:  TypeExternal,
+		},
+		SessionID: "api-key",
+		Data: ApiKeyClaimsData{
+			Provider:   u.Provider,
+			ID:         u.ID,
+			RoleID:     string(u.Role),
+			CategoryID: u.Category,
+			GroupID:    u.Group,
+			Name:       u.Name,
+		},
+	})
+	ss, err := tkn.SignedString([]byte(secret))
+	if err != nil {
+		return "", fmt.Errorf("sign the api key token: %w", err)
+	}
+	return ss, nil
+}

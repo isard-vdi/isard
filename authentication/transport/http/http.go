@@ -914,3 +914,35 @@ func (a *AuthenticationServer) ExternalUser(ctx context.Context, req oasAuthenti
 		UserID: userID,
 	}, nil
 }
+
+func (a *AuthenticationServer) GenerateAPIKey(ctx context.Context, req *oasAuthentication.GenerateAPIKeyRequest) (oasAuthentication.GenerateAPIKeyRes, error) {
+	tkn, ok := ctx.Value(tokenCtxKey).(string)
+	if !ok {
+		return &oasAuthentication.GenerateAPIKeyUnauthorized{
+			Error: oasAuthentication.GenerateAPIKeyErrorErrorMissingToken,
+			Msg:   "missing JWT token",
+		}, nil
+	}
+
+	APIKey, err := a.Authentication.GenerateAPIKey(ctx, tkn, req.ExpirationMinutes)
+	if err != nil {
+
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.GenerateAPIKeyForbidden{
+				Error: oasAuthentication.GenerateAPIKeyErrorErrorInvalidToken,
+				Msg:   err.Error(),
+			}, nil
+		}
+
+		a.Log.Error().Err(err).Msg("generate API token token error")
+
+		return &oasAuthentication.GenerateAPIKeyInternalServerError{
+			Error: oasAuthentication.GenerateAPIKeyErrorErrorInternalServer,
+			Msg:   "unknown error",
+		}, nil
+	}
+
+	return &oasAuthentication.GenerateAPIKeyResponse{
+		APIKey: APIKey,
+	}, nil
+}

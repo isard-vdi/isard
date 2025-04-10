@@ -942,6 +942,72 @@
                     }
                 ]
             }
+        },
+        "/api-key": {
+            "put": {
+                "operationId": "GenerateAPIKey",
+                "summary": "Generate a API key for a specific user",
+                "description": "An API key will be created for the user with a durability of 1 year",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GenerateAPIKeyRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenerateAPIKeyResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenerateAPIKeyError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenerateAPIKeyError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenerateAPIKeyError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -1461,6 +1527,55 @@
                 },
                 "required": [
                     "user_id"
+                ],
+                "type": "object"
+            },            "GenerateAPIKeyRequest": {
+                "properties": {
+                    "expiration_minutes": {
+                        "title": "The amount of minutes before the API key expires",
+                        "nullable": false,
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "expiration_minutes"
+                ],
+                "type": "object"
+            },
+            "GenerateAPIKeyResponse": {
+                "properties": {
+                    "api_key": {
+                        "title": "The generated API key",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "api_key"
+                ],
+                "type": "object"
+            },
+            "GenerateAPIKeyError": {
+                "properties": {
+                    "error": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_token",
+                            "internal_server"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "error",
+                    "msg"
                 ],
                 "type": "object"
             }
