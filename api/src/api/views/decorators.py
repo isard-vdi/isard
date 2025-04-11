@@ -47,6 +47,7 @@ from isardvdi_common.tokens import (
     get_auto_register_jwt_payload,
     get_header_jwt_payload,
     get_jwt_payload,
+    get_token_auth_header,
 )
 
 from ..libv2.api_allowed import ApiAllowed, get_all_linked_groups
@@ -61,6 +62,42 @@ def get_category_maintenance(category_id):
     if category_maintenance is None:
         return None
     return category_maintenance
+
+
+@cached(cache=TTLCache(maxsize=500, ttl=120))
+def get_user_api_key(user_id):
+    with app.app_context():
+        user = (
+            r.table("users")
+            .get(user_id)
+            .default({})
+            .pluck("api_key", "active")
+            .run(db.conn)
+        )
+    if user.get("api_key") is None:
+        raise Error(
+            "not_found",
+            "User api_key not found for user_id " + user_id,
+            traceback.format_exc(),
+        )
+    if not user.get("active"):
+        raise Error(
+            "forbidden",
+            f"User is not active. User_id: {user_id}",
+            traceback.format_exc(),
+        )
+    return user["api_key"]
+
+
+def check_user_api_key(user_id):
+    user_api_key = get_user_api_key(user_id)
+    header_api_key = get_token_auth_header()
+    if header_api_key != user_api_key:
+        raise Error(
+            "forbidden",
+            "Token not valid for this operation.",
+            traceback.format_exc(),
+        )
 
 
 def maintenance(category_id=None):
@@ -113,9 +150,13 @@ def has_token(f):
                 "Token not valid for this operation.",
                 traceback.format_exc(),
             )
-        api_sessions.get(
-            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
-        )
+        if get_jwt_payload().get("session_id", "") != "api-key":
+            api_sessions.get(
+                get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+            )
+        else:
+            # Check if the API key token is the one in the db
+            check_user_api_key(payload["user_id"])
 
         if payload.get("role_id") != "admin":
             maintenance(payload.get("category_id"))
@@ -230,9 +271,13 @@ def is_admin(f):
                 "Token not valid for this operation.",
                 traceback.format_exc(),
             )
-        api_sessions.get(
-            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
-        )
+        if get_jwt_payload().get("session_id", "") != "api-key":
+            api_sessions.get(
+                get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+            )
+        else:
+            # Check if the API key token is the one in the db
+            check_user_api_key(payload["user_id"])
 
         if payload["role_id"] == "admin":
             kwargs["payload"] = payload
@@ -256,9 +301,13 @@ def is_admin_or_manager(f):
                 "Token not valid for this operation.",
                 traceback.format_exc(),
             )
-        api_sessions.get(
-            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
-        )
+        if get_jwt_payload().get("session_id", "") != "api-key":
+            api_sessions.get(
+                get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+            )
+        else:
+            # Check if the API key token is the one in the db
+            check_user_api_key(payload["user_id"])
 
         if payload.get("role_id") != "admin":
             maintenance(payload["category_id"])
@@ -284,9 +333,14 @@ def is_not_user(f):
                 "Token not valid for this operation.",
                 traceback.format_exc(),
             )
-        api_sessions.get(
-            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
-        )
+        if get_jwt_payload().get("session_id", "") != "api-key":
+            api_sessions.get(
+                get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+            )
+        else:
+            # Check if the API key token is the one in the db
+            header_api_key = get_token_auth_header()
+            check_user_api_key(payload["user_id"])
         if payload.get("role_id") != "admin":
             maintenance(payload["category_id"])
         if payload["role_id"] != "user":
