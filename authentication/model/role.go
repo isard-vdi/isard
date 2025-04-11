@@ -39,3 +39,7 @@ func (r Role) HasEqualOrLessPrivileges(r2 Role) bool {
 
 	return r.HasLessPrivileges(r2)
 }
+
+func (r Role) HasEqualPrivileges(r2 Role) bool {
+	return r == r2
+}

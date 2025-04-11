@@ -10,6 +10,8 @@ import (
 )
 
 var ErrInvalidTokenType = errors.New("invalid token type")
+var ErrInvalidTokenRole = errors.New("invalid token role")
+var ErrInvalidTokenCategory = errors.New("invalid token category")
 
 type Type string
 

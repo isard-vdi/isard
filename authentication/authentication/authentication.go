@@ -38,6 +38,7 @@ type Interface interface {
 	// External
 	ExternalUser(ctx context.Context, tkn string, UserID string, role string, username string, name string, email string, photo string) (apiKey string, err error)
 	GenerateAPIKey(ctx context.Context, tkn string, expirationMinutes int) (apiKey string, err error)
+	GenerateUserToken(ctx context.Context, tkn string, userID string) (userTkn string, err error)
 
 	SAML() *samlsp.Middleware
 

@@ -946,3 +946,41 @@ func (a *AuthenticationServer) GenerateAPIKey(ctx context.Context, req *oasAuthe
 		APIKey: APIKey,
 	}, nil
 }
+
+func (a *AuthenticationServer) Impersonate(ctx context.Context, req *oasAuthentication.ImpersonateRequest) (oasAuthentication.ImpersonateRes, error) {
+	tkn, ok := ctx.Value(tokenCtxKey).(string)
+	if !ok {
+		return &oasAuthentication.ImpersonateUnauthorized{
+			Error: oasAuthentication.ImpersonateErrorErrorMissingToken,
+			Msg:   "missing JWT token",
+		}, nil
+	}
+
+	userTkn, err := a.Authentication.GenerateUserToken(ctx, tkn, req.UserID)
+	if err != nil {
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) || errors.Is(err, token.ErrInvalidTokenRole) || errors.Is(err, token.ErrInvalidTokenCategory) {
+			return &oasAuthentication.ImpersonateForbidden{
+				Error: oasAuthentication.ImpersonateErrorErrorInvalidToken,
+				Msg:   err.Error(),
+			}, nil
+		}
+
+		if errors.Is(err, authentication.ErrUserNotEnabled) {
+			return &oasAuthentication.ImpersonateForbidden{
+				Error: oasAuthentication.ImpersonateErrorErrorUserDisabled,
+				Msg:   "user not enabled",
+			}, nil
+		}
+
+		a.Log.Error().Err(err).Msg("generate user token error")
+
+		return &oasAuthentication.ImpersonateInternalServerError{
+			Error: oasAuthentication.ImpersonateErrorErrorInternalServer,
+			Msg:   "unknown error",
+		}, nil
+	}
+
+	return &oasAuthentication.ImpersonateResponse{
+		Jwt: userTkn,
+	}, nil
+}

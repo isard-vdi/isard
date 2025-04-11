@@ -1008,6 +1008,72 @@
                     }
                 ]
             }
+        },
+        "/impersonate": {
+            "post": {
+                "operationId": "Impersonate",
+                "summary": "Generate a token for a specific user",
+                "description": "Only admins, managers or external apps can call this endpoint",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImpersonateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImpersonateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImpersonateError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImpersonateError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImpersonateError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -1565,6 +1631,58 @@
                             "missing_token",
                             "invalid_token",
                             "internal_server"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "error",
+                    "msg"
+                ],
+                "type": "object"
+            },
+            "ImpersonateRequest":{
+                "properties": {
+                    "user_id": {
+                        "title": "The ID of the user to generate the token for",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user_id"
+                ],
+                "type": "object"
+            },
+            "ImpersonateResponse": {
+                "properties": {
+                    "jwt": {
+                        "title": "The generated JWT token",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "jwt"
+                ],
+                "type": "object"
+            },
+            "ImpersonateError": {
+                "properties": {
+                    "error": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_token",
+                            "internal_server",
+                            "bad_request",
+                            "user_disabled"
                         ]
                     },
                     "msg": {
