@@ -532,9 +532,19 @@ class hyp(object):
                             try:
                                 domain_handler = self.conn.lookupByName(domain_id)
                                 domain_handler.destroy()
+                            except libvirt.libvirtError as e:
+                                if "Domain not found" in str(e):
+                                    logs.main.info(
+                                        f"domain {domain_id} not found, likely already stopped."
+                                    )
+                                else:
+                                    logs.main.error(
+                                        f"domain {domain_id} running can not be destroyed with exception: {e}"
+                                    )
+                                    return False
                             except Exception as e:
                                 logs.main.error(
-                                    f"domain {domain_id} running can not be destroyed with exception: {e}"
+                                    f"domain {domain_id} running can not be destroyed to change gpu profile with exception: {e}"
                                 )
                                 return False
 
