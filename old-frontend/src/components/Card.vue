@@ -108,7 +108,7 @@
 
       <!-- Desktop next booking -->
       <div
-        v-else-if="desktop.needsBooking"
+        v-if="desktop.needsBooking"
         class="machine-notification-bar px-3 d-flex flex-row align-content-center text-white notification-bar"
         :class="notificationBarCssClass"
       >
