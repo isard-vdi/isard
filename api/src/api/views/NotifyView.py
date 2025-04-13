@@ -27,8 +27,9 @@ from api import app
 
 from ..libv2.api_desktops_common import ApiDesktopsCommon
 from ..libv2.api_notify import notify_custom, notify_desktop, notify_user
+from ..libv2.helpers import parse_desktop_queues
 from ..libv2.validators import _validate_item
-from .decorators import has_token, is_admin
+from .decorators import is_admin
 
 desktops = ApiDesktopsCommon()
 
@@ -59,16 +60,16 @@ def desktop_notify(payload):
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/notify/desktops/queue", methods=["PUT"])
+@app.route("/api/v3/notify/desktops/queue/<hyp_id>", methods=["PUT"])
 @is_admin
-def desktop_notify_queue(payload):
+def desktop_notify_queue(payload, hyp_id):
     try:
         data = request.get_json()
     except:
         raise Error("bad_request")
     data = _validate_item("desktop_queues", {"items": data})["items"]
 
-    users = desktops.parse_desktop_queues(data)
+    users = parse_desktop_queues(data, hyp_id)
 
     for user_id, user_desktops in users.items():
         notify_custom("desktops_queue", user_desktops, "/userspace", user_id)

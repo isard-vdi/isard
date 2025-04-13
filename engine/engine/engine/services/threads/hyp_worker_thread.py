@@ -129,6 +129,7 @@ class HypWorkerThread(threading.Thread):
         self.h = False
         self.error = False
         self.viewer = get_hyp_viewer_info(hyp_id)
+        self.last_api_call_time = time.time()
 
     def run(self):
         self.tid = get_tid()
@@ -1268,17 +1269,20 @@ class HypWorkerThread(threading.Thread):
         #     if item[2]["type"] in ITEMS_STATUS_MAP.keys()
         # ]
 
-        positioned_items = self.get_positioned_items()
+        current_time = time.time()
+        if current_time - self.last_api_call_time > 10:
+            self.last_api_call_time = time.time()
+            positioned_items = self.get_positioned_items()
 
-        # Update the desktops queue if there are valid items
-        if positioned_items:
-            try:
-                api_client.put(
-                    "/notify/desktops/queue",
-                    data=positioned_items,
-                    timeout=0.0000000001,
-                )
-            except requests_ReadTimeout:
-                pass
-            except Exception as e:
-                logs.workers.error(f"Error updating desktops queue: {e}")
+            # Update the desktops queue if there are valid items
+            if len(positioned_items) > 0:
+                try:
+                    api_client.put(
+                        f"/notify/desktops/queue/{self.hyp_id}",
+                        data=positioned_items,
+                        timeout=0.0000000001,
+                    )
+                except requests_ReadTimeout:
+                    pass
+                except Exception as e:
+                    logs.workers.error(f"Error updating desktops queue: {e}")
