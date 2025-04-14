@@ -37,12 +37,14 @@ vpn = isardVpn()
 from .decorators import (
     can_use_bastion,
     checkDuplicateUser,
+    has_external_token,
     has_password_reset_required_or_password_reset_token,
     has_token,
     has_viewer_token,
     is_not_user,
     is_register,
     ownsDomainId,
+    ownsExternalUserId,
     ownsUserId,
 )
 
@@ -174,6 +176,22 @@ def api_v3_user_update(payload):
 @has_token
 def api_v3_user_delete(payload):
     users.Delete(payload["user_id"])
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/user/external", methods=["DELETE"])
+@has_external_token
+def api_v3_external_user_delete(payload):
+    data = request.get_json(force=True)
+    if not data.get("user_id"):
+        raise Error(
+            "bad_request",
+            "Missing or incorrect parameters.",
+            traceback.format_exc(),
+            description_code="bad_request",
+        )
+    ownsExternalUserId(payload, data["user_id"])
+    users.Delete(data["user_id"], "external_" + payload["kid"], True)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 

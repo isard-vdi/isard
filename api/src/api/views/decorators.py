@@ -432,6 +432,41 @@ def ownsUserId(payload, user_id):
     )
 
 
+def ownsExternalUserId(payload, user_id):
+    provider = get_document("users", user_id, ["provider"])
+    if provider is None:
+        raise Error(
+            "not_found",
+            "User not found",
+            traceback.format_exc(),
+        )
+    if provider != "external_" + payload.get("kid", ""):
+        raise Error(
+            "forbidden",
+            "Not enough access rights for this user_id " + str(user_id),
+            traceback.format_exc(),
+        )
+
+    if payload["role_id"] == "admin":
+        return True
+    if payload["role_id"] == "manager":
+        user = get_document("users", user_id, ["category", "role"])
+        if user is None:
+            raise Error(
+                "not_found",
+                f"User {user_id} not found",
+                traceback.format_exc(),
+            )
+        if user["category"] == payload["category_id"] and user["role"] != "admin":
+            return True
+
+    raise Error(
+        "forbidden",
+        "Not enough access rights for this user_id " + str(user_id),
+        traceback.format_exc(),
+    )
+
+
 def ownsCategoryId(payload, category_id):
     if payload["role_id"] == "admin":
         return True
