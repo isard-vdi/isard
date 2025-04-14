@@ -48,6 +48,8 @@ from isardvdi_common.tokens import (
     get_header_jwt_payload,
     get_jwt_payload,
     get_token_auth_header,
+    get_unverified_external_jwt_payload,
+    verify_external_jwt,
 )
 
 from ..libv2.api_allowed import ApiAllowed, get_all_linked_groups
@@ -981,5 +983,35 @@ def operations_api_enabled(f):
             "Operations API is not enabled",
             traceback.format_exc(),
         )
+
+    return decorated
+
+
+def has_external_token(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        jwt_data = get_unverified_external_jwt_payload()
+        secret_data = get_document("secrets", jwt_data.get("kid"))
+        if not secret_data:
+            raise Error(
+                "forbidden",
+                "Token not valid for this operation.",
+                traceback.format_exc(),
+            )
+        if (
+            not secret_data.get("id") == jwt_data.get("kid")
+            or not secret_data.get("domain") == jwt_data.get("domain")
+            or not secret_data.get("category_id") == jwt_data.get("category_id")
+            or not secret_data.get("role_id") == jwt_data.get("role_id")
+        ):
+            raise Error(
+                "forbidden",
+                "Token not valid for this operation.",
+                traceback.format_exc(),
+            )
+        kwargs["payload"] = verify_external_jwt(
+            jwt_data.get("token"), secret_data.get("secret")
+        )
+        return f(*args, **kwargs)
 
     return decorated
