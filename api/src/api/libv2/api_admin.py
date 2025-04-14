@@ -71,91 +71,39 @@ from .validators import _validate_item, _validate_table
 
 
 def admin_table_list(
-    table, order_by=None, pluck=None, without=None, id=None, index=None, merge=True
+    table, order_by=None, pluck=None, without=None, id=None, index=None, merge=None
 ):
+    """
+    Fetches a list of items from a table in the database. To be used by admin users.
+
+    Parses the returned data to include additional information
+    """
+    # Check if table exists
+
     _validate_table(table)
 
     query = r.table(table)
+
+    ## Apply secondary index or primary key, if any is provided
 
     if id and not index:
         query = query.get(id)
     elif id and index:
         query = query.get_all(id, index=index)
 
+    ## Add merge data
+
     if table == "users":
         query = query.without("password")
 
     if table == "media":
-        query = query.merge(
-            lambda media: {
-                "domains": r.table("domains")
-                .get_all(media["id"], index="media_ids")
-                .count(),
-                "category_name": r.table("categories").get(media["category"])["name"],
-                "group_name": r.table("groups").get(media["group"])["name"],
-            }
-        )
+        query = query.merge(parse_media_data_merge())
 
     if table == "hypervisors":
-        query = query.merge(
-            lambda hyper: {
-                "gpus": r.table("vgpus").filter({"hyp_id": hyper["id"]}).count(),
-                "desktops_started": r.table("domains")
-                .get_all(hyper["id"], index="hyp_started")
-                .count(),
-            }
-        )
+        query = query.merge(parse_hypervisor_data_merge())
 
     if table == "deployments":
-        query = query.merge(
-            lambda deploy: {
-                "desktop_name": r.table("domains")
-                .get_all(deploy["id"], index="tag")["name"][0]
-                .default(False),
-                "category_name": r.table("users")
-                .get(deploy["user"])
-                .merge(
-                    lambda user: {
-                        "category_name": r.table("categories").get(user["category"])[
-                            "name"
-                        ]
-                    }
-                )["category_name"]
-                .default(False),
-                "category": r.table("users")
-                .get(deploy["user"])
-                .merge(lambda user: {"category": user["category"]})["category"]
-                .default(False),
-                "group_name": r.table("users")
-                .get(deploy["user"])
-                .merge(
-                    lambda user: {
-                        "group_name": r.table("groups").get(user["group"])["name"]
-                    }
-                )["group_name"]
-                .default(False),
-                "user_name": r.table("users")
-                .get(deploy["user"])["name"]
-                .default(False),
-                "co_owners_user_names": r.expr(deploy["co_owners"]).map(
-                    lambda co_owner: r.table("users")
-                    .get(co_owner)["name"]
-                    .default(False)
-                ),
-                "how_many_desktops": r.table("domains")
-                .get_all(deploy["id"], index="tag")
-                .count()
-                .default(False),
-                "how_many_desktops_started": r.table("domains")
-                .get_all([deploy["id"], "Started"], index="tag_status")
-                .count()
-                .default(False),
-                "last_access": r.table("domains")
-                .get_all(deploy["id"], index="tag")
-                .max("accessed")["accessed"]
-                .default(False),
-            }
-        ).default(False)
+        query = query.merge(parse_deployment_data_merge()).default(False)
 
     if table == "bookings_priority":
         query = query.merge(
@@ -207,6 +155,8 @@ def admin_table_list(
             }
         )
 
+    # Apply pluck, order_by or without
+
     if pluck:
         query = query.pluck(pluck)
 
@@ -216,9 +166,111 @@ def admin_table_list(
     if without:
         query = query.without(without)
 
+    # Return the result
+
     if id and not index:
         with app.app_context():
             return query.run(db.conn)
+    else:
+        with app.app_context():
+            return list(query.run(db.conn))
+
+
+def manager_table_list(
+    table,
+    category,
+    order_by=None,
+    pluck=None,
+    without=None,
+    id=None,
+    index=None,
+    merge=None,
+):
+    """
+    Fetches a list of items from a table in the database. To be used by manager users.
+
+    Filters the items by the category of the manager.
+
+    Is limited by the table the manager is allowed to access.
+
+    Parses the returned data to include additional information
+    """
+
+    # Define allowed tables for manager and category limited tables
+
+    check_category_allowed_table(table)
+    CATEGORY_LIMITED_TABLES = get_category_limited_tables()
+    query = r.table(table)
+
+    ## Apply secondary index or primary key, if any is provided
+
+    if table == "categories":
+        query = query.get(category)
+    elif id and not index:
+        query = query.get(id)
+    elif id and index:
+        query = query.get_all(id, index=index)
+
+    ## Check category limited tables
+
+    if not id and not index and table in CATEGORY_LIMITED_TABLES:
+        if table == "groups":
+            query = query.get_all(category, index="parent_category")
+        elif table != "deployments":  ## deployment table does not have category index
+            query = query.get_all(category, index="category")
+
+    elif not id and index and table in CATEGORY_LIMITED_TABLES:
+        if table == "groups":
+            query = query.filter({"parent_category": category})
+        elif (
+            table != "deployments"
+        ):  ## deployments do not have category field in the database
+            query = query.filter({"category": category})
+
+    ## Add merge data
+
+    if table == "users":
+        query = query.without("password")
+
+    if table == "media":
+        query = query.merge(parse_media_data_merge())
+
+    if table == "hypervisors":
+        query = query.merge(parse_hypervisor_data_merge())
+
+    if table == "deployments":
+        query = (
+            query.merge(parse_deployment_data_merge())
+            .filter({"category": category})
+            .default(False)
+        )
+
+    # Apply pluck, order_by or without
+
+    if pluck:
+        query = query.pluck(pluck)
+
+    if order_by:
+        query = query.order_by(order_by)
+
+    if without:
+        query = query.without(without)
+
+    # Return the result
+
+    if id and not index:
+        with app.app_context():
+            item = query.run(db.conn)
+        if table in CATEGORY_LIMITED_TABLES:
+            item_category = item.get("category") or item.get("parent_category")
+            if item_category != category:
+                raise Error(
+                    "forbidden",
+                    "Not enough access rights to access this item",
+                    traceback.format_exc(),
+                )
+
+        return item
     else:
         with app.app_context():
             return list(query.run(db.conn))
@@ -379,6 +431,42 @@ def admin_table_get(table, id, pluck=None):
         query = query.pluck(pluck)
     with app.app_context():
         return query.run(db.conn)
+
+
+def manager_table_get(table, category, id, pluck=None):
+    check_category_allowed_table(table)
+    CATEGORY_LIMITED_TABLES = get_category_limited_tables()
+
+    query = r.table(table).get(id)
+    if table == "users":
+        query = query.without("password")
+    if table == "media":
+        query = query.merge(
+            lambda media: {
+                "domains": r.table("domains")
+                .get_all(media["id"], index="media_ids")
+                .count()
+            }
+        )
+    if pluck:
+        if table == "deployments":
+            query = query["create_dict"].pluck(pluck)
+        query = query.pluck(pluck, "category")
+    with app.app_context():
+        item = query.run(db.conn)
+        if table in CATEGORY_LIMITED_TABLES:
+            if item.get("category") != category:
+                raise Error(
+                    "forbidden",
+                    "Not enough access rights to access this item "
+                    + str(item.get("category"))
+                    + " and "
+                    + str(category)
+                    + " in "
+                    + str(item),
+                    traceback.format_exc(),
+                )
+        return item
 
 
 def admin_table_delete(table, item_id):
@@ -1249,3 +1337,86 @@ def update_user_migration_config(data):
     with app.app_context():
         r.table("config").get(1).update({"user_migration": data}).run(db.conn)
     return data
+
+
+def parse_media_data_merge():
+    return lambda media: {
+        "domains": r.table("domains").get_all(media["id"], index="media_ids").count(),
+        "category_name": r.table("categories").get(media["category"])["name"],
+        "group_name": r.table("groups").get(media["group"])["name"],
+    }
+
+
+def parse_hypervisor_data_merge():
+    return lambda hyper: {
+        "gpus": r.table("vgpus").filter({"hyp_id": hyper["id"]}).count(),
+        "desktops_started": r.table("domains")
+        .get_all(hyper["id"], index="hyp_started")
+        .count(),
+    }
+
+
+def parse_deployment_data_merge():
+    return lambda deploy: {
+        "desktop_name": r.table("domains")
+        .get_all(deploy["id"], index="tag")["name"][0]
+        .default(False),
+        "category_name": r.table("users")
+        .get(deploy["user"])
+        .merge(
+            lambda user: {
+                "category_name": r.table("categories").get(user["category"])["name"]
+            }
+        )["category_name"]
+        .default(False),
+        "category": r.table("users")
+        .get(deploy["user"])
+        .merge(lambda user: {"category": user["category"]})["category"]
+        .default(False),
+        "group_name": r.table("users")
+        .get(deploy["user"])
+        .merge(
+            lambda user: {"group_name": r.table("groups").get(user["group"])["name"]}
+        )["group_name"]
+        .default(False),
+        "user_name": r.table("users").get(deploy["user"])["name"].default(False),
+        "co_owners_user_names": r.expr(deploy["co_owners"]).map(
+            lambda co_owner: r.table("users").get(co_owner)["name"].default(False)
+        ),
+        "how_many_desktops": r.table("domains")
+        .get_all(deploy["id"], index="tag")
+        .count()
+        .default(False),
+        "how_many_desktops_started": r.table("domains")
+        .get_all([deploy["id"], "Started"], index="tag_status")
+        .count()
+        .default(False),
+        "last_access": r.table("domains")
+        .get_all(deploy["id"], index="tag")
+        .max("accessed")["accessed"]
+        .default(False),
+    }
+
+
+def check_category_allowed_table(table):
+    allowed_tables = [
+        "users",
+        "groups",
+        "deployments",
+        "media",
+        "domains",
+        "hypervisors",
+        "virt_install",
+        "categories",
+    ]
+
+    if table not in allowed_tables:
+        raise Error(
+            "forbidden",
+            "Table not allowed to be listed by manager",
+            traceback.format_exc(),
+        )
+
+
+def get_category_limited_tables():
+    return ["users", "groups", "deployments", "media", "domains"]

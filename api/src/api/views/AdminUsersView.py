@@ -38,6 +38,7 @@ from ..libv2.api_admin import (
     admin_table_insert,
     admin_table_list,
     admin_table_update,
+    manager_table_list,
 )
 from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_sessions import revoke_user_session
@@ -982,16 +983,18 @@ def admin_userschema(payload):
             r for r in dict["role"] if r["id"] in ["manager", "advanced", "user"]
         ]
         dict["category"] = [
-            admin_table_list(
+            manager_table_list(
                 "categories",
+                category=payload["category_id"],
                 pluck=["id", "name", "description", "parent_category", "linked_groups"],
                 without=False,
                 id=payload["category_id"],
                 merge=False,
             )
         ]
-        dict["group"] = admin_table_list(
+        dict["group"] = manager_table_list(
             "groups",
+            category=payload["category_id"],
             pluck=["id", "name", "description", "parent_category", "linked_groups"],
             order_by="name",
             without=False,
