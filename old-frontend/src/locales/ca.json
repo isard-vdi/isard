@@ -1647,7 +1647,8 @@
       "email": "Verificar correu electrònic",
       "forgot-password": "Reestablir contrasenya",
       "disclaimer": "Avís legal",
-      "select_category": "Seleccioneu una categoria"
+      "select_category": "Seleccioneu una categoria",
+      "verify-email": "Verificar correu electrònic"
     }
   },
   "message-modal": {

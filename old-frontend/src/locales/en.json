@@ -1651,7 +1651,8 @@
             "forgot-password": "Forgot password",
             "disclaimer": "Disclaimer",
             "select_category": "Select category",
-            "export-user": "Export user"
+            "export-user": "Export user",
+            "verify-email": "Verify email"
         }
     },
     "message-modal": {

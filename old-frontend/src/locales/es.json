@@ -1663,7 +1663,8 @@
       "email": "Verificar correo electrónico",
       "forgot-password": "Reestablecer contraseña",
       "disclaimer": "Aviso legal",
-      "select_category": "Selecciona una categoría"
+      "select_category": "Selecciona una categoría",
+      "verify-email": "Verificar correo electrónico"
     }
   },
   "message-modal": {
