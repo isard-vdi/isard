@@ -7,14 +7,13 @@
 
 import logging as log
 import random
-import re
 import string
 import time
 import traceback
-import unicodedata
 import uuid
 from threading import Semaphore
 
+from cachetools import TTLCache, cached
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -1387,3 +1386,54 @@ def update_duplicated_names(item_table, items_data, user, kind=None):
                 ).run(db.conn)
     except Exception as e:
         log.error(f"Error updating duplicated names: {e}")
+
+
+desktop_queues_semaphores = {}
+
+
+@cached(cache=TTLCache(maxsize=20, ttl=5), key=lambda _, hyp_id: hyp_id)
+def parse_desktop_queues(data, hyp_id):
+    """
+    Parses desktop queues and maps users to their respective desktops.
+
+    :param data: List of desktop queue entries, each containing a "desktop_id".
+    :param hyp_id: Hypervisor ID to manage semaphore locking.
+    :return: Dictionary mapping user IDs to their respective desktop data.
+    """
+    # Get or initialize a semaphore for the given hyp_id
+    semaphore = desktop_queues_semaphores.setdefault(hyp_id, Semaphore(1))
+
+    # Try to acquire the semaphore non-blocking
+    if not semaphore.acquire(blocking=False):
+        return {}  # Semaphore is already acquired, return an empty dictionary
+
+    try:
+        # Extract desktop IDs from the input data
+        desktop_ids = [entry["desktop_id"] for entry in data]
+
+        # Fetch domains from the database
+        with app.app_context():
+            domains = (
+                r.table("domains")
+                .get_all(r.args(desktop_ids), index="id")
+                .pluck("id", "user")
+                .run(db.conn)
+            )
+
+        # Create a mapping of desktop_id to user_id
+        domain_map = {domain["id"]: domain["user"] for domain in domains}
+
+        # Build the users dictionary
+        users = {}
+        for entry in data:
+            desktop_id = entry["desktop_id"]
+            user_id = domain_map.get(desktop_id)
+
+            if user_id:
+                # Group desktops by user_id
+                users.setdefault(user_id, {})[desktop_id] = entry
+
+        return users
+    finally:
+        # Ensure the semaphore is released
+        semaphore.release()
