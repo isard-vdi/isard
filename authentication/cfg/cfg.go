@@ -21,14 +21,13 @@ type Cfg struct {
 }
 
 type Authentication struct {
-	Host          string
-	Secret        string
-	TokenDuration time.Duration        `mapstructure:"token_duration"`
-	Limits        AuthenticationLimits `mapstructure:"limits"`
-	Local         AuthenticationLocal
-	LDAP          AuthenticationLDAP
-	SAML          AuthenticationSAML
-	Google        AuthenticationGoogle
+	Host   string
+	Secret string
+	Limits AuthenticationLimits `mapstructure:"limits"`
+	Local  AuthenticationLocal
+	LDAP   AuthenticationLDAP
+	SAML   AuthenticationSAML
+	Google AuthenticationGoogle
 }
 
 type AuthenticationLimits struct {
@@ -168,9 +167,8 @@ func setDefaults() {
 	viper.BindEnv("authentication.secret", "API_ISARDVDI_SECRET")
 
 	viper.SetDefault("authentication", map[string]interface{}{
-		"host":           getEnv("AUTHENTICATION_AUTHENTICATION_HOST", getEnv("DOMAIN", "localhost")),
-		"secret":         "",
-		"token_duration": "4h",
+		"host":   getEnv("AUTHENTICATION_AUTHENTICATION_HOST", getEnv("DOMAIN", "localhost")),
+		"secret": "",
 		"limits": map[string]interface{}{
 			"enabled":          true,
 			"max_attempts":     10,
