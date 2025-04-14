@@ -284,15 +284,16 @@ def desktops_stop(
         else:
             status_updates.append(("Started", "Shutting-down"))
 
-        update_data = {"status": new_status}
+        update_data = {}
         if update_accessed:
             update_data["accessed"] = int(time.time())
 
-        with app.app_context():
-            for i in range(0, len(desktops_ids), batch_size):
-                batch_ids = desktops_ids[i : i + batch_size]
-                keys = [["desktop", d_id] for d_id in batch_ids]
-                for current_status, new_status in status_updates:
+        for i in range(0, len(desktops_ids), batch_size):
+            batch_ids = desktops_ids[i : i + batch_size]
+            keys = [["desktop", d_id] for d_id in batch_ids]
+            for current_status, new_status in status_updates:
+                update_data["status"] = new_status
+                with app.app_context():
                     r.table("domains").get_all(*keys, index="kind_ids").filter(
                         {"status": current_status}
                     ).update(update_data).run(db.conn)
