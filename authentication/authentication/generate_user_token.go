@@ -84,7 +84,7 @@ func (a *Authentication) GenerateUserToken(ctx context.Context, tkn string, user
 	}
 
 	// Generate a token for the user
-	usrTkn, err := token.SignLoginToken(a.Secret, time.Now().Add(time.Hour), "isardvdi-service", u)
+	usrTkn, err := token.SignLoginToken(a.Secret, time.Now().Add(a.Cfg.ImpersonateExpirationTime), "isardvdi-service", u)
 	if err != nil {
 		return "", err
 	}

@@ -60,6 +60,8 @@ type Authentication struct {
 
 	providers map[string]provider.Provider
 	saml      *samlsp.Middleware
+
+	Cfg cfg.Authentication
 }
 
 func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Interface, notifierCli notifier.Invoker, sessionsCli sessionsv1.SessionsServiceClient) *Authentication {
@@ -76,6 +78,7 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Inter
 		API:      apiCli,
 		Notifier: notifierCli,
 		Sessions: sessionsCli,
+		Cfg:      cfg.Authentication,
 	}
 
 	providers := map[string]provider.Provider{

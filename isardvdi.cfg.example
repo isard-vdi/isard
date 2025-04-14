@@ -167,6 +167,10 @@ AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR=2
 # The maximum time an user will be rate limited
 AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME=15m
 
+# Maximum time a impersonate token will be valid. If this duration is exceeded, token won't be able to be used
+# for any action. The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
+AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
+
 ## Local
 ### Local authentication against isard database
 #AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED=true
