@@ -238,6 +238,83 @@
                 ]
             }
         },
+        "/external/user": {
+            "post": {
+                "operationId": "ExternalUser",
+                "summary": "Create a isard user with an external identity provider",
+                "description": "",
+                "parameters": [
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExternalUserRequest"
+                            }
+                        }
+                    },
+                    "required": false
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExternalUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Login external error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExternalUserError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Login external error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExternalUserError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExternalUserError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExternalUserError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
         "/callback": {
             "get": {
                 "operationId": "Callback",
@@ -1305,6 +1382,85 @@
                 "required": [
                     "error",
                     "msg"
+                ],
+                "type": "object"
+            },
+            "ExternalUserRequest": {
+                "properties": {
+                    "user_id": {
+                        "title": "The ID of the user to create",
+                        "nullable": false,
+                        "type": "string"
+                    },
+                    "role_id": {
+                        "title": "The ID of the role to assign to the user",
+                        "nullable": false,
+                        "type": "string"
+                    },
+                    "username": {
+                        "title": "The username of the user to create",
+                        "nullable": false,
+                        "type": "string"
+                    },
+                    "name": {
+                        "title": "The name of the user to create",
+                        "nullable": false,
+                        "type": "string"
+                    },
+                    "email": {
+                        "title": "The email of the user to create",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "photo": {
+                        "title": "The photo of the user to create",
+                        "nullable": true,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user_id",
+                    "role_id",
+                    "username",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "ExternalUserError": {
+                "properties": {
+                    "error": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_token",
+                            "internal_server",
+                            "bad_request"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "error",
+                    "msg"
+                ],
+                "type": "object"
+            },
+            "ExternalUserResponse": {
+                "properties": {
+                    "user_id": {
+                        "title": "The newly created user ID",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user_id"
                 ],
                 "type": "object"
             }

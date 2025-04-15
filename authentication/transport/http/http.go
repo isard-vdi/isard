@@ -883,3 +883,34 @@ func (a *AuthenticationServer) MigrateUser(ctx context.Context, req *oasAuthenti
 		Token: migrateTkn,
 	}, nil
 }
+
+func (a *AuthenticationServer) ExternalUser(ctx context.Context, req oasAuthentication.OptExternalUserRequest) (oasAuthentication.ExternalUserRes, error) {
+	tkn, ok := ctx.Value(tokenCtxKey).(string)
+	if !ok {
+		return &oasAuthentication.ExternalUserUnauthorized{
+			Error: oasAuthentication.ExternalUserErrorErrorMissingToken,
+			Msg:   "missing JWT token",
+		}, nil
+	}
+
+	userID, err := a.Authentication.ExternalUser(ctx, tkn, req.Value.UserID, req.Value.RoleID, req.Value.Username, req.Value.Name, req.Value.Email.Value, req.Value.Photo.Value)
+	if err != nil {
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.ExternalUserForbidden{
+				Error: oasAuthentication.ExternalUserErrorErrorInvalidToken,
+				Msg:   err.Error(),
+			}, nil
+		}
+
+		a.Log.Error().Err(err).Msg("login external create error")
+
+		return &oasAuthentication.ExternalUserInternalServerError{
+			Error: oasAuthentication.ExternalUserErrorErrorInternalServer,
+			Msg:   "unknown error",
+		}, nil
+	}
+
+	return &oasAuthentication.ExternalUserResponse{
+		UserID: userID,
+	}, nil
+}
