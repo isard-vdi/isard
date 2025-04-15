@@ -4,6 +4,7 @@
 #!flask/bin/python3
 # coding=utf-8
 
+import html
 import json
 import os
 
@@ -71,8 +72,21 @@ def api_v3_category_custom_url(category_id):
 @cached(cache=TTLCache(maxsize=1, ttl=20))
 @app.route("/api/v3/login_config", methods=["GET"])
 def api_v3_login_config():
+    login_config = get_config().get("login", {})
+    for key in ["notification_cover", "notification_form"]:
+        if key in login_config:
+            for field in ["description", "title", "text"]:
+                if (
+                    "button" in login_config[key]
+                    and field in login_config[key]["button"]
+                ):
+                    login_config[key]["button"][field] = html.unescape(
+                        login_config[key]["button"][field]
+                    )
+                if field in login_config[key]:
+                    login_config[key][field] = html.unescape(login_config[key][field])
     return (
-        json.dumps(get_config().get("login", {})),
+        json.dumps(login_config),
         200,
         {"Content-Type": "application/json"},
     )
