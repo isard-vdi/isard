@@ -1,10 +1,24 @@
-# Copyright 2017 the Isard-vdi project authors:
-#      Josep Maria Viñolas Auquer
-#      Alberto Larraz Dalmases
-# License: AGPLv3
+#
+#   Copyright © 2017-2025 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
-import json
-import logging as log
+
 import os
 from functools import wraps
 
@@ -33,7 +47,6 @@ from isardvdi_common.tokens import (
     get_auto_register_jwt_payload,
     get_header_jwt_payload,
     get_jwt_payload,
-    get_token_auth_header,
 )
 
 from ..libv2.api_allowed import ApiAllowed, get_all_linked_groups
@@ -44,11 +57,10 @@ api_allowed = ApiAllowed()
 
 @cached(TTLCache(maxsize=100, ttl=15))
 def get_category_maintenance(category_id):
-    with app.app_context():
-        category = (
-            r.table("categories").get(category_id).pluck("maintenance").run(db.conn)
-        )
-    return category.get("maintenance")
+    category_maintenance = get_document("categories", category_id, ["maintenance"])
+    if category_maintenance is None:
+        return None
+    return category_maintenance
 
 
 def maintenance(category_id=None):
@@ -346,8 +358,13 @@ def ownsUserId(payload, user_id):
     if payload["role_id"] == "admin":
         return True
     if payload["role_id"] == "manager":
-        with app.app_context():
-            user = r.table("users").get(user_id).pluck("category", "role").run(db.conn)
+        user = get_document("users", user_id, ["category", "role"])
+        if user is None:
+            raise Error(
+                "not_found",
+                f"User {user_id} not found",
+                traceback.format_exc(),
+            )
         if user["category"] == payload["category_id"] and user["role"] != "admin":
             return True
     if payload["user_id"] == user_id:
@@ -456,19 +473,22 @@ def ownsMediaId(payload, media_id):
     # User is admin
     if payload.get("role_id", "") == "admin":
         return True
-
-    with app.app_context():
-        media = r.table("media").get(media_id).pluck("user", "category").run(db.conn)
-
+    media = get_document("media", media_id, ["user", "category"])
+    if media is None:
+        raise Error(
+            "not_found",
+            f"Media {media_id} not found",
+            traceback.format_exc(),
+            "not_found",
+        )
     # User is owner
     if media["user"] == payload["user_id"]:
         return True
 
     # User is manager and the media is from its categories
     if payload["role_id"] == "manager":
-        with app.app_context():
-            if payload.get("category_id", "") == media["category"]:
-                return True
+        if payload.get("category_id", "") == media["category"]:
+            return True
 
     raise Error(
         "forbidden",
@@ -481,18 +501,31 @@ def ownsMediaId(payload, media_id):
 def ownsDeploymentId(payload, deployment_id, check_co_owners=True):
     if payload["role_id"] == "admin":
         return True
-    deployment = get_document("deployments", deployment_id)
+    deployment = get_document("deployments", deployment_id, ["user", "co_owners"])
+    if deployment is None:
+        raise Error(
+            "not_found",
+            f"Deployment {deployment_id} not found",
+            traceback.format_exc(),
+            "not_found",
+        )
     if check_co_owners:
-        if deployment and (
+        if (
             deployment["user"] == payload["user_id"]
             or payload["user_id"] in deployment["co_owners"]
         ):
             return True
     else:
-        if deployment and deployment["user"] == payload["user_id"]:
+        if deployment["user"] == payload["user_id"]:
             return True
     if payload["role_id"] == "manager":
         deployment_category = get_document("users", deployment["user"], ["category"])
+        if deployment_category is None:
+            raise Error(
+                "not_found",
+                f"Deployment user {deployment['user']} not found",
+                traceback.format_exc(),
+            )
         if deployment_category == payload["category_id"]:
             return True
 
@@ -504,17 +537,13 @@ def ownsDeploymentId(payload, deployment_id, check_co_owners=True):
 
 
 def ownsDeploymentDesktopId(payload, desktop_id, check_co_owners=True):
-    try:
-        with app.app_context():
-            desktop = (
-                r.table("domains")
-                .get(desktop_id)
-                .pluck("user", "category", "tag")
-                .run(db.conn)
-            )
-    except:
+    desktop = get_document("domains", desktop_id)
+    if desktop is None:
         raise Error(
-            "not_found", "Desktop not found", traceback.format_exc(), "not_found"
+            "not_found",
+            f"Desktop {desktop_id} not found",
+            traceback.format_exc(),
+            "not_found",
         )
 
     if payload.get("role_id", "user") != "user" and desktop.get("tag"):
@@ -527,39 +556,30 @@ def ownsDeploymentDesktopId(payload, desktop_id, check_co_owners=True):
 
 
 def ownsStorageId(payload, storage_id):
-    with app.app_context():
-        storage = r.table("storage").get(storage_id).run(db.conn)
-    if storage is None:
+    if payload["role_id"] == "admin":
+        return True
+    storage_user_id = get_document("storage", storage_id, ["user_id"])
+    if storage_user_id is None:
         raise Error(
             "not_found",
             f"Storage {storage_id} not found",
             traceback.format_exc(),
             "not_found",
         )
-    if payload["role_id"] == "admin":
-        return storage
-    storage_user_id = storage.get("user_id")
-    if storage_user_id is None:
-        raise Error(
-            "not_found",
-            f"Storage {storage_id} missing user_id",
-            traceback.format_exc(),
-            "not_found",
-        )
 
     if storage_user_id == payload["user_id"]:
-        return storage
+        return True
 
     if payload["role_id"] == "manager":
-        with app.app_context():
-            storage_category_id = (
-                r.table("users")
-                .get(storage_user_id)
-                .pluck("category")["category"]
-                .run(db.conn)
+        category_id = get_document("users", payload["user_id"], ["category"])
+        if category_id is None:
+            raise Error(
+                "not_found",
+                f"User {payload['user_id']} not found",
+                traceback.format_exc(),
             )
-        if storage_category_id == payload["category_id"]:
-            return storage
+        if category_id == payload["category_id"]:
+            return True
 
     raise Error(
         "forbidden",
@@ -572,23 +592,23 @@ def ownsBookingId(payload, bookings_id):
     if payload["role_id"] == "admin":
         return True
 
-    with app.app_context():
-        booking_user_id = (
-            r.table("bookings")
-            .get(bookings_id)
-            .pluck("user_id")["user_id"]
-            .run(db.conn)
+    bookings_user_id = get_document("bookings", bookings_id, ["user_id"])
+    if bookings_user_id is None:
+        raise Error(
+            "not_found",
+            f"Booking {bookings_id} not found",
+            traceback.format_exc(),
         )
-    if booking_user_id == payload["user_id"]:
+    if bookings_user_id == payload["user_id"]:
         return True
 
     if payload["role_id"] == "manager":
-        with app.app_context():
-            booking_category_id = (
-                r.table("users")
-                .get(booking_user_id)
-                .pluck("category")["category"]
-                .run(db.conn)
+        booking_category_id = get_document("users", bookings_user_id, ["category"])
+        if booking_category_id is None:
+            raise Error(
+                "not_found",
+                f"Booking user {bookings_user_id} not found",
+                traceback.format_exc(),
             )
         if booking_category_id == payload["category_id"]:
             return True
@@ -604,23 +624,25 @@ def ownsRecycleBinId(payload, recycle_bin_id):
     if payload["role_id"] == "admin":
         return True
 
-    with app.app_context():
-        recycle_bin_user_id = (
-            r.table("recycle_bin")
-            .get(recycle_bin_id)
-            .pluck("owner_id")["owner_id"]
-            .run(db.conn)
+    recycle_bin_user_id = get_document("recycle_bin", recycle_bin_id, ["owner_id"])
+    if recycle_bin_user_id is None:
+        raise Error(
+            "not_found",
+            f"Recycle bin {recycle_bin_id} not found",
+            traceback.format_exc(),
         )
     if recycle_bin_user_id == payload["user_id"]:
         return True
 
     if payload["role_id"] == "manager":
-        with app.app_context():
-            recycle_bin_category_id = (
-                r.table("recycle_bin")
-                .get(recycle_bin_id)
-                .pluck("owner_category_id")["owner_category_id"]
-                .run(db.conn)
+        recycle_bin_category_id = get_document(
+            "recycle_bin", recycle_bin_user_id, ["owner_category_id"]
+        )
+        if recycle_bin_category_id is None:
+            raise Error(
+                "not_found",
+                f"Recycle bin user {recycle_bin_user_id} not found",
+                traceback.format_exc(),
             )
         if recycle_bin_category_id == payload["category_id"]:
             return True
@@ -633,21 +655,14 @@ def ownsRecycleBinId(payload, recycle_bin_id):
 
 
 def itemExists(item_table, item_id):
-    with app.app_context():
-        try:
-            item = r.table(item_table).get(item_id).run(db.conn)
-            if not item:
-                raise Error(
-                    "not_found",
-                    item_table + " not found id: " + item_id,
-                    traceback.format_exc(),
-                )
-        except r.ReqlOpFailedError:
-            raise Error(
-                "bad_request",
-                item_table + " is missing",
-                traceback.format_exc(),
-            )
+    item = get_document(item_table, item_id)
+    if item is None:
+        raise Error(
+            "not_found",
+            item_table + " not found id: " + item_id,
+            traceback.format_exc(),
+        )
+    return True
 
 
 def userNotExists(uid, category_id, provider="local"):
@@ -803,18 +818,11 @@ def checkDuplicateUID(uid, category_id=None):
 
 
 def allowedTemplateId(payload, template_id):
-    with app.app_context():
-        template = (
-            r.table("domains")
-            .get(template_id)
-            .pluck("user", "allowed", "category")
-            .default(None)
-            .run(db.conn)
-        )
-    if not template:
+    template = get_document("domains", template_id, ["user", "allowed", "category"])
+    if template is None:
         raise Error(
             "not_found",
-            "Not found template_id " + str(template_id),
+            "Template not found",
             traceback.format_exc(),
             "not_found",
         )
@@ -843,17 +851,15 @@ def allowedTemplateId(payload, template_id):
             return True
         if payload["group_id"] in alloweds["groups"]:
             return True
-        secondary_groups = (
-            r.table("users")
-            .get(payload["user_id"])
-            .pluck("secondary_groups")
-            .run(db.conn)
+        secondary_groups = get_document(
+            "users", payload["user_id"], ["secondary_groups"]
         )
-        for group in get_all_linked_groups(
-            [payload["group_id"]] + secondary_groups.get("secondary_groups", [])
-        ):
-            if group in alloweds["groups"]:
-                return True
+        if secondary_groups is not None and secondary_groups.get("secondary_groups"):
+            for group in get_all_linked_groups(
+                [payload["group_id"]] + secondary_groups.get("secondary_groups", [])
+            ):
+                if group in alloweds["groups"]:
+                    return True
     if alloweds["users"] != False:
         if alloweds["users"] == []:
             return True
@@ -897,15 +903,11 @@ def can_use_bastion(payload):
     if not bastion_enabled:
         return False
 
-    with app.app_context():
-        bastion_alloweds = (
-            r.table("config")
-            .get(1)
-            .pluck({"bastion": "allowed"})
-            .run(db.conn)["bastion"]
-        )
+    bastion_allowed = get_document("config", 1, ["bastion"])
+    if bastion_allowed is None:
+        return False
 
-    return api_allowed.is_allowed(payload, bastion_alloweds, "config", True)
+    return api_allowed.is_allowed(payload, bastion_allowed, "config", True)
 
 
 def operations_api_enabled(f):
