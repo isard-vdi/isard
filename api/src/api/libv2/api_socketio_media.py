@@ -112,10 +112,11 @@ class MediaThread(threading.Thread):
             except ReqlDriverError:
                 print("MediaThread: Rethink db connection lost!")
                 log.error("MediaThread: Rethink db connection lost!")
-                time.sleep(5)
+                time.sleep(0.5)
             except Exception as e:
                 print("MediaThread internal error: \n" + traceback.format_exc())
                 log.error("MediaThread internal error: \n" + traceback.format_exc())
+                time.sleep(0.5)
 
 
 def start_media_thread():

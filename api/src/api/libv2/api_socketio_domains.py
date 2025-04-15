@@ -300,7 +300,7 @@ class DomainsThread(threading.Thread):
                 print("DomainsThread internal error: restarting")
                 log.error("DomainsThread internal error: restarting")
                 log.error(traceback.format_exc())
-                time.sleep(2)
+                time.sleep(0.5)
 
 
 def start_domains_thread():
