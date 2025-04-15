@@ -79,12 +79,10 @@ class DeploymentsThread(threading.Thread):
                 log.error("DeploymentsThread: Rethink db connection lost!")
                 time.sleep(0.5)
             except Exception:
-                raise Error(
-                    "internal_server",
-                    "Deployments websocket restart",
-                    traceback.format_exc(),
-                )
-                time.sleep(0.1)
+                print("DeploymentsThread internal error: restarting")
+                log.error("DeploymentsThread internal error: restarting")
+                log.error(traceback.format_exc())
+                time.sleep(0.5)
 
         print("DeploymentsThread ENDED!!!!!!!")
         log.error("DeploymentsThread ENDED!!!!!!!")

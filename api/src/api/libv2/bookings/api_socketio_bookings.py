@@ -106,7 +106,7 @@ class BookingsThread(threading.Thread):
                 print("BookingsThread internal error: restarting")
                 app.logger.error("BookingsThread internal error: restarting")
                 app.logger.error(traceback.format_exc())
-                time.sleep(2)
+                time.sleep(0.5)
 
 
 def start_bookings_thread():

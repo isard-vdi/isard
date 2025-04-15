@@ -230,6 +230,7 @@ class DomainsThread(threading.Thread):
                 app.logger.error(
                     "DomainsThread internal error: \n" + traceback.format_exc()
                 )
+                time.sleep(0.5)
 
         print("DomainsThread ENDED!!!!!!!")
         app.logger.error("DomainsThread ENDED!!!!!!!")
@@ -316,12 +317,13 @@ class ResourcesThread(threading.Thread):
             except ReqlDriverError:
                 print("ResourcesThread: Rethink db connection lost!")
                 app.logger.error("ResourcesThread: Rethink db connection lost!")
-                time.sleep(6)
+                time.sleep(0.5)
             except Exception as e:
                 print("ResourcesThread internal error: \n" + traceback.format_exc())
                 app.logger.error(
                     "ResourcesThread internal error: \n" + traceback.format_exc()
                 )
+                time.sleep(0.5)
 
 
 def start_resources_thread():
@@ -440,12 +442,13 @@ class UsersThread(threading.Thread):
             except ReqlDriverError:
                 print("UsersThread: Rethink db connection lost!")
                 app.logger.error("UsersThread: Rethink db connection lost!")
-                time.sleep(2)
+                time.sleep(0.5)
             except Exception as e:
                 print("UsersThread internal error: \n" + traceback.format_exc())
                 app.logger.error(
                     "UsersThread internal error: \n" + traceback.format_exc()
                 )
+                time.sleep(0.5)
 
 
 def start_users_thread():
@@ -574,12 +577,13 @@ class HypervisorsThread(threading.Thread):
             except ReqlDriverError:
                 print("HypervisorsThread: Rethink db connection lost!")
                 app.logger.error("HypervisorsThread: Rethink db connection lost!")
-                time.sleep(2)
+                time.sleep(0.5)
             except Exception as e:
                 print("HypervisorsThread internal error: \n" + traceback.format_exc())
                 app.logger.error(
                     "HypervisorsThread internal error: \n" + traceback.format_exc()
                 )
+                time.sleep(0.5)
 
 
 def start_hypervisors_thread():
@@ -656,12 +660,13 @@ class ConfigThread(threading.Thread):
             except ReqlDriverError:
                 print("ConfigThread: Rethink db connection lost!")
                 app.logger.error("ConfigThread: Rethink db connection lost!")
-                time.sleep(15)
+                time.sleep(0.5)
             except Exception as e:
                 print("ConfigThread internal error: \n" + traceback.format_exc())
                 app.logger.error(
                     "ConfigThread internal error: \n" + traceback.format_exc()
                 )
+                time.sleep(0.5)
 
 
 def start_config_thread():
