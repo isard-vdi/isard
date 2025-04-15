@@ -318,3 +318,24 @@ def user_bastion_allowed(payload):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/user/api_key", methods=["GET"])
+@is_not_user
+def get_api_key(payload):
+    return (
+        json.dumps(users.get_api_key(payload["user_id"])),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/user/api_key", methods=["DELETE"])
+@is_not_user
+def delete_api_key(payload):
+    users.delete_api_key(payload["user_id"])
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )

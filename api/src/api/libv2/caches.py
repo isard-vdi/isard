@@ -72,7 +72,12 @@ def get_document(table, item_id, keys=[], invalidate=False):
 def get_cached(table, item_id):
     try:
         with app.app_context():
-            data = r.table(table).get(item_id).without("password").run(db.conn)
+            data = (
+                r.table(table)
+                .get(item_id)
+                .without(["password", "api_key"])
+                .run(db.conn)
+            )
         return data
     except ReqlNonExistenceError:
         return None

@@ -3418,6 +3418,32 @@ class ApiUsers:
                 raise Error("forbidden", "Can not deactivate your own account")
         return True
 
+    def get_api_key(self, user_id):
+        with app.app_context():
+            api_key = r.table("users").get(user_id).pluck("api_key").run(db.conn)
+
+        api_key = api_key.get("api_key")
+        if api_key:
+            return {
+                "exists": True,
+                "expires": int(
+                    jwt.decode(
+                        api_key,
+                        os.environ.get("API_ISARDVDI_SECRET"),
+                        algorithms=["HS256"],
+                    )["exp"]
+                ),
+            }
+
+        return {
+            "exists": False,
+            "expires": 0,
+        }
+
+    def delete_api_key(self, user_id):
+        with app.app_context():
+            r.table("users").get(user_id).update({"api_key": None}).run(db.conn)
+
 
 def validate_email_jwt(user_id, email, minutes=60):
     return {

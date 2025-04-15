@@ -247,7 +247,37 @@
         "submit": "Submit",
         "create": "Create",
         "duplicate": "Duplicate",
-        "show-pages": "Show"
+        "show-pages": "Show",
+        "api-key": {
+            "modal": {
+                "title": "API key",
+                "alert": {
+                    "expired": "Your old API key expired. You will need to generate a new one to continue using the IsardVDI API with external applications. You can generate a new one below.",
+                    "regenerated": "Your old API key was deleted. Below you can copy the new one."
+                },
+                "new-key": {
+                    "title": "Generate a new API key",
+                    "description": "You can generate a new API key to use with external applications that integrate with the IsardVDI API.",
+                    "warning": "You will only be able to see the API key once, so make sure to store it in a safe place.",
+                    "buttons": {
+                        "generate": "Generate",
+                        "generate-tooltip": "Generate a new API key",
+                        "expiration-label": "Expiration date:",
+                        "show": "Show key",
+                        "copy": "Copy key",
+                        "key-copied": "Key copied to clipboard"
+                    }
+                },
+                "existing-key": {
+                    "description-1": "Your API Key will valid until {date}. After that, it will expire and you will not be able to use it anymore.",
+                    "description-2": "You can expire it now to generate a new one.",
+                    "buttons": {
+                        "expire": "Expire",
+                        "expire-tooltip": "Expire the existing key"
+                    }
+                }
+            }
+        }
     },
     "components": {
         "select-search": {
@@ -565,7 +595,8 @@
             },
             "reset-vpn": "Reset VPN",
             "export": "Export user",
-            "import": "Import user"
+            "import": "Import user",
+            "api-key": "API key"
         },
         "start-now-modal": {
             "title": "Start now",

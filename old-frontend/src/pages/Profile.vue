@@ -85,6 +85,20 @@
                             />
                             {{ $t('components.profile.reset-vpn') }}
                           </b-button>
+                          <template v-if="profile.role !== 'user'">
+                            <ApiKeyModal />
+                            <b-button
+                              class="rounded-pill mr-2 pl-2 pr-3 btn-purple"
+                              :title="$t('components.profile.api-key')"
+                              @click="showApiKeyModal()"
+                            >
+                              <b-icon
+                                icon="key-fill"
+                                scale="0.75"
+                              />
+                              {{ $t('components.profile.api-key') }}
+                            </b-button>
+                          </template>
                           <b-row
                             class="justify-content-center"
                           >
@@ -392,6 +406,7 @@ import { computed } from '@vue/composition-api'
 import i18n from '@/i18n'
 import EmailVerificationModal from '@/components/profile/EmailVerificationModal.vue'
 import ImportUserModal from '@/components/profile/ImportUserModal.vue'
+import ApiKeyModal from '@/components/profile/ApiKeyModal.vue'
 
 export default {
   components: {
@@ -400,7 +415,8 @@ export default {
     PasswordModal,
     EmailVerificationModal,
     QuotaProgressBar,
-    ImportUserModal
+    ImportUserModal,
+    ApiKeyModal
   },
   setup (_, context) {
     const $store = context.root.$store
@@ -441,7 +457,23 @@ export default {
       $store.dispatch('showImportUserModal', value)
     }
 
-    return { profile, profileLoaded, showEmailVerificationModal, config, showResetVPNModalConfirmation, onClickGoToExportUser, showExportUserButton, showImportUserButton, showImportUserModal }
+    const showApiKeyModal = () => {
+      $store.dispatch('fetchUserApiKey')
+      $store.dispatch('showApiKeyModal', true)
+    }
+
+    return {
+      profile,
+      profileLoaded,
+      showEmailVerificationModal,
+      config,
+      showResetVPNModalConfirmation,
+      onClickGoToExportUser,
+      showExportUserButton,
+      showImportUserButton,
+      showImportUserModal,
+      showApiKeyModal
+    }
   },
   destroyed () {
     this.$store.dispatch('resetProfileState')
