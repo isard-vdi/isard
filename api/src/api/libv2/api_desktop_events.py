@@ -45,7 +45,7 @@ def get_desktop_qos_disk_id(desktop):
     for qos_disk in qos_disks:
         if (
             qos_disk["allowed"]["roles"]
-            and desktop["role_id"] in qos_disk["allowed"]["roles"]
+            and desktop["role"] in qos_disk["allowed"]["roles"]
         ):
             return qos_disk["id"]
     return False
