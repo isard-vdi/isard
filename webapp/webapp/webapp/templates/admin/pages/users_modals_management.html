@@ -256,6 +256,11 @@
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <select id="group" name="group" class="form-control group" required>
                                     </select>
+                                    <span hidden id="external_user_group_warn" >
+                                        <p class="fa fa-exclamation-triangle" style="color:rgb(186, 60, 60); margin-top: 1rem;">
+                                            This user is from an external app, changing it's group will update it to a local user.
+                                        </p>
+                                    </span>
                                     <p class="fa fa-exclamation-triangle" style="color:rgb(186, 127, 60); margin-top: 1rem;">
                                         Changing the user's main group will stop all of their desktops, and empty their
                                         recycle bin. Their resources could be affected by the
@@ -1385,6 +1390,11 @@
                     <div class="row">
                         <div class="x_panel">
                             <div class="col-md-12 col-sm-12 col-xs-12">
+                                <span hidden id="external_user_group_warn" >
+                                    <p class="fa fa-exclamation-triangle" style="color:rgb(186, 60, 60);"> This group is for users of an external app.
+                                        Changing the user's group will update them to local users.
+                                    </p>
+                                </span>
                                 <p class="fa fa-exclamation-triangle" style="color:rgb(186, 127, 60);"> Moving the users to
                                      another group will stop all of their desktops and empty their recycle bin.
                                 </p>

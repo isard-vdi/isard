@@ -540,6 +540,12 @@ function actionsGroupDetail(){
                 $('#modalMigrateUsersGroup #category').val(current_category).trigger("change")
                 filter_groups($("#modalMigrateUsersGroup #category"), $('#modalMigrateUsersGroup #group'), pk)
                 $('#modalMigrateUsersGroup #group').val("null").trigger("change")
+
+                if (d['group'].find(x => x.id == pk).external_gid !== null) {
+                    $('#modalMigrateUsersGroup #external_user_group_warn').show()
+                } else {
+                    $('#modalMigrateUsersGroup #external_user_group_warn').hide()
+                }
             }
         });
 
@@ -549,11 +555,9 @@ function actionsGroupDetail(){
             // Show groups from the selected category
             group_select.find('option[parent-category=' + category_select.val() + ']').removeAttr('hidden')
             // If current_group is provided, hide it from the dropdown
-            console.log(current_group)
             if (current_group) {
                 group_select.find('option[value=' + current_group + ']').attr("hidden", "hidden")
             }
-
         }
 
         $("#modalMigrateUsersGroup #category").on('change', function () {

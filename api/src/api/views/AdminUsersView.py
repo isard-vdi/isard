@@ -973,7 +973,14 @@ def admin_userschema(payload):
 
         dict["group"] = admin_table_list(
             "groups",
-            pluck=["id", "name", "description", "parent_category", "linked_groups"],
+            pluck=[
+                "id",
+                "name",
+                "description",
+                "parent_category",
+                "linked_groups",
+                "external_gid",
+            ],
             order_by="name",
             without=False,
             merge=False,
@@ -996,7 +1003,14 @@ def admin_userschema(payload):
         dict["group"] = manager_table_list(
             "groups",
             category=payload["category_id"],
-            pluck=["id", "name", "description", "parent_category", "linked_groups"],
+            pluck=[
+                "id",
+                "name",
+                "description",
+                "parent_category",
+                "linked_groups",
+                "external_gid",
+            ],
             order_by="name",
             without=False,
             id=payload["category_id"],

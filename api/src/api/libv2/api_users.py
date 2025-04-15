@@ -2336,6 +2336,11 @@ class ApiUsers:
         user_gen_payload = gen_payload_from_user(user_id, invalidate_cache=True)
         user_gen_payload["group_id"] = group_id
 
+        # change provider to local if it's an external user
+        if user_gen_payload["provider"].startswith("external_"):
+            with app.app_context():
+                r.table("users").get(user_id).update({"provider": "local"}).run(db.conn)
+
         with app.app_context():
             user_domains = list(
                 r.table("domains")

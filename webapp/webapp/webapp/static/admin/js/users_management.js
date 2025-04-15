@@ -1139,6 +1139,11 @@ function actionsUserDetail(){
             accept: "application/json",
             async: false
         }).done(function(user) {
+            if (user.provider.startsWith('external_')) {
+                $('#modalEditUserForm #external_user_group_warn').show()
+            } else {
+                $('#modalEditUserForm #external_user_group_warn').hide()
+            }
             $('#modalEditUserForm #name').val(user.name);
             $('#modalEditUserForm #id').val(user.id);
             $('#modalEditUserForm #uid').val(user.uid);
