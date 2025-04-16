@@ -934,6 +934,13 @@ func (a *AuthenticationServer) GenerateAPIKey(ctx context.Context, req *oasAuthe
 			}, nil
 		}
 
+		if errors.Is(err, token.ErrApiKeyTooLongExpiryMinutes) || errors.Is(err, token.ErrApiKeyNegativeExpiryMinutes) {
+			return &oasAuthentication.GenerateAPIKeyBadRequest{
+				Error: oasAuthentication.GenerateAPIKeyErrorErrorBadRequest,
+				Msg:   err.Error(),
+			}, nil
+		}
+
 		a.Log.Error().Err(err).Msg("generate API token token error")
 
 		return &oasAuthentication.GenerateAPIKeyInternalServerError{

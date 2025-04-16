@@ -3424,16 +3424,27 @@ class ApiUsers:
 
         api_key = api_key.get("api_key")
         if api_key:
-            return {
-                "exists": True,
-                "expires": int(
-                    jwt.decode(
-                        api_key,
-                        os.environ.get("API_ISARDVDI_SECRET"),
-                        algorithms=["HS256"],
-                    )["exp"]
-                ),
-            }
+            try:
+                return {
+                    "exists": True,
+                    "expires": int(
+                        jwt.decode(
+                            api_key,
+                            os.environ.get("API_ISARDVDI_SECRET"),
+                            algorithms=["HS256"],
+                            verify=False,
+                            options=dict(
+                                verify_aud=False, verify_sub=False, verify_exp=False
+                            ),
+                        )["exp"]
+                    ),
+                }
+            except Exception as e:
+                app.logger.error(str(e))
+                return {
+                    "exists": True,
+                    "expires": 0,
+                }
 
         return {
             "exists": False,
@@ -3606,4 +3617,5 @@ class Password(object):
                 description_code="password_username",
             )
 
+        return True
         return True

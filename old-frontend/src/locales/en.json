@@ -269,7 +269,7 @@
                     }
                 },
                 "existing-key": {
-                    "description-1": "Your API Key will valid until {date}. After that, it will expire and you will not be able to use it anymore.",
+                    "description-1": "Your API Key is valid until {date}. After that, it will expire and you will not be able to use it anymore.",
                     "description-2": "You can expire it now to generate a new one.",
                     "buttons": {
                         "expire": "Expire",

@@ -970,6 +970,16 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Bad request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenerateAPIKeyError"
+                                }
+                            }
+                        }
+                    },
                     "401": {
                         "description": "Invalid token",
                         "content": {
@@ -1628,6 +1638,7 @@
                         "nullable": false,
                         "type": "string",
                         "enum": [
+                            "bad_request",
                             "missing_token",
                             "invalid_token",
                             "internal_server"

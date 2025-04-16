@@ -1,6 +1,7 @@
 package token
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -14,6 +15,11 @@ const (
 	issuer = "isard-authentication"
 	// TODO: Other signing keys
 	keyID = "isardvdi"
+)
+
+var (
+	ErrApiKeyNegativeExpiryMinutes = errors.New("expirationMinutes must be greater than 0")
+	ErrApiKeyTooLongExpiryMinutes  = errors.New("expirationMinutes must be less than 1 year")
 )
 
 // TODO: Maybe this should be configuable
@@ -309,6 +315,13 @@ func SignUserMigrationToken(secret string, userID string) (string, error) {
 }
 
 func SignApiKey(secret string, u *model.User, expirationMinutes int) (string, error) {
+	if expirationMinutes <= 0 {
+		return "", ErrApiKeyNegativeExpiryMinutes
+	}
+	if expirationMinutes > 60*24*365 { // 1 year
+		return "", ErrApiKeyTooLongExpiryMinutes
+	}
+
 	tkn := jwt.NewWithClaims(signingMethod, &ApiKeyClaims{
 		TypeClaims: TypeClaims{
 			RegisteredClaims: &jwt.RegisteredClaims{

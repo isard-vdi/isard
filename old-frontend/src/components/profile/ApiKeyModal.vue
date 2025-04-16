@@ -54,7 +54,7 @@
                   v-model="apiKeyMaxDate"
                   value-as-date
                   :max="new Date(new Date().setFullYear(new Date().getFullYear() + 1))"
-                  :min="new Date()"
+                  :min="new Date(new Date().setDate(new Date().getDate() + 1))"
                   :locale="$i18n.locale"
                 />
               </b-col>
