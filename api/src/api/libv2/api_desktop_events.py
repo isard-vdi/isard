@@ -106,7 +106,7 @@ def get_desktop(desktop_id):
             )
         return {
             "status": domain["status"],
-            "role_id": get_document("users", domain["user"], ["role"]),
+            "role": get_document("users", domain["user"], ["role"]),
             "qos_disk_id": domain["create_dict"]["hardware"].get("qos_disk_id", False),
         }
     except:
@@ -181,7 +181,19 @@ def desktops_start(desktops_ids, paused=False, batch_size=15, wait_seconds=3):
                 )
             time.sleep(wait_seconds)
         for desktop in desktops_ok:
-            qos_disk_id = get_desktop_qos_disk_id(desktop) if not paused else False
+            qos_disk_id = (
+                get_desktop_qos_disk_id(
+                    {
+                        "status": desktop["status"],
+                        "role": get_document("users", desktop["user"], ["role"]),
+                        "qos_disk_id": desktop["create_dict"]["hardware"].get(
+                            "qos_disk_id", False
+                        ),
+                    }
+                )
+                if not paused
+                else False
+            )
             with app.app_context():
                 r.table("domains").get(desktop["id"]).update(
                     {
