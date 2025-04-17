@@ -101,13 +101,14 @@ type ExternalClaims struct {
 	TypeClaims
 	UserID   string `json:"user_id"`
 	GroupID  string `json:"group_id"`
-	Role     string `json:"role"`
+	Role     string `json:"role_id"`
 	Username string `json:"username"`
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Photo    string `json:"photo"`
+	Domain   string `json:"domain"`
 
-	CategoryID string `json:"-"`
+	CategoryID string `json:"category_id"`
 }
 
 func (c ExternalClaims) Validate() error {
