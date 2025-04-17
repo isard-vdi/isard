@@ -933,8 +933,8 @@ def api_v3_admin_user_vpn(payload, user_id, kind, os=False):
 def api_v3_admin_secret(payload):
     data = request.get_json()
     data = _validate_item("secrets", data)
+    data["role_id"] = "manager"
     itemExists("categories", data["category_id"])
-    itemExists("roles", data["role_id"])
 
     admin_table_insert("secrets", data)
     return (
