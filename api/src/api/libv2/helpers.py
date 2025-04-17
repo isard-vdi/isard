@@ -828,8 +828,14 @@ def change_owner_desktops(desktop_ids, user_data, desktop_user_id):
         r.table("bookings").get_all(desktop_user_id, index="user_id").delete().run(
             db.conn
         )
-    # change targets user_id
-    targets.change_desktops_target_owner(desktop_ids, user_data["payload"])
+    # remove bastion targets
+    targets.bulk_delete_domain_targets(desktop_ids)
+
+    # remove direct viewer urls
+    with app.app_context():
+        r.table("domains").get_all(r.args(desktop_ids)).update(
+            {"jumperurl": False}
+        ).run(db.conn)
 
     change_owner_domains(desktop_ids, user_data, "desktop")
 

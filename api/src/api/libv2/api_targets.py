@@ -89,6 +89,6 @@ class ApiTargets:
             with app.app_context():
                 r.table("targets").get_all(
                     r.args(domain_ids), index="desktop_id"
-                ).update({"user_id": new_user_payload["user_id"]})
+                ).update({"user_id": new_user_payload["user_id"]}).run(db.conn)
         else:
             self.bulk_delete_domain_targets(domain_ids)
