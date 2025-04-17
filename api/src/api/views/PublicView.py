@@ -79,11 +79,12 @@ def api_v3_login_config():
                 if (
                     "button" in login_config[key]
                     and field in login_config[key]["button"]
+                    and login_config[key]["button"][field] is not None
                 ):
                     login_config[key]["button"][field] = html.unescape(
                         login_config[key]["button"][field]
                     )
-                if field in login_config[key]:
+                if field in login_config[key] and login_config[key][field] is not None:
                     login_config[key][field] = html.unescape(login_config[key][field])
     return (
         json.dumps(login_config),
