@@ -121,7 +121,7 @@ class ApiCards:
 
             with app.app_context():
                 r.table("domains").get(domain_id).update(
-                    {"image": self.get_card(filename, image["type"])}
+                    {"image": self.get_card(filename, image["type"])}, durability="soft"
                 ).run(db.conn)
 
             return filename
@@ -137,7 +137,7 @@ class ApiCards:
             if (
                 r.table("domains")
                 .get(domain_id)
-                .update({"image": self.get_card(card_id, type)})
+                .update({"image": self.get_card(card_id, type)}, durability="soft")
                 .run(db.conn)["skipped"]
             ):
                 raise Error(

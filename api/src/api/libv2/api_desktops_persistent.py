@@ -135,6 +135,7 @@ class ApiDesktopsPersistent:
                     desktop["deployment_tag_dict"],
                     desktop["new_data"],
                     desktop["image"],
+                    soft=True,
                 )
                 if result is not None:
                     set_current_booking(
@@ -166,6 +167,7 @@ class ApiDesktopsPersistent:
         new_data=None,
         image=None,
         insert=True,
+        soft=False,
     ):
         template = get_document("domains", template_id)
         if not template:
@@ -284,8 +286,14 @@ class ApiDesktopsPersistent:
             **{"reservables": create_dict.get("reservables", {"vgpus": None})},
         }
         if insert:
-            with app.app_context():
-                r.table("domains").insert(new_desktop).run(db.conn)
+            if soft:
+                with app.app_context():
+                    r.table("domains").insert(new_desktop, durability="soft").run(
+                        db.conn
+                    )
+            else:
+                with app.app_context():
+                    r.table("domains").insert(new_desktop).run(db.conn)
         if image:
             image_data = image
             if not image_data.get("file"):
@@ -478,6 +486,7 @@ class ApiDesktopsPersistent:
                 user_id,
                 desktop_data["id"],
                 image=desktop_data["image"],
+                soft=True,
             )
 
             desktops.append(
