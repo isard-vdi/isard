@@ -191,6 +191,22 @@ def get_cached_user_used(user_id):
     }
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=25))
+def get_user_client_ip():
+    with app.app_context():
+        users = list(
+            r.table("users")
+            .pluck({"id": True, "vpn": {"wireguard": {"Address": True}}})
+            .run(db.conn)
+        )
+    result = {}
+    for user in users:
+        address = user.get("vpn", {}).get("wireguard", {}).get("Address")
+        if address:
+            result[address] = user["id"]
+    return result
+
+
 @cached(cache=TTLCache(maxsize=200, ttl=5))
 def get_cached_started_desktops(item_id, index):
     # Status that are considered in the running quota

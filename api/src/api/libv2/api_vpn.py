@@ -15,12 +15,25 @@ from api import app
 r = RethinkDB()
 import logging as log
 
+from cachetools import TTLCache, cached
+
+from .caches import get_user_client_ip
 from .flask_rethink import RDB
 
 db = RDB(app)
 db.init_app(app)
 
 
+@cached(
+    cache=TTLCache(maxsize=128, ttl=10),
+    key=lambda kind, client_ip, remote_ip=None, remote_port=None, status=False: (
+        str(kind),
+        str(client_ip),
+        str(remote_ip) if remote_ip is not None else "",
+        str(remote_port) if remote_port is not None else "",
+        str(status),
+    ),
+)
 def active_client(
     kind,
     client_ip,
@@ -58,11 +71,14 @@ def active_client(
                     {"vpn": {"wireguard": connection_data}}
                 ).run(db.conn)
                 return True
+        user_id = get_user_client_ip().get(client_ip)
+        if user_id is None:
+            return False
         with app.app_context():
-            r.table("users").get_all(client_ip, index="wg_client_ip").update(
+            r.table("users").get(user_id).update(
                 {"vpn": {"wireguard": connection_data}}
             ).run(db.conn)
-            return True
+        return True
     else:  # kind = hypers
         with app.app_context():
             r.table("hypervisors").get_all(client_ip, index="wg_client_ip").update(
