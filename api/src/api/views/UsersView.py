@@ -164,7 +164,7 @@ def api_v3_user_update(payload):
     data = _validate_item("user_update_frontend", data)
 
     users.update_user(
-        [payload["user_id"]],
+        payload["user_id"],
         data,
     )
     return json.dumps({}), 200, {"Content-Type": "application/json"}
