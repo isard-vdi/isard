@@ -246,6 +246,32 @@ def get_cached_started_desktops(item_id, index):
     return started_desktops
 
 
+## Domains wg mac
+
+wg_mac_domain_cache = TTLCache(maxsize=50, ttl=200)
+
+
+def set_cached_domain_wg_mac(domain_id, interfaces):
+    wg_mac = next(
+        (iface["mac"] for iface in interfaces if iface["id"] == "wireguard"),
+        None,
+    )
+    if wg_mac is None:
+        return None
+    wg_mac_domain_cache[wg_mac] = domain_id
+
+
+def invalidate_cached_domain_wg_mac(wg_mac):
+    if wg_mac in wg_mac_domain_cache:
+        del wg_mac_domain_cache[wg_mac]
+
+
+def get_domain_id_from_wg_mac(wg_mac):
+    if wg_mac in wg_mac_domain_cache:
+        return wg_mac_domain_cache[wg_mac]
+    return None
+
+
 ## Deployment desktops
 
 
