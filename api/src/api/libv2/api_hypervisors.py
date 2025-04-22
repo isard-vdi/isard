@@ -33,6 +33,7 @@ from ..libv2.caches import (
     get_cached_available_domain_storage_pool_id,
     get_cached_enabled_virt_pools,
     get_cached_hypervisors_online,
+    get_domain_id_from_wg_mac,
 )
 from ..libv2.isardVpn import isardVpn
 from .api_desktop_events import desktops_stop
@@ -41,6 +42,8 @@ isardVpn = isardVpn()
 
 import socket
 from subprocess import check_output
+
+from cachetools import TTLCache, cached
 
 from .helpers import _check, generate_db_media
 from .validators import _validate_item
@@ -639,42 +642,32 @@ class ApiHypervisors:
                     traceback.format_exc(),
                 )
 
+    @cached(
+        cache=TTLCache(maxsize=25, ttl=10),
+        key=lambda self, mac, data: f"{mac}:{data.get('viewer', {}).get('guest_ip', '')}",
+    )
     def update_wg_address(self, mac, data):
+        domain_id = get_domain_id_from_wg_mac(mac)
+        if not domain_id:
+            raise Error(
+                "not_found",
+                "Domain with mac " + mac + " not found in wireguard cache",
+            )
         try:
             with app.app_context():
-                domains = list(
-                    r.table("domains")
-                    .get_all(mac, index="wg_mac")
-                    .filter({"kind": "desktop"})
-                    .filter(
-                        lambda domain: r.expr(["Started", "Shutting-down"]).contains(
-                            domain["status"]
-                        )
-                    )
-                    .run(db.conn)
-                )
-            if not len(domains):
-                app.logger.error(
-                    f"UPDATE_WG_ADDR: Domain with mac {mac} not found or not started"
-                )
-                return False
-            if len(domains) > 1:
-                app.logger.error(
-                    f"UPDATE_WG_ADDR: More than one started domain {' '.join([d['id'] for d in domains])} with mac {mac} found! This should not happen!"
-                )
-                return False
-
-            app.logger.info(
-                f"UPDATE_WG_ADDR: Updating wg_address {data.get('viewer',{}).get('guest_ip')} for domain {domains[0]['id']}"
+                r.table("domains").get(domain_id).update(data).run(db.conn)
+            return domain_id
+        except ReqlNonExistenceError:
+            raise Error(
+                "not_found",
+                "Domain with ID " + domain_id + " not found in database",
             )
-            with app.app_context():
-                r.table("domains").get(domains[0]["id"]).update(data).run(db.conn)
-            return domains[0]["id"]
         except:
-            app.logger.error(
-                f"UPDATE_WG_ADDR: Error updating wg_address for domain {domains[0]['id']}: {traceback.format_exc()}"
+            raise Error(
+                "internal_server",
+                "Unable to update wireguard address",
+                traceback.format_exc(),
             )
-            return False
 
     def get_hypervisor_vpn(self, hyper_id):
         return isardVpn.vpn_data("hypers", "config", "", hyper_id)

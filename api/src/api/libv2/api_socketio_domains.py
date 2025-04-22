@@ -29,7 +29,6 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 common = ApiDesktopsCommon()
-
 import threading
 
 from flask import request
@@ -37,6 +36,7 @@ from flask_socketio import join_room, leave_room
 
 from .. import socketio
 from .api_cards import ApiCards
+from .caches import invalidate_cached_domain_wg_mac, set_cached_domain_wg_mac
 
 api_cards = ApiCards()
 
@@ -87,7 +87,11 @@ class DomainsThread(threading.Thread):
                                 "guest_properties",
                                 {
                                     "create_dict": {
-                                        "hardware": ["interfaces", "videos", "disks"],
+                                        "hardware": [
+                                            "interfaces",
+                                            "videos",
+                                            "disks",
+                                        ],
                                         "reservables": True,
                                     }
                                 },
@@ -158,6 +162,21 @@ class DomainsThread(threading.Thread):
                                             json.dumps({"id": c["old_val"]["id"]}),
                                             namespace="/userspace",
                                             room=c["old_val"]["user"],
+                                        )
+                                    if (
+                                        c["old_val"]["status"] == "Starting"
+                                        and c["new_val"]["status"] == "Started"
+                                    ):
+                                        set_cached_domain_wg_mac(
+                                            c["new_val"]["id"],
+                                            c["new_val"]
+                                            .get("create_dict", {})
+                                            .get("hardware", {})
+                                            .get("interfaces", [{}]),
+                                        )
+                                    elif c["new_val"]["status"] == "Stopped":
+                                        invalidate_cached_domain_wg_mac(
+                                            c["new_val"]["id"]
                                         )
                             data = c["new_val"]
 

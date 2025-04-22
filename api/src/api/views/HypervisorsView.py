@@ -50,8 +50,8 @@ def api_v3_hypervisors(payload, status=None):
 @is_hyper
 def api_v3_guest_addr():
     try:
-        ip = request.form.get("ip", type=str)
         mac = request.form.get("mac", type=str)
+        ip = request.form.get("ip", type=str)
     except:
         raise Error(
             "bad_request",
