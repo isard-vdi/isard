@@ -7,7 +7,7 @@
       :placeholder="placeholder"
       :disabled="disabled"
       :selected-values="selectedValues"
-      :roles="roles"
+      :role="role"
       @search="fetchAllowedTerm"
       @updateSelected="updateSelected"
     />
@@ -45,17 +45,17 @@ export default {
       required: false,
       default: false
     },
-    roles: {
-      type: Array,
+    role: {
+      type: String,
       required: false,
-      default: () => { return [] }
+      default: ''
     }
   },
   setup (props, context) {
     const $store = context.root.$store
 
     const fetchAllowedTerm = (data) => {
-      $store.dispatch('fetchAllowedTerm', { table: props.table, term: data.search, roles: props.roles }).then(() => data.loading(false))
+      $store.dispatch('fetchAllowedTerm', { table: props.table, term: data.search, exclude_role: props.role }).then(() => data.loading(false))
     }
 
     const updateSelected = (selected) => {

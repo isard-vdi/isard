@@ -50,17 +50,13 @@ def alloweds_table_term(payload, table):
                 index_value=data["category"] if data.get("category") else None,
             )
         elif table == "users":
-            if data.get("roles"):
+            if data.get("exclude_role"):
                 result = alloweds.get_table_term(
                     table,
                     "name",
                     data["term"],
                     pluck=["id", "name", "uid", "role", "category_name", "group_name"],
-                    query_filter=lambda user: (
-                        user["role"] not in data.get("roles", [])
-                        if data.get("roles")
-                        else None
-                    ),
+                    query_filter=lambda u: u["role"] != data["exclude_role"],
                 )
             elif data.get("category"):
                 result = alloweds.get_table_term(
@@ -128,7 +124,7 @@ def alloweds_table_term(payload, table):
                 index_value=payload["category_id"],
             )
         if table == "users":
-            if data.get("roles"):
+            if data.get("exclude_role"):
                 result = alloweds.get_table_term(
                     table,
                     "name",
@@ -136,11 +132,7 @@ def alloweds_table_term(payload, table):
                     pluck=["id", "name", "category", "uid", "role"],
                     index_key="category",
                     index_value=payload["category_id"],
-                    query_filter=lambda user: (
-                        user["role"] not in data.get("roles", [])
-                        if data.get("roles")
-                        else None
-                    ),
+                    query_filter=lambda u: u["role"] != data["exclude_role"],
                 )
             else:
                 result = alloweds.get_table_term(
