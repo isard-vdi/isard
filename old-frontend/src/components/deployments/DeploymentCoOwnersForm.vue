@@ -61,7 +61,7 @@
           :table="'users'"
           :options="coOwners"
           :selected-values="selectedCoOwners"
-          :roles="['user']"
+          :role="'user'"
         />
       </b-col>
     </b-row>
