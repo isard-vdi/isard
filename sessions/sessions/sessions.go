@@ -73,7 +73,14 @@ func (s *Sessions) New(ctx context.Context, userID string, remoteAddr string) (*
 		// If there's already a user with an active session, revoke the existing
 		// session to ensure there's only one active session per user
 		if err := s.Revoke(ctx, usr.SessionID); err != nil {
-			return nil, fmt.Errorf("revoke old user session: %w", err)
+			if errors.Is(err, pkgRedis.ErrNotFound) {
+				// If the session is not found, we can delete the user
+				if err := usr.Delete(ctx, s.redis); err != nil {
+					return nil, fmt.Errorf("delete user: %w", err)
+				}
+			} else {
+				return nil, fmt.Errorf("revoke old user session: %w", err)
+			}
 		}
 	}
 
