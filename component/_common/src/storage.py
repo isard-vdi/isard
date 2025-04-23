@@ -356,7 +356,7 @@ class Storage(RethinkCustomBase):
             )
         self.task = Task(*args, **kwargs).id
 
-    def find(self, user_id, blocking=True):
+    def find(self, user_id, blocking=True, retry=3):
         """
         Create a task to find the storage.
         It assumes any isard-storage will have all mountpoints in /isard.
@@ -374,6 +374,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('find', path=self.directory_path).id}.default",
             task="find",
+            retry=retry,
+            retry_intervals=[0, 5, 10],  # For testing
             job_kwargs={
                 "kwargs": {
                     "storage_id": self.id,

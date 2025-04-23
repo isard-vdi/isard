@@ -23,7 +23,7 @@ from isardvdi_common.task import Task
 
 from api import app
 
-from .decorators import has_token, is_admin_or_manager, ownsUserId
+from .decorators import has_token, is_admin, is_admin_or_manager, ownsUserId
 
 
 @app.route("/api/v3/task/<task_id>", methods=["GET"])
@@ -112,3 +112,21 @@ def admin_tasks(payload):
             else:
                 tasks.append(task)
     return jsonify([task.to_dict() for task in tasks])
+
+
+@app.route("/api/v3/task/<task_id>/retry", methods=["PUT"])
+@is_admin
+def retry_task(payload, task_id):
+    if not Task.exists(task_id):
+        raise Error(error="not_found", description="Task not found")
+    task = Task(task_id)
+    ownsUserId(payload, task.user_id)
+    if task.status != "failed":
+        raise Error(
+            error="precondition_required",
+            description=f"Task should be failed, but is {task.status}",
+        )
+
+    task.retry()
+
+    return jsonify(task.to_dict())

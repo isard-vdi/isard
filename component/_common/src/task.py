@@ -20,7 +20,7 @@
 import os
 
 from cachetools import TTLCache, cached
-from rq import Queue
+from rq import Queue, Retry
 from rq.job import Dependency, Job, JobStatus
 
 from .redis_base import RedisBase
@@ -126,6 +126,14 @@ class Task(RedisBase):
                 *kwargs.get("job_args", []),
                 **kwargs.get("job_kwargs", {}),
             )
+            if "retry" in kwargs and isinstance(kwargs["retry"], int):
+                retry = Retry(
+                    max=int(kwargs["retry"]),
+                    interval=kwargs.get("retry_intervals", 0),
+                )
+                self.job.retries_left = retry.max
+                self.job.retry_intervals = retry.intervals
+
             self.job.save()
             for dependent in kwargs.get("dependents", []):
                 register_dependencies(dependent.setdefault("job_kwargs", {}), [self])
@@ -366,3 +374,12 @@ class Task(RedisBase):
         :rtype: list
         """
         return [task for task in cls.get_all() if task.user_id == user_id]
+
+    def retry(self) -> None:
+        """
+        Retry task.
+
+        :return: Task object
+        :rtype: Task
+        """
+        self.job.requeue()
