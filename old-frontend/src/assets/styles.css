@@ -786,3 +786,25 @@
   margin: auto;
   height: 90%;
 }
+
+.animated-elipsis:after {
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: bottom;
+  -webkit-animation: ellipsis-loading steps(4,end) 2000ms infinite;      
+  animation: ellipsis-loading steps(4,end) 2000ms infinite;
+  content: "\2026"; /* ascii code for the ellipsis character */
+  width: 0px;
+}
+
+@keyframes ellipsis-loading {
+  to {
+    width: 1.25em;    
+  }
+}
+
+@-webkit-keyframes ellipsis-loading {
+  to {
+    width: 1.25em;
+  }
+}

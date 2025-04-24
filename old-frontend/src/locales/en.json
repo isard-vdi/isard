@@ -886,6 +886,14 @@
             "alloweds-warning": "WARNING! Removing users from this deployment will also remove their associated desktops.",
             "videowall": {
                 "gpu-warning": "Videowall does not work with RDP viewers"
+            },
+            "loading-modal": {
+                "title": "Creating desktops for '{name}'",
+                "body": {
+                    "title": "Please wait while we create your desktops.",
+                    "desktops-total-creating": "{total} total desktops, with {creating} currently being created",
+                    "desktops-created": "Your desktops have been created successfully"
+                }
             }
         },
         "direct-viewer": {

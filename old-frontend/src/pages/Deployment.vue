@@ -174,6 +174,7 @@
         </div>
       </template>
     </IsardTable>
+    <DeploymentLoadingModal />
   </b-container>
 </template>
 <script>
@@ -181,9 +182,10 @@
 import IsardTable from '@/components/shared/IsardTable.vue'
 import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
+import DeploymentLoadingModal from '@/components/deployments/DeploymentLoadingModal.vue'
 import { mapActions, mapGetters } from 'vuex'
 import { desktopStates, status } from '@/shared/constants'
-import { computed, ref, reactive } from '@vue/composition-api'
+import { computed, ref, reactive, watch } from '@vue/composition-api'
 import { DateUtils } from '@/utils/dateUtils'
 import { DesktopUtils } from '@/utils/desktopsUtils'
 import { ErrorUtils } from '@/utils/errorUtils'
@@ -193,7 +195,8 @@ export default {
   components: {
     IsardTable,
     DesktopButton,
-    IsardDropdown
+    IsardDropdown,
+    DeploymentLoadingModal
   },
   setup (props, context) {
     const $store = context.root.$store
@@ -238,6 +241,16 @@ export default {
 
     const desktopsCreatingLen = computed(() => deployment.value.desktops.filter(d => [desktopStates.creating].includes(d.state.toLowerCase())).length)
     const desktopsCreating = computed(() => desktopsCreatingLen.value !== 0)
+
+    watch(desktopsCreating, (newVal) => {
+      if (newVal) {
+        $store.dispatch('showDeploymentLoadingModal', true)
+      } else {
+        setTimeout(() => {
+          $store.dispatch('showDeploymentLoadingModal', false)
+        }, 2000)
+      }
+    })
 
     const desktopsBadge = computed(() => {
       if (desktopsCreating.value) {
@@ -371,6 +384,7 @@ export default {
     this.$store.dispatch('fetchDeployment', { id: this.$route.params.id })
   },
   destroyed () {
+    this.$store.dispatch('resetDeploymentState')
     this.$store.dispatch('resetDeploymentsState')
   },
   methods: {
