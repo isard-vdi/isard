@@ -189,6 +189,7 @@
                 <b-button
                   class="rounded-circle px-2 mr-2 btn-red"
                   :title="$t('components.statusbar.deployment.buttons.stop.title')"
+                  :disabled="blockDeploymentActions"
                   @click="stopDesktops()"
                 >
                   <b-icon
@@ -200,6 +201,7 @@
                   class="rounded-circle px-2 mr-2"
                   :class="visibleClass()"
                   :title="deployment.visible ? $t('components.statusbar.deployment.buttons.make-not-visible.title') : $t('components.statusbar.deployment.buttons.make-visible.title')"
+                  :disabled="blockDeploymentActions"
                   @click="toggleVisible()"
                 >
                   <b-icon
@@ -210,6 +212,7 @@
                 <b-button
                   class="rounded-circle px-2 mr-2 btn-dark-blue"
                   :title="$t('components.statusbar.deployment.buttons.videowall.title')"
+                  :disabled="blockDeploymentActions"
                   @click="goToVideowall()"
                 >
                   <b-icon
@@ -220,6 +223,7 @@
                 <b-button
                   class="rounded-circle btn-purple px-2 mr-2"
                   :title="$t('components.statusbar.deployment.buttons.download-direct-viewer.title')"
+                  :disabled="blockDeploymentActions"
                   @click="downloadDirectViewerCSV()"
                 >
                   <b-icon
@@ -230,7 +234,7 @@
                 <b-button
                   class="rounded-circle px-2 mr-2 btn-orange"
                   :title="$t('components.statusbar.deployment.buttons.recreate.title')"
-                  :disabled="isRecreateButtonDisabled"
+                  :disabled="isRecreateButtonDisabled || blockDeploymentActions"
                   @click="recreateDeployment()"
                 >
                   <b-icon
@@ -241,6 +245,7 @@
                 <b-button
                   class="rounded-circle px-2 mr-2 btn-green"
                   :title="$t('components.statusbar.deployment.buttons.co-owners.title')"
+                  :disabled="blockDeploymentActions"
                   @click="showOwnersModal()"
                 >
                   <b-icon
@@ -251,7 +256,7 @@
                 <b-button
                   class="rounded-circle btn btn-blue px-2 mr-2"
                   :title="canEditDeployment ? $t('components.statusbar.deployment.buttons.edit.disabled') : $t('components.statusbar.deployment.buttons.edit.title')"
-                  :disabled="canEditDeployment"
+                  :disabled="canEditDeployment || blockDeploymentActions"
                   @click="editDeployment()"
                 >
                   <b-icon
@@ -262,6 +267,7 @@
                 <b-button
                   class="rounded-circle px-2 mr-2 btn-dark-blue"
                   :title="$t('components.statusbar.deployment.buttons.allowed.title')"
+                  :disabled="blockDeploymentActions"
                   @click="showAllowedModal()"
                 >
                   <b-icon
@@ -287,6 +293,7 @@
                 <b-button
                   class="rounded-circle btn-red px-2 mr-2"
                   :title="$t('components.statusbar.deployment.buttons.delete.title')"
+                  :disabled="blockDeploymentActions"
                   @click="deleteDeployment()"
                 >
                   <b-icon
@@ -632,6 +639,10 @@ export default {
       return !deployment.value.desktops.every(desktop => allowedStatus.includes(desktop.state.toLowerCase()))
     })
 
+    const blockDeploymentActions = computed(() => {
+      return deployment.value.desktops.filter(d => [desktopStates.creating].includes(d.state.toLowerCase())).length !== 0
+    })
+
     const editDeployment = () => {
       $store.dispatch('goToEditDeployment', deployment.value.id)
     }
@@ -778,7 +789,8 @@ export default {
       isRecreateButtonDisabled,
       statusBarNotification,
       onClickGoToExportUser,
-      showImportUserModal
+      showImportUserModal,
+      blockDeploymentActions
     }
   }
 }
