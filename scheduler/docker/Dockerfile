@@ -1,4 +1,4 @@
-FROM alpine:3.20 as production
+FROM alpine:3.21.3 as production
 MAINTAINER isard <info@isard.com>
 
 RUN apk -U upgrade --no-cache
