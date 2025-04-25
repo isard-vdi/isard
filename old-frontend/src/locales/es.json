@@ -885,6 +885,14 @@
       "alloweds-warning": "AVISO! Eliminar usuarios de este despliegue también eliminará sus escritorios asociados.",
       "videowall": {
         "gpu-warning": "El videowall no funciona con visores RDP"
+      },
+      "loading-modal": {
+        "title": "Creando escritorios para '{name}'",
+        "body": {
+          "title": "Por favor, espera mientras creamos tus escritorios.",
+          "desktops-total-creating": "{total} escritorios en total, de los cuales {creating} están siendo creados",
+          "desktops-created": "Tus escritorios han sido creados correctamente"
+        }
       }
     },
     "deployment-desktop-list": {

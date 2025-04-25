@@ -110,7 +110,7 @@
       <template #cell(viewers)="data">
         <div class="">
           <DesktopButton
-            v-if="!hideViewers && data.item.viewers !== undefined && data.item.viewers.length === 1"
+            v-if="!hideViewers && data.item.viewers !== undefined && data.item.viewers.length === 1 && !desktopsCreating"
             :active="getItemState(data.item) === desktopStates.started"
             :button-class="buttViewerCssColor"
             :butt-text="data.item.viewers[0]"
@@ -120,7 +120,7 @@
           />
           <isard-dropdown
             v-else
-            :dd-disabled="!showDropDown(data.item)"
+            :dd-disabled="!showDropDown(data.item) || desktopsCreating"
             :class="{ 'dropdown-inactive': !showDropDown(data.item) }"
             css-class="viewers-dropdown flex-grow-1"
             variant="light"
@@ -139,7 +139,7 @@
         <DesktopButton
           v-if="![desktopStates.working].includes(getItemState(data.item))"
           class="table-action-button"
-          :active="canStart(data.item)"
+          :active="canStart(data.item) && !desktopsCreating"
           :button-class="canStart(data.item) ? buttCssColor(getItemState(data.item)) : ''"
           :spinner-active="false"
           :butt-text="$t(`views.select-template.status.${getItemState(data.item)}.action`)"
@@ -152,6 +152,7 @@
           <b-button
             class="rounded-circle btn-red px-2 mr-2"
             :title="$t('components.deployment-desktop-list.actions.delete')"
+            :disabled="desktopsCreating"
             @click="onClickDeleteDesktop(data.item)"
           >
             <b-icon
@@ -162,6 +163,7 @@
           <b-button
             :class="`rounded-circle ${data.item.visible ? 'btn-blue' : 'btn-grey' } px-2 mr-2`"
             :title="data.item.visible ? $t('components.deployment-desktop-list.actions.hide') : $t('components.deployment-desktop-list.actions.show')"
+            :disabled="desktopsCreating"
             @click="onClickDesktopVisible(data.item)"
           >
             <b-icon
@@ -172,6 +174,7 @@
         </div>
       </template>
     </IsardTable>
+    <DeploymentLoadingModal />
   </b-container>
 </template>
 <script>
@@ -179,9 +182,10 @@
 import IsardTable from '@/components/shared/IsardTable.vue'
 import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
+import DeploymentLoadingModal from '@/components/deployments/DeploymentLoadingModal.vue'
 import { mapActions, mapGetters } from 'vuex'
 import { desktopStates, status } from '@/shared/constants'
-import { computed, ref, reactive } from '@vue/composition-api'
+import { computed, ref, reactive, watch } from '@vue/composition-api'
 import { DateUtils } from '@/utils/dateUtils'
 import { DesktopUtils } from '@/utils/desktopsUtils'
 import { ErrorUtils } from '@/utils/errorUtils'
@@ -191,7 +195,8 @@ export default {
   components: {
     IsardTable,
     DesktopButton,
-    IsardDropdown
+    IsardDropdown,
+    DeploymentLoadingModal
   },
   setup (props, context) {
     const $store = context.root.$store
@@ -234,12 +239,24 @@ export default {
       }
     })
 
+    const desktopsCreatingLen = computed(() => deployment.value.desktops.filter(d => [desktopStates.creating].includes(d.state.toLowerCase())).length)
+    const desktopsCreating = computed(() => desktopsCreatingLen.value !== 0)
+
+    watch(desktopsCreating, (newVal) => {
+      if (newVal) {
+        $store.dispatch('showDeploymentLoadingModal', true)
+      } else {
+        setTimeout(() => {
+          $store.dispatch('showDeploymentLoadingModal', false)
+        }, 2000)
+      }
+    })
+
     const desktopsBadge = computed(() => {
-      const desktopsCreating = deployment.value.desktops.filter(d => [desktopStates.creating].includes(d.state.toLowerCase())).length
-      if (desktopsCreating !== 0) {
+      if (desktopsCreating.value) {
         return i18n.t('views.deployment.desktop.desktops-total-creating', {
           total: deployment.value.desktops.length,
-          creating: desktopsCreating
+          creating: desktopsCreatingLen.value
         })
       } else {
         return i18n.t('views.deployment.desktop.desktops') + ': ' + deployment.value.desktops.length
@@ -344,7 +361,8 @@ export default {
       rowClass,
       getDate,
       canStart,
-      fields
+      fields,
+      desktopsCreating
     }
   },
   data () {
@@ -366,6 +384,7 @@ export default {
     this.$store.dispatch('fetchDeployment', { id: this.$route.params.id })
   },
   destroyed () {
+    this.$store.dispatch('resetDeploymentState')
     this.$store.dispatch('resetDeploymentsState')
   },
   methods: {

@@ -634,6 +634,14 @@
       "alloweds-warning": "AVÍS! Eliminar usuaris d'aquest desplegament també eliminarà els seus escriptoris associats",
       "videowall": {
         "gpu-warning": "El videowall no funciona amb visors RDP"
+      },
+      "loading-modal": {
+        "title": "Creant escriptoris per a '{name}'",
+        "body": {
+          "title": "Espereu mentre creem els vostres escriptoris.",
+          "desktops-total-creating": "{total} escriptoris en total, amb {creating} creant-se actualment",
+          "desktops-created": "Els teus escriptoris s'han creat correctament"
+        }
       }
     },
     "direct-viewer": {

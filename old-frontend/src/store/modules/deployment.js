@@ -32,7 +32,8 @@ const getDefaultState = () => {
       coOwners: []
     },
     permissions: [],
-    recreateButtonDisabled: false
+    recreateButtonDisabled: false,
+    showDeploymentLoadingModal: false
   }
 }
 
@@ -64,6 +65,9 @@ export default {
     },
     isRecreateButtonDisabled: state => {
       return state.recreateButtonDisabled
+    },
+    getShowDeploymentLoadingModal: state => {
+      return state.showDeploymentLoadingModal
     }
   },
   mutations: {
@@ -120,6 +124,9 @@ export default {
     },
     setDisableRecreateButton (state, value) {
       state.recreateButtonDisabled = value
+    },
+    setShowDeploymentLoadingModal (state, value) {
+      state.showDeploymentLoadingModal = value
     }
   },
   actions: {
@@ -312,6 +319,9 @@ export default {
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
+    },
+    showDeploymentLoadingModal (context, value) {
+      context.commit('setShowDeploymentLoadingModal', value)
     }
   }
 }
