@@ -132,15 +132,21 @@ export default {
     },
     socket_deploymentdesktopAdd (context, data) {
       const deploymentdesktop = DeploymentsUtils.parseDeploymentDesktop(JSON.parse(data))
-      context.commit('add_deploymentdesktop', deploymentdesktop)
+      if (deploymentdesktop.tag === context.state.deployment.id) {
+        context.commit('add_deploymentdesktop', deploymentdesktop)
+      }
     },
     socket_deploymentdesktopUpdate (context, data) {
       const deploymentdesktop = DeploymentsUtils.parseDeploymentDesktop(JSON.parse(data))
-      context.commit('update_deploymentdesktop', deploymentdesktop)
+      if (deploymentdesktop.tag === context.state.deployment.id) {
+        context.commit('update_deploymentdesktop', deploymentdesktop)
+      }
     },
     socket_deploymentdesktopDelete (context, data) {
       const deploymentdesktop = DeploymentsUtils.parseDeploymentDesktop(JSON.parse(data))
-      context.commit('remove_deploymentdesktop', deploymentdesktop)
+      if (deploymentdesktop.tag === context.state.deployment.id) {
+        context.commit('remove_deploymentdesktop', deploymentdesktop)
+      }
     },
     socket_creatingDesktops (context, data) {
       if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === JSON.parse(data).deployment_id) {
