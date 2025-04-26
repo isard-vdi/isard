@@ -413,6 +413,10 @@ class HypervisorChangesThread(threading.Thread):
                 if c["new_val"]["table"] == "engine":
                     if c["new_val"]["status_all_threads"] == "Stopping":
                         break
+            if c.get("old_val", None) is not None and c["old_val"]["table"] == "engine":
+                continue
+            if c.get("new_val", None) is not None and c["new_val"]["table"] == "engine":
+                continue
 
             # hypervisor deleted
             if c["new_val"] is None:
