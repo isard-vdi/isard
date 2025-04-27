@@ -7,7 +7,7 @@ for i in `find /usr/local/etc/haproxy/cfg/customs -iname '*.cfg'`; do cp $i "$tm
 echo "Building haproxy.cfg for flavour: $CFG"
 if [ "$CFG" != "portal" ] && [ "$CFG" != "video" ]
 then
-  rm "$tmp_dir"/04_squid.cfg
+  rm "$tmp_dir"/04_00_fe_nonsecured_begin.cfg
 fi
 cat "$tmp_dir"/*.cfg > /usr/local/etc/haproxy/haproxy.cfg
 

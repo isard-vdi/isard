@@ -430,6 +430,7 @@ class ApiUsers:
                 "show_temporal_tab": frontend_show_temporal_tab,
                 "http_port": os.environ.get("HTTP_PORT", "80"),
                 "https_port": os.environ.get("HTTPS_PORT", "443"),
+                "bastion_domain": os.environ.get("BASTION_DOMAIN"),
                 "bastion_ssh_port": os.environ.get(
                     "BASTION_SSH_PORT",
                     "2222",

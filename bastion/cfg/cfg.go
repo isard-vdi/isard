@@ -48,7 +48,7 @@ func setDefaults() {
 	cfg.SetDBDefaults()
 	cfg.SetHTTPDefaults()
 
-	viper.BindEnv("http.base_url", "DOMAIN")
+	viper.BindEnv("http.base_url", "BASTION_DOMAIN")
 	viper.SetDefault("http.base_url", "")
 
 	viper.SetDefault("ssh", map[string]interface{}{

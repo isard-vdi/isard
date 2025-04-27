@@ -34,5 +34,6 @@ services:
       CFG: portal
       FORBID_DOMAIN_IP: ${FORBID_DOMAIN_IP:-false}
       CORS: ${CORS:-*}
+      BASTION_DOMAIN: ${BASTION_DOMAIN:-${DOMAIN}}
     env_file:
       - .env

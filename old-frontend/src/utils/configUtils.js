@@ -8,6 +8,7 @@ export class ConfigUtils {
       show_change_email_button: showChangeEmailButton,
       http_port: httpPort,
       https_port: httpsPort,
+      bastion_domain: bastionDomain,
       bastion_ssh_port: bastionSshPort,
       can_use_bastion: canUseBastion,
       migrations_block: migrationsBlock
@@ -20,6 +21,7 @@ export class ConfigUtils {
       showChangeEmailButton,
       httpPort,
       httpsPort,
+      bastionDomain,
       bastionSshPort,
       canUseBastion,
       migrationsBlock

@@ -543,6 +543,8 @@ HAPROXY_LOGGING=.
 #BASTION_ENABLED=false
 ## The port where the bastion service will listen to SSH connections
 #BASTION_SSH_PORT=2222
+## Optional bastion domain (will be used instead of DOMAIN)
+#BASTION_DOMAIN=bastion.domain.com
 
 # ------ Video proxy host ----------------------------------------------------
 ## Where will the client browser reach isard-video to this host?

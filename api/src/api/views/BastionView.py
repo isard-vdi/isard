@@ -100,6 +100,7 @@ def api_v3_admin_bastion(payload):
                     if (os.environ.get("BASTION_ENABLED", "false")).lower() == "true"
                     else False
                 ),
+                "bastion_domain": os.environ.get("BASTION_DOMAIN"),
                 "bastion_ssh_port": os.environ.get(
                     "BASTION_SSH_PORT",
                     "2222",

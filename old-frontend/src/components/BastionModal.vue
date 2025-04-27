@@ -191,13 +191,13 @@ export default {
       $store.dispatch('bastionModalShow', { show: false })
     }
 
-    const sshUrl = ref(`ssh ${modal.value.bastion.id}@${window.location.hostname} -p ${config.value.bastionSshPort}`)
-    const httpUrl = ref(`http://${modal.value.bastion.id}.${window.location.hostname}`)
-    const httpsUrl = ref(`https://${modal.value.bastion.id}.${window.location.hostname}`)
+    const sshUrl = ref(`ssh ${modal.value.bastion.id}@${config.value.bastionDomain || window.location.hostname} -p ${config.value.bastionSshPort}`)
+    const httpUrl = ref(`http://${modal.value.bastion.id}.${config.value.bastionDomain || window.location.hostname}`)
+    const httpsUrl = ref(`https://${modal.value.bastion.id}.${config.value.bastionDomain || window.location.hostname}`)
     watch(modal.value, (value) => {
-      sshUrl.value = `ssh ${value.bastion.id}@${window.location.hostname} -p ${config.value.bastionSshPort}`
-      httpUrl.value = `http://${value.bastion.id}.${window.location.hostname}${config.value.httpPort === '80' ? '' : `:${config.value.httpPort}`}`
-      httpsUrl.value = `https://${value.bastion.id}.${window.location.hostname}${config.value.httpsPort === '443' ? '' : `:${config.value.httpsPort}`}`
+      sshUrl.value = `ssh ${value.bastion.id}@${config.value.bastionDomain || window.location.hostname} -p ${config.value.bastionSshPort}`
+      httpUrl.value = `http://${value.bastion.id}.${config.value.bastionDomain || window.location.hostname}${config.value.httpPort === '80' ? '' : `:${config.value.httpPort}`}`
+      httpsUrl.value = `https://${value.bastion.id}.${config.value.bastionDomain || window.location.hostname}${config.value.httpsPort === '443' ? '' : `:${config.value.httpsPort}`}`
     })
 
     const copyToClipboard = (text) => {
