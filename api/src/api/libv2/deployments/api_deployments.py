@@ -84,6 +84,10 @@ def lists(user_id):
                     .get_all(deployment["id"], index="tag")
                     .filter({"tag_visible": True})
                     .count(),
+                    "creatingDesktops": r.table("domains")
+                    .get_all(deployment["id"], index="tag")
+                    .filter({"status": "Creating"})
+                    .count(),
                     "description": deployment["create_dict"]["description"],
                     "visible": deployment["create_dict"]["tag_visible"],
                     "template": r.table("domains")
@@ -111,6 +115,10 @@ def lists(user_id):
                     "visibleDesktops": r.table("domains")
                     .get_all(deployment["id"], index="tag")
                     .filter({"tag_visible": True})
+                    .count(),
+                    "creatingDesktops": r.table("domains")
+                    .get_all(deployment["id"], index="tag")
+                    .filter({"status": "Creating"})
                     .count(),
                     "description": deployment["create_dict"]["description"],
                     "visible": deployment["create_dict"]["tag_visible"],
@@ -164,6 +172,17 @@ def get(deployment_id, desktops=True):
                 "StartingPaused",
                 "CreatingAndStarting",
                 "Shutting-down",
+            ]
+        ]
+    )
+    deployment["creatingDesktops"] = len(
+        [
+            desktop
+            for desktop in deployment_desktops
+            if desktop["status"]
+            in [
+                "Creating",
+                "CreatingAndStarting",
             ]
         ]
     )

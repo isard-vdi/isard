@@ -162,7 +162,6 @@ export default {
     },
     socket_endCreatingDesktops (context, data) {
       if (router.currentRoute.name === 'deployment_desktops' && router.currentRoute.params.id === JSON.parse(data).deployment_id) {
-        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deployment-desktops-created'), '', true, 3000)
         context.commit('setDisableRecreateButton', false)
       }
     },
@@ -184,6 +183,7 @@ export default {
     },
 
     deleteDeployment (context, payload) {
+      context.commit('remove_deployments', { id: payload.id })
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-deployment'), '', true, 1000)
       const url = payload.permanent
         ? `${apiV3Segment}/deployments/${payload.id}/permanent`
