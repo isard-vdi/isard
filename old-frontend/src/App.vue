@@ -6,18 +6,20 @@
     <router-view />
     <vue-snotify />
     <MessageModal />
+    <NotificationModal />
   </div>
 </template>
 
 <script>
 import { onBeforeMount, onBeforeUnmount } from '@vue/composition-api'
 import MessageModal from './components/MessageModal.vue'
+import NotificationModal from './components/NotificationModal.vue'
 import { listenCookieChange } from '@/helpers/cookies'
 import { sessionCookieName } from '@/shared/constants'
 import { getCookie } from 'tiny-cookie'
 
 export default {
-  components: { MessageModal },
+  components: { MessageModal, NotificationModal },
   setup (_, context) {
     const $store = context.root.$store
     const viewsNotRedirected = ['VerifyEmail', 'ResetPassword', 'ForgotPassword']

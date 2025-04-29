@@ -25,6 +25,7 @@ import templates from './modules/templates'
 import messageTemplate from './modules/messageTemplate'
 import vpn from './modules/vpn'
 import { MessageUtils } from '../utils/messageUtils'
+import notifications from './modules/notifications'
 
 Vue.use(Vuex)
 
@@ -175,6 +176,7 @@ export default new Vuex.Store({
     media,
     storage,
     recycleBin,
-    messageTemplate
+    messageTemplate,
+    notifications
   }
 })
