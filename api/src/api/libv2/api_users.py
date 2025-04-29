@@ -212,6 +212,48 @@ def bulk_create(users):
         isard_user_storage_add_user(user["id"])
 
 
+def get_user_last_started_desktop_log(user_id):
+    """
+    Retrieve the last started desktop of a user.
+
+    :param user_id: The user id.
+    :type user_id: str
+    :return: The users last started desktop id.
+    :rtype: str
+    """
+    with app.app_context():
+        return (
+            r.table("logs_desktops")
+            .get_all(user_id, index="owner_user_id")
+            .filter({"starting_by": "desktop-owner"})
+            .order_by(r.desc("starting_time"))
+            .limit(1)
+            .nth(0)
+            .run(db.conn)
+        )
+
+
+def get_user_second_to_last_started_desktop_log(user_id):
+    """
+    Retrieve the second to last started desktop of a user.
+
+    :param user_id: The user id.
+    :type user_id: str
+    :return: The users second to last started desktop id.
+    :rtype: str
+    """
+    with app.app_context():
+        return (
+            r.table("logs_desktops")
+            .get_all(user_id, index="owner_user_id")
+            .filter({"starting_by": "desktop-owner"})
+            .order_by(r.desc("starting_time"))
+            .skip(1)
+            .limit(1)
+            .run(db.conn)
+        )
+
+
 class ApiUsers:
     def Jwt(self, user_id, minutes=240):
         return {

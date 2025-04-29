@@ -21,6 +21,7 @@
 from datetime import datetime
 
 import pytz
+from api.libv2.notifications import compute
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -43,6 +44,10 @@ users = ApiUsers()
 
 db = RDB(app)
 db.init_app(app)
+
+computed_functions_mapping = {
+    "start_desktop_bastion": compute.start_desktop_bastion,
+}
 
 
 def get_item_notifications_by_trigger(trigger, enabled=True, display=None):
@@ -242,30 +247,32 @@ def get_user_trigger_notifications(payload, trigger, display):
             if notification["order"] == order:
                 if notification["item_type"] not in ordered_notifications[order]:
                     ordered_notifications[order][notification["item_type"]] = {}
-                # Get the notification template in the user language
-                notification_template_user = get_notification_template(
-                    notification["template_id"]
-                )
-                notification_template_user_lang = notification_template_user[
-                    "lang"
-                ].get(
-                    user_lang,
-                    notification_template_user["lang"][
-                        notification_template_user["default"]
-                    ],
-                )
                 # Add the notification to the ordered_notifications
                 ordered_notifications[order][notification["item_type"]] = {
                     "display": notification["display"],
                     "action_id": notification["action_id"],
                     "template_id": notification["template_id"],
-                    "template": notification_template_user_lang,
                     "force_accept": notification["force_accept"],
                     "notifications": [],
                 }
+                if not notification["compute"]:
+                    # Get the notification template in the user language
+                    notification_template_user = get_notification_template(
+                        notification["template_id"]
+                    )
+                    notification_template_user_lang = notification_template_user[
+                        "lang"
+                    ].get(
+                        user_lang,
+                        notification_template_user["lang"][
+                            notification_template_user["default"]
+                        ],
+                    )
+                    ordered_notifications[order][notification["item_type"]][
+                        "template"
+                    ] = notification_template_user_lang
                 # If the notification is a custom notification then compute the notification
                 if notification["action_id"] == "custom":
-                    # eval(notification["compute"]) TODO: Implement the compute function
                     # Check if the notification has already been notified
                     notifications_data = get_user_notifications_data(
                         payload["user_id"], "notified", notification["id"]
@@ -302,42 +309,58 @@ def get_user_trigger_notifications(payload, trigger, display):
                             },
                         }
                     )
-                # If the notification is not a custom notification then fetch the notification data
+                # If the notification is not a custom notification then fetch the notification data or compute it
                 else:
-                    notifications_data = get_user_notifications_data(
-                        payload["user_id"], "pending", notification["id"], True
-                    )
-                    for notification_data in notifications_data:
-                        # Format any timestamp or date variables
-                        for key, value in notification_data["vars"].items():
-                            if isinstance(value, (int, float)):
-                                try:
-                                    notification_data["vars"][key] = (
-                                        datetime.fromtimestamp(value).strftime(
-                                            "%d/%m/%Y %H:%M"
-                                        )
-                                    )
-                                except ValueError:
-                                    pass
-
+                    if notification["compute"]:
+                        # Execute the compute function
+                        func = computed_functions_mapping.get(notification["compute"])
+                        if not func:
+                            app.logger.error(
+                                f"""Notification compute function '{notification["compute"]}' not found.
+                                Please make sure it is registered in the computed_functions_mapping.
+                                Meanwhile this notification compute will be ignored."""
+                            )
+                            continue
+                        computed_notifications = func(payload, notification, user_lang)
+                        # Add the computed notifications to the array that object that will be returned
                         ordered_notifications[order][notification["item_type"]][
                             "notifications"
-                        ].append(
-                            {
-                                "id": notification_data["id"],
-                                "text": notification_template_user_lang["body"].format(
-                                    **notification_data["vars"]
-                                ),
-                            }
+                        ] += computed_notifications
+                    else:
+                        notifications_data = get_user_notifications_data(
+                            payload["user_id"], "pending", notification["id"], True
                         )
-                        # Update the notification data entry for the user
-                        update_notification_data(
-                            {
-                                "id": notification_data["id"],
-                                "status": "notified",
-                                "notified_at": datetime.now().astimezone(pytz.UTC),
-                            }
-                        )
+                        for notification_data in notifications_data:
+                            # Format any timestamp or date variables
+                            for key, value in notification_data["vars"].items():
+                                if isinstance(value, (int, float)):
+                                    try:
+                                        notification_data["vars"][key] = (
+                                            datetime.fromtimestamp(value).strftime(
+                                                "%d/%m/%Y %H:%M"
+                                            )
+                                        )
+                                    except ValueError:
+                                        pass
+
+                            ordered_notifications[order][notification["item_type"]][
+                                "notifications"
+                            ].append(
+                                {
+                                    "id": notification_data["id"],
+                                    "text": notification_template_user_lang[
+                                        "body"
+                                    ].format(**notification_data["vars"]),
+                                }
+                            )
+                            # Update the notification data entry for the user
+                            update_notification_data(
+                                {
+                                    "id": notification_data["id"],
+                                    "status": "notified",
+                                    "notified_at": datetime.now().astimezone(pytz.UTC),
+                                }
+                            )
 
                 # If the notification has no notifications_data then remove it from the list
                 if not ordered_notifications[order][notification["item_type"]][
