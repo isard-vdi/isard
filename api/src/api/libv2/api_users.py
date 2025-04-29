@@ -1055,8 +1055,9 @@ class ApiUsers:
 
     def update_user(self, user_id, data):
         if (
-            user_id == "local-default-admin-admin"
-            and data.get("group") != "default-default"
+            data.get("group")
+            and user_id == "local-default-admin-admin"
+            and data["group"] != "default-default"
         ):
             raise Error(
                 "forbidden",
