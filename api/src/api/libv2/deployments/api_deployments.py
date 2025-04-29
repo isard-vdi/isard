@@ -73,21 +73,6 @@ def lists(user_id):
             .get_all(user_id, index="user")
             .merge(
                 lambda deployment: {
-                    "totalDesktops": r.table("domains")
-                    .get_all(deployment["id"], index="tag")
-                    .count(),
-                    "startedDesktops": r.table("domains")
-                    .get_all(deployment["id"], index="tag")
-                    .filter({"status": "Started"})
-                    .count(),
-                    "visibleDesktops": r.table("domains")
-                    .get_all(deployment["id"], index="tag")
-                    .filter({"tag_visible": True})
-                    .count(),
-                    "creatingDesktops": r.table("domains")
-                    .get_all(deployment["id"], index="tag")
-                    .filter({"status": "Creating"})
-                    .count(),
                     "description": deployment["create_dict"]["description"],
                     "visible": deployment["create_dict"]["tag_visible"],
                     "template": r.table("domains")
@@ -105,21 +90,6 @@ def lists(user_id):
             .get_all(user_id, index="co_owners")
             .merge(
                 lambda deployment: {
-                    "totalDesktops": r.table("domains")
-                    .get_all(deployment["id"], index="tag")
-                    .count(),
-                    "startedDesktops": r.table("domains")
-                    .get_all(deployment["id"], index="tag")
-                    .filter({"status": "Started"})
-                    .count(),
-                    "visibleDesktops": r.table("domains")
-                    .get_all(deployment["id"], index="tag")
-                    .filter({"tag_visible": True})
-                    .count(),
-                    "creatingDesktops": r.table("domains")
-                    .get_all(deployment["id"], index="tag")
-                    .filter({"status": "Creating"})
-                    .count(),
                     "description": deployment["create_dict"]["description"],
                     "visible": deployment["create_dict"]["tag_visible"],
                     "template": r.table("domains")
@@ -132,6 +102,44 @@ def lists(user_id):
             .run(db.conn)
         )
     deployments = deployments_owner + deployments_coowners
+
+    for deployment in deployments:
+        deployment_desktops = get_cached_deployment_desktops(deployment["id"])
+
+        deployment["totalDesktops"] = len(deployment_desktops)
+        deployment["visibleDesktops"] = len(
+            [
+                desktop
+                for desktop in deployment_desktops
+                if desktop["tag_visible"] is True
+            ]
+        )
+        deployment["startedDesktops"] = len(
+            [
+                desktop
+                for desktop in deployment_desktops
+                if desktop["status"]
+                in [
+                    "Started",
+                    "Starting",
+                    "StartingPaused",
+                    "CreatingAndStarting",
+                    "Shutting-down",
+                ]
+            ]
+        )
+        deployment["creatingDesktops"] = len(
+            [
+                desktop
+                for desktop in deployment_desktops
+                if desktop["status"]
+                in [
+                    "Creating",
+                    "CreatingAndStarting",
+                ]
+            ]
+        )
+
     deployments.sort(key=lambda x: x["name"].lower(), reverse=True)
 
     parsed_deployments = []
