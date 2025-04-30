@@ -170,12 +170,17 @@
                             <div class="col-md-6" id="max-quota-div"><i>(max. <span id="max-quota"></span>GB)</i></div>
                         </div>
                     </div>
-                    <div class="x_panel" id="priority-panel">
+                    <div class="x_panel" id="priority-panel" style="margin-top: 1rem; margin-bottom: 2rem;">
                         <div class="row">
                             <label class="col-md-3">Priority: </label>
                             <div class="col-md-3">
                                 <select name="priority" id="priority" class="roundbox form-control" style="width:100%;">
                                 </select>
+                            </div>
+                            <label class="col-md-2 col-sm-6" for="retry">Retries:</label>
+                            <div class="col-md-3 col-sm-6">
+                                <input class="form-control roundbox" name="retry" type="number" placeholder="3" value="0" min="0" max="5"
+                                    id="retry" data-parsley-trigger="change" data-parsley-type="number" required style="width: 100%;"  />
                             </div>
                         </div>
                     </div>
@@ -281,6 +286,15 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="row x_content">
+                                    <div class="col-md-6 col-sm-12">
+                                        <label class="control-label">Retries: <br></label>
+                                        <div>
+                                            <input style="width:100%;" placeholder="3" value="0" min="0" max="5" name="retry" id="retry" type="number"
+                                                class="roundbox form-control" data-parsley-trigger="change" data-parsley-type="number" required>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -332,6 +346,11 @@
                                 style="width:50%;">
                             </select>
                         </div>
+                        <div class="x_panel">
+                            <label class="control-label" for="retry">Retries:</label>
+                            <input class="form-control roundbox" name="retry" type="number" placeholder="3" value="0" min="0" max="5"
+                                id="retry" data-parsley-trigger="change" data-parsley-type="number" required style="width: 50%;" />
+                        </div>
 
 
                         <div class="row">
@@ -381,11 +400,17 @@
                     <input hidden id="id" name="storage_id" />
                     <input hidden id="kind" name="kind" />
                     <div class="x_panel">
-                        <div class="x_panel">
-                            <label class="control-label">Priority:</label>
-                            <select name="priority" id="priority" class="form-control tags-select roundbox"
-                                style="width:50%;">
-                            </select>
+                        <div class="col">
+                            <div class="x_content">
+                                <label class="control-label">Priority:</label>
+                                <select name="priority" id="priority" class="form-control tags-select roundbox" style="width:50%;">
+                                </select>
+                            </div>
+                            <div class="x_content">
+                                <label class="control-label" for="retry">Retries:</label>
+                                <input class="form-control roundbox" name="retry" type="number" placeholder="3" value="0" min="0" max="5"
+                                    id="retry" data-parsley-trigger="change" data-parsley-type="number" required style="width: 50%;" />
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -432,6 +457,11 @@
                             <select name="priority" id="priority" class="form-control tags-select roundbox"
                                 style="width:50%;">
                             </select>
+                        </div>
+                        <div class="x_panel">
+                            <label class="control-label" for="retry">Retries:</label>
+                            <input class="form-control roundbox" name="retry" type="number" placeholder="3" value="0" min="0" max="5"
+                                id="retry" data-parsley-trigger="change" data-parsley-type="number" required style="width: 50%;" />
                         </div>
                     </div>
                 </form>
@@ -529,6 +559,11 @@
                                     <select name="priority" id="priority" class="form-control tags-select roundbox">
                                     </select>
                                 </div>
+                                <!-- <div class="col-md-6">
+                                    <label class="control-label" for="retry">Retries:</label>
+                                    <input class="form-control roundbox" name="retry" type="number" placeholder="3" value="0" min="0" max="5"
+                                        id="retry" data-parsley-trigger="change" data-parsley-type="number" required style="width: 100%; margin: 7px;" />
+                                </div> -->
                             </div>
                             <div class="x_panel">
                                 <div class="x_title">

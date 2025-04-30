@@ -806,7 +806,7 @@ $("#modalIncreaseStorage #send").on("click", function () {
     var priority = formData.priority ? formData.priority : "low";
     formData.increment = (formData.new_size - formData.current_size).toFixed(0);
     delete formData.new_size;
-    var url = `/api/v3/storage/${formData.storage_id}/priority/${priority}/increase/${formData.increment}`;
+    var url = `/api/v3/storage/${formData.storage_id}/priority/${priority}/increase/${formData.increment}/retry/${formData.retry}`;
     performStorageOperation(formData, formData.storage_id, "increase", url);
   }
 });
@@ -1063,7 +1063,8 @@ $("#modalSparsify #send").on("click", function () {
   if (form.parsley().isValid()) {
     data = form.serializeObject();
     var priority = $("#user_data").data("role") == "admin" ? data.priority : "low";
-    var url = "/api/v3/storage/sparsify/" + data["storage_id"] + "/priority/" + priority;
+    var retry = $("#user_data").data("role") == "admin" ? data.retry : "0";
+    var url = `/api/v3/storage/sparsify/${data["storage_id"]}/priority/${priority}/retry/${retry}`;
     performStorageOperation(data, data["storage_id"], "sparsify", url);
   }
 });
@@ -1177,7 +1178,8 @@ $("#modalDisconnect #send").on("click", function () {
   if (form.parsley().isValid()) {
     data = form.serializeObject();
     var priority = $("#user_data").data("role") == "admin" ? data.priority : "low";
-    var url = "/api/v3/storage/disconnect/" + data["storage_id"] + "/priority/" + priority;
+    var retry = $("#user_data").data("role") == "admin" ? data.retry : "0";
+    var url = `/api/v3/storage/disconnect/${data["storage_id"]}/priority/${priority}/retry/${retry}`;
     performStorageOperation(data, data["storage_id"], "disconnect", url);
   }
 });

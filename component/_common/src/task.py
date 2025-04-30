@@ -126,7 +126,10 @@ class Task(RedisBase):
                 *kwargs.get("job_args", []),
                 **kwargs.get("job_kwargs", {}),
             )
-            if "retry" in kwargs and isinstance(kwargs["retry"], int):
+            if kwargs.get("queue", "").startswith("core."):
+                kwargs.setdefault("retry", 3)
+                kwargs.setdefault("retry_intervals", 15)
+            if isinstance(kwargs.get("retry"), int) and kwargs["retry"] > 0:
                 retry = Retry(
                     max=int(kwargs["retry"]),
                     interval=kwargs.get("retry_intervals", 0),
@@ -136,6 +139,10 @@ class Task(RedisBase):
 
             self.job.save()
             for dependent in kwargs.get("dependents", []):
+                dependent.setdefault("retry", kwargs.get("retry", 0))
+                dependent.setdefault(
+                    "retry_intervals", kwargs.get("retry_intervals", 0)
+                )
                 register_dependencies(dependent.setdefault("job_kwargs", {}), [self])
                 task = Task(**dependent)
                 task.job.allow_dependency_failure = True
