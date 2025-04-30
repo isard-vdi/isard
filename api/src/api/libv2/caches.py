@@ -436,7 +436,7 @@ def get_cached_available_domain_storage_pool_id(domain_id):
         raise Error(
             "precondition_required",
             f"Domain {domain_id} storage not ready",
-            description_code="storage_not_ready",
+            description_code="desktop_storage_not_ready",
         )
     domain_storage_objs = domain_obj.storages
     if len(domain_storage_objs) == 0:
