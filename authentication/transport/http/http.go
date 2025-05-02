@@ -883,3 +883,111 @@ func (a *AuthenticationServer) MigrateUser(ctx context.Context, req *oasAuthenti
 		Token: migrateTkn,
 	}, nil
 }
+
+func (a *AuthenticationServer) ExternalUser(ctx context.Context, req oasAuthentication.OptExternalUserRequest) (oasAuthentication.ExternalUserRes, error) {
+	tkn, ok := ctx.Value(tokenCtxKey).(string)
+	if !ok {
+		return &oasAuthentication.ExternalUserUnauthorized{
+			Error: oasAuthentication.ExternalUserErrorErrorMissingToken,
+			Msg:   "missing JWT token",
+		}, nil
+	}
+
+	userID, err := a.Authentication.ExternalUser(ctx, tkn, req.Value.UserID, req.Value.RoleID, req.Value.Username, req.Value.Name, req.Value.Email.Value, req.Value.Photo.Value)
+	if err != nil {
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.ExternalUserForbidden{
+				Error: oasAuthentication.ExternalUserErrorErrorInvalidToken,
+				Msg:   err.Error(),
+			}, nil
+		}
+
+		a.Log.Error().Err(err).Msg("login external create error")
+
+		return &oasAuthentication.ExternalUserInternalServerError{
+			Error: oasAuthentication.ExternalUserErrorErrorInternalServer,
+			Msg:   "unknown error",
+		}, nil
+	}
+
+	return &oasAuthentication.ExternalUserResponse{
+		UserID: userID,
+	}, nil
+}
+
+func (a *AuthenticationServer) GenerateAPIKey(ctx context.Context, req *oasAuthentication.GenerateAPIKeyRequest) (oasAuthentication.GenerateAPIKeyRes, error) {
+	tkn, ok := ctx.Value(tokenCtxKey).(string)
+	if !ok {
+		return &oasAuthentication.GenerateAPIKeyUnauthorized{
+			Error: oasAuthentication.GenerateAPIKeyErrorErrorMissingToken,
+			Msg:   "missing JWT token",
+		}, nil
+	}
+
+	APIKey, err := a.Authentication.GenerateAPIKey(ctx, tkn, req.ExpirationMinutes)
+	if err != nil {
+
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.GenerateAPIKeyForbidden{
+				Error: oasAuthentication.GenerateAPIKeyErrorErrorInvalidToken,
+				Msg:   err.Error(),
+			}, nil
+		}
+
+		if errors.Is(err, token.ErrApiKeyTooLongExpiryMinutes) || errors.Is(err, token.ErrApiKeyNegativeExpiryMinutes) {
+			return &oasAuthentication.GenerateAPIKeyBadRequest{
+				Error: oasAuthentication.GenerateAPIKeyErrorErrorBadRequest,
+				Msg:   err.Error(),
+			}, nil
+		}
+
+		a.Log.Error().Err(err).Msg("generate API token token error")
+
+		return &oasAuthentication.GenerateAPIKeyInternalServerError{
+			Error: oasAuthentication.GenerateAPIKeyErrorErrorInternalServer,
+			Msg:   "unknown error",
+		}, nil
+	}
+
+	return &oasAuthentication.GenerateAPIKeyResponse{
+		APIKey: APIKey,
+	}, nil
+}
+
+func (a *AuthenticationServer) Impersonate(ctx context.Context, req *oasAuthentication.ImpersonateRequest) (oasAuthentication.ImpersonateRes, error) {
+	tkn, ok := ctx.Value(tokenCtxKey).(string)
+	if !ok {
+		return &oasAuthentication.ImpersonateUnauthorized{
+			Error: oasAuthentication.ImpersonateErrorErrorMissingToken,
+			Msg:   "missing JWT token",
+		}, nil
+	}
+
+	userTkn, err := a.Authentication.GenerateUserToken(ctx, tkn, req.UserID)
+	if err != nil {
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) || errors.Is(err, token.ErrInvalidTokenRole) || errors.Is(err, token.ErrInvalidTokenCategory) {
+			return &oasAuthentication.ImpersonateForbidden{
+				Error: oasAuthentication.ImpersonateErrorErrorInvalidToken,
+				Msg:   err.Error(),
+			}, nil
+		}
+
+		if errors.Is(err, authentication.ErrUserNotEnabled) {
+			return &oasAuthentication.ImpersonateForbidden{
+				Error: oasAuthentication.ImpersonateErrorErrorUserDisabled,
+				Msg:   "user not enabled",
+			}, nil
+		}
+
+		a.Log.Error().Err(err).Msg("generate user token error")
+
+		return &oasAuthentication.ImpersonateInternalServerError{
+			Error: oasAuthentication.ImpersonateErrorErrorInternalServer,
+			Msg:   "unknown error",
+		}, nil
+	}
+
+	return &oasAuthentication.ImpersonateResponse{
+		Jwt: userTkn,
+	}, nil
+}

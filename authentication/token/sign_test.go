@@ -427,3 +427,89 @@ func TestSignUserMigrationToken(t *testing.T) {
 		})
 	}
 }
+
+func TestSignApiKey(t *testing.T) {
+	assert := assert.New(t)
+	now := float64(time.Now().Unix())
+
+	cases := map[string]struct {
+		User              *model.User
+		ExpirationMinutes int
+		ExpectedErr       string
+		CheckToken        func(string)
+	}{
+		"should work as expected": {
+			User: &model.User{
+				ID:                     "12345678-9012-3456-7890-123456789012",
+				UID:                    "pau",
+				Username:               "pau",
+				Password:               "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+				Provider:               "local",
+				Active:                 true,
+				Category:               "default",
+				Role:                   "user",
+				Group:                  "default-default",
+				Name:                   "Pau Abril",
+				Email:                  "pau@example.org",
+				EmailVerified:          &now,
+				DisclaimerAcknowledged: true,
+			},
+			ExpirationMinutes: 60,
+		},
+		"should fail if expiration is negative": {
+			User: &model.User{
+				ID:                     "12345678-9012-3456-7890-123456789012",
+				UID:                    "pau",
+				Username:               "pau",
+				Password:               "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+				Provider:               "local",
+				Active:                 true,
+				Category:               "default",
+				Role:                   "user",
+				Group:                  "default-default",
+				Name:                   "Pau Abril",
+				Email:                  "pau@example.org",
+				EmailVerified:          &now,
+				DisclaimerAcknowledged: true,
+			},
+			ExpirationMinutes: -10,
+			ExpectedErr:       token.ErrApiKeyNegativeExpiryMinutes.Error(),
+		},
+		"should fail if expiration is more than a year": {
+			User: &model.User{
+				ID:                     "12345678-9012-3456-7890-123456789012",
+				UID:                    "pau",
+				Username:               "pau",
+				Password:               "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+				Provider:               "local",
+				Active:                 true,
+				Category:               "default",
+				Role:                   "user",
+				Group:                  "default-default",
+				Name:                   "Pau Abril",
+				Email:                  "pau@example.org",
+				EmailVerified:          &now,
+				DisclaimerAcknowledged: true,
+			},
+			ExpirationMinutes: 10000000,
+			ExpectedErr:       token.ErrApiKeyTooLongExpiryMinutes.Error(),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ss, err := token.SignApiKey("", tc.User, tc.ExpirationMinutes)
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			if tc.CheckToken != nil {
+				tc.CheckToken(ss)
+			}
+		})
+	}
+
+}

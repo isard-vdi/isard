@@ -71,7 +71,6 @@ $(document).ready(function(){
                         "id": data["name"],
                         "description": data["description"],
                         "domain": data["domain"],
-                        "role_id": data["role"],
                         "category_id": data["category"]
                     }),
                     contentType: "application/json",

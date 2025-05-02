@@ -65,6 +65,7 @@ func TestLogin(t *testing.T) {
 						"email":                   "nefix@example.org",
 						"email_verified":          &now,
 						"disclaimer_acknowledged": true,
+						"api_key":                 "",
 					},
 				}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return([]interface{}{
@@ -83,6 +84,7 @@ func TestLogin(t *testing.T) {
 						"email":                   "nefix@example.org",
 						"email_verified":          &now,
 						"disclaimer_acknowledged": true,
+						"api_key":                 "",
 					},
 				}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
@@ -104,6 +106,7 @@ func TestLogin(t *testing.T) {
 					"photo":                    "",
 					"accessed":                 r.MockAnything(),
 					"disclaimer_acknowledged":  true,
+					"api_key":                  "",
 				})).Return(r.WriteResponse{
 					Updated: 1,
 				}, nil)
@@ -198,6 +201,7 @@ func TestLogin(t *testing.T) {
 						"email":                   "nefix@example.org",
 						"email_verified":          &now,
 						"disclaimer_acknowledged": true,
+						"api_key":                 "",
 					},
 				}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
@@ -219,6 +223,7 @@ func TestLogin(t *testing.T) {
 					"photo":                    "",
 					"disclaimer_acknowledged":  true,
 					"accessed":                 r.MockAnything(),
+					"api_key":                  "",
 				})).Return(r.WriteResponse{
 					Updated: 1,
 				}, nil)
@@ -289,6 +294,7 @@ func TestLogin(t *testing.T) {
 						"email":                   "nefix@example.org",
 						"email_verified":          &now,
 						"disclaimer_acknowledged": true,
+						"api_key":                 "",
 					},
 				}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
@@ -310,6 +316,7 @@ func TestLogin(t *testing.T) {
 					"photo":                    "",
 					"disclaimer_acknowledged":  true,
 					"accessed":                 r.MockAnything(),
+					"api_key":                  "",
 				})).Return(r.WriteResponse{
 					Updated: 1,
 				}, nil)
@@ -445,6 +452,7 @@ func TestLogin(t *testing.T) {
 						"name":                 "Néfix Estrada",
 						"email":                "nefix@example.org",
 						"email_verified":       &now,
+						"api_key":              "",
 					},
 				}, nil)
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
@@ -495,6 +503,7 @@ func TestLogin(t *testing.T) {
 						"name":                 "Néfix Estrada",
 						"email":                "nefix@example.org",
 						"email_verified":       nil,
+						"api_key":              "",
 					},
 				}, nil)
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
@@ -569,6 +578,7 @@ func TestLogin(t *testing.T) {
 						"name":                 "Néfix Estrada",
 						"email":                "nefix@example.org",
 						"email_verified":       nil,
+						"api_key":              "",
 					},
 				}, nil)
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
@@ -647,6 +657,7 @@ func TestLogin(t *testing.T) {
 						"name":                 "Néfix Estrada",
 						"email":                "nefix@example.org",
 						"email_verified":       nil,
+						"api_key":              "",
 					},
 				}, nil)
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
@@ -724,6 +735,7 @@ func TestLogin(t *testing.T) {
 						"name":                 "Pau Abril",
 						"email":                "🐐@💌.kz",
 						"email_verified":       &now,
+						"api_key":              "",
 					},
 				}, nil)
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
@@ -785,6 +797,7 @@ func TestLogin(t *testing.T) {
 						"group":                "default-default",
 						"name":                 "Pau Abril",
 						"email_verified":       &now,
+						"api_key":              "",
 					},
 				}, nil)
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
@@ -847,6 +860,7 @@ func TestLogin(t *testing.T) {
 						"name":                 "Pau Abril",
 						"email":                "🐐",
 						"email_verified":       &now,
+						"api_key":              "",
 					},
 				}, nil)
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
@@ -909,6 +923,7 @@ func TestLogin(t *testing.T) {
 						"name":                 "Pau Abril",
 						"email":                "🐐",
 						"email_verified":       &now,
+						"api_key":              "",
 					},
 				}, nil)
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{

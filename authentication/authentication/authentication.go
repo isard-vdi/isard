@@ -35,6 +35,10 @@ type Interface interface {
 	ForgotPassword(ctx context.Context, categoryID, email string) error
 	ResetPassword(ctx context.Context, tkn string, pwd string, remoteAddr string) error
 	MigrateUser(ctx context.Context, tkn string, UserID string) (migrationTkn string, err error)
+	// External
+	ExternalUser(ctx context.Context, tkn string, UserID string, role string, username string, name string, email string, photo string) (apiKey string, err error)
+	GenerateAPIKey(ctx context.Context, tkn string, expirationMinutes int) (apiKey string, err error)
+	GenerateUserToken(ctx context.Context, tkn string, userID string) (userTkn string, err error)
 
 	SAML() *samlsp.Middleware
 
@@ -56,6 +60,8 @@ type Authentication struct {
 
 	providers map[string]provider.Provider
 	saml      *samlsp.Middleware
+
+	Cfg cfg.Authentication
 }
 
 func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Interface, notifierCli notifier.Invoker, sessionsCli sessionsv1.SessionsServiceClient) *Authentication {
@@ -72,6 +78,7 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Inter
 		API:      apiCli,
 		Notifier: notifierCli,
 		Sessions: sessionsCli,
+		Cfg:      cfg.Authentication,
 	}
 
 	providers := map[string]provider.Provider{

@@ -13,6 +13,8 @@ type Secret struct {
 	ID         string `rethinkdb:"id"`
 	CategoryID string `rethinkdb:"category_id"`
 	Secret     string `rethinkdb:"secret"`
+	Role       string `rethinkdb:"role_id"`
+	Domain     string `rethinkdb:"domain"`
 }
 
 func (s *Secret) Load(ctx context.Context, sess r.QueryExecutor) error {

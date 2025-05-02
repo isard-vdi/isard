@@ -247,7 +247,36 @@
     "submit": "Envía",
     "create": "Crea",
     "duplicate": "Duplicar",
-    "show-pages": "Mostrar"
+    "show-pages": "Mostrar",
+    "api-key": {
+      "modal": {
+        "title": "Llave API",
+        "alert": {
+          "expired": "Tu antigua llave API ha caducado. Necesitarás generar una nueva para seguir utilizando la API de IsardVDI con aplicaciones externas. Puedes generar una nueva a continuación."
+        },
+        "new-key": {
+          "title": "Generar una nueva llave API",
+          "description": "Puedes generar una nueva llave API para usar con aplicaciones externas que integren la API de IsardVDI.",
+          "warning": "Solo podrás ver la llave API una vez, así que asegúrate de guardarla en un lugar seguro.",
+          "buttons": {
+            "generate": "Generar",
+            "generate-tooltip": "Generar una nueva llave API",
+            "expiration-label": "Fecha de caducidad:",
+            "show": "Mostrar llave",
+            "copy": "Copiar llave",
+            "key-copied": "Llave copiada al portapapeles"
+          }
+        },
+        "existing-key": {
+          "description-1": "Tu llave API es válida hasta el {date}. Después de eso, caducará y no podrás usarla más.",
+          "description-2": "Puedes hacerla caducar ahora para generar una nueva.",
+          "buttons": {
+            "expire": "Caducar",
+            "expire-tooltip": "Caducar la llave API existente"
+          }
+        }
+      }
+    }
   },
   "components": {
     "select-search": {
@@ -565,7 +594,8 @@
       },
       "reset-vpn": "Restaurar VPN",
       "export": "Exportar usuario",
-      "import": "Importar usuario"
+      "import": "Importar usuario",
+      "api-key": "Llave API"
     },
     "start-now-modal": {
       "title": "Iniciar ahora",

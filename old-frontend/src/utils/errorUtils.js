@@ -69,7 +69,7 @@ export class ErrorUtils {
     // Errors 401, 500 and 503 are handled through axios interceptors in the axios.js file
     if (![401, 500, 503].includes(error.response.status)) {
       // The quotas errors will show a different notification redirecting to the user profile
-      if (error.response.data.description_code.includes('quota')) {
+      if (error.response.data.description_code?.includes('quota')) {
         const buttons = [
           { text: i18n.t('messages.confirmation.go-to-profile'), action: () => this.goTo(snotify, 'profile'), bold: true }
         ]

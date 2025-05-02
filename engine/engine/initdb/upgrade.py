@@ -18,7 +18,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 167
+release_version = 169
+# release 169: Set secrets role to manager
+# release 168: Add new field api_key to all users
 # release 167: Recycle bin scheduled jobs interval changed to 1 hour, recycle_bin_cutoff_time field added to categories
 # release 166: Local allowed domain removed
 # release 165: Delete missing users and groups from migration exceptions
@@ -4463,6 +4465,11 @@ password:s:%s"""
                 ).update(lambda user: {"email_verified": None}).run(self.conn)
             except Exception as e:
                 print(e)
+        if version == 168:
+            try:
+                self.add_keys(table, [{"api_key": None}])
+            except Exception as e:
+                print(e)
         return True
 
     """
@@ -5865,6 +5872,13 @@ password:s:%s"""
                 r.table(table).get("isardvdi-hypervisors").delete().run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 169:
+            try:
+                r.table(table).update({"role_id": "manager"}).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """

@@ -34,6 +34,8 @@ type User struct {
 	DisclaimerAcknowledged bool `rethinkdb:"disclaimer_acknowledged"`
 
 	Accessed float64 `rethinkdb:"accessed"`
+
+	ApiKey string `rethinkdb:"api_key"`
 }
 
 func (u *User) Load(ctx context.Context, sess r.QueryExecutor) error {
@@ -254,4 +256,9 @@ func (u *User) LoadWithoutOverride(u2 *User) {
 	if u.Accessed == 0 {
 		u.Accessed = u2.Accessed
 	}
+
+	if u.ApiKey == "" {
+		u.ApiKey = u2.ApiKey
+	}
+
 }

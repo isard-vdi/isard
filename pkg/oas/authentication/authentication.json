@@ -238,6 +238,83 @@
                 ]
             }
         },
+        "/external/user": {
+            "post": {
+                "operationId": "ExternalUser",
+                "summary": "Create a isard user with an external identity provider",
+                "description": "",
+                "parameters": [
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExternalUserRequest"
+                            }
+                        }
+                    },
+                    "required": false
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExternalUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Login external error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExternalUserError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Login external error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExternalUserError"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExternalUserError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExternalUserError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
         "/callback": {
             "get": {
                 "operationId": "Callback",
@@ -865,6 +942,148 @@
                     }
                 ]
             }
+        },
+        "/api-key": {
+            "put": {
+                "operationId": "GenerateAPIKey",
+                "summary": "Generate a API key for a specific user",
+                "description": "An API key will be created for the user with a durability of 1 year",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GenerateAPIKeyRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenerateAPIKeyResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenerateAPIKeyError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenerateAPIKeyError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenerateAPIKeyError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenerateAPIKeyError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/impersonate": {
+            "post": {
+                "operationId": "Impersonate",
+                "summary": "Generate a token for a specific user",
+                "description": "Only admins, managers or external apps can call this endpoint",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ImpersonateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImpersonateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImpersonateError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImpersonateError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ImpersonateError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -1294,6 +1513,187 @@
                             "missing_token",
                             "invalid_token",
                             "internal_server"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "error",
+                    "msg"
+                ],
+                "type": "object"
+            },
+            "ExternalUserRequest": {
+                "properties": {
+                    "user_id": {
+                        "title": "The ID of the user to create",
+                        "nullable": false,
+                        "type": "string"
+                    },
+                    "role_id": {
+                        "title": "The ID of the role to assign to the user",
+                        "nullable": false,
+                        "type": "string"
+                    },
+                    "username": {
+                        "title": "The username of the user to create",
+                        "nullable": false,
+                        "type": "string"
+                    },
+                    "name": {
+                        "title": "The name of the user to create",
+                        "nullable": false,
+                        "type": "string"
+                    },
+                    "email": {
+                        "title": "The email of the user to create",
+                        "nullable": true,
+                        "type": "string"
+                    },
+                    "photo": {
+                        "title": "The photo of the user to create",
+                        "nullable": true,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user_id",
+                    "role_id",
+                    "username",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "ExternalUserError": {
+                "properties": {
+                    "error": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_token",
+                            "internal_server",
+                            "bad_request"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "error",
+                    "msg"
+                ],
+                "type": "object"
+            },
+            "ExternalUserResponse": {
+                "properties": {
+                    "user_id": {
+                        "title": "The newly created user ID",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user_id"
+                ],
+                "type": "object"
+            },            "GenerateAPIKeyRequest": {
+                "properties": {
+                    "expiration_minutes": {
+                        "title": "The amount of minutes before the API key expires",
+                        "nullable": false,
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "expiration_minutes"
+                ],
+                "type": "object"
+            },
+            "GenerateAPIKeyResponse": {
+                "properties": {
+                    "api_key": {
+                        "title": "The generated API key",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "api_key"
+                ],
+                "type": "object"
+            },
+            "GenerateAPIKeyError": {
+                "properties": {
+                    "error": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "bad_request",
+                            "missing_token",
+                            "invalid_token",
+                            "internal_server"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "error",
+                    "msg"
+                ],
+                "type": "object"
+            },
+            "ImpersonateRequest":{
+                "properties": {
+                    "user_id": {
+                        "title": "The ID of the user to generate the token for",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user_id"
+                ],
+                "type": "object"
+            },
+            "ImpersonateResponse": {
+                "properties": {
+                    "jwt": {
+                        "title": "The generated JWT token",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "jwt"
+                ],
+                "type": "object"
+            },
+            "ImpersonateError": {
+                "properties": {
+                    "error": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_token",
+                            "internal_server",
+                            "bad_request",
+                            "user_disabled"
                         ]
                     },
                     "msg": {

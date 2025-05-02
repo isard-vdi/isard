@@ -314,7 +314,8 @@
       },
       "reset-vpn": "Restablir VPN",
       "export": "Exporta usuari",
-      "import": "Importa usuari"
+      "import": "Importa usuari",
+      "api-key": "Clau API"
     },
     "start-now-modal": {
       "title": "Iniciar ara",
@@ -1310,7 +1311,36 @@
     "submit": "Envia",
     "create": "Crea",
     "duplicate": "Duplicar",
-    "show-pages": "Veure"
+    "show-pages": "Veure",
+    "api-key": {
+      "modal": {
+        "title": "Clau API",
+        "alert": {
+          "expired": "La teva clau API ha caducat. Necessites generar-ne una de nova per continuar utilitzant l'API d'IsardVDI amb aplicacions externes. Pots generar-ne una de nova a continuació."
+        },
+        "new-key": {
+          "title": "Genera una nova clau API",
+          "description": "Pots generar una nova clau API per a utilitzar amb aplicacions externes que integren l'API d'IsardVDI.",
+          "warning": "Només podràs veure la clau API una vegada, així que assegura't de guardar-la en un lloc segur.",
+          "buttons": {
+            "generate": "Generar",
+            "generate-tooltip": "Generar una nova clau API",
+            "expiration-label": "Data d'expiració:",
+            "show": "Mostrar clau",
+            "copy": "Copiar clau",
+            "clau-copiada": "Clau copiada al porta-retalls"
+          }
+        },
+        "existing-key": {
+          "description-1": "La teva clau API serà vàlida fins al {date}. Després d'això, caducarà i no podràs utilitzar-la més.",
+          "description-2": "Pots fer-la caducar ara per generar-ne una de nova.",
+          "buttons": {
+            "expire": "Caducar",
+            "expire-tooltip": "Caducar la clau API existent"
+          }
+        }
+      }
+    }
   },
   "errors": {
     "desktop_new_user_quota_exceeded": "Has excedit la teva quota per a crear nous escriptoris. Cal que eliminis algun escriptori per a poder crear-ne de nous.",

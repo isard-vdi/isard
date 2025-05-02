@@ -24,7 +24,6 @@ import os
 import gevent
 import jwt
 from flask import request
-from rethinkdb import r
 
 from .api_exceptions import Error
 from .api_logs_users import LogsUsers
@@ -175,4 +174,71 @@ def get_user_migration_payload(token):
             description_code="token_invalid",
         )
 
+    return payload
+
+
+"""
+EXTERNAL
+"""
+
+
+def get_unverified_external_jwt_payload():
+    token = get_token_auth_header()
+    try:
+        claims = jwt.decode(token, options={"verify_signature": False})
+        if (
+            not claims.get("kid")
+            or not claims.get("category_id")
+            or not claims.get("role_id") == "manager"
+            or not claims.get("type") == "external"
+            or not claims.get("domain")
+        ):
+            raise Error(
+                "unauthorized",
+                "Unable to parse authentication token",
+            )
+    except:
+        raise Error(
+            "unauthorized",
+            "Bad token format",
+        )
+    return {
+        "token": token,
+        "kid": claims.get("kid"),
+        "category_id": claims.get("category_id"),
+        "role_id": claims.get("role_id"),
+        "domain": claims.get("domain"),
+    }
+
+
+def verify_external_jwt(token, secret):
+    try:
+        payload = jwt.decode(
+            token,
+            secret,
+            algorithms=["HS256"],
+            options=dict(verify_aud=False, verify_sub=False, verify_exp=True),
+        )
+    except jwt.ExpiredSignatureError:
+        raise Error(
+            "unauthorized",
+            "Token expired",
+            description_code="token_expired",
+            data=get_expired_user_data(token),
+        )
+    except (jwt.InvalidAudienceError, jwt.InvalidIssuerError):
+        raise Error(
+            "unauthorized",
+            "Incorrect claims, please check the audience and issuer",
+        )
+    except jwt.InvalidTokenError:
+        raise Error(
+            "unauthorized",
+            "Error when decoding token",
+        )
+    except Exception:
+        raise Error(
+            "unauthorized",
+            "Unable to parse authentication token",
+        )
     return payload

@@ -75,7 +75,20 @@ func ParseExternalToken(db rethinkdb.QueryExecutor, ss string) (*ExternalClaims,
 			return nil, fmt.Errorf("load secret from the DB: %w", err)
 		}
 
-		claims.CategoryID = secret.CategoryID
+		// Check that the domain matches the one in the secret
+		if claims.Domain != secret.Domain {
+			return nil, fmt.Errorf("external token domain mismatch: %s != %s", claims.Domain, secret.Domain)
+		}
+
+		// Check that the category matches the one in the secret
+		if claims.CategoryID != secret.CategoryID {
+			return nil, fmt.Errorf("external token category mismatch: %s != %s", claims.CategoryID, secret.CategoryID)
+		}
+
+		// Check that the role matches the one in the secret
+		if claims.Role != secret.Role {
+			return nil, fmt.Errorf("external token role mismatch: %s != %s", claims.Role, secret.Role)
+		}
 
 		return []byte(secret.Secret), nil
 	})

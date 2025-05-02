@@ -1,8 +1,9 @@
 import axios from 'axios'
 import i18n from '@/i18n'
-import { apiV3Segment } from '../../shared/constants'
+import { apiV3Segment, authenticationSegment } from '../../shared/constants'
 import { ErrorUtils } from '../../utils/errorUtils'
 import { ProfileUtils } from '../../utils/profileUtils'
+import { DateUtils } from '@/utils/dateUtils'
 
 const getDefaultState = () => {
   return {
@@ -27,7 +28,13 @@ const getDefaultState = () => {
     emailAddress: '',
     showExportUserButton: false,
     exportUserToken: '',
-    showImportUserButton: false
+    showImportUserButton: false,
+    showApiKeyModal: false,
+    userApiKey: {
+      exists: false,
+      expireDate: '',
+      key: ''
+    }
   }
 }
 
@@ -77,6 +84,12 @@ export default {
     },
     getShowImportUserButton: state => {
       return state.showImportUserButton
+    },
+    getShowApiKeyModal: state => {
+      return state.showApiKeyModal
+    },
+    getUserApiKey: state => {
+      return state.userApiKey
     }
   },
   mutations: {
@@ -133,6 +146,19 @@ export default {
     },
     setShowImportUserButton: (state, showImportUserButton) => {
       state.showImportUserButton = showImportUserButton
+    },
+    setShowApiKeyModal: (state, showApiKeyModal) => {
+      state.showApiKeyModal = showApiKeyModal
+    },
+    setUserApiKey: (state, userApiKey) => {
+      state.userApiKey = userApiKey
+    },
+    resetUserApiKey: (state) => {
+      state.userApiKey = {
+        exists: false,
+        expireDate: '',
+        key: ''
+      }
     }
   },
   actions: {
@@ -243,6 +269,50 @@ export default {
     },
     goToExportUser () {
       window.location.pathname = '/export-user'
+    },
+    showApiKeyModal (context, show) {
+      context.commit('setShowApiKeyModal', show)
+    },
+    fetchUserApiKey (context) {
+      return axios.get(`${apiV3Segment}/user/api_key`)
+        .then(response => {
+          context.commit('setUserApiKey', {
+            exists: response.data.exists,
+            expireDate: DateUtils.unixFormatAsDate(response.data.expires),
+            key: ''
+          })
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+    },
+    generateApiKey (context, maxDate) {
+      const exp = Math.floor((maxDate - new Date()) / 1000 / 60)
+
+      return axios.put(`${authenticationSegment}/api-key`, { expiration_minutes: exp })
+        .then(response => {
+          context.commit('setUserApiKey', {
+            exists: true,
+            expireDate: '',
+            key: response.data.api_key
+          })
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+    },
+    expireApiKey (context) {
+      return axios.delete(`${apiV3Segment}/user/api_key`)
+        .then(response => {
+          context.commit('setUserApiKey', {
+            exists: false,
+            expireDate: '',
+            key: ''
+          })
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
     }
   }
 }

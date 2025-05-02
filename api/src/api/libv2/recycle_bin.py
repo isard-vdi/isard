@@ -641,7 +641,7 @@ def get_user_recycle_bin_cutoff_time(user_id):
     :return: User recycle bin cutoff time (in hours)
     :rtype: int
     """
-    if user_id == "isard-scheduler":
+    if user_id == "isard-scheduler" or user_id.startswith("external_"):
         return get_system_recycle_bin_cutoff_time()
     with app.app_context():
         user_category = (
@@ -929,13 +929,15 @@ class RecycleBin(object):
 
     def _set_data(self, id=None, item_type=None, user_id=None):
         if not id:
-            self.agent_type = "user" if user_id != "isard-scheduler" else "system"
+            if user_id.startswith("external_"):
+                self.agent_type = user_id
+            elif user_id == "isard-scheduler":
+                self.agent_type = "system"
+            else:
+                self.agent_type = "user"
             self.status = "recycled"
             self.agent_id = user_id
             self.item_type = item_type
-            self.agent_type = (
-                "user" if user_id and user_id != "isard-scheduler" else "system"
-            )
             if self.agent_type == "user":
                 user = get_user_data(user_id)
                 self.agent_name = user["user_name"]
@@ -944,8 +946,8 @@ class RecycleBin(object):
                 self.agent_group_id = user["group_id"]
                 self.agent_group_name = user["group_name"]
                 self.agent_role = user["role"]
-            elif self.agent_type == "system":
-                self.agent_name = "system"
+            elif self.agent_type in ["system", "external"]:
+                self.agent_name = self.agent_type
                 self.agent_category_id = None
                 self.agent_category_name = None
                 self.agent_group_id = None

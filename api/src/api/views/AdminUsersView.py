@@ -403,6 +403,7 @@ def api_v3_admin_user_insert(payload):
     data["password_history"] = [data["password"]]
     data["password_last_updated"] = int(time.time())
     data["email_verification_token"] = None
+    data["api_key"] = None
     admin_table_insert("users", data)
 
     return (
@@ -932,8 +933,8 @@ def api_v3_admin_user_vpn(payload, user_id, kind, os=False):
 def api_v3_admin_secret(payload):
     data = request.get_json()
     data = _validate_item("secrets", data)
+    data["role_id"] = "manager"
     itemExists("categories", data["category_id"])
-    itemExists("roles", data["role_id"])
 
     admin_table_insert("secrets", data)
     return (
@@ -972,7 +973,14 @@ def admin_userschema(payload):
 
         dict["group"] = admin_table_list(
             "groups",
-            pluck=["id", "name", "description", "parent_category", "linked_groups"],
+            pluck=[
+                "id",
+                "name",
+                "description",
+                "parent_category",
+                "linked_groups",
+                "external_gid",
+            ],
             order_by="name",
             without=False,
             merge=False,
@@ -995,7 +1003,14 @@ def admin_userschema(payload):
         dict["group"] = manager_table_list(
             "groups",
             category=payload["category_id"],
-            pluck=["id", "name", "description", "parent_category", "linked_groups"],
+            pluck=[
+                "id",
+                "name",
+                "description",
+                "parent_category",
+                "linked_groups",
+                "external_gid",
+            ],
             order_by="name",
             without=False,
             id=payload["category_id"],

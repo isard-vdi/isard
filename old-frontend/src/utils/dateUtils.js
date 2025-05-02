@@ -41,6 +41,10 @@ export class DateUtils {
     return moment.unix(date).format('DD-MM-YYYY HH:mm')
   }
 
+  static unixFormatAsDate (date) {
+    return moment.unix(date).format('YYYY-MM-DD')
+  }
+
   static dateIsBefore (date1, date2) {
     return moment(date1).isBefore(moment(date2))
   }

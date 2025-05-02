@@ -10,6 +10,8 @@ import (
 )
 
 var ErrInvalidTokenType = errors.New("invalid token type")
+var ErrInvalidTokenRole = errors.New("invalid token role")
+var ErrInvalidTokenCategory = errors.New("invalid token category")
 
 type Type string
 
@@ -99,16 +101,40 @@ type ExternalClaims struct {
 	TypeClaims
 	UserID   string `json:"user_id"`
 	GroupID  string `json:"group_id"`
-	Role     string `json:"role"`
+	Role     string `json:"role_id"`
 	Username string `json:"username"`
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Photo    string `json:"photo"`
+	Domain   string `json:"domain"`
 
-	CategoryID string `json:"-"`
+	CategoryID string `json:"category_id"`
 }
 
 func (c ExternalClaims) Validate() error {
+	if c.Type != TypeExternal {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
+type ApiKeyClaims struct {
+	TypeClaims
+	SessionID string           `json:"session_id"`
+	Data      ApiKeyClaimsData `json:"data"`
+}
+
+type ApiKeyClaimsData struct {
+	Provider   string `json:"provider"`
+	ID         string `json:"user_id"`
+	RoleID     string `json:"role_id"`
+	CategoryID string `json:"category_id"`
+	GroupID    string `json:"group_id"`
+	Name       string `json:"name"`
+}
+
+func (c ApiKeyClaims) Validate() error {
 	if c.Type != TypeExternal {
 		return ErrInvalidTokenType
 	}

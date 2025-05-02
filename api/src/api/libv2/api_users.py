@@ -265,6 +265,7 @@ class ApiUsers:
             new_user["email_verified"] = (
                 int(time.time()) if data.get("email_verified") else False
             )
+            new_user["api_key"] = None
             new_users.append(new_user)
 
             amount += 1
@@ -883,6 +884,7 @@ class ApiUsers:
             "password_history": [password],
             "email_verification_token": None,
             "email_verified": False,
+            "api_key": None,
         }
         with app.app_context():
             r.table("users").insert(user).run(db.conn)
@@ -2334,6 +2336,11 @@ class ApiUsers:
         user_gen_payload = gen_payload_from_user(user_id, invalidate_cache=True)
         user_gen_payload["group_id"] = group_id
 
+        # change provider to local if it's an external user
+        if user_gen_payload["provider"].startswith("external_"):
+            with app.app_context():
+                r.table("users").get(user_id).update({"provider": "local"}).run(db.conn)
+
         with app.app_context():
             user_domains = list(
                 r.table("domains")
@@ -3416,6 +3423,43 @@ class ApiUsers:
                 raise Error("forbidden", "Can not deactivate your own account")
         return True
 
+    def get_api_key(self, user_id):
+        with app.app_context():
+            api_key = r.table("users").get(user_id).pluck("api_key").run(db.conn)
+
+        api_key = api_key.get("api_key")
+        if api_key:
+            try:
+                return {
+                    "exists": True,
+                    "expires": int(
+                        jwt.decode(
+                            api_key,
+                            os.environ.get("API_ISARDVDI_SECRET"),
+                            algorithms=["HS256"],
+                            verify=False,
+                            options=dict(
+                                verify_aud=False, verify_sub=False, verify_exp=False
+                            ),
+                        )["exp"]
+                    ),
+                }
+            except Exception as e:
+                app.logger.error(str(e))
+                return {
+                    "exists": True,
+                    "expires": 0,
+                }
+
+        return {
+            "exists": False,
+            "expires": 0,
+        }
+
+    def delete_api_key(self, user_id):
+        with app.app_context():
+            r.table("users").get(user_id).update({"api_key": None}).run(db.conn)
+
 
 def validate_email_jwt(user_id, email, minutes=60):
     return {
@@ -3578,4 +3622,5 @@ class Password(object):
                 description_code="password_username",
             )
 
+        return True
         return True
