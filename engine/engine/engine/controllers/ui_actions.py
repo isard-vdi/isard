@@ -144,7 +144,7 @@ class UiActions(object):
         domain_storage_objs = domain_obj.storages
         if len(domain_storage_objs) == 0:
             update_domain_status(
-                "Stopped",
+                "Failed",
                 id_domain,
                 detail=f"Desktop has no storage",
             )
@@ -244,7 +244,7 @@ class UiActions(object):
             domain_storage_objs = domain_obj.storages
             if len(domain_storage_objs) == 0:
                 update_domain_status(
-                    "Stopped",
+                    "Failed",
                     id_domain,
                     detail=f"Desktop has no storage",
                 )

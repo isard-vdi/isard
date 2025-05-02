@@ -1424,6 +1424,9 @@ def update_xml_from_dict_domain(id_domain, xml=None):
                 v.remove_disk()
         for i in range(len(hw["disks"])):
             insert_storage(hw["disks"][i])
+            if not hw["disks"][i].get("file"):
+                log.error(f"disk {i} in domain {id_domain} not found in rethinkdb")
+                return False
             s = hw["disks"][i]["file"]
             if s[s.rfind(".") :].lower().find("qcow") == 1:
                 type_disk = "qcow2"
