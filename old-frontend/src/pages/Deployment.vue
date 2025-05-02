@@ -28,6 +28,9 @@
           />
         </b-iconstack>
         {{ deployment.name }}
+        <small class="ml-2">
+          {{ deployment.desktopName }}
+        </small>
         <b-badge
           v-if="deployment.needsBooking"
           class="ml-2"

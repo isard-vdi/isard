@@ -49,6 +49,7 @@
           <b-button
             class="rounded-circle px-2 mr-2 btn-green"
             :title="$t('components.statusbar.deployment.buttons.co-owners.title')"
+            :disabled="data.item.creatingDesktops > 0"
             @click="showOwnersModal(data.item)"
           >
             <b-icon
@@ -59,6 +60,7 @@
           <b-button
             class="rounded-circle btn btn-blue px-2 mr-2"
             :title="$t('components.statusbar.deployment.buttons.edit.title')"
+            :disabled="data.item.creatingDesktops > 0"
             @click="editDeployment(data.item.id)"
           >
             <b-icon
@@ -69,6 +71,7 @@
           <b-button
             class="rounded-circle px-2 mr-2 btn-dark-blue"
             :title="$t('components.statusbar.deployment.buttons.allowed.title')"
+            :disabled="data.item.creatingDesktops > 0"
             @click="showAllowedModal(data.item.id)"
           >
             <b-icon
@@ -79,6 +82,7 @@
           <b-button
             class="rounded-circle btn btn-red px-2 mr-2"
             :title="$t('components.statusbar.deployment.buttons.delete.title')"
+            :disabled="data.item.creatingDesktops > 0"
             @click="deleteDeployment(data.item)"
           >
             <b-icon
@@ -89,6 +93,7 @@
           <b-button
             v-if="data.item.needsBooking"
             class="rounded-circle btn-orange px-2 mr-2"
+            :disabled="data.item.creatingDesktops > 0"
             @click="onClickBookingDesktop(data.item)"
           >
             <b-icon

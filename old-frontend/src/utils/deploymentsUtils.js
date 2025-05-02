@@ -9,7 +9,7 @@ export class DeploymentsUtils {
   }
 
   static parseDeploymentsItem (deployment) {
-    const { id, name, description, visibleDesktops, startedDesktops, totalDesktops, visible, needs_booking: needsBooking, desktop_name: desktopName, template } = deployment
+    const { id, name, description, visibleDesktops, startedDesktops, totalDesktops, creatingDesktops, visible, needs_booking: needsBooking, desktop_name: desktopName, template } = deployment
     return {
       id,
       name,
@@ -17,6 +17,7 @@ export class DeploymentsUtils {
       visibleDesktops,
       startedDesktops,
       totalDesktops,
+      creatingDesktops,
       visible,
       needsBooking,
       desktopName,
