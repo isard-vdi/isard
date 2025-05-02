@@ -17,6 +17,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+
+import gevent
 from flask import jsonify
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.task import Task
@@ -130,3 +132,22 @@ def retry_task(payload, task_id):
     task.retry()
 
     return jsonify(task.to_dict())
+
+
+@app.route("/api/v3/admin/tasks/retry", methods=["PUT"])
+@is_admin
+def retry_all_failed_tasks(payload):
+    def get_and_retry_tasks():
+        tasks = Task.get_failed_storage_tasks()
+
+        for task in tasks:
+            try:
+                task.retry()
+            except:
+                pass
+
+        return len(tasks)
+
+    gevent.spawn(get_and_retry_tasks)
+
+    return jsonify({})

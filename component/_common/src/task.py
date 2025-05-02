@@ -318,7 +318,15 @@ class Task(RedisBase):
                 name: getattr(self, name)
                 for name in dir(self)
                 if name
-                not in ["dict", "args", "job", "_chain", "dependencies", "dependents"]
+                not in [
+                    "dict",
+                    "args",
+                    "job",
+                    "_chain",
+                    "dependencies",
+                    "dependents",
+                    "storage_id",
+                ]
                 and isinstance(getattr(self.__class__, name), property)
             },
             "args": [
@@ -371,6 +379,27 @@ class Task(RedisBase):
         return [Task(id=job_id) for job_id in job_ids]
 
     @classmethod
+    def get_by_status(cls, *statuses):
+        """
+        Get tasks by status.
+
+        :param statuses: Task status
+        :type statuses: str
+        :return: Task objects
+        :rtype: list
+        """
+        for status in statuses:
+            if status not in JobStatus:
+                raise ValueError(f"Invalid status: {status}")
+
+        job_ids = []
+        for queue in Queue.all(connection=cls._redis):
+            job_ids.extend(queue.job_ids)
+            for status in statuses:
+                job_ids.extend(getattr(queue, f"{status}_job_registry").get_job_ids())
+        return [Task(id=job_id) for job_id in job_ids]
+
+    @classmethod
     def get_by_user(cls, user_id):
         """
         Get user tasks.
@@ -390,3 +419,45 @@ class Task(RedisBase):
         :rtype: Task
         """
         self.job.requeue()
+
+    @property
+    def storage_id(self):
+        """
+        Check if any storage has this task.
+
+        :return: True if the storage has any task, False otherwise
+        :rtype: bool
+        """
+        try:
+            from .storage import Storage  # To avoid circular import
+
+            return Storage.get_from_task_id(self.id)
+        except Exception:
+            return None
+
+    @classmethod
+    def filter_last_tasks(cls, task_ids: list[str]) -> list["Task"]:
+        """
+        Get the tasks that are the last task of a storage from a list of task IDs.
+
+        :param task_ids: List of task IDs to filter
+        """
+        try:
+            from .storage import Storage  # To avoid circular import
+
+            tasks = []
+            for task in Storage.get_storage_ids_from_task_ids(task_ids):
+                tasks.append(cls(task["task_id"]))
+
+            return tasks
+        except Exception:
+            return []
+
+    @classmethod
+    def get_failed_storage_tasks(cls) -> list["Task"]:
+        """
+        Get failed tasks that are the last task of a storage.
+        """
+        task_ids = [task.id for task in cls.get_by_status(JobStatus.FAILED.value)]
+
+        return cls.filter_last_tasks(task_ids)

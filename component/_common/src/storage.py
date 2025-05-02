@@ -111,6 +111,50 @@ class Storage(RethinkCustomBase):
 
         return Storage(**storage_dict)
 
+    @classmethod
+    def get_from_task_id(cls, task_id):
+        """
+        Get storage from task ID.
+
+        :param task_id: Task ID
+        :type task_id: str
+        :return: Storage object
+        :rtype: isardvdi_common.storage.Storage
+        """
+        with cls._rdb_context():
+            storage_id = list(
+                r.table(cls._rdb_table)
+                .get_all(task_id, index="task")["id"]
+                .run(cls._rdb_connection)
+            )
+
+        match len(storage_id):
+            case 0:
+                return None
+            case 1:
+                return cls(storage_id[0])
+            case _:
+                print("WARNING: More than one storage found for task_id", task_id)
+                return cls(storage_id[0])
+
+    @classmethod
+    def get_storage_ids_from_task_ids(cls, task_ids):
+        with cls._rdb_context():
+            task_storage_map = list(
+                r.db("isard")
+                .table("storage")
+                .get_all(r.args(task_ids), index="task")
+                .map(
+                    lambda doc: {
+                        "task_id": doc["task"],
+                        "storage_id": doc["id"],
+                    }
+                )
+                .run(cls._rdb_connection)
+            )
+
+        return task_storage_map
+
     @property
     def path(self):
         """
