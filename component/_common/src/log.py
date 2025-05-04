@@ -65,6 +65,11 @@ def parse_data(request):
     if type(data) is not dict:
         return data
 
+    if data.get("current_password"):
+        data["current_password"] = "****"
+        data["password"] = "****"
+        return data
+
     if data.get("password"):
         data["password"] = "****"
         return data
