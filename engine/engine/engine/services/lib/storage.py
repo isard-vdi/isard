@@ -77,6 +77,8 @@ def insert_storage(disk, perms=["r", "w"]):
     storage_id = disk.get("storage_id")
     if storage_id:
         storage = get_dict_from_item_in_table("storage", storage_id)
+        if not storage:
+            return False
         disk.update(
             {
                 "file": _get_filename(storage),

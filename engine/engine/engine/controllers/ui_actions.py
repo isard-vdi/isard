@@ -125,16 +125,26 @@ class UiActions(object):
         if Domain.exists(id_domain):
             domain_obj = Domain(id_domain)
         if not domain_obj.storage_ready:
-            update_domain_status(
-                "Stopped",
-                id_domain,
-                detail=f"Desktop storage not ready",
-            )
+            if any([s.status == "non_existing" for s in domain_obj.storages]):
+                log.error(
+                    f"Domain {id_domain} ({domain['name']}) storage non existing. Can't start."
+                )
+                update_domain_status(
+                    "Failed",
+                    id_domain,
+                    detail=f"Desktop storage non existing",
+                )
+            else:
+                update_domain_status(
+                    "Stopped",
+                    id_domain,
+                    detail=f"Desktop storage not ready",
+                )
             return False
         domain_storage_objs = domain_obj.storages
         if len(domain_storage_objs) == 0:
             update_domain_status(
-                "Stopped",
+                "Failed",
                 id_domain,
                 detail=f"Desktop has no storage",
             )
@@ -234,7 +244,7 @@ class UiActions(object):
             domain_storage_objs = domain_obj.storages
             if len(domain_storage_objs) == 0:
                 update_domain_status(
-                    "Stopped",
+                    "Failed",
                     id_domain,
                     detail=f"Desktop has no storage",
                 )

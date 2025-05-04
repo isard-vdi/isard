@@ -99,12 +99,15 @@ def api_v3_desktop_start(payload, desktop_id):
         try:
             check_virt_storage_pool_availability(desktop_id)
         except Error as e:
-            raise Error(
-                "precondition_required",
-                e.error["description"],
-                traceback.format_exc(),
-                "hypervisors_not_available",
-            )
+            if e.error.description_code == "no_storage_pool_available":
+                raise Error(
+                    "precondition_required",
+                    e.error["description"],
+                    traceback.format_exc(),
+                    "hypervisors_not_available",
+                )
+            else:
+                raise e
 
         if desktop["needs_booking"]:
             try:
