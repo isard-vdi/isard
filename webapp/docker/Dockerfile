@@ -1,4 +1,4 @@
-FROM alpine:3.20
+FROM alpine:3.22.0
 
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache python3 py3-pip yarn

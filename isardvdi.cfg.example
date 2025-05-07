@@ -345,12 +345,12 @@ DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 DOCKER_IMAGE_TAG=main
 
 # Golang image used for building the Golang microservices images
-GOLANG_BUILD_IMAGE=golang:1.23-alpine3.20
+GOLANG_BUILD_IMAGE=golang:1.24.3-alpine3.22
 # Image used for running the images the Golang microservices images
-GOLANG_RUN_IMAGE=alpine:3.20
+GOLANG_RUN_IMAGE=alpine:3.22.0
 
 # Image used in haproxy.build flavour to build base for all the HAProxy's
-HAPROXY_RUN_IMAGE=haproxy:3.1.6-alpine3.21
+HAPROXY_RUN_IMAGE=haproxy:3.2-alpine3.22
 
 ## Image used to build isard-nextcloud flavour/instance
 #NEXTCLOUD_BASE_IMAGE=nextcloud:28.0.1-fpm-alpine

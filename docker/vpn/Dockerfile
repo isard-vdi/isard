@@ -7,7 +7,7 @@ FROM ${DOCKER_IMAGE_PREFIX}rdpgw:$DOCKER_IMAGE_TAG as rdpgw
 #
 # VPN
 #
-FROM alpine:3.20 as production
+FROM alpine:3.22.0 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk -U upgrade --no-cache
@@ -58,6 +58,7 @@ RUN apk add --no-cache --virtual .build_deps \
 
 # Required for python-iptables
 ENV XTABLES_LIBDIR=/usr/lib/xtables
+RUN ln -s /usr/sbin/iptables /sbin/iptables
 
 COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
 COPY docker/vpn/src /src
