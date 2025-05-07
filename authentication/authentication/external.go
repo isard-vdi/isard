@@ -10,6 +10,8 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/token"
 )
 
+var ErrUserAlreadyExists = errors.New("user already exists")
+
 func (a *Authentication) ExternalUser(ctx context.Context, tkn string, UserID string, role string, username string, name string, email string, photo string) (string, error) {
 	// Firstly check if the external app token is valid
 	claims, err := token.ParseExternalToken(a.DB, tkn)
@@ -67,6 +69,25 @@ func (a *Authentication) ExternalUser(ctx context.Context, tkn string, UserID st
 		Name:     name,
 		Email:    email,
 		Photo:    photo,
+	}
+
+	// Before registering the user, check if the user already exists
+	exists, err = u.Exists(ctx, a.DB)
+	if err != nil {
+		return "", err
+	}
+
+	// If the user exists return the ID
+	if exists {
+		// Reload the user from the db to get the ID
+		err = u.Load(ctx, a.DB)
+		if err != nil {
+			return "", err
+		}
+		a.Log.Info().Str("user_id", u.ID).Str("user_id", u.ID).Msg("external user already exists")
+
+		// If the user exists return an error and the ID
+		return u.ID, ErrUserAlreadyExists
 	}
 
 	err = a.registerUser(u)

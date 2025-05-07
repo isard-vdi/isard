@@ -286,6 +286,16 @@
                             }
                         }
                     },
+                    "409": {
+                        "description": "Conflict",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ExternalUserError"
+                                }
+                            }
+                        }
+                    },
                     "429": {
                         "description": "Too many requests",
                         "content": {
@@ -1578,13 +1588,26 @@
                             "missing_token",
                             "invalid_token",
                             "internal_server",
-                            "bad_request"
+                            "bad_request",
+                            "conflict"
                         ]
                     },
                     "msg": {
                         "title": "Error message",
                         "nullable": false,
                         "type": "string"
+                    },
+                    "params": {
+                        "title": "Error extra parameters",
+                        "nullable": false,
+                        "type": "object",
+                        "properties": {
+                            "user_id": {
+                                "title": "User ID related with the error",
+                                "nullable": false,
+                                "type": "string"
+                            }
+                        }
                     }
                 },
                 "required": [
