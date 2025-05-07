@@ -99,7 +99,7 @@ def api_v3_desktop_start(payload, desktop_id):
         try:
             check_virt_storage_pool_availability(desktop_id)
         except Error as e:
-            if e.error.description_code == "no_storage_pool_available":
+            if e.error.get("description_code") == "no_storage_pool_available":
                 raise Error(
                     "precondition_required",
                     e.error["description"],
