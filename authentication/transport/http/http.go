@@ -904,6 +904,16 @@ func (a *AuthenticationServer) ExternalUser(ctx context.Context, req oasAuthenti
 
 		a.Log.Error().Err(err).Msg("login external create error")
 
+		if errors.Is(err, authentication.ErrUserAlreadyExists) {
+			return &oasAuthentication.ExternalUserConflict{
+				Error: oasAuthentication.ExternalUserErrorErrorConflict,
+				Msg:   "user already exists",
+				Params: oasAuthentication.NewOptExternalUserErrorParams(oasAuthentication.ExternalUserErrorParams{
+					UserID: oasAuthentication.NewOptString(userID),
+				}),
+			}, nil
+		}
+
 		return &oasAuthentication.ExternalUserInternalServerError{
 			Error: oasAuthentication.ExternalUserErrorErrorInternalServer,
 			Msg:   "unknown error",
