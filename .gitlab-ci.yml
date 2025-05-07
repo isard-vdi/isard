@@ -180,7 +180,7 @@ gen-protobuf:
   before_script:
     - until docker info; do sleep 1; done
   script:
-    - docker run -u $(id -u) -v "$(pwd):/build" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
+    - docker run -u $(id -u) -v "$(pwd):/build" -e BUF_TOKEN="$BUF_TOKEN" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
   artifacts:
     paths:
       - pkg/gen

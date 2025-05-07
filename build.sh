@@ -562,7 +562,7 @@ generate_code(){
 		;;
 	esac
 
-	docker run --rm -u $(id -u) -v "$(pwd):/build" "$DOCKER_IMAGE"
+	docker run --rm -u "$(id -u)" -v "$(pwd):/build" -e BUF_TOKEN="$BUF_TOKEN" "$DOCKER_IMAGE"
 	echo "Generated the code successfully"
 }
 

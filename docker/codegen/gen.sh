@@ -22,6 +22,13 @@ export GOPATH=/tmp/go
 
 # Protobuf
 source /venv/bin/activate
+if [ -n "${BUF_TOKEN:+x}" ] && [ -n "$BUF_TOKEN" ]; then
+  echo "Found buff token, authenticating with buf.build to avoid rate limits"
+  export BUF_TOKEN
+else
+  echo "No buff token found, we may hit rate limits"
+  unset BUF_TOKEN
+fi
 buf generate
 
 # Notifier OAS
