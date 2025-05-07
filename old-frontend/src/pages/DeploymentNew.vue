@@ -528,10 +528,6 @@ export default {
           context.root.$snotify.clear()
         }
 
-        $store.dispatch('checkDeploymentsCreateQuota', { allowed: { users, groups } }).then((response) => {
-          return response.data.quantity
-        })
-
         context.root.$snotify.prompt(`${i18n.t('messages.confirmation.new-deployment', { quantity: quantity })}`, {
           position: 'centerTop',
           buttons: [
