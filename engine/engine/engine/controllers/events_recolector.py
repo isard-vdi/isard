@@ -421,7 +421,30 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
         )
     )
 
-    domain_status = get_domain_status(dom_id)
+    results = get_domain_hyp_started_and_status_and_detail(dom_id)
+    if results == {}:
+        logs.status.debug("domain {} not in database, was deleted".format(dom_id))
+        return
+    domain_status = results.get("status", None)
+    # domain_detail = results.get("detail", None)
+    domain_hyp_started = results.get("hyp_started", None)
+
+    # Skip event if domain hyp_started and event hyp_id is not the same
+    if not (
+        domain_hyp_started is None
+        or domain_hyp_started == ""
+        or domain_hyp_started == False
+    ):
+        if hyp_id != domain_hyp_started:
+            logs.status.warning(
+                "Received event {} in hypervisor {}, but domain {} is started in hypervisor {}".format(
+                    dict_event["event"],
+                    hyp_id,
+                    dom_id,
+                    domain_hyp_started,
+                )
+            )
+            return
 
     if domain_status != None:
         if hyp_id is None or hyp_id == "":
