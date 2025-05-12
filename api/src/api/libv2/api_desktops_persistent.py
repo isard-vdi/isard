@@ -1407,3 +1407,33 @@ def get_unused_desktops(from_deployments=False):
     )
 
     return desktops
+
+
+def get_deployment_user_desktop(user_id, deployment_id):
+    """
+    Retrieve the user desktop associated with a deployment.
+
+    :param user_id: The ID of the user.
+    :param deployment_id: The deployment ID.
+    :return: The user desktop associated with the deployment.
+    :rtype: dict
+    """
+    with app.app_context():
+        return (
+            r.table("domains")
+            .get_all(deployment_id, index="tag")
+            .filter({"user": user_id})
+            .pluck(
+                "id",
+                "name",
+                "description",
+                "user",
+                "category",
+                "group",
+                "status",
+                "accessed",
+            )
+            .nth(0)
+            .default(None)
+            .run(db.conn)
+        )

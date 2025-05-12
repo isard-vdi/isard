@@ -9,7 +9,10 @@ import traceback
 import gevent
 from api.libv2.api_desktop_events import deployment_delete
 from api.libv2.api_desktops_common import ApiDesktopsCommon
-from api.libv2.api_desktops_persistent import check_template_status
+from api.libv2.api_desktops_persistent import (
+    check_template_status,
+    get_deployment_user_desktop,
+)
 from api.libv2.api_hypervisors import check_create_storage_pool_availability
 from api.libv2.api_notify import notify_admins
 from api.libv2.deployments import api_deployments
@@ -22,6 +25,7 @@ from api import app, socketio
 from ..decorators import (
     allowedTemplateId,
     checkDuplicate,
+    has_token,
     is_admin_or_manager,
     is_not_user,
     ownsDeploymentId,
@@ -366,3 +370,17 @@ def api_v3_get_deployment_permissions(payload, deployment_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/user/<user_id>/deployment/<deployment_id>", methods=["GET"])
+@has_token
+def api_v3_get_user_deployment_desktop(payload, user_id, deployment_id):
+    desktop = get_deployment_user_desktop(user_id, deployment_id)
+    if not desktop:
+        raise Error(
+            "not_found",
+            "Desktop not found",
+            description_code="desktop_not_found",
+        )
+    ownsDomainId(payload, desktop["id"])
+    return json.dumps(desktop), 200, {"Content-Type": "application/json"}
