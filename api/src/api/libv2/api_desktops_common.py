@@ -99,6 +99,10 @@ class ApiDesktopsCommon:
         scheduled = False
         if start_desktop:
             if domain["status"] in ["Stopped", "Failed"]:
+                logs_domain_start_directviewer(
+                    domain["id"],
+                    user_request=request,
+                )
                 desktop_start(domain["id"], wait_seconds=60)
                 payload = gen_payload_from_user(domain["user"])
                 scheduled = scheduler.add_desktop_timeouts(payload, domain["id"])
