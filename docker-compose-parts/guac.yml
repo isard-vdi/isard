@@ -3,6 +3,10 @@ services:
   isard-guac:
     container_name: isard-guac
     image: ${DOCKER_IMAGE_PREFIX}guac:${DOCKER_IMAGE_TAG-latest}
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     environment:
       GUACD_ADDR: isard-vpn:4822
       API_ISARDVDI_SECRET: ${API_ISARDVDI_SECRET}

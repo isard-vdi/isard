@@ -8,6 +8,10 @@ services:
       options:
         max-size: "100m"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     cap_add:
       - NET_ADMIN
       - SYS_MODULE  

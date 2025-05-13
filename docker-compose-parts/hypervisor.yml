@@ -8,6 +8,10 @@ services:
       options:
         max-size: "100m"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.17
