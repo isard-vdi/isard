@@ -3591,7 +3591,7 @@ password:s:%s"""
                                 r.literal(
                                     row["create_dict"].without(
                                         "allowed",
-                                        "description",
+                                        # "description",
                                         "tag",
                                         "tag_name",
                                         "tag_visible",

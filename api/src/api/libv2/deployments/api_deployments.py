@@ -55,6 +55,7 @@ from ..helpers import (
     change_owner_deployments,
     gen_payload_from_user,
     get_new_user_data,
+    get_selected_users,
     parse_domain_insert,
     parse_domain_update,
 )
@@ -73,12 +74,12 @@ def lists(user_id):
             .get_all(user_id, index="user")
             .merge(
                 lambda deployment: {
-                    "description": deployment["create_dict"]["description"],
-                    "visible": deployment["create_dict"]["tag_visible"],
+                    # "description": deployment["description"],
+                    "visible": deployment["tag_visible"],
                     "template": r.table("domains")
-                    .get(deployment["create_dict"]["template"])
+                    .get(deployment["create_dict"][0]["template"])
                     .default({"name": False})["name"],
-                    "desktop_name": deployment["create_dict"]["name"],
+                    "desktop_name": deployment["create_dict"][0]["name"],
                 }
             )
             .without("create_dict")
@@ -90,12 +91,12 @@ def lists(user_id):
             .get_all(user_id, index="co_owners")
             .merge(
                 lambda deployment: {
-                    "description": deployment["create_dict"]["description"],
-                    "visible": deployment["create_dict"]["tag_visible"],
+                    # "description": deployment["description"],
+                    "visible": deployment["tag_visible"],
                     "template": r.table("domains")
-                    .get(deployment["create_dict"]["template"])
+                    .get(deployment["create_dict"][0]["template"])
                     .default({"name": False})["name"],
-                    "desktop_name": deployment["create_dict"]["name"],
+                    "desktop_name": deployment["create_dict"][0]["name"],
                 }
             )
             .without("create_dict")
@@ -145,10 +146,12 @@ def lists(user_id):
     parsed_deployments = []
     for deployment in deployments:
         if not deployment["template"]:
+
+            # TODO: commented to avoid accidental deletions
             # Template does no exist anymore
-            with app.app_context():
-                r.table("deployments").get(deployment["id"]).delete().run(db.conn)
-                invalidate_cache("deployments", deployment["id"])
+            # with app.app_context():
+            #     r.table("deployments").get(deployment["id"]).delete().run(db.conn)
+            #     invalidate_cache("deployments", deployment["id"])
             continue
         parsed_deployments.append(
             {**deployment, **_parse_deployment_booking(deployment)}
@@ -194,11 +197,12 @@ def get(deployment_id, desktops=True):
             ]
         ]
     )
-    deployment["description"] = deployment.get("create_dict", {}).get("description")
-    deployment["visible"] = deployment.get("create_dict", {}).get("tag_visible")
-    deployment["desktop_name"] = deployment.get("create_dict", {}).get("name")
+    create_dict = deployment.get("create_dict", [{}])[0]
+    # deployment["description"] = deployment.get("description")
+    deployment["visible"] = deployment.get("tag_visible")
+    deployment["desktop_name"] = create_dict.get("name")
     deployment["template"] = get_document(
-        "domains", deployment.get("create_dict", {}).get("template"), ["name"]
+        "domains", create_dict.get("template"), ["name"]
     )
     del deployment["create_dict"]
 
@@ -253,7 +257,16 @@ def get(deployment_id, desktops=True):
 
 
 def get_deployment_info(deployment_id):
-    create_dict = get_document("deployments", deployment_id, ["create_dict"])
+    create_dict = get_document("deployments", deployment_id, ["create_dict"])[0]
+    deployment_data = get_document("deployments", deployment_id)
+    create_dict = {
+        **create_dict,
+        "allowed": deployment_data.get("allowed"),
+        "tag": deployment_data.get("tag"),
+        "tag_name": deployment_data.get("tag_name"),
+        "tag_visible": deployment_data.get("tag_visible"),
+        # "description": deployment_data.get("description"),
+    }
     template = get_document(
         "domains", create_dict["template"], ["create_dict", "guest_properties", "image"]
     )
@@ -313,19 +326,22 @@ def new(
     new_data["hardware"]["memory"] = new_data["hardware"]["memory"] * 1048576
     new_data["reservables"] = new_data["hardware"].pop("reservables")
     deployment = {
-        "create_dict": {
-            "allowed": selected,
-            "description": description,
-            "hardware": new_data.get("hardware"),
-            "reservables": new_data.get("reservables"),
-            "guest_properties": new_data.get("guest_properties"),
-            "name": desktop_name,
-            "tag": deployment_id,
-            "tag_name": name,
-            "tag_visible": visible,
-            "template": template_id,
-            "image": new_data.get("image"),
-        },
+        "allowed": selected,
+        "description": description,
+        "tag": deployment_id,
+        "tag_name": name,
+        "tag_visible": visible,
+        "create_dict": [
+            {
+                "description": description,
+                "hardware": new_data.get("hardware"),
+                "reservables": new_data.get("reservables"),
+                "guest_properties": new_data.get("guest_properties"),
+                "name": desktop_name,
+                "template": template_id,
+                "image": new_data.get("image"),
+            }
+        ],
         "id": deployment_id,
         "name": name,
         "user": payload["user_id"],
@@ -358,99 +374,16 @@ def new(
         "description": description,
         "template_id": template_id,
         "hardware": {
-            **deployment["create_dict"]["hardware"],
-            "memory": deployment["create_dict"]["hardware"]["memory"] / 1048576,
+            **deployment["create_dict"][0]["hardware"],
+            "memory": deployment["create_dict"][0]["hardware"]["memory"] / 1048576,
             "reservables": new_data.get("reservables"),
         },
-        "guest_properties": deployment["create_dict"]["guest_properties"],
-        "image": deployment["create_dict"]["image"],
+        "guest_properties": deployment["create_dict"][0]["guest_properties"],
+        "image": deployment["create_dict"][0]["image"],
     }
     create_deployment_desktops(deployment_tag, desktop, users)
 
     return deployment["id"]
-
-
-def get_selected_users(
-    payload,
-    selected,
-    desktop_name,
-    deployment_id=None,
-    existing_desktops_error=False,
-    include_existing_desktops=False,
-):
-    """Check who has to be created"""
-    users = []
-
-    group_users = []
-
-    secondary_groups_users = []
-    if selected["groups"] is not False:
-        query_group_users = (
-            r.table("users")
-            .get_all(r.args(selected["groups"]), index="group")
-            .filter(lambda user: user["active"].eq(True))
-            .pluck("id", "username", "category", "group")
-        )
-        if payload["role_id"] != "admin":
-            query_group_users.filter({"category": payload["category_id"]})
-        with app.app_context():
-            group_users = list(query_group_users.run(db.conn))
-
-        with app.app_context():
-            secondary_groups_users = list(
-                r.table("users")
-                .get_all(r.args(selected["groups"]), index="secondary_groups")
-                .filter(lambda user: user["active"].eq(True))
-                .pluck("id", "username", "category", "group")
-                .run(db.conn)
-            )
-    # Add payload user if not in list
-    if selected["users"]:
-        if payload["user_id"] not in selected["users"]:
-            selected["users"].append(payload["user_id"])
-    else:
-        selected["users"] = [payload["user_id"]]
-    user_users = []
-    with app.app_context():
-        query_user_users = (
-            r.table("users")
-            .get_all(r.args(selected["users"]), index="id")
-            .filter(lambda user: user["active"].eq(True))
-            .pluck("id", "username", "category", "group")
-        )
-    if payload["role_id"] != "admin":
-        query_user_users.filter({"category": payload["category_id"]})
-    with app.app_context():
-        user_users = list(query_user_users.run(db.conn))
-
-    users = group_users + user_users + secondary_groups_users
-    # Remove duplicate user dicts in list
-    users = list({u["id"]: u for u in users}.values())
-
-    """ DOES THE USERS ALREADY HAVE A DESKTOP WITH THIS NAME? """
-    users_ids = [u["id"] for u in users]
-    with app.app_context():
-        existing_desktops = [
-            u["user"]
-            for u in list(
-                r.table("domains")
-                .get_all(r.args(users_ids), index="user")
-                .filter({"name": desktop_name, "tag": deployment_id})
-                .pluck("id", "user", "username")
-                .run(db.conn)
-            )
-        ]
-    if len(existing_desktops):
-        if existing_desktops_error:
-            raise Error(
-                "conflict",
-                "This users already have a desktop with this name: "
-                + str(existing_desktops),
-                description_code="new_desktop_name_exists",
-            )
-        elif not include_existing_desktops:
-            users = [u for u in users if u["id"] not in existing_desktops]
-    return users
 
 
 def create_deployment_desktops(deployment_tag, desktop_data, users):
@@ -470,7 +403,6 @@ def create_deployment_desktops(deployment_tag, desktop_data, users):
                 "deployment_tag_dict": deployment_tag,
                 "domain_id": domain_id,
                 "new_data": desktop,
-                "image": desktop.get("image"),
             }
         )
     deployment = get_document("deployments", deployment_tag["tag"])
@@ -496,21 +428,23 @@ def edit_deployment_users(payload, deployment_id, allowed):
         )
     with app.app_context():
         r.table("deployments").get(deployment_id).update(
-            {"create_dict": {"allowed": allowed}}
+            {
+                "allowed": allowed,
+            }
         ).run(db.conn)
     invalidate_cache("deployments", deployment_id)
 
     old_users = get_selected_users(
         payload,
-        deployment.get("create_dict").get("allowed"),
-        deployment.get("create_dict").get("name"),
+        deployment.get("allowed"),
+        deployment.get("create_dict", [{}])[0].get("name"),
         False,
         True,
     )
     new_users = get_selected_users(
         payload,
         allowed,
-        deployment.get("create_dict").get("name"),
+        deployment.get("create_dict", [{}])[0].get("name"),
         existing_desktops_error=False,
         include_existing_desktops=True,
     )
@@ -537,6 +471,7 @@ def edit_deployment_users(payload, deployment_id, allowed):
 
 
 def edit_deployment(payload, deployment_id, data):
+    deployment_data = {}
     deployment = get_document("deployments", deployment_id)
     if not deployment:
         raise Error(
@@ -544,7 +479,8 @@ def edit_deployment(payload, deployment_id, data):
             "Not found deployment id to edit: " + str(deployment_id),
             description_code="not_found",
         )
-    data["tag_name"] = data.get("name")
+    deployment_data["tag_name"] = data.get("name")
+    deployment_data["description"] = data.get("description")
     data["name"] = data.pop("desktop_name")
     data["reservables"] = data.get("hardware").pop("reservables")
     data["hardware"]["memory"] = data["hardware"]["memory"] * 1048576
@@ -552,12 +488,12 @@ def edit_deployment(payload, deployment_id, data):
     deployment_booking = _parse_deployment_booking(deployment)
     get_selected_users(
         payload,
-        deployment["create_dict"].get("allowed"),
+        deployment.get("allowed"),
         data.get("name"),
         existing_desktops_error=False,
         include_existing_desktops=True,
     )
-    if data.get("reservables") != deployment["create_dict"].get(
+    if data.get("reservables") != deployment["create_dict"][0].get(
         "reservables"
     ) and deployment_booking.get("next_booking_end"):
         raise Error(
@@ -570,20 +506,30 @@ def edit_deployment(payload, deployment_id, data):
         data["reservables"]["vgpus"] = None
     user_permissions = data.pop("user_permissions")
     with app.app_context():
+        original_create_dict = (
+            r.table("deployments").get(deployment_id).run(db.conn)["create_dict"][0]
+        )
+
+    with app.app_context():
         r.table("deployments").get(deployment_id).update(
             {
-                "create_dict": {
-                    **data,
-                    "guest_properties": r.literal(data["guest_properties"]),
-                },
-                "name": data["tag_name"],
+                "create_dict": [
+                    {
+                        **original_create_dict,
+                        **data,
+                        "guest_properties": r.literal(data["guest_properties"]),
+                    }
+                ],
+                "name": deployment_data["tag_name"],
+                "tag_name": deployment_data["tag_name"],
+                "description": deployment_data["description"],
                 "user_permissions": user_permissions,
             }
         ).run(db.conn)
     invalidate_cache("deployments", deployment_id)
     # If the networks have changed new macs should be generated for each domain
     if (
-        deployment["create_dict"]["hardware"]["interfaces"]
+        deployment["create_dict"][0]["hardware"]["interfaces"]
         != data["hardware"]["interfaces"]
     ):
         with app.app_context():
@@ -698,8 +644,8 @@ def recreate(payload, deployment_id):
 
     users = get_selected_users(
         payload,
-        deployment["create_dict"]["allowed"],
-        deployment["create_dict"]["name"],
+        deployment["allowed"],
+        deployment["create_dict"][0]["name"],
         deployment["id"],
         existing_desktops_error=False,
         include_existing_desktops=False,
@@ -707,26 +653,26 @@ def recreate(payload, deployment_id):
 
     """Create desktops for each user found"""
     desktop = {
-        "name": deployment["create_dict"]["name"],
-        "description": deployment["create_dict"]["description"],
-        "template_id": deployment["create_dict"]["template"],
+        "name": deployment["create_dict"][0]["name"],
+        "description": deployment["create_dict"][0]["description"],
+        "template_id": deployment["create_dict"][0]["template"],
         "hardware": {
-            **deployment["create_dict"]["hardware"],
-            "memory": deployment["create_dict"]["hardware"]["memory"] / 1048576,
+            **deployment["create_dict"][0]["hardware"],
+            "memory": deployment["create_dict"][0]["hardware"]["memory"] / 1048576,
         },
     }
     # Get from the deployment, otherwise it will be fetched from its template
-    if deployment["create_dict"].get("guest_properties"):
-        desktop["guest_properties"] = deployment["create_dict"]["guest_properties"]
-    if deployment["create_dict"].get("reservables"):
-        desktop["hardware"]["reservables"] = deployment["create_dict"]["reservables"]
-    if deployment["create_dict"].get("image"):
-        desktop["image"] = deployment["create_dict"]["image"]
+    if deployment["create_dict"][0].get("guest_properties"):
+        desktop["guest_properties"] = deployment["create_dict"][0]["guest_properties"]
+    if deployment["create_dict"][0].get("reservables"):
+        desktop["hardware"]["reservables"] = deployment["create_dict"][0]["reservables"]
+    if deployment["create_dict"][0].get("image"):
+        desktop["image"] = deployment["create_dict"][0]["image"]
 
     deployment_tag = {
         "tag": deployment_id,
-        "tag_name": deployment["create_dict"]["name"],
-        "tag_visible": deployment["create_dict"]["tag_visible"],
+        "tag_name": deployment["tag_name"],
+        "tag_visible": deployment["tag_visible"],
     }
     create_deployment_desktops(deployment_tag, desktop, users)
 
@@ -742,8 +688,8 @@ def check_deployment_bookings(payload, deployment):
 
     deployment_users = get_selected_users(
         payload,
-        deployment["create_dict"]["allowed"],
-        deployment["create_dict"]["name"],
+        deployment["allowed"],
+        deployment["create_dict"][0]["name"],
         deployment["id"],
         existing_desktops_error=False,
         include_existing_desktops=True,
@@ -808,8 +754,8 @@ def visible(deployment_id, stop_started_domains=True):
             visible = (
                 not r.table("deployments")
                 .get(deployment_id)
-                .pluck({"create_dict": {"tag_visible": True}})
-                .run(db.conn)["create_dict"]["tag_visible"]
+                .pluck("tag_visible")
+                .run(db.conn)["tag_visible"]
             )
         if visible:
             stop_started_domains = False
@@ -820,7 +766,7 @@ def visible(deployment_id, stop_started_domains=True):
         invalidate_cache("deployments", deployment_id)
         with app.app_context():
             r.table("deployments").get(deployment_id).update(
-                {"create_dict": {"tag_visible": visible}}
+                {"tag_visible": visible}
             ).run(db.conn)
     except:
         raise Error(
@@ -926,7 +872,7 @@ def get_deployment_details_hardware(deployment_id):
         hardware = (
             r.table("deployments")
             .get(deployment_id)
-            .pluck("create_dict")["create_dict"]
+            .pluck("create_dict")["create_dict"][0]
             .merge(
                 lambda domain: {
                     "video_name": domain["hardware"]["videos"].map(

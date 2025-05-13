@@ -426,8 +426,6 @@ def admin_table_get(table, id, pluck=None):
             }
         )
     if pluck:
-        if table == "deployments":
-            query = query["create_dict"].pluck(pluck)
         query = query.pluck(pluck)
     with app.app_context():
         return query.run(db.conn)
