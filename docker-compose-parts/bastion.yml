@@ -6,7 +6,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100m"
+        max-size: "10m"
+        max-file: "5"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     networks:
       isard-network:

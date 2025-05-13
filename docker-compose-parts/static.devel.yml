@@ -11,7 +11,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100m"
+        max-size: "10m"
+        max-file: "5"
     networks:
       isard-network:
     working_dir: /usr/local/src/isard-frontend/
@@ -27,7 +28,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100m"
+        max-size: "10m"
+        max-file: "5"
     networks:
       isard-network:
     working_dir: /usr/local/src/isard-old-frontend/
