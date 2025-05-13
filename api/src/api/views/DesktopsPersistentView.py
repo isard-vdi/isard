@@ -390,6 +390,33 @@ def api_v3_domain_edit_reservables(payload, domain_id):
     )
 
 
+@app.route("/api/v3/desktop/<desktop_id>/jumperurl", methods=["PUT"])
+@has_token
+def api_v3_admin_jumperurl(payload, desktop_id):
+    """
+    Endpoint to get the jumper url of a desktop. If the desktop hasn't got a jumper url
+    it will create one.
+    :param payload: Data from JWT
+    :type payload: dict
+    :param desktop_id: ID of the desktop
+    :type desktop_id: str
+    """
+    ownsDomainId(payload, desktop_id)
+    data = desktops.JumperUrl(desktop_id)
+    if data.get("jumperurl") is False:
+        data = {
+            "jumperurl": desktops.JumperUrlReset(
+                desktop_id, disabled=data.get("disabled")
+            )
+        }
+
+    return (
+        json.dumps(data),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/desktop/jumperurl/<desktop_id>", methods=["GET"])
 @has_token
 def api_v3_admin_viewer(payload, desktop_id):
