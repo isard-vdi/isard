@@ -11,7 +11,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "100m"
+        max-size: "10m"
+        max-file: "5"
     container_name: isard-pipework
     volumes:
       - /var/run/docker.sock:/docker.sock

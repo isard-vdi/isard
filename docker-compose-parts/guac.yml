@@ -3,6 +3,12 @@ services:
   isard-guac:
     container_name: isard-guac
     image: ${DOCKER_IMAGE_PREFIX}guac:${DOCKER_IMAGE_TAG-latest}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     ulimits:
       nofile:
         soft: 65536
