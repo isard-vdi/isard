@@ -48,6 +48,7 @@ from .decorators import (
     is_admin,
     is_admin_or_manager,
     is_not_user,
+    ownsDomainId,
     ownsUserId,
 )
 
@@ -93,6 +94,10 @@ def get_storage(payload, storage_id):
             )
         if storage_category_id == payload["category_id"]:
             return storage
+
+    owns_domains = [ownsDomainId(payload, domain.id) for domain in storage.domains]
+    if any(owns_domains):
+        return storage
 
     raise Error(
         "forbidden",
