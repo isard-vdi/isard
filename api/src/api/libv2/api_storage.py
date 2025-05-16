@@ -100,13 +100,15 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None, categorie
     if categories:
         query = query.filter(
             lambda disk: r.expr(categories).contains(
-                r.table("users").get(disk["user_id"])["category"]
+                r.table("users").get(disk["user_id"].default(""))["category"]
             )
         )
     elif category_id:
         query = (
             query.eq_join(
-                [r.row["user_id"], category_id], r.table("users"), index="user_category"
+                [r.row["user_id"].default(""), category_id],
+                r.table("users"),
+                index="user_category",
             )
             .pluck("left", {"right": {"category": True}})
             .zip()
@@ -114,10 +116,10 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None, categorie
     query = query.merge(
         lambda disk: {
             "user_name": r.table("users")
-            .get(disk["user_id"])
-            .default({"name": "[DELETED] " + disk["user_id"]})["name"],
+            .get(disk["user_id"].default(""))
+            .default({"name": "[DELETED] " + disk["user_id"].default("")})["name"],
             "category": r.table("users")
-            .get(disk["user_id"])
+            .get(disk["user_id"].default(""))
             .default({"category": "[DELETED]"})["category"],
             "domains": r.table("domains")
             .get_all(disk["id"], index="storage_ids")
@@ -135,7 +137,7 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None, categorie
 
     if status == "maintenance":
         for storage in storages:
-            if storage.get("task"):
+            if storage.get("task") and Task.exists(storage["task"]):
                 storage["progress"] = Task(storage.get("task")).to_dict()["progress"]
 
     return storages
