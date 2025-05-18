@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 169
+release_version = 170
+# release 170: Global and category bastion_domain
 # release 169: Set secrets role to manager
 # release 168: Add new field api_key to all users
 # release 167: Recycle bin scheduled jobs interval changed to 1 hour, recycle_bin_cutoff_time field added to categories
@@ -883,6 +884,19 @@ password:s:%s"""
                 r.table("scheduler_jobs").get(
                     "admin.recycle_bin_delete_admin"
                 ).delete().run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 170:
+            try:
+                r.table("config").get(1).update(
+                    {
+                        "bastion": {
+                            "enabled": True,
+                            "domain": os.environ.get("DOMAIN"),
+                        }
+                    }
+                ).run(self.conn)
             except Exception as e:
                 print(e)
 
@@ -5442,6 +5456,11 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 170:
+            try:
+                r.table(table).update({"bastion_domain": None}).run(self.conn)
+            except Exception as e:
+                print(e)
         return True
 
     def qos_net(self, version):

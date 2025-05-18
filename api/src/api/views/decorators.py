@@ -985,13 +985,16 @@ def allowed_deployment_action(payload, domain_id, action):
     )
 
 
+def bastion_enabled():
+    if (os.environ.get("BASTION_ENABLED", "false")).lower() == "true" and get_document(
+        "config", 1, ["bastion"]
+    ).get("enabled"):
+        return True
+    return False
+
+
 def can_use_bastion(payload):
-    bastion_enabled = (
-        True
-        if (os.environ.get("BASTION_ENABLED", "false")).lower() == "true"
-        else False
-    )
-    if not bastion_enabled:
+    if not bastion_enabled():
         return False
 
     bastion_allowed = get_document("config", 1, ["bastion"])

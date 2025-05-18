@@ -103,6 +103,7 @@ from .api_admin import (
 )
 from .api_notify import notify_admin, notify_admins
 from .api_sessions import revoke_user_session
+from .api_targets import get_category_bastion_domain
 from .helpers import (
     _check,
     _parse_desktop,
@@ -395,7 +396,7 @@ class ApiUsers:
         return False
 
     @cached(
-        cache=TTLCache(maxsize=300, ttl=60),
+        cache=TTLCache(maxsize=600, ttl=60),
         key=lambda self, payload: payload["user_id"],
     )
     def Config(self, payload):
@@ -416,6 +417,12 @@ class ApiUsers:
             and self.get_email_policy(payload["category_id"], payload["role_id"])
         )
         isard_user_storage_update_user_quota(payload["user_id"])
+        if can_use_bastion(payload):
+            bastion_allowed = True
+            bastion_domain = get_category_bastion_domain(payload["category_id"])
+        else:
+            bastion_allowed = False
+            bastion_domain = None
         return {
             **{
                 "show_bookings_button": show_bookings_button,
@@ -430,12 +437,16 @@ class ApiUsers:
                 "show_temporal_tab": frontend_show_temporal_tab,
                 "http_port": os.environ.get("HTTP_PORT", "80"),
                 "https_port": os.environ.get("HTTPS_PORT", "443"),
-                "bastion_domain": os.environ.get("BASTION_DOMAIN"),
-                "bastion_ssh_port": os.environ.get(
-                    "BASTION_SSH_PORT",
-                    "2222",
+                "bastion_domain": bastion_domain,
+                "bastion_ssh_port": (
+                    os.environ.get(
+                        "BASTION_SSH_PORT",
+                        "2222",
+                    )
+                    if bastion_allowed
+                    else None
                 ),
-                "can_use_bastion": can_use_bastion(payload),
+                "can_use_bastion": bastion_allowed,
                 "migrations_block": self.is_blocked_migration(payload["user_id"]),
             },
         }

@@ -7,12 +7,25 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..views.decorators import can_use_bastion
+from .caches import get_document
 from .flask_rethink import RDB
 
 r = RethinkDB()
 
 db = RDB(app)
 db.init_app(app)
+
+
+def get_category_bastion_domain(category_id: str) -> str:
+    """
+    Get bastion domain from category or config.
+    If category does not have bastion domain, it will return the default
+    bastion domain from config.
+    """
+    bastion_domain = get_document("categories", category_id, ["bastion_domain"])
+    if not bastion_domain:
+        bastion_domain = get_document("config", 1, ["bastion"]).get("domain")
+    return bastion_domain
 
 
 class ApiTargets:

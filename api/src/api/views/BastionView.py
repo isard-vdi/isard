@@ -8,14 +8,15 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.api_allowed import ApiAllowed
-from ..libv2.api_targets import ApiTargets
-from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
-from .decorators import can_use_bastion, has_token, is_admin, ownsDomainId
-
-#
-#
-#
-#
+from ..libv2.api_targets import ApiTargets, get_category_bastion_domain
+from ..libv2.validators import _validate_item
+from .decorators import (
+    bastion_enabled,
+    can_use_bastion,
+    has_token,
+    is_admin,
+    ownsDomainId,
+)
 
 alloweds = ApiAllowed()
 targets = ApiTargets()
@@ -92,15 +93,19 @@ def api_v3_get_bastions(payload):
 @app.route("/api/v3/admin/bastion", methods=["GET"])
 @is_admin
 def api_v3_admin_bastion(payload):
+    bastion_is_enabled = (
+        True if os.environ.get("BASTION_ENABLED", "false").lower() == "true" else False
+    )
+    bastion_domain = (
+        get_category_bastion_domain(payload["category_id"])
+        if bastion_is_enabled
+        else None
+    )
     return (
         json.dumps(
             {
-                "bastion_enabled": (
-                    True
-                    if (os.environ.get("BASTION_ENABLED", "false")).lower() == "true"
-                    else False
-                ),
-                "bastion_domain": os.environ.get("BASTION_DOMAIN"),
+                "bastion_enabled": bastion_is_enabled,
+                "bastion_domain": bastion_domain,
                 "bastion_ssh_port": os.environ.get(
                     "BASTION_SSH_PORT",
                     "2222",
