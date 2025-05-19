@@ -1,5 +1,12 @@
 #!/bin/sh
 
+if [ ! -f /usr/local/etc/haproxy/bastion_domains/allowed.map ]
+then
+  echo "Creating /usr/local/etc/haproxy/bastion_domains/allowed.map"
+  mkdir -p /usr/local/etc/haproxy/bastion_domains
+  touch /usr/local/etc/haproxy/bastion_domains/allowed.map
+fi
+
 tmp_dir=$( mktemp -d )
 for i in `find /usr/local/etc/haproxy/cfg/_base -iname '*.cfg'`; do cp $i "$tmp_dir"; done
 for i in `find /usr/local/etc/haproxy/cfg/$CFG -iname '*.cfg'`; do cp $i "$tmp_dir"; done
