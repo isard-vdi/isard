@@ -1432,6 +1432,7 @@ def get_deployment_user_desktop(user_id, deployment_id):
                 "group",
                 "status",
                 "accessed",
+                "tag_visible",
             )
             .nth(0)
             .default(None)
