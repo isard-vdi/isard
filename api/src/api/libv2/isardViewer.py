@@ -98,7 +98,7 @@ class isardViewer:
         default_viewer=False,
         get_cookie=True,
         get_dict=False,
-        domain=False,
+        domain=None,
         user_id=False,
         admin_role=False,
     ):

@@ -93,7 +93,7 @@ class DomainsThread(threading.Thread):
                                             "disks",
                                         ],
                                         "reservables": True,
-                                    }
+                                    },
                                 },
                                 "kind",
                                 "tag",
@@ -200,6 +200,8 @@ class DomainsThread(threading.Thread):
                             )
                             and data.get("jumperurl")
                             and c.get("new_val", {}).get("status") == "Started"
+                            and c.get("old_val", {}).get("status")
+                            not in ["Unknown", "Started"]
                             and c.get("new_val", {}).get("viewer", {}).get("passwd")
                         ):
                             try:
