@@ -73,9 +73,9 @@ def api_v3_update_desktop_bastion(payload, desktop_id):
     )
 
 
-@app.route("/api/v3/bastions", methods=["GET"])
+@app.route("/api/v3/bastion_targets", methods=["GET"])
 @has_token
-def api_v3_get_bastions(payload):
+def api_v3_get_bastion_targets(payload):
     if can_use_bastion(payload) == False:
         raise Error(
             "forbidden",

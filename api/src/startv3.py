@@ -11,6 +11,7 @@ from api.libv2 import (
     api_socketio_deployments,
     api_socketio_domains,
     api_socketio_media,
+    api_socketio_targets,
 )
 from api.libv2.bookings import api_socketio_bookings, api_socketio_plannings
 from api.libv2.maintenance import Maintenance
@@ -27,6 +28,7 @@ if __name__ == "__main__":
     api_socketio_bookings.start_bookings_thread()
     api_socketio_plannings.start_plannings_thread()
     api_socketio_media.start_media_thread()
+    api_socketio_targets.start_targets_thread()
 
     # Webapp admin websockets
     api_admin_socketio.start_domains_thread()

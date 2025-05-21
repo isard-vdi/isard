@@ -329,10 +329,6 @@ export default {
     templates: {
       required: true,
       type: Array
-    },
-    bastions: {
-      required: false,
-      type: Array
     }
   },
   setup (_, context) {
@@ -476,10 +472,8 @@ export default {
       return (this.desktop.template && this.templates.filter(template => template.id === this.desktop.template)[0]) || null
     },
     bastion () {
-      if (this.bastions) {
-        return (this.bastions.filter(bastion => bastion.desktop_id === this.desktop.id)[0]) || null
-      }
-      return null
+      const bastion = this.$store.getters.getBastionTargets.filter(b => b.desktop_id === this.desktop.id)[0]
+      return bastion || null
     },
     getCardTitle () {
       return this.desktop.type === 'persistent' || (!this.desktop.state && this.desktop.type === 'nonpersistent' && this.desktopState === desktopStates.stopped) ? this.desktop.name : this.template && this.template.name
