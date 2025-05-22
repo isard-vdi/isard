@@ -508,13 +508,6 @@ class ApiDesktopsPersistent:
                 .run(db.conn)
             )
 
-        if get_document("domains", data["id"]) is not None:
-            raise Error(
-                "conflict",
-                "Already exists a desktop with this id",
-                traceback.format_exc(),
-                description_code="desktop_same_id",
-            )
         with app.app_context():
             xml = r.table("virt_install").get(data["xml_id"]).run(db.conn)
         if not xml:
