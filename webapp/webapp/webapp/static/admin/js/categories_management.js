@@ -40,6 +40,20 @@ $(document).ready(function () {
             { "data": "name", className: "xe-name" },
             { "data": "description", className: "xe-description" },
             { "data": "frontend", className: "xe-frontend" },
+            { 
+                "data": "bastion_domain",
+                className: "xe-bastion_domain", 
+                "render": function (data, type, full, meta) {
+                    switch (data) {
+                        case null:
+                            return `<i class="fa fa-circle" aria-hidden="true" style="color:green" title="Default domain."></i>`
+                        case false:
+                            return `<i class="fa fa-circle" aria-hidden="true" style="color:darkgray" title="Bastion access disabled."></i>`
+                        default:
+                            return `<i class="fa fa-circle" aria-hidden="true" style="color:green"></i> ${data}`
+                    }
+                }
+            },
             { "data": "authentication", className: "xe-authentication" },
             { "data": "ephemeral_desktops", className: "xe-ephemeral_desktops" },
             {
@@ -68,7 +82,7 @@ $(document).ready(function () {
                 }
             },
             {
-                "targets": 4,
+                "targets": 5,
                 "render": function (data, type, full, meta) {
                     domains = ""
                     
@@ -113,7 +127,7 @@ $(document).ready(function () {
                 }
             },
             {
-                "targets": 5,
+                "targets": 6,
                 "render": function (data, type, full, meta) {
                     if (full.ephimeral) {
                         return (full.ephimeral.action + " desktops every " + full.ephimeral.minutes + " minutes")
@@ -392,6 +406,61 @@ $(document).ready(function () {
             });
         }
     });
+
+    $('#modalBastionDomain #send').on('click', function (e) {
+        var form = $('#modalBastionDomainForm');
+
+        form.parsley().validate();
+        if (form.parsley().isValid()) {
+            var formData = form.serializeObject();
+            var data = {}
+            if (formData['bastion-enabled'] === 'true') {
+                data['bastion_domain'] = formData['bastion-domain'];
+            } else if (formData['bastion-enabled'] === "false") {
+                data['bastion_domain'] = false;
+            } else {
+                data['bastion_domain'] = null;
+            }
+
+            var notice = new PNotify({
+                text: 'Updating bastion domain...',
+                hide: false,
+                opacity: 1,
+                icon: 'fa fa-spinner fa-pulse'
+            })
+
+            $.ajax({
+                type: "PUT",
+                url: `/api/v3/admin/category/${formData.id}/bastion_domain`,
+                data: JSON.stringify(data),
+                contentType: "application/json",
+                success: function (response) {
+                    notice.update({
+                        title: 'Updated',
+                        text: 'Bastion domain updated successfully',
+                        hide: true,
+                        delay: 2000,
+                        icon: '',
+                        opacity: 1,
+                        type: 'success'
+                    });
+                    $('form').each(function () { this.reset(); });
+                    $('.modal').modal('hide');
+                },
+                error: function (data) {
+                    notice.update({
+                        title: 'ERROR updating bastion domain',
+                        text: data.responseJSON.description,
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 5000,
+                        opacity: 1
+                    })
+                }
+            })
+        }
+    });
 });
 
 function renderCategoriesDetailPannel(d) {
@@ -626,6 +695,49 @@ function actionsCategoryDetail() {
             keyboard: false,
           }).modal("show");
       });
+
+
+    $("#categories .btn-bastion-domain").off("click").on("click", function () {
+        var pk = $(this).closest("div").attr("data-pk");
+        var modal = "#modalBastionDomain";
+        var domainVerified = true;
+        $.ajax({
+            type: "GET",
+            url: "/api/v3/admin/category/" + pk + "/bastion_domain",
+            contentType: "application/json",
+            success: function (category) {
+                switch (category.bastion_domain) {
+                    case null:
+                    $(modal + " #bastion-enabled").val("null").trigger('change');
+                    $(modal + " #bastion-domain").val("");
+                    break;
+                    case false:
+                    $(modal + " #bastion-enabled").val("false").trigger('change');
+                    $(modal + " #bastion-domain").val("");
+                    break;
+                    default:
+                    $(modal + " #bastion-enabled").val("true").trigger('change');
+                    $(modal + " #bastion-domain").val(category.bastion_domain);
+                    break;
+                }
+            },
+        });
+        $(modal + " #bastion-enabled").off("change").on("change", function () {
+            if ($(this).val() === "true" || $(this).val() === null) {
+                $(`${modal} #bastion-domain-panel`).show();
+                $(`${modal} #wildcard-domain-alert`).show();
+            } else {
+                $(`${modal} #bastion-domain-panel`).hide();
+                $(`${modal} #wildcard-domain-alert`).hide();
+            }
+        }).trigger("change");
+
+        $(modal + " #id").val(pk);
+        $(modal).modal({
+            backdrop: "static",
+            keyboard: false,
+        }).modal("show");
+    });
 }
 
 function customURLChange(titlestr) {

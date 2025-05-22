@@ -908,6 +908,30 @@ def checkDuplicateUID(uid, category_id=None):
             )
 
 
+def checkDuplicateBastionDomain(domain, category_id=None):
+    if domain is None:
+        return
+    if domain == get_document("config", 1, ["bastion"]).get("domain"):
+        raise Error(
+            "conflict",
+            "Category bastion domain is the same as the default domain",
+            traceback.format_exc(),
+        )
+    query = (
+        r.table("categories")
+        .get_all(domain, index="bastion_domain")
+        .filter(lambda item: (item["id"] != category_id))
+        .count()
+    )
+    with app.app_context():
+        if query.run(db.conn) > 0:
+            raise Error(
+                "conflict",
+                "Category bastion domain already exists",
+                traceback.format_exc(),
+            )
+
+
 def allowedTemplateId(payload, template_id):
     template = get_document("domains", template_id, ["user", "allowed", "category"])
     if template is None:

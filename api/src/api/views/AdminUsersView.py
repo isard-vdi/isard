@@ -43,6 +43,10 @@ from ..libv2.api_admin import (
 from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_sessions import revoke_user_session
 from ..libv2.api_storage import add_category_to_storage_pool, get_storage_pool
+from ..libv2.api_targets import (
+    get_category_bastion_domain,
+    update_category_bastion_domain,
+)
 from ..libv2.api_users import (
     ApiUsers,
     Password,
@@ -70,6 +74,7 @@ from cachetools import TTLCache, cached
 from .decorators import (
     CategoryNameGroupNameMatch,
     checkDuplicate,
+    checkDuplicateBastionDomain,
     checkDuplicateCustomURL,
     checkDuplicateUID,
     checkDuplicateUser,
@@ -1498,3 +1503,46 @@ def api_v3_check_enable_user(payload):
         if users.check_migrated_user(payload["role_id"], user_id=user_id):
             migrated = True
     return json.dumps({"migrated": migrated}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/category/<category_id>/bastion_domain", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_get_category_bastion_domain(payload, category_id):
+    ownsCategoryId(payload, category_id)
+
+    return (
+        json.dumps(
+            {
+                "bastion_domain": get_category_bastion_domain(category_id),
+            }
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/category/<category_id>/bastion_domain", methods=["PUT"])
+@is_admin_or_manager
+def api_v3_admin_edit_category_bastion_domain(payload, category_id):
+    ownsCategoryId(payload, category_id)
+    try:
+        data = request.get_json()
+    except:
+        raise Error(
+            "bad_request",
+            "Unable to parse body data.",
+            traceback.format_exc(),
+        )
+
+    if "bastion_domain" not in data:
+        raise Error(
+            "bad_request",
+            "bastion_domain is required",
+            traceback.format_exc(),
+        )
+
+    checkDuplicateBastionDomain(data["bastion_domain"], category_id=category_id)
+
+    update_category_bastion_domain(category_id, data["bastion_domain"])
+
+    return json.dumps(data), 200, {"Content-Type": "application/json"}

@@ -3,6 +3,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 import json
+import os
 import sys
 import time
 from uuid import uuid4
@@ -5461,6 +5462,12 @@ password:s:%s"""
                 r.table(table).update({"bastion_domain": None}).run(self.conn)
             except Exception as e:
                 print(e)
+
+            try:
+                r.table(table).index_create("bastion_domain").run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     def qos_net(self, version):

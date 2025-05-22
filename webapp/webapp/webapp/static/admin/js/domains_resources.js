@@ -1120,6 +1120,7 @@ $(document).ready(function () {
                 $("#BastionConfig #bastionStatusLabel").text("Bastion enabled in cfg. SSH port: " + data['bastion_ssh_port']);
                 $("#BastionConfig #btn-alloweds").show();
                 $("#BastionConfig #btn-delete-disallowed").show();
+                $("#BastionConfig #btn-edit-bastion").show();
             } else {
                 $("#BastionConfig #bastionStatusLabel").text("Bastion disabled in cfg.");
                 $("#BastionConfig #bastionStatusDescription").html(`<b>
@@ -1129,6 +1130,7 @@ $(document).ready(function () {
                     </b>`);
                 $("#BastionConfig #btn-alloweds").hide();
                 $("#BastionConfig #btn-delete-disallowed").hide();
+                $("#BastionConfig #btn-edit-bastion").hide();
             }
         },
         error: function (data) {
@@ -1194,6 +1196,73 @@ $(document).ready(function () {
             },
         });
     });
+
+    $("#BastionConfig #btn-edit-bastion").on("click", function () {
+        $("#modalEditBastionForm")[0].reset();
+        $('#modalEditBastion').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        $('#modalEditBastion #modalEditBastionForm').parsley();
+        $.ajax({
+            type: "GET",
+            url: "/api/v3/admin/bastion/",
+            contentType: "application/json",
+            accept: "application/json",
+            success: function (response) {
+                $('#modalEditBastionForm #bastion-domain').val(response["bastion_domain"])
+                if (response["bastion_enabled_in_db"] === true) {
+                    $('#modalEditBastionForm #bastion-enabled').iCheck('check').iCheck('update');
+                } else {
+                    $('#modalEditBastionForm #bastion-enabled').iCheck('uncheck').iCheck('update');
+                }
+            }
+        });
+    });
+
+    $("#modalEditBastion #send").on('click', function (e) {
+        var form = $('#modalEditBastionForm');
+        data = form.serializeObject()
+        form.parsley().validate();
+        if (form.parsley().isValid()) {
+            console.log(data)
+            $.ajax({
+                type: "PUT",
+                url: "/api/v3/admin/bastion/config",
+                data: JSON.stringify({
+                    "enabled": "bastion-enabled" in data,
+                    "bastion_domain": data["bastion-domain"]
+                }),
+                contentType: "application/json",
+                accept: "application/json",
+                success: function (data) {
+                    new PNotify({
+                        title: "Bastion config updated",
+                        text: "Bastion config updated successfully",
+                        hide: true,
+                        delay: 1000,
+                        icon: 'fa fa-success',
+                        opacity: 1,
+                        type: 'success'
+                    });
+                    $('form').each(function () { this.reset() });
+                    $('.modal').modal('hide');
+                },
+                error: function (data) {
+                    new PNotify({
+                        title: "ERROR updating bastion config",
+                        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 2000,
+                        opacity: 1
+                    });
+                }
+            });
+        }
+    });
+
 
 
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)

@@ -24,16 +24,14 @@ import (
 )
 
 type bastion struct {
-	log     *zerolog.Logger
-	db      r.QueryExecutor
-	baseURL string
+	log *zerolog.Logger
+	db  r.QueryExecutor
 }
 
 func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.QueryExecutor, cfg cfg.HTTP) {
 	b := &bastion{
-		log:     log,
-		db:      db,
-		baseURL: cfg.BaseURL,
+		log: log,
+		db:  db,
 	}
 
 	log.Info().Str("addr", cfg.Addr()).Msg("listening for HTTP connections")
@@ -103,15 +101,19 @@ func (b *bastion) peekTlsHello(ctx context.Context, conn net.Conn) (*tls.ClientH
 	return hello, peeked, nil
 }
 
-func (b *bastion) extractTargetID(host string) (string, error) {
+func (b *bastion) extractTargetIDAndURL(host string) (string, string, error) {
 	// Get the target ID from the host
-	h := strings.Split(host, b.baseURL)
-	if len(h) != 2 || len(h[0]) <= 1 {
-		return "", errors.New("invalid target")
+	h := strings.Split(host, ".")
+	if len(h) < 2 {
+		return "", "", errors.New("invalid target")
 	}
 
-	// Remove the final . from the subdomain
-	return h[0][:len(h[0])-1], nil
+	// build the base URL by joining all but the first part
+	targetURL := strings.Join(h[1:], ".")
+	b.log.Debug().Str("target_url", targetURL).Msg("target base URL")
+
+	// return the target ID and the base URL
+	return h[0], targetURL, nil
 }
 
 // TODO: Send helpful messages to the client
@@ -129,26 +131,26 @@ func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *byt
 		return
 	}
 
-	targetID, err := b.extractTargetID(r.Host)
+	targetID, targetURL, err := b.extractTargetIDAndURL(r.Host)
 	if err != nil {
 		b.log.Error().Msg("invalid target")
 		return
 	}
 
-	b.handleProxy(ctx, conn, peeked, false, targetID)
+	b.handleProxy(ctx, conn, peeked, false, targetID, targetURL)
 }
 
 func (b *bastion) handleHTTPS(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, hello *tls.ClientHelloInfo) {
-	targetID, err := b.extractTargetID(hello.ServerName)
+	targetID, targetURL, err := b.extractTargetIDAndURL(hello.ServerName)
 	if err != nil {
 		b.log.Error().Msg("invalid target")
 		return
 	}
 
-	b.handleProxy(ctx, conn, peeked, true, targetID)
+	b.handleProxy(ctx, conn, peeked, true, targetID, targetURL)
 }
 
-func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, https bool, targetID string) {
+func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, https bool, targetID string, targetURL string) {
 	target := &model.Target{
 		ID: targetID,
 	}
@@ -168,6 +170,79 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 		b.log.Error().Str("target", target.ID).Msg("HTTP target not enabled")
 		return
 	}
+
+	config := &model.Config{}
+
+	if err := config.Load(ctx, b.db); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			b.log.Error().Str("target", target.ID).Msg("config not found")
+			return
+		}
+
+		b.log.Error().Str("target", target.ID).Err(err).Msg("load config from DB")
+		return
+	}
+
+	if !config.Bastion.Enabled {
+		b.log.Error().Str("target", target.ID).Msg("bastion not enabled in the config")
+		return
+	}
+
+	// Load the user to load the category to check the base URL
+	user := &model.User{
+		ID: target.UserID,
+	}
+
+	if err := user.Load(ctx, b.db); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			b.log.Error().Str("target", target.ID).Str("user", user.ID).Msg("user not found")
+			return
+		}
+
+		b.log.Error().Str("target", target.ID).Str("user", user.ID).Err(err).Msg("load user from DB")
+		return
+	}
+
+	// Load the category to check the base URL
+	category := &model.Category{
+		ID: user.CategoryID,
+	}
+
+	if err := category.Load(ctx, b.db); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			b.log.Error().Str("target", target.ID).Str("category", category.ID).Msg("category not found")
+			return
+		}
+
+		b.log.Error().Str("target", target.ID).Str("category", category.ID).Err(err).Msg("load category from DB")
+		return
+	}
+
+	// Check if the category has a base URL.
+	b.log.Debug().Str("target", target.ID).Str("category", category.ID).Str("recieved_url", targetURL).Str("category_base_url", category.BastionDomain).Msg("category base URL")
+
+	switch category.BastionDomain {
+	case "0":
+		// If the category has a base URL set to false, block all connections
+		b.log.Info().Str("target", target.ID).Str("category", category.ID).Msg("bastion not enabled in this category")
+		return
+
+	case "":
+		// If the category has a base URL set to null, check if the config base URL is set
+		// if it's set to null, allow all connections no matter the base URL
+		if config.Bastion.Domain != "" && config.Bastion.Domain != targetURL {
+			b.log.Error().Str("target", target.ID).Msg("config base URL does not match")
+			return
+		}
+
+	default:
+		// If the category has a base URL, check if it matches the base URL
+		if category.BastionDomain != targetURL {
+			b.log.Error().Str("target", target.ID).Str("category", category.ID).Msg("category base URL does not match")
+			return
+		}
+	}
+	b.log.Debug().Str("target", target.ID).Str("domain", targetURL).Msg("category base URL matches")
 
 	// Load the desktop
 	dktp := &model.Desktop{

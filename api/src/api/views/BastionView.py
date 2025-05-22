@@ -8,7 +8,12 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.api_allowed import ApiAllowed
-from ..libv2.api_targets import ApiTargets, get_category_bastion_domain
+from ..libv2.api_targets import (
+    ApiTargets,
+    bastion_enabled_in_db,
+    get_bastion_domain,
+    update_bastion_config,
+)
 from ..libv2.validators import _validate_item
 from .decorators import (
     bastion_enabled,
@@ -93,18 +98,17 @@ def api_v3_get_bastion_targets(payload):
 @app.route("/api/v3/admin/bastion", methods=["GET"])
 @is_admin
 def api_v3_admin_bastion(payload):
-    bastion_is_enabled = (
+    bastion_enabled_in_cfg = (
         True if os.environ.get("BASTION_ENABLED", "false").lower() == "true" else False
     )
-    bastion_domain = (
-        get_category_bastion_domain(payload["category_id"])
-        if bastion_is_enabled
-        else None
-    )
+
+    bastion_domain = get_bastion_domain()
     return (
         json.dumps(
             {
-                "bastion_enabled": bastion_is_enabled,
+                "bastion_enabled": bastion_enabled(),
+                "bastion_enabled_in_cfg": bastion_enabled_in_cfg,
+                "bastion_enabled_in_db": bastion_enabled_in_db(),
                 "bastion_domain": bastion_domain,
                 "bastion_ssh_port": os.environ.get(
                     "BASTION_SSH_PORT",
@@ -125,3 +129,23 @@ def admin_bastion_allowed_delete(payload):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/admin/bastion/config", methods=["PUT"])
+@is_admin
+def admin_bastion_update_config(payload):
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request",
+            "Desktop bastion update incorrect body data",
+            traceback.format_exc(),
+            description_code="desktop_bastion_incorrect_body_data",
+        )
+
+    update_bastion_config(
+        data["enabled"],
+        data["bastion_domain"],
+    )
+    return json.dumps({}), 200, {"Content-Type": "application/json"}

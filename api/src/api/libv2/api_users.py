@@ -103,7 +103,7 @@ from .api_admin import (
 )
 from .api_notify import notify_admin, notify_admins
 from .api_sessions import revoke_user_session
-from .api_targets import get_category_bastion_domain
+from .api_targets import get_bastion_domain
 from .helpers import (
     _check,
     _parse_desktop,
@@ -419,7 +419,7 @@ class ApiUsers:
         isard_user_storage_update_user_quota(payload["user_id"])
         if can_use_bastion(payload):
             bastion_allowed = True
-            bastion_domain = get_category_bastion_domain(payload["category_id"])
+            bastion_domain = get_bastion_domain(payload["category_id"])
         else:
             bastion_allowed = False
             bastion_domain = None
