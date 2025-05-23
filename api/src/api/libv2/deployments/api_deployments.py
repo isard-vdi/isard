@@ -815,11 +815,11 @@ def visible(deployment_id, stop_started_domains=True):
             r.table("domains").get_all(deployment_id, index="tag").update(
                 {"tag_visible": visible}
             ).run(db.conn)
+        invalidate_cache("deployments", deployment_id)
         with app.app_context():
             r.table("deployments").get(deployment_id).update(
                 {"create_dict": {"tag_visible": visible}}
             ).run(db.conn)
-        invalidate_cache("deployments", deployment_id)
     except:
         raise Error(
             "not_found",
