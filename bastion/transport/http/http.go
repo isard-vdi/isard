@@ -19,6 +19,7 @@ import (
 	"gitlab.com/isard/isardvdi/bastion/transport"
 	"gitlab.com/isard/isardvdi/pkg/db"
 
+	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
@@ -35,9 +36,24 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 	}
 
 	log.Info().Str("addr", cfg.Addr()).Msg("listening for HTTP connections")
-	lis, err := net.Listen("tcp", cfg.Addr())
+
+	// Create standard TCP listener
+	standardListener, err := net.Listen("tcp", cfg.Addr())
 	if err != nil {
 		log.Fatal().Str("addr", cfg.Addr()).Msg("serve HTTP")
+	}
+
+	// Wrap with proxy protocol listener
+	lis := &proxyproto.Listener{
+		Listener: standardListener,
+		// Optional: you can restrict which source IPs can send proxy headers:
+		// Policy: func(upstream net.Addr) (proxyproto.Policy, error) {
+		//     // Only allow proxy protocol from your HAProxy servers
+		//     if strings.HasPrefix(upstream.String(), "10.0.0.") {
+		//         return proxyproto.USE, nil
+		//     }
+		//     return proxyproto.IGNORE, nil
+		// },
 	}
 
 	go func() {
@@ -45,6 +61,7 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 			conn, err := lis.Accept()
 			if err != nil {
 				log.Error().Err(err).Msg("accept incoming connection")
+				continue
 			}
 
 			go b.handleConn(ctx, conn)
@@ -60,25 +77,37 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 func (b *bastion) handleConn(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 
+	connLog := *b.log
+	var remoteIP string
+	var remotePort string
+	if proxyConn, ok := conn.(*proxyproto.Conn); ok {
+		if proxyConn.ProxyHeader() != nil {
+			remoteConn := proxyConn.ProxyHeader().SourceAddr.String()
+			remoteIP = remoteConn[:strings.LastIndex(remoteConn, ":")]
+			remotePort = remoteConn[strings.LastIndex(remoteConn, ":")+1:]
+			connLog = b.log.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
+		}
+	}
+
 	// Attempt to extract the taget ID from the TLS request
 	hello, peeked, err := b.peekTlsHello(ctx, conn)
 	if err != nil {
 		var tlsErr tls.RecordHeaderError
 		if !errors.As(err, &tlsErr) {
-			b.log.Error().Err(err).Msg("peek TLS hello")
+			connLog.Warn().Err(err).Msg("peek TLS hello")
 			return
 		}
 
 		if tlsErr.Msg != "first record does not look like a TLS handshake" {
-			b.log.Error().Err(err).Msg("peek TLS hello")
+			connLog.Warn().Err(err).Msg("peek TLS hello")
 			return
 		}
 
-		b.handleHTTP(ctx, conn, peeked)
+		b.handleHTTP(ctx, conn, peeked, remoteIP, remotePort)
 		return
 	}
 
-	b.handleHTTPS(ctx, conn, peeked, hello)
+	b.handleHTTPS(ctx, conn, peeked, hello, remoteIP, remotePort)
 }
 
 func (b *bastion) peekTlsHello(ctx context.Context, conn net.Conn) (*tls.ClientHelloInfo, *bytes.Buffer, error) {
@@ -103,21 +132,26 @@ func (b *bastion) peekTlsHello(ctx context.Context, conn net.Conn) (*tls.ClientH
 
 func (b *bastion) extractTargetIDAndURL(host string) (string, string, error) {
 	// Get the target ID from the host
+	targetLog := *b.log
+	targetLog = targetLog.With().Str("target_host", host).Logger()
 	h := strings.Split(host, ".")
 	if len(h) < 2 {
+
 		return "", "", errors.New("invalid target")
 	}
 
 	// build the base URL by joining all but the first part
 	targetURL := strings.Join(h[1:], ".")
-	b.log.Debug().Str("target_url", targetURL).Msg("target base URL")
+	targetLog.Debug().Msg("target base URL")
 
 	// return the target ID and the base URL
 	return h[0], targetURL, nil
 }
 
 // TODO: Send helpful messages to the client
-func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *bytes.Buffer) {
+func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *bytes.Buffer, remoteIP string, remotePort string) {
+	httpLog := *b.log
+	httpLog = httpLog.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
 	// Recreate the previously peeked buffer
 	prevBuf := io.MultiReader(prevPeeked, conn)
 
@@ -125,49 +159,58 @@ func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *byt
 	peeked := &bytes.Buffer{}
 	buf := bufio.NewReader(io.TeeReader(prevBuf, peeked))
 
+	// *b.log = b.log.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
 	r, err := http.ReadRequest(buf)
 	if err != nil {
-		b.log.Error().Err(err).Msg("read HTTP request from TCP")
+		httpLog.Error().Err(err).Msg("read HTTP request from TCP")
 		return
 	}
 
 	targetID, targetURL, err := b.extractTargetIDAndURL(r.Host)
+	httpLog = httpLog.With().Str("target_id", targetID).Str("target_domain", targetURL).Logger()
 	if err != nil {
-		b.log.Error().Msg("invalid target")
+		httpLog.Error().Msg("invalid target")
 		return
 	}
 
-	b.handleProxy(ctx, conn, peeked, false, targetID, targetURL)
+	b.handleProxy(ctx, conn, peeked, false, targetID, targetURL, remoteIP, remotePort)
 }
 
-func (b *bastion) handleHTTPS(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, hello *tls.ClientHelloInfo) {
+func (b *bastion) handleHTTPS(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, hello *tls.ClientHelloInfo, remoteIP string, remotePort string) {
+	httpsLog := *b.log
+	httpsLog = httpsLog.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
 	targetID, targetURL, err := b.extractTargetIDAndURL(hello.ServerName)
 	if err != nil {
-		b.log.Error().Msg("invalid target")
+		httpsLog.Error().Msg("invalid target")
 		return
 	}
 
-	b.handleProxy(ctx, conn, peeked, true, targetID, targetURL)
+	b.handleProxy(ctx, conn, peeked, true, targetID, targetURL, remoteIP, remotePort)
 }
 
-func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, https bool, targetID string, targetURL string) {
+func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, https bool, targetID string, targetURL string, remoteIP string, remotePort string) {
+	proxyLog := *b.log
 	target := &model.Target{
 		ID: targetID,
 	}
-
+	proxyLog = b.log.With().
+		Str("remote_ip", remoteIP).
+		Str("remote_port", remotePort).
+		Str("target_id", targetID).
+		Str("target_domain", targetURL).Logger()
 	// Get the target from the DB and ensure is enabled
 	if err := target.Load(ctx, b.db); err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			b.log.Error().Str("target", target.ID).Msg("target not found")
+			proxyLog.Warn().Msg("target not found")
 			return
 		}
 
-		b.log.Error().Str("target", target.ID).Err(err).Msg("load target from the DB")
+		proxyLog.Error().Err(err).Msg("load target from the DB")
 		return
 	}
 
 	if !target.HTTP.Enabled {
-		b.log.Error().Str("target", target.ID).Msg("HTTP target not enabled")
+		proxyLog.Error().Msg("HTTP target service not enabled")
 		return
 	}
 
@@ -175,16 +218,16 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 
 	if err := config.Load(ctx, b.db); err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			b.log.Error().Str("target", target.ID).Msg("config not found")
+			proxyLog.Error().Msg("config not found")
 			return
 		}
 
-		b.log.Error().Str("target", target.ID).Err(err).Msg("load config from DB")
+		proxyLog.Error().Err(err).Msg("load config from DB")
 		return
 	}
 
 	if !config.Bastion.Enabled {
-		b.log.Error().Str("target", target.ID).Msg("bastion not enabled in the config")
+		proxyLog.Error().Msg("bastion not enabled in the config")
 		return
 	}
 
@@ -192,14 +235,14 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 	user := &model.User{
 		ID: target.UserID,
 	}
-
+	proxyLog = proxyLog.With().Str("user_id", user.ID).Logger()
 	if err := user.Load(ctx, b.db); err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			b.log.Error().Str("target", target.ID).Str("user", user.ID).Msg("user not found")
+			proxyLog.Error().Msg("user not found")
 			return
 		}
 
-		b.log.Error().Str("target", target.ID).Str("user", user.ID).Err(err).Msg("load user from DB")
+		proxyLog.Error().Err(err).Msg("load user from DB")
 		return
 	}
 
@@ -207,72 +250,68 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 	category := &model.Category{
 		ID: user.CategoryID,
 	}
-
+	proxyLog = proxyLog.With().Str("category_id", category.ID).Logger()
 	if err := category.Load(ctx, b.db); err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			b.log.Error().Str("target", target.ID).Str("category", category.ID).Msg("category not found")
+			proxyLog.Error().Msg("category not found")
 			return
 		}
 
-		b.log.Error().Str("target", target.ID).Str("category", category.ID).Err(err).Msg("load category from DB")
+		proxyLog.Error().Err(err).Msg("load category from DB")
 		return
 	}
 
+	proxyLog = proxyLog.With().Str("category_domain", category.BastionDomain).Str("config_domain", config.Bastion.Domain).Logger()
 	// Check if the category has a base URL.
-	b.log.Debug().Str("target", target.ID).Str("category", category.ID).Str("recieved_url", targetURL).Str("category_base_url", category.BastionDomain).Msg("category base URL")
+	proxyLog.Debug().Msg("category base URL")
 
 	switch category.BastionDomain {
 	case "0":
 		// If the category has a base URL set to false, block all connections
-		b.log.Info().Str("target", target.ID).Str("category", category.ID).Msg("bastion not enabled in this category")
+		proxyLog.Error().Msg("bastion not enabled in this category")
 		return
 
 	case "":
 		// If the category has a base URL set to null, check if the config base URL is set
 		// if it's set to null, allow all connections no matter the base URL
 		if config.Bastion.Domain != "" && config.Bastion.Domain != targetURL {
-			b.log.Error().Str("target", target.ID).Msg("config base URL does not match")
+			proxyLog.Error().Msg("config base URL does not match")
 			return
 		}
 
 	default:
 		// If the category has a base URL, check if it matches the base URL
 		if category.BastionDomain != targetURL {
-			b.log.Error().Str("target", target.ID).Str("category", category.ID).Msg("category base URL does not match")
+			proxyLog.Error().Msg("category base URL does not match")
 			return
 		}
 	}
-	b.log.Debug().Str("target", target.ID).Str("domain", targetURL).Msg("category base URL matches")
+	proxyLog.Debug().Msg("category base URL matches")
 
 	// Load the desktop
 	dktp := &model.Desktop{
 		ID: target.DesktopID,
 	}
-
+	proxyLog = proxyLog.With().Str("desktop_id", dktp.ID).Logger()
 	if err := dktp.Load(context.Background(), b.db); err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			b.log.Error().Str("target", target.ID).Str("desktop", dktp.ID).Msg("desktop not found")
+			proxyLog.Error().Msg("desktop not found")
 			return
 		}
 
-		b.log.Error().Str("target", target.ID).Str("desktop", dktp.ID).Err(err).Msg("load desktop from DB")
+		proxyLog.Error().Err(err).Msg("load desktop from DB")
 		return
 	}
 
 	// Ensure the desktop is in a valid state
 	if dktp.Status != "Started" {
-		b.log.Error().Str("desktop", dktp.ID).Msg("desktop is not started")
-		return
-	}
-
-	if dktp.Viewer == nil {
-		b.log.Error().Str("desktop", dktp.ID).Msg("desktop has no viewer")
+		proxyLog.Error().Msg("desktop is not started")
 		return
 	}
 
 	// Get the desktop IP
-	if dktp.Viewer.GuestIP == nil {
-		b.log.Error().Str("desktop", dktp.ID).Msg("desktop has no ip")
+	if dktp.Viewer == nil || dktp.Viewer.GuestIP == nil {
+		proxyLog.Error().Msg("desktop has no IP")
 		return
 	}
 
@@ -281,18 +320,23 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 	if https {
 		port = target.HTTP.HTTPSPort
 	}
+	// *b.log = b.log.With().
+	// 	Str("target_ip", *dktp.Viewer.GuestIP).
+	// 	Int("target_port", port).
+	// 	Logger()
 	targetConn, err := net.Dial("tcp", net.JoinHostPort(*dktp.Viewer.GuestIP, strconv.Itoa(port)))
 	if err != nil {
-		b.log.Error().Err(err).Msg("create the target connection")
+		proxyLog.Error().Err(err).Msg("create the target connection")
 		return
 	}
 	defer targetConn.Close()
 
-	b.log.Debug().Msg("created HTTP connection. Starting to proxy")
+	proxyLog.Info().
+		Msg("connection established")
 
 	// Replay the previously read bytes
 	if _, err := peeked.WriteTo(targetConn); err != nil {
-		b.log.Error().Err(err).Msg("replay the initial transfer bytes")
+		proxyLog.Error().Err(err).Msg("replay the initial transfer bytes")
 		return
 	}
 
@@ -304,7 +348,8 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 		select {
 		case err := <-ioErr:
 			if err != nil {
-				b.log.Error().Err(err).Msg("io error")
+				proxyLog.Error().
+					Err(err).Msg("io error")
 			}
 			return
 

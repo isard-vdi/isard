@@ -15,10 +15,14 @@ import (
 	"gitlab.com/isard/isardvdi/bastion/transport"
 	"gitlab.com/isard/isardvdi/pkg/db"
 
+	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/ssh"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
+
+const ExtensionTargetID = "target_id"
+const ExtensionDesktopID = "desktop_id"
 
 type bastion struct {
 	log     *zerolog.Logger
@@ -46,9 +50,24 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 	}
 
 	log.Info().Str("addr", cfg.Addr()).Msg("listening for SSH connections")
-	lis, err := net.Listen("tcp", cfg.Addr())
+
+	// Create standard TCP listener
+	standardListener, err := net.Listen("tcp", cfg.Addr())
 	if err != nil {
 		log.Fatal().Str("addr", cfg.Addr()).Msg("serve SSH")
+	}
+
+	// Wrap with proxy protocol listener
+	lis := &proxyproto.Listener{
+		Listener: standardListener,
+		// Optional: you can restrict which source IPs can send proxy headers:
+		// Policy: func(upstream net.Addr) (proxyproto.Policy, error) {
+		//     // Only allow proxy protocol from your HAProxy servers
+		//     if strings.HasPrefix(upstream.String(), "10.0.0.") {
+		//         return proxyproto.USE, nil
+		//     }
+		//     return proxyproto.IGNORE, nil
+		// },
 	}
 
 	// Start accepting connections
@@ -60,6 +79,7 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 				continue
 			}
 
+			// Now conn.RemoteAddr() will be the original client's address
 			go b.handleConn(ctx, log, conn)
 		}
 	}()
@@ -81,18 +101,18 @@ func (b *bastion) handleAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Per
 		if errors.Is(err, db.ErrNotFound) {
 			b.log.Error().Str("target", target.ID).Msg("target not found")
 			return nil, &ssh.BannerError{
-				Message: "target not found\n",
+				Message: "authentication failed\n",
 			}
 		}
 
 		b.log.Error().Str("target", target.ID).Err(err).Msg("load target from DB")
 		return nil, &ssh.BannerError{
-			Message: "internal server error\n",
+			Message: "service not available\n",
 		}
 	}
 
 	if !target.SSH.Enabled {
-		b.log.Error().Str("target", target.ID).Msg("ssh transport disabled for target")
+		b.log.Error().Str("target", target.ID).Str("desktop", target.DesktopID).Msg("ssh transport disabled for target")
 
 		return nil, &ssh.BannerError{
 			Message: "SSH is not enabled for this target\n",
@@ -104,7 +124,7 @@ func (b *bastion) handleAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Per
 	for _, a := range target.SSH.AuthorizedKeys {
 		aKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(a))
 		if err != nil {
-			b.log.Error().Str("target", target.ID).Str("authorized_key", a).Err(err).Msg("parse SSH authorized key")
+			// b.log.Warn().Str("target", target.ID).Str("desktop", target.DesktopID).Msg("parse SSH authorized key")
 			continue
 		}
 
@@ -115,10 +135,10 @@ func (b *bastion) handleAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Per
 	}
 
 	if !found {
-		b.log.Error().Str("target", target.ID).Msg("key authentication failed, no matching keys")
+		b.log.Error().Str("target", target.ID).Str("desktop", target.DesktopID).Msg("key authentication failed, no matching valid keys")
 
 		return nil, &ssh.BannerError{
-			Message: "key authentication failed. Ensure you've added your authorized_key to IsardVDI\n",
+			Message: "key authentication failed. Ensure you've correctly added your authorized_key(s) to this desktop bastion in IsardVDI\n",
 		}
 	}
 
@@ -137,30 +157,31 @@ func (b *bastion) handleAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Per
 
 		b.log.Error().Str("target", target.ID).Str("desktop", dktp.ID).Err(err).Msg("load desktop from DB")
 		return nil, &ssh.BannerError{
-			Message: "internal server error\n",
+			Message: "service not available\n",
 		}
 	}
 
 	// Ensure the desktop is in a valid state
 	if dktp.Status != "Started" {
-		b.log.Error().Str("desktop", dktp.ID).Msg("desktop is not started")
+		b.log.Error().Str("target", target.ID).Str("desktop", dktp.ID).Msg("desktop not started")
 		return nil, &ssh.BannerError{
-			Message: "desktop is not started\n",
+			Message: "Desktop not started. Ensure it's started in IsardVDI\n",
 		}
 	}
 
-	if dktp.Viewer == nil {
-		b.log.Error().Str("desktop", dktp.ID).Msg("desktop has no viewer")
+	// Ensure the desktop has credentials
+	if dktp.GuestProperties.Credentials.Username == "" || dktp.GuestProperties.Credentials.Password == "" {
+		b.log.Error().Str("target", target.ID).Str("desktop", dktp.ID).Msg("desktop has no credentials")
 		return nil, &ssh.BannerError{
-			Message: "desktop has no viewer. Ensure it has the WireGuard interface\n",
+			Message: "Desktop has no credentials set. Ensure desktop user/password was set for this desktop\n",
 		}
 	}
 
 	// Get the desktop IP
-	if dktp.Viewer.GuestIP == nil {
-		b.log.Error().Str("desktop", dktp.ID).Msg("desktop has no ip")
+	if dktp.Viewer == nil || dktp.Viewer.GuestIP == nil {
+		b.log.Error().Str("target", target.ID).Str("desktop", dktp.ID).Msg("desktop has no ip")
 		return nil, &ssh.BannerError{
-			Message: "desktop has no ip. Ensure it has the WireGuard interface\n",
+			Message: "Desktop has no IP assigned yet. Ensure it has the WireGuard interface and wait till it's being assigned\n",
 		}
 	}
 
@@ -170,6 +191,8 @@ func (b *bastion) handleAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Per
 			ExtensionRemotePwd:        dktp.GuestProperties.Credentials.Password,
 			ExtensionRemoteTargetHost: *dktp.Viewer.GuestIP,
 			ExtensionRemoteTargetPort: strconv.Itoa(target.SSH.Port),
+			ExtensionTargetID:         target.ID,
+			ExtensionDesktopID:        dktp.ID,
 		},
 	}, nil
 }
@@ -186,7 +209,7 @@ func (b *bastion) handleConn(ctx context.Context, log *zerolog.Logger, tcpConn n
 	// Accept the incoming SSH connection
 	srvConn, chans, reqs, err := ssh.NewServerConn(tcpConn, cfg)
 	if err != nil {
-		log.Error().Err(err).Msg("create ssh connection")
+		// log.Error().Err(err).Msg("create ssh connection")
 		return
 	}
 	defer srvConn.Close()
@@ -208,18 +231,104 @@ func (b *bastion) handleConn(ctx context.Context, log *zerolog.Logger, tcpConn n
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Timeout:         5 * time.Second,
 	})
+
 	if err != nil {
-		// TODO: Send a better looking error
 		log.Error().Err(err).Msg("establish SSH proxy client connection")
+
+		// Handle connection channels specifically for sending error messages
+		go b.handleErrorChannels(ctx, log, chans, fmt.Sprintf(
+			"Error connecting to target host: %s\r\n\r\nPlease check if the target VM is running and has SSH enabled.\r\n",
+			err.Error(),
+		))
+
+		// Handle global requests to prevent client from hanging
+		go b.handleEmptyRequests(ctx, reqs)
+
+		// Wait a moment to ensure error message gets sent before connection closes
+		select {
+		case <-time.After(2 * time.Second):
+		case <-ctx.Done():
+		}
+
 		return
 	}
 	defer targetConn.Close()
 
-	log.Debug().Msg("created SSH connection. Starting to proxy")
+	targetID := srvConn.Permissions.Extensions[ExtensionTargetID]
+	desktopID := srvConn.Permissions.Extensions[ExtensionDesktopID]
+	b.log.Info().Str("target", targetID).Str("desktop", desktopID).Msg("connection stablished")
 
 	// Start proxying
 	go b.handleRequests(ctx, log, targetConn, reqs)
 	b.handleChannels(ctx, log, targetConn, chans)
+}
+
+// handleErrorChannels accepts channels but only to display an error message
+func (b *bastion) handleErrorChannels(ctx context.Context, log *zerolog.Logger, chans <-chan ssh.NewChannel, errorMsg string) {
+	for {
+		select {
+		case newChan := <-chans:
+			if newChan == nil {
+				return
+			}
+
+			if newChan.ChannelType() != "session" {
+				newChan.Reject(ssh.UnknownChannelType, "only session channels are supported")
+				continue
+			}
+
+			// Accept the channel
+			channel, requests, err := newChan.Accept()
+			if err != nil {
+				log.Error().Err(err).Msg("accept error notification channel")
+				return
+			}
+			defer channel.Close()
+
+			// Send the error message
+			_, err = channel.Write([]byte(errorMsg))
+			if err != nil {
+				log.Error().Err(err).Msg("write error message to channel")
+			}
+
+			// Handle requests to prevent client hanging
+			go func() {
+				for req := range requests {
+					if req.WantReply {
+						req.Reply(false, nil)
+					}
+				}
+			}()
+
+			// Send exit status after showing the message
+			_, err = channel.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{Status: 1}))
+			if err != nil {
+				log.Error().Err(err).Msg("send exit status")
+			}
+
+			return
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// handleEmptyRequests responds to SSH requests with failure to prevent client from hanging
+func (b *bastion) handleEmptyRequests(ctx context.Context, reqs <-chan *ssh.Request) {
+	for {
+		select {
+		case req := <-reqs:
+			if req == nil {
+				return
+			}
+			if req.WantReply {
+				req.Reply(false, nil)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func (b *bastion) handleRequests(ctx context.Context, log *zerolog.Logger, targetConn *ssh.Client, reqs <-chan *ssh.Request) {
