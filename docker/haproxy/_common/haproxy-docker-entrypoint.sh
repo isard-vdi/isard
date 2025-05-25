@@ -17,9 +17,7 @@ if [ ! -f /certs/chain.pem ]; then
         auto-generate-certs.sh
 fi
 
-inotifyd haproxy-reload /certs/chain.pem:c /usr/local/etc/haproxy/bastion_domains/allowed.map:c &
-
-env
+inotifyd haproxy-reload /certs/chain.pem:c /usr/local/etc/haproxy/bastion_domains/allowed.map:c /usr/local/etc/haproxy/lists/black.lst:c /usr/local/etc/haproxy/lists/external/black.lst:c /usr/local/etc/haproxy/lists/white.lst:c &
 
 # first arg is `-f` or `--some-option`
 if [ "${1#-}" != "$1" ]; then
