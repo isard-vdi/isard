@@ -135,17 +135,26 @@ func (b *bastion) extractTargetIDAndURL(host string) (string, string, error) {
 	targetLog := *b.log
 	targetLog = targetLog.With().Str("target_host", host).Logger()
 	h := strings.Split(host, ".")
-	if len(h) < 2 {
-
+	if len(h) < 3 {
 		return "", "", errors.New("invalid target")
 	}
 
+	// build the target ID by joining the first 2 parts with a dash
+	targetID := strings.Join(h[:2], "-")
+
+	// check that the target ID is a valid UUID
+	splitID := strings.Split(targetID, "-")
+	if len(splitID) != 5 {
+		targetLog.Error().Str("target_id", targetID).Msg("invalid target ID format")
+		return "", "", errors.New("invalid target ID")
+	}
+
 	// build the base URL by joining all but the first part
-	targetURL := strings.Join(h[1:], ".")
+	targetURL := strings.Join(h[2:], ".")
 	targetLog.Debug().Msg("target base URL")
 
 	// return the target ID and the base URL
-	return h[0], targetURL, nil
+	return targetID, targetURL, nil
 }
 
 // TODO: Send helpful messages to the client

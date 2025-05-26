@@ -174,7 +174,7 @@
   </b-modal>
 </template>
 <script>
-import { computed, ref, watch } from '@vue/composition-api'
+import { computed } from '@vue/composition-api'
 import i18n from '@/i18n'
 
 export default {
@@ -188,13 +188,22 @@ export default {
       $store.dispatch('bastionModalShow', { show: false })
     }
 
-    const sshUrl = ref(`ssh ${modal.value.bastion.id}@${config.value.bastionDomain || window.location.hostname} -p ${config.value.bastionSshPort}`)
-    const httpUrl = ref(`http://${modal.value.bastion.id}.${config.value.bastionDomain || window.location.hostname}`)
-    const httpsUrl = ref(`https://${modal.value.bastion.id}.${config.value.bastionDomain || window.location.hostname}`)
-    watch(modal.value, (value) => {
-      sshUrl.value = `ssh ${value.bastion.id}@${config.value.bastionDomain || window.location.hostname} -p ${config.value.bastionSshPort}`
-      httpUrl.value = `http://${value.bastion.id}.${config.value.bastionDomain || window.location.hostname}${config.value.httpPort === '80' ? '' : `:${config.value.httpPort}`}`
-      httpsUrl.value = `https://${value.bastion.id}.${config.value.bastionDomain || window.location.hostname}${config.value.httpsPort === '443' ? '' : `:${config.value.httpsPort}`}`
+    const targetIdSplit = computed(() => {
+      // return the id with the last `-` replaced by `.`
+      if (!modal.value?.bastion?.id) return ''
+      return modal.value?.bastion?.id.split('-').slice(0, -1).join('-') + '.' + modal.value.bastion.id.split('-').slice(-1)[0]
+    })
+
+    const httpUrl = computed(() => {
+      const port = config.value.httpPort === '80' ? '' : `:${config.value.httpPort}`
+      return `http://${targetIdSplit.value}.${config.value.bastionDomain || window.location.hostname}${port}`
+    })
+    const httpsUrl = computed(() => {
+      const port = config.value.httpsPort === '443' ? '' : `:${config.value.httpsPort}`
+      return `https://${targetIdSplit.value}.${config.value.bastionDomain || window.location.hostname}${port}`
+    })
+    const sshUrl = computed(() => {
+      return `ssh ${modal.value.bastion.id}@${config.value.bastionDomain || window.location.hostname} -p ${config.value.bastionSshPort}`
     })
 
     const copyToClipboard = (text) => {
