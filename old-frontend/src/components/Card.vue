@@ -362,7 +362,7 @@ export default {
     }
     const copyToClipboard = (text) => {
       navigator.clipboard.writeText(text)
-      $store.dispatch('showNotification', { message: i18n.t('forms.domain.viewers.bastion.copied') })
+      $store.dispatch('showNotification', { message: i18n.t('forms.domain.bastion.copied') })
     }
 
     return {
