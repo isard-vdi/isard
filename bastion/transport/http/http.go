@@ -145,13 +145,12 @@ func (b *bastion) extractTargetIDAndURL(host string) (string, string, error) {
 	// check that the target ID is a valid UUID
 	splitID := strings.Split(targetID, "-")
 	if len(splitID) != 5 {
-		targetLog.Error().Str("target_id", targetID).Msg("invalid target ID format")
-		return "", "", errors.New("invalid target ID")
+		targetLog.Debug().Str("target_id", targetID).Msg("invalid target ID format")
+		return "", "", errors.New("invalid target ID format")
 	}
 
 	// build the base URL by joining all but the first part
 	targetURL := strings.Join(h[2:], ".")
-	targetLog.Debug().Msg("target base URL")
 
 	// return the target ID and the base URL
 	return targetID, targetURL, nil
@@ -178,7 +177,7 @@ func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *byt
 	targetID, targetURL, err := b.extractTargetIDAndURL(r.Host)
 	httpLog = httpLog.With().Str("target_id", targetID).Str("target_domain", targetURL).Logger()
 	if err != nil {
-		httpLog.Error().Msg("invalid target")
+		httpLog.Debug().Msg("invalid target")
 		return
 	}
 
@@ -190,7 +189,7 @@ func (b *bastion) handleHTTPS(ctx context.Context, conn net.Conn, peeked *bytes.
 	httpsLog = httpsLog.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
 	targetID, targetURL, err := b.extractTargetIDAndURL(hello.ServerName)
 	if err != nil {
-		httpsLog.Error().Msg("invalid target")
+		httpsLog.Debug().Msg("invalid target")
 		return
 	}
 
@@ -210,7 +209,7 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 	// Get the target from the DB and ensure is enabled
 	if err := target.Load(ctx, b.db); err != nil {
 		if errors.Is(err, db.ErrNotFound) {
-			proxyLog.Warn().Msg("target not found")
+			proxyLog.Debug().Msg("target not found")
 			return
 		}
 
@@ -219,7 +218,7 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 	}
 
 	if !target.HTTP.Enabled {
-		proxyLog.Error().Msg("HTTP target service not enabled")
+		proxyLog.Debug().Msg("HTTP target service not enabled")
 		return
 	}
 
@@ -277,25 +276,24 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 	switch category.BastionDomain {
 	case "0":
 		// If the category has a base URL set to false, block all connections
-		proxyLog.Error().Msg("bastion not enabled in this category")
+		proxyLog.Debug().Msg("bastion not enabled in this category")
 		return
 
 	case "":
 		// If the category has a base URL set to null, check if the config base URL is set
 		// if it's set to null, allow all connections no matter the base URL
 		if config.Bastion.Domain != "" && config.Bastion.Domain != targetURL {
-			proxyLog.Error().Msg("config base URL does not match")
+			proxyLog.Debug().Msg("config base URL does not match")
 			return
 		}
 
 	default:
 		// If the category has a base URL, check if it matches the base URL
 		if category.BastionDomain != targetURL {
-			proxyLog.Error().Msg("category base URL does not match")
+			proxyLog.Debug().Msg("category base URL does not match")
 			return
 		}
 	}
-	proxyLog.Debug().Msg("category base URL matches")
 
 	// Load the desktop
 	dktp := &model.Desktop{
@@ -314,13 +312,13 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 
 	// Ensure the desktop is in a valid state
 	if dktp.Status != "Started" {
-		proxyLog.Error().Msg("desktop is not started")
+		proxyLog.Debug().Msg("desktop is not started")
 		return
 	}
 
 	// Get the desktop IP
 	if dktp.Viewer == nil || dktp.Viewer.GuestIP == nil {
-		proxyLog.Error().Msg("desktop has no IP")
+		proxyLog.Debug().Msg("desktop has no IP")
 		return
 	}
 
@@ -340,8 +338,7 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 	}
 	defer targetConn.Close()
 
-	proxyLog.Info().
-		Msg("connection established")
+	proxyLog.Info().Msg("connection established")
 
 	// Replay the previously read bytes
 	if _, err := peeked.WriteTo(targetConn); err != nil {
@@ -357,8 +354,7 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 		select {
 		case err := <-ioErr:
 			if err != nil {
-				proxyLog.Error().
-					Err(err).Msg("io error")
+				proxyLog.Error().Err(err).Msg("io error")
 			}
 			return
 
