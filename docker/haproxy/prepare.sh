@@ -1,10 +1,16 @@
 #!/bin/sh
 
-if [ ! -f /usr/local/etc/haproxy/bastion_domains/allowed.map ]
+if [ ! -f /usr/local/etc/haproxy/bastion_domains/subdomains.map ]
 then
-  echo "Creating /usr/local/etc/haproxy/bastion_domains/allowed.map"
+  echo "Creating /usr/local/etc/haproxy/bastion_domains/subdomains.map"
   mkdir -p /usr/local/etc/haproxy/bastion_domains
-  touch /usr/local/etc/haproxy/bastion_domains/allowed.map
+  touch /usr/local/etc/haproxy/bastion_domains/subdomains.map
+fi
+
+if [ ! -f /usr/local/etc/haproxy/bastion_domains/individual.map ]
+then
+  echo "Creating /usr/local/etc/haproxy/bastion_domains/individual.map"
+  touch /usr/local/etc/haproxy/bastion_domains/individual.map
 fi
 
 tmp_dir=$( mktemp -d )

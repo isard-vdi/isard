@@ -519,8 +519,15 @@ export default {
       context.commit('setBastionModal', data)
     },
     updateBastionAuthorizedKeys (context, data) {
-      axios.put(`${apiV3Segment}/desktop/bastion/${data.desktop_id}`, data).then(response => {
+      axios.put(`${apiV3Segment}/desktop/${data.desktop_id}/bastion/authorized_keys`, { authorized_keys: data.ssh.authorized_keys }).then(response => {
         ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.authorized-ssh-keys-updated'))
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    updateBastionDomainName (context, data) {
+      axios.put(`${apiV3Segment}/desktop/${data.desktop_id}/bastion/domain`, { domain: data.domain || null }).then(response => {
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.bastion-domain-updated'))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })

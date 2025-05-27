@@ -113,6 +113,69 @@
           </b-input-group-append>
         </b-input-group>
       </b-row>
+      <b-row
+        v-if="canChangeDomain"
+        class="ml-2 pr-3"
+      >
+        <label
+          for="sshAuthorizedKeysField"
+          class="ml-2 mb-0"
+        >
+          {{ $t('views.desktop.bastion_modal.labels.domain-name') }}
+        </label>
+        <b-input-group
+          id="bastionHttpUrl"
+          class="mb-3"
+        >
+          <b-form-input
+            v-model="DomainName"
+          />
+          <b-input-group-append>
+            <b-button
+              :title="$t('views.desktop.bastion_modal.titles.domain-info')"
+              class="btn-blue"
+              @click="showDNSInfo = !showDNSInfo"
+            >
+              <b-icon
+                icon="info-circle-fill"
+              />
+            </b-button>
+          </b-input-group-append>
+        </b-input-group>
+        <div
+          v-if="showDNSInfo"
+          class="w-100"
+        >
+          <b-alert
+            show
+            variant="info"
+          >
+            <b-icon
+              class="mr-2"
+              icon="info-circle-fill"
+            />
+            {{ $t('views.desktop.bastion_modal.domain-info.title') }}<br>
+            <br>
+            {{ $t('views.desktop.bastion_modal.domain-info.cname') }}
+            <code>
+              {{ cnameTarget }}
+              <b-icon
+                icon="clipboard"
+                class="cursor-pointer"
+                @click="copyToClipboard(cnameTarget)"
+              />
+            </code>
+          </b-alert>
+        </div>
+        <div class="w-100">
+          <b-button
+            class="mt-2 btn-blue float-right"
+            @click="updateHttpDomain"
+          >
+            {{ $t('views.desktop.bastion_modal.buttons.update-domain') }}
+          </b-button>
+        </div>
+      </b-row>
     </template>
 
     <template v-if="modal.bastion.ssh.enabled">
@@ -174,7 +237,7 @@
   </b-modal>
 </template>
 <script>
-import { computed } from '@vue/composition-api'
+import { computed, ref, watch } from '@vue/composition-api'
 import i18n from '@/i18n'
 
 export default {
@@ -196,14 +259,21 @@ export default {
 
     const httpUrl = computed(() => {
       const port = config.value.httpPort === '80' ? '' : `:${config.value.httpPort}`
-      return `http://${targetIdSplit.value}.${config.value.bastionDomain || window.location.hostname}${port}`
+      if (modal.value.bastion.domain) {
+        return `http://${modal.value.bastion.domain}${port}`
+      }
+      return `http://${targetIdSplit.value}.${modal.value.bastion.domain || config.value.bastionDomain || window.location.hostname}${port}`
     })
     const httpsUrl = computed(() => {
       const port = config.value.httpsPort === '443' ? '' : `:${config.value.httpsPort}`
+      if (modal.value.bastion.domain) {
+        return `https://${modal.value.bastion.domain}${port}`
+      }
       return `https://${targetIdSplit.value}.${config.value.bastionDomain || window.location.hostname}${port}`
     })
     const sshUrl = computed(() => {
-      return `ssh ${modal.value.bastion.id}@${config.value.bastionDomain || window.location.hostname} -p ${config.value.bastionSshPort}`
+      const port = config.value.httpsPort === '22' ? '' : ` -p ${config.value.httpsPort}`
+      return `ssh ${modal.value.bastion.id}@${config.value.bastionDomain || window.location.hostname}${port}`
     })
 
     const copyToClipboard = (text) => {
@@ -226,6 +296,29 @@ export default {
       $store.dispatch('updateBastionAuthorizedKeys', modal.value.bastion)
     }
 
+    const DomainName = ref(modal.value.bastion.domain || '')
+    watch(() => modal.value.bastion.domain, (newValue) => {
+      DomainName.value = newValue || ''
+    })
+
+    const showDNSInfo = ref(false)
+    const cnameTarget = computed(() => {
+      return `${modal.value.bastion.id}.${config.value.bastionDomain}`
+    })
+
+    const updateHttpDomain = () => {
+      const data = {
+        ...modal.value.bastion,
+        domain: DomainName.value
+      }
+
+      $store.dispatch('updateBastionDomainName', data)
+    }
+
+    const canChangeDomain = computed(() => {
+      return config.value.canUseBastionIndividualDomains
+    })
+
     return {
       modal,
       closeModal,
@@ -235,7 +328,12 @@ export default {
       copyToClipboard,
       sshAuthorizedKeys,
       joinNewLine,
-      updateSshAuthorizedKeys
+      updateSshAuthorizedKeys,
+      DomainName,
+      showDNSInfo,
+      cnameTarget,
+      updateHttpDomain,
+      canChangeDomain
     }
   }
 }

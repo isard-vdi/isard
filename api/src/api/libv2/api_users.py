@@ -93,6 +93,7 @@ from ..libv2.api_user_storage import (
 from ..views.decorators import (
     CategoryNameGroupNameMatch,
     can_use_bastion,
+    can_use_bastion_individual_domains,
     ownsCategoryId,
 )
 from .api_admin import (
@@ -447,6 +448,9 @@ class ApiUsers:
                     else None
                 ),
                 "can_use_bastion": bastion_allowed,
+                "can_use_bastion_individual_domains": can_use_bastion_individual_domains(
+                    payload
+                ),
                 "migrations_block": self.is_blocked_migration(payload["user_id"]),
             },
         }

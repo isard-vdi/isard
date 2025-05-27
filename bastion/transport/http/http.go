@@ -130,17 +130,41 @@ func (b *bastion) peekTlsHello(ctx context.Context, conn net.Conn) (*tls.ClientH
 	return hello, peeked, nil
 }
 
-func (b *bastion) extractTargetIDAndURL(host string) (string, string, error) {
-	// Get the target ID from the host
+func (b *bastion) extractTargetIDFromDB(ctx context.Context, host string) (string, error) {
+	target := &model.Target{}
+
+	if err := target.LoadFromDomain(ctx, b.db, host); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			b.log.Debug().Msg("target not found by domain")
+			return "", db.ErrNotFound
+		}
+
+		b.log.Error().Err(err).Msg("load target from the DB")
+		return "", fmt.Errorf("load target from the DB: %w", err)
+	}
+
+	return target.ID, nil
+}
+
+func (b *bastion) extractTargetIDAndURL(ctx context.Context, host string) (string, string, error) {
 	targetLog := *b.log
 	targetLog = targetLog.With().Str("target_host", host).Logger()
+
+	// Get the target ID from the database
+	targetID, err := b.extractTargetIDFromDB(ctx, host)
+	if err == nil {
+		targetLog.Debug().Str("target_id", targetID).Msg("target ID found in DB")
+		return targetID, host, nil
+	}
+
+	// Get the target ID from the host
 	h := strings.Split(host, ".")
 	if len(h) < 3 {
 		return "", "", errors.New("invalid target")
 	}
 
 	// build the target ID by joining the first 2 parts with a dash
-	targetID := strings.Join(h[:2], "-")
+	targetID = strings.Join(h[:2], "-")
 
 	// check that the target ID is a valid UUID
 	splitID := strings.Split(targetID, "-")
@@ -174,7 +198,7 @@ func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *byt
 		return
 	}
 
-	targetID, targetURL, err := b.extractTargetIDAndURL(r.Host)
+	targetID, targetURL, err := b.extractTargetIDAndURL(ctx, r.Host)
 	httpLog = httpLog.With().Str("target_id", targetID).Str("target_domain", targetURL).Logger()
 	if err != nil {
 		httpLog.Debug().Msg("invalid target")
@@ -187,7 +211,7 @@ func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *byt
 func (b *bastion) handleHTTPS(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, hello *tls.ClientHelloInfo, remoteIP string, remotePort string) {
 	httpsLog := *b.log
 	httpsLog = httpsLog.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
-	targetID, targetURL, err := b.extractTargetIDAndURL(hello.ServerName)
+	targetID, targetURL, err := b.extractTargetIDAndURL(ctx, hello.ServerName)
 	if err != nil {
 		httpsLog.Debug().Msg("invalid target")
 		return
@@ -273,25 +297,27 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 	// Check if the category has a base URL.
 	proxyLog.Debug().Msg("category base URL")
 
-	switch category.BastionDomain {
-	case "0":
-		// If the category has a base URL set to false, block all connections
-		proxyLog.Debug().Msg("bastion not enabled in this category")
-		return
-
-	case "":
-		// If the category has a base URL set to null, check if the config base URL is set
-		// if it's set to null, allow all connections no matter the base URL
-		if config.Bastion.Domain != "" && config.Bastion.Domain != targetURL {
-			proxyLog.Debug().Msg("config base URL does not match")
+	if target.Domain != targetURL {
+		switch category.BastionDomain {
+		case "0":
+			// If the category has a base URL set to false, block all connections
+			proxyLog.Debug().Msg("bastion not enabled in this category")
 			return
-		}
 
-	default:
-		// If the category has a base URL, check if it matches the base URL
-		if category.BastionDomain != targetURL {
-			proxyLog.Debug().Msg("category base URL does not match")
-			return
+		case "":
+			// If the category has a base URL set to null, check if the config base URL is set
+			// if it's set to null, allow all connections no matter the base URL
+			if config.Bastion.Domain != "" && config.Bastion.Domain != targetURL {
+				proxyLog.Debug().Msg("config base URL does not match")
+				return
+			}
+
+		default:
+			// If the category has a base URL, check if it matches the base URL
+			if category.BastionDomain != targetURL {
+				proxyLog.Debug().Msg("category base URL does not match")
+				return
+			}
 		}
 	}
 

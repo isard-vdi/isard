@@ -218,6 +218,7 @@ tables = [
     "users_migrations_exceptions",
     "notifications",
     "notifications_action",
+    "targets",
 ]
 
 
@@ -896,6 +897,14 @@ password:s:%s"""
                             "enabled": True,
                             "domain": os.environ.get("DOMAIN"),
                             "domain_verification_required": True,
+                            "individual_domains": {
+                                "allowed": {
+                                    "categories": False,
+                                    "groups": False,
+                                    "roles": False,
+                                    "users": False,
+                                },
+                            },
                         }
                     }
                 ).run(self.conn)
@@ -6210,6 +6219,31 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+        return True
+
+    """
+    TARGETS TABLE UPGRADES
+    """
+
+    def targets(self, version):
+        table = "targets"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+
+        if version == 170:
+            try:
+                r.table(table).update(
+                    {
+                        "domain": None,
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create("domain").run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """

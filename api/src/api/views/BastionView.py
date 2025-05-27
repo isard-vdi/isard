@@ -12,6 +12,7 @@ from ..libv2.api_targets import (
     ApiTargets,
     bastion_domain_verification_required,
     bastion_enabled_in_db,
+    check_bastion_domain_dns,
     get_bastion_domain,
     update_bastion_config,
 )
@@ -19,6 +20,8 @@ from ..libv2.validators import _validate_item
 from .decorators import (
     bastion_enabled,
     can_use_bastion,
+    can_use_bastion_individual_domains,
+    checkDuplicateBastionDomain,
     has_token,
     is_admin,
     is_admin_or_manager,
@@ -72,12 +75,101 @@ def api_v3_update_desktop_bastion(payload, desktop_id):
             description_code="desktop_bastion_incorrect_body_data",
         )
     data = _validate_item("bastion", data)
+
+    if not can_use_bastion_individual_domains(payload):
+        data["domain"] = None
+
     targets.update_domain_target(desktop_id, data)
     return (
         json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/desktop/<desktop_id>/bastion/authorized_keys", methods=["PUT"])
+@has_token
+def api_v3_update_bastion_target_authorized_keys(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    if can_use_bastion(payload) == False:
+        raise Error(
+            "forbidden",
+            "User can not use bastion",
+            traceback.format_exc(),
+        )
+
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request",
+            "Desktop bastion update incorrect body data",
+            traceback.format_exc(),
+        )
+
+    if not data.get("authorized_keys"):
+        raise Error(
+            "bad_request",
+            "Authorized keys are required",
+            traceback.format_exc(),
+        )
+
+    target = targets.get_domain_target(desktop_id)
+    target["ssh"]["authorized_keys"] = data["authorized_keys"]
+
+    targets.update_domain_target(desktop_id, target)
+
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/desktop/<desktop_id>/bastion/domain", methods=["PUT"])
+@has_token
+def api_v3_update_bastion_target_domain_name(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    if can_use_bastion(payload) == False:
+        raise Error(
+            "forbidden",
+            "User can not use bastion",
+            traceback.format_exc(),
+        )
+
+    if not can_use_bastion_individual_domains(payload):
+        raise Error(
+            "forbidden",
+            "User can not use individual bastion domains",
+            traceback.format_exc(),
+        )
+
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request",
+            "Desktop bastion update incorrect body data",
+            traceback.format_exc(),
+        )
+
+    if "domain" not in data:
+        raise Error(
+            "bad_request",
+            "Domain name is required",
+            traceback.format_exc(),
+        )
+
+    target = targets.get_domain_target(desktop_id)
+    target["domain"] = data["domain"]
+
+    if isinstance(data["domain"], str) and bastion_domain_verification_required():
+        check_bastion_domain_dns(
+            data["domain"],
+            f"{target['id']}.{get_bastion_domain(payload['category_id'])}",
+            kind="cname",
+        )
+    checkDuplicateBastionDomain(data["domain"], target_id=target["id"])
+
+    targets.update_domain_target(desktop_id, target)
+
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/bastion_targets", methods=["GET"])

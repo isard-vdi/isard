@@ -370,3 +370,47 @@ class ApiAllowed:
                     }
                 }
             ).run(db.conn)
+
+    def remove_disallowed_bastion_target_domains(self):
+        with app.app_context():
+            targets = r.table("targets").run(db.conn)
+
+        with app.app_context():
+            bastion_alloweds = dict(
+                r.table("config")
+                .get(1)
+                .pluck([{"bastion": {"individual_domains": "allowed"}}])
+                .run(db.conn)["bastion"]["individual_domains"]["allowed"]
+            )
+
+        allowed_users = self.get_users_allowed(bastion_alloweds)
+
+        disallowed_targets = []
+
+        for target in targets:
+            if target["user_id"] not in allowed_users:
+                disallowed_targets.append(target["id"])
+
+        with app.app_context():
+            r.table("targets").get_all(r.args(disallowed_targets)).update(
+                {
+                    "domain": None,
+                }
+            ).run(db.conn)
+
+        return disallowed_targets
+
+    def remove_disallowed_bastion_target_domains_th(self):
+        gevent.spawn(self.remove_disallowed_bastion_target_domains)
+
+    def update_bastion_target_domains_alloweds(self, allowed):
+        with app.app_context():
+            r.table("config").get(1).update(
+                {
+                    "bastion": {
+                        "individual_domains": {
+                            "allowed": allowed,
+                        }
+                    }
+                }
+            ).run(db.conn)

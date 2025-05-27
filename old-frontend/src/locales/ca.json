@@ -1001,7 +1001,8 @@
           "ssh": "SSH:",
           "http": "URL HTTP:",
           "https": "URL HTTPS:",
-          "authorized-keys-ssh": "Claus SSH autoritzades"
+          "authorized-keys-ssh": "Claus SSH autoritzades",
+          "domain-name": "Nom de domini personalitzat:"
         },
         "titles": {
           "id_copy": "Copiar ID del bastió",
@@ -1012,10 +1013,16 @@
           "http_copy": "Copiar URL HTTP",
           "https_port": "HTTPS: {https_port}",
           "https_copy": "Copiar URL HTTPS",
-          "authorized-keys-ssh": "Claus SSH autoritzades"
+          "authorized-keys-ssh": "Claus SSH autoritzades",
+          "domain-info": "Informació de DNS"
+        },
+        "domain-info": {
+            "title": "Pots utilitzar el teu propi nom de domini per accedir a aquest escriptori mitjançant el bastió.",
+            "cname": "Afegeix un registre CNAME al teu proveïdor de DNS apuntant a: "
         },
         "buttons": {
-            "update-authorized-keys": "Actualitzar claus SSH autoritzades"
+            "update-authorized-keys": "Actualitzar claus SSH autoritzades",
+            "bastion-domain-updated": "Actualitzar domini personalitzat"
         }
       }
     },
@@ -1223,7 +1230,8 @@
         "http": {
           "checkbox": "HTTP",
           "http-port": "Port HTTP",
-          "https-port": "Port HTTPS"
+          "https-port": "Port HTTPS",
+          "domain-name": "Nom de domini personalitzat (opcional)"
         },
         "ssh": {
           "checkbox": "SSH",
@@ -1498,7 +1506,11 @@
     "unable_to_restore_user": "No es pot restaurar. L'usuari esborrat {user} és propietari d'elements d'aquesta entrada",
     "unable_to_restore_group": "No es pot restaurar. El grup esborrat {group} està associat a elements d'aquesta entrada",
     "unable_to_restore_category": "No es pot restaurar. La categoria esborrada {categoria} està associada a elements d'aquesta entrada",
-    "operation_not_owned": "No estàs autoritzat a cancel·lar aquesta operació ja que no ha estat iniciada per tu"
+    "operation_not_owned": "No estàs autoritzat a cancel·lar aquesta operació ja que no ha estat iniciada per tu",
+    "bastion_domain_dns_not_found": "El registre DNS del domini no s'ha trobat. Si us plau, comprova-ho i torna-ho a provar.",
+    "bastion_domain_dns_error": "S'ha produït un error al comprovar el DNS del domini. Torna-ho a provar més tard.",
+    "bastion_domain_dns_mismatch": "El registre DNS del domini no coincideix amb el valor esperat. Si us plau, comprova-ho i torna-ho a provar.",
+    "bastion_domain_exists": "El domini ja existeix. Si us plau, tria un altre nom de domini."
   },
   "messages": {
     "title": {
@@ -1584,7 +1596,8 @@
       "increasing-storage": "Incrementant mida del disc. Això pot trigar una estona",
       "converting-template": "Convertint la plantilla a l'escriptori",
       "token-copied": "Codi de migració copiat al porta-retalls",
-      "authorized-ssh-keys-updated": "Claus SSH autoritzades actualitzades"
+      "authorized-ssh-keys-updated": "Claus SSH autoritzades actualitzades",
+      "bastion-domain-updated": "Domini de bastió actualitzat"
     },
     "loading": "Carregant"
   },

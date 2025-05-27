@@ -1111,14 +1111,41 @@ $(document).ready(function () {
         });
     });
 
+    $("#BastionConfig #btn-alloweds-cname").on('click', function (e) {
+        new PNotify({
+            title: "Warning!",
+            text: `Removing a user's access to edit a custom domain name for their desktop will remove ALL their configured domain names.
+            This action is irreversible.`,
+            type: "error",
+            addclass: 'pnotify-center-large',
+            confirm: {
+                confirm: true,
+                buttons: [
+                    {
+                        text: 'Edit', click: function (notice) {
+                            modalAllowedsFormShow("bastion_domains", { id: 1, name: 'Bastion custom domain name' });
+                            notice.remove();
+                        }
+                    },
+                    {
+                        text: 'Cancel', click: function (notice) {
+                            notice.remove();
+                        }
+                    }
+                ]
+            },
+        });
+    });
+
     $.ajax({
         type: 'GET',
         url: "/api/v3/admin/bastion/",
         contentType: 'application/json',
         success: function (data) {
-            if (data['bastion_enabled'] === true) {
+            if (data['bastion_enabled_in_cfg'] === true) {
                 $("#BastionConfig #bastionStatusLabel").text("Bastion enabled in cfg. SSH port: " + data['bastion_ssh_port']);
                 $("#BastionConfig #btn-alloweds").show();
+                $("#BastionConfig #btn-alloweds-cname").show();
                 $("#BastionConfig #btn-delete-disallowed").show();
                 $("#BastionConfig #btn-edit-bastion").show();
             } else {
@@ -1129,6 +1156,7 @@ $(document).ready(function () {
                         Then execute build.sh and restart isard to apply the changes.
                     </b>`);
                 $("#BastionConfig #btn-alloweds").hide();
+                $("#BastionConfig #btn-alloweds-cname").hide();
                 $("#BastionConfig #btn-delete-disallowed").hide();
                 $("#BastionConfig #btn-edit-bastion").hide();
             }

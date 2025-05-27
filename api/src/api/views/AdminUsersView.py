@@ -1548,8 +1548,8 @@ def api_v3_admin_edit_category_bastion_domain(payload, category_id):
         and bastion_domain_verification_required()
         and payload["role_id"] != "admin"
     ):
-        checkDuplicateBastionDomain(data["bastion_domain"], category_id=category_id)
-        check_bastion_domain_dns(data["bastion_domain"], category_id)
+        check_bastion_domain_dns(data["bastion_domain"], category_id, kind="category")
+    checkDuplicateBastionDomain(data["bastion_domain"], category_id=category_id)
 
     update_category_bastion_domain(category_id, data["bastion_domain"])
 

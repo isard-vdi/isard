@@ -48,6 +48,7 @@
           <b>ID:</b> {{ bastionId }}
         </h5>
       </div>
+
       <b-row>
         <b-col
           cols="4"
@@ -126,6 +127,56 @@
             />
           </b-col>
         </b-row>
+
+        <b-row
+          v-if="getConfig.canUseBastionIndividualDomains"
+          class="mt-2"
+        >
+          <b-col
+            cols="4"
+            xl="2"
+          >
+            <label for="httpDomainNameField">
+              {{ $t('forms.domain.bastion.http.domain-name') }}
+              <b-icon
+                id="tooltip-target-1"
+                icon="info-circle"
+              />
+              <b-tooltip
+                target="tooltip-target-1"
+                placement="top"
+                custom-class="isard-tooltip isard-tooltip-lg"
+                triggers="hover"
+              >
+                {{ $t('views.desktop.bastion_modal.domain-info.cname') }}<br>
+                <code class="bg-white p-1 rounded-sm">
+                  {{ cnameTarget }}
+                  <b-icon
+                    v-b-tooltip="{ title: `${copyTooltipText}`,
+                                   placement: 'top',
+                                   customClass: 'isard-tooltip',
+                                   trigger: 'hover' }"
+                    icon="clipboard"
+                    class="cursor-pointer"
+                    @click="copyToClipboard(cnameTarget)"
+                  />
+                </code>
+              </b-tooltip>
+            </label>
+          </b-col>
+          <b-col
+            cols="6"
+            xl="4"
+          >
+            <b-form-input
+              id="httpDomainNameField"
+              v-model="customDomainName"
+              type="text"
+              size="sm"
+            />
+          </b-col>
+        </b-row>
+
       </template>
       <b-row
         class="mt-2"
@@ -154,7 +205,7 @@
             <label for="sshPortField">
               {{ $t('forms.domain.bastion.ssh.port') }}
               <b-icon
-                v-b-tooltip="{ title: $t('forms.domain.bastion.port-tooltip', { port: getConfig.bastionSshPort }),
+                v-b-tooltip="{ title: $t('forms.domain.bastion.port-tooltip', { port: getConfig.httpsPort }),
                                placement: 'top',
                                customClass: 'isard-tooltip isard-tooltip-lg',
                                trigger: 'hover' }"
@@ -202,6 +253,7 @@
           </b-col>
         </b-row>
       </template>
+
     </span>
   </div>
 </template>
@@ -216,6 +268,7 @@ export default {
   setup (props, context) {
     const $store = context.root.$store
     const bastionData = computed(() => $store.getters.getBastion)
+    const config = computed(() => $store.getters.getConfig)
 
     const showBastionOptions = ref(false)
 
@@ -282,6 +335,16 @@ export default {
         $store.commit('setBastion', bastionData.value)
       }
     })
+    const cnameTarget = computed(() => {
+      return `${bastionId.value}.${config.value.bastionDomain}`
+    })
+    const customDomainName = computed({
+      get: () => $store.getters.getBastion.domain || '',
+      set: (value) => {
+        bastionData.value.domain = value || null
+        $store.commit('setBastion', bastionData.value)
+      }
+    })
     const sshPort = computed({
       get: () => $store.getters.getBastion.ssh.port,
       set: (value) => {
@@ -324,6 +387,8 @@ export default {
       httpEnabled,
       httpPort,
       httpsPort,
+      cnameTarget,
+      customDomainName,
       sshEnabled,
       sshPort,
       sshAuthorizedKeys,

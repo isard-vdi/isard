@@ -1,5 +1,6 @@
 import traceback
 import uuid
+from typing import Literal
 
 import dns.resolver
 from isardvdi_common.api_exceptions import Error
@@ -32,7 +33,7 @@ def get_bastion_domain(category_id: str = None) -> str:
         if category_id
         else None
     )
-    if not bastion_domain:
+    if bastion_domain is None:
         bastion_domain = get_document("config", 1, ["bastion"]).get("domain")
     return bastion_domain
 
@@ -77,26 +78,6 @@ def update_category_bastion_domain(category_id, domain):
     update_bastion_haproxy_map()
 
 
-def add_bastion_domain_to_haproxy_map(domain: str) -> str:
-    """
-    Add the domain to the bastion domain map for haproxy.
-    """
-    with open("/api/api/bastion_domains/allowed.map", "a") as f:
-        f.write(f"{domain}\n")
-
-
-def remove_bastion_domain_from_haproxy_map(domain: str) -> str:
-    """
-    Remove the domain from the bastion domain map for haproxy.
-    """
-    with open("/api/api/bastion_domains/allowed.map", "r") as f:
-        lines = f.readlines()
-    with open("/api/api/bastion_domains/allowed.map", "w") as f:
-        for line in lines:
-            if line.strip("\n") != domain:
-                f.write(line)
-
-
 def update_bastion_haproxy_map():
     """
     Update the bastion domain map for haproxy.
@@ -118,10 +99,27 @@ def update_bastion_haproxy_map():
     ]
     domains.extend(category_domains)
 
-    with open("/api/api/bastion_domains/allowed.map", "w") as f:
+    with open("/api/api/bastion_domains/subdomains.map", "w") as f:
         for domain in domains:
             if domain:
                 f.write(f"{domain}\n")
+
+
+def update_bastion_desktops_haproxy_map():
+    """
+    Update the bastion domain map for haproxy.
+    """
+    # TODO: lock the file while writing to it
+
+    with app.app_context():
+        targets = list(r.table("targets").pluck("domain").run(db.conn))
+    domains = [
+        t["domain"] for t in targets if t.get("domain") and isinstance(t["domain"], str)
+    ]
+
+    with open("/api/api/bastion_domains/individual.map", "w") as f:
+        for domain in domains:
+            f.write(f"{domain}\n")
 
 
 def bastion_domain_verification_required() -> bool:
@@ -136,33 +134,53 @@ def bastion_domain_verification_required() -> bool:
 def check_bastion_domain_dns(
     domain: str,
     expected: str,
-    kind: str = "category",
+    kind: Literal["category", "cname"] = "category",
 ):
-    domain = f"_isardvdi-bastion-{kind}.{domain}"
-
     try:
-        result = dns.resolver.resolve(domain, "TXT")
-        for val in result:
-            if val.to_text().strip('"') == expected:
-                return True
+        match kind:
+            case "category":
+                domain = f"_isardvdi-bastion-{kind}.{domain}"
+
+                result = dns.resolver.resolve(domain, "TXT")
+                for val in result:
+                    if val.to_text().strip('"') == expected:
+                        return True
+
+            case "cname":
+                result = dns.resolver.resolve(domain, "CNAME")
+                for val in result:
+                    if val.to_text().strip(".") == expected:
+                        return True
+
+            case _:
+                raise Error(
+                    "bad_request",
+                    f"Invalid kind for DNS check: {kind}",
+                    traceback.format_exc(),
+                )
 
     except dns.resolver.NXDOMAIN:
         raise Error(
             "precondition_required",
             f'DNS record for "{domain}" not found. Make sure the record exists and try again in a few minutes.',
             traceback.format_exc(),
+            description_code="bastion_domain_dns_not_found",
         )
+    except Error as e:
+        raise e
     except Exception as e:
         raise Error(
-            "internal_error",
+            "precondition_required",
             f"Error checking DNS record for {domain}: {str(e)}",
             traceback.format_exc(),
+            description_code="bastion_domain_dns_error",
         )
 
     raise Error(
         "precondition_required",
         f"DNS record for {domain} does not match expected value",
         traceback.format_exc(),
+        description_code="bastion_domain_dns_mismatch",
     )
 
 
@@ -200,6 +218,7 @@ class ApiTargets:
                 "id": str(uuid.uuid4()),
                 "desktop_id": domain_id,
                 "user_id": user_id,
+                "domain": None,
             }
             target["http"] = {"enabled": False, "http_port": 80, "https_port": 443}
             target["ssh"] = {"enabled": False, "port": 22, "authorized_keys": []}
@@ -211,9 +230,31 @@ class ApiTargets:
             target["http"] = data["http"]
         if data.get("ssh"):
             target["ssh"] = data["ssh"]
+        if "domain" in data:
+            if data["domain"] is None:
+                target["domain"] = None
+            else:
+                if bastion_domain_verification_required():
+                    with app.app_context():
+                        category_id = (
+                            r.table("domains")
+                            .get(domain_id)
+                            .pluck("category")
+                            .run(db.conn)["category"]
+                        )
+                    check_bastion_domain_dns(
+                        data["domain"],
+                        f"{target['id']}.{get_bastion_domain(category_id)}",
+                        kind="cname",
+                    )
+
+                target["domain"] = data["domain"]
 
         with app.app_context():
             r.db("isard").table("targets").get(target["id"]).update(target).run(db.conn)
+
+        if "domain" in data:
+            update_bastion_desktops_haproxy_map()
 
         return target
 
