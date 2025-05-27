@@ -700,7 +700,15 @@ function actionsCategoryDetail() {
     $("#categories .btn-bastion-domain").off("click").on("click", function () {
         var pk = $(this).closest("div").attr("data-pk");
         var modal = "#modalBastionDomain";
-        var domainVerified = true;
+        var verificationRequired = true;
+        $.ajax({
+            type: "GET",
+            url: "/api/v3/admin/bastion/config/",
+            contentType: "application/json",
+            success: function (category) {
+                verificationRequired = category.domain_verification_required || true;
+            },
+        });
         $.ajax({
             type: "GET",
             url: "/api/v3/admin/category/" + pk + "/bastion_domain",
@@ -708,29 +716,42 @@ function actionsCategoryDetail() {
             success: function (category) {
                 switch (category.bastion_domain) {
                     case null:
-                    $(modal + " #bastion-enabled").val("null").trigger('change');
-                    $(modal + " #bastion-domain").val("");
-                    break;
+                        $(modal + " #bastion-enabled").val("null").trigger('change');
+                        $(modal + " #bastion-domain").val("");
+                        break;
                     case false:
-                    $(modal + " #bastion-enabled").val("false").trigger('change');
-                    $(modal + " #bastion-domain").val("");
-                    break;
+                        $(modal + " #bastion-enabled").val("false").trigger('change');
+                        $(modal + " #bastion-domain").val("");
+                        break;
                     default:
-                    $(modal + " #bastion-enabled").val("true").trigger('change');
-                    $(modal + " #bastion-domain").val(category.bastion_domain);
-                    break;
+                        $(modal + " #bastion-enabled").val("true").trigger('change');
+                        $(modal + " #bastion-domain").val(category.bastion_domain);
+                        break;
                 }
+
+                $(`${modal} #domain-ownership-alert #record-name`).text(`_isardvdi-bastion-category.${category.bastion_domain || "@"}`);
+                $(`${modal} #domain-ownership-alert #record-content`).text(pk);
             },
         });
         $(modal + " #bastion-enabled").off("change").on("change", function () {
             if ($(this).val() === "true" || $(this).val() === null) {
                 $(`${modal} #bastion-domain-panel`).show();
                 $(`${modal} #wildcard-domain-alert`).show();
+                if (verificationRequired) {
+                    $(`${modal} #domain-ownership-alert`).show();
+                } else {
+                    $(`${modal} #domain-ownership-alert`).hide();
+                }
             } else {
                 $(`${modal} #bastion-domain-panel`).hide();
                 $(`${modal} #wildcard-domain-alert`).hide();
+                $(`${modal} #domain-ownership-alert`).hide();
             }
         }).trigger("change");
+
+        $(modal + " #bastion-domain-panel input").off("change").on("change", function () {
+            $(`${modal} #domain-ownership-alert #record-name`).text(`_isardvdi-bastion-category.${$(this).val() || "@"}`);
+        });
 
         $(modal + " #id").val(pk);
         $(modal).modal({

@@ -44,6 +44,8 @@ from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_sessions import revoke_user_session
 from ..libv2.api_storage import add_category_to_storage_pool, get_storage_pool
 from ..libv2.api_targets import (
+    bastion_domain_verification_required,
+    check_bastion_domain_dns,
     get_category_bastion_domain,
     update_category_bastion_domain,
 )
@@ -1541,7 +1543,13 @@ def api_v3_admin_edit_category_bastion_domain(payload, category_id):
             traceback.format_exc(),
         )
 
-    checkDuplicateBastionDomain(data["bastion_domain"], category_id=category_id)
+    if (
+        isinstance(data["bastion_domain"], str)
+        and bastion_domain_verification_required()
+        and payload["role_id"] != "admin"
+    ):
+        checkDuplicateBastionDomain(data["bastion_domain"], category_id=category_id)
+        check_bastion_domain_dns(data["bastion_domain"], category_id)
 
     update_category_bastion_domain(category_id, data["bastion_domain"])
 

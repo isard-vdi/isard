@@ -25,8 +25,9 @@ type Config struct {
 }
 
 type Bastion struct {
-	Domain  string `rethinkdb:"domain"`
-	Enabled bool   `rethinkdb:"enabled"`
+	Domain                     string `rethinkdb:"domain"`
+	Enabled                    bool   `rethinkdb:"enabled"`
+	DomainVerificationRequired bool   `rethinkdb:"domain_verification_required"`
 }
 
 func (c *Config) Load(ctx context.Context, sess r.QueryExecutor) error {

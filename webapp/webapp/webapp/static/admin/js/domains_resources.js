@@ -1211,11 +1211,8 @@ $(document).ready(function () {
             accept: "application/json",
             success: function (response) {
                 $('#modalEditBastionForm #bastion-domain').val(response["bastion_domain"])
-                if (response["bastion_enabled_in_db"] === true) {
-                    $('#modalEditBastionForm #bastion-enabled').iCheck('check').iCheck('update');
-                } else {
-                    $('#modalEditBastionForm #bastion-enabled').iCheck('uncheck').iCheck('update');
-                }
+                $('#modalEditBastionForm #bastion-enabled').iCheck(response["bastion_enabled_in_db"] === true ? 'check' : 'uncheck').iCheck('update');
+                $('#modalEditBastionForm #domain-verification-required').iCheck(response["domain_verification_required"] === true ? 'check' : 'uncheck').iCheck('update');
             }
         });
     });
@@ -1231,7 +1228,8 @@ $(document).ready(function () {
                 url: "/api/v3/admin/bastion/config",
                 data: JSON.stringify({
                     "enabled": "bastion-enabled" in data,
-                    "bastion_domain": data["bastion-domain"]
+                    "bastion_domain": data["bastion-domain"],
+                    "domain_verification_required": "domain-verification-required" in data
                 }),
                 contentType: "application/json",
                 accept: "application/json",

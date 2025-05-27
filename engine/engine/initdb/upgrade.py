@@ -895,6 +895,7 @@ password:s:%s"""
                         "bastion": {
                             "enabled": True,
                             "domain": os.environ.get("DOMAIN"),
+                            "domain_verification_required": True,
                         }
                     }
                 ).run(self.conn)

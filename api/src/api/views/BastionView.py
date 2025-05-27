@@ -10,6 +10,7 @@ from api import app
 from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_targets import (
     ApiTargets,
+    bastion_domain_verification_required,
     bastion_enabled_in_db,
     get_bastion_domain,
     update_bastion_config,
@@ -20,6 +21,7 @@ from .decorators import (
     can_use_bastion,
     has_token,
     is_admin,
+    is_admin_or_manager,
     ownsDomainId,
 )
 
@@ -114,6 +116,7 @@ def api_v3_admin_bastion(payload):
                     "BASTION_SSH_PORT",
                     "2222",
                 ),
+                "domain_verification_required": bastion_domain_verification_required(),
             }
         ),
         200,
@@ -147,5 +150,18 @@ def admin_bastion_update_config(payload):
     update_bastion_config(
         data["enabled"],
         data["bastion_domain"],
+        data["domain_verification_required"],
     )
     return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/bastion/config", methods=["GET"])
+@is_admin_or_manager
+def manager_bastion_config(payload):
+    return (
+        json.dumps(
+            {"domain_verification_required": bastion_domain_verification_required()}
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )

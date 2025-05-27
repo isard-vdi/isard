@@ -27,3 +27,4 @@ Pillow==10.3.0
 html-sanitizer==2.4.4
 grpcio==1.66.2
 protobuf==5.26.1
+dnspython==2.7.0

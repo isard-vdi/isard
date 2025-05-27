@@ -1,6 +1,7 @@
 import traceback
 import uuid
 
+import dns.resolver
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -39,13 +40,20 @@ def get_bastion_domain(category_id: str = None) -> str:
 def update_bastion_config(
     enabled: bool,
     domain: str,
+    domain_verification_required: bool,
 ):
     """
     Update the bastion config.
     """
     with app.app_context():
         r.table("config").get(1).update(
-            {"bastion": {"enabled": enabled, "domain": domain}}
+            {
+                "bastion": {
+                    "enabled": enabled,
+                    "domain": domain,
+                    "domain_verification_required": domain_verification_required,
+                }
+            }
         ).run(db.conn)
     invalidate_cache("config", 1)
 
@@ -114,6 +122,48 @@ def update_bastion_haproxy_map():
         for domain in domains:
             if domain:
                 f.write(f"{domain}\n")
+
+
+def bastion_domain_verification_required() -> bool:
+    """
+    Get if bastion domain verification is required.
+    """
+    return get_document("config", 1, ["bastion"]).get(
+        "domain_verification_required", True
+    )
+
+
+def check_bastion_domain_dns(
+    domain: str,
+    expected: str,
+    kind: str = "category",
+):
+    domain = f"_isardvdi-bastion-{kind}.{domain}"
+
+    try:
+        result = dns.resolver.resolve(domain, "TXT")
+        for val in result:
+            if val.to_text().strip('"') == expected:
+                return True
+
+    except dns.resolver.NXDOMAIN:
+        raise Error(
+            "precondition_required",
+            f'DNS record for "{domain}" not found. Make sure the record exists and try again in a few minutes.',
+            traceback.format_exc(),
+        )
+    except Exception as e:
+        raise Error(
+            "internal_error",
+            f"Error checking DNS record for {domain}: {str(e)}",
+            traceback.format_exc(),
+        )
+
+    raise Error(
+        "precondition_required",
+        f"DNS record for {domain} does not match expected value",
+        traceback.format_exc(),
+    )
 
 
 class ApiTargets:
