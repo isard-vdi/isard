@@ -328,10 +328,11 @@ func (s *SAML) Healthcheck() error {
 		}
 	}
 
-	_, err := http.Get(bindingLocation)
+	resp, err := http.Get(bindingLocation)
 	if err != nil {
 		return fmt.Errorf("unable to get the SAML binding location: %w", err)
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
