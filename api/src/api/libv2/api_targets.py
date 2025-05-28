@@ -1,3 +1,4 @@
+import threading
 import traceback
 import uuid
 from typing import Literal
@@ -16,6 +17,10 @@ r = RethinkDB()
 
 db = RDB(app)
 db.init_app(app)
+
+
+subdomains_lock = threading.Lock()
+individual_lock = threading.Lock()
 
 
 def bastion_enabled_in_db():
@@ -82,44 +87,49 @@ def update_bastion_haproxy_map():
     """
     Update the bastion domain map for haproxy.
     """
-    # TODO: lock the file while writing to it
+    with subdomains_lock:
+        domains = []
+        with app.app_context():
+            domains.append(
+                r.table("config")
+                .get(1)
+                .pluck("bastion")
+                .run(db.conn)["bastion"]["domain"]
+            )
 
-    domains = []
-    with app.app_context():
-        domains.append(
-            r.table("config").get(1).pluck("bastion").run(db.conn)["bastion"]["domain"]
-        )
+        with app.app_context():
+            category_domains = list(
+                r.table("categories")
+                .pluck("bastion_domain")["bastion_domain"]
+                .run(db.conn)
+            )
+        category_domains = [
+            domain for domain in category_domains if isinstance(domain, str)
+        ]
+        domains.extend(category_domains)
 
-    with app.app_context():
-        category_domains = list(
-            r.table("categories").pluck("bastion_domain")["bastion_domain"].run(db.conn)
-        )
-    category_domains = [
-        domain for domain in category_domains if isinstance(domain, str)
-    ]
-    domains.extend(category_domains)
-
-    with open("/api/api/bastion_domains/subdomains.map", "w") as f:
-        for domain in domains:
-            if domain:
-                f.write(f"{domain}\n")
+        with open("/api/api/bastion_domains/subdomains.map", "w") as f:
+            for domain in domains:
+                if domain:
+                    f.write(f"{domain}\n")
 
 
 def update_bastion_desktops_haproxy_map():
     """
     Update the bastion domain map for haproxy.
     """
-    # TODO: lock the file while writing to it
+    with individual_lock:
+        with app.app_context():
+            targets = list(r.table("targets").pluck("domain").run(db.conn))
+        domains = [
+            t["domain"]
+            for t in targets
+            if t.get("domain") and isinstance(t["domain"], str)
+        ]
 
-    with app.app_context():
-        targets = list(r.table("targets").pluck("domain").run(db.conn))
-    domains = [
-        t["domain"] for t in targets if t.get("domain") and isinstance(t["domain"], str)
-    ]
-
-    with open("/api/api/bastion_domains/individual.map", "w") as f:
-        for domain in domains:
-            f.write(f"{domain}\n")
+        with open("/api/api/bastion_domains/individual.map", "w") as f:
+            for domain in domains:
+                f.write(f"{domain}\n")
 
 
 def bastion_domain_verification_required() -> bool:
