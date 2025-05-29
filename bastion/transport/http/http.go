@@ -228,7 +228,12 @@ func (b *bastion) handleHTTPS(ctx context.Context, conn net.Conn, peeked *bytes.
 
 func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, https bool, targetID string, targetURL string, remoteIP string, remotePort string) {
 	// Initial proxyLog setup
+	protocol := "http"
+	if https {
+		protocol = "https"
+	}
 	baseLog := b.log.With().
+		Str("protocol", protocol).
 		Str("remote_ip", remoteIP).
 		Str("remote_port", remotePort).
 		Str("target_id", targetID).
