@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
@@ -20,6 +21,9 @@ import (
 	"golang.org/x/crypto/ssh"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
+
+// basic UUID regex: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+var uuidRegex = regexp.MustCompile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$")
 
 const ExtensionTargetID = "target_id"
 const ExtensionDesktopID = "desktop_id"
@@ -91,6 +95,19 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 }
 
 func (b *bastion) handleAuth(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+	// Check if targetID looks like a UUID
+	if !uuidRegex.MatchString(conn.User()) {
+		b.log.Warn().Str("target_id", conn.User()).Str("remote_addr", conn.RemoteAddr().String()).Msg("bannerCallback: non-UUID username received, applying delay")
+
+		// Tarpit for non-UUID usernames
+		time.Sleep(10 * time.Second) // Tarpit delay (e.g., 10 seconds)
+
+		// Return a generic, non-informative banner after the delay.
+		return nil, &ssh.BannerError{
+			Message: "authentication failed.\n",
+		}
+	}
+
 	// Get the target ID from the SSH user
 	target := &model.Target{
 		ID: conn.User(),
