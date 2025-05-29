@@ -150,7 +150,12 @@ func (b *bastion) extractTargetIDAndURL(ctx context.Context, host string) (strin
 	targetLog := *b.log
 	targetLog = targetLog.With().Str("target_host", host).Logger()
 
-	// Get the target ID from the database
+	// Remove port if present
+	if strings.Contains(host, ":") {
+		host = strings.Split(host, ":")[0]
+	}
+
+	// Try to get the target ID from the database
 	targetID, err := b.extractTargetIDFromDB(ctx, host)
 	if err == nil {
 		targetLog.Debug().Str("target_id", targetID).Msg("target ID found in DB")
