@@ -603,7 +603,7 @@ class ApiAdmin:
             )
         return desktop_viewer
 
-    def ListDesktops(self, categories=None):
+    def ListDesktops(self, categories=None, bastion=True):
         query = r.table("categories")
         if categories:
             query = query.get_all(r.args(categories))
@@ -658,6 +658,23 @@ class ApiAdmin:
                 "left": ["group_name", "category_name"],
             }
         ).zip()
+
+        if bastion:
+            query = query.merge(
+                lambda doc: {
+                    "bastion": r.branch(
+                        r.table("targets")
+                        .get_all(doc["id"], index="desktop_id")
+                        .is_empty(),
+                        None,
+                        r.table("targets")
+                        .get_all(doc["id"], index="desktop_id")
+                        .pluck("id", "domain", "http", "ssh")
+                        .nth(0),
+                    ),
+                }
+            )
+
         with app.app_context():
             return list(query.run(db.conn))
 
