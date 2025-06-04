@@ -49,7 +49,7 @@ const getDefaultState = () => {
         id: ''
       }
     },
-    bastions: [],
+    bastionTargets: [],
     bastionModal: {
       show: false,
       desktop: {},
@@ -108,8 +108,8 @@ export default {
     getDesktopModal: state => {
       return state.desktopModal
     },
-    getBastions: state => {
-      return state.bastions
+    getBastionTargets: state => {
+      return state.bastionTargets
     },
     getBastionModal: state => {
       return state.bastionModal
@@ -193,8 +193,23 @@ export default {
     setDesktopModal: (state, desktopModal) => {
       state.desktopModal = desktopModal
     },
-    setBastions: (state, bastions) => {
-      state.bastions = bastions
+    setBastionTargets: (state, bastionTargets) => {
+      state.bastionTargets = bastionTargets
+    },
+    addBastionTarget: (state, target) => {
+      state.bastionTargets = [...state.bastionTargets, target]
+    },
+    updateBastionTarget: (state, target) => {
+      const item = state.bastionTargets.find(d => d.id === target.id)
+      if (item) {
+        Object.assign(item, target)
+      }
+    },
+    removeBastionTarget: (state, target) => {
+      const targetIndex = state.bastionTargets.findIndex(d => d.id === target.id)
+      if (targetIndex !== -1) {
+        state.bastionTargets.splice(targetIndex, 1)
+      }
     },
     setBastionModal: (state, data) => {
       state.bastionModal.show = data.show
@@ -490,11 +505,11 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
-    fetchBastions (context) {
+    fetchBastionTargets (context) {
       const config = context.getters.getConfig
       if (config.canUseBastion === true) {
-        axios.get(`${apiV3Segment}/bastions`).then(response => {
-          context.commit('setBastions', response.data)
+        axios.get(`${apiV3Segment}/bastion_targets`).then(response => {
+          context.commit('setBastionTargets', response.data)
         }).catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })
@@ -504,11 +519,27 @@ export default {
       context.commit('setBastionModal', data)
     },
     updateBastionAuthorizedKeys (context, data) {
-      axios.put(`${apiV3Segment}/desktop/bastion/${data.desktop_id}`, data).then(response => {
+      axios.put(`${apiV3Segment}/desktop/${data.desktop_id}/bastion/authorized_keys`, { authorized_keys: data.ssh.authorized_keys }).then(response => {
         ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.authorized-ssh-keys-updated'))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
+    },
+    updateBastionDomainName (context, data) {
+      axios.put(`${apiV3Segment}/desktop/${data.desktop_id}/bastion/domain`, { domain: data.domain || null }).then(response => {
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.bastion-domain-updated'))
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    socket_targetsAdd (context, data) {
+      context.commit('addBastionTarget', JSON.parse(data))
+    },
+    socket_targetsUpdate (context, data) {
+      context.commit('updateBastionTarget', JSON.parse(data))
+    },
+    socket_targetsDelete (context, data) {
+      context.commit('removeBastionTarget', JSON.parse(data))
     }
   }
 }

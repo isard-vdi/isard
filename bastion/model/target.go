@@ -24,6 +24,7 @@ type Target struct {
 	ID        string     `rethinkdb:"id"`
 	UserID    string     `rethinkdb:"user_id"`
 	DesktopID string     `rethinkdb:"desktop_id"`
+	Domain    string     `rethinkdb:"domain"`
 	HTTP      TargetHTTP `rethinkdb:"http"`
 	SSH       TargetSSH  `rethinkdb:"ssh"`
 }
@@ -67,6 +68,38 @@ func (t *Target) Load(ctx context.Context, sess r.QueryExecutor) error {
 	}
 
 	targetCache.Set(t.ID, *t, ttlcache.DefaultTTL)
+
+	return nil
+}
+
+func (t *Target) LoadFromDomain(ctx context.Context, sess r.QueryExecutor, domain string) error {
+	cached := targetCache.Get(domain)
+	if cached != nil {
+		*t = cached.Value()
+		return nil
+	}
+
+	res, err := r.Table("targets").GetAllByIndex("domain", domain).Run(sess)
+	if err != nil {
+		return &db.Err{
+			Err: err,
+		}
+	}
+	defer res.Close()
+
+	if err := res.One(t); err != nil {
+		if errors.Is(err, r.ErrEmptyResult) {
+			return db.ErrNotFound
+		}
+
+		return &db.Err{
+			Msg: "read db response",
+			Err: err,
+		}
+	}
+
+	targetCache.Set(t.ID, *t, ttlcache.DefaultTTL)
+	targetCache.Set(t.Domain, *t, ttlcache.DefaultTTL)
 
 	return nil
 }

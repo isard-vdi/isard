@@ -1,18 +1,197 @@
+import threading
 import traceback
 import uuid
+from typing import Literal
 
+import dns.resolver
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
 from api import app
 
 from ..views.decorators import can_use_bastion
+from .caches import get_document, invalidate_cache
 from .flask_rethink import RDB
 
 r = RethinkDB()
 
 db = RDB(app)
 db.init_app(app)
+
+
+subdomains_lock = threading.Lock()
+individual_lock = threading.Lock()
+
+
+def bastion_enabled_in_db():
+    return get_document("config", 1, ["bastion"]).get("enabled")
+
+
+def get_bastion_domain(category_id: str = None) -> str:
+    """
+    Get bastion domain from category or config.
+    If category does not have bastion domain, it will return the default
+    bastion domain from config.
+    """
+    bastion_domain = (
+        get_document("categories", category_id, ["bastion_domain"])
+        if category_id
+        else None
+    )
+    if bastion_domain is None:
+        bastion_domain = get_document("config", 1, ["bastion"]).get("domain")
+    return bastion_domain
+
+
+def update_bastion_config(
+    enabled: bool,
+    domain: str,
+    domain_verification_required: bool,
+):
+    """
+    Update the bastion config.
+    """
+    with app.app_context():
+        r.table("config").get(1).update(
+            {
+                "bastion": {
+                    "enabled": enabled,
+                    "domain": domain,
+                    "domain_verification_required": domain_verification_required,
+                }
+            }
+        ).run(db.conn)
+    invalidate_cache("config", 1)
+
+    update_bastion_haproxy_map()
+
+
+def get_category_bastion_domain(category_id: str) -> str:
+    """
+    Get bastion domain from category.
+    """
+    return get_document("categories", category_id, ["bastion_domain"])
+
+
+def update_category_bastion_domain(category_id, domain):
+    with app.app_context():
+        r.table("categories").get(category_id).update({"bastion_domain": domain}).run(
+            db.conn
+        )
+    invalidate_cache("categories", category_id)
+
+    update_bastion_haproxy_map()
+
+
+def update_bastion_haproxy_map():
+    """
+    Update the bastion domain map for haproxy.
+    """
+    with subdomains_lock:
+        domains = []
+        with app.app_context():
+            domains.append(
+                r.table("config")
+                .get(1)
+                .pluck("bastion")
+                .run(db.conn)["bastion"]["domain"]
+            )
+
+        with app.app_context():
+            category_domains = list(
+                r.table("categories")
+                .pluck("bastion_domain")["bastion_domain"]
+                .run(db.conn)
+            )
+        category_domains = [
+            domain for domain in category_domains if isinstance(domain, str)
+        ]
+        domains.extend(category_domains)
+
+        with open("/api/api/bastion_domains/subdomains.map", "w") as f:
+            for domain in domains:
+                if domain:
+                    f.write(f"{domain}\n")
+
+
+def update_bastion_desktops_haproxy_map():
+    """
+    Update the bastion domain map for haproxy.
+    """
+    with individual_lock:
+        with app.app_context():
+            targets = list(r.table("targets").pluck("domain").run(db.conn))
+        domains = [
+            t["domain"]
+            for t in targets
+            if t.get("domain") and isinstance(t["domain"], str)
+        ]
+
+        with open("/api/api/bastion_domains/individual.map", "w") as f:
+            for domain in domains:
+                f.write(f"{domain}\n")
+
+
+def bastion_domain_verification_required() -> bool:
+    """
+    Get if bastion domain verification is required.
+    """
+    return get_document("config", 1, ["bastion"]).get(
+        "domain_verification_required", True
+    )
+
+
+def check_bastion_domain_dns(
+    domain: str,
+    expected: str,
+    kind: Literal["category", "cname"] = "category",
+):
+    try:
+        match kind:
+            case "category":
+                domain = f"_isardvdi-bastion-{kind}.{domain}"
+
+                result = dns.resolver.resolve(domain, "TXT")
+                for val in result:
+                    if val.to_text().strip('"') == expected:
+                        return True
+
+            case "cname":
+                result = dns.resolver.resolve(domain, "CNAME")
+                for val in result:
+                    if val.to_text().strip(".") == expected:
+                        return True
+
+            case _:
+                raise Error(
+                    "bad_request",
+                    f"Invalid kind for DNS check: {kind}",
+                    traceback.format_exc(),
+                )
+
+    except dns.resolver.NXDOMAIN:
+        raise Error(
+            "precondition_required",
+            f'DNS record for "{domain}" not found. Make sure the record exists and try again in a few minutes.',
+            traceback.format_exc(),
+            description_code="bastion_domain_dns_not_found",
+        )
+    except Error as e:
+        raise e
+    except Exception as e:
+        raise Error(
+            "precondition_required",
+            f"Error checking DNS record for {domain}: {str(e)}",
+            traceback.format_exc(),
+            description_code="bastion_domain_dns_error",
+        )
+
+    raise Error(
+        "precondition_required",
+        f"DNS record for {domain} does not match expected value",
+        traceback.format_exc(),
+        description_code="bastion_domain_dns_mismatch",
+    )
 
 
 class ApiTargets:
@@ -49,6 +228,7 @@ class ApiTargets:
                 "id": str(uuid.uuid4()),
                 "desktop_id": domain_id,
                 "user_id": user_id,
+                "domain": None,
             }
             target["http"] = {"enabled": False, "http_port": 80, "https_port": 443}
             target["ssh"] = {"enabled": False, "port": 22, "authorized_keys": []}
@@ -60,9 +240,31 @@ class ApiTargets:
             target["http"] = data["http"]
         if data.get("ssh"):
             target["ssh"] = data["ssh"]
+        if "domain" in data:
+            if data["domain"] is None:
+                target["domain"] = None
+            else:
+                if bastion_domain_verification_required():
+                    with app.app_context():
+                        category_id = (
+                            r.table("domains")
+                            .get(domain_id)
+                            .pluck("category")
+                            .run(db.conn)["category"]
+                        )
+                    check_bastion_domain_dns(
+                        data["domain"],
+                        f"{target['id']}.{get_bastion_domain(category_id)}",
+                        kind="cname",
+                    )
+
+                target["domain"] = data["domain"]
 
         with app.app_context():
             r.db("isard").table("targets").get(target["id"]).update(target).run(db.conn)
+
+        if "domain" in data:
+            update_bastion_desktops_haproxy_map()
 
         return target
 

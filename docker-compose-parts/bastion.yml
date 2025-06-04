@@ -12,10 +12,6 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.117
-    ports:
-      - published: ${BASTION_SSH_PORT:-2222}
-        target: ${BASTION_SSH_PORT:-1315}
-        mode: host
     privileged: true
     # # TODO: This!
     # healthcheck:
@@ -38,9 +34,9 @@ services:
 
       BASTION_HTTP_HOST:
       BASTION_HTTP_PORT:
+      BASTION_DOMAIN: ${BASTION_DOMAIN:-${DOMAIN}}
       DOMAIN:
       BASTION_HTTP_BASE_URL:
 
       BASTION_SSH_PRIVATE_KEY_PATH:
       BASTION_SSH_HOST:
-      BASTION_SSH_PORT:

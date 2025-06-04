@@ -185,6 +185,18 @@ def admin_allowed_update(payload, table):
             alloweds.remove_disallowed_bastion_targets_th()
 
         bastion_allowed_update()
+    elif table == "bastion_domains":
+        table = "config"
+
+        @is_admin
+        def bastion_domains_allowed_update(payload):
+            alloweds.update_bastion_target_domains_alloweds(
+                data["allowed"],
+            )
+            # remove domains from disallowed targets
+            alloweds.remove_disallowed_bastion_target_domains_th()
+
+        bastion_domains_allowed_update()
     else:
         admin_table_update(table, {"id": data["id"], "allowed": data["allowed"]})
     if table in ["interfaces", "media", "reservables_vgpus", "boots", "videos"]:
@@ -210,6 +222,13 @@ def allowed_table(payload, table):
             admin_table_get(table, data["id"], pluck={"bastion": "allowed"})["bastion"][
                 "allowed"
             ]
+        )
+    elif table == "bastion_domains":
+        table = "config"
+        result = alloweds.get_allowed(
+            admin_table_get(
+                table, data["id"], pluck={"bastion": {"individual_domains": "allowed"}}
+            )["bastion"]["individual_domains"]["allowed"]
         )
     else:
         result = alloweds.get_allowed(

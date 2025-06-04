@@ -13,33 +13,48 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"gitlab.com/isard/isardvdi/bastion/cfg"
 	"gitlab.com/isard/isardvdi/bastion/model"
 	"gitlab.com/isard/isardvdi/bastion/transport"
 	"gitlab.com/isard/isardvdi/pkg/db"
 
+	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 type bastion struct {
-	log     *zerolog.Logger
-	db      r.QueryExecutor
-	baseURL string
+	log *zerolog.Logger
+	db  r.QueryExecutor
 }
 
 func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.QueryExecutor, cfg cfg.HTTP) {
 	b := &bastion{
-		log:     log,
-		db:      db,
-		baseURL: cfg.BaseURL,
+		log: log,
+		db:  db,
 	}
 
 	log.Info().Str("addr", cfg.Addr()).Msg("listening for HTTP connections")
-	lis, err := net.Listen("tcp", cfg.Addr())
+
+	// Create standard TCP listener
+	standardListener, err := net.Listen("tcp", cfg.Addr())
 	if err != nil {
 		log.Fatal().Str("addr", cfg.Addr()).Msg("serve HTTP")
+	}
+
+	// Wrap with proxy protocol listener
+	lis := &proxyproto.Listener{
+		Listener: standardListener,
+		// Optional: you can restrict which source IPs can send proxy headers:
+		// Policy: func(upstream net.Addr) (proxyproto.Policy, error) {
+		//     // Only allow proxy protocol from your HAProxy servers
+		//     if strings.HasPrefix(upstream.String(), "10.0.0.") {
+		//         return proxyproto.USE, nil
+		//     }
+		//     return proxyproto.IGNORE, nil
+		// },
 	}
 
 	go func() {
@@ -47,6 +62,7 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 			conn, err := lis.Accept()
 			if err != nil {
 				log.Error().Err(err).Msg("accept incoming connection")
+				continue
 			}
 
 			go b.handleConn(ctx, conn)
@@ -62,25 +78,37 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 func (b *bastion) handleConn(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 
+	connLog := *b.log
+	var remoteIP string
+	var remotePort string
+	if proxyConn, ok := conn.(*proxyproto.Conn); ok {
+		if proxyConn.ProxyHeader() != nil {
+			remoteConn := proxyConn.ProxyHeader().SourceAddr.String()
+			remoteIP = remoteConn[:strings.LastIndex(remoteConn, ":")]
+			remotePort = remoteConn[strings.LastIndex(remoteConn, ":")+1:]
+			connLog = b.log.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
+		}
+	}
+
 	// Attempt to extract the taget ID from the TLS request
 	hello, peeked, err := b.peekTlsHello(ctx, conn)
 	if err != nil {
 		var tlsErr tls.RecordHeaderError
 		if !errors.As(err, &tlsErr) {
-			b.log.Error().Err(err).Msg("peek TLS hello")
+			connLog.Warn().Err(err).Msg("peek TLS hello")
 			return
 		}
 
 		if tlsErr.Msg != "first record does not look like a TLS handshake" {
-			b.log.Error().Err(err).Msg("peek TLS hello")
+			connLog.Warn().Err(err).Msg("peek TLS hello")
 			return
 		}
 
-		b.handleHTTP(ctx, conn, peeked)
+		b.handleHTTP(ctx, conn, peeked, remoteIP, remotePort)
 		return
 	}
 
-	b.handleHTTPS(ctx, conn, peeked, hello)
+	b.handleHTTPS(ctx, conn, peeked, hello, remoteIP, remotePort)
 }
 
 func (b *bastion) peekTlsHello(ctx context.Context, conn net.Conn) (*tls.ClientHelloInfo, *bytes.Buffer, error) {
@@ -103,19 +131,65 @@ func (b *bastion) peekTlsHello(ctx context.Context, conn net.Conn) (*tls.ClientH
 	return hello, peeked, nil
 }
 
-func (b *bastion) extractTargetID(host string) (string, error) {
-	// Get the target ID from the host
-	h := strings.Split(host, b.baseURL)
-	if len(h) != 2 || len(h[0]) <= 1 {
-		return "", errors.New("invalid target")
+func (b *bastion) extractTargetIDFromDB(ctx context.Context, host string) (string, error) {
+	target := &model.Target{}
+
+	if err := target.LoadFromDomain(ctx, b.db, host); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			b.log.Debug().Msg("target not found by domain")
+			return "", db.ErrNotFound
+		}
+
+		b.log.Error().Err(err).Msg("load target from the DB")
+		return "", fmt.Errorf("load target from the DB: %w", err)
 	}
 
-	// Remove the final . from the subdomain
-	return h[0][:len(h[0])-1], nil
+	return target.ID, nil
+}
+
+func (b *bastion) extractTargetIDAndURL(ctx context.Context, host string) (string, string, error) {
+	targetLog := *b.log
+	targetLog = targetLog.With().Str("target_host", host).Logger()
+
+	// Remove port if present
+	if strings.Contains(host, ":") {
+		host = strings.Split(host, ":")[0]
+	}
+
+	// Try to get the target ID from the database
+	targetID, err := b.extractTargetIDFromDB(ctx, host)
+	if err == nil {
+		targetLog.Debug().Str("target_id", targetID).Msg("target ID found in DB")
+		return targetID, host, nil
+	}
+
+	// Get the target ID from the host
+	h := strings.Split(host, ".")
+	if len(h) < 3 {
+		return "", "", errors.New("invalid target")
+	}
+
+	// build the target ID by joining the first 2 parts with a dash
+	targetID = strings.Join(h[:2], "-")
+
+	// check that the target ID is a valid UUID
+	splitID := strings.Split(targetID, "-")
+	if len(splitID) != 5 {
+		targetLog.Debug().Str("target_id", targetID).Msg("invalid target ID format")
+		return "", "", errors.New("invalid target ID format")
+	}
+
+	// build the base URL by joining all but the first part
+	targetURL := strings.Join(h[2:], ".")
+
+	// return the target ID and the base URL
+	return targetID, targetURL, nil
 }
 
 // TODO: Send helpful messages to the client
-func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *bytes.Buffer) {
+func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *bytes.Buffer, remoteIP string, remotePort string) {
+	httpLog := *b.log
+	httpLog = httpLog.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
 	// Recreate the previously peeked buffer
 	prevBuf := io.MultiReader(prevPeeked, conn)
 
@@ -123,118 +197,285 @@ func (b *bastion) handleHTTP(ctx context.Context, conn net.Conn, prevPeeked *byt
 	peeked := &bytes.Buffer{}
 	buf := bufio.NewReader(io.TeeReader(prevBuf, peeked))
 
+	// *b.log = b.log.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
 	r, err := http.ReadRequest(buf)
 	if err != nil {
-		b.log.Error().Err(err).Msg("read HTTP request from TCP")
+		httpLog.Error().Err(err).Msg("read HTTP request from TCP")
 		return
 	}
 
-	targetID, err := b.extractTargetID(r.Host)
+	targetID, targetURL, err := b.extractTargetIDAndURL(ctx, r.Host)
+	httpLog = httpLog.With().Str("target_id", targetID).Str("target_domain", targetURL).Logger()
 	if err != nil {
-		b.log.Error().Msg("invalid target")
+		httpLog.Debug().Msg("invalid target")
 		return
 	}
 
-	b.handleProxy(ctx, conn, peeked, false, targetID)
+	b.handleProxy(ctx, conn, peeked, false, targetID, targetURL, remoteIP, remotePort)
 }
 
-func (b *bastion) handleHTTPS(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, hello *tls.ClientHelloInfo) {
-	targetID, err := b.extractTargetID(hello.ServerName)
+func (b *bastion) handleHTTPS(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, hello *tls.ClientHelloInfo, remoteIP string, remotePort string) {
+	httpsLog := *b.log
+	httpsLog = httpsLog.With().Str("remote_ip", remoteIP).Str("remote_port", remotePort).Logger()
+	targetID, targetURL, err := b.extractTargetIDAndURL(ctx, hello.ServerName)
 	if err != nil {
-		b.log.Error().Msg("invalid target")
+		httpsLog.Debug().Msg("invalid target")
 		return
 	}
 
-	b.handleProxy(ctx, conn, peeked, true, targetID)
+	b.handleProxy(ctx, conn, peeked, true, targetID, targetURL, remoteIP, remotePort)
 }
 
-func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, https bool, targetID string) {
-	target := &model.Target{
-		ID: targetID,
-	}
-
-	// Get the target from the DB and ensure is enabled
-	if err := target.Load(ctx, b.db); err != nil {
-		if errors.Is(err, db.ErrNotFound) {
-			b.log.Error().Str("target", target.ID).Msg("target not found")
-			return
-		}
-
-		b.log.Error().Str("target", target.ID).Err(err).Msg("load target from the DB")
-		return
-	}
-
-	if !target.HTTP.Enabled {
-		b.log.Error().Str("target", target.ID).Msg("HTTP target not enabled")
-		return
-	}
-
-	// Load the desktop
-	dktp := &model.Desktop{
-		ID: target.DesktopID,
-	}
-
-	if err := dktp.Load(context.Background(), b.db); err != nil {
-		if errors.Is(err, db.ErrNotFound) {
-			b.log.Error().Str("target", target.ID).Str("desktop", dktp.ID).Msg("desktop not found")
-			return
-		}
-
-		b.log.Error().Str("target", target.ID).Str("desktop", dktp.ID).Err(err).Msg("load desktop from DB")
-		return
-	}
-
-	// Ensure the desktop is in a valid state
-	if dktp.Status != "Started" {
-		b.log.Error().Str("desktop", dktp.ID).Msg("desktop is not started")
-		return
-	}
-
-	if dktp.Viewer == nil {
-		b.log.Error().Str("desktop", dktp.ID).Msg("desktop has no viewer")
-		return
-	}
-
-	// Get the desktop IP
-	if dktp.Viewer.GuestIP == nil {
-		b.log.Error().Str("desktop", dktp.ID).Msg("desktop has no ip")
-		return
-	}
-
-	// Create the target connection
-	port := target.HTTP.HTTPPort
+func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.Buffer, https bool, targetID string, targetURL string, remoteIP string, remotePort string) {
+	// Initial proxyLog setup
+	protocol := "http"
 	if https {
-		port = target.HTTP.HTTPSPort
+		protocol = "https"
 	}
-	targetConn, err := net.Dial("tcp", net.JoinHostPort(*dktp.Viewer.GuestIP, strconv.Itoa(port)))
-	if err != nil {
-		b.log.Error().Err(err).Msg("create the target connection")
-		return
+	baseLog := b.log.With().
+		Str("protocol", protocol).
+		Str("remote_ip", remoteIP).
+		Str("remote_port", remotePort).
+		Str("target_id", targetID).
+		Str("target_domain", targetURL).Logger()
+
+	baseLog.Info().Msg("handleProxy started")
+
+	var originalPeekedData []byte
+	if peeked != nil && peeked.Len() > 0 {
+		originalPeekedData = make([]byte, peeked.Len())
+		copy(originalPeekedData, peeked.Bytes())
 	}
-	defer targetConn.Close()
 
-	b.log.Debug().Msg("created HTTP connection. Starting to proxy")
+	maxAttempts := 3
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		proxyLog := baseLog.With().Int("attempt", attempt+1).Logger()
 
-	// Replay the previously read bytes
-	if _, err := peeked.WriteTo(targetConn); err != nil {
-		b.log.Error().Err(err).Msg("replay the initial transfer bytes")
-		return
-	}
-
-	// Bidirectional binary copying between the client and the target
-	ioErr := transport.Proxy(targetConn, conn)
-
-	// Wait for the proxying to finish
-	for {
-		select {
-		case err := <-ioErr:
-			if err != nil {
-				b.log.Error().Err(err).Msg("io error")
+		if attempt > 0 {
+			proxyLog.Info().Msg("Retrying target connection and proxying")
+			select {
+			case <-time.After(time.Duration(attempt) * 1 * time.Second):
+			case <-ctx.Done():
+				proxyLog.Info().Msg("Context cancelled during retry delay")
+				return
 			}
-			return
+		}
 
-		case <-ctx.Done():
+		currentTarget := &model.Target{ID: targetID}
+		if err := currentTarget.Load(ctx, b.db); err != nil {
+			proxyLog.Error().Err(err).Msg("Failed to load target")
+			if errors.Is(err, db.ErrNotFound) {
+				return
+			}
+			if attempt == maxAttempts-1 {
+				return
+			}
+			continue
+		}
+		proxyLog = proxyLog.With().Str("loaded_target_id", currentTarget.ID).Logger()
+
+		if !currentTarget.HTTP.Enabled {
+			proxyLog.Debug().Msg("HTTP target service not enabled for loaded target")
+			return
+		}
+
+		currentConfig := &model.Config{}
+		if err := currentConfig.Load(ctx, b.db); err != nil {
+			proxyLog.Error().Err(err).Msg("Failed to load config")
+			if errors.Is(err, db.ErrNotFound) {
+				return
+			}
+			if attempt == maxAttempts-1 {
+				return
+			}
+			continue
+		}
+
+		if !currentConfig.Bastion.Enabled {
+			proxyLog.Error().Msg("Bastion not enabled in the config")
+			return
+		}
+
+		currentUser := &model.User{ID: currentTarget.UserID}
+		proxyLog = proxyLog.With().Str("user_id", currentUser.ID).Logger()
+		if err := currentUser.Load(ctx, b.db); err != nil {
+			proxyLog.Error().Err(err).Msg("Failed to load user")
+			if errors.Is(err, db.ErrNotFound) {
+				return
+			}
+			if attempt == maxAttempts-1 {
+				return
+			}
+			continue
+		}
+
+		currentCategory := &model.Category{ID: currentUser.CategoryID}
+		proxyLog = proxyLog.With().Str("category_id", currentCategory.ID).Logger()
+		if err := currentCategory.Load(ctx, b.db); err != nil {
+			proxyLog.Error().Err(err).Msg("Failed to load category")
+			if errors.Is(err, db.ErrNotFound) {
+				return
+			}
+			if attempt == maxAttempts-1 {
+				return
+			}
+			continue
+		}
+		proxyLog = proxyLog.With().Str("category_ID", currentCategory.ID).Str("category_domain", currentCategory.BastionDomain).Str("config_domain", currentConfig.Bastion.Domain).Logger()
+
+		if currentCategory.BastionDomain == "0" {
+			proxyLog.Debug().Msg("Bastion disabled in category")
+			return
+		}
+
+		if currentTarget.Domain != targetURL {
+			switch currentCategory.BastionDomain {
+			case "":
+				if currentConfig.Bastion.Domain != "" && currentConfig.Bastion.Domain != targetURL {
+					proxyLog.Debug().Str("expected_config_domain", currentConfig.Bastion.Domain).Msg("Config base URL does not match target URL")
+					return
+				}
+			default:
+				if currentCategory.BastionDomain != targetURL {
+					proxyLog.Debug().Str("expected_category_domain", currentCategory.BastionDomain).Msg("Category base URL does not match target URL")
+					return
+				}
+			}
+		}
+
+		currentDesktop := &model.Desktop{ID: currentTarget.DesktopID}
+		proxyLog = proxyLog.With().Str("desktop_id", currentDesktop.ID).Logger()
+		// Ensure ctx is used for loading desktop
+		if err := currentDesktop.Load(ctx, b.db); err != nil {
+			proxyLog.Error().Err(err).Msg("Failed to load desktop")
+			if errors.Is(err, db.ErrNotFound) {
+				return
+			}
+			if attempt == maxAttempts-1 {
+				return
+			}
+			continue
+		}
+
+		if currentDesktop.Status != "Started" {
+			proxyLog.Debug().Str("desktop_status", currentDesktop.Status).Msg("Desktop is not started")
+			return
+		}
+		if currentDesktop.Viewer == nil || currentDesktop.Viewer.GuestIP == nil {
+			proxyLog.Debug().Msg("Desktop has no IP")
+			return
+		}
+
+		targetPort := currentTarget.HTTP.HTTPPort
+		if https {
+			targetPort = currentTarget.HTTP.HTTPSPort
+		}
+		targetAddr := net.JoinHostPort(*currentDesktop.Viewer.GuestIP, strconv.Itoa(targetPort))
+		proxyLog.Info().Str("target_address", targetAddr).Msg("Attempting to dial target backend")
+
+		// Use longer timeout for HTTPS connections
+		dialTimeout := 10 * time.Second
+		if https {
+			dialTimeout = 30 * time.Second
+			proxyLog.Debug().Msg("Using extended timeout for HTTPS connection")
+		}
+
+		targetConn, err := net.DialTimeout("tcp", targetAddr, dialTimeout)
+		if err != nil {
+			proxyLog.Error().Err(err).Str("target_address", targetAddr).Msg("Failed to create target connection")
+			if attempt == maxAttempts-1 {
+				proxyLog.Error().Msg("Max retry attempts reached for dialing target.")
+				return
+			}
+			continue
+		}
+		proxyLog.Info().Str("local_addr_to_target", targetConn.LocalAddr().String()).Str("remote_addr_to_target", targetConn.RemoteAddr().String()).Msg("Connection to target established")
+
+		// Always replay peeked data if available (not just on first attempt)
+		if len(originalPeekedData) > 0 {
+			proxyLog.Debug().Int("bytes_to_replay", len(originalPeekedData)).Msg("Replaying initial peeked bytes to target")
+
+			// Set a write deadline for the initial data
+			targetConn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			if _, errWrite := targetConn.Write(originalPeekedData); errWrite != nil {
+				proxyLog.Error().Err(errWrite).Msg("Failed to replay initial peeked bytes to target")
+				targetConn.Close()
+				if attempt == maxAttempts-1 {
+					return
+				}
+				continue
+			}
+			// Clear the write deadline
+			targetConn.SetWriteDeadline(time.Time{})
+			proxyLog.Debug().Msg("Successfully replayed initial peeked bytes")
+		}
+
+		ioErrChan := transport.Proxy(targetConn, conn)
+		connectionBroken := false
+
+		proxyLog.Debug().Msg("Starting to monitor proxy io.Copy channels.")
+
+		// Monitor proxy channels until they close or context is cancelled
+		for {
+			select {
+			case errProxy, ok := <-ioErrChan:
+				if !ok {
+					// Channel closed - proxy monitoring completed
+					proxyLog.Debug().Msg("Proxy ioErrChan closed - monitoring completed")
+					goto endProxyLoop
+				}
+
+				if errProxy != nil {
+					logMsg := proxyLog.Warn()
+					if errors.Is(errProxy, io.EOF) {
+						logMsg = proxyLog.Debug() // EOF is often normal
+						logMsg.Err(errProxy).Msg("Proxy io.Copy finished with EOF")
+					} else if errors.Is(errProxy, net.ErrClosed) {
+						logMsg = proxyLog.Debug() // ErrClosed can also be normal if one side closes
+						logMsg.Err(errProxy).Msg("Proxy io.Copy on a closed network connection")
+					} else {
+						// Any other error is more suspicious for an active session
+						logMsg.Err(errProxy).Msg("Proxy io.Copy error during active session")
+						connectionBroken = true
+					}
+				} else {
+					proxyLog.Debug().Msg("Proxy io.Copy completed one direction cleanly (nil error)")
+				}
+
+			case <-ctx.Done():
+				proxyLog.Info().Msg("Context done during proxying, terminating")
+				targetConn.Close()
+				return
+			}
+		}
+
+	endProxyLoop: // Label to break out of the select/for proxy monitoring
+
+		targetConn.Close()
+		proxyLog.Debug().Msg("Finished monitoring proxy io.Copy channels")
+
+		if connectionBroken {
+			proxyLog.Warn().Msg("Connection to target was broken or an unexpected error occurred during proxying")
+
+			// Verify the client connection is actually broken before retrying
+			conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
+			if _, err := conn.Write([]byte{}); err != nil {
+				proxyLog.Debug().Msg("Confirmed client connection is broken")
+				if attempt == maxAttempts-1 {
+					proxyLog.Error().Msg("Max retry attempts reached after connection broke")
+					return
+				}
+				// Clear the write deadline before continuing
+				conn.SetWriteDeadline(time.Time{})
+			} else {
+				proxyLog.Debug().Msg("Client connection seems healthy, not retrying")
+				conn.SetWriteDeadline(time.Time{})
+				return
+			}
+		} else {
+			proxyLog.Info().Msg("Proxying finished (both directions completed or client closed gracefully)")
 			return
 		}
 	}
+	baseLog.Info().Msg("handleProxy finished after all attempts")
 }

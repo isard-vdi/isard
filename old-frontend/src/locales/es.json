@@ -159,7 +159,8 @@
         "http": {
           "checkbox": "HTTP",
           "http-port": "Puerto HTTP",
-          "https-port": "Puerto HTTPS"
+          "https-port": "Puerto HTTPS",
+          "domain-name": "Nombre de dominio personalizado (opcional)"
         },
         "ssh": {
           "checkbox": "SSH",
@@ -1293,7 +1294,8 @@
           "ssh": "SSH:",
           "http": "URL HTTP:",
           "https": "URL HTTPS:",
-          "authorized-keys-ssh": "Claves SSH autorizadas"
+          "authorized-keys-ssh": "Claves SSH autorizadas",
+          "domain-name": "Nombre de dominio personalizado:"
         },
         "titles": {
           "id_copy": "Copiar ID del bastión",
@@ -1304,10 +1306,16 @@
           "http_copy": "Copiar URL HTTP",
           "https_port": "HTTPS: {https_port}",
           "https_copy": "Copiar URL HTTPS",
-          "authorized-keys-ssh": "Claves SSH autorizadas"
+          "authorized-keys-ssh": "Claves SSH autorizadas",
+          "domain-info": "Información de DNS"
+        },
+        "domain-info": {
+          "title": "Puedes usar tu propio nombre de dominio para acceder a este escritorio a través del bastión.",
+          "cname": "Añade un registro CNAME a tu proveedor de DNS apuntando a: "
         },
         "buttons": {
-            "update-authorized-keys": "Actualizar claves SSH autorizadas"
+            "update-authorized-keys": "Actualizar claves SSH autorizadas",
+            "update-domain": "Actualizar dominio personalizado"
         }
       }
     },
@@ -1438,7 +1446,8 @@
       "increasing-storage": "Incrementando tamaño de disco. Esto podría tomar unos momentos",
       "converting-template": "Convirtiendo la plantilla a escritorio",
       "token-copied": "Código de migración copiado en el portapapeles",
-      "authorized-ssh-keys-updated": "Claves SSH autorizadas actualizadas"
+      "authorized-ssh-keys-updated": "Claves SSH autorizadas actualizadas",
+      "bastion-domain-updated": "Dominio del bastión actualizado"
     },
     "loading": "Cargando"
   },
@@ -1601,7 +1610,11 @@
     "unable_to_restore_user": "No se puede restaurar. El usuario borrado {user} es propietario de elementos de esta entrada",
     "unable_to_restore_group": "No se puede restaurar. El grupo eliminado {group} está asociado a elementos de esta entrada",
     "unable_to_restore_category": "No se puede restaurar. La categoría eliminada {category} está asociada a elementos de esta entrada",
-    "operation_not_owned": "No estás autorizado a cancelar esta operación ya que no ha sido iniciada por ti"
+    "operation_not_owned": "No estás autorizado a cancelar esta operación ya que no ha sido iniciada por ti",
+    "bastion_domain_not_found": "El dominio no existe. Por favor, comprueba el nombre del dominio e inténtalo de nuevo.",
+    "bastion_domain_error": "Se ha producido un error al comprobar el dominio. Por favor, inténtalo de nuevo más tarde.",
+    "bastion_domain_mismatch": "El dominio no coincide con el valor esperado. Por favor, comprueba el nombre del dominio e inténtalo de nuevo.",
+    "bastion_domain_exists": "El dominio ya existe. Por favor, elige un nombre de dominio diferente."
   },
   "router": {
     "titles": {

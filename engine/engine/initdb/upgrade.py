@@ -3,6 +3,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 import json
+import os
 import sys
 import time
 from uuid import uuid4
@@ -18,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 169
+release_version = 170
+# release 170: Global and category bastion_domain
 # release 169: Set secrets role to manager
 # release 168: Add new field api_key to all users
 # release 167: Recycle bin scheduled jobs interval changed to 1 hour, recycle_bin_cutoff_time field added to categories
@@ -216,6 +218,7 @@ tables = [
     "users_migrations_exceptions",
     "notifications",
     "notifications_action",
+    "targets",
 ]
 
 
@@ -883,6 +886,28 @@ password:s:%s"""
                 r.table("scheduler_jobs").get(
                     "admin.recycle_bin_delete_admin"
                 ).delete().run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 170:
+            try:
+                r.table("config").get(1).update(
+                    {
+                        "bastion": {
+                            "enabled": True,
+                            "domain": os.environ.get("DOMAIN"),
+                            "domain_verification_required": True,
+                            "individual_domains": {
+                                "allowed": {
+                                    "categories": False,
+                                    "groups": False,
+                                    "roles": False,
+                                    "users": False,
+                                },
+                            },
+                        }
+                    }
+                ).run(self.conn)
             except Exception as e:
                 print(e)
 
@@ -5442,6 +5467,17 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 170:
+            try:
+                r.table(table).update({"bastion_domain": None}).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create("bastion_domain").run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     def qos_net(self, version):
@@ -6183,6 +6219,31 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+        return True
+
+    """
+    TARGETS TABLE UPGRADES
+    """
+
+    def targets(self, version):
+        table = "targets"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+
+        if version == 170:
+            try:
+                r.table(table).update(
+                    {
+                        "domain": None,
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create("domain").run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """

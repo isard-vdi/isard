@@ -25,7 +25,7 @@ services:
       - /opt/isard/certs/viewers:/viewers:ro
       - /opt/isard/assets/img/desktops:/api/api/static/assets/img/desktops:rw
       - /opt/isard/config:/usr/local/etc/isardvdi
-      - /opt/isard/backups:/api/backups:rw
+      - /opt/isard-local/haproxy/bastion_domains:/api/api/bastion_domains
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:

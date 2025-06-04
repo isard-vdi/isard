@@ -1111,15 +1111,43 @@ $(document).ready(function () {
         });
     });
 
+    $("#BastionConfig #btn-alloweds-cname").on('click', function (e) {
+        new PNotify({
+            title: "Warning!",
+            text: `Removing a user's access to edit a custom domain name for their desktop will remove ALL their configured domain names.
+            This action is irreversible.`,
+            type: "error",
+            addclass: 'pnotify-center-large',
+            confirm: {
+                confirm: true,
+                buttons: [
+                    {
+                        text: 'Edit', click: function (notice) {
+                            modalAllowedsFormShow("bastion_domains", { id: 1, name: 'Bastion custom domain name' });
+                            notice.remove();
+                        }
+                    },
+                    {
+                        text: 'Cancel', click: function (notice) {
+                            notice.remove();
+                        }
+                    }
+                ]
+            },
+        });
+    });
+
     $.ajax({
         type: 'GET',
         url: "/api/v3/admin/bastion/",
         contentType: 'application/json',
         success: function (data) {
-            if (data['bastion_enabled'] === true) {
+            if (data['bastion_enabled_in_cfg'] === true) {
                 $("#BastionConfig #bastionStatusLabel").text("Bastion enabled in cfg. SSH port: " + data['bastion_ssh_port']);
                 $("#BastionConfig #btn-alloweds").show();
+                $("#BastionConfig #btn-alloweds-cname").show();
                 $("#BastionConfig #btn-delete-disallowed").show();
+                $("#BastionConfig #btn-edit-bastion").show();
             } else {
                 $("#BastionConfig #bastionStatusLabel").text("Bastion disabled in cfg.");
                 $("#BastionConfig #bastionStatusDescription").html(`<b>
@@ -1128,7 +1156,9 @@ $(document).ready(function () {
                         Then execute build.sh and restart isard to apply the changes.
                     </b>`);
                 $("#BastionConfig #btn-alloweds").hide();
+                $("#BastionConfig #btn-alloweds-cname").hide();
                 $("#BastionConfig #btn-delete-disallowed").hide();
+                $("#BastionConfig #btn-edit-bastion").hide();
             }
         },
         error: function (data) {
@@ -1194,6 +1224,71 @@ $(document).ready(function () {
             },
         });
     });
+
+    $("#BastionConfig #btn-edit-bastion").on("click", function () {
+        $("#modalEditBastionForm")[0].reset();
+        $('#modalEditBastion').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        $('#modalEditBastion #modalEditBastionForm').parsley();
+        $.ajax({
+            type: "GET",
+            url: "/api/v3/admin/bastion/",
+            contentType: "application/json",
+            accept: "application/json",
+            success: function (response) {
+                $('#modalEditBastionForm #bastion-domain').val(response["bastion_domain"])
+                $('#modalEditBastionForm #bastion-enabled').iCheck(response["bastion_enabled_in_db"] === true ? 'check' : 'uncheck').iCheck('update');
+                $('#modalEditBastionForm #domain-verification-required').iCheck(response["domain_verification_required"] === true ? 'check' : 'uncheck').iCheck('update');
+            }
+        });
+    });
+
+    $("#modalEditBastion #send").on('click', function (e) {
+        var form = $('#modalEditBastionForm');
+        data = form.serializeObject()
+        form.parsley().validate();
+        if (form.parsley().isValid()) {
+            console.log(data)
+            $.ajax({
+                type: "PUT",
+                url: "/api/v3/admin/bastion/config",
+                data: JSON.stringify({
+                    "enabled": "bastion-enabled" in data,
+                    "bastion_domain": data["bastion-domain"],
+                    "domain_verification_required": "domain-verification-required" in data
+                }),
+                contentType: "application/json",
+                accept: "application/json",
+                success: function (data) {
+                    new PNotify({
+                        title: "Bastion config updated",
+                        text: "Bastion config updated successfully",
+                        hide: true,
+                        delay: 1000,
+                        icon: 'fa fa-success',
+                        opacity: 1,
+                        type: 'success'
+                    });
+                    $('form').each(function () { this.reset() });
+                    $('.modal').modal('hide');
+                },
+                error: function (data) {
+                    new PNotify({
+                        title: "ERROR updating bastion config",
+                        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 2000,
+                        opacity: 1
+                    });
+                }
+            });
+        }
+    });
+
 
 
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)

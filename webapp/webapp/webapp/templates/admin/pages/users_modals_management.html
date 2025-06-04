@@ -2759,3 +2759,82 @@
         </div>
     </div>
 </div>
+
+
+
+<div class="modal fade" id="modalBastionDomain" tabindex="-1" role="dialog" aria-labelledby="modalBastionDomain"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-shield"></i> Bastion Domain
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalBastionDomainForm" class="form-horizontal form-label-left">
+                    <input hidden name="id" id="id">
+                    <div class="x_panel">
+                        <div class="x_title">
+                            <h4><i class="fa fa-user"></i> Domain</h4>
+                            <div class="clearfix"></div>
+                        </div>
+                        <div class="x_content" id="bastion-panel">
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12"
+                                    for="bastion-enabled">Enabled</label>
+                                <div class="col-md-9 col-sm-9 col-xs-12">
+                                    <select id="bastion-enabled" name="bastion-enabled" class="enabled-select form-control">
+                                        <option value="null">Enable bastion access with the default domain</option>
+                                        <option value="false">Disable bastion access</option>
+                                        <option value="true">Enable bastion access with a custom domain</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="item form-group" id="bastion-domain-panel">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="bastion-domain">Domain</label>
+                                <div class="col-md-9 col-sm-9 col-xs-12">
+                                    <input type="text" name="bastion-domain" id="bastion-domain" class="form-control" style="width: 100%;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="x_panel" id="wildcard-domain-alert" style="margin-bottom: 0; display:none;">
+                        <div class="alert alert-info" style="margin-bottom: 0;">
+                            <i class="fa fas fa-info-circle"></i> You will have to add a wildcard DNS entry for the domain pointing to the isardvdi server in order to work.
+                        </div>
+                    </div>
+                    <div class="x_panel" id="domain-ownership-alert" style="display:none;">
+                        <div class="alert alert-warning" style="color: white;">
+                            <i class="fa fas fa-info-circle"></i> To verify that you have ownership of the domain, please add a record to your DNS server with the following information:
+                            <br>
+                            <strong>Record type:</strong> <code>TXT</code>
+                            <br>
+                            <strong>Record name:</strong> <code id="record-name">_isardvdi-bastion-category.@</code>
+                            <br>
+                            <strong>Record content:</strong> <code id="record-content"></code>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Save changes</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

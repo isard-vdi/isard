@@ -17,3 +17,4 @@ RUN ln -s /usr/local/bin/docker-entrypoint.sh /
 RUN chmod 775 /docker-entrypoint.sh
 
 COPY docker/haproxy/cfg /usr/local/etc/haproxy/cfg
+WORKDIR /usr/local/etc/haproxy

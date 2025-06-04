@@ -559,3 +559,62 @@
         </div>
     </div>
 </div>
+
+
+<div class="modal fade" id="modalEditBastion" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-road"> </i> Edit Bastion configuration
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+
+                <form id="modalEditBastionForm" class="form-label-left">
+                    <div class="row">
+                        <div class="x_panel">
+
+                            <div class="col-md-12 col-sm-12 col-xs-12 form-group">
+                                <label>
+                                    <input type="checkbox" id="bastion-enabled" name="bastion-enabled" class="flat icheckbox_flat-green">
+                                    Enabled
+                                </label>
+                            </div>
+                            <div class="col-md-12 col-sm-12 col-xs-12 form-group">
+                                <label>Domain</label>
+                                <input id="bastion-domain" name="bastion-domain"
+                                    class="form-control" class="roundbox"
+                                    placeholder="" data-parsley-trigger="change" required
+                                    type="text" />
+                            </div>
+                            <div class="col-md-12 col-sm-12 col-xs-12 form-group">
+                                <label>
+                                    <input type="checkbox" id="domain-verification-required" name="domain-verification-required" class="flat icheckbox_flat-green">
+                                    Bastion domain verification required
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <button id="send" type="button" class="btn btn-success">Update Bastion</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

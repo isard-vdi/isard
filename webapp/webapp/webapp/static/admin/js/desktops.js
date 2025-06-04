@@ -128,6 +128,38 @@ columns = [
         "visible": $('meta[id=user_data]').attr('data-role') == 'admin'
     },
     {
+        "data": "bastion.http.enabled",
+        "render": function (data, type) {
+            if (type === 'display') {
+                if (data === true) {
+                    return `<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>`
+                } else {
+                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                }
+            }
+            return data === true ? 'true' : 'false'
+        }
+    },
+    {
+        "data": "bastion.ssh.enabled",
+        "render": function (data, type) {
+            if (type === 'display') {
+                if (data === true) {
+                    return `<i class="fa fa-circle" aria-hidden="true"  style="color:green"></i>`
+                } else {
+                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                }
+            }
+            return data === true ? 'true' : 'false'
+        }
+    },
+    {
+        "data": "bastion.domain",
+        "render": function (data, type) {
+            return data || '-'
+        }
+    },
+    {
         "data": "accessed", 'defaultContent': '', "render": function (data, type, full, meta) {
             if (type === 'display' || type === 'filter') {
                 return moment.unix(full.accessed).fromNow()
@@ -437,8 +469,6 @@ $(document).ready(function() {
     }
 
     domains_table = $("#domains").DataTable({
-      scrollY: false,
-      scrollX: false,
       ajax: {
         url: "/admin/domains",
         type: "POST",

@@ -1,5 +1,18 @@
 #!/bin/sh
 
+if [ ! -f /usr/local/etc/haproxy/bastion_domains/subdomains.map ]
+then
+  echo "Creating /usr/local/etc/haproxy/bastion_domains/subdomains.map"
+  mkdir -p /usr/local/etc/haproxy/bastion_domains
+  touch /usr/local/etc/haproxy/bastion_domains/subdomains.map
+fi
+
+if [ ! -f /usr/local/etc/haproxy/bastion_domains/individual.map ]
+then
+  echo "Creating /usr/local/etc/haproxy/bastion_domains/individual.map"
+  touch /usr/local/etc/haproxy/bastion_domains/individual.map
+fi
+
 tmp_dir=$( mktemp -d )
 for i in `find /usr/local/etc/haproxy/cfg/_base -iname '*.cfg'`; do cp $i "$tmp_dir"; done
 for i in `find /usr/local/etc/haproxy/cfg/$CFG -iname '*.cfg'`; do cp $i "$tmp_dir"; done
@@ -7,7 +20,7 @@ for i in `find /usr/local/etc/haproxy/cfg/customs -iname '*.cfg'`; do cp $i "$tm
 echo "Building haproxy.cfg for flavour: $CFG"
 if [ "$CFG" != "portal" ] && [ "$CFG" != "video" ]
 then
-  rm "$tmp_dir"/04_squid.cfg
+  rm "$tmp_dir"/04_00_fe_nonsecured_begin.cfg
 fi
 cat "$tmp_dir"/*.cfg > /usr/local/etc/haproxy/haproxy.cfg
 

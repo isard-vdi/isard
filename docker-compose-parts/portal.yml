@@ -30,9 +30,12 @@ services:
       - /opt/isard-local/ipsec-fw/lists:/usr/local/etc/haproxy/lists
       - /opt/isard-local/haproxy/cfg:/usr/local/etc/haproxy/cfg/customs
       - /opt/isard-local/haproxy/spoe:/usr/local/etc/haproxy/spoe
+      - /opt/isard-local/haproxy/bastion_domains:/usr/local/etc/haproxy/bastion_domains
     environment:
       CFG: portal
       FORBID_DOMAIN_IP: ${FORBID_DOMAIN_IP:-false}
       CORS: ${CORS:-*}
+      BASTION_DOMAIN: ${BASTION_DOMAIN:-${DOMAIN}}
+      BASTION_SSH_PROXIED: ${BASTION_SSH_PORT:-false}
     env_file:
       - .env

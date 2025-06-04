@@ -908,6 +908,67 @@ def checkDuplicateUID(uid, category_id=None):
             )
 
 
+def checkDuplicateBastionDomain(domain, category_id=None, target_id=None):
+    if domain is None:
+        return
+    try:
+        if domain == os.getenv("DOMAIN"):
+            raise Error(
+                "conflict",
+                "Bastion domain is the same as the default domain",
+                traceback.format_exc(),
+            )
+
+        if domain == get_document("config", 1, ["bastion"]).get("domain"):
+            raise Error(
+                "conflict",
+                "Bastion domain is the same as the default domain",
+                traceback.format_exc(),
+            )
+
+        query = (
+            r.table("categories")
+            .get_all(domain, index="bastion_domain")
+            .filter(lambda item: (item["id"] != category_id))
+            .count()
+        )
+        with app.app_context():
+            if query.run(db.conn) > 0:
+                raise Error(
+                    "conflict",
+                    "Bastion domain already exists in another category",
+                    traceback.format_exc(),
+                )
+
+        query = (
+            r.table("targets")
+            .get_all(domain, index="domain")
+            .filter(lambda item: (item["id"] != target_id))
+            .count()
+        )
+        with app.app_context():
+            if query.run(db.conn) > 0:
+                raise Error(
+                    "conflict",
+                    "Bastion domain is already assigned to another target",
+                    traceback.format_exc(),
+                )
+
+    except Error:
+        raise Error(
+            "conflict",
+            "Bastion domain already exists",
+            traceback.format_exc(),
+            description_code="bastion_domain_exists",
+        )
+    except Exception:
+        raise Error(
+            "conflict",
+            "Error checking bastion domain",
+            traceback.format_exc(),
+        )
+
+
 def allowedTemplateId(payload, template_id):
     template = get_document("domains", template_id, ["user", "allowed", "category"])
     if template is None:
@@ -985,16 +1046,30 @@ def allowed_deployment_action(payload, domain_id, action):
     )
 
 
+def bastion_enabled():
+    if (os.environ.get("BASTION_ENABLED", "false")).lower() == "true" and get_document(
+        "config", 1, ["bastion"]
+    ).get("enabled"):
+        return True
+    return False
+
+
 def can_use_bastion(payload):
-    bastion_enabled = (
-        True
-        if (os.environ.get("BASTION_ENABLED", "false")).lower() == "true"
-        else False
-    )
-    if not bastion_enabled:
+    if not bastion_enabled():
         return False
 
     bastion_allowed = get_document("config", 1, ["bastion"])
+    if bastion_allowed is None:
+        return False
+
+    return api_allowed.is_allowed(payload, bastion_allowed, "config", True)
+
+
+def can_use_bastion_individual_domains(payload):
+    if not can_use_bastion(payload):
+        return False
+
+    bastion_allowed = get_document("config", 1, ["bastion"]).get("individual_domains")
     if bastion_allowed is None:
         return False
 

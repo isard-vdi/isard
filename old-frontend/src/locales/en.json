@@ -159,7 +159,8 @@
                 "http": {
                     "checkbox": "HTTP",
                     "http-port": "HTTP port",
-                    "https-port": "HTTPS port"
+                    "https-port": "HTTPS port",
+                    "domain-name": "Custom domain name (optional)"
                 },
                 "ssh": {
                     "checkbox": "SSH",
@@ -1281,7 +1282,8 @@
                     "ssh": "SSH:",
                     "http": "HTTP URL:",
                     "https": "HTTPS URL:",
-                    "authorized-keys-ssh": "Authorized keys for SSH"
+                    "authorized-keys-ssh": "Authorized keys for SSH",
+                    "domain-name": "Custom domain name:"
                 },
                 "titles": {
                     "id_copy": "Copy bastion ID",
@@ -1292,10 +1294,16 @@
                     "http_copy": "Copy HTTP URL",
                     "https_port": "HTTPS: {https_port}",
                     "https_copy": "Copy HTTPS URL",
-                    "authorized-keys-ssh": "Authorized keys for SSH"
+                    "authorized-keys-ssh": "Authorized keys for SSH",
+                    "domain-info": "DNS information"
+                },
+                "domain-info": {
+                    "title": "You can use your own domain name to access this desktop via bastion.",
+                    "cname": "Add a CNAME record to your DNS provider pointing to: "
                 },
                 "buttons": {
-                    "update-authorized-keys": "Update authorized keys"
+                    "update-authorized-keys": "Update authorized keys",
+                    "update-domain": "Update custom domain"
                 }
             }
         },
@@ -1426,7 +1434,8 @@
             "increasing-storage": "Increasing storage size. This may take a while",
             "converting-template": "Converting template to desktop",
             "token-copied": "Token copied to clipboard",
-            "authorized-ssh-keys-updated": "Authorized SSH keys updated"
+            "authorized-ssh-keys-updated": "Authorized SSH keys updated",
+            "bastion-domain-updated": "Bastion domain updated"
         },
         "loading": "Loading"
     },
@@ -1589,7 +1598,11 @@
         "unable_to_restore_user": "Unable to restore. Deleted user {user} owns items in this entry",
         "unable_to_restore_group": "Unable to restore. Deleted group {group} is associated to items in this entry",
         "unable_to_restore_category": "Unable to restore. Deleted category {category} is associated to items in this entry",
-        "operation_not_owned": "You are not authorized to cancel this operation as it was not initiated by you"
+        "operation_not_owned": "You are not authorized to cancel this operation as it was not initiated by you",
+        "bastion_domain_dns_not_found": "The domain DNS record was not found. Please check and try again.",
+        "bastion_domain_dns_error": "There was an error checking the DNS for the domain. Please try again later.",
+        "bastion_domain_dns_mismatch": "The DNS record for the domain does not match the expected value. Please check and try again.",
+        "bastion_domain_exists": "The domain already exists. Please choose a different domain name."
     },
     "router": {
         "titles": {

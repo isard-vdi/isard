@@ -16,9 +16,8 @@ type Cfg struct {
 }
 
 type HTTP struct {
-	Host    string `mapstructure:"host"`
-	Port    int    `mapstructure:"port"`
-	BaseURL string `mapstructure:"base_url"`
+	Host string `mapstructure:"host"`
+	Port int    `mapstructure:"port"`
 }
 
 func (h HTTP) Addr() string {
@@ -48,7 +47,7 @@ func setDefaults() {
 	cfg.SetDBDefaults()
 	cfg.SetHTTPDefaults()
 
-	viper.BindEnv("http.base_url", "DOMAIN")
+	viper.BindEnv("http.base_url", "BASTION_DOMAIN")
 	viper.SetDefault("http.base_url", "")
 
 	viper.SetDefault("ssh", map[string]interface{}{

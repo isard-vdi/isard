@@ -8,8 +8,10 @@ export class ConfigUtils {
       show_change_email_button: showChangeEmailButton,
       http_port: httpPort,
       https_port: httpsPort,
+      bastion_domain: bastionDomain,
       bastion_ssh_port: bastionSshPort,
       can_use_bastion: canUseBastion,
+      can_use_bastion_individual_domains: canUseBastionIndividualDomains,
       migrations_block: migrationsBlock
     } = config
     return {
@@ -20,8 +22,10 @@ export class ConfigUtils {
       showChangeEmailButton,
       httpPort,
       httpsPort,
+      bastionDomain,
       bastionSshPort,
       canUseBastion,
+      canUseBastionIndividualDomains,
       migrationsBlock
     }
   }
