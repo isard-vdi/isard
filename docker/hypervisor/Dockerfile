@@ -77,7 +77,6 @@ RUN apk add --no-cache \
     libpng \
     libseccomp \
     snappy \
-    mesa-glapi \
     wayland-libs-client \
     libxshmfence \
     mesa-egl \
