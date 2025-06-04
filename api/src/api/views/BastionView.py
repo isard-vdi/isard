@@ -204,9 +204,13 @@ def api_v3_admin_bastion(payload):
                 "bastion_enabled_in_cfg": bastion_enabled_in_cfg,
                 "bastion_enabled_in_db": bastion_enabled_in_db(),
                 "bastion_domain": bastion_domain,
-                "bastion_ssh_port": os.environ.get(
-                    "BASTION_SSH_PORT",
-                    "2222",
+                "bastion_ssh_port": (
+                    os.environ.get(
+                        "BASTION_SSH_PORT",
+                        os.environ.get("HTTPS_PORT", "443"),
+                    )
+                    if bastion_enabled()
+                    else None
                 ),
                 "domain_verification_required": bastion_domain_verification_required(),
             }

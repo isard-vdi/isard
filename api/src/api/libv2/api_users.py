@@ -442,7 +442,7 @@ class ApiUsers:
                 "bastion_ssh_port": (
                     os.environ.get(
                         "BASTION_SSH_PORT",
-                        "2222",
+                        os.environ.get("HTTPS_PORT", "443"),
                     )
                     if bastion_allowed
                     else None

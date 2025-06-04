@@ -474,11 +474,17 @@ create_docker_compose_file(){
 		fi
 	fi
 
-	# If BASTION_ENABLED is not true, remove the bastion part
 	if [ -z "$BASTION_ENABLED" ] || [ "$BASTION_ENABLED" != "true" ]
 	then
+		# If BASTION_ENABLED is not true, remove the bastion part
 		echo "BASTION_ENABLED is not true, removing bastion part"
 		parts="$(echo $parts | sed 's/bastion//')"
+	else
+		# If BASTION_ENABLED is true, we need to ensure that the bastion-open-port part is included if BASTION_SSH_PORT is set
+		if [ -n "$BASTION_SSH_PORT" ]
+		then
+			parts="$parts bastion-open-port"
+		fi
 	fi
 
 	# Build the docker-compose.yml

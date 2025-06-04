@@ -272,7 +272,7 @@ export default {
       return `https://${targetIdSplit.value}.${config.value.bastionDomain || window.location.hostname}${port}`
     })
     const sshUrl = computed(() => {
-      const port = config.value.httpsPort === '22' ? '' : ` -p ${config.value.httpsPort}`
+      const port = config.value.bastionSshPort === '22' ? '' : ` -p ${config.value.bastionSshPort}`
       return `ssh ${modal.value.bastion.id}@${config.value.bastionDomain || window.location.hostname}${port}`
     })
 

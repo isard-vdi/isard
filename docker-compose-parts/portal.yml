@@ -36,5 +36,6 @@ services:
       FORBID_DOMAIN_IP: ${FORBID_DOMAIN_IP:-false}
       CORS: ${CORS:-*}
       BASTION_DOMAIN: ${BASTION_DOMAIN:-${DOMAIN}}
+      BASTION_SSH_PROXIED: ${BASTION_SSH_PORT:-false}
     env_file:
       - .env
