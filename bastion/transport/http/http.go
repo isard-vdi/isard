@@ -321,13 +321,15 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 			}
 			continue
 		}
-		proxyLog = proxyLog.With().Str("category_domain", currentCategory.BastionDomain).Str("config_domain", currentConfig.Bastion.Domain).Logger()
+		proxyLog = proxyLog.With().Str("category_ID", currentCategory.ID).Str("category_domain", currentCategory.BastionDomain).Str("config_domain", currentConfig.Bastion.Domain).Logger()
+
+		if currentCategory.BastionDomain == "0" {
+			proxyLog.Debug().Msg("Bastion disabled in category")
+			return
+		}
 
 		if currentTarget.Domain != targetURL {
 			switch currentCategory.BastionDomain {
-			case "0":
-				proxyLog.Debug().Msg("Bastion not enabled in this category (domain set to '0')")
-				return
 			case "":
 				if currentConfig.Bastion.Domain != "" && currentConfig.Bastion.Domain != targetURL {
 					proxyLog.Debug().Str("expected_config_domain", currentConfig.Bastion.Domain).Msg("Config base URL does not match target URL")
