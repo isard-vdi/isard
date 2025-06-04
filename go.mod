@@ -26,7 +26,7 @@ require (
 	github.com/oracle/oci-go-sdk/v65 v65.75.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.20.4
-	github.com/redis/go-redis/v9 v9.6.1
+	github.com/redis/go-redis/v9 v9.6.3
 	github.com/rs/zerolog v1.34.0
 	github.com/shirou/gopsutil/v4 v4.24.9
 	github.com/spf13/viper v1.20.1
