@@ -1,3 +1,8 @@
+spec:
+  inputs:
+    use-image-build-cache:
+      type: boolean
+      default: true
 ---
 # https://docs.gitlab.com/ee/ci/yaml/index.html#switch-between-branch-pipelines-and-merge-request-pipelines
 workflow:
@@ -157,27 +162,15 @@ docker-image-codegen:
     - until docker info; do sleep 1; done
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - docker build -f $DOCKERFILE --cache-from registry.gitlab.com/isard/isardvdi/$IMAGE:main --cache-to type=inline -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+    - |
+      if $[[ inputs.use-image-build-cache ]]
+      then
+        docker build -f $DOCKERFILE --cache-from registry.gitlab.com/isard/isardvdi/$IMAGE:main --cache-to type=inline -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+      else
+        docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+      fi
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-
-docker-image-codegen-no-cache:
-  image: "docker:${DOCKER_VERSION}"
-  stage: build-codegen
-  services:
-    - name: "docker:${DOCKER_VERSION}-dind-rootless"
-  parallel:
-    matrix:
-      - DOCKERFILE: docker/codegen/Dockerfile
-        IMAGE: codegen
-  before_script:
-    - until docker info; do sleep 1; done
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  script:
-    - docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
-    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-  when: manual
 
 gen-protobuf:
   stage: generate
@@ -303,19 +296,16 @@ docker-image:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - git submodule update --init --recursive --remote
-    - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f docker-compose.$DOCKER_COMPOSE.yml build
+    - |
+      if $[[ inputs.use-image-build-cache ]]
+      then
+        DOCKERCOMPOSE_FILE=docker-compose.$DOCKER_COMPOSE.yml
+      else
+        DOCKERCOMPOSE_FILE=no-cache-docker-compose.$DOCKER_COMPOSE.yml
+      fi
+    - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f $DOCKERCOMPOSE_FILE build
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-
-docker-image-no-cache:
-  extends: docker-image
-  stage: build-no-cache
-  script:
-    - git submodule update --init --recursive --remote
-    - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f no-cache-docker-compose.$DOCKER_COMPOSE.yml build
-    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-  when: manual
 
 # test-e2e:
 #   stage: test
