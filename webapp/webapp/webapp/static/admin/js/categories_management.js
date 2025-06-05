@@ -729,7 +729,7 @@ function actionsCategoryDetail() {
                         break;
                 }
 
-                $(`${modal} #domain-ownership-alert #record-name`).text(`_isardvdi-bastion-category.${category.bastion_domain || "@"}`);
+                $(`${modal} #domain-name`).text(category.bastion_domain || "@");
                 $(`${modal} #domain-ownership-alert #record-content`).text(pk);
             },
         });
@@ -750,7 +750,7 @@ function actionsCategoryDetail() {
         }).trigger("change");
 
         $(modal + " #bastion-domain-panel input").off("change").on("change", function () {
-            $(`${modal} #domain-ownership-alert #record-name`).text(`_isardvdi-bastion-category.${$(this).val() || "@"}`);
+            $(`${modal} #domain-name`).text($(this).val() || "@");
         });
 
         $(modal + " #id").val(pk);
