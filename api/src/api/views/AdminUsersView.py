@@ -1546,7 +1546,6 @@ def api_v3_admin_edit_category_bastion_domain(payload, category_id):
     if (
         isinstance(data["bastion_domain"], str)
         and bastion_domain_verification_required()
-        and payload["role_id"] != "admin"
     ):
         check_bastion_domain_dns(data["bastion_domain"], category_id, kind="category")
     checkDuplicateBastionDomain(data["bastion_domain"], category_id=category_id)
