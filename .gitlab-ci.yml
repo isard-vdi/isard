@@ -200,6 +200,7 @@ docker-compose-build:
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.build.cfg
     - echo "USAGE=build" >> isardvdi.build.cfg
     - echo "BASTION_ENABLED=true" >> isardvdi.build.cfg
+    - echo "ENABLE_OPENAPI=true" >> isardvdi.build.cfg
     - cp isardvdi.build.cfg isardvdi.infrastructure.build.cfg
     - echo "INFRASTRUCTURE_MANAGEMENT=true" >> isardvdi.infrastructure.build.cfg
     - cp isardvdi.build.cfg isardvdi.video-standalone.build.cfg
@@ -262,6 +263,7 @@ docker-image:
           - rdpgw
           - hypervisor
           - notifier
+          - openapi
           - portal
           - sessions
           - squid

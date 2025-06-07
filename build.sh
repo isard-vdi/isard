@@ -468,6 +468,13 @@ create_docker_compose_file(){
 		fi
 	fi
 
+	# Add openapi container
+	if [ "$ENABLE_OPENAPI" = "true" ]
+	then
+	echo "Adding openapi"
+		parts="$parts openapi"
+	fi
+
 	# Build the docker-compose.yml
 	flavour "$config_name" $parts
 
