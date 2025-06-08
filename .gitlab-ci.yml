@@ -208,8 +208,6 @@ docker-compose-build:
     - echo "FLAVOUR=monitor" >> isardvdi.monitor.build.cfg
     - cp isardvdi.build.cfg isardvdi.check.build.cfg
     - echo "FLAVOUR=check" >> isardvdi.check.build.cfg
-    - cp isardvdi.build.cfg isardvdi.nextcloud.build.cfg
-    - echo "FLAVOUR=nextcloud" >> isardvdi.nextcloud.build.cfg
     - BACKUP_DB_ENABLED=true CODEGEN=false ./build.sh
     - |-
       for file in docker-compose*.yml; do
@@ -286,10 +284,6 @@ docker-image:
         IMAGE:
           - check
           - check-client
-      - DOCKER_COMPOSE: nextcloud.build
-        IMAGE:
-          - nc-proxy
-          - nc-app
   before_script:
     - apk add git docker-compose
     - until docker info; do sleep 1; done
@@ -363,8 +357,6 @@ docker-tag:
           - orchestrator
           - video
           - monitor-proxy
-          - nc-proxy
-          - nc-app
   script:
     - test "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" -a ! -e ".VERSION" && $[[ inputs.use-image-build-cache ]] && exit 0
     - crane auth login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY

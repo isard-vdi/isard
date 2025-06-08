@@ -1,9 +1,0 @@
-version: '3.5'
-services:
-  isard-nc-proxy:
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/haproxy/Dockerfile
-      target: production
-      args:
-        HAPROXY_RUN_IMAGE: ${HAPROXY_RUN_IMAGE}

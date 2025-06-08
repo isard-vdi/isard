@@ -1,4 +1,4 @@
-# Isard main config v2.22.1
+# Isard main config v2.23.1
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -15,7 +15,6 @@
 ##  - web+monitor: web and monitor flavours combined
 ##  - backupninja: standalone backups
 ##  - check: standalone check service
-##  - nextcloud: starts an standalone IsardVDI Nextcloud Personal Units [EXPERIMENTAL]
 ##  - haproxy: Only to build portal/video/monitor/nc proxy base image
 #FLAVOUR=all-in-one
 
@@ -82,14 +81,6 @@ DIRECTVIEWER_MODE=browser
 # NOTIFY_EMAIL_SMPT_PORT=587
 # NOTIFY_EMAIL_USERNAME=example@isardvdi.com
 # NOTIFY_EMAIL_PASSWORD=IsardVDI
-
-# ------ Nextcloud Personal Units -- [EXPERIMENTAL]---------------------------
-## Will start a docker Nextcloud instance integrated into IsardVDI Personal
-## units. Other Nextcloud providers can be set at admin resources page.
-#NEXTCLOUD_INSTANCE=false
-#NEXTCLOUD_AUTO_REGISTER=true
-#NEXTCLOUD_ADMIN_USER=isardvdi
-#NEXTCLOUD_ADMIN_PASSWORD=<defaults to WEBAPP_ADMIN_PWD>
 
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!
@@ -351,13 +342,6 @@ GOLANG_RUN_IMAGE=alpine:3.22.0
 
 # Image used in haproxy.build flavour to build base for all the HAProxy's
 HAPROXY_RUN_IMAGE=haproxy:3.2-alpine3.22
-
-## Image used to build isard-nextcloud flavour/instance
-#NEXTCLOUD_BASE_IMAGE=nextcloud:28.0.1-fpm-alpine
-## Image used for nextcloud nginx
-#NEXTCLOUD_NGINX_IMAGE=nginx:1.25.2-alpine-slim
-## Image used for nextcloud redis
-#NEXTCLOUD_REDIS_IMAGE=redis:alpine3.20
 
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO

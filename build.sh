@@ -58,7 +58,6 @@ ALLINONE_PARTS="
 	backupninja
 	core_worker
 	nc
-	postgres
 	infrastructure
 	check
 	notifier
@@ -118,7 +117,6 @@ WEB_PARTS="
 	redis
 	core_worker
 	nc
-	postgres
 	infrastructure
 	notifier
 	sessions
@@ -149,14 +147,6 @@ CHECK_STANDALONE_KEY="check"
 CHECK_STANDALONE_PARTS="
 	network
 	check
-"
-
-NEXTCLOUD_INSTANCE_KEY="nextcloud"
-NEXTCLOUD_INSTANCE_PARTS="
-	network
-	postgres
-	nc
-	nc-proxy
 "
 
 # BASE image builds
@@ -396,9 +386,6 @@ create_docker_compose_file(){
 		$CHECK_STANDALONE_KEY)
 			parts=$CHECK_STANDALONE_PARTS
 			;;
-		$NEXTCLOUD_INSTANCE_KEY)
-			parts=$NEXTCLOUD_INSTANCE_PARTS
-			;;
 		$HAPROXY_BUILD_KEY)
 			parts=$HAPROXY_BUILD_PARTS
 			;;
@@ -447,7 +434,6 @@ create_docker_compose_file(){
 		fi
 	fi
 
-
 	if [ "$BACKUP_DB_ENABLED" = "false" ] && [ "$BACKUP_DISKS_ENABLED" = "false" ]
 	then
 		if [ "$FLAVOUR" = "backupninja" ]
@@ -456,11 +442,6 @@ create_docker_compose_file(){
 			exit 1
 		fi
 		parts="$(echo $parts | sed 's/backupninja//')"
-	fi
-
-	if [ "$NEXTCLOUD_INSTANCE" != "true" ] && [ "$FLAVOUR" != "nextcloud" ]
-	then
-		parts="$(echo $parts | sed 's/postgres//' | sed 's/nc//' )"
 	fi
 
 	if [ -z "$INFRASTRUCTURE_MANAGEMENT" ] || [ "$INFRASTRUCTURE_MANAGEMENT" != "true" ]
