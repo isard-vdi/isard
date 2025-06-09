@@ -57,7 +57,6 @@ ALLINONE_PARTS="
 	storage
 	backupninja
 	core_worker
-	nc
 	infrastructure
 	check
 	notifier
@@ -116,7 +115,6 @@ WEB_PARTS="
 	guac
 	redis
 	core_worker
-	nc
 	infrastructure
 	notifier
 	sessions
