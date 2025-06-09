@@ -1,0 +1,6 @@
+version: "3.5"
+services:
+  isard-redis:
+    container_name: isard-redis
+    ports:
+      - "8001:8001"
