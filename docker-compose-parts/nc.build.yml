@@ -1,8 +1,0 @@
-version: '3.5'
-services:
-  isard-nc-app:
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/nextcloud/Dockerfile
-      args:
-        - IMG=${NEXTCLOUD_BASE_IMAGE-nextcloud:28.0-fpm-alpine}
