@@ -1,0 +1,7 @@
+version: '3.5'
+services:
+  isard-openapi:
+    volumes:
+      - ${BUILD_ROOT_PATH}/component/openapi/src:/app
+      - ${BUILD_ROOT_PATH}/pkg/oas:/app/oas:ro
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]

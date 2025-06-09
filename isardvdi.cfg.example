@@ -1,4 +1,4 @@
-# Isard main config v2.23.1
+# Isard main config v2.24.1
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -786,3 +786,10 @@ WG_GUESTS_RESERVED_HOSTS=20
 # ------ Operations -----------------------------------------------------
 # Control whether the operations menu should be shown in the webapp and the endpoints should be enabled. 
 #OPERATIONS_API_ENABLED=false
+
+##################################################################
+## DEVEL                                                        ##
+##################################################################
+
+## OpenApi specs container with swagger and specs at /openapi
+#ENABLE_OPENAPI=false
