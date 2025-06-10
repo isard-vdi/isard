@@ -620,6 +620,9 @@
         "text": "Reservar el escritorio con el modelo de tarjeta gráfica actual consultando su planificación",
         "button": "Reservar escritorio"
       }
+    },
+    "notification-modal": {
+      "title": "Notificaciones"
     }
   },
   "views": {

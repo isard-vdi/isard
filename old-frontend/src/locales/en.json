@@ -621,6 +621,9 @@
                 "text": "Book the desktop with its current graphic card model checking its planification",
                 "button": "Book desktop"
             }
+        },
+        "notification-modal": {
+            "title": "Notifications"
         }
     },
     "views": {

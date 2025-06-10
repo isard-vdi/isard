@@ -104,6 +104,19 @@ def get_notification_template(template_id):
         )
 
 
+def get_notification_template_by_kind(kind):
+    try:
+        with app.app_context():
+            return (
+                r.table("notification_tmpls").filter({"kind": kind}).nth(0).run(db.conn)
+            )
+    except:
+        raise Error(
+            "not_found",
+            "Notification template with kind: " + kind + " not found",
+        )
+
+
 def update_notification_template(template_id, data):
     language = list(data["lang"].keys())[0]
     if (

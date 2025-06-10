@@ -271,8 +271,11 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
-    changeDesktopStatus (_, data) {
+    changeDesktopStatus (context, data) {
       axios.get(`${apiV3Segment}/desktop/${data.action}/${data.desktopId}`).then(response => {
+        if (data.action === 'start') {
+          context.dispatch('fetchNotifications', { trigger: 'start_desktop', display: 'modal' })
+        }
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })

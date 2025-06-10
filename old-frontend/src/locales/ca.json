@@ -339,6 +339,9 @@
         "text": "Reservar l'escriptori amb el model de la targeta gràfica actual consultant la seva planificació",
         "button": "Reservar escriptori"
       }
+    },
+    "notification-modal": {
+      "title": "Notificacions"
     }
   },
   "views": {

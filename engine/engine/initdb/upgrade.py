@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 170
+release_version = 171
+# release 171: Add 'start' notification action and bastion notification
 # release 170: Global and category bastion_domain
 # release 169: Set secrets role to manager
 # release 168: Add new field api_key to all users
@@ -6075,6 +6076,46 @@ password:s:%s"""
             except Exception as e:
                 print(e)
 
+        if version == 171:
+            try:
+                r.table(table).insert(
+                    [
+                        {
+                            "default": "en",
+                            "description": "Text that will be shown if bastion is enabled and the user is starting a desktop with bastion.",
+                            "kind": "bastion_enabled_disclaimer",
+                            "lang": {
+                                "ca": {
+                                    "body": "<p>The desktop <b>{desktop_name}</b>, has bastion enabled. Please, beware of its risks.</p>",
+                                    "footer": "",
+                                    "title": "Desktop with bastion enabled",
+                                },
+                                "en": {
+                                    "body": "<p>The desktop <b>{desktop_name}</b>, has bastion enabled. Please, beware of its risks.</p>",
+                                    "footer": "",
+                                    "title": "Desktop with bastion enabled",
+                                },
+                                "es": {
+                                    "body": "<p>The desktop <b>{desktop_name}</b>, has bastion enabled. Please, beware of its risks.</p>",
+                                    "footer": "",
+                                    "title": "Desktop with bastion enabled",
+                                },
+                            },
+                            "name": "Bastion enabled disclaimer",
+                            "system": {
+                                "body": "<p>The desktop <b>{desktop_name}</b>, has bastion enabled. Please, beware of its risks.</p>",
+                                "footer": "",
+                                "title": "Desktop with bastion enabled",
+                            },
+                            "vars": {
+                                "desktop_name": "Testing desktop",
+                            },
+                        },
+                    ]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -6198,6 +6239,43 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 171:
+            try:
+                r.table(table).update({"compute": None}).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).insert(
+                    [
+                        {
+                            "name": "Starting desktop bastion notification",
+                            "action_id": "start_desktop",
+                            "allowed": {
+                                "roles": [],
+                                "categories": False,
+                                "groups": False,
+                                "users": False,
+                            },
+                            "trigger": "start_desktop",
+                            "item_type": "desktop",
+                            "template_id": "",  # Since it's a computed notification the template will be retrieved from the notification_tmpls table by kind
+                            "display": ["modal"],
+                            "order": 0,
+                            "force_accept": False,
+                            "enabled": False,
+                            "ignore_after": r.epoch_time(
+                                0
+                            ),  # Defines the time the notification data will be ignored. In this case it will be specified in each notification_data entry
+                            "keep_time": 0,  # Defines the amount of hours the notification data will be kept
+                            "compute": "start_desktop_bastion",
+                        }
+                    ]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -6219,6 +6297,19 @@ password:s:%s"""
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 171:
+            try:
+                r.table(table).insert(
+                    {
+                        "description": "Start desktop",
+                        "id": "start_desktop",
+                        "compute": "start_desktop_notifications",
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
