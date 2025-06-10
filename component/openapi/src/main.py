@@ -1,5 +1,8 @@
+import os
+
 from fastapi import APIRouter, FastAPI
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse, HTMLResponse
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -188,5 +191,30 @@ def docs_notifier():
 def redoc_notifier():
     return get_redoc_html(openapi_url="/openapi/notifier.json", title="Notifier ReDoc")
 
+
+def get_server_url():
+    host = "develop.isardvdi.com"
+    port = os.environ.get("HTTPS_PORT", "443")
+    if port == "443":
+        return f"https://{host}/openapi"
+    else:
+        return f"https://{host}:{port}/openapi"
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="IsardVDI OpenAPI Service",
+        version="1.0.0",
+        description="OpenAPI docs for IsardVDI",
+        routes=app.routes,
+    )
+    openapi_schema["servers"] = [{"url": get_server_url()}]
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 app.include_router(router, prefix="/openapi")
