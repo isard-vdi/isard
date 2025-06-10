@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
-from pydantic.v1 import BaseModel
+from pydantic import BaseModel
 
 #
 # NotifyMail
@@ -13,7 +13,6 @@ class NotifyMailRequest(BaseModel):
     user_id: str
     subject: str
     text: str
-    payload: object
 
 
 class NotifyMailResponse(BaseModel):
@@ -29,7 +28,6 @@ class NotifyEmailVerifyMailRequest(BaseModel):
     user_id: str
     email: str
     url: str
-    payload: object
 
 
 class NotifyEmailVerifyMailResponse(BaseModel):
@@ -45,7 +43,6 @@ class NotifyPasswordResetMailRequest(BaseModel):
     category: str
     email: str
     url: str
-    payload: object
 
 
 class NotifyPasswordResetMailResponse(BaseModel):
@@ -63,7 +60,6 @@ class NotifyDeleteGPUMailRequest(BaseModel):
     desktops: list[object]
     deployments: list[object]
     text: str
-    payload: object
 
 
 class NotifyDeleteGPUMailResponse(BaseModel):
