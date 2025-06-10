@@ -44,7 +44,7 @@ sanitizer = Sanitizer(
 
 
 @app.route("/notifier/mail", methods=["POST"])
-@api.validate(resp=Response(HTTP_200=notifier.NotifyMailResponse))
+@api.validate(resp=Response(HTTP_200=notifier.NotifyMailResponse), tags=["Mail"])
 @is_admin
 def notify_mail(payload, json: notifier.NotifyMailRequest):
     """
@@ -89,7 +89,9 @@ def notify_mail(payload, json: notifier.NotifyMailRequest):
 
 
 @app.route("/notifier/mail/email-verify", methods=["POST"])
-@api.validate(resp=Response(HTTP_200=notifier.NotifyEmailVerifyMailResponse))
+@api.validate(
+    resp=Response(HTTP_200=notifier.NotifyEmailVerifyMailResponse), tags=["Mail"]
+)
 @is_admin
 def email_verify(payload, json: notifier.NotifyEmailVerifyMailRequest):
     """
@@ -138,7 +140,10 @@ def email_verify(payload, json: notifier.NotifyEmailVerifyMailRequest):
 
 
 @app.route("/notifier/mail/password-reset", methods=["POST"])
-@api.validate(resp=Response(HTTP_200=notifier.NotifyPasswordResetMailResponse))
+@api.validate(
+    resp=Response(HTTP_200=notifier.NotifyPasswordResetMailResponse),
+    tags=["Password", "Mail"],
+)
 @is_admin
 def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
     """
@@ -192,7 +197,9 @@ def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
 
 
 @app.route("/notifier/mail/deleted-gpu", methods=["POST"])
-@api.validate(resp=Response(HTTP_200=notifier.NotifyDeleteGPUMailResponse))
+@api.validate(
+    resp=Response(HTTP_200=notifier.NotifyDeleteGPUMailResponse), tags=["Gpu"]
+)
 @is_admin
 def delete_gpu(payload, json: notifier.NotifyDeleteGPUMailRequest):
     """
@@ -304,28 +311,63 @@ def delete_gpu(payload, json: notifier.NotifyDeleteGPUMailRequest):
     return notifier.NotifyDeleteGPUMailResponse()
 
 
-@app.route("/frontend", methods=["POST"])
-@api.validate(resp=Response(HTTP_200=notifier.NotifyFrontendResponse))
+# NOT IMPLEMENTED ENDPOINTS
+
+
+@app.route("/notifier/frontend", methods=["POST"])
+@api.validate(
+    resp=Response(
+        HTTP_200=notifier.NotifyFrontendResponse,
+        HTTP_501=notifier.NotImplementedResponse,
+    ),
+    tags=["Not implemented"],
+)
 def notify_frontend(json: notifier.NotifyFrontendRequest):
     """
     NotifyFrontend sends a popup notification to the user webpage interface
     """
-    return notifier.NotifyFrontendResponse()
+    return (
+        notifier.NotImplementedResponse(),
+        501,
+        {
+            "Allow": "POST",
+            "Content-Type": "application/json",
+        },
+    )
 
 
-@app.route("/frontend/desktop-time-limit", methods=["POST"])
-@api.validate(resp=Response(HTTP_200=notifier.NotifyFrontendDesktopTimeLimitResponse))
+@app.route("/notifier/frontend/desktop-time-limit", methods=["POST"])
+@api.validate(
+    resp=Response(
+        HTTP_200=notifier.NotifyFrontendDesktopTimeLimitResponse,
+        HTTP_501=notifier.NotImplementedResponse,
+    ),
+    tags=["Not implemented"],
+)
 def notify_frontend_desktop_time_limit(
     json: notifier.NotifyFrontendDesktopTimeLimitRequest,
 ):
     """
     NotifyFrontendDesktopTimeLimit notifies the user that the time limit is approaching
     """
-    return notifier.NotifyFrontendDesktopTimeLimitResponse()
+    return (
+        notifier.NotImplementedResponse(),
+        501,
+        {
+            "Allow": "POST",
+            "Content-Type": "application/json",
+        },
+    )
 
 
-@app.route("/frontend/searching-resources", methods=["POST"])
-@api.validate(resp=Response(HTTP_200=notifier.NotifyFrontendSearchingResourcesResponse))
+@app.route("/notifier/frontend/searching-resources", methods=["POST"])
+@api.validate(
+    resp=Response(
+        HTTP_200=notifier.NotifyFrontendSearchingResourcesResponse,
+        HTTP_501=notifier.NotImplementedResponse,
+    ),
+    tags=["Not implemented"],
+)
 def notify_frontend_searching_resources(
     json: notifier.NotifyFrontendSearchingResourcesRequest,
 ):
@@ -333,13 +375,32 @@ def notify_frontend_searching_resources(
     NotifyFrontendSearchingResources notifies the user that there are no
     resources available and will be in a near future
     """
-    return notifier.NotifyFrontendSearchingResourcesResponse()
+    return (
+        notifier.NotImplementedResponse(),
+        501,
+        {
+            "Allow": "POST",
+            "Content-Type": "application/json",
+        },
+    )
 
 
-@app.route("/guest", methods=["POST"])
-@api.validate(resp=Response(HTTP_200=notifier.NotifyGuestResponse))
+@app.route("/notifier/guest", methods=["POST"])
+@api.validate(
+    resp=Response(
+        HTTP_200=notifier.NotifyGuestResponse, HTTP_501=notifier.NotImplementedResponse
+    ),
+    tags=["Not implemented"],
+)
 def notify_guest(json: notifier.NotifyGuestRequest):
     """
     NotifyGuest sends a QMP notification to the user desktop
     """
-    return notifier.NotifyGuestResponse()
+    return (
+        notifier.NotImplementedResponse(),
+        501,
+        {
+            "Allow": "POST",
+            "Content-Type": "application/json",
+        },
+    )

@@ -66,6 +66,13 @@ class NotifyDeleteGPUMailResponse(BaseModel):
     pass
 
 
+# NOT IMPLEMENTED
+
+
+class NotImplementedResponse(BaseModel):
+    error: str = "This endpoint is not implemented yet. Please check back later."
+
+
 #
 # NotifyFrontend
 #
