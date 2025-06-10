@@ -106,7 +106,7 @@ check-python:
   stage: lint
   image: python:3.10-bullseye
   script:
-    - pip install isort black==24.3.0
+    - pip install isort==5.13.2 black==24.3.0
     - isort --check .
     - black --check .
 
