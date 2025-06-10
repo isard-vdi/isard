@@ -16,3 +16,5 @@ services:
       test: [ "CMD", "curl", "-f", "http://localhost:5000/" ]
       start_period: 30s
       interval: 5s
+    environment:
+      HTTPS_PORT: ${HTTPS_PORT:-443}
