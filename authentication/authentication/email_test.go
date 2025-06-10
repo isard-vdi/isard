@@ -59,10 +59,9 @@ func TestRequestEmailVerification(t *testing.T) {
 				}, nil)
 			},
 			PrepareNotifier: func(c *notifier.MockInvoker) {
-				c.On("PostNotifierMailEmailVerify", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req notifier.OptNotifyEmailVerifyMailRequest0bf6af6) bool {
-					return req.Set &&
-						req.Value.Email == "nefix@example.org" &&
-						strings.HasPrefix(req.Value.URL, "https://localhost/verify-email?token=e")
+				c.On("PostNotifierMailEmailVerify", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *notifier.NotifyEmailVerifyMailRequest0bf6af6) bool {
+					return req.Email == "nefix@example.org" &&
+						strings.HasPrefix(req.URL, "https://localhost/verify-email?token=e")
 				})).Return(&notifier.NotifyEmailVerifyMailResponse0bf6af6{
 					TaskID: uuid.New(),
 				}, nil)

@@ -27,7 +27,12 @@ app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 app_bp = Blueprint("notifier", __name__)
 app.register_blueprint(app_bp, url_prefix="/notifier/api/v1")
-api = SpecTree("flask", annotations=True, title="Notifier API", version="v1.0")
+api = SpecTree(
+    "flask",
+    annotations=True,
+    title="Notifier API. Used only through internal microservices.",
+    version="v1.0",
+)
 api.register(app)
 
 from .views import views

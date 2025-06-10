@@ -53,10 +53,9 @@ func TestForgotPassword(t *testing.T) {
 				}, nil)
 			},
 			PrepareNotifier: func(c *notifier.MockInvoker) {
-				c.On("PostNotifierMailPasswordReset", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req notifier.OptNotifyPasswordResetMailRequest0bf6af6) bool {
-					return req.Set &&
-						req.Value.Email == "nefix@example.org" &&
-						strings.HasPrefix(req.Value.URL, "https://localhost/reset-password?token=e")
+				c.On("PostNotifierMailPasswordReset", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req *notifier.NotifyPasswordResetMailRequest0bf6af6) bool {
+					return req.Email == "nefix@example.org" &&
+						strings.HasPrefix(req.URL, "https://localhost/reset-password?token=e")
 
 				})).Return(&notifier.NotifyPasswordResetMailResponse0bf6af6{
 					TaskID: uuid.New(),
