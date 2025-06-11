@@ -8,12 +8,16 @@ display:
   type: list
   schema:
     type: string
-    allowed: ["fullpage"]
+    allowed: 
+      - "fullpage"
+      - "modal"
 force_accept:
   type: boolean
 item_type:
   type: string
-  allowed: ["desktop", "user"]
+  allowed:
+    - "user"
+    - "desktop"
 order:
   type: integer
   min: 0
@@ -22,6 +26,9 @@ template_id:
   coerce: sanitize
 trigger:
   type: string
+  allowed:
+    - "login"
+    - "start_desktop"
 enabled:
   type: boolean
 name:
@@ -37,4 +44,5 @@ keep_time:
   type: integer
   nullable: true
   coerce: sanitize
-  
+compute:
+  nullable: true

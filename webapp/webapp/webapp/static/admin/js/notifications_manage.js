@@ -80,6 +80,7 @@ $(document).ready(function () {
                     }
                 });
             } else if (data.operation === "add") {
+                data["compute"] = null;
                 delete data.operation;
                 delete data.id;
                 $.ajax({
@@ -320,7 +321,7 @@ function setupNotificationModal(modal, operation, iconClass) {
 function updateDisplayOptions(modal, trigger) {
     var displayOptions =
         // trigger ===  "login" ?  ["fullpage", "modal"] : ["fullpage", "modal", "bar", "guest", "mail"];
-        ["fullpage"]
+        ["fullpage", "modal"]
 
     $(modal + " #display").empty();
     $.each(displayOptions, function (_, option) {
@@ -339,6 +340,7 @@ function populateItemTypeSelect(modal, operation) {
     $(modal + " #item_type").empty();
     if (operation === "add") {
         $(modal + " #item_type").append(new Option("User", "user")).attr("disabled", false);
+        $(modal + " #item_type").append(new Option("Desktop", "desktop")).attr("disabled", false);
     } else if (operation === "edit") {
         var options = [
             "desktop", "desktops", "deployment", "deployments", "user"
