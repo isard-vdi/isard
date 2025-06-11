@@ -61,7 +61,7 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 				return
 			}
 
-			logrus.Error("unknown error: %w", err)
+			logrus.Errorf("unknown error: %w", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
