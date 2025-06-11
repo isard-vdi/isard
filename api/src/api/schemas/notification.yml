@@ -18,14 +18,18 @@ display:
   type: list
   schema:
     type: string
-    allowed: ["fullpage"]
+    allowed: 
+      - "fullpage"
+      - "modal"
   default: ["fullpage"]
 force_accept:
   type: boolean
   required: true
 item_type:
   type: string
-  allowed: ["user"]
+  allowed:
+    - "user"
+    - "desktop"
 order:
   type: integer
   required: true
@@ -37,6 +41,9 @@ template_id:
 trigger:
   required: true
   type: string
+  allowed:
+    - "login"
+    - "start_desktop"
   default: "login"
 enabled:
   required: true
@@ -55,3 +62,6 @@ keep_time:
   type: integer
   nullable: true
   coerce: sanitize
+compute:
+  default: null
+  nullable: true
