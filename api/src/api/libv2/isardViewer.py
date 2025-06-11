@@ -88,7 +88,12 @@ class isardViewer:
         self.vnc = 2
         self.vnc_tls = 3
         self.vnc_ws = -198  # 5900-200????
-        self.rdpgw_port = os.environ.get("VIEWER_RDPGW", 9999)
+        self.rdpgw_port = (
+            os.environ.get("VIEWER_RDP_GW")
+            or os.environ.get("VIEWER_SPICE")
+            or os.environ.get("HTTP_PORT")
+            or 80
+        )
         pass
 
     def viewer_data(

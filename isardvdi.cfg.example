@@ -1,4 +1,4 @@
-# Isard main config v2.24.1
+# Isard main config v2.25.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -541,8 +541,8 @@ HAPROXY_LOGGING=.
 ## Where the users browsers will connect to get the video stream for
 ## their guests started in this hypervisor? (outside NAT ports)
 #VIEWER_SPICE=80
+#VIEWER_RDP_GW=80
 #VIEWER_BROWSER=443
-#VIEWER_RDPGW=9999
 
 # ------ Video proxy ACL -----------------------------------------------------
 ## Is this host hosting the isard-video for other hypervisor-standalone
