@@ -332,6 +332,7 @@ def new(
         "co_owners": co_owners,
         "user_permissions": user_permissions,
     }
+    ApiDesktopsPersistent().check_viewers(new_data, deployment)
 
     users = get_selected_users(payload, selected, desktop_name, False, True)
     quotas.deployment_create(users, payload["user_id"])
@@ -547,6 +548,7 @@ def edit_deployment(payload, deployment_id, data):
     data["name"] = data.pop("desktop_name")
     data["reservables"] = data.get("hardware").pop("reservables")
     data["hardware"]["memory"] = data["hardware"]["memory"] * 1048576
+    ApiDesktopsPersistent().check_viewers(data, deployment)
     deployment_booking = _parse_deployment_booking(deployment)
     get_selected_users(
         payload,
