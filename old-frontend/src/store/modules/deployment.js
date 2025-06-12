@@ -183,12 +183,12 @@ export default {
     },
 
     deleteDeployment (context, payload) {
-      context.commit('remove_deployments', { id: payload.id })
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-deployment'), '', true, 1000)
       const url = payload.permanent
         ? `${apiV3Segment}/deployments/${payload.id}/permanent`
         : `${apiV3Segment}/deployments/${payload.id}`
       axios.delete(url).then(response => {
+        context.commit('remove_deployments', { id: payload.id })
         this._vm.$snotify.clear()
         if (payload.pathName) {
           context.dispatch('navigate', payload.pathName)
