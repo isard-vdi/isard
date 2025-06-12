@@ -16,6 +16,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
+      SESSIONS_LOG_LEVEL: ${LOG_LEVEL:-INFO}
       SESSIONS_SESSIONS_MAX_TIME:
       SESSIONS_SESSIONS_MAX_RENEW_TIME:
       SESSIONS_SESSIONS_EXPIRATION_TIME:
