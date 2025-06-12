@@ -19,3 +19,5 @@ services:
         - GOLANG_RUN_IMAGE
     networks:
       - isard-network
+    environment:
+      RDPGW_LOG_LEVEL: ${LOG_LEVEL:-INFO}
