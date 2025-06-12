@@ -70,8 +70,22 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 	})
 }
 
+func logLevel() {
+	levelStr := os.Getenv("LOG_LEVEL")
+	if levelStr == "" {
+		levelStr = "info"
+	}
+
+	if level, err := logrus.ParseLevel(levelStr); err != nil {
+		logrus.Fatalf("Invalid LOG_LEVEL envrionment variable: %s", levelStr)
+	} else {
+		logrus.SetLevel(level)
+		logrus.Infof("Log level set to %s", levelStr)
+	}
+}
+
 func main() {
-	logrus.SetLevel(logrus.DebugLevel)
+	logLevel()
 
 	servlet := guac.NewServer(DemoDoConnect)
 	wsServer := guac.NewWebsocketServer(DemoDoConnect)

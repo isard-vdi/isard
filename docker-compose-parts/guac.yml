@@ -16,6 +16,7 @@ services:
     environment:
       GUACD_ADDR: isard-vpn:4822
       API_ISARDVDI_SECRET: ${API_ISARDVDI_SECRET}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.16
