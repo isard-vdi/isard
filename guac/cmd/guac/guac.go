@@ -84,7 +84,24 @@ func logLevel() {
 	}
 }
 
+type ServiceLogrusHook struct{}
+
+func (h *ServiceLogrusHook) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+func (h *ServiceLogrusHook) Fire(entry *logrus.Entry) error {
+	entry.Data["service"] = "guac"
+	return nil
+}
+
+func logFormat() {
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	logrus.AddHook(&ServiceLogrusHook{})
+}
+
 func main() {
+	logFormat()
 	logLevel()
 
 	servlet := guac.NewServer(DemoDoConnect)
