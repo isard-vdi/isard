@@ -1,5 +1,21 @@
 package guac
 
+import "fmt"
+
+type Parameters map[string]string
+
+func (m Parameters) String() string {
+    copy := make(map[string]string)
+    for k, v := range m {
+        if k == "password" {
+            copy[k] = "****"
+        } else {
+            copy[k] = v
+        }
+    }
+    return fmt.Sprintf("%+v", copy)
+}
+
 // Config is the data sent to guacd to configure the session during the handshake.
 type Config struct {
 	// ConnectionID is used to reconnect to an existing session, otherwise leave blank for a new session.
@@ -7,7 +23,7 @@ type Config struct {
 	// Protocol is the protocol of the connection from guacd to the remote (rdp, ssh, etc).
 	Protocol     string
 	// Parameters are used to configure protocol specific options like sla for rdp or terminal color schemes.
-	Parameters   map[string]string
+	Parameters   Parameters
 
 	// OptimalScreenWidth is the desired width of the screen
 	OptimalScreenWidth  int
