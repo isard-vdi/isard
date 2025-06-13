@@ -189,6 +189,8 @@ is_official_build(){
 
 create_env(){
 	cp "$1" .env
+	# Add an empty line to the end of the .env file
+	echo "" >> .env
 	## BUILD_ROOT_PATH env
 	# This is a workarround for
 	# https://github.com/docker/compose/issues/7873
