@@ -487,7 +487,7 @@ class Storage(RethinkCustomBase):
         bwlimit=0,
         remove_source_file=True,
         priority="default",
-        timeout=1200,  # 20 minutes. Default redis timeout is 180 (3 minutes)
+        timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
     ):
         """
         Create a task to move the storage using rsync.
@@ -801,7 +801,7 @@ class Storage(RethinkCustomBase):
         user_id,
         registry_patch,
         priority="default",
-        timeout=600,  # 10 minutes. Default redis timeout is 180 (3 minutes)
+        timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
     ):
         """
         Create a task to write a windows registry patch to the storage.
@@ -874,7 +874,7 @@ class Storage(RethinkCustomBase):
         user_id,
         priority="default",
         secondary_priority="default",
-        timeout=900,  # 15 minutes. Default redis timeout is 180 (3 minutes)
+        timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
     ):
         """
         Create a task to sparsify the storage.
