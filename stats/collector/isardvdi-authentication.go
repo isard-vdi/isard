@@ -83,20 +83,26 @@ func (a *IsardVDIAuthentication) Collect(ch chan<- prometheus.Metric) {
 
 		for _, s := range rsp.Data.Result.(loghttp.Streams) {
 			for _, e := range s.Entries {
-				var items map[string]string
-				if err := json.Unmarshal([]byte(e.Line), &items); err != nil {
-					a.Log.Info().Str("collector", a.String()).Err(err).Msg("unmarshal authentication logs")
+				type LogLine struct {
+					Message string `json:"message"`
+					Usr string `json:"usr"`
+				}
+				var logLine LogLine
+				if err := json.Unmarshal([]byte(e.Line), &logLine); err != nil {
+					a.Log.Info().Str("collector", a.String()).Err(err).Msgf("unmarshal authentication logs: %s", e.Line)
 					success = 0
 				}
 
 				// TODO: This should be a constant in the authentication service
-				if items["message"] == "login succeeded" {
-					ch <- prometheus.MustNewConstMetric(a.descLoginSuccess, prometheus.CounterValue, 1, items["usr"])
+				if logLine.Message == "login succeeded" {
+					a.Log.Debug().Str("collector", a.String()).Msgf("success login detected for %s", logLine.Usr)
+					ch <- prometheus.MustNewConstMetric(a.descLoginSuccess, prometheus.CounterValue, 1, logLine.Usr)
 					continue
 				}
 
 				// TODO: This should be a constant in the authentication service
-				if items["error"] == "invalid credentials" {
+				if logLine.Message == "login failed" {
+					a.Log.Debug().Str("collector", a.String()).Msg("failed login detected")
 					failed += 1
 				}
 			}
