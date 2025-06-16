@@ -226,12 +226,12 @@ def api_v3_admin_user_update(payload, user_id=None):
     if user_id:
         data["ids"] = [user_id]
 
-    for user_id in data["ids"]:
-        user = get_document("users", user_id)
+    for u_id in data["ids"]:
+        user = get_document("users", u_id)
         if "active" in data:
             users.enable_users_check(data["active"], payload, user=user)
 
-        ownsUserId(payload, user_id)
+        ownsUserId(payload, u_id)
         ownsCategoryId(payload, user["category"])
 
         if data.get("secondary_groups") is not None:
