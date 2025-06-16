@@ -528,14 +528,13 @@ $(document).ready(function() {
     });
 
     // Apply the search
-    domains_table.columns().every(function () {
-        var that = this;
+    $('#domains tfoot input').off('keyup change');
+    domains_table.columns().every(function (index) {
+        var column = this;
 
-        $('input', this.footer()).on('keyup change', function () {
-            if (that.search() !== this.value) {
-                that
-                    .search(this.value)
-                    .draw();
+        $(domains_table.column(index).footer()).find('input').on('keyup change', function () {
+            if (column.search() !== this.value) {
+                column.search(this.value).draw();
             }
         });
     });
