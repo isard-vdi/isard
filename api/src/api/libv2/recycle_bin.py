@@ -1196,20 +1196,19 @@ class RecycleBin(object):
         if self.deployments:
             for deployment in self.deployments:
                 # check if the template of the deployment exist
-                if deployment["create_dict"]["template"] not in [
-                    t["id"] for t in self.templates
-                ]:
-                    with app.app_context():
-                        if (
-                            not r.table("domains")
-                            .get(deployment["create_dict"]["template"])
-                            .run(db.conn)
-                        ):
-                            raise Error(
-                                "precondition_required",
-                                f"Cannot restore deployment without template {deployment['create_dict']['template']}",
-                                description_code="template_not_found",
-                            )
+                for create_dict in deployment["create_dict"]:
+                    if create_dict["template"] not in [t["id"] for t in self.templates]:
+                        with app.app_context():
+                            if (
+                                not r.table("domains")
+                                .get(create_dict["template"])
+                                .run(db.conn)
+                            ):
+                                raise Error(
+                                    "precondition_required",
+                                    f"Cannot restore deployment without template {create_dict['template']}",
+                                    description_code="template_not_found",
+                                )
 
         if self.templates:
             for template in self.templates:

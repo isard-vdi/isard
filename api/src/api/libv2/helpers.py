@@ -91,12 +91,26 @@ class InternalUsers(object):
         return self.users
 
 
+# TODO: Units should be separated for each reservable? Currently it returns the same units for all reservables.
 def _get_reservables(item_type, item_id):
     if item_type == "desktop":
         with app.app_context():
             data = r.table("domains").get(item_id).run(db.conn)
         units = 1
         item_name = data["name"]
+
+        if not data["create_dict"].get("reservables") or not any(
+            list(data["create_dict"]["reservables"].values())
+        ):
+            raise Error(
+                "precondition_required",
+                "Item has no reservables",
+                description_code="no_reservables",
+            )
+        data = data["create_dict"]["reservables"]
+        data_without_falses = {k: v for k, v in data.items() if v}
+        return (data_without_falses, units, item_name)
+
     elif item_type == "deployment":
         with app.app_context():
             deployment = r.table("deployments").get(item_id).run(db.conn)
@@ -106,19 +120,38 @@ def _get_reservables(item_type, item_id):
                 "Deployment id not found",
                 description_code="not_found",
             )
-        item_name = deployment["name"]
-        with app.app_context():
-            deployment_domains = list(
-                r.table("domains").get_all(item_id, index="tag").run(db.conn)
-            )
-        if not len(deployment_domains):
-            # Now there is no desktop at the deployment. No reservation will be done.
-            raise (
+
+        # Filter out None values
+        valid_vgpus = [
+            tuple(item["reservables"]["vgpus"])
+            for item in deployment["create_dict"]
+            if item["reservables"]["vgpus"] is not None
+        ]
+
+        # Check that all the gpus are the same
+        if valid_vgpus and any(v != valid_vgpus[0] for v in valid_vgpus):
+            raise Error(
                 "precondition_required",
-                "Deployment has no desktops to be reserved.",
+                "Deployment reservables are not equal across all desktops.",
+                description_code="deployment_reservables_not_equal",
             )
-        data = deployment_domains[0]
-        units = len(deployment_domains)
+
+        # Number of units that will be reserved
+        payload = gen_payload_from_user(deployment.get("user"))
+        users_amount = len(get_selected_users(payload, deployment.get("allowed")))
+        units = len(valid_vgpus * users_amount)
+        common_vgpus = list(valid_vgpus[0]) if valid_vgpus else None
+
+        item_name = deployment["name"]
+
+        # TODO: Should return all of the reservables and not only vgpus
+        return (
+            {
+                "vgpus": common_vgpus,
+            },
+            units,
+            item_name,
+        )
     else:
         raise Error(
             "not_found",
@@ -126,17 +159,88 @@ def _get_reservables(item_type, item_id):
             description_code="not_found",
         )
 
-    if not data["create_dict"].get("reservables") or not any(
-        list(data["create_dict"]["reservables"].values())
-    ):
-        raise Error(
-            "precondition_required",
-            "Item has no reservables",
-            description_code="no_reservables",
+
+def get_selected_users(
+    payload,
+    selected,
+    desktop_name=None,
+    deployment_id=None,
+    existing_desktops_error=False,
+    include_existing_desktops=False,
+):
+    """Check who has to be created"""
+    users = []
+
+    group_users = []
+
+    secondary_groups_users = []
+    if selected["groups"] is not False:
+        query_group_users = (
+            r.table("users")
+            .get_all(r.args(selected["groups"]), index="group")
+            .filter(lambda user: user["active"].eq(True))
+            .pluck("id", "username", "category", "group")
         )
-    data = data["create_dict"]["reservables"]
-    data_without_falses = {k: v for k, v in data.items() if v}
-    return (data_without_falses, units, item_name)
+        if payload["role_id"] != "admin":
+            query_group_users.filter({"category": payload["category_id"]})
+        with app.app_context():
+            group_users = list(query_group_users.run(db.conn))
+
+        with app.app_context():
+            secondary_groups_users = list(
+                r.table("users")
+                .get_all(r.args(selected["groups"]), index="secondary_groups")
+                .filter(lambda user: user["active"].eq(True))
+                .pluck("id", "username", "category", "group")
+                .run(db.conn)
+            )
+    # Add payload user if not in list
+    if selected["users"]:
+        if payload["user_id"] not in selected["users"]:
+            selected["users"].append(payload["user_id"])
+    else:
+        selected["users"] = [payload["user_id"]]
+    user_users = []
+    with app.app_context():
+        query_user_users = (
+            r.table("users")
+            .get_all(r.args(selected["users"]), index="id")
+            .filter(lambda user: user["active"].eq(True))
+            .pluck("id", "username", "category", "group")
+        )
+    if payload["role_id"] != "admin":
+        query_user_users.filter({"category": payload["category_id"]})
+    with app.app_context():
+        user_users = list(query_user_users.run(db.conn))
+
+    users = group_users + user_users + secondary_groups_users
+    # Remove duplicate user dicts in list
+    users = list({u["id"]: u for u in users}.values())
+
+    """ DOES THE USERS ALREADY HAVE A DESKTOP WITH THIS NAME? """
+    users_ids = [u["id"] for u in users]
+    with app.app_context():
+        existing_desktops = [
+            u["user"]
+            for u in list(
+                r.table("domains")
+                .get_all(r.args(users_ids), index="user")
+                .filter({"name": desktop_name, "tag": deployment_id})
+                .pluck("id", "user", "username")
+                .run(db.conn)
+            )
+        ]
+    if len(existing_desktops):
+        if existing_desktops_error:
+            raise Error(
+                "conflict",
+                "This users already have a desktop with this name: "
+                + str(existing_desktops),
+                description_code="new_desktop_name_exists",
+            )
+        elif not include_existing_desktops:
+            users = [u for u in users if u["id"] not in existing_desktops]
+    return users
 
 
 def _get_domain_reservables(domain_id):
