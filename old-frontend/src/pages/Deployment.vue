@@ -71,14 +71,9 @@
           size="60px"
         />
       </template>
-      <template #cell(user)="data">
+      <template #cell(userName)="data">
         <p class="m-0 font-weight-bold">
           {{ data.item.userName }}
-        </p>
-      </template>
-      <template #cell(group)="data">
-        <p class="text-dark-gray m-0">
-          {{ data.item.groupName }}
         </p>
       </template>
       <template #cell(last)="data">
@@ -295,14 +290,14 @@ export default {
         tdClass: 'image position-relative'
       },
       {
-        key: 'user',
+        key: 'userName',
         sortable: true,
         label: `${i18n.t('components.deployment-desktop-list.table-header.user')}`,
         thStyle: { width: '20%' },
         tdClass: 'name'
       },
       {
-        key: 'group',
+        key: 'groupName',
         sortable: true,
         label: `${i18n.t('components.deployment-desktop-list.table-header.group')}`,
         thStyle: { width: '30%' },
