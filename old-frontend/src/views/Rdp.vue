@@ -26,7 +26,7 @@
 </template>
 
 <script>
-import Guacamole from 'guacamole-common-js'
+import Guacamole from '@isard/guacamole-common-js'
 import GuacMouse from '@/lib/GuacMouse'
 import states from '@/lib/states'
 import clipboard from '@/lib/clipboard'
