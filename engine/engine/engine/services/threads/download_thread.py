@@ -792,6 +792,16 @@ class DownloadChangesThread(threading.Thread):
                         break
                     self.restart_pending_downloads()
                     continue
+                if (
+                    c.get("old_val", None) is not None
+                    and c["old_val"]["table"] == "engine"
+                ):
+                    continue
+                if (
+                    c.get("new_val", None) is not None
+                    and c["new_val"]["table"] == "engine"
+                ):
+                    continue
 
                 logs.downloads.debug("DOWNLOAD CHANGES DETECTED:")
                 logs.downloads.debug(pprint.pformat(c))

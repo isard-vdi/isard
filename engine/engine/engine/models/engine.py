@@ -496,6 +496,16 @@ class Engine(object):
                                 break
                             else:
                                 continue
+                    if (
+                        c.get("old_val", None) is not None
+                        and c["old_val"]["table"] == "engine"
+                    ):
+                        continue
+                    if (
+                        c.get("new_val", None) is not None
+                        and c["new_val"]["table"] == "engine"
+                    ):
+                        continue
 
                     if c["old_val"] is None:
                         domain_id_for_logs = c.get("new_val", {}).get("id", "NODOMAIN")
