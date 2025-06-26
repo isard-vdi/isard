@@ -168,6 +168,7 @@ class ApiDesktopsPersistent:
         image=None,
         insert=True,
         soft=False,
+        ignore_allowed_hardware=False,
     ):
         template = get_document("domains", template_id)
         if not template:
@@ -227,7 +228,7 @@ class ApiDesktopsPersistent:
                 description_code="unable_to_parse_media",
             )
 
-        if not deployment_tag_dict:
+        if not deployment_tag_dict and not ignore_allowed_hardware:
             payload = gen_payload_from_user(user_id)
             create_dict = quotas.limit_user_hardware_allowed(payload, create_dict)
         new_desktop = {
@@ -383,6 +384,11 @@ class ApiDesktopsPersistent:
         if template is None:
             raise Error("not_found", "Template to create desktops not found")
 
+        # We limit the hardware according to the payload of the user who is creating the desktops
+        template["create_dict"] = quotas.limit_user_hardware_allowed(
+            payload, template["create_dict"]
+        )
+
         if all(value is False for value in selected.values()):
             raise Error(
                 "precondition_required",
@@ -397,7 +403,6 @@ class ApiDesktopsPersistent:
                             r.table("roles").pluck("id")["id"].run(db.conn)
                         )
                 for role in selected["roles"]:
-                    # Can't use get_all as has no index in database
                     with app.app_context():
                         users_in_roles = list(
                             r.table("users")
@@ -487,6 +492,7 @@ class ApiDesktopsPersistent:
                 desktop_data["id"],
                 image=desktop_data["image"],
                 soft=True,
+                ignore_allowed_hardware=True,
             )
 
             desktops.append(
