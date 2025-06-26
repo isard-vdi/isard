@@ -7,6 +7,7 @@
     <vue-snotify />
     <MessageModal />
     <NotificationModal />
+    <ExpiredSessionModal />
   </div>
 </template>
 
@@ -14,12 +15,13 @@
 import { onBeforeMount, onBeforeUnmount } from '@vue/composition-api'
 import MessageModal from './components/MessageModal.vue'
 import NotificationModal from './components/NotificationModal.vue'
+import ExpiredSessionModal from './components/ExpiredSessionModal.vue'
 import { listenCookieChange } from '@/helpers/cookies'
 import { sessionCookieName } from '@/shared/constants'
 import { getCookie } from 'tiny-cookie'
 
 export default {
-  components: { MessageModal, NotificationModal },
+  components: { MessageModal, NotificationModal, ExpiredSessionModal },
   setup (_, context) {
     const $store = context.root.$store
     const viewsNotRedirected = ['VerifyEmail', 'ResetPassword', 'ForgotPassword']

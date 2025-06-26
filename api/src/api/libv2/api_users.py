@@ -103,7 +103,7 @@ from .api_admin import (
     get_user_migration_config,
 )
 from .api_notify import notify_admin, notify_admins
-from .api_sessions import revoke_user_session
+from .api_sessions import get_user_session_id, revoke_user_session
 from .api_targets import get_bastion_domain
 from .helpers import (
     _check,
@@ -261,8 +261,11 @@ class ApiUsers:
                 {
                     "exp": datetime.utcnow() + timedelta(minutes=minutes),
                     "kid": "isardvdi",
-                    "session_id": "isardvdi-service",  # TODO: Fix
-                    "data": gen_payload_from_user(user_id),
+                    "session_id": "isardvdi-service",
+                    "data": {
+                        **gen_payload_from_user(user_id),
+                        "session_id": "isardvdi-service",  # Added to ignore impersonated users on the config session retrieval
+                    },
                 },
                 os.environ.get("API_ISARDVDI_SECRET"),
                 algorithm="HS256",
@@ -466,6 +469,20 @@ class ApiUsers:
         else:
             bastion_allowed = False
             bastion_domain = None
+        # If the session id is isard-service it means that it's an impersonated user
+        if payload.get("session_id") == "isardvdi-service":
+            session = {
+                "id": "isardvdi-service",
+                "max_renew_time": 0,
+                "max_time": 0,
+            }
+        else:
+            user_session = get_user_session_id(payload["user_id"])
+            session = {
+                "id": user_session.id,
+                "max_renew_time": user_session.time.max_renew_time.ToSeconds(),
+                "max_time": user_session.time.max_time.ToSeconds(),
+            }
         return {
             **{
                 "show_bookings_button": show_bookings_button,
@@ -494,6 +511,7 @@ class ApiUsers:
                     payload
                 ),
                 "migrations_block": self.is_blocked_migration(payload["user_id"]),
+                "session": session,
             },
         }
 

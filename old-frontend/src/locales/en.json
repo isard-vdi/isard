@@ -624,6 +624,18 @@
         },
         "notification-modal": {
             "title": "Notifications"
+        },
+        "expired-modal": {
+            "renew": {
+                "title": "Session will expire soon",
+                "description": "Your session is about to expire. If you want to continue using the service, please click the renew button.",
+                "button": "Renew"
+            },
+            "expired": {
+                "title": "Session expired",
+                "description": "Your session has expired. If you want to continue using the service, please click the log in again button.",
+                "button": "Log in again"
+            }
         }
     },
     "views": {
@@ -1639,7 +1651,8 @@
             "forgot-password": "Forgot password",
             "disclaimer": "Disclaimer",
             "select_category": "Select category",
-            "export-user": "Export user"
+            "export-user": "Export user",
+            "verify-email": "Verify email"
         }
     },
     "message-modal": {

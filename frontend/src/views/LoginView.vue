@@ -400,6 +400,8 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
         console.error(error)
       }
     }
+
+    // TODO: Set a timeout that shows a modal when the user session is about to expire
   }
 
   setAuthToken(cookies, bearer)

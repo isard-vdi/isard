@@ -342,6 +342,18 @@
     },
     "notification-modal": {
       "title": "Notificacions"
+    },
+    "expired-modal": {
+      "renew": {
+        "title": "Sessió a punt d'expirar",
+        "description": "La sessió està a punt d'expirar. Si vols continuar fent servir el servei, si us plau, prem el botó de renovar",
+        "button": "Renovar"
+      },
+      "expired": {
+        "title": "Sessió expirada",
+        "description": "La sessió ha expirat. Si vols continuar fent servir el servei, si us plau, prem el botó de tornar a iniciar sessió",
+        "button": "Tornar a iniciar sessió"
+      }
     }
   },
   "views": {
@@ -1635,7 +1647,8 @@
       "email": "Verificar correu electrònic",
       "forgot-password": "Reestablir contrasenya",
       "disclaimer": "Avís legal",
-      "select_category": "Seleccioneu una categoria"
+      "select_category": "Seleccioneu una categoria",
+      "verify-email": "Verificar correu electrònic"
     }
   },
   "message-modal": {

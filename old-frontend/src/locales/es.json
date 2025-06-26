@@ -623,6 +623,18 @@
     },
     "notification-modal": {
       "title": "Notificaciones"
+    },
+    "expired-modal": {
+      "renew": {
+        "title": "Sesión a punto de expirar",
+        "description": "La sesión está a punto de expirar. Si quieres continuar utilizando el servicio, por favor, pulsa el botón de renovar",
+        "button": "Renovar"
+      },
+      "expired": {
+        "title": "Sesión expirada",
+        "description": "La sesión ha expirado. Si quieres continuar utilizando el servicio, por favor, pulsa el botón de volver a iniciar sesión",
+        "button": "Volver a iniciar sesión"
+      }
     }
   },
   "views": {
@@ -1651,7 +1663,8 @@
       "email": "Verificar correo electrónico",
       "forgot-password": "Reestablecer contraseña",
       "disclaimer": "Aviso legal",
-      "select_category": "Selecciona una categoría"
+      "select_category": "Selecciona una categoría",
+      "verify-email": "Verificar correo electrónico"
     }
   },
   "message-modal": {

@@ -16,12 +16,15 @@ export default function axiosSetUp () {
       if (document.querySelector('[type="submit"]')) {
         document.querySelector('[type="submit"]').setAttribute('disabled', 'disabled')
       }
-      // If the session is expired try to renew the token
+      // If the session is expired and it's not calling the logout endpoint try to renew the token
       if (getCookie(sessionCookieName)) {
         const session = store.getters.getSession
         const sessionData = jwtDecode(session)
-        if (Date.now() + store.getters.getTimeDrift > ((sessionData.exp - 30) * 1000)) {
+        if (!config.url.includes('logout') && Date.now() + store.getters.getTimeDrift > ((sessionData.exp - 30) * 1000)) {
           await store.dispatch('renew')
+          if (!store.getters.getSession) {
+            return Promise.reject(new Error('Session cannot be renewed'))
+          }
         }
         config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
       }
