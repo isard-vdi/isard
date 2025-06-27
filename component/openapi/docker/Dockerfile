@@ -1,21 +1,18 @@
-# Use an official Python runtime as a parent image
-FROM python:3.12-slim
+FROM alpine:3.22.0
 
-# Set the working directory in the container
+RUN apk -U upgrade --no-cache
+RUN apk add --no-cache python3 py3-pip
+
 WORKDIR /app
 
-# Copy the requirements file into the container
 COPY component/openapi/docker/requirements.txt .
-
-# Install the dependencies
-RUN pip install --no-cache-dir -r requirements.txt --break-system-package
+RUN pip install --no-cache-dir -r requirements.txt --break-system-packages
 
 COPY component/openapi/src/main.py /app/main.py
 COPY pkg/oas /app/oas
 COPY frontend/src/assets/img/cover-img.svg /app/cover-img.svg
 COPY frontend/public/favicon.ico /app/favicon.ico
 
-# Expose the port the app runs on
 EXPOSE 5000
 
 # Command to run the application
