@@ -576,9 +576,39 @@ def update_domain_dict_hardware(domain_id, domain_dict, xml=False):
 
 def remove_domain_viewer_values(domain_id):
     with rethink_conn() as conn:
-        return (
-            r.table("domains").get(domain_id).replace(r.row.without("viewer")).run(conn)
+        try:
+            # Single atomic operation with condition check and update
+            result = (
+                r.table("domains")
+                .get(domain_id)
+                .replace(
+                    lambda domain: r.branch(
+                        domain["status"].eq("Stopped"),
+                        domain.without("viewer"),
+                        domain,
+                    )
+                )
+                .run(conn)
+            )
+        except ReqlNonExistenceError:
+            logs.main.error(
+                f"Domain {domain_id} does not exist in domains table, cannot remove viewer values"
+            )
+            return False
+        except Exception as e:
+            logs.main.error(
+                f"Error removing viewer values for domain {domain_id}: {str(e)}"
+            )
+            return False
+
+    # Check if operation actually modified the document
+    if result.get("replaced", 0) == 0 and result.get("unchanged", 0) > 0:
+        logs.main.debug(
+            f"Domain {domain_id} is not stopped, cannot remove viewer values"
         )
+        return False
+    logs.main.info(f"Viewer values removed for domain {domain_id}")
+    return True
 
 
 def update_disk_backing_chain(
