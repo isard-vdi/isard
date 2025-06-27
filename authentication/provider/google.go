@@ -107,10 +107,11 @@ func (g *Google) String() string {
 }
 
 func (g *Google) Healthcheck() error {
-	_, err := http.PostForm("https://oauth2.googleapis.com/token", nil)
+	resp, err := http.PostForm("https://oauth2.googleapis.com/token", nil)
 	if err != nil {
 		return fmt.Errorf("check google oauth2 endpoint: %w", err)
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
