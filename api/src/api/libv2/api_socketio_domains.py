@@ -164,7 +164,8 @@ class DomainsThread(threading.Thread):
                                             room=c["old_val"]["user"],
                                         )
                                     if (
-                                        c["old_val"]["status"] == "Starting"
+                                        c["old_val"]["status"]
+                                        in ["Starting", "StartingDomainDisposable"]
                                         and c["new_val"]["status"] == "Started"
                                     ):
                                         set_cached_domain_wg_mac(
