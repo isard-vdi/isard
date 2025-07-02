@@ -91,15 +91,6 @@ class _MaintenanceMetaClass:
                 .run(self._db.conn)
             )
 
-    def enable_custom_text(self, enabled):
-        with app.app_context():
-            return (
-                self._rethinkdb.table("config")
-                .get(1)
-                .update({"maintenance_text": {"enabled": enabled}})
-                .run(self._db.conn)
-            )
-
 
 class Maintenance(metaclass=_MaintenanceMetaClass):
     """Control maintenance mode status"""
