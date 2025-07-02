@@ -69,45 +69,6 @@ $(document).ready(function () {
         $("#maintenance_wrapper").show();
     })
 
-    enable_maintenance_text_bind_checkbox = () => {
-        $("#enable-maintenance-text-checkbox").on("ifChecked", () => {
-            enable_maintenance_update_status(true);
-        })
-        $("#enable-maintenance-text-checkbox").on("ifUnchecked", () => {
-            enable_maintenance_update_status(false);
-        })
-    }
-
-
-    enable_maintenance_update_status = (enabled) => {
-        $.ajax({
-            type: "PUT",
-            url: "/api/v3/maintenance/text/enable/" + enabled,
-            accept: "application/json",
-        }).done(() => {
-            new PNotify({
-                title: "Set to " + (enabled ? 'enabled' : 'disabled'),
-                text: "",
-                hide: true,
-                delay: 1000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'success'
-            });
-            enabled ? $("#preview-panel").removeClass("disabled-preview") : $("#preview-panel").addClass("disabled-preview");
-        }).fail(function (data) {
-            new PNotify({
-                title: `ERROR ${(enabled ? 'enabling' : 'disabling')} custom maintenance text`,
-                text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
-                type: 'error',
-                hide: true,
-                icon: 'fa fa-warning',
-                delay: 5000,
-                opacity: 1
-            });
-        });
-    }
-
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on);
 
     $("#btn-edit-maintenance-text").on("click", function () {
@@ -168,9 +129,6 @@ function showMaintenanceText(div) {
         url: "/api/v3/maintenance/text",
     }).done(function (data) {
         $("#preview").text(`${data.title}\n\n${data.body}`)
-        $("#enable-maintenance-text-checkbox").iCheck(data.enabled ? "check" : "uncheck").iCheck('update');
-        data.enabled ? $("#preview-panel").removeClass("disabled-preview") : $("#preview-panel").addClass("disabled-preview");
     });
-    enable_maintenance_text_bind_checkbox();
 }
 

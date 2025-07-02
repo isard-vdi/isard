@@ -128,14 +128,3 @@ def _api_maintenance_text_frontend_get():
             204,
             {"Content-Type": "application/json"},
         )
-
-
-@app.route("/api/v3/maintenance/text/enable/<set_custom>", methods=["PUT"])
-@is_admin
-def _api_maintenance_text_enable(payload, set_custom):
-    set_custom = set_custom == "true"
-    return (
-        json.dumps(Maintenance.enable_custom_text(set_custom)),
-        200,
-        {"Content-Type": "application/json"},
-    )

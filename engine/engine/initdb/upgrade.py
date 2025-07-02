@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 172
+release_version = 173
+# release 173: Remove enabled field from maintenance_text
 # release 172: New deployment structure to match future labs feature
 # release 171: Add 'start' notification action and bastion notification
 # release 170: Global and category bastion_domain
@@ -911,6 +912,12 @@ password:s:%s"""
                         }
                     }
                 ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 173:
+            try:
+                self.del_keys(table, [{"maintenance_text": "enabled"}])
             except Exception as e:
                 print(e)
 
