@@ -32,6 +32,8 @@ services:
       - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_NAME=email
       - AUTHENTICATION_AUTHENTICATION_SAML_REGEX_NAME=(.*)@.*
       - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_EMAIL=email
+      - AUTHENTICATION_AUTHENTICATION_SAML_GUESS_CATEGORY=true
+      - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_CATEGORY=categories
 
   # Credentials: https://github.com/rroemhild/docker-test-openldap#ldap-structure
   isard-authentication-test-ldap:
@@ -49,7 +51,10 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.86
+    volumes:
+      - ${BUILD_ROOT_PATH}/component/authentication-test-saml/simplesamlphp-authsources.php:/var/www/simplesamlphp/config/authsources.php
     environment:
       - SIMPLESAMLPHP_SP_ENTITY_ID=https://${DOMAIN}/authentication/saml/metadata
       - SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE=https://${DOMAIN}/authentication/saml/acs
       - SIMPLESAMLPHP_SP_SINGLE_LOGOUT_SERVICE=https://${DOMAIN}/authentication/saml/slo
+      - AUTHENTICATION_TEST_SAML_CATEGORY_IDS
