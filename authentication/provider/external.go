@@ -94,3 +94,7 @@ func (External) String() string {
 func (External) Healthcheck() error {
 	return nil
 }
+
+func (External) Logout(context.Context, string) (string, error) {
+	return "", nil
+}

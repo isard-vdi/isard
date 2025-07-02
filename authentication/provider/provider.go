@@ -46,6 +46,7 @@ type Provider interface {
 	AutoRegister(u *model.User) bool
 	String() string
 	Healthcheck() error
+	Logout(ctx context.Context, tkn string) (redirect string, err error)
 }
 
 type ProviderError struct {
@@ -104,6 +105,10 @@ func (Unknown) AutoRegister(*model.User) bool {
 
 func (Unknown) Healthcheck() error {
 	return nil
+}
+
+func (Unknown) Logout(context.Context, string) (string, error) {
+	return "", nil
 }
 
 func matchRegex(re *regexp.Regexp, s string) string {

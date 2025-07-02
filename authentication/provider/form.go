@@ -178,3 +178,7 @@ func (f *Form) Healthcheck() error {
 
 	return nil
 }
+
+func (Form) Logout(context.Context, string) (string, error) {
+	return "", nil
+}

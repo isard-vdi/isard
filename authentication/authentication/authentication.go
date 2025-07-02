@@ -26,7 +26,7 @@ type Interface interface {
 	Callback(ctx context.Context, ss string, args provider.CallbackArgs, remoteAddr string) (tkn, redirect string, err error)
 	Check(ctx context.Context, tkn string, remoteAddr string) error
 	Renew(ctx context.Context, ss string, remoteAddr string) (tkn string, err error)
-	Logout(ctx context.Context, tkn string) (err error)
+	Logout(ctx context.Context, tkn string) (redirect string, err error)
 	// Register()
 
 	AcknowledgeDisclaimer(ctx context.Context, tkn string) error
