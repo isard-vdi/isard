@@ -793,3 +793,6 @@ WG_GUESTS_RESERVED_HOSTS=20
 
 ## OpenApi specs container with swagger and specs at /openapi
 #ENABLE_OPENAPI=false
+
+# Comma separated category IDs for SAML users
+#AUTHENTICATION_TEST_SAML_CATEGORY_IDS=
