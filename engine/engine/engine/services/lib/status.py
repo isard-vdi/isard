@@ -81,9 +81,13 @@ def get_video_cert_expiration_days(host, port=443):
             datetime.strptime(str(x509.get_notAfter().decode("ascii")), "%Y%m%d%H%M%SZ")
             - datetime.now()
         ).days
+        if expire_days <= 0:
+            logs.main.warning(
+                f"Certificate for {host}:{port} has already expired, days: {expire_days}"
+            )
         return expire_days if expire_days > 0 else False
     except Exception as e:
-        print(e)
+        logs.main.error(f"Error retrieving certificate for {host}:{port} - {e}")
         return False
 
 

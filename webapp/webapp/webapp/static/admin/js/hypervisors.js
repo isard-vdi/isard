@@ -305,7 +305,7 @@ $(document).ready(function () {
           if (full.viewer_status.static) {
             return '<i class="fa fa-circle" aria-hidden="true" style="color:green"> Expires in ' + full.viewer_status.static + ' days</i>  ' + data
           } else {
-            return '<i class="fa fa-circle" aria-hidden="true" style="color:red"> ERROR Expires in ' + full.viewer_status.static + ' days</i>  ' + data
+            return '<i class="fa fa-circle" aria-hidden="true" style="color:red"> ERROR: Expired certificate or connection error</i>  ' + data
           }
         } else {
           return '<i class="fa fa-spinner fa-lg fa-spin"></i>  ' + data
@@ -321,7 +321,7 @@ $(document).ready(function () {
           if (full.viewer_status.html5 && full.viewer_status.spice && full.viewer_status.static) {
             return '<i class="fa fa-circle" aria-hidden="true" style="color:green" title="' + title + '"> Expires in ' + full.viewer_status.html5 + ' days</i>  ' + full.viewer.proxy_video + ' (' + full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')'
           } else {
-            return '<i class="fa fa-circle" aria-hidden="true" style="color:red" title="' + title + '"> ERROR Expires in ' + full.viewer_status.html5 + ' days</i>  ' + full.viewer.proxy_video + ' (' + full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')'
+            return '<i class="fa fa-circle" aria-hidden="true" style="color:red" title="' + title + '"> ERROR Expired certificate or connection error</i>  ' + full.viewer.proxy_video + ' (' + full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')'
           }
         }
         return '<i class="fa fa-spinner fa-lg fa-spin"></i>  ' + full.viewer.proxy_video + ' (' + full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')'
