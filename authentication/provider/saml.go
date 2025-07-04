@@ -340,3 +340,7 @@ func (s *SAML) Healthcheck() error {
 func (s SAML) Logout(context.Context, string) (string, error) {
 	return s.Cfg.SAML.LogoutRedirectURL, nil
 }
+
+func (s *SAML) SaveEmail() bool {
+	return s.Cfg.SAML.SaveEmail
+}

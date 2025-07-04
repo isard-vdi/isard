@@ -1,4 +1,4 @@
-# Isard main config v2.26.0
+# Isard main config v2.27.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -232,6 +232,8 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 # This is the default role that users will have if they don't match in any of the previous roles.
 # Values can be 'admin', 'manager', 'advanced', 'user'
 #AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_DEFAULT=user
+# Save email provided by LDAP. Even if the email is not saved, it will be used to validate the domain during authentication.
+#AUTHENTICATION_AUTHENTICATION_LDAP_SAVE_EMAIL=true
 
 ## SAML
 #AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=false
@@ -279,6 +281,8 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 #AUTHENTICATION_AUTHENTICATION_SAML_ROLE_DEFAULT=user
 # URL to redirect after logout
 #AUTHENTICATION_AUTHENTICATION_SAML_LOGOUT_REDIRECT_URL=
+# Save email provided by SAML. Even if the email is not saved, it will be used to validate the domain during authentication.
+#AUTHENTICATION_AUTHENTICATION_SAML_SAVE_EMAIL=true
 
 ## Google
 ### Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials

@@ -186,3 +186,7 @@ func (f *Form) Healthcheck() error {
 func (Form) Logout(context.Context, string) (string, error) {
 	return "", nil
 }
+
+func (Form) SaveEmail() bool {
+	return true
+}

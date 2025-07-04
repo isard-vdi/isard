@@ -47,6 +47,7 @@ type Provider interface {
 	String() string
 	Healthcheck() error
 	Logout(ctx context.Context, tkn string) (redirect string, err error)
+	SaveEmail() bool
 }
 
 type ProviderError struct {
@@ -109,6 +110,10 @@ func (Unknown) Healthcheck() error {
 
 func (Unknown) Logout(context.Context, string) (string, error) {
 	return "", nil
+}
+
+func (Unknown) SaveEmail() bool {
+	return true
 }
 
 func matchRegex(re *regexp.Regexp, s string) string {

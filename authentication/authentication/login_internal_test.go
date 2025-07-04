@@ -157,6 +157,7 @@ func TestStartLogin(t *testing.T) {
 				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "user ID").Return(true, nil)
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
 				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(true)
 			},
 			Provider: "mock",
