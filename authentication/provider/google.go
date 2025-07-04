@@ -115,3 +115,7 @@ func (g *Google) Healthcheck() error {
 
 	return nil
 }
+
+func (Google) Logout(context.Context, string) (string, error) {
+	return "", nil
+}

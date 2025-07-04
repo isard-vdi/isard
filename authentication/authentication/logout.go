@@ -11,10 +11,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (a *Authentication) Logout(ctx context.Context, tkn string) error {
+func (a *Authentication) Logout(ctx context.Context, tkn string) (string, error) {
 	claims, err := token.ParseLoginToken(a.Secret, tkn)
 	if err != nil {
-		return fmt.Errorf("parse the login token: %w", err)
+		return "", fmt.Errorf("parse the login token: %w", err)
+	}
+
+	redirect, err := a.Provider(claims.Data.Provider).Logout(ctx, tkn)
+	if err != nil {
+		return "", fmt.Errorf("provider logout: %w", err)
 	}
 
 	if _, err := a.Sessions.Revoke(ctx, &sessionsv1.RevokeRequest{
@@ -25,9 +30,9 @@ func (a *Authentication) Logout(ctx context.Context, tkn string) error {
 		// If the status code is not found, we ignore the error, to ensure the user
 		// that the session is 100% closed. Otherwise return the error
 		if !ok || status.Code() != codes.NotFound {
-			return fmt.Errorf("revoke session: %w", err)
+			return "", fmt.Errorf("revoke session: %w", err)
 		}
 	}
 
-	return nil
+	return redirect, nil
 }

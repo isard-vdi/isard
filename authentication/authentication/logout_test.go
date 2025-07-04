@@ -175,7 +175,9 @@ func TestLogout(t *testing.T) {
 
 			a := authentication.Init(cfg, log, nil, nil, nil, sessionsCli)
 
-			err = a.Logout(context.Background(), tc.PrepareToken())
+			redirect, err := a.Logout(context.Background(), tc.PrepareToken())
+
+			assert.Equal("", redirect)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

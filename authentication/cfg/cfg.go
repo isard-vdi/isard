@@ -126,6 +126,8 @@ type AuthenticationSAML struct {
 	RoleAdvancedIDs []string   `mapstructure:"role_advanced_ids"`
 	RoleUserIDs     []string   `mapstructure:"role_user_ids"`
 	RoleDefault     model.Role `mapstructure:"role_default"`
+
+	LogoutRedirectURL string `mapstructure:"logout_redirect_url"`
 }
 
 type AuthenticationGoogle struct {
@@ -250,6 +252,7 @@ func setDefaults() {
 			"role_advanced_ids":   []string{},
 			"role_user_ids":       []string{},
 			"role_default":        "user",
+			"logout_redirect_url": "",
 		},
 		"google": map[string]interface{}{
 			"enabled":       false,

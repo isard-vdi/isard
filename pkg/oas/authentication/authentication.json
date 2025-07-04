@@ -1240,7 +1240,11 @@
                 "type": "object"
             },
             "LogoutResponse": {
-                "properties": {},
+                "properties": {
+                    "redirect": {
+                        "type": "string"
+                    }
+                },
                 "type": "object"
             },
             "LogoutError": {

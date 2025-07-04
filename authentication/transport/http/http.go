@@ -497,7 +497,8 @@ func (a *AuthenticationServer) Logout(ctx context.Context, req *oasAuthenticatio
 		}, nil
 	}
 
-	if err := a.Authentication.Logout(ctx, ss); err != nil {
+	redirect, err := a.Authentication.Logout(ctx, ss)
+	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return &oasAuthentication.LogoutUnauthorized{
 				Error: oasAuthentication.LogoutErrorErrorInvalidSession,
@@ -522,7 +523,11 @@ func (a *AuthenticationServer) Logout(ctx context.Context, req *oasAuthenticatio
 		}, nil
 	}
 
-	return &oasAuthentication.LogoutResponse{}, nil
+	resp := &oasAuthentication.LogoutResponse{}
+	if redirect != "" {
+		resp.Redirect = oasAuthentication.NewOptString(redirect)
+	}
+	return resp, nil
 }
 
 func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthentication.ProvidersResponse, error) {

@@ -200,10 +200,14 @@ export default {
       logoutAxios.post(
         `${authenticationSegment}/logout`,
         {}
-      )
-      if (redirect) {
-        window.location.pathname = '/login'
-      }
+      ).then((response) => {
+        if (response.data.redirect) {
+          console.log(response.data.redirect)
+          window.location = response.data.redirect
+        } else if (redirect) {
+          window.location.pathname = '/login'
+        }
+      })
       context.commit('setSession', false)
       context.commit('resetStore')
       context.dispatch('closeSocket')

@@ -329,3 +329,7 @@ func (l *LDAP) Healthcheck() error {
 
 	return nil
 }
+
+func (LDAP) Logout(context.Context, string) (string, error) {
+	return "", nil
+}
