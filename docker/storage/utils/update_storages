@@ -1,0 +1,316 @@
+#!/usr/bin/env python3
+
+#
+#   Copyright © 2017-2025 Josep Maria Viñolas Auquer
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+#   more details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+import argparse
+import json
+import os
+import subprocess
+import threading
+import time
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+
+from isardvdi_common.api_rest import ApiRest
+
+lock = threading.Lock()
+
+api = ApiRest()
+
+
+def get_storage(storage_id):
+    """Get storage by ID."""
+    storage = api.get(f"/admin/storage/info/{storage_id}", timeout=30)
+    return storage
+
+
+def get_desktop_storages_by_role(role, storage_kind="desktop"):
+    """Get all storages by role and kind."""
+    storages = api.get(
+        f"/admin/storage/by-role/{role}",
+        timeout=120,
+    )
+    return [
+        storage
+        for storage in storages
+        if storage["kind"] == [storage_kind] and storage["status"] not in ["recycled"]
+    ]
+
+
+def update_storage(storage_id):
+    task_id = api.get(f"/storage/{storage_id}/find", timeout=30)
+    return task_id
+
+
+def get_task(task_id):
+    """Get task status by ID."""
+    task = api.get(f"/task/{task_id}", timeout=30)
+    return task
+
+
+def track_multiple_tasks(storage_task_mapping, original_statuses, timeout=600):
+    """Track multiple tasks with progress reporting every 3 seconds."""
+    start_time = time.time()
+    completed_tasks = {}
+
+    print(f"\nStarting to track {len(storage_task_mapping)} tasks...")
+    print("=" * 60)
+
+    while time.time() - start_time < timeout:
+        # Count task statuses
+        status_counts = defaultdict(int)
+        status_changed_count = 0
+
+        for storage_id, task_id in storage_task_mapping.items():
+            if task_id in completed_tasks:
+                # Use cached result for completed tasks
+                task = completed_tasks[task_id]
+            else:
+                try:
+                    task = get_task(task_id)
+                    if task["status"] in ["finished", "failed", "canceled"]:
+                        completed_tasks[task_id] = task
+                except Exception as e:
+                    print(f"Error getting task {task_id}: {e}")
+                    continue
+
+            status_counts[task["status"]] += 1
+
+            # Check if storage status changed (only for completed tasks)
+            if task["status"] == "finished" and task_id not in completed_tasks:
+                try:
+                    current_storage = get_storage(storage_id)
+                    if current_storage["status"] != original_statuses[storage_id]:
+                        status_changed_count += 1
+                except Exception as e:
+                    print(f"Error checking storage {storage_id}: {e}")
+
+        # Print progress
+        print(f"\nProgress Report ({int(time.time() - start_time)}s elapsed):")
+        print("-" * 40)
+        for status, count in sorted(status_counts.items()):
+            print(f"  {status}: {count}")
+        print(f"  Storages with status change: {status_changed_count}")
+
+        # Check if all tasks are complete
+        if all(
+            status in ["finished", "failed", "canceled"]
+            for status in status_counts.keys()
+        ):
+            print(f"\nAll tasks completed in {int(time.time() - start_time)} seconds!")
+            break
+
+        time.sleep(3)  # Wait 3 seconds before next check
+
+    return completed_tasks
+
+
+def launch_all_tasks(storage_kind="desktop"):
+    """Launch tasks for all storages and track progress."""
+    print(f"Starting {storage_kind} storage update for all roles...")
+    all_storages = []
+
+    # Collect all storages
+    for role in roles:
+        storages = get_desktop_storages_by_role(role, storage_kind)
+        all_storages.extend(storages)
+        print(f"Found {len(storages)} {role} {storage_kind} storages")
+
+    print(f"\nTotal: {len(all_storages)} {storage_kind} storages across all roles.")
+
+    # Store original statuses
+    original_statuses = {storage["id"]: storage["status"] for storage in all_storages}
+
+    # Launch all tasks
+    storage_task_mapping = {}
+    failed_launches = []
+    total_storages = len(all_storages)
+    launched_count = 0
+
+    print("\nLaunching tasks...")
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # Submit all tasks
+        futures = {
+            executor.submit(update_storage, storage["id"]): storage
+            for storage in all_storages
+        }
+
+        # Collect task IDs as they complete
+        for future in as_completed(futures):
+            storage = futures[future]
+            try:
+                task_id = future.result()
+                storage_task_mapping[storage["id"]] = task_id
+                launched_count += 1
+                print(
+                    f"Launched task {task_id} for storage {storage['id']} ({launched_count}/{total_storages})"
+                )
+            except Exception as e:
+                failed_launches.append((storage["id"], str(e)))
+                launched_count += 1
+                print(
+                    f"Failed to launch task for storage {storage['id']}: {e} ({launched_count}/{total_storages})"
+                )
+
+    print(f"\nSuccessfully launched {len(storage_task_mapping)} tasks")
+    if failed_launches:
+        print(f"Failed to launch {len(failed_launches)} tasks")
+
+    # Track all tasks
+    if storage_task_mapping:
+        completed_tasks = track_multiple_tasks(storage_task_mapping, original_statuses)
+
+        # Final summary
+        print("\n" + "=" * 60)
+        print("FINAL SUMMARY")
+        print("=" * 60)
+
+        final_status_counts = defaultdict(int)
+        changed_storages = []
+
+        for storage_id, task_id in storage_task_mapping.items():
+            if task_id in completed_tasks:
+                task = completed_tasks[task_id]
+                final_status_counts[task["status"]] += 1
+
+                if task["status"] == "finished":
+                    try:
+                        current_storage = get_storage(storage_id)
+                        if current_storage["status"] != original_statuses[storage_id]:
+                            changed_storages.append(
+                                {
+                                    "id": storage_id,
+                                    "original": original_statuses[storage_id],
+                                    "current": current_storage["status"],
+                                }
+                            )
+                    except Exception as e:
+                        print(f"Error checking final storage {storage_id}: {e}")
+
+        print("\nFinal task status counts:")
+        for status, count in sorted(final_status_counts.items()):
+            print(f"  {status}: {count}")
+
+        print(f"\nStorages that changed status: {len(changed_storages)}")
+        if changed_storages:
+            print("\nStorage status changes:")
+            for storage in changed_storages:  # Show all changed storages
+                print(
+                    f"  {storage['id']}: {storage['original']} -> {storage['current']}"
+                )
+
+        # Save summary to file
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_dir = "/logs"
+        os.makedirs(output_dir, exist_ok=True)
+        roles_str = "-".join(roles)
+        filename = os.path.join(
+            output_dir, f"update_storages-{timestamp}-{storage_kind}-{roles_str}.json"
+        )
+
+        summary_data = {
+            "timestamp": timestamp,
+            "storage_kind": storage_kind,
+            "roles_processed": roles,
+            "total_storages": len(all_storages),
+            "successfully_launched": len(storage_task_mapping),
+            "failed_launches": len(failed_launches),
+            "final_status_counts": dict(final_status_counts),
+            "changed_storages_count": len(changed_storages),
+            "changed_storages": changed_storages,
+            "failed_launches_details": failed_launches,
+        }
+
+        with open(filename, "w") as f:
+            json.dump(summary_data, f, indent=2)
+
+        print(f"\nSummary saved to: {filename}")
+
+    return storage_task_mapping, failed_launches
+
+
+def validate_roles(roles_string):
+    """Custom argument type to validate roles."""
+    available_roles = ["user", "advanced", "manager", "admin"]
+    requested_roles = [role.strip() for role in roles_string.split(",")]
+
+    # Validate that all requested roles are available
+    invalid_roles = [role for role in requested_roles if role not in available_roles]
+    if invalid_roles:
+        raise argparse.ArgumentTypeError(
+            f"Invalid roles specified: {invalid_roles}. "
+            f"Available roles are: {', '.join(available_roles)}"
+        )
+
+    return requested_roles
+
+
+def main():
+    """Main function with argument parsing."""
+    available_roles = ["user", "advanced", "manager", "admin"]
+
+    class CustomArgumentParser(argparse.ArgumentParser):
+        def error(self, message):
+            if "argument --roles: expected one argument" in message:
+                self.print_usage()
+                print(f"{self.prog}: error: argument --roles: expected one argument")
+                print(f"Available roles are: {', '.join(available_roles)}")
+                self.exit(2)
+            else:
+                super().error(message)
+
+    parser = CustomArgumentParser(
+        description="Update storage tasks for desktops or templates"
+    )
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        "--desktops", action="store_true", help="Update desktop storages"
+    )
+    group.add_argument(
+        "--templates", action="store_true", help="Update template storages"
+    )
+
+    parser.add_argument(
+        "--roles",
+        type=validate_roles,
+        required=True,
+        help=f"Comma-separated list of roles to process. Available roles: {', '.join(available_roles)}",
+    )
+
+    args = parser.parse_args()
+
+    if args.desktops:
+        storage_kind = "desktop"
+    elif args.templates:
+        storage_kind = "template"
+
+    # Parse roles from comma-separated string
+    global roles
+    roles = args.roles  # Already validated and parsed by validate_roles
+    print(f"Processing roles: {roles}")
+
+    # Launch all tasks and track progress
+    storage_task_mapping, failed_launches = launch_all_tasks(storage_kind)
+
+
+if __name__ == "__main__":
+    main()
