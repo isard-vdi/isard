@@ -4,8 +4,6 @@
 # License: AGPLv3
 
 import json
-import logging as log
-import traceback
 
 from flask import request
 from isardvdi_common.api_exceptions import Error
@@ -20,8 +18,7 @@ from ..libv2.api_storage import (
     get_storage,
     get_storage_domains,
 )
-from ..libv2.helpers import get_user_data
-from .decorators import is_admin_or_manager, ownsMediaId, ownsStorageId
+from .decorators import is_admin, is_admin_or_manager, ownsMediaId, ownsStorageId
 
 
 @app.route("/api/v3/storage/status", methods=["GET"])
