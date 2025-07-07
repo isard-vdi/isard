@@ -367,7 +367,6 @@ $(document).ready(function () {
             if (header === title) {
               if (searchParams.length) {
                 if (operator === "is") {
-                  console.log(searchParams)
                   const regex = searchParams ?
                     '(?:' + searchParams + ')' : '';
                   this.search(regex, true, false).draw();
@@ -865,6 +864,111 @@ $("#modalIncreaseStorage #send").on("click", function () {
   }
 });
 
+$(document).on("click", ".btn-search-storage", function () {
+  var modal = "#modalSearchStorage";
+  $(modal + " #storage-info").hide();
+  $(modal + "Form")[0].reset();
+
+  $(modal + " #search-storage-btn")
+    .off("click")
+    .on("click", function () {
+      var storageId = $(modal + " #storage-id").val();
+      if (!storageId) {
+        new PNotify({
+          title: "Error",
+          text: "Please enter a storage ID to search for.",
+          type: "error",
+          hide: true,
+          delay: 3000,
+          icon: "fa fa-warning",
+          opacity: 1,
+        });
+        return;
+      }
+      $.ajax({
+        url: "/api/v3/admin/storage/search-info/" + storageId,
+        type: "GET",
+        contentType: "application/json",
+      })
+        .done(function (data) {
+          function copyBtn(text) {
+            return (text && text !== '-') ? ` <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${text}" type="button" title="Copy to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button>` : '';
+          }
+          const storageFields = [
+            { label: 'ID', value: data.id || '-', selector: '#storage-info-id' },
+            { label: 'Status', value: data.status || '-', selector: '#storage-info-status' },
+            { label: 'Path', value: (data.directory_path && data.id && data.type) ? `${data.directory_path}/${data.id}.${data.type}` : '-', selector: '#storage-info-path' },
+            { label: 'Size', value: data.virtual_size ? (data.virtual_size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '-', selector: '#storage-info-size' }
+          ];
+          storageFields.forEach(field => {
+            const html = `${field.value}${copyBtn(f.value)}`;
+            $(modal + ' ' + field.selector).html(html);
+          });
+
+          if (data.owner_data) {
+            const ownerFields = [
+              { selector: '#storage-info-user', name: data.owner_data.username || '-', id: data.user_id || '-' },
+              { selector: '#storage-info-group', name: data.owner_data.group_name || '-', id: data.owner_data.group || '-' },
+              { selector: '#storage-info-category', name: data.owner_data.category_name || '-', id: data.owner_data.category || '-' }
+            ];
+            ownerFields.forEach(field => {
+              let html = `<b>Name: </b>${f.name}${copyBtn(field.name)}<br><b>ID: </b>${field.id}${copyBtn(field.id)}`;
+              $(modal + ' ' + field.selector).html(html);
+            });
+          } else {
+            $(modal + ' #storage-info-category').text('-');
+            $(modal + ' #storage-info-group').text('-');
+            $(modal + ' #storage-info-user').html('<i>The user does not exist</i>');
+          }
+          if (data.domains.length > 0) {
+            let domainsHtml = '';
+            data.domains.forEach(function (domain, id) {
+              domainsHtml += `<div style="margin-bottom:6px;">
+                <b>ID:</b> <span class="domain-id">${domain.id}</span>
+                <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${domain.id}" type="button" title="Copy ID to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button><br>
+                <b>Name:</b> <span class="domain-name">${domain.name}</span>
+                <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${domain.name}" type="button" title="Copy Name to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button><br>
+                <b>Kind:</b> <span class="domain-kind">${domain.kind}</span>
+                <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${domain.kind}" type="button" title="Copy Kind to clipboard" style="margin-left:3px;"><i class="fa fa-clipboard"></i></button>
+              </div>`;
+            });
+            $(modal + " #storage-info-domains").html(domainsHtml);
+          } else {
+            $(modal + " #storage-info-domains").html('-');
+          }
+          $(modal + " #storage-info").show();
+        })
+        .fail(function (xhr) {
+          var msg =
+            xhr.responseJSON && xhr.responseJSON.description
+              ? xhr.responseJSON.description
+              : "ERROR: Something went wrong";
+          new PNotify({
+            title: "Error",
+            text: msg,
+            type: "error",
+            hide: true,
+            delay: 3000,
+            icon: "fa fa-warning",
+            opacity: 1,
+          });
+          $(modal + " #storage-info").hide();
+        });
+    });
+
+  $(modal).modal({ backdrop: "static", keyboard: false }).modal("show");
+});
+
+$("#modalSearchStorage").off('click', '.btn-copy').on('click', '.btn-copy', function() {
+  const text = $(this).data('copy-value') || '';
+  navigator.clipboard.writeText(text).then(() => {
+    new PNotify({ title: 'Copied to Clipboard', text: `"${text}" has been copied to clipboard.`, type: 'success', delay: 2000 });
+  }).catch(() => {
+    new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
+  });
+});
+
+
 $(document).on('click', '.btn-add-storage', function () {
   var modal = "#modalCreateStorage";
   $(modal + " #storage_id").val(null);
@@ -873,6 +977,7 @@ $(document).on('click', '.btn-add-storage', function () {
   $(modal + " #storage_pool").attr("disabled", false).empty();
   $(modal + " #owner-wrapper").show();
   $(modal + " .modal-body h4").text("Add new unattached storage disk");
+
   resetCreateDiskForm();
 
   $(modal + " #user").select2({
