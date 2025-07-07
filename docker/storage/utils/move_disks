@@ -1,0 +1,667 @@
+#!/usr/bin/env python3
+
+#
+#   Copyright © 2017-2025 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+import os
+import signal
+import subprocess
+import threading
+import time
+from datetime import datetime
+from pathlib import Path
+from pprint import pprint
+
+from isardvdi_common.api_rest import ApiRest
+
+
+def ensure_data_folder():
+    """Ensure the data folder exists."""
+    os.makedirs("/logs", exist_ok=True)
+
+
+def cleanup_bad_files_logs():
+    """Remove bad files logs at startup (but keep dated moved files logs)."""
+    bad_files_logs = [
+        "non_existing_in_db.json",
+        "not_ready.json",
+        "non_existing_in_db_after_rsync.json",
+        "not_ready_after_rsync.json",
+        "failed_to_move_to_pool.json",
+        "non_valid_qcow_files.json",
+        "files_with_no_domains.json",
+        "recycled_storage.json",
+    ]
+
+    for log_file in bad_files_logs:
+        filepath = os.path.join("/logs", log_file)
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+                print(f"Cleared log file: {log_file}")
+            except Exception as e:
+                print(f"Warning: Could not remove {log_file}: {e}")
+
+
+ensure_data_folder()
+lock = threading.Lock()
+
+
+def save_to_file(filename, data):
+    """Save data to a file, each entry in a new line."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    base_name = filename.split(".")[0]
+    extension = filename.split(".")[-1] if "." in filename else ""
+    timestamped_filename = (
+        f"move_disks-{timestamp}-{base_name}.{extension}"
+        if extension
+        else f"move_disks-{timestamp}-{base_name}"
+    )
+    filepath = os.path.join("/logs", timestamped_filename)
+    with lock:
+        with open(filepath, "a") as file:
+            file.write(data + "\n")
+
+
+def get_dated_moved_filename():
+    """Get the filename for moved files log with today's date prefix."""
+    today = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"move_disks-{today}-moved_to_pool.json"
+
+
+### API calls
+
+
+def get_storage_pools():
+    """Get all storage pools from the system."""
+    api = ApiRest()
+    return api.get(
+        "/admin/storage_pools",
+        timeout=30,
+    )
+
+
+def get_storage_pool_by_name(pool_name):
+    """Get storage pool information by name.
+
+    Args:
+        pool_name (str): Name of the storage pool to find
+
+    Returns:
+        dict: Storage pool information or None if not found
+    """
+    try:
+        pools = get_storage_pools()
+        for pool in pools:
+            if pool.get("name", "").lower() == pool_name.lower():
+                return pool
+        return None
+    except Exception as e:
+        print(f"Error retrieving storage pool '{pool_name}': {e}")
+        return None
+
+
+def show_storage_pools_info():
+    """Display storage pools with their name, mountpoint, and ID."""
+    try:
+        pools = get_storage_pools()
+        if not pools:
+            print("No storage pools found.")
+            return
+
+        # Filter only enabled pools
+        enabled_pools = [pool for pool in pools if pool.get("enabled", False)]
+
+        if not enabled_pools:
+            print("No enabled storage pools found.")
+            return
+
+        print("Enabled Storage Pools:")
+        print("-" * 80)
+        print(f"{'Name':<20} {'Mountpoint':<30} {'ID':<36}")
+        print("-" * 80)
+
+        for pool in enabled_pools:
+            name = pool.get("name", "N/A")
+            mountpoint = pool.get("mountpoint", "N/A")
+            pool_id = pool.get("id", "N/A")
+            print(f"{name:<20} {mountpoint:<30} {pool_id:<36}")
+
+        print("-" * 80)
+        print(f"Total enabled pools: {len(enabled_pools)}")
+
+    except Exception as e:
+        print(f"Error retrieving storage pools: {e}")
+
+
+def get_storage_statuses(storage_id):
+    api = ApiRest()
+    return api.get(
+        f"/storage/{storage_id}/statuses",
+        timeout=30,
+    )
+
+
+def rsync_to_storage_pool(storage_id, storage_pool_id):
+    global BWLIMIT
+    api = ApiRest()
+    data = {
+        "destination_storage_pool_id": storage_pool_id,
+        "remove_source_file": True,
+        "bwlimit": BWLIMIT,
+    }
+    return api.put(
+        f"/storage/{storage_id}/rsync/to-storage-pool",
+        data=data,
+        timeout=30,
+    )
+
+
+def wait_ready(storage_id, timeout_seconds):
+    if timeout_seconds == 0:
+        try:
+            statuses = get_storage_statuses(storage_id)
+        except Exception as e:
+            return None
+        ss = statuses["status"]
+        if not len(statuses["domains"]):
+            print(f"Storage path {statuses['path']} has no domains")
+            save_to_file("files_with_no_domains.json", statuses["path"])
+            if ss == "ready":
+                return True
+            return False
+        ds = statuses["domains"][0]["status"]
+        if ss == "ready" and ds == "Stopped":
+            return True
+        return False
+
+    start_time = time.time()
+    while time.time() - start_time < timeout_seconds:
+        try:
+            statuses = get_storage_statuses(storage_id)
+        except Exception as e:
+            return None
+
+        ss = statuses["status"]
+        if not len(statuses["domains"]):
+            print(f"Storage path {statuses['path']} has no domains")
+            save_to_file("files_with_no_domains.json", statuses["path"])
+            if ss == "ready":
+                return True
+            return False
+        ds = statuses["domains"][0]["status"]
+        if ss == "ready" and ds == "Stopped":
+            return True
+        time.sleep(5)
+    return False
+
+
+### File checks
+
+
+def get_backing_chain(file_path):
+    """Get the full backing chain for a QCOW2 image, suppressing output and errors."""
+    try:
+        result = subprocess.run(
+            ["qemu-img", "info", "-U", "--backing-chain", file_path],
+            stdout=subprocess.PIPE,  # Suppress stdout
+            stderr=subprocess.PIPE,  # Suppress stderr
+            text=True,
+            check=True,
+        )
+        return result.stdout  # Return the result if no error
+    except subprocess.CalledProcessError:
+        return None
+
+
+def is_valid_qcow2(file_absolute_path):
+    """Check if the given file is a valid qcow2 file."""
+    file = Path(file_absolute_path)
+    if not file.is_file() or not file.name.endswith(".qcow2"):
+        return False
+
+    qemu_img = get_backing_chain(str(file))
+    if qemu_img is not None:
+        return True
+    else:
+        return False
+
+
+def get_sorted_file_paths_by_date(iterate_path, filter_date):
+    """
+    Collect and return file paths separated by modification date.
+
+    Args:
+        iterate_path (str): The path to iterate and collect files from.
+        filter_date (str): ISO-format date string to filter files (e.g., "2025-01-01T00:00:00").
+
+    Returns:
+        tuple: (files_before_data, files_after_data)
+               - files_before_data: (file_paths, total_size) sorted oldest first (for fast→slow migration)
+               - files_after_data: (file_paths, total_size) sorted newest first (for slow→fast migration)
+    """
+    files_before = []
+    files_after = []
+    filter_dt = datetime.fromisoformat(filter_date)
+
+    total = 0
+    oldest_date = datetime.now()
+    newest_date = datetime.fromtimestamp(0)
+    total_size_before = 0
+    total_size_after = 0
+
+    for file in Path(iterate_path).rglob("*"):
+        if file.is_file():
+            total += 1
+            # Get the modification time and size of the file
+            mtime = datetime.fromtimestamp(file.stat().st_mtime)
+            file_size = file.stat().st_size
+
+            # Separate files by date
+            if mtime < filter_dt:
+                files_before.append((file, mtime, file_size))
+                total_size_before += file_size
+            else:
+                files_after.append((file, mtime, file_size))
+                total_size_after += file_size
+
+            # Track date range
+            if mtime < oldest_date:
+                oldest_date = mtime
+            if mtime > newest_date:
+                newest_date = mtime
+
+    def format_size(size_bytes):
+        """Convert bytes to human readable format."""
+        if size_bytes == 0:
+            return "0 B"
+        for unit in ["B", "KB", "MB", "GB", "TB"]:
+            if size_bytes < 1024.0:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024.0
+        return f"{size_bytes:.1f} PB"
+
+    print(f"Total files: {total}")
+    print(
+        f"Files before {filter_date}: {len(files_before)} ({format_size(total_size_before)})"
+    )
+    print(
+        f"Files after {filter_date}: {len(files_after)} ({format_size(total_size_after)})"
+    )
+    print(f"Oldest file: {oldest_date}, Newest file: {newest_date}")
+
+    # Sort files_before by modification time (OLDEST FIRST for fast→slow)
+    files_before.sort(key=lambda x: x[1])
+
+    # Sort files_after by modification time (NEWEST FIRST for slow→fast)
+    files_after.sort(key=lambda x: x[1], reverse=True)
+
+    # Extract only the file paths in sorted order
+    sorted_paths_before = [str(file[0]) for file in files_before]
+    sorted_paths_after = [str(file[0]) for file in files_after]
+
+    return (sorted_paths_before, total_size_before), (
+        sorted_paths_after,
+        total_size_after,
+    )
+
+
+def move_discs_api(file_path, destination_pool_id, rsync_timeout=1000):
+    """Move a disk file to the destination pool via API.
+
+    Args:
+        file_path (str): Path to the file to move
+        destination_pool_id (str): ID of the destination storage pool
+        rsync_timeout (int): Timeout in seconds for rsync operations
+    """
+    if is_valid_qcow2(file_path):
+        storage_id = file_path.split("/")[-1].split(".")[0]
+
+        # First check if storage exists and get its status
+        try:
+            statuses = get_storage_statuses(storage_id)
+        except Exception as e:
+            print(f"Storage {storage_id} does not exist in database")
+            save_to_file("non_existing_in_db.json", file_path)
+            return
+
+        # Skip files with "recycled" status immediately
+        if statuses.get("status") == "recycled":
+            print(f"Skipping {file_path} - storage status is 'recycled'")
+            save_to_file("recycled_storage.json", file_path)
+            return
+
+        if statuses.get("status") == "deleted":
+            print(f"Skipping {file_path} - storage status is 'deleted'")
+            return
+
+        print(f"Moving {file_path} to pool")
+        status = wait_ready(storage_id, 0)
+        if status is None:
+            print(f"Storage {storage_id} does not exist in database when going to move")
+            save_to_file("non_existing_in_db.json", file_path)
+            return
+        if status is False:
+            print(
+                f"Storage/Domain {storage_id} is not ready. Status: {statuses.get('status')}"
+            )
+            save_to_file("not_ready.json", file_path)
+            return
+        try:
+            pprint(rsync_to_storage_pool(storage_id, destination_pool_id))
+            status = wait_ready(storage_id, rsync_timeout)
+            if status is None:
+                print(f"WARNING!!! Storage {storage_id} does not exist after rsync")
+                save_to_file("non_existing_in_db_after_rsync.json", file_path)
+                return
+            if status is False:
+                print(
+                    f"WARNING!!! Storage/Domain for storage {storage_id} is not ready after rsync"
+                )
+                save_to_file("not_ready_after_rsync.json", file_path)
+                return
+            save_to_file(get_dated_moved_filename(), file_path)
+        except Exception as e:
+            print(f"WARNING!!! Failed to move {file_path} to pool")
+            print(e)
+            save_to_file("failed_to_move_to_pool.json", file_path)
+
+    else:
+        print(f"Skipping {file_path} - not a valid qcow2 file")
+        save_to_file("non_valid_qcow_files.json", file_path)
+
+
+def worker(
+    queue,
+    destination_pool_id,
+    lock,
+    progress_counter,
+    total_files,
+    stop_requested,
+    rsync_timeout,
+    worker_type,
+):
+    """Worker function for processing files in threads.
+
+    Args:
+        queue (list): Queue of file paths to process
+        destination_pool_id (str): ID of the destination storage pool
+        lock (threading.Lock): Thread lock for synchronization
+        progress_counter (list): Progress counter (mutable)
+        total_files (int): Total number of files to process
+        stop_requested (threading.Event): Event to signal stop request
+        rsync_timeout (int): Timeout in seconds for rsync operations
+        worker_type (str): Type of worker ("fast_to_slow" or "slow_to_fast")
+    """
+    while queue and not stop_requested.is_set():
+        file_path = None
+        with lock:
+            if queue:
+                file_path = queue.pop(0)
+        if file_path:
+            move_discs_api(file_path, destination_pool_id, rsync_timeout)
+            with lock:
+                progress_counter[0] += 1
+                print(f"[{worker_type}] Progress: {progress_counter[0]}/{total_files}")
+
+
+def signal_handler(sig, frame, stop_requested):
+    """Signal handler for graceful shutdown."""
+    print("CTRL+C detected. Waiting for threads to finish...")
+    stop_requested.set()
+
+
+def main():
+    """Main function to execute the bilateral storage migration process."""
+
+    # =============================================================================
+    # STARTUP CLEANUP
+    # =============================================================================
+
+    print("=== STARTUP CLEANUP ===")
+    cleanup_bad_files_logs()
+    print()
+
+    # =============================================================================
+    # CONFIGURATION PARAMETERS
+    # =============================================================================
+
+    # Storage Pool Names (will be resolved dynamically)
+    FAST_POOL_NAME = "fast"  # Name of the fast storage pool
+    SLOW_POOL_NAME = "vdo3"  # Name of the slow storage pool
+
+    # Processing Configuration
+    FILTER_DATE = "2026-07-07T00:00:00"  # Date threshold for file classification
+
+    # Threading Configuration
+    MAX_THREADS_FAST_TO_SLOW = 4  # Threads for moving old files fast → slow (Set to 0 to disable this direction)
+    MAX_THREADS_SLOW_TO_FAST = 3  # Threads for moving recent files slow → fast (Set to 0 to disable this direction)
+    BANDWIDTH_LIMIT = (
+        200000  # Bandwidth limit in KB/s (100MB/s) - Set to 0 for unlimited bandwidth
+    )
+
+    # Processing Configuration
+    STARTUP_DELAY = 10  # Seconds to wait before starting processing
+    RSYNC_TIMEOUT = (
+        3600  # Timeout in seconds for rsync operations (3600 seconds = 1 hour)
+    )
+
+    # =============================================================================
+    # DYNAMIC POOL RESOLUTION
+    # =============================================================================
+
+    print("=== RESOLVING STORAGE POOLS ===")
+
+    # Get fast pool information
+    fast_pool = get_storage_pool_by_name(FAST_POOL_NAME)
+    if not fast_pool:
+        print(f"ERROR: Fast storage pool '{FAST_POOL_NAME}' not found!")
+        return
+
+    # Get slow pool information
+    slow_pool = get_storage_pool_by_name(SLOW_POOL_NAME)
+    if not slow_pool:
+        print(f"ERROR: Slow storage pool '{SLOW_POOL_NAME}' not found!")
+        return
+
+    # Extract pool information
+    FAST_POOL_ID = fast_pool["id"]
+    FAST_POOL_PATH = fast_pool["mountpoint"]
+    SLOW_POOL_ID = slow_pool["id"]
+    SLOW_POOL_PATH = slow_pool["mountpoint"]
+
+    print(f"Fast Pool: {FAST_POOL_NAME}")
+    print(f"  ID: {FAST_POOL_ID}")
+    print(f"  Path: {FAST_POOL_PATH}")
+    print(f"  Enabled: {fast_pool.get('enabled', False)}")
+    print()
+    print(f"Slow Pool: {SLOW_POOL_NAME}")
+    print(f"  ID: {SLOW_POOL_ID}")
+    print(f"  Path: {SLOW_POOL_PATH}")
+    print(f"  Enabled: {slow_pool.get('enabled', False)}")
+    print()
+
+    # Check if pools are enabled
+    if not fast_pool.get("enabled", False):
+        print(f"WARNING: Fast pool '{FAST_POOL_NAME}' is not enabled!")
+    if not slow_pool.get("enabled", False):
+        print(f"WARNING: Slow pool '{SLOW_POOL_NAME}' is not enabled!")
+
+    # =============================================================================
+    # MAIN EXECUTION
+    # =============================================================================
+
+    # Set global bandwidth limit
+    global BWLIMIT
+    BWLIMIT = BANDWIDTH_LIMIT
+
+    print("=== BILATERAL STORAGE MIGRATION ===")
+    print(f"Date threshold: {FILTER_DATE}")
+    print(f"Files before date: {FAST_POOL_NAME} → {SLOW_POOL_NAME} pool (oldest first)")
+    print(f"Files after date: {SLOW_POOL_NAME} → {FAST_POOL_NAME} pool (newest first)")
+    print()
+
+    # Get file paths from both pools
+    print(f"Scanning {FAST_POOL_NAME} pool ({FAST_POOL_PATH})...")
+    fast_result = get_sorted_file_paths_by_date(FAST_POOL_PATH, FILTER_DATE)
+    fast_files_before, fast_size_before = fast_result[0]
+    fast_files_after, fast_size_after = fast_result[1]
+
+    print(f"Scanning {SLOW_POOL_NAME} pool ({SLOW_POOL_PATH})...")
+    slow_result = get_sorted_file_paths_by_date(SLOW_POOL_PATH, FILTER_DATE)
+    slow_files_before, slow_size_before = slow_result[0]
+    slow_files_after, slow_size_after = slow_result[1]
+
+    def format_size(size_bytes):
+        """Convert bytes to human readable format."""
+        if size_bytes == 0:
+            return "0 B"
+        for unit in ["B", "KB", "MB", "GB", "TB"]:
+            if size_bytes < 1024.0:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024.0
+        return f"{size_bytes:.1f} PB"
+
+    # Prepare migration queues
+    # Old files from fast pool → slow pool
+    fast_to_slow_queue = fast_files_before.copy()
+    # Recent files from slow pool → fast pool
+    slow_to_fast_queue = slow_files_after.copy()
+
+    # Initialize threading variables
+    all_threads = []
+    stop_requested = threading.Event()
+
+    # Progress counters
+    fast_to_slow_progress = [0]
+    slow_to_fast_progress = [0]
+
+    total_fast_to_slow = len(fast_to_slow_queue)
+    total_slow_to_fast = len(slow_to_fast_queue)
+
+    print(f"\nMigration Summary:")
+    print(
+        f"{FAST_POOL_NAME} → {SLOW_POOL_NAME}: {total_fast_to_slow} files ({format_size(fast_size_before)})"
+    )
+    print(
+        f"{SLOW_POOL_NAME} → {FAST_POOL_NAME}: {total_slow_to_fast} files ({format_size(slow_size_after)})"
+    )
+    print(f"Total data to move: {format_size(fast_size_before + slow_size_after)}")
+    print(f"Max threads {FAST_POOL_NAME}→{SLOW_POOL_NAME}: {MAX_THREADS_FAST_TO_SLOW}")
+    print(f"Max threads {SLOW_POOL_NAME}→{FAST_POOL_NAME}: {MAX_THREADS_SLOW_TO_FAST}")
+
+    # Setup signal handler for graceful shutdown
+    signal.signal(
+        signal.SIGINT, lambda sig, frame: signal_handler(sig, frame, stop_requested)
+    )
+
+    print(f"\nStarting in {STARTUP_DELAY} seconds... (Press CTRL+C to cancel)")
+
+    # Countdown with ability to cancel
+    for remaining in range(STARTUP_DELAY, 0, -1):
+        if stop_requested.is_set():
+            print("\nStartup cancelled by user.")
+            return
+        print(
+            f"\rStarting in {remaining} seconds... (Press CTRL+C to cancel)",
+            end="",
+            flush=True,
+        )
+        time.sleep(1)
+
+    print("\rStarting migration now...                                    ")
+
+    # Check one more time if user cancelled during countdown
+    if stop_requested.is_set():
+        print("Startup cancelled by user.")
+        return
+
+    # Start worker threads for fast → slow migration
+    if total_fast_to_slow > 0:
+        if MAX_THREADS_FAST_TO_SLOW > 0:
+            print(
+                f"Starting {MAX_THREADS_FAST_TO_SLOW} threads for {FAST_POOL_NAME} → {SLOW_POOL_NAME} migration"
+            )
+            for i in range(MAX_THREADS_FAST_TO_SLOW):
+                thread = threading.Thread(
+                    target=worker,
+                    args=(
+                        fast_to_slow_queue,
+                        SLOW_POOL_ID,
+                        lock,
+                        fast_to_slow_progress,
+                        total_fast_to_slow,
+                        stop_requested,
+                        RSYNC_TIMEOUT,
+                        f"{FAST_POOL_NAME}→{SLOW_POOL_NAME}",
+                    ),
+                    name=f"FastToSlow-{i+1}",
+                )
+                all_threads.append(thread)
+                thread.start()
+        else:
+            print(
+                f"Migration {FAST_POOL_NAME} → {SLOW_POOL_NAME} is DISABLED (MAX_THREADS_FAST_TO_SLOW = 0)"
+            )
+
+    # Start worker threads for slow → fast migration
+    if total_slow_to_fast > 0:
+        if MAX_THREADS_SLOW_TO_FAST > 0:
+            print(
+                f"Starting {MAX_THREADS_SLOW_TO_FAST} threads for {SLOW_POOL_NAME} → {FAST_POOL_NAME} migration"
+            )
+            for i in range(MAX_THREADS_SLOW_TO_FAST):
+                thread = threading.Thread(
+                    target=worker,
+                    args=(
+                        slow_to_fast_queue,
+                        FAST_POOL_ID,
+                        lock,
+                        slow_to_fast_progress,
+                        total_slow_to_fast,
+                        stop_requested,
+                        RSYNC_TIMEOUT,
+                        f"{SLOW_POOL_NAME}→{FAST_POOL_NAME}",
+                    ),
+                    name=f"SlowToFast-{i+1}",
+                )
+                all_threads.append(thread)
+                thread.start()
+        else:
+            print(
+                f"Migration {SLOW_POOL_NAME} → {FAST_POOL_NAME} is DISABLED (MAX_THREADS_SLOW_TO_FAST = 0)"
+            )
+
+    # Wait for all threads to finish
+    for thread in all_threads:
+        thread.join()
+
+    print("\n=== MIGRATION COMPLETE ===")
+    print(
+        f"{FAST_POOL_NAME} → {SLOW_POOL_NAME} completed: {fast_to_slow_progress[0]}/{total_fast_to_slow}"
+    )
+    print(
+        f"{SLOW_POOL_NAME} → {FAST_POOL_NAME} completed: {slow_to_fast_progress[0]}/{total_slow_to_fast}"
+    )
+    print("All done")
+
+
+if __name__ == "__main__":
+    main()
