@@ -4,8 +4,6 @@
 # License: AGPLv3
 
 import json
-import logging as log
-import traceback
 
 from flask import request
 from isardvdi_common.api_exceptions import Error
@@ -19,9 +17,9 @@ from ..libv2.api_storage import (
     get_status,
     get_storage,
     get_storage_domains,
+    get_storages_by_role,
 )
-from ..libv2.helpers import get_user_data
-from .decorators import is_admin_or_manager, ownsMediaId, ownsStorageId
+from .decorators import is_admin, is_admin_or_manager, ownsMediaId, ownsStorageId
 
 
 @app.route("/api/v3/storage/status", methods=["GET"])
@@ -120,6 +118,23 @@ def api_v3_admin_storage_get(payload, storage_id):
     ownsStorageId(payload, storage_id)
     return (
         json.dumps(get_storage(storage_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/storage/by-role/<role>", methods=["GET"])
+@is_admin
+def api_v3_admin_storage_by_role(payload, role):
+    roles = ["admin", "manager", "advanced", "user"]
+    if role not in roles:
+        raise Error(
+            "bad_request",
+            f"Invalid role: {role}. Valid roles are: {', '.join(roles)}",
+            description_code="invalid_role",
+        )
+    return (
+        get_storages_by_role(role),
         200,
         {"Content-Type": "application/json"},
     )

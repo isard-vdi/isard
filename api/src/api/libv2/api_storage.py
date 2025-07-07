@@ -713,3 +713,58 @@ def get_storages_with_uuid_status(category_id=None):
 
     with app.app_context():
         return list(query.run(db.conn))
+
+
+def get_storages_by_role(role):
+    """
+    Get all storages with a specific role, ordered by the latest status_logs entry.
+
+    :param role: The role to filter storages by.
+    :type role: str
+    :return: List of storages with the specified role, ordered by the latest status_logs entry.
+    :rtype: list
+    """
+
+    with app.app_context():
+        return list(
+            r.table("users")
+            .get_all(role, index="role")
+            .eq_join("id", r.table("storage"), index="user_id")
+            .map(lambda doc: doc["right"])
+            .merge(
+                lambda storage: {
+                    "latest_status_time": storage["status_logs"][-1]["time"],
+                    "qemu-img-info": {
+                        "full-backing-filename": storage["qemu-img-info"]
+                        .default({})
+                        .get_field("full-backing-filename")
+                        .default(None),
+                        "actual-size": storage["qemu-img-info"]
+                        .default({})
+                        .get_field("actual-size")
+                        .default(None),
+                    },
+                }
+            )
+            .merge(
+                lambda storage: {
+                    "kind": r.table("domains")
+                    .get_all(storage["id"], index="storage_ids")
+                    .pluck("kind")
+                    .coerce_to("array")
+                    .map(lambda domain: domain["kind"])
+                    .default([]),
+                }
+            )
+            .order_by(r.desc("latest_status_time"))
+            .pluck(
+                "id",
+                "directory_path",
+                "type",
+                "kind",
+                "status",
+                {"qemu-img-info": {"full-backing-filename": True, "actual-size": True}},
+                "latest_status_time",
+            )
+            .run(db.conn)
+        )
