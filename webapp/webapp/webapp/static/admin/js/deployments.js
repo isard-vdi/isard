@@ -39,39 +39,38 @@ $(document).ready(function() {
       { "data": "user_permissions" },
       { "data": "how_many_desktops" },
       { "data": "how_many_desktops_started" },
-      { "data": "create_dict.tag_visible" },
-      { "data": "last_access" },
-      { "data": null, 'defaultContent': ''},
-      { "data": "id", "visible": false},
-    ],
-    order: [[1, "asc"]],
-    "columnDefs": [
       {
-        "targets": 10,
-        "render": function ( data, type, full, meta ) {
+        "data": "create_dict.tag_visible", "render": function (data, type, full, meta) {
           if ('tag_visible' in full.create_dict && full.create_dict.tag_visible) {
             return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="' + full.create_dict.tag_visible + '"></i>'
           } else {
-              return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+            return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
           }
         }
       },
       {
-        "targets": 11,
-        "render": function ( data, type, full, meta ) {
-          if ( type === 'display' || type === 'filter' ) {
-            return formatTimestampUTC(full.last_access*1000)
+        "data": "last_access", "render": function (data, type, full, meta) {
+          if (type === 'display' || type === 'filter') {
+            return formatTimestampUTC(full.last_access * 1000)
           }
           return full.last_access
         }
       },
       {
-        "targets": 12,
-        "render": function ( data, type, full, meta ) {
+        "data": null, 'defaultContent': '', "render": function (data, type, full, meta) {
           return `<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>`
         }
       },
+      {
+        "className": 'select-checkbox',
+        "data": null,
+        "orderable": false,
+        "width": "10px",
+        "defaultContent": '<input type="checkbox" class="form-check-input"></input>',
+      },
+      { "data": "id", "visible": false },
     ],
+    order: [[1, "asc"]],
   });
 
   adminShowIdCol(deployments)
@@ -132,6 +131,22 @@ $(document).ready(function() {
     toggleRow(this, e);
   });
 
+  $('thead #select-all').on('ifChecked', function (event) {
+    var rows = deployments.rows({ filter: 'applied' }).nodes();
+    $.each(rows, function (index, row) {
+      $(row).find('.select-checkbox input[type="checkbox"]').prop('checked', true)
+      $(row).addClass('active');
+    });
+  });
+
+  $('thead #select-all').on('ifUnchecked', function (event) {
+    var rows = deployments.rows({ filter: 'applied' }).nodes();
+    $.each(rows, function (index, row) {
+      $(row).find('.select-checkbox input[type="checkbox"]').prop('checked', false)
+      $(row).removeClass('active');
+    });
+  });
+
   function bulkDeleteDeployments(deploymentsToDelete, permanent, callBack) {
     var notify = new PNotify();
     $.ajax({
@@ -183,6 +198,7 @@ $(document).ready(function() {
   $('.btn-bulkdelete').on('click', function () {
     let deploymentsToDelete = [];
     $.each(deployments.rows('.active').data(),function(key, value){
+      
       deploymentsToDelete.push(value.id);
     });
 
@@ -382,7 +398,7 @@ function actionsDomainDetail() {
             opacity: 1,
             type: "success"
           });
-          domains_table.ajax.reload();
+          deployments.ajax.reload();
         },
         error: function ({ responseJSON: { description } = {} }) {
           const msg = description ? description : 'Something went wrong';
@@ -424,7 +440,7 @@ function actionsDomainDetail() {
             opacity: 1,
             type: "success"
           });
-          domains_table.ajax.reload();
+          deployments.ajax.reload();
         },
         error: function ({ responseJSON: { description } = {} }) {
           const msg = description ? description : 'Something went wrong';
