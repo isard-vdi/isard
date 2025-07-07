@@ -132,6 +132,54 @@ $(document).ready(function() {
     toggleRow(this, e);
   });
 
+  function bulkDeleteDeployments(deploymentsToDelete, permanent, callBack) {
+    var notify = new PNotify();
+    $.ajax({
+      type: "DELETE",
+      url: "/api/v3/deployments/",
+      data: JSON.stringify({ ids: deploymentsToDelete, permanent: permanent }),
+      contentType: "application/json",
+      success: function (data) {
+        notify.update({
+          title: 'Processing',
+          text: `Processing action: deleting ${deploymentsToDelete.length} deployment(s)`,
+          hide: false,
+          type: 'info',
+          icon: 'fa fa-spinner fa-pulse',
+          opacity: 1
+        });
+        deployments.ajax.reload();
+      },
+      error: function (xhr) {
+        if (xhr.responseJSON && xhr.responseJSON.exceptions) {
+          const exceptionsList = xhr.responseJSON.exceptions.map(exception => `<li>${exception}</li>`).join('');
+          notify.update({
+            title: "ERROR deleting deployment(s)",
+            text: `<ul>${exceptionsList}</ul>`,
+            hide: true,
+            delay: 3000,
+            icon: 'fa fa-alert-sign',
+            opacity: 1,
+            type: 'error'
+          });
+        } else {
+          notify.update({
+            title: "ERROR deleting deployment(s)",
+            text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
+            hide: true,
+            delay: 3000,
+            icon: 'fa fa-alert-sign',
+            opacity: 1,
+            type: 'error'
+          });
+        }
+      }
+    });
+    if (callBack) {
+      callBack;
+    }
+  }
+
   $('.btn-bulkdelete').on('click', function () {
     let deploymentsToDelete = [];
     $.each(deployments.rows('.active').data(),function(key, value){
@@ -146,61 +194,19 @@ $(document).ready(function() {
         hide: false,
         opacity: 0.9,
         confirm: {
-          confirm: true
-        },
-        buttons: {
-          closer: false,
-          sticker: false
+          confirm: true,
+          buttons: [
+          { text: "Delete permanently", click: function (notice) { bulkDeleteDeployments(deploymentsToDelete, true, notice.remove())  } },
+          { text: "Delete and send to recycle bin", click: function (notice) { bulkDeleteDeployments(deploymentsToDelete, false, notice.remove());  } },
+          { text: "Cancel", click: function (notice) { notice.remove(); } }
+         ],
         },
         history: {
           history: false
         },
         addclass: 'pnotify-center-large',
         width: '550'
-      }).get().on('pnotify.confirm', function() {
-          var notify = new PNotify();
-          $.ajax({
-            type: "DELETE",
-            url: "/api/v3/deployments/",
-            data: JSON.stringify({ids:deploymentsToDelete}),
-            contentType: "application/json",
-            success: function(data){
-              notify.update({
-                title: 'Processing',
-                text: `Processing action: deleting ${deploymentsToDelete.length} deployment(s)`,
-                hide: false,
-                type: 'info',
-                icon: 'fa fa-spinner fa-pulse',
-                opacity: 1
-            });
-              deployments.ajax.reload();
-            },
-            error: function (xhr) {
-              if (xhr.responseJSON && xhr.responseJSON.exceptions) {
-                const exceptionsList = xhr.responseJSON.exceptions.map(exception => `<li>${exception}</li>`).join('');
-                notify.update({
-                  title: "ERROR deleting deployment(s)",
-                  text: `<ul>${exceptionsList}</ul>`,
-                  hide: true,
-                  delay: 3000,
-                  icon: 'fa fa-alert-sign',
-                  opacity: 1,
-                  type: 'error'
-                });
-              } else {
-                notify.update({
-                  title: "ERROR deleting deployment(s)",
-                  text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
-                  hide: true,
-                  delay: 3000,
-                  icon: 'fa fa-alert-sign',
-                  opacity: 1,
-                  type: 'error'
-                });
-              }
-            }
-          });
-      }).on('pnotify.cancel', function() {});
+      })
     } else {
       new PNotify({
         type: "warning",
