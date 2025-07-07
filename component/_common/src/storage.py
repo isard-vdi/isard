@@ -22,6 +22,7 @@ from uuid import uuid4
 
 from isardvdi_common.storage_pool import StoragePool
 from isardvdi_common.user import User
+from rethinkdb import r
 from rq.job import JobStatus
 
 from . import domain
@@ -109,6 +110,50 @@ class Storage(RethinkCustomBase):
         }
 
         return Storage(**storage_dict)
+
+    @classmethod
+    def get_from_task_id(cls, task_id):
+        """
+        Get storage from task ID.
+
+        :param task_id: Task ID
+        :type task_id: str
+        :return: Storage object
+        :rtype: isardvdi_common.storage.Storage
+        """
+        with cls._rdb_context():
+            storage_id = list(
+                r.table(cls._rdb_table)
+                .get_all(task_id, index="task")["id"]
+                .run(cls._rdb_connection)
+            )
+
+        match len(storage_id):
+            case 0:
+                return None
+            case 1:
+                return cls(storage_id[0])
+            case _:
+                print("WARNING: More than one storage found for task_id", task_id)
+                return cls(storage_id[0])
+
+    @classmethod
+    def get_storage_ids_from_task_ids(cls, task_ids):
+        with cls._rdb_context():
+            task_storage_map = list(
+                r.db("isard")
+                .table("storage")
+                .get_all(r.args(task_ids), index="task")
+                .map(
+                    lambda doc: {
+                        "task_id": doc["task"],
+                        "storage_id": doc["id"],
+                    }
+                )
+                .run(cls._rdb_connection)
+            )
+
+        return task_storage_map
 
     @property
     def path(self):
@@ -356,7 +401,7 @@ class Storage(RethinkCustomBase):
             )
         self.task = Task(*args, **kwargs).id
 
-    def find(self, user_id, blocking=True):
+    def find(self, user_id, blocking=True, retry=3):
         """
         Create a task to find the storage.
         It assumes any isard-storage will have all mountpoints in /isard.
@@ -374,6 +419,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('find', path=self.directory_path).id}.default",
             task="find",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "storage_id": self.id,
@@ -401,7 +448,7 @@ class Storage(RethinkCustomBase):
         )
         return self.task
 
-    def check_backing_chain(self, user_id, blocking=True):
+    def check_backing_chain(self, user_id, blocking=True, retry=3):
         """
         Create a task to check the storage.
 
@@ -416,6 +463,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.default",
             task="qemu_img_info_backing_chain",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "storage_id": self.id,
@@ -487,6 +536,7 @@ class Storage(RethinkCustomBase):
         bwlimit=0,
         remove_source_file=True,
         priority="default",
+        retry: int = 0,
         timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
     ):
         """
@@ -517,6 +567,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=queue_rsync,
             task="move",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "origin_path": self.path,
@@ -598,6 +650,7 @@ class Storage(RethinkCustomBase):
         user_id,
         destination_path,
         priority="default",
+        retry: int = 0,
     ):
         """
         Create a task to move the storage using mv.
@@ -620,6 +673,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=queue_mv,
             task="move",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "origin_path": origin_path,
@@ -677,6 +732,7 @@ class Storage(RethinkCustomBase):
         self,
         user_id,
         priority="default",
+        retry: int = 0,
     ):
         """
         Create a task to delete the storage.
@@ -697,6 +753,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('delete', path=self.directory_path).id}.{priority}",
             task="delete",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "path": self.path,
@@ -751,6 +809,7 @@ class Storage(RethinkCustomBase):
         user_id,
         increment,
         priority="default",
+        retry: int = 0,
     ):
         """
         Create a task to increase the storage size.
@@ -771,6 +830,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=resize_queue,
             task="resize",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {"storage_path": self.path, "increment": increment},
             },
@@ -801,6 +862,7 @@ class Storage(RethinkCustomBase):
         user_id,
         registry_patch,
         priority="default",
+        retry: int = 0,
         timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
     ):
         """
@@ -826,6 +888,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=queue_virt_win_reg,
             task="virt_win_reg",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "storage_path": self.path,
@@ -874,6 +938,7 @@ class Storage(RethinkCustomBase):
         user_id,
         priority="default",
         secondary_priority="default",
+        retry: int = 0,
         timeout=43200,  # (12 hours × 60 minutes/hour × 60 seconds/minute = 43,200 seconds)
     ):
         """
@@ -900,6 +965,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=queue_sparsify,
             task="sparsify",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "storage_path": self.path,
@@ -932,6 +999,7 @@ class Storage(RethinkCustomBase):
         self,
         user_id,
         priority="default",
+        retry: int = 0,
     ):
         """
         Create a task to disconnect the storage.
@@ -950,6 +1018,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=disconnect_queue,
             task="disconnect",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "storage_path": self.path,
@@ -992,6 +1062,7 @@ class Storage(RethinkCustomBase):
         new_storage_status,
         compress,
         priority="default",
+        retry: int = 0,
     ):
         """
         Create a task to convert the storage.
@@ -1015,6 +1086,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('convert', path=self.directory_path).id}.{priority}",
             task="convert",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "source_disk_path": self.path,
@@ -1060,6 +1133,7 @@ class Storage(RethinkCustomBase):
         user_id,
         domain_id,
         priority="default",
+        retry: int = 0,
     ):
         """
         Create a task to recreate the storage.
@@ -1119,6 +1193,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('create', new_storage.directory_path).id}.{priority}",
             task="create",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "storage_path": new_storage_path,
@@ -1232,6 +1308,7 @@ class Storage(RethinkCustomBase):
         size,
         storage_type="qcow2",
         priority="default",
+        retry: int = 0,
     ):
         """
         Create a new storage.
@@ -1287,6 +1364,8 @@ class Storage(RethinkCustomBase):
             user_id=storage.user_id,
             queue=f"storage.{storage.pool.id}.{priority}",
             task="create",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "storage_path": storage.path,
@@ -1363,11 +1442,16 @@ class Storage(RethinkCustomBase):
 
         return self.task
 
+    """
+    Tasks for storages with uuid
+    """
+
     def set_path(
         self,
         user_id,
         new_path,
         priority="default",
+        retry: int = 0,
     ):
         """
         Create a task to set the storage path to a new path.
@@ -1400,6 +1484,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue="core",
             task="storage_update_dict",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "id": self.id,
@@ -1462,6 +1548,7 @@ class Storage(RethinkCustomBase):
         user_id,
         path,
         priority="default",
+        retry: int = 0,
     ):
         """
         Create a task to delete the disk image from the provided path.
@@ -1493,6 +1580,8 @@ class Storage(RethinkCustomBase):
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('delete').id}.{priority}",
             task="delete",
+            retry=retry,
+            retry_intervals=15,
             job_kwargs={
                 "kwargs": {
                     "path": path,

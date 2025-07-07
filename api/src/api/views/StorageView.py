@@ -184,6 +184,34 @@ def check_task_priority(payload, priority):
     return priority
 
 
+def check_task_retry(payload, retry):
+    """
+    Check task priority.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param retry: Number of retries for the task
+    :type retry: str
+    """
+    if payload["role_id"] != "admin" or retry is None:
+        retry = 0
+    else:
+        if not isinstance(retry, int):
+            try:
+                retry = int(retry)
+            except ValueError:
+                raise Error(
+                    error="bad_request",
+                    description="Retry should be an integer between 0 and 5",
+                )
+        if retry < 0 or retry > 5:
+            raise Error(
+                error="bad_request",
+                description="Retry should be an integer between 0 and 5",
+            )
+    return retry
+
+
 @app.route("/api/v3/storage/<path:storage_id>/status/maintenance", methods=["PUT"])
 @is_admin
 def storage_maintenance(payload, storage_id):
@@ -442,6 +470,8 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
                 description=f"Priority must be low, default or high",
             )
 
+    retry = check_task_retry(payload, request_json.get("retry", 0))
+
     storage = get_storage(payload, storage_id)
 
     try:
@@ -451,6 +481,7 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
                     payload["user_id"],
                     registry_patch,
                     priority,
+                    retry=retry,
                 )
             }
         )
@@ -461,8 +492,12 @@ def storage_virt_win_reg(payload, storage_id, priority="low"):
 @app.route(
     "/api/v3/storage/sparsify/<path:storage_id>/priority/<priority>", methods=["PUT"]
 )
+@app.route(
+    "/api/v3/storage/sparsify/<path:storage_id>/priority/<priority>/retry/<int:retry>",
+    methods=["PUT"],
+)
 @is_admin
-def storage_sparsify(payload, storage_id, priority="low"):
+def storage_sparsify(payload, storage_id, priority="low", retry=0):
     """
     Endpoint to sparsify a storage qcow2
 
@@ -478,6 +513,7 @@ def storage_sparsify(payload, storage_id, priority="low"):
             error="bad_request",
             description=f"Priority must be low, default or high",
         )
+    retry = check_task_retry(payload, retry)
 
     storage = get_storage(payload, storage_id)
 
@@ -488,6 +524,7 @@ def storage_sparsify(payload, storage_id, priority="low"):
                     payload.get("user_id"),
                     priority=priority,
                     secondary_priority="high",
+                    retry=retry,
                 )
             }
         )
@@ -557,8 +594,12 @@ def storages_sparsify_by_status(payload, status):
     "/api/v3/storage/disconnect/<path:storage_id>/priority/<priority>",
     methods=["PUT"],
 )
+@app.route(
+    "/api/v3/storage/disconnect/<path:storage_id>/priority/<priority>/retry/<int:retry>",
+    methods=["PUT"],
+)
 @is_admin
-def storage_disconnect(payload, storage_id, priority="low"):
+def storage_disconnect(payload, storage_id, priority="low", retry=0):
     """
     Endpoint to disconnect a storage from its backing chain
 
@@ -578,6 +619,8 @@ def storage_disconnect(payload, storage_id, priority="low"):
                 description=f"Priority must be low, default or high",
             )
 
+    retry = check_task_retry(payload, retry)
+
     storage = get_storage(payload, storage_id)
 
     try:
@@ -585,6 +628,7 @@ def storage_disconnect(payload, storage_id, priority="low"):
             {
                 "task_id": storage.disconnect_chain(
                     priority,
+                    retry=retry,
                 )
             }
         )
@@ -990,8 +1034,12 @@ def storage_update_by_status(payload, status):
     "/api/v3/storage/<path:storage_id>/priority/<priority>/increase/<int:increment>",
     methods=["PUT"],
 )
+@app.route(
+    "/api/v3/storage/<path:storage_id>/priority/<priority>/increase/<int:increment>/retry/<int:retry>",
+    methods=["PUT"],
+)
 @is_not_user
-def storage_increase_size(payload, storage_id, increment, priority="low"):
+def storage_increase_size(payload, storage_id, increment, priority="low", retry=0):
     storage = get_storage(payload, storage_id)
     quota = quotas.get_applied_quota(storage.user_id).get("quota")
     if quota and (
@@ -1009,6 +1057,7 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
         raise Error(
             description="priority should be low, default or high",
         )
+    retry = check_task_retry(payload, retry)
 
     try:
         return jsonify(
@@ -1017,6 +1066,7 @@ def storage_increase_size(payload, storage_id, increment, priority="low"):
                     payload["user_id"],
                     increment,
                     priority,
+                    retry=retry,
                 )
             }
         )
@@ -1087,6 +1137,8 @@ def domain_recreate_disk(payload, domain_id):
     priority = request_json.get("priority", "default")
     priority = check_task_priority(payload, priority)
 
+    retry = check_task_retry(payload, request_json.get("retry", 0))
+
     if not Domain.exists(domain_id):
         raise Error(
             "not_found",
@@ -1103,6 +1155,8 @@ def domain_recreate_disk(payload, domain_id):
                 "task_id": storage.recreate(
                     payload.get("user_id"),
                     domain_id,
+                    priority=priority,
+                    retry=retry,
                 )
             }
         )
@@ -1120,6 +1174,7 @@ def storage_recreate_disk(payload, storage_id):
     {
         "user_id": "User ID",
         "priority": "low, default or high",
+        "retry": "Number of retries for the task",
     }
 
     :param payload: Data from JWT
@@ -1136,6 +1191,7 @@ def storage_recreate_disk(payload, storage_id):
 
     priority = request_json.get("priority", "default")
     priority = check_task_priority(payload, priority)
+    retry = check_task_retry(payload, request_json.get("retry", 0))
 
     storage = get_storage(payload, storage_id)
     if len(storage.domains) > 1:
@@ -1151,6 +1207,8 @@ def storage_recreate_disk(payload, storage_id):
                 "task_id": storage.recreate(
                     payload.get("user_id"),
                     domain_id,
+                    priority=priority,
+                    retry=retry,
                 )
             }
         )
@@ -1297,6 +1355,7 @@ def storage_set_path(payload, storage_id):
                 payload.get("user_id"),
                 request.json["path"],
                 priority=check_task_priority(payload, data.get("priority", "default")),
+                retry=check_task_retry(payload, data.get("retry", 0)),
             )
         }
     )
@@ -1324,6 +1383,7 @@ def storage_path_delete(payload, storage_id):
                 payload.get("user_id"),
                 request.json["path"],
                 priority=check_task_priority(payload, data.get("priority", "default")),
+                retry=check_task_retry(payload, data.get("retry", 0)),
             )
         }
     )

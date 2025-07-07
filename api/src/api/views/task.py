@@ -17,13 +17,15 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+
+import gevent
 from flask import jsonify
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.task import Task
 
 from api import app
 
-from .decorators import has_token, is_admin_or_manager, ownsUserId
+from .decorators import has_token, is_admin, is_admin_or_manager, ownsUserId
 
 
 @app.route("/api/v3/task/<task_id>", methods=["GET"])
@@ -112,3 +114,40 @@ def admin_tasks(payload):
             else:
                 tasks.append(task)
     return jsonify([task.to_dict() for task in tasks])
+
+
+@app.route("/api/v3/task/<task_id>/retry", methods=["PUT"])
+@is_admin
+def retry_task(payload, task_id):
+    if not Task.exists(task_id):
+        raise Error(error="not_found", description="Task not found")
+    task = Task(task_id)
+    ownsUserId(payload, task.user_id)
+    if task.status != "failed":
+        raise Error(
+            error="precondition_required",
+            description=f"Task should be failed, but is {task.status}",
+        )
+
+    task.retry()
+
+    return jsonify(task.to_dict())
+
+
+@app.route("/api/v3/admin/tasks/retry", methods=["PUT"])
+@is_admin
+def retry_all_failed_tasks(payload):
+    def get_and_retry_tasks():
+        tasks = Task.get_failed_storage_tasks()
+
+        for task in tasks:
+            try:
+                task.retry()
+            except:
+                pass
+
+        return len(tasks)
+
+    gevent.spawn(get_and_retry_tasks)
+
+    return jsonify({})

@@ -41,3 +41,4 @@ services:
       CAPABILITIES_STORAGE_POOLS:
       REDIS_WORKERS:
       RETHINKDB_HOST:
+      LOG_LEVEL:

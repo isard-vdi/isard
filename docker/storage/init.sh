@@ -32,6 +32,8 @@ then
             --connection-class="isardvdi_common.redis_retry.RedisRetry" \
             --url "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}" \
             --path /opt/isardvdi/isardvdi_task \
+            --logging_level ${LOG_LEVEL:-INFO} \
+            --with-scheduler \
             --name storage:${STORAGE_DOMAIN:-isard-storage}:$(uuidgen) \
             $queues &
     done

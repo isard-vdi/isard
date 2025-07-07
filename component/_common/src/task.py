@@ -20,7 +20,7 @@
 import os
 
 from cachetools import TTLCache, cached
-from rq import Queue
+from rq import Queue, Retry
 from rq.job import Dependency, Job, JobStatus
 
 from .redis_base import RedisBase
@@ -126,8 +126,23 @@ class Task(RedisBase):
                 *kwargs.get("job_args", []),
                 **kwargs.get("job_kwargs", {}),
             )
+            if kwargs.get("queue", "").startswith("core."):
+                kwargs.setdefault("retry", 3)
+                kwargs.setdefault("retry_intervals", 15)
+            if isinstance(kwargs.get("retry"), int) and kwargs["retry"] > 0:
+                retry = Retry(
+                    max=int(kwargs["retry"]),
+                    interval=kwargs.get("retry_intervals", 0),
+                )
+                self.job.retries_left = retry.max
+                self.job.retry_intervals = retry.intervals
+
             self.job.save()
             for dependent in kwargs.get("dependents", []):
+                dependent.setdefault("retry", kwargs.get("retry", 0))
+                dependent.setdefault(
+                    "retry_intervals", kwargs.get("retry_intervals", 0)
+                )
                 register_dependencies(dependent.setdefault("job_kwargs", {}), [self])
                 task = Task(**dependent)
                 task.job.allow_dependency_failure = True
@@ -303,7 +318,15 @@ class Task(RedisBase):
                 name: getattr(self, name)
                 for name in dir(self)
                 if name
-                not in ["dict", "args", "job", "_chain", "dependencies", "dependents"]
+                not in [
+                    "dict",
+                    "args",
+                    "job",
+                    "_chain",
+                    "dependencies",
+                    "dependents",
+                    "storage_id",
+                ]
                 and isinstance(getattr(self.__class__, name), property)
             },
             "args": [
@@ -356,6 +379,27 @@ class Task(RedisBase):
         return [Task(id=job_id) for job_id in job_ids]
 
     @classmethod
+    def get_by_status(cls, *statuses):
+        """
+        Get tasks by status.
+
+        :param statuses: Task status
+        :type statuses: str
+        :return: Task objects
+        :rtype: list
+        """
+        for status in statuses:
+            if status not in JobStatus:
+                raise ValueError(f"Invalid status: {status}")
+
+        job_ids = []
+        for queue in Queue.all(connection=cls._redis):
+            job_ids.extend(queue.job_ids)
+            for status in statuses:
+                job_ids.extend(getattr(queue, f"{status}_job_registry").get_job_ids())
+        return [Task(id=job_id) for job_id in job_ids]
+
+    @classmethod
     def get_by_user(cls, user_id):
         """
         Get user tasks.
@@ -366,3 +410,54 @@ class Task(RedisBase):
         :rtype: list
         """
         return [task for task in cls.get_all() if task.user_id == user_id]
+
+    def retry(self) -> None:
+        """
+        Retry task.
+
+        :return: Task object
+        :rtype: Task
+        """
+        self.job.requeue()
+
+    @property
+    def storage_id(self):
+        """
+        Check if any storage has this task.
+
+        :return: True if the storage has any task, False otherwise
+        :rtype: bool
+        """
+        try:
+            from .storage import Storage  # To avoid circular import
+
+            return Storage.get_from_task_id(self.id)
+        except Exception:
+            return None
+
+    @classmethod
+    def filter_last_tasks(cls, task_ids: list[str]) -> list["Task"]:
+        """
+        Get the tasks that are the last task of a storage from a list of task IDs.
+
+        :param task_ids: List of task IDs to filter
+        """
+        try:
+            from .storage import Storage  # To avoid circular import
+
+            tasks = []
+            for task in Storage.get_storage_ids_from_task_ids(task_ids):
+                tasks.append(cls(task["task_id"]))
+
+            return tasks
+        except Exception:
+            return []
+
+    @classmethod
+    def get_failed_storage_tasks(cls) -> list["Task"]:
+        """
+        Get failed tasks that are the last task of a storage.
+        """
+        task_ids = [task.id for task in cls.get_by_status(JobStatus.FAILED.value)]
+
+        return cls.filter_last_tasks(task_ids)

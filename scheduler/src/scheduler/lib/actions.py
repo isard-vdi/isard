@@ -586,3 +586,9 @@ class Actions:
 
     def queues_old_tasks_action_delete(**kwargs):
         api_client.delete("/redis/old_tasks/auto")
+
+    def retry_failed_tasks_kwargs(**kwargs):
+        return []
+
+    def retry_failed_tasks(**kwargs):
+        api_client.post("/admin/tasks/retry")

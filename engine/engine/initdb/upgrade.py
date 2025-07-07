@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 173
+release_version = 174
+# release 174: Add task index to storage table
 # release 173: Remove enabled field from maintenance_text
 # release 172: New deployment structure to match future labs feature
 # release 171: Add 'start' notification action and bastion notification
@@ -5136,6 +5137,12 @@ password:s:%s"""
                     f"--- Storages update finished in {datetime.datetime.now() - start} ---"
                 )
 
+            except Exception as e:
+                print(e)
+
+        if version == 174:
+            try:
+                r.table(table).index_create("task").run(self.conn)
             except Exception as e:
                 print(e)
 

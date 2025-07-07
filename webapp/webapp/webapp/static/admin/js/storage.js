@@ -441,6 +441,18 @@ $(document).on('click', '.btn-task-info', function () {
         opacity: 1,
         type: 'info',
         addclass: 'pnotify-center-large',
+        confirm: {
+          confirm: result.status === "failed",
+          buttons: [
+            {
+              text: "Retry", click: function (notice) {
+                retryFailedTask(result.id);
+                notice.remove();
+              }
+            },
+            { text: "Hide", click: function (notice) { notice.remove(); } }
+          ]
+        },
       })
     },
     error: function (xhr, ajaxOptions, thrownError) {
@@ -574,6 +586,43 @@ $(document).on('click', '.btn-find', function () {
     }
   });
 });
+
+$(document).on('click', '.btn-retry-task', function () {
+  element = $(this);
+  var task = element.data("task");
+  retryFailedTask(task);
+})
+
+function retryFailedTask(taskId) {
+    $.ajax({
+    type: 'PUT',
+    url: `/api/v3/task/${taskId}/retry`,
+    contentType: 'application/json',
+    success: function (result) {
+    new PNotify({
+        title: 'Task retried',
+        text: `Task ${taskId} retried`,
+        hide: true,
+        delay: 2000,
+        icon: '',
+        opacity: 1,
+        type: 'success'
+      })
+    },
+    error: function (xhr, ajaxOptions, thrownError) {
+      new PNotify({
+        title: 'Error',
+        text: xhr.responseJSON?.description ? xhr.responseJSON.description : 'Something went wrong',
+        hide: true,
+        delay: 3000,
+        icon: 'fa fa-warning',
+        opacity: 1,
+        type: 'error'
+      });
+    }
+  });
+}
+
 
 
 $(document).on('click', '.btn-convert', function () {
@@ -757,7 +806,7 @@ $("#modalIncreaseStorage #send").on("click", function () {
     var priority = formData.priority ? formData.priority : "low";
     formData.increment = (formData.new_size - formData.current_size).toFixed(0);
     delete formData.new_size;
-    var url = `/api/v3/storage/${formData.storage_id}/priority/${priority}/increase/${formData.increment}`;
+    var url = `/api/v3/storage/${formData.storage_id}/priority/${priority}/increase/${formData.increment}/retry/${formData.retry}`;
     performStorageOperation(formData, formData.storage_id, "increase", url);
   }
 });
@@ -1014,7 +1063,8 @@ $("#modalSparsify #send").on("click", function () {
   if (form.parsley().isValid()) {
     data = form.serializeObject();
     var priority = $("#user_data").data("role") == "admin" ? data.priority : "low";
-    var url = "/api/v3/storage/sparsify/" + data["storage_id"] + "/priority/" + priority;
+    var retry = $("#user_data").data("role") == "admin" ? data.retry : "0";
+    var url = `/api/v3/storage/sparsify/${data["storage_id"]}/priority/${priority}/retry/${retry}`;
     performStorageOperation(data, data["storage_id"], "sparsify", url);
   }
 });
@@ -1128,7 +1178,8 @@ $("#modalDisconnect #send").on("click", function () {
   if (form.parsley().isValid()) {
     data = form.serializeObject();
     var priority = $("#user_data").data("role") == "admin" ? data.priority : "low";
-    var url = "/api/v3/storage/disconnect/" + data["storage_id"] + "/priority/" + priority;
+    var retry = $("#user_data").data("role") == "admin" ? data.retry : "0";
+    var url = `/api/v3/storage/disconnect/${data["storage_id"]}/priority/${priority}/retry/${retry}`;
     performStorageOperation(data, data["storage_id"], "disconnect", url);
   }
 });
@@ -1419,13 +1470,21 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         className: 'actions-control',
         orderable: false,
         data: null,
-        width: '65px',
+        width: '105px',
         visible: $('meta[id=user_data]').attr('data-role') === 'admin',
         render: function (data, type, row, meta) {
-          return `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-info btn-xs btn-find" title="Find in storage"><i class="fa fa-search  "></i></button>\
-                  ${data.status == "ready" ? `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>` : ""}`;
-          // <button type="button" data-id="${row.id}" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>\
+          let buttons = [
+            `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-info btn-xs btn-find" title="Find in storage"><i class="fa fa-search  "></i></button>`,
+            // `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>`
+          ]
+          if (data.status == "ready") {
+            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>`)
+          }
+          if (row.task) { 
+            buttons.push(`<button type="button" data-id="${row.id}" data-task="${row.task}" class="btn btn-pill-right btn-warning btn-xs btn-retry-task" title="Retry task"><i class="fa fa-refresh"></i></button>`)
+          }
 
+          return buttons.join(' ')
         }
       }
     ],
