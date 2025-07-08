@@ -279,6 +279,20 @@ $(document).ready(function() {
             modal_add_desktop_datatables();
         }
     });
+        
+    $('.btn-search-desktop').on('click', function () {
+        initDomainSearchModal();
+    });
+
+    $("#modalSearchDomain").off('click', '.btn-copy').on('click', '.btn-copy', function() {
+        const text = $(this).data('copy-value') || '';
+        navigator.clipboard.writeText(text).then(() => {
+            new PNotify({ title: 'Copied to Clipboard', text: `"${text}" has been copied to clipboard.`, type: 'success', delay: 2000 });
+        }).catch(() => {
+            new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
+        });
+    });
+
 
     $('.btn-bulk-edit-desktops').on('click', function () {
         ids = []
@@ -860,7 +874,7 @@ $(document).ready(function() {
         }
     }
 
-	// DataTable buttons
+    // DataTable buttons
     $('#domains tbody').on( 'click', 'button', function () {
         var data = domains_table.row( $(this).parents('tr') ).data();
         switch($(this).attr('id')){
@@ -1819,7 +1833,7 @@ function HypervisorsFavDropdown(selected) {
 function setDefaultsTemplate(id) {
     $.ajax({
         type: "GET",
-        url:"/api/v3/domain/info/" + id,
+        url:"/api/v3/admin/desktop/info/" + id,
         success: function(data)
         {
             $('.template-id').val(id);
