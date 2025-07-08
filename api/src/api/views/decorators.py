@@ -553,7 +553,7 @@ def ownsDomainId(payload, domain_id):
             return True
 
     raise Error(
-        "unauthorized",
+        "forbidden",
         "Not enough access rights to access this domain_id " + str(domain_id),
         traceback.format_exc(),
         description_code="not_enough_rights_desktop" + str(domain_id),
