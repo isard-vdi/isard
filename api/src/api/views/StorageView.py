@@ -415,14 +415,9 @@ def storage_delete(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
     storage = get_storage(payload, storage_id)
-
     try:
-        return jsonify(
-            {
-                "task_id": storage.task_delete(
-                    payload.get("user_id"),
-                )
-            }
+        return storage.task_delete(
+            payload.get("user_id"),
         )
     except Exception as e:
         raise Error(*e.args)

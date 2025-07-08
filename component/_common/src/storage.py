@@ -399,7 +399,10 @@ class Storage(RethinkCustomBase):
                 "precondition_required",
                 f"Storage {self.id} have the pending task {self.task}",
             )
-        self.task = Task(*args, **kwargs).id
+        try:
+            self.task = Task(*args, **kwargs).id
+        except Exception as e:
+            raise
 
     def find(self, user_id, blocking=True, retry=3):
         """
@@ -489,7 +492,7 @@ class Storage(RethinkCustomBase):
         :param action: Action
         :type action: str
         """
-        if self.status != "ready":
+        if self.status != "ready" and action != "delete":
             raise Exception(
                 "precondition_required",
                 f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
@@ -747,7 +750,6 @@ class Storage(RethinkCustomBase):
         """
         domains_to_failed = [domain.id for domain in self.domains]
         domains_to_failed.extend([domain.id for domain in self.domains_derivatives])
-
         self.set_maintenance("delete")
         self.create_task(
             user_id=user_id,
@@ -793,11 +795,13 @@ class Storage(RethinkCustomBase):
                             },
                         },
                     },
-                    "dependents": {
-                        "queue": "core",
-                        "task": "storage_delete",
-                        "job_kwargs": {"kwargs": {"storage_id": self.id}},
-                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "storage_delete",
+                            "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                        }
+                    ],
                 },
             ],
         )
