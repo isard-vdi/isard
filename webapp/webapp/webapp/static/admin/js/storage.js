@@ -1344,7 +1344,7 @@ function createDatatable(tableId, status, initCompleteFn = null) {
       data: function () {
         var categories = [];
         categories = $('#filter-category #category').val();
-        if ($('#filter-category').length) {
+        if ($('#filter-category').length && status == "ready") {
           return JSON.stringify({
             'categories': categories
           });
