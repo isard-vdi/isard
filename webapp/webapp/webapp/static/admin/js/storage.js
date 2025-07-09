@@ -593,6 +593,60 @@ $(document).on('click', '.btn-retry-task', function () {
   retryFailedTask(task);
 })
 
+$(document).on('click', '.btn-delete-orphan', function () {
+  id = $(this).data("id");
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: "Are you sure you want to delete this orphan storage?",
+    hide: false,
+    opacity: 0.9,
+    confirm: {
+      confirm: true
+    },
+    buttons: {
+      closer: false,
+      sticker: false
+    },
+    history: {
+      history: false
+    },
+    addclass: 'pnotify-center'
+  }).get().on('pnotify.confirm', function () {
+    $.ajax({
+      type: 'DELETE',
+      url: `/api/v3/storage/${id}`,
+      contentType: 'application/json',
+      success: function (result) {
+        new PNotify({
+          title: 'Deleted',
+          text: 'Orphan storage deleted',
+          hide: true,
+          delay: 2000,
+          icon: '',
+          opacity: 1,
+          type: 'success'
+        })
+        if (storagesOtherTable) {
+          storagesOtherTable.ajax.reload();
+        }
+      },
+      error: function (xhr, ajaxOptions, thrownError) {
+        new PNotify({
+          title: 'ERROR',
+          text: xhr.responseJSON ? xhr.response.description : 'Something went wrong',
+          hide: true,
+          delay: 3000,
+          icon: 'fa fa-warning',
+          opacity: 1,
+          type: 'error'
+        });
+      }
+    });
+  }
+  );
+
+})
+
 function retryFailedTask(taskId) {
     $.ajax({
     type: 'PUT',
@@ -1465,7 +1519,7 @@ function createDatatable(tableId, status, initCompleteFn = null) {
             '-'
           }
         }
-      },
+            },
       {
         className: 'actions-control',
         orderable: false,
@@ -1474,17 +1528,18 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         visible: $('meta[id=user_data]').attr('data-role') === 'admin',
         render: function (data, type, row, meta) {
           let buttons = [
-            `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-info btn-xs btn-find" title="Find in storage"><i class="fa fa-search  "></i></button>`,
-            // `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>`
-          ]
-          if (data.status == "ready") {
-            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>`)
+            `<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-info btn-xs btn-find" title="Find in storage"><i class="fa fa-search"></i></button>`,
+          ];
+          if (data.status === "ready") {
+            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-scheduler" title="Delete scheduler"><i class="fa fa-calendar-times-o"></i></button>`);
           }
-          if (row.task) { 
-            buttons.push(`<button type="button" data-id="${row.id}" data-task="${row.task}" class="btn btn-pill-right btn-warning btn-xs btn-retry-task" title="Retry task"><i class="fa fa-refresh"></i></button>`)
+          if (row.task) {
+            buttons.push(`<button type="button" data-id="${row.id}" data-task="${row.task}" class="btn btn-pill-right btn-warning btn-xs btn-retry-task" title="Retry task"><i class="fa fa-refresh"></i></button>`);
           }
-
-          return buttons.join(' ')
+          if (data.status === "orphan") {
+            buttons.push(`<button type="button" data-id="${row.id}" class="btn btn-pill-right btn-danger btn-xs btn-delete-orphan" title="Delete orphan storage"><i class="fa fa-trash"></i></button>`);
+          }
+          return buttons.join(' ');
         }
       }
     ],
