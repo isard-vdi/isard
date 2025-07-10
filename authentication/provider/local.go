@@ -100,3 +100,7 @@ func (l *Local) Healthcheck() error {
 func (Local) Logout(context.Context, string) (string, error) {
 	return "", nil
 }
+
+func (Local) SaveEmail() bool {
+	return true
+}

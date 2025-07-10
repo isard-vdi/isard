@@ -87,6 +87,8 @@ type AuthenticationLDAP struct {
 	RoleAdvancedIDs []string   `mapstructure:"role_advanced_ids"`
 	RoleUserIDs     []string   `mapstructure:"role_user_ids"`
 	RoleDefault     model.Role `mapstructure:"role_default"`
+
+	SaveEmail bool `mapstructure:"save_email"`
 }
 
 type AuthenticationSAML struct {
@@ -128,6 +130,7 @@ type AuthenticationSAML struct {
 	RoleDefault     model.Role `mapstructure:"role_default"`
 
 	LogoutRedirectURL string `mapstructure:"logout_redirect_url"`
+	SaveEmail bool `mapstructure:"save_email"`
 }
 
 type AuthenticationGoogle struct {
@@ -220,6 +223,7 @@ func setDefaults() {
 			"role_advanced_ids":     []string{},
 			"role_user_ids":         []string{},
 			"role_default":          "user",
+			"save_email":            true,
 		},
 		"saml": map[string]interface{}{
 			"enabled":             false,
@@ -253,6 +257,7 @@ func setDefaults() {
 			"role_user_ids":       []string{},
 			"role_default":        "user",
 			"logout_redirect_url": "",
+			"save_email":          true,
 		},
 		"google": map[string]interface{}{
 			"enabled":       false,

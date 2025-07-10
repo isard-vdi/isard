@@ -98,3 +98,7 @@ func (External) Healthcheck() error {
 func (External) Logout(context.Context, string) (string, error) {
 	return "", nil
 }
+
+func (External) SaveEmail() bool {
+	return true
+}

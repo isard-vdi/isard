@@ -2337,8 +2337,6 @@ class ApiUsers:
                 .pluck("email_verified", "category", "role", "provider")
                 .run(db.conn)
             )
-        if user["provider"] != "local":
-            return True
         policy = self.get_email_policy(user["category"], user["role"])
         if not policy:
             return True

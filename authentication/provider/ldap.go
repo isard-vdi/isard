@@ -333,3 +333,7 @@ func (l *LDAP) Healthcheck() error {
 func (LDAP) Logout(context.Context, string) (string, error) {
 	return "", nil
 }
+
+func (l *LDAP) SaveEmail() bool {
+	return l.cfg.SaveEmail
+}

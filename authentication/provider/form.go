@@ -169,6 +169,10 @@ func (f *Form) Providers() []string {
 	return providers
 }
 
+func (f *Form) Provider(p string) Provider {
+	return f.providers[p]
+}
+
 func (f *Form) Healthcheck() error {
 	for _, p := range f.providers {
 		if err := p.Healthcheck(); err != nil {
@@ -181,4 +185,8 @@ func (f *Form) Healthcheck() error {
 
 func (Form) Logout(context.Context, string) (string, error) {
 	return "", nil
+}
+
+func (Form) SaveEmail() bool {
+	return true
 }

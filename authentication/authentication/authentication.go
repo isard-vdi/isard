@@ -121,12 +121,15 @@ func (a *Authentication) Providers() []string {
 }
 
 func (a *Authentication) Provider(p string) provider.Provider {
-	prv := a.providers[p]
-	if prv == nil {
-		return a.providers[types.ProviderUnknown]
+	if prv := a.providers[p]; prv != nil {
+		return prv
 	}
-
-	return prv
+	if f, ok := a.providers[types.ProviderForm].(*provider.Form); ok {
+		if prv := f.Provider(p); prv != nil {
+			return prv
+		}
+	}
+	return a.providers[types.ProviderUnknown]
 }
 
 func (a *Authentication) check(ctx context.Context, ss, remoteAddr string) (*token.LoginClaims, error) {

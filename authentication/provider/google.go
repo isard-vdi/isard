@@ -119,3 +119,7 @@ func (g *Google) Healthcheck() error {
 func (Google) Logout(context.Context, string) (string, error) {
 	return "", nil
 }
+
+func (Google) SaveEmail() bool {
+	return true
+}

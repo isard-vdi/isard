@@ -149,6 +149,11 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		}
 	}
 
+	// Call SaveEmail for user data provisioning provider, due to p is form when ldap and local
+	if !a.Provider(u.Provider).SaveEmail() {
+		u.Email = ""
+	}
+
 	uExists, err := u.Exists(ctx, a.DB)
 	if err != nil {
 		return "", "", fmt.Errorf("check if user exists: %w", err)
