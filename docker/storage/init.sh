@@ -13,6 +13,9 @@ fi
 
 if ${CAPABILITIES_DISK:-true}
 then
+    # Wait for Redis to be ready before starting workers
+    /utils/wait_for_redis
+
     for priority in high default low; do
         previous_pools=""
 
