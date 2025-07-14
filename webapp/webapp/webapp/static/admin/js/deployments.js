@@ -39,39 +39,38 @@ $(document).ready(function() {
       { "data": "user_permissions" },
       { "data": "how_many_desktops" },
       { "data": "how_many_desktops_started" },
-      { "data": "create_dict.tag_visible" },
-      { "data": "last_access" },
-      { "data": null, 'defaultContent': ''},
-      { "data": "id", "visible": false},
-    ],
-    order: [[1, "asc"]],
-    "columnDefs": [
       {
-        "targets": 10,
-        "render": function ( data, type, full, meta ) {
+        "data": "create_dict.tag_visible", "render": function (data, type, full, meta) {
           if ('tag_visible' in full.create_dict && full.create_dict.tag_visible) {
             return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="' + full.create_dict.tag_visible + '"></i>'
           } else {
-              return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+            return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
           }
         }
       },
       {
-        "targets": 11,
-        "render": function ( data, type, full, meta ) {
-          if ( type === 'display' || type === 'filter' ) {
-            return formatTimestampUTC(full.last_access*1000)
+        "data": "last_access", "render": function (data, type, full, meta) {
+          if (type === 'display' || type === 'filter') {
+            return formatTimestampUTC(full.last_access * 1000)
           }
           return full.last_access
         }
       },
       {
-        "targets": 12,
-        "render": function ( data, type, full, meta ) {
+        "data": null, 'defaultContent': '', "render": function (data, type, full, meta) {
           return `<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>`
         }
       },
+      {
+        "className": 'select-checkbox',
+        "data": null,
+        "orderable": false,
+        "width": "10px",
+        "defaultContent": '<input type="checkbox" class="form-check-input"></input>',
+      },
+      { "data": "id", "visible": false },
     ],
+    order: [[1, "asc"]],
   });
 
   adminShowIdCol(deployments)
@@ -132,9 +131,74 @@ $(document).ready(function() {
     toggleRow(this, e);
   });
 
+  $('thead #select-all').on('ifChecked', function (event) {
+    var rows = deployments.rows({ filter: 'applied' }).nodes();
+    $.each(rows, function (index, row) {
+      $(row).find('.select-checkbox input[type="checkbox"]').prop('checked', true)
+      $(row).addClass('active');
+    });
+  });
+
+  $('thead #select-all').on('ifUnchecked', function (event) {
+    var rows = deployments.rows({ filter: 'applied' }).nodes();
+    $.each(rows, function (index, row) {
+      $(row).find('.select-checkbox input[type="checkbox"]').prop('checked', false)
+      $(row).removeClass('active');
+    });
+  });
+
+  function bulkDeleteDeployments(deploymentsToDelete, permanent, callBack) {
+    var notify = new PNotify();
+    $.ajax({
+      type: "DELETE",
+      url: "/api/v3/deployments/",
+      data: JSON.stringify({ ids: deploymentsToDelete, permanent: permanent }),
+      contentType: "application/json",
+      success: function (data) {
+        notify.update({
+          title: 'Processing',
+          text: `Processing action: deleting ${deploymentsToDelete.length} deployment(s)`,
+          hide: false,
+          type: 'info',
+          icon: 'fa fa-spinner fa-pulse',
+          opacity: 1
+        });
+        deployments.ajax.reload();
+      },
+      error: function (xhr) {
+        if (xhr.responseJSON && xhr.responseJSON.exceptions) {
+          const exceptionsList = xhr.responseJSON.exceptions.map(exception => `<li>${exception}</li>`).join('');
+          notify.update({
+            title: "ERROR deleting deployment(s)",
+            text: `<ul>${exceptionsList}</ul>`,
+            hide: true,
+            delay: 3000,
+            icon: 'fa fa-alert-sign',
+            opacity: 1,
+            type: 'error'
+          });
+        } else {
+          notify.update({
+            title: "ERROR deleting deployment(s)",
+            text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
+            hide: true,
+            delay: 3000,
+            icon: 'fa fa-alert-sign',
+            opacity: 1,
+            type: 'error'
+          });
+        }
+      }
+    });
+    if (callBack) {
+      callBack;
+    }
+  }
+
   $('.btn-bulkdelete').on('click', function () {
     let deploymentsToDelete = [];
     $.each(deployments.rows('.active').data(),function(key, value){
+      
       deploymentsToDelete.push(value.id);
     });
 
@@ -146,61 +210,19 @@ $(document).ready(function() {
         hide: false,
         opacity: 0.9,
         confirm: {
-          confirm: true
-        },
-        buttons: {
-          closer: false,
-          sticker: false
+          confirm: true,
+          buttons: [
+          { text: "Delete permanently", click: function (notice) { bulkDeleteDeployments(deploymentsToDelete, true, notice.remove())  } },
+          { text: "Delete and send to recycle bin", click: function (notice) { bulkDeleteDeployments(deploymentsToDelete, false, notice.remove());  } },
+          { text: "Cancel", click: function (notice) { notice.remove(); } }
+         ],
         },
         history: {
           history: false
         },
         addclass: 'pnotify-center-large',
         width: '550'
-      }).get().on('pnotify.confirm', function() {
-          var notify = new PNotify();
-          $.ajax({
-            type: "DELETE",
-            url: "/api/v3/deployments/",
-            data: JSON.stringify({ids:deploymentsToDelete}),
-            contentType: "application/json",
-            success: function(data){
-              notify.update({
-                title: 'Processing',
-                text: `Processing action: deleting ${deploymentsToDelete.length} deployment(s)`,
-                hide: false,
-                type: 'info',
-                icon: 'fa fa-spinner fa-pulse',
-                opacity: 1
-            });
-              deployments.ajax.reload();
-            },
-            error: function (xhr) {
-              if (xhr.responseJSON && xhr.responseJSON.exceptions) {
-                const exceptionsList = xhr.responseJSON.exceptions.map(exception => `<li>${exception}</li>`).join('');
-                notify.update({
-                  title: "ERROR deleting deployment(s)",
-                  text: `<ul>${exceptionsList}</ul>`,
-                  hide: true,
-                  delay: 3000,
-                  icon: 'fa fa-alert-sign',
-                  opacity: 1,
-                  type: 'error'
-                });
-              } else {
-                notify.update({
-                  title: "ERROR deleting deployment(s)",
-                  text: xhr.responseJSON ? xhr.responseJSON.description : "Something went wrong",
-                  hide: true,
-                  delay: 3000,
-                  icon: 'fa fa-alert-sign',
-                  opacity: 1,
-                  type: 'error'
-                });
-              }
-            }
-          });
-      }).on('pnotify.cancel', function() {});
+      })
     } else {
       new PNotify({
         type: "warning",
@@ -376,7 +398,7 @@ function actionsDomainDetail() {
             opacity: 1,
             type: "success"
           });
-          domains_table.ajax.reload();
+          deployments.ajax.reload();
         },
         error: function ({ responseJSON: { description } = {} }) {
           const msg = description ? description : 'Something went wrong';
@@ -418,7 +440,7 @@ function actionsDomainDetail() {
             opacity: 1,
             type: "success"
           });
-          domains_table.ajax.reload();
+          deployments.ajax.reload();
         },
         error: function ({ responseJSON: { description } = {} }) {
           const msg = description ? description : 'Something went wrong';

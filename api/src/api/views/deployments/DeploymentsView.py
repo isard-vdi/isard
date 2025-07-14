@@ -123,6 +123,7 @@ def api_v3_deployments_delete(payload, deployment_id, permanent=False):
 @is_not_user
 def api_v3_deployments_delete_bulk(payload):
     deployment_ids = request.get_json()["ids"]
+    permanent = request.get_json().get("permanent", False)
     exceptions = []
 
     for d_id in deployment_ids:
@@ -142,7 +143,7 @@ def api_v3_deployments_delete_bulk(payload):
     def process_bulk_delete():
         try:
             for d_id in deployment_ids:
-                deployment_delete(d_id, payload["user_id"])
+                deployment_delete(d_id, payload["user_id"], permanent)
             notify_admins(
                 "deployment_action",
                 {
