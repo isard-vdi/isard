@@ -348,6 +348,28 @@ $(document).ready(function() {
         domains_table.search(searchDomainId).draw()
     }
 
+    $('.btn-search-template').on('click', function () {
+        initDomainSearchModal();
+    });
+
+    $("#modalSearchDomain").off('click', '.btn-copy').on('click', '.btn-copy', function() {
+        const text = $(this).data('copy-value') || '';
+        navigator.clipboard.writeText(text).then(() => {
+            new PNotify({ title: 'Copied to Clipboard', text: `"${text}" has been copied to clipboard.`, type: 'success', delay: 2000 });
+        }).catch(() => {
+            new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
+        });
+    });
+
+    $("#modalSearchTemplate").off('click', '.btn-copy').on('click', '.btn-copy', function() {
+        const text = $(this).data('copy-value') || '';
+        navigator.clipboard.writeText(text).then(() => {
+            new PNotify({ title: 'Copied to Clipboard', text: `"${text}" has been copied to clipboard.`, type: 'success', delay: 2000 });
+        }).catch(() => {
+            new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
+        });
+    });
+
     $('.btn-disabled').on('click', function(e) {
         if ($('.btn-disabled').attr('view')=='false') {
             $('.btn-disabled #view-disabled').show();

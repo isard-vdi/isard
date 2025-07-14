@@ -26,6 +26,7 @@ from ..libv2.api_desktop_events import templates_delete
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent, domain_template_tree
 from ..libv2.api_domains import ApiDomains
 from ..libv2.api_storage import get_domains_delete_pending
+from ..libv2.caches import get_cached_user_with_names
 from ..libv2.datatables import LogsDesktopsQuery, LogsUsersQuery
 from .decorators import is_admin, is_admin_or_manager, ownsDomainId
 
@@ -630,6 +631,20 @@ def api_v3_domain_update_storage_path(payload, domain_id):
                 domain_id, request.json["old_path"], request.json["new_path"]
             )
         ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/domain/search-info/<domain_id>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_domain_info(payload, domain_id):
+    ownsDomainId(payload, domain_id)
+
+    domain = domains.get_domain_info(domain_id)
+    domain["owner_data"] = get_cached_user_with_names(domain["user"])
+    return (
+        json.dumps(domain),
         200,
         {"Content-Type": "application/json"},
     )

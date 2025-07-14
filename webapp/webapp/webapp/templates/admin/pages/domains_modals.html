@@ -549,6 +549,78 @@
    </div>
 </div>
 
+<div class="modal fade" id="modalSearchDomain" tabindex="-1" role="dialog" aria-labelledby="modalSearchDomain" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel"><i class="fa fa-search"></i> Search Domain <small>Retrieve relevant domain information</small></h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+               <form id="modalSearchDomainForm" class="form-inline form-label-left">
+                  <div class="form-group x_panel" style="margin-bottom: 15px;">
+                     <label for="domain-id" class="control-label">Domain ID:</label>
+                     <input type="text" id="domain-id" name="domain_id" class="form-control roundbox"
+                        placeholder="Enter domain ID" required style="width: 100%; max-width: 55%;">
+                     <button type="button" id="search-domain-btn" class="btn btn-primary" style="margin-bottom: auto;">
+                        <i class="fa fa-search"></i> Search domain
+                     </button>
+                  </div>
+               </form>
+               <div id="domain-info" class="x_panel" style="display: none;">
+                  <table id="domain-info-table" class="table table-bordered table-striped" style="margin-bottom:0;">
+                     <tbody>
+                        <tr>
+                           <th>Name</th>
+                           <td id="domain-info-name"></td>
+                        </tr>
+                        <tr>
+                           <th>Status</th>
+                           <td id="domain-info-status"></td>
+                        </tr>
+                        <tr>
+                           <th>Storage</th>
+                           <td id="domain-info-storage"></td>
+                        </tr>
+                        <tr>
+                           <th>Kind</th>
+                           <td id="domain-info-kind"></td>
+                        </tr>
+                        <tr data-row="user">
+                           <th>User</th>
+                           <td id="domain-info-user"></td>
+                        </tr>
+                        <tr data-row="group">
+                           <th>Group</th>
+                           <td id="domain-info-group"></td>
+                        </tr>
+                        <tr data-row="category">
+                           <th>Category</th>
+                           <td id="domain-info-category"></td>
+                        </tr>
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="modalBulkEdit" tabindex="-1" role="dialog" aria-labelledby="modalBulkEdit"
    aria-hidden="true">
    <div class="modal-dialog  modal-lg">

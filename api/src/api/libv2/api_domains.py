@@ -141,3 +141,30 @@ class ApiDomains:
         with app.app_context():
             r.table("domains").get(domain_id).update(domain).run(db.conn)
         return domain
+
+    def get_domain_info(self, domain_id):
+        """
+        Get general information about a domain.
+
+        :param domain_id: The ID of the domain to retrieve information for.
+        :return: A dictionary containing the domain's general information.
+        """
+        with app.app_context():
+            domain = (
+                r.table("domains")
+                .get(domain_id)
+                .pluck(
+                    "id",
+                    "name",
+                    "status",
+                    "user",
+                    "kind",
+                    {"create_dict": {"hardware": {"disks": True}}},
+                )
+                .run(db.conn)
+            )
+
+        if not domain:
+            raise Error("not_found", f"Domain {domain_id} not found.")
+
+        return domain
