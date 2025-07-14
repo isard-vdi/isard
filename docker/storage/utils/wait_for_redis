@@ -16,6 +16,12 @@ def wait_for_redis(host, port, password):
         except redis.ConnectionError:
             print(f"Redis not ready at {host}:{port}, retrying in 2 seconds...")
             time.sleep(2)
+        except redis.ResponseError as e:
+            if "LOADING" in str(e):
+                print("Redis is loading the dataset in memory, waiting...")
+                time.sleep(2)
+            else:
+                raise
 
 
 if __name__ == "__main__":
