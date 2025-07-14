@@ -315,6 +315,77 @@
     </div>
 </div>
 
+<div class="modal fade" id="modalSearchStorage" tabindex="-1" role="dialog" aria-labelledby="modalSearchStorage" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel"><i class="fa fa-search"></i> Search Storage <small>Retrieve relevant storage information</small></h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalSearchStorageForm" class="form-inline form-label-left">
+                    <div class="form-group x_panel" style="margin-bottom: 15px;">
+                        <label for="storage-id" class="control-label">Storage ID:</label>
+                        <input type="text" id="storage-id" name="storage_id" class="form-control roundbox" placeholder="Enter Storage ID" required style="width: 100%; max-width: 55%;">
+                        <button type="button" id="search-storage-btn" class="btn btn-info" style="margin-bottom: auto;">
+                            <i class="fa fa-search"></i> Search storage
+                        </button>
+                    </div>
+                    <div id="storage-info" class="x_panel" style="display: none;">
+                        <table id="storage-info-table" class="table table-bordered table-striped" style="margin-bottom:0;">
+                            <tbody>
+                                <tr>
+                                    <th>Status</th>
+                                    <td id="storage-info-status"></td>
+                                </tr>
+                                <tr>
+                                    <th>Path</th>
+                                    <td id="storage-info-path"></td>
+                                </tr>
+                                <tr>
+                                    <th>Size</th>
+                                    <td id="storage-info-size"></td>
+                                </tr>
+                                <tr data-row="user">
+                                    <th>User</th>
+                                    <td id="storage-info-user"></td>
+                                </tr>
+                                <tr data-row="group">
+                                    <th>Group</th>
+                                    <td id="storage-info-group"></td>
+                                </tr>
+                                <tr data-row="category">
+                                    <th>Category</th>
+                                    <td id="storage-info-category"></td>
+                                </tr>
+                                <tr data-row="domains">
+                                    <th>Domains</th>
+                                    <td id="storage-info-domains"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="modalVirtWinReg" tabindex="-1" role="dialog" aria-labelledby="modalVirtWinReg"
     aria-hidden="true">
     <div class="modal-dialog">

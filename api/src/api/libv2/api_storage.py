@@ -256,17 +256,28 @@ def get_storage(storage_id):
     return parse_disks([disk])[0]
 
 
+def get_storage_info(storage_id):
+    with app.app_context():
+        disk = r.table("storage").get(storage_id).run(db.conn)
+    if disk:
+        domains = Storage(storage_id).domains
+        disk["domains"] = [
+            {"name": d.name, "id": d.id, "kind": d.kind} for d in domains
+        ]
+    return parse_disks([disk])[0]
+
+
 def parse_disks(disks):
     parsed_disks = []
     for disk in disks:
         if disk.get("qemu-img-info"):
             disk["actual_size"] = disk["qemu-img-info"]["actual-size"]
             disk["virtual_size"] = disk["qemu-img-info"]["virtual-size"]
-            disk["last"] = disk["status_logs"][-1]["time"]
-
             disk.pop("qemu-img-info")
+        if disk.get("status_logs"):
+            disk["last"] = disk["status_logs"][-1]["time"]
             disk.pop("status_logs")
-            parsed_disks.append(disk)
+        parsed_disks.append(disk)
     return parsed_disks
 
     recursive(list(query), root)
