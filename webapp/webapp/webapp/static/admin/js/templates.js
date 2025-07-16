@@ -627,8 +627,9 @@ function actionsDomainDetail(){
     $('.btn-edit').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");
         $("#modalEdit")[0].reset();
-        setHardwareOptions('#modalEditDesktop','hd',pk);
-        setHardwareDomainIdDefaults('#modalEditDesktop',pk);
+        setHardwareOptions('#modalEditDesktop','hd',pk,function() {
+            setHardwareDomainIdDefaults('#modalEditDesktop',pk);
+        });
         setMedia_add('#modalEditDesktop #media-block')
         $('#modalEditDesktop').modal({
             backdrop: 'static',
