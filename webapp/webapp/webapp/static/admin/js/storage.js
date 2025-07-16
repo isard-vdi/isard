@@ -901,7 +901,7 @@ $(document).on("click", ".btn-search-storage", function () {
             { label: 'Size', value: data.virtual_size ? (data.virtual_size / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '-', selector: '#storage-info-size' }
           ];
           storageFields.forEach(field => {
-            const html = `${field.value}${copyBtn(f.value)}`;
+            const html = `${field.value}${copyBtn(field.value)}`;
             $(modal + ' ' + field.selector).html(html);
           });
 
@@ -912,7 +912,7 @@ $(document).on("click", ".btn-search-storage", function () {
               { selector: '#storage-info-category', name: data.owner_data.category_name || '-', id: data.owner_data.category || '-' }
             ];
             ownerFields.forEach(field => {
-              let html = `<b>Name: </b>${f.name}${copyBtn(field.name)}<br><b>ID: </b>${field.id}${copyBtn(field.id)}`;
+              let html = `<b>Name: </b>${field.name}${copyBtn(field.name)}<br><b>ID: </b>${field.id}${copyBtn(field.id)}`;
               $(modal + ' ' + field.selector).html(html);
             });
           } else {
