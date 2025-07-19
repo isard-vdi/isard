@@ -544,16 +544,19 @@ generate_code(){
 	create_env "$1"
 
 	case "$USAGE" in 
-	build | test | devel)
+	build)
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
-		docker pull $DOCKER_IMAGE
 		docker build -t "$DOCKER_IMAGE" -f ./docker/codegen/Dockerfile .
-		docker run --rm -u $(id -u) -v "$(pwd):/build" "$DOCKER_IMAGE"
-		echo "Generated the code successfully"
+		;;
+	devel | test | production)
+		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
 		;;
 	*)
 		;;
 	esac
+
+	docker run --rm -u $(id -u) -v "$(pwd):/build" "$DOCKER_IMAGE"
+	echo "Generated the code successfully"
 }
 
 if !(${SKIP_CHECK_DOCKER_COMPOSE_VERSION-false} || check_docker_compose_version)
