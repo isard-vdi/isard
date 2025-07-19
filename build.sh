@@ -147,6 +147,34 @@ CHECK_STANDALONE_PARTS="
 	check
 "
 
+WEB_STORAGE_KEY="web+storage"
+WEB_STORAGE_PARTS="
+	$WEB_PARTS
+	storage
+"
+
+WEB_STORAGE_VIDEO_KEY="web+storage+video"
+WEB_STORAGE_VIDEO_PARTS="
+	$WEB_PARTS
+	storage
+	$(echo "$VIDEO_STANDALONE_PARTS" | sed -e '/network/d' -e '/video/d' -e '/stats/d')
+"
+
+WEB_STORAGE_MONITOR_KEY="web+storage+monitor"
+WEB_STORAGE_MONITOR_PARTS="
+	$WEB_PARTS
+	storage
+	$(echo "$MONITOR_STANDALONE_PARTS" | sed -e '/network/d' -e '/monitor-proxy/d')
+"
+
+WEB_STORAGE_VIDEO_MONITOR_KEY="web+storage+video+monitor"
+WEB_STORAGE_VIDEO_MONITOR_PARTS="
+	$WEB_PARTS
+	storage
+	$(echo "$VIDEO_STANDALONE_PARTS" | sed -e '/network/d' -e '/video/d' -e '/stats/d')
+	$(echo "$MONITOR_STANDALONE_PARTS" | sed -e '/network/d' -e '/monitor-proxy/d')
+"
+
 # BASE image builds
 HAPROXY_BUILD_KEY="haproxy"
 HAPROXY_BUILD_PARTS="
@@ -373,6 +401,18 @@ create_docker_compose_file(){
 			;;
 		$WEB_KEY)
 			parts=$WEB_PARTS
+			;;
+		$WEB_STORAGE_KEY)
+			parts=$WEB_STORAGE_PARTS
+			;;
+		$WEB_STORAGE_VIDEO_KEY)
+			parts=$WEB_STORAGE_VIDEO_PARTS
+			;;
+		$WEB_STORAGE_MONITOR_KEY)
+			parts=$WEB_STORAGE_MONITOR_PARTS
+			;;
+		$WEB_STORAGE_VIDEO_MONITOR_KEY)
+			parts=$WEB_STORAGE_VIDEO_MONITOR_PARTS
 			;;
 		$MONITOR_STANDALONE_KEY)
 			parts=$MONITOR_STANDALONE_PARTS

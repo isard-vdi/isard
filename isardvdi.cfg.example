@@ -1,4 +1,4 @@
-# Isard main config v2.27.0
+# Isard main config v2.28.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -11,6 +11,10 @@
 ##  - video-standalone: services to access to desktops
 ##  - storage: service to manage desktops disks
 ##  - web: services to manage desktops
+##  - web+storage: web services with storage (for distributed setups with hypervisor flavour)
+##  - web+storage+video: web services with storage and video proxies (for distributed setups with hypervisor-standalone flavour)
+##  - web+storage+monitor: web services with storage and monitoring (for distributed setups with hypervisor flavour)
+##  - web+storage+video+monitor: web services with storage, video proxies and monitoring (for distributed setups with hypervisor-standalone flavour)
 ##  - monitor: monitoring only host (grafana/loki/prometheus)
 ##  - web+monitor: web and monitor flavours combined
 ##  - backupninja: standalone backups
