@@ -17,3 +17,5 @@ services:
       - /etc/localtime:/etc/localtime:ro
     environment:
       API_DOMAIN:
+      VIDEO_HYPERVISOR_HOSTNAMES:
+      VIDEO_HYPERVISOR_PORTS:

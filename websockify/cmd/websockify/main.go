@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -15,10 +16,16 @@ import (
 )
 
 var (
-	apiAddr        string
-	apiIgnoreCerts = true
-	apiProtocol    = "https"
+	apiAddr           string
+	apiIgnoreCerts    = true
+	apiProtocol       = "https"
+	allowedHosts      []string
+	allowedPortRanges []portRange
 )
+
+type portRange struct {
+	min, max int
+}
 
 func init() {
 	apiAddr = os.Getenv("API_DOMAIN")
@@ -27,6 +34,73 @@ func init() {
 		apiIgnoreCerts = false
 		apiProtocol = "http"
 	}
+
+	// Initialize allowed hosts
+	hostnames := os.Getenv("VIDEO_HYPERVISOR_HOSTNAMES")
+	if hostnames == "" {
+		allowedHosts = []string{"isard-hypervisor"}
+	} else {
+		allowedHosts = strings.Split(hostnames, ",")
+		// Trim whitespace from each hostname
+		for i, host := range allowedHosts {
+			allowedHosts[i] = strings.TrimSpace(host)
+		}
+	}
+
+	// Initialize allowed port ranges
+	ports := os.Getenv("VIDEO_HYPERVISOR_PORTS")
+	if ports == "" {
+		ports = "5900-7899"
+	}
+	allowedPortRanges = parsePortRanges(ports)
+}
+
+// parsePortRanges parses port ranges like "5900-7899" or "5900-7899,8000-8999"
+func parsePortRanges(portStr string) []portRange {
+	var ranges []portRange
+	parts := strings.Split(portStr, ",")
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if strings.Contains(part, "-") {
+			rangeParts := strings.Split(part, "-")
+			if len(rangeParts) == 2 {
+				min, err1 := strconv.Atoi(strings.TrimSpace(rangeParts[0]))
+				max, err2 := strconv.Atoi(strings.TrimSpace(rangeParts[1]))
+				if err1 == nil && err2 == nil {
+					ranges = append(ranges, portRange{min: min, max: max})
+				}
+			}
+		} else {
+			// Single port
+			port, err := strconv.Atoi(part)
+			if err == nil {
+				ranges = append(ranges, portRange{min: port, max: port})
+			}
+		}
+	}
+
+	return ranges
+}
+
+// isHostAllowed checks if the hostname is in the allowed list
+func isHostAllowed(host string) bool {
+	for _, allowedHost := range allowedHosts {
+		if host == allowedHost {
+			return true
+		}
+	}
+	return false
+}
+
+// isPortAllowed checks if the port is within allowed ranges
+func isPortAllowed(port int) bool {
+	for _, portRange := range allowedPortRanges {
+		if port >= portRange.min && port <= portRange.max {
+			return true
+		}
+	}
+	return false
 }
 
 var upgrader = websocket.Upgrader{
@@ -54,6 +128,20 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	hyper := r.PathValue("hyper")
 	if hyper == "" {
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// Check if hypervisor host is allowed
+	if !isHostAllowed(hyper) {
+		log.Printf("hypervisor host not allowed: %s", hyper)
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	// Check if port is allowed
+	if !isPortAllowed(port) {
+		log.Printf("port not allowed: %d", port)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -91,7 +179,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	defer wsConn.Close()
 
-	tcpConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", hyper, port))
+	tcpConn, err := net.Dial("tcp", net.JoinHostPort(hyper, strconv.Itoa(port)))
 	if err != nil {
 		log.Printf("tcp connection: %v", err)
 		return
