@@ -543,6 +543,11 @@ create_docker_compose_file(){
 generate_code(){
 	create_env "$1"
 
+	if [ -z "$USAGE" ]
+	then
+		USAGE="production"
+	fi
+
 	case "$USAGE" in 
 	build)
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
@@ -552,6 +557,8 @@ generate_code(){
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
 		;;
 	*)
+		echo "Error: unknown usage $USAGE for code generation"
+		exit 1
 		;;
 	esac
 
