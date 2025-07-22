@@ -64,3 +64,7 @@ def get_notification_message(data):
             "Exception when retrieving notification template",
             traceback.format_exc(),
         )
+
+
+def is_smtp_enabled():
+    return api_client.get("/smtp/enabled")

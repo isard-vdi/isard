@@ -32,6 +32,7 @@ from ..lib.api_actions import (
     get_notification_message,
     get_user,
     get_user_by_email_and_category,
+    is_smtp_enabled,
 )
 from ..schemas import notifier
 from .decorators import is_admin
@@ -61,7 +62,7 @@ def notify_mail(payload, json: notifier.NotifyMailRequest):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    if not os.environ.get("NOTIFY_EMAIL"):
+    if not is_smtp_enabled():
         return
     user = get_user(json.user_id)
     if not user.get("email"):
@@ -108,7 +109,7 @@ def email_verify(payload, json: notifier.NotifyEmailVerifyMailRequest):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    if not os.environ.get("NOTIFY_EMAIL"):
+    if not is_smtp_enabled():
         return
     text = """Please go to the following address to verify you email address:\n
                 {link}\n""".format(
@@ -160,7 +161,7 @@ def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    if not os.environ.get("NOTIFY_EMAIL"):
+    if not is_smtp_enabled():
         return
     text = """We've received your password reset request to access IsardVDI. Go to the following address to set a new password:\n
                 {link}\n""".format(
@@ -217,7 +218,7 @@ def delete_gpu(payload, json: notifier.NotifyDeleteGPUMailRequest):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    if not os.environ.get("NOTIFY_EMAIL"):
+    if not is_smtp_enabled():
         return
 
     user = get_user(json.user_id)

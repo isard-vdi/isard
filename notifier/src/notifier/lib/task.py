@@ -18,20 +18,24 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate, make_msgid
 from time import sleep
 
+from isardvdi_common.api_rest import ApiRest
+
 
 def mail(address: list, subject: str, text: str, html: str):
+    smtp = ApiRest("isard-api").get("/smtp")
+    if not smtp.get("enabled"):
+        raise Exception("SMTP not enabled")
     message = MIMEMultipart("alternative")
     message["Date"] = formatdate()
-    message["Message-ID"] = make_msgid(domain="NOTIFY_EMAIL_SMTP_SERVER")
+    message["Message-ID"] = make_msgid(domain=smtp.get("host"))
     message["Subject"] = subject
-    message["From"] = os.environ.get("NOTIFY_EMAIL_USERNAME")
+    message["From"] = smtp.get("username")
     message["To"] = ", ".join(address)
 
     part1 = MIMEText(text, "plain", "utf-8")
@@ -39,13 +43,8 @@ def mail(address: list, subject: str, text: str, html: str):
     message.attach(part1)
     message.attach(part2)
 
-    server = smtplib.SMTP(
-        os.environ.get("NOTIFY_EMAIL_SMTP_SERVER"),
-        os.environ.get("NOTIFY_EMAIL_SMPT_PORT"),
-    )
+    server = smtplib.SMTP(smtp.get("host"), smtp.get("port"))
     server.starttls()
-    server.login(
-        os.environ.get("NOTIFY_EMAIL_USERNAME"), os.environ.get("NOTIFY_EMAIL_PASSWORD")
-    )
+    server.login(smtp.get("username"), smtp.get("password"))
     server.sendmail(message["from"], address, message.as_string())
     server.quit()
