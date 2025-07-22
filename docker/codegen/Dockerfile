@@ -16,8 +16,7 @@ RUN python3 -m venv /venv && \
     	"betterproto[compiler]==2.0.0-beta6" \
 	"grpcio-tools==1.66.2"
 
-RUN npm install -g \
-  @bufbuild/protoc-gen-es@2.1.0
+RUN npm install -g @bufbuild/protoc-gen-es@2.6.0 @bufbuild/protobuf@2.6.0 @bufbuild/protoplugin@2.6.0 @bufbuild/protoc-gen-es@2.6.0
 
 WORKDIR /deps
 
