@@ -29,6 +29,7 @@ import gevent
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.configuration import Configuration
 from rethinkdb.errors import ReqlNonExistenceError
 
 from api import app
@@ -459,7 +460,7 @@ class ApiUsers:
         )
         frontend_show_change_email = (
             payload.get("provider") == "local"
-            and os.environ.get("NOTIFY_EMAIL") == "True"
+            and Configuration.smtp.get("enabled")
             and self.get_email_policy(payload["category_id"], payload["role_id"])
         )
         isard_user_storage_update_user_quota(payload["user_id"])
@@ -1011,7 +1012,7 @@ class ApiUsers:
             )
 
         for user in users:
-            if os.environ.get("NOTIFY_EMAIL") and data.get("email"):
+            if Configuration.smtp.get("enabled") and data.get("email"):
                 if data.get("email") != user["email"]:
                     if self.get_email_policy(user["category"], user["role"]):
                         token = validate_email_jwt(user["id"], data["email"])["jwt"]
@@ -1157,7 +1158,7 @@ class ApiUsers:
                 .run(db.conn)
             )
 
-        if os.environ.get("NOTIFY_EMAIL") and data.get("email"):
+        if Configuration.smtp.get("enabled") and data.get("email"):
             if data.get("email") != user["email"]:
                 if self.get_email_policy(user["category"], user["role"]):
                     token = validate_email_jwt(user["id"], data["email"])["jwt"]
@@ -2328,7 +2329,7 @@ class ApiUsers:
             return True
 
     def check_verified_email(self, user_id):
-        if not os.environ.get("NOTIFY_EMAIL"):
+        if not Configuration.smtp.get("enabled"):
             return True
         with app.app_context():
             user = (

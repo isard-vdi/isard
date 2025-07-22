@@ -173,6 +173,7 @@ from .views import (
     ViewersConfigView,
     VpnViews,
     maintenance,
+    smtp,
     socketio_emit,
     task,
 )
