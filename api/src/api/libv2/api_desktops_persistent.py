@@ -704,6 +704,13 @@ class ApiDesktopsPersistent:
 
             data = copy.deepcopy(desktop_data)
             desktop = parse_domain_update(d, data, admin_or_manager)
+            domain = get_document("domains", d)
+
+            if desktop_data["hardware"]["reservables"]["vgpus"] != domain.get(
+                "create_dict"
+            ).get("reservables", {}).get("vgpus", []):
+                # Delete booking when the vGPU profile is changed
+                apib.delete_item_bookings("desktop", d)
 
             with app.app_context():
                 r.table("domains").get(d).update(desktop).run(db.conn)
