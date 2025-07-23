@@ -87,7 +87,6 @@
               variant="danger"
             />{{ $t('forms.new-template.disabled') }}</label>
             <b-form-checkbox
-              id="checkbox-1"
               v-model="enabled"
               switch
             >
