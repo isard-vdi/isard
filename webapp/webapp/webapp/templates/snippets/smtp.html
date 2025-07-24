@@ -1,0 +1,72 @@
+{#
+#
+#   Copyright © 2025 Simó Albert i Beltran
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+
+<div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+        <div class="x_title">
+            <h3><i class="fa fa-envelope-o"></i> SMTP configuration</h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <a id="btn-edit-smtp"><span style="color: #5499c7;">
+                                <i class="fa fa-pencil"></i> Edit</span>
+                        </a>
+                    </li>
+                </ul>
+            <div class="clearfix"></div>
+        </div>
+        <div class="x_content">
+            {% set smtp_form_id='form-smtp-show' %}
+            {% set smtp_form_disabled=True %}
+            {% include '/snippets/smtp_form.html' %}
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="modal-smtp-configuration" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-envelope-o"></i> SMTP Configuration
+                </h4>
+            </div>
+            <div class="modal-body">
+                {% set smtp_form_id='form-smtp-edit' %}
+                {% set smtp_form_disabled=False %}
+                {% include '/snippets/smtp_form.html' %}
+            </div>
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        Cancel
+                    </button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="smtp-save" type="button" class="btn btn-success">Save</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
