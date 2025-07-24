@@ -63,15 +63,34 @@ if [ -n "$NETWORK_MAX_DOWNLOAD_BANDWIDTH" ] && [ -n "$NETWORK_MAX_UPLOAD_BANDWID
     UPLOAD_BANDWIDTH=$(($NETWORK_MAX_UPLOAD_BANDWIDTH * 1000 * 95 / 100))
     echo "Using custom bandwidth limits: Download: $DOWNLOAD_BANDWIDTH kbps, Upload: $UPLOAD_BANDWIDTH kbps"
 else
-    echo "Checking Internet connection bandwidth..."
-    RESULT=$(speedtest-cli --simple --secure 2>/dev/null)
-    echo "$RESULT"
-    if [ $? -eq 0 ]; then
+    echo "Checking Internet connection bandwidth (timeout: 25s)..."
+    RESULT=$(timeout 25 speedtest-cli --simple --secure --timeout 5 2>/dev/null)
+    SPEEDTEST_EXIT_CODE=$?
+
+    if [ $SPEEDTEST_EXIT_CODE -eq 124 ]; then
+        echo "Speedtest timed out after 25 seconds."
+        RESULT=""
+    elif [ $SPEEDTEST_EXIT_CODE -eq 0 ]; then
+        echo "$RESULT"
+    else
+        echo "Speedtest failed with exit code: $SPEEDTEST_EXIT_CODE"
+        RESULT=""
+    fi
+
+    if [ -n "$RESULT" ]; then
         DOWNLOAD_BANDWIDTH=$(echo "$RESULT" | awk '/Download/{print int($2*1000*0.95)}')
         UPLOAD_BANDWIDTH=$(echo "$RESULT" | awk '/Upload/{print int($2*1000*0.95)}')
-        echo "Speed applied: Download: $DOWNLOAD_BANDWIDTH kbps, Upload: $UPLOAD_BANDWIDTH kbps"
+
+        # Check if bandwidth values are valid (greater than 0)
+        if [ "$DOWNLOAD_BANDWIDTH" -le 0 ] || [ "$UPLOAD_BANDWIDTH" -le 0 ]; then
+            echo "WARNING: Invalid bandwidth values detected (Download: $DOWNLOAD_BANDWIDTH kbps, Upload: $UPLOAD_BANDWIDTH kbps)"
+            echo "Traffic control will not be applied."
+            exit 0
+        else
+            echo "Speed applied: Download: $DOWNLOAD_BANDWIDTH kbps, Upload: $UPLOAD_BANDWIDTH kbps"
+        fi
     else
-        echo "WARNING!! Speedtest failed. Traffic control will not be applied!"
+        echo "WARNING: Speedtest failed or timed out. Traffic control will not be applied."
         exit 0
     fi
 fi
@@ -95,7 +114,6 @@ else
         tc filter add dev eth0 protocol ip parent 1: handle ${i} fw flowid 1:${i}0
     done
 fi
-
 
 # Show configuration
 # echo "Egress Traffic control configuration:"
