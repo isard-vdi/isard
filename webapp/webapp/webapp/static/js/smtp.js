@@ -96,4 +96,45 @@ $(document).ready(() => {
             })
         })
     })
+    $("#smtp-test").on('click', () => {
+        getDataSMTPForm().then((data) => {
+            const notice = new PNotify({
+                title: 'SMTP Test Configuration',
+                text: 'Testing SMTP configuration...',
+                icon: 'fa fa-spinner fa-pulse'
+            })
+            $.ajax({
+                type: "POST",
+                url:"/api/v3/smtp/test" ,
+                data: data,
+                contentType: "application/json"
+            }).fail((data) => {
+                notice.update({
+                    title: "ERROR testing SMTP configuration",
+                    text: data.responseJSON.description,
+                    icon: 'fa fa-warning',
+                    type: 'error',
+                    delay: 15000
+                })
+            }).done((data) => {
+                if (data.result) {
+                  notice.update({
+                      title: "SMTP Test Configuration",
+                      text: 'SMTP configuration tested successfully',
+                      icon: 'fa fa-envelope',
+                      type: 'success',
+                      delay: 4000
+                  })
+                } else {
+                  notice.update({
+                      title: "SMTP Test",
+                      text: `SMTP test error: ${data.error}`,
+                      icon: 'fa fa-envelope',
+                      type: 'error',
+                      delay: 4000
+                  })
+                }
+            })
+        })
+    })
 })

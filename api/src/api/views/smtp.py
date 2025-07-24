@@ -74,3 +74,28 @@ def _api_smtp_enabled_get(payload):
     :rtype: flask.Response
     """
     return jsonify(Configuration.smtp.get("enabled", False))
+
+
+@app.route("/api/v3/smtp/test", methods=["POST"])
+@is_admin
+def _api_smtp_test_post(payload):
+    """
+    Endpoint to test if a STMP configuration works.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: JSON with boolean in the key "result" and an string in the key "error" with
+      the error if there is one.
+    :rtype: flask.Response
+    """
+    configuration = _validate_item("smtp", request.get_json())
+    try:
+        with SMTP(configuration.get("host"), configuration.get("port")) as connection:
+            connection.starttls()
+            connection.login(
+                configuration.get("username"), configuration.get("password")
+            )
+            connection.noop()
+    except Exception as exception:
+        return jsonify({"result": False, "error": str(exception)})
+    return jsonify({"result": True})
