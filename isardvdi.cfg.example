@@ -1,4 +1,4 @@
-# Isard main config v2.28.0
+# Isard main config v2.29.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -89,7 +89,6 @@ DIRECTVIEWER_MODE=browser
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!
 ## openssl rand -base64 32
-WEBAPP_SESSION_SECRET=xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
 API_ISARDVDI_SECRET=kpWpdF0NtI2XCEfzMp36hdSV9S42E7axS8D5TvP9c0A=
 API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 
