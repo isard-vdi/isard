@@ -22,6 +22,11 @@ if [ "$CFG" != "portal" ] && [ "$CFG" != "video" ]
 then
   rm "$tmp_dir"/04_00_fe_nonsecured_begin.cfg
 fi
+if [ "$DEVELOPMENT" = "true" ]
+then
+  echo "Development mode: excluding abuse protection configuration"
+  rm -f "$tmp_dir"/16_04_fe_secured_abuse.cfg
+fi
 cat "$tmp_dir"/*.cfg > /usr/local/etc/haproxy/haproxy.cfg
 
 PASSWD=$(mkpasswd -m sha-512 $WEBAPP_ADMIN_PWD)
