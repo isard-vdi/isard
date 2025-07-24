@@ -4252,4 +4252,8 @@ html , body{
        background-color: #ffff !important;
    }
    /** /bootstrap-datetimepicker **/
-   
+
+.ui-pnotify-icon span {
+  /* Vertically center the PNotify icon */
+  padding-top: 0.2em;
+}
