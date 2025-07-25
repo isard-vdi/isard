@@ -19,13 +19,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import os
+import secrets
 
 from flask import Flask, render_template, send_from_directory
 
 app = Flask(__name__, static_url_path="")
 app.url_map.strict_slashes = False
 
-app.secret_key = os.environ["WEBAPP_SESSION_SECRET"]
+# Generate a random session secret key at startup (in-memory only)
+app.secret_key = secrets.token_bytes(32)
 
 from .lib.log import *
 
