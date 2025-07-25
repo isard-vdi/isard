@@ -1833,13 +1833,14 @@ function HypervisorsFavDropdown(selected) {
 function setDefaultsTemplate(id) {
     $.ajax({
         type: "GET",
-        url:"/api/v3/admin/desktop/info/" + id,
+        url:"/api/v3/domain/info/" + id,
         success: function(data)
         {
             $('.template-id').val(id);
             $('.template-id').attr('data-pk', id);
             $('.template-name').val('Template '+data.name);
             $('.template-description').val(data.description);
+            $('#modalTemplateDesktopForm #enabled').iCheck('uncheck').iCheck('update');
         }
     });
 }
