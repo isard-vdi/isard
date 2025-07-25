@@ -16,7 +16,6 @@
             variant="danger"
           />{{ $t('forms.domain.viewers.fullscreen-disabled') }}</label>
           <b-form-checkbox
-            id="checkbox-1"
             v-model="fullscreen"
             switch
           >

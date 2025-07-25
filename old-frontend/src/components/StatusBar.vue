@@ -98,7 +98,6 @@
                     <b-form-checkbox
                       id="started-checkbox"
                       v-model="started"
-                      name="checkbox-1"
                       value="true"
                       unchecked-value="false"
                       aria-hidden="true"

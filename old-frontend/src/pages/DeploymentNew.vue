@@ -53,7 +53,6 @@
               variant="danger"
             />{{ $t('forms.new-deployment.not-visible') }}</label>
             <b-form-checkbox
-              id="checkbox-1"
               v-model="visible"
               switch
             >
