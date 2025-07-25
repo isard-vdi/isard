@@ -463,7 +463,9 @@ def _parse_desktop_booking(desktop):
     if not booking and desktop.get("tag"):
         booking = get_cached_deployment_bookings(desktop.get("tag"))
 
-    if booking:
+    if booking and booking[0].get("reservables", {}).get("vgpus") == desktop.get(
+        "create_dict", {}
+    ).get("reservables", {}).get("vgpus"):
         return {
             "needs_booking": True,
             "next_booking_start": booking[0]["start"].strftime("%Y-%m-%dT%H:%M%z"),
