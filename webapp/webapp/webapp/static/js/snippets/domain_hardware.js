@@ -1,4 +1,4 @@
-function setHardwareOptions(id,default_boot,domain_id){
+function setHardwareOptions(id,default_boot,domain_id,callback){
     default_boot = typeof default_boot !== 'undefined' ? default_boot : 'hd' ;
         // id is the main div id containing hardware.html
         $(id+" #hardware-virtualization_nested").find('option').remove();
@@ -96,6 +96,9 @@ function setHardwareOptions(id,default_boot,domain_id){
                 {
                     $(id+" #reservables-vgpus").append('<option value="' + value.id + '">' + value.name + ' - ' + value.description + '</option>');
                 });
+            }
+            if (callback) {
+                callback();
             }
         });
 }
