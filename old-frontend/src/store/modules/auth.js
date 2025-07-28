@@ -196,21 +196,32 @@ export default {
             webapp.get('/logout/remote')
           }
         }
-      }
-      logoutAxios.post(
-        `${authenticationSegment}/logout`,
-        {}
-      ).then((response) => {
-        if (response.data.redirect) {
-          console.log(response.data.redirect)
-          window.location = response.data.redirect
-        } else if (redirect) {
+        logoutAxios.post(
+          `${authenticationSegment}/logout`,
+          {}
+        ).then((response) => {
+          context.commit('setSession', false)
+          context.commit('resetStore')
+          context.dispatch('closeSocket')
+          if (response.data.redirect) {
+            window.location = response.data.redirect
+          } else if (redirect) {
+            window.location.pathname = '/login'
+          }
+        }).catch((error) => {
+          console.warn('Logout request failed:', error)
+          context.commit('setSession', false)
+          context.commit('resetStore')
+          context.dispatch('closeSocket')
+
           window.location.pathname = '/login'
-        }
-      })
-      context.commit('setSession', false)
-      context.commit('resetStore')
-      context.dispatch('closeSocket')
+        })
+      } else {
+        context.commit('setSession', false)
+        context.commit('resetStore')
+        context.dispatch('closeSocket')
+        window.location.pathname = '/login'
+      }
     },
     saveNavigation (context, payload) {
       const currentRoute = payload.url.name
