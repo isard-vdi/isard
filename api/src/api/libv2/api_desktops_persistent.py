@@ -706,9 +706,9 @@ class ApiDesktopsPersistent:
             desktop = parse_domain_update(d, data, admin_or_manager)
             domain = get_document("domains", d)
 
-            if desktop_data["hardware"]["reservables"]["vgpus"] != domain.get(
-                "create_dict"
-            ).get("reservables", {}).get("vgpus", []):
+            if desktop_data.get("hardware", {}).get("reservables", {}).get(
+                "vgpus", []
+            ) != domain.get("create_dict").get("reservables", {}).get("vgpus", []):
                 # Delete booking when the vGPU profile is changed
                 apib.delete_item_bookings("desktop", d)
 
