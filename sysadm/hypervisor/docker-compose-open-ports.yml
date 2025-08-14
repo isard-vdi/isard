@@ -1,0 +1,4 @@
+services:
+  isard-hypervisor:
+    ports:
+      - "10.100.1.97:2022:2022"
