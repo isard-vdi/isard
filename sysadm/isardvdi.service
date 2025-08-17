@@ -6,11 +6,11 @@ Requires=docker.service
 [Service]
 Restart=always
 WorkingDirectory=/opt/isard/src
-#GPU specific commands before starting if needed.
-#To get the pci bus_id: nvidia-smi --query-gpu=name,pci.bus_id --format=csv
-#ExecStartPre=/usr/lib/nvidia/sriov-manage -e 00:41:0000.0
-ExecStart=docker-compose up
-ExecStop=docker-compose down
+# GPU specific commands before starting if needed.
+# To get the pci bus_id: nvidia-smi --query-gpu=name,pci.bus_id --format=csv
+# ExecStartPre=/usr/lib/nvidia/sriov-manage -e 00:41:0000.0
+ExecStart=docker compose up
+ExecStop=docker compose down
 
 [Install]
 WantedBy=multi-user.target

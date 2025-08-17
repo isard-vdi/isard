@@ -1,51 +1,108 @@
-# IsardVDI
-## All in one
+# IsardVDI Installation Guide
 
-### Debian 10 (buster)
+## All-in-One Installation
 
-#### Install
+### Prerequisites
 
-##### Sources
+#### System Requirements
+
+- Linux distribution with Docker support (Ubuntu 20.04+, Debian 11+, RHEL 8+, etc.)
+- Minimum 4GB RAM, 8GB+ recommended
+- Docker and Docker Compose installed
+- Git installed
+
+#### Install Dependencies
+
+Install Docker and Docker Compose following the official documentation:
+
+- Docker Engine: <https://docs.docker.com/engine/install/>
+- Docker Compose: <https://docs.docker.com/compose/install/>
+
+Install Git if not already available:
+
+```bash
+# Ubuntu/Debian
+apt update && apt install git -y
+
+# RHEL/CentOS/Rocky/AlmaLinux
+dnf install git -y
 ```
-cd /root
-apt install git -y
-git clone --depth 1 --branch develop https://github.com/isard-vdi/isard
+
+### Installation Steps
+
+#### 1. Download Source Code
+
+```bash
+cd /opt
+git clone --depth 1 --branch develop https://github.com/isard-vdi/isardvdi
+cd isardvdi
 ```
 
-##### Config & Personalization
+#### 2. Configuration
 
-Edit contents to fit your server installation.
+Copy and edit the configuration file to fit your server installation:
 
-```
-cd isard
+```bash
 cp isardvdi.cfg.example isardvdi.cfg
 vi isardvdi.cfg
 ```
 
-##### Services & Security
+Key settings to configure:
 
-Install docker, docker-compose and set basic firewall and fail2ban ssh jail.
+- `DOMAIN`: Your server's domain name
+- `DOCKER_IMAGE_TAG`: Version to deploy (latest stable recommended)
+- `WEBAPP_ADMIN_PWD`: Admin password
+- Network and storage settings as needed
 
-```
-cd sysadm
-bash debian_docker.sh
-bash debian_firewall.sh
-cd ..
-```
+#### 3. Deployment Options
 
-##### OPTION A: Pull from docker hub
+##### Option A: Deploy with Pre-built Images (Recommended)
 
-```
+```bash
 bash build.sh
-docker-compose pull && docker-compose up -d
+docker compose pull && docker compose up -d
 ```
 
+##### Option B: Build from Source
 
-##### OPTION B: Build from source
-
-```
+```bash
 bash build.sh
-docker-compose build && docker-compose up -d
+docker compose build && docker compose up -d
 ```
 
+#### 4. System Service (Optional)
 
+To run IsardVDI as a system service, copy the provided service file:
+
+```bash
+cp sysadm/isardvdi.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable isardvdi
+systemctl start isardvdi
+```
+
+### Post-Installation
+
+1. Access the web interface at `https://your-domain`
+2. Login with the admin credentials configured in `isardvdi.cfg`
+3. Follow the initial setup wizard to configure categories, users, and templates
+
+### Firewall Configuration
+
+Ensure the following ports are accessible:
+
+- `80/tcp`: HTTP (redirects to HTTPS)
+- `443/tcp`: HTTPS (web interface)
+- `443/udp`: WireGuard VPN (user connections)
+- `4443/udp`: WireGuard VPN (hypervisor connections)
+
+### Upgrading
+
+Use the automated upgrade script:
+
+```bash
+cd /opt/isardvdi
+./sysadm/upgrade.sh upgrade
+```
+
+For more upgrade options, see: `./sysadm/upgrade.sh --help`
