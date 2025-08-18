@@ -20,13 +20,18 @@ then
 
   if [ ! -f /certs/chain.pem ]
   then
-    if certbot certonly --standalone -d "$LETSENCRYPT_DOMAIN" -m "$LETSENCRYPT_EMAIL" -n --agree-tos --http-01-port 8080
+    # During startup, HAProxy is not running yet, so we can use port 80 directly
+    echo "Attempting to get Let's Encrypt certificate using port 80 (startup phase)"
+    if certbot certonly --standalone -d "$LETSENCRYPT_DOMAIN" -m "$LETSENCRYPT_EMAIL" -n --agree-tos --http-01-port 80
     then
+      echo "Let's Encrypt certificate obtained successfully"
       # Execute the deployment hook manually for initial certificate
       if [ -f /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh ]
       then
         RENEWED_LINEAGE="/etc/letsencrypt/live/$(echo "$LETSENCRYPT_DOMAIN" | tr '[:upper:]' '[:lower:]')" /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh
       fi
+    else
+      echo "Let's Encrypt certificate generation failed, will fallback to self-signed certificates"
     fi
   fi
 fi
