@@ -16,6 +16,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       API_DOMAIN:
       VIDEO_HYPERVISOR_HOSTNAMES:
       VIDEO_HYPERVISOR_PORTS:
