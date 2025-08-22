@@ -39,4 +39,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
     env_file:
       - .env  
+    environment:
+      # OVS Security Configuration (automatic based on API_DOMAIN)
+      API_DOMAIN: ${API_DOMAIN:-}
 

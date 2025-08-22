@@ -1,5 +1,41 @@
+#!/bin/bash
+
+# OVS Security Configuration - Always log for audit trail
+echo "$(date): [SECURITY] OVS VPN setup starting"
+
+# Determine API access based on deployment scenario
+if [ -n "${API_DOMAIN:-}" ]; then
+    # Distributed deployment detected via API_DOMAIN
+    API_ACCESS="${API_DOMAIN}"
+    echo "$(date): [SECURITY] Using API_DOMAIN for access: ${API_ACCESS}"
+else
+    # All-in-one deployment: resolve isard-api service to IP
+    API_ACCESS=$(getent hosts isard-api | awk '{print $1}' | head -1)
+    if [ -z "$API_ACCESS" ]; then
+        # Fallback to container IP if resolution fails
+        API_ACCESS="172.31.255.10"
+        echo "$(date): [SECURITY] Could not resolve isard-api, using fallback IP: ${API_ACCESS}"
+    else
+        echo "$(date): [SECURITY] Resolved isard-api service to IP: ${API_ACCESS}"
+    fi
+fi
+
+echo "$(date): [SECURITY] Final allowed remote access: ${API_ACCESS}"
+
 echo "$(date): INFO: Starting OpenVSWitch server"
-ovsdb-server --detach --remote=punix:/var/run/openvswitch/db.sock --pidfile=ovsdb-server.pid --remote=ptcp:6640  > /var/log/ovs 2>&1
+
+# Build ovsdb-server command with security considerations
+OVSDB_CMD="ovsdb-server --detach --remote=punix:/var/run/openvswitch/db.sock --pidfile=ovsdb-server.pid"
+
+# Add TCP remote access for the determined API access
+OVSDB_CMD="$OVSDB_CMD --remote=ptcp:6640:$API_ACCESS"
+echo "$(date): [SECURITY] Adding TCP remote access for: $API_ACCESS"
+
+# Execute the ovsdb-server command
+$OVSDB_CMD > /var/log/ovs 2>&1
+
+echo "$(date): [SECURITY] ovsdb-server started with restricted access"
+
 ovs-vswitchd --detach --verbose --pidfile  >> /var/log/ovs 2>&1
 
 echo "$(date): INFO: Adding OVS default bridge"
