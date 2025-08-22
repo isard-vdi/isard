@@ -40,3 +40,6 @@ services:
 
       BASTION_SSH_PRIVATE_KEY_PATH:
       BASTION_SSH_HOST:
+
+      # OVS Security Configuration (automatic based on API_DOMAIN)
+      API_DOMAIN: ${API_DOMAIN:-}
