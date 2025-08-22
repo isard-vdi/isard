@@ -1,7 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/sbin/python3
 
 #
-#   Copyright © 2017-2025 Josep Maria Viñolas Auquer
+#   Copyright © 2017-2025 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
 #
 #   This file is part of IsardVDI.
 #
@@ -12,14 +12,15 @@
 #
 #   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
 #   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-#   FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
-#   more details.
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
 #
 #   You should have received a copy of the GNU Affero General Public License
 #   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import argparse
 import concurrent.futures
 import json
 import os
@@ -34,7 +35,6 @@ lock = threading.Lock()
 api = ApiRest()
 
 roles = ["advanced", "manager", "admin"]
-logs_path = "/logs"
 
 
 def get_storages_by_role(role):
@@ -93,7 +93,6 @@ def valid_storages(storages):
     """Check if storages are valid, end with .qcow2, and pass qemu-img info. Parallelized. Updates actual size.
     Returns (valid, invalid) storages lists.
     """
-    print(f"Checking {len(storages)} storages for validity...")
     valid = []
     invalid = []
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -112,23 +111,15 @@ def valid_storages(storages):
     return valid, invalid
 
 
-def save_to_file(filename, data):
+def save_to_file(filename, data, logs_path):
     """Save data to a file, each entry in a new line. Remove file if previously existed."""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    base_name = filename.split(".")[0]
-    extension = filename.split(".")[-1] if "." in filename else ""
-    timestamped_filename = (
-        f"role_disks-{timestamp}-{base_name}.{extension}"
-        if extension
-        else f"role_disks-{timestamp}-{base_name}"
-    )
-    filepath = os.path.join(logs_path, timestamped_filename)
+    filepath = os.path.join(logs_path, filename)
     with lock:
         with open(filepath, "w") as file:
             file.write(data + "\n")
 
 
-def report_storage_table(storages, role):
+def report_storage_table(storages, role, logs_path):
     """Print a summary and detailed report of storages for a given role, and save as markdown."""
     if not storages:
         print(f"No storages found for role '{role}'.")
@@ -187,8 +178,7 @@ def report_storage_table(storages, role):
         md_lines.append(f"| {dt_str:20} | {actual_size / (1024**3):17.2f} | `{path}` |")
 
     md_report = "\n".join(md_lines)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    md_filename = os.path.join(logs_path, f"role_disks-{timestamp}-{role}_storages.md")
+    md_filename = os.path.join(logs_path, f"{role}_storages.md")
     with lock:
         with open(md_filename, "w") as f:
             f.write(md_report)
@@ -196,27 +186,76 @@ def report_storage_table(storages, role):
 
 
 if __name__ == "__main__":
+    start_time = datetime.now()
+
+    parser = argparse.ArgumentParser(description="Generate storage reports by role")
+    parser.add_argument(
+        "--base-path",
+        default="/logs",
+        help="Base path for /disks-by-role logs directory (default: /logs in docker /opt/isard-local/logs/storage in host)",
+    )
+    args = parser.parse_args()
+
+    logs_path = os.path.join(args.base_path, "disks-by-role")
     os.makedirs(logs_path, exist_ok=True)
+
+    print(
+        f"[{start_time.strftime('%Y-%m-%d %H:%M:%S')}] Starting storage reports by role - Output: {logs_path}"
+    )
+
+    def format_size(size_bytes):
+        """Convert bytes to human readable format."""
+        if size_bytes == 0:
+            return "0 B"
+        for unit in ["B", "KB", "MB", "GB", "TB"]:
+            if size_bytes < 1024.0:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024.0
+        return f"{size_bytes:.1f} PB"
+
     resume = []
     for role in roles:
+        role_start_time = datetime.now()
+
         storages = get_storages_by_role(role)
         valid_storages_list, invalid_storages_list = valid_storages(storages)
-        print(f"Found {len(storages)} desktop storages with role '{role}'")
-        print(f"Found {len(valid_storages_list)} valid storages with role '{role}'")
-        print(f"Found {len(invalid_storages_list)} invalid storages with role '{role}'")
+
+        # Calculate total size for valid storages
+        total_size = sum(
+            storage.get("actual-size", 0) for storage in valid_storages_list
+        )
+
+        role_elapsed = datetime.now() - role_start_time
+        print(
+            f"[{role_start_time.strftime('%H:%M:%S')}] {role}: {len(storages)} total, {len(valid_storages_list)} valid ({format_size(total_size)}), {len(invalid_storages_list)} invalid - {role_elapsed.total_seconds():.1f}s"
+        )
+
         save_to_file(
             f"invalid_storages_{role}.list",
             "\n".join([storage["path"] for storage in invalid_storages_list]),
+            logs_path,
         )
 
         storage_paths = [storage["path"] for storage in valid_storages_list]
-        save_to_file(f"{role}_storages.list", "\n".join(storage_paths))
-        md_filename, resume_lines = report_storage_table(valid_storages_list, role)
+        save_to_file(f"{role}_storages.list", "\n".join(storage_paths), logs_path)
+        md_filename, resume_lines = report_storage_table(
+            valid_storages_list, role, logs_path
+        )
 
         resume.extend(resume_lines)
 
-    print("\n---\n".join(resume))
-    print(f"\nReports saved in {logs_path}.")
-    print("You can check the markdown files for detailed reports.")
-    print("You can also check the .list files for paths of valid storages.")
-    print("Invalid storages paths are saved in invalid_storages_<role>.list files.")
+    end_time = datetime.now()
+    total_elapsed = end_time - start_time
+
+    print(
+        f"[{end_time.strftime('%Y-%m-%d %H:%M:%S')}] Completed in {total_elapsed.total_seconds():.1f}s - Reports: {logs_path}"
+    )
+
+    # Only show summary if there are results
+    if resume:
+        print("Summary:")
+        for line in resume:
+            if line.startswith("# Storage Report") or line.startswith("- **"):
+                print(f"  {line}")
+            if line.startswith("---"):
+                break
