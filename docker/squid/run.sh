@@ -13,7 +13,7 @@ fi
 cat <<EOT > /etc/squid/squid.conf
 pid_filename none
 read_timeout 120 minutes
-half_closed_clients on
+half_closed_clients off
 acl SPICE_HOSTS dst $HOSTS
 acl SPICE_PORTS dst $VIDEO_HYPERVISOR_PORTS
 acl CONNECT method CONNECT
