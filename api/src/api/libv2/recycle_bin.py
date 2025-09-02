@@ -647,12 +647,15 @@ def get_user_recycle_bin_cutoff_time(user_id):
         user_category = (
             r.table("users").get(user_id).pluck("category")["category"].run(db.conn)
         )
-        return (
+        cutoff_time = (
             r.table("categories")
             .get(user_category)
             .pluck("recycle_bin_cutoff_time")["recycle_bin_cutoff_time"]
             .run(db.conn)
         )
+    return (
+        cutoff_time if cutoff_time is not None else get_system_recycle_bin_cutoff_time()
+    )
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=10))
