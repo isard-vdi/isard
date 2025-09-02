@@ -1341,7 +1341,7 @@ class Quotas:
                 ]
 
         # If limited interfaces hasn't old values we remove the key
-        if not len(limited["interfaces"]["old_value"]):
+        if limited.get("interfaces") and not len(limited["interfaces"]["old_value"]):
             limited.pop("interfaces")
 
         if len(create_dict["hardware"].get("videos", [])):
