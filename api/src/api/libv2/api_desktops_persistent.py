@@ -187,11 +187,6 @@ class ApiDesktopsPersistent:
             )
 
         if new_data:
-            # In new data interfaces are a list of ids
-            if not new_data.get("hardware", {}).get("interfaces"):
-                new_data["hardware"]["interfaces"] = template["create_dict"][
-                    "hardware"
-                ]["interfaces"]
             template["create_dict"]["hardware"] = {
                 **template["create_dict"]["hardware"],
                 **parse_domain_insert(new_data)["hardware"],
@@ -472,7 +467,7 @@ class ApiDesktopsPersistent:
             quotas.desktop_create(user_id)
 
         template["create_dict"]["hardware"]["interfaces"] = [
-            i["id"] for i in template["create_dict"]["hardware"].get("interfaces", {})
+            i["id"] for i in template["create_dict"]["hardware"].get("interfaces", [])
         ]
         for user_id in users:
             desktop_data = {
@@ -797,9 +792,6 @@ class ApiDesktopsPersistent:
                     interface["id"]
                     for interface in domain["create_dict"]["hardware"]["interfaces"]
                 ]
-            elif data.get("hardware", {}).get("interfaces") == []:
-                data["hardware"] = {"interfaces": []}
-                viewers_hardware["interfaces"] = []
             else:
                 viewers_hardware["interfaces"] = data["hardware"]["interfaces"]
 

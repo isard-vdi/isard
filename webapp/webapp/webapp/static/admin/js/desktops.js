@@ -355,6 +355,10 @@ $(document).ready(function() {
                     data['edit-hardware'] = true
                 }
             }
+
+            if (data['edit-network'] && (data['hardware-interfaces'] === undefined || data['hardware-interfaces'] === null)) {
+                data['hardware-interfaces'] = [];
+            }
             data = parse_desktop_bulk(data)
 
             var notice = new PNotify({
@@ -1960,6 +1964,9 @@ function renderAction(data){
             if (form.parsley().isValid()){
                 data=$('#modalEdit').serializeObject();
                 data['reservables-vgpus'] = [data['reservables-vgpus']]
+                if (data['hardware-interfaces'] === undefined || data['hardware-interfaces'] === null) {
+                    data['hardware-interfaces'] = [];
+                }
                 data=parse_desktop(JSON.unflatten(parseViewersOptions(data)));
                 var notice = new PNotify({
                     text: 'Updating selected item...',

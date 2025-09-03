@@ -256,7 +256,6 @@
           :close-on-select="false"
           :multiple="true"
           :reduce="element => element.id"
-          @search:blur="v$.interfaces.$touch"
         >
           <template #search="{ attributes, events }">
             <input
@@ -267,13 +266,6 @@
             >
           </template>
         </v-select>
-        <div
-          v-if="v$.interfaces.$error"
-          id="interfacesError"
-          class="text-danger"
-        >
-          {{ $t(`validations.${v$.interfaces.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.interfaces")}` }) }}
-        </div>
         <span v-if="domain.kind === 'desktop'">
           <template
             v-for="(network, index) in interfaces"
@@ -407,9 +399,6 @@ export default {
         diskBus: {
           required
         },
-        interfaces: {
-          required
-        },
         diskSize: {
           required: requiredIf(function () {
             return !!props.showDiskSize
@@ -422,7 +411,6 @@ export default {
         videos,
         bootOrder,
         diskBus,
-        interfaces,
         diskSize
       })
     }
