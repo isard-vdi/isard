@@ -1,0 +1,26 @@
+version: '3.5'
+services:
+  isard-vpn:
+    depends_on:
+      - isard-pipework
+    environment:
+      - pipework_cmd=--direct-phys ${HYPERVISOR_HOST_TRUNK_INTERFACE} -i ${HYPERVISOR_HOST_TRUNK_INTERFACE} isard-vpn 0/0
+  # https://gitlab.com/isard/dreamcat4-docker-images/pipework (isardvdi branch)
+  isard-pipework:
+    image: registry.gitlab.com/isard/isardvdi/pipework:latest
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    container_name: isard-pipework
+    volumes:
+      - /var/run/docker.sock:/docker.sock
+    privileged: true
+    pid: host # THIS REQUIRES COMPOSE v1.3.0 & DOCKER v1.6.0
+    network_mode: host
+    environment:
+      - run_mode=batch,daemon
+      - host_routes=true
+      - route_add_delay=1
+

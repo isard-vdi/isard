@@ -59,6 +59,18 @@ ovs-vsctl add-port ovsbr0 bastion -- set interface bastion type=geneve options:r
 # Samba port
 ovs-vsctl add-port ovsbr0 samba -- set interface samba type=geneve options:remote_ip=172.31.255.100 >> /var/log/ovs 2>&1
 
+# Handle trunk interface mapping (similar to hypervisor)
+if [ -z ${HYPERVISOR_HOST_TRUNK_INTERFACE+x} ];
+then
+    echo "$(date): INFO: No VPN trunk interface set in isardvdi.cfg"
+else
+    echo "$(date): INFO: Activating RSTP for VPN trunk"
+    ovs-vsctl set Bridge ovsbr0 rstp_enable=true
+    echo "$(date): INFO: Setting VPN trunk interface: '$HYPERVISOR_HOST_TRUNK_INTERFACE'"
+    ovs-vsctl add-port ovsbr0 $HYPERVISOR_HOST_TRUNK_INTERFACE
+    echo "$(date): INFO: VPN trunk interface $HYPERVISOR_HOST_TRUNK_INTERFACE added to OVS bridge"
+fi
+
 mkdir -p /var/run/dnsmasq
 mkdir -p /var/lib/dnsmasq
 cat <<EOT > /etc/dnsmasq.d/vlan-wg.conf
