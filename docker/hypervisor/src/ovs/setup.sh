@@ -52,10 +52,11 @@ fi
 
 ovs-vsctl show
 
-# Every ARP request coming from isard-vpn should be flooded to all ports
-ovs-ofctl add-flow ovsbr0 "priority=202,dl_type=0x0806,dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.1,actions=strip_vlan,output:all"
-# Also if coming from bastion
-ovs-ofctl add-flow ovsbr0 "priority=202,dl_type=0x0806,dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.2,actions=strip_vlan,output:all"
+# Allow ARP broadcasts from all infrastructure services (10.2.0.1-10.2.0.4)
+ovs-ofctl add-flow ovsbr0 "priority=202,arp,dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.1,actions=strip_vlan,output:all"  # gw
+ovs-ofctl add-flow ovsbr0 "priority=202,arp,dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.2,actions=strip_vlan,output:all"  # bastion
+ovs-ofctl add-flow ovsbr0 "priority=202,arp,dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.3,actions=strip_vlan,output:all"  # samba
+ovs-ofctl add-flow ovsbr0 "priority=202,arp,dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.4,actions=strip_vlan,output:all"  # guacamole
 
 # ip a f eth0
 #ovs-vsctl add-port ovsbr0 eth0
