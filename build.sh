@@ -336,17 +336,31 @@ flavour(){
 	for part in $@
 	do
 		parts="$parts $part"
-		if [ "$part" = "hypervisor" -a -n "$HYPERVISOR_HOST_TRUNK_INTERFACE" ]
-		then
-			parts="$parts hypervisor-vlans"
-                        echo "WARNING: Will take host interface $HYPERVISOR_HOST_TRUNK_INTERFACE and put it inside hypervisor container"
-                        echo "         So interface WILL DISSAPPEAR from host"
-                        echo "         With this configuration, when you restart container the interface could be missing,"
-                        echo "         so, better do '$DOCKER_COMPOSE  -f docker-compose.hypervisor.yml down' and wait a minute"
-                        echo "         till the interface $HYPERVISOR_HOST_TRUNK_INTERFACE is visible in the host again!"
-                        echo ""
-		fi
 	done
+
+	# Handle HYPERVISOR_HOST_TRUNK_INTERFACE mapping logic
+	if [ -n "$HYPERVISOR_HOST_TRUNK_INTERFACE" ]; then
+		if echo "$parts" | grep -q "\(^\|\s\)hypervisor\(\s\|$\)"; then
+			# Hypervisor is present, add hypervisor-vlans
+			parts="$parts hypervisor-vlans"
+			echo "WARNING: Will take host interface $HYPERVISOR_HOST_TRUNK_INTERFACE and put it inside hypervisor container"
+			echo "         So interface WILL DISSAPPEAR from host"
+			echo "         With this configuration, when you restart container the interface could be missing,"
+			echo "         so, better do '$DOCKER_COMPOSE -f docker-compose.hypervisor.yml down' and wait a minute"
+			echo "         till the interface $HYPERVISOR_HOST_TRUNK_INTERFACE is visible in the host again!"
+			echo ""
+		elif echo "$parts" | grep -q "\(^\|\s\)vpn\(\s\|$\)"; then
+			# No hypervisor but VPN is present, add vpn-vlans
+			parts="$parts vpn-vlans"
+			echo "WARNING: Will take host interface $HYPERVISOR_HOST_TRUNK_INTERFACE and put it inside vpn container"
+			echo "         So interface WILL DISSAPPEAR from host"
+			echo "         With this configuration, when you restart container the interface could be missing,"
+			echo "         so, better do '$DOCKER_COMPOSE -f docker-compose.yml down' and wait a minute"
+			echo "         till the interface $HYPERVISOR_HOST_TRUNK_INTERFACE is visible in the host again!"
+			echo ""
+		fi
+	fi
+
 	variants "$config_name" $parts
 }
 
