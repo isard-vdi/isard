@@ -43,6 +43,10 @@ services:
       - BACKUP_DIR=${BACKUP_DIR-/opt/isard-local/backup}
       - BACKUP_REPORT_EMAIL=${BACKUP_REPORT_EMAIL-root}
 
+      # API settings for backup reporting
+      - API_DOMAIN=${API_DOMAIN-isard-api}
+      - API_ISARDVDI_SECRET=${API_ISARDVDI_SECRET}
+
       # NFS
       - BACKUP_NFS_ENABLED=${BACKUP_NFS_ENABLED-false}
       - BACKUP_NFS_SERVER=${BACKUP_NFS_SERVER-}

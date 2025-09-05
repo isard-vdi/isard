@@ -83,4 +83,4 @@ def internal_error(error):
 """
 Import all views
 """
-from .views import AdminViews
+from .views import AdminBackupsWebView, AdminViews

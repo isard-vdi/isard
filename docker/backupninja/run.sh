@@ -16,6 +16,7 @@ umount_nfs() {
 
 # Prepare BackupNinja
 LOG_FILE="/var/log/backupninja.log"
+export LOG_FILE
 touch $LOG_FILE
 sed -i '/^logfile =/d' /usr/local/etc/backupninja.conf
 echo "logfile = $LOG_FILE" >> /usr/local/etc/backupninja.conf
@@ -48,6 +49,9 @@ mkdir -p /backup/extract
 # Unmount if nfs as it will be mounted at backup cron time
 umount_nfs
 
+# Export empty variable for envsubst template processing
+export my_empty_variable=""
+
 #
 # DB
 #
@@ -57,13 +61,21 @@ if [ "$BACKUP_DB_ENABLED" = "true" ]; then
         echo "                  Logs can be found at $LOG_FILE folder"
     fi
 
-    jobs="10-db-info.sh"
-    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 11-db-nfs-mount.sh"
-    jobs="$jobs 12-db-dump.sh 13-db-borg.borg 14-db-compact.sh"
-    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 19-db-nfs-umount.sh"
+    template_jobs="10-db-info.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 11-db-nfs-mount.sh"
+    template_jobs="$template_jobs 12-db-dump.sh 13-db-borg.borg 14-db-compact.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 19-db-nfs-umount.sh"
+    
+    static_jobs="15-db-borg-stats.sh"
 
-    for job in $jobs; do
+    for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+    done
+    
+    for job in $static_jobs; do
+        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+        # Add when clause to static jobs so they get scheduled
+        sed -i "1a\\when = $BACKUP_DB_WHEN" "/usr/local/etc/backup.d/$job"
     done
 fi
 
@@ -76,13 +88,21 @@ if [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
         echo "                  Logs can be found at $LOG_FILE folder"
     fi
 
-    jobs="20-redis-info.sh"
-    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 21-redis-nfs-mount.sh"
-    jobs="$jobs 22-redis-dump.sh 23-redis-borg.borg 24-redis-compact.sh"
-    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 29-redis-nfs-umount.sh"
+    template_jobs="20-redis-info.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 21-redis-nfs-mount.sh"
+    template_jobs="$template_jobs 22-redis-dump.sh 23-redis-borg.borg 24-redis-compact.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 29-redis-nfs-umount.sh"
+    
+    static_jobs="25-redis-borg-stats.sh"
 
-    for job in $jobs; do
+    for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+    done
+    
+    for job in $static_jobs; do
+        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+        # Add when clause to static jobs so they get scheduled
+        sed -i "1a\\when = $BACKUP_REDIS_WHEN" "/usr/local/etc/backup.d/$job"
     done
 fi
 
@@ -95,13 +115,21 @@ if [ "$BACKUP_STATS_ENABLED" = "true" ]; then
         echo "                  Logs can be found at $LOG_FILE folder"
     fi
 
-    jobs="30-stats-info.sh"
-    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 31-stats-nfs-mount.sh"
-    jobs="$jobs 32-stats-dump.sh 33-stats-borg.borg 34-stats-compact.sh"
-    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 39-stats-nfs-umount.sh"
+    template_jobs="30-stats-info.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 31-stats-nfs-mount.sh"
+    template_jobs="$template_jobs 32-stats-dump.sh 33-stats-borg.borg 34-stats-compact.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 39-stats-nfs-umount.sh"
+    
+    static_jobs="35-stats-borg-stats.sh"
 
-    for job in $jobs; do
+    for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+    done
+    
+    for job in $static_jobs; do
+        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+        # Add when clause to static jobs so they get scheduled
+        sed -i "1a\\when = $BACKUP_STATS_WHEN" "/usr/local/etc/backup.d/$job"
     done
 fi
 
@@ -114,13 +142,21 @@ if [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
         echo "                  Logs can be found at $LOG_FILE folder"
     fi
 
-    jobs="80-config-info.sh"
-    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 81-config-nfs-mount.sh"
-    jobs="$jobs 82-config-borg.borg 84-config-compact.sh"
-    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 89-config-nfs-umount.sh"
+    template_jobs="80-config-info.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 81-config-nfs-mount.sh"
+    template_jobs="$template_jobs 82-config-borg.borg 84-config-compact.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 89-config-nfs-umount.sh"
+    
+    static_jobs="85-config-borg-stats.sh"
 
-    for job in $jobs; do
+    for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
+    done
+    
+    for job in $static_jobs; do
+        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+        # Add when clause to static jobs so they get scheduled
+        sed -i "1a\\when = $BACKUP_CONFIG_WHEN" "/usr/local/etc/backup.d/$job"
     done
 fi
 
@@ -160,14 +196,78 @@ if [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
     fi
 
 
-    jobs="90-disks-info.sh"
-    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 91-disks-nfs-mount.sh"
-    jobs="$jobs 92-disks-borg.borg 94-disks-compact.sh"
-    [ "$BACKUP_NFS_ENABLED" = "true" ] && jobs="$jobs 99-disks-nfs-umount.sh"
+    template_jobs="90-disks-info.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 91-disks-nfs-mount.sh"
+    template_jobs="$template_jobs 92-disks-borg.borg 94-disks-compact.sh"
+    [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 99-disks-nfs-umount.sh"
+    
+    static_jobs="95-disks-borg-stats.sh"
 
-    for job in $jobs; do
+    for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
     done
+    
+    for job in $static_jobs; do
+        cp "/usr/local/share/backup.d/$job" "/usr/local/etc/backup.d/$job"
+        # Add when clause to static jobs so they get scheduled
+        sed -i "1a\\when = $BACKUP_DISKS_WHEN" "/usr/local/etc/backup.d/$job"
+    done
+fi
+
+# Add session start and end markers for automated backups based on 'when' schedules
+ENABLED_WHEN_SCHEDULES=""
+[ "$BACKUP_DB_ENABLED" = "true" ] && ENABLED_WHEN_SCHEDULES="$ENABLED_WHEN_SCHEDULES|$BACKUP_DB_WHEN"
+[ "$BACKUP_REDIS_ENABLED" = "true" ] && ENABLED_WHEN_SCHEDULES="$ENABLED_WHEN_SCHEDULES|$BACKUP_REDIS_WHEN"
+[ "$BACKUP_STATS_ENABLED" = "true" ] && ENABLED_WHEN_SCHEDULES="$ENABLED_WHEN_SCHEDULES|$BACKUP_STATS_WHEN"
+[ "$BACKUP_CONFIG_ENABLED" = "true" ] && ENABLED_WHEN_SCHEDULES="$ENABLED_WHEN_SCHEDULES|$BACKUP_CONFIG_WHEN"
+[ "$BACKUP_DISKS_ENABLED" = "true" ] && ENABLED_WHEN_SCHEDULES="$ENABLED_WHEN_SCHEDULES|$BACKUP_DISKS_WHEN"
+
+# Get unique when schedules (preserve whole phrases using | as delimiter)
+UNIQUE_SCHEDULES=$(echo "$ENABLED_WHEN_SCHEDULES" | tr '|' '\n' | grep -v "^$" | sort -u | grep -v "disabled")
+
+# Create session start marker for automated backups if any schedules are enabled
+if [ -n "$UNIQUE_SCHEDULES" ] && [ "$UNIQUE_SCHEDULES" != "" ]; then
+    # Create a single start marker script for all automated backups
+    START_SCRIPT="/usr/local/etc/backup.d/1-backup-start.sh"
+    # Extract the first schedule for the start marker (they should all be the same anyway)
+    FIRST_SCHEDULE=$(echo "$UNIQUE_SCHEDULES" | head -n1)
+    cat > "$START_SCRIPT" << EOF
+#!/bin/sh
+# Add backup session start marker for automated backups
+LOG_FILE="/var/log/backupninja.log"
+echo "\$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_START: automated full backup initiated by cron (schedule: $FIRST_SCHEDULE)" >> \$LOG_FILE
+EOF
+    chmod 700 "$START_SCRIPT"
+    
+    # Set the schedule for the start marker to match enabled backups
+    if [ "$BACKUP_DB_ENABLED" = "true" ]; then
+        sed -i "1a\\when = $BACKUP_DB_WHEN" "$START_SCRIPT"
+    elif [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
+        sed -i "1a\\when = $BACKUP_REDIS_WHEN" "$START_SCRIPT"
+    elif [ "$BACKUP_STATS_ENABLED" = "true" ]; then
+        sed -i "1a\\when = $BACKUP_STATS_WHEN" "$START_SCRIPT"
+    elif [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
+        sed -i "1a\\when = $BACKUP_CONFIG_WHEN" "$START_SCRIPT"
+    elif [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
+        sed -i "1a\\when = $BACKUP_DISKS_WHEN" "$START_SCRIPT"
+    fi
+    
+    # Copy the reporting script as a static job for automated backups
+    cp "/usr/local/share/backup.d/99-send-backup-report.sh" "/usr/local/etc/backup.d/99-send-backup-report.sh"
+    chmod 700 "/usr/local/etc/backup.d/99-send-backup-report.sh"
+    
+    # Set the schedule for the reporting script to match any enabled backup
+    if [ "$BACKUP_DB_ENABLED" = "true" ]; then
+        sed -i "1a\\when = $BACKUP_DB_WHEN" "/usr/local/etc/backup.d/99-send-backup-report.sh"
+    elif [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
+        sed -i "1a\\when = $BACKUP_REDIS_WHEN" "/usr/local/etc/backup.d/99-send-backup-report.sh"
+    elif [ "$BACKUP_STATS_ENABLED" = "true" ]; then
+        sed -i "1a\\when = $BACKUP_STATS_WHEN" "/usr/local/etc/backup.d/99-send-backup-report.sh"
+    elif [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
+        sed -i "1a\\when = $BACKUP_CONFIG_WHEN" "/usr/local/etc/backup.d/99-send-backup-report.sh"
+    elif [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
+        sed -i "1a\\when = $BACKUP_DISKS_WHEN" "/usr/local/etc/backup.d/99-send-backup-report.sh"
+    fi
 fi
 
 # Set correct permissions to the files
@@ -211,21 +311,46 @@ backup_args() {
 case "$1" in
     "execute-now")
         execute_now() {
-            find /usr/local/etc/backup.d -name "$1" | sort | xargs -I% backupninja --run % --now
+            # Exclude the reporting script from manual execution to avoid duplicate reports
+            find /usr/local/etc/backup.d -name "$1" | grep -v "99-send-backup-report" | sort | xargs -I% backupninja --run % --now
         }
 
+        # Add backup session start marker
+        echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_START: manual $2 backup initiated by user" >> "$LOG_FILE"
+        
         backup_args "$2"
         execute_now "$BACKUP_SCRIPTS_PREFIX"
+        
+        # Add backup session end marker
+        echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_END: manual $2 backup completed" >> "$LOG_FILE"
+        
+        # Send backup report to API after manual execution
+        echo "Sending backup report to API..."
+        export BACKUP_TYPE="manual"
+        python3 /usr/local/bin/backup_report.py
         ;;
 
     "execute-now-all")
         execute_now() {
-            find /usr/local/etc/backup.d -name "$1" | sort | xargs -I% backupninja --run % --now
+            # Exclude the reporting script from manual execution to avoid duplicate reports
+            find /usr/local/etc/backup.d -name "$1" | grep -v "99-send-backup-report" | sort | xargs -I% backupninja --run % --now
         }
+        
+        # Add backup session start marker for all backups
+        echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_START: manual full backup initiated by user" >> "$LOG_FILE"
+        
         for backup_type in "db" "redis" "stats" "config" "disks"; do
             backup_args "$backup_type"
             execute_now "$BACKUP_SCRIPTS_PREFIX"
         done
+        
+        # Add backup session end marker
+        echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_END: manual full backup completed" >> "$LOG_FILE"
+        
+        # Send backup report to API after manual execution of full backup
+        echo "Sending backup report to API..."
+        export BACKUP_TYPE="manual"
+        python3 /usr/local/bin/backup_report.py
         ;;
 
     "list")

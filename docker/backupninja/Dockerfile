@@ -26,14 +26,21 @@ RUN apk add --no-cache \
     curl \
     coreutils \
     flock \
-    py3-pip
+    py3-pip \
+    jq
 ## Optional packages
 #cryptsetup duplicity flashrom gzip hwinfo rdiff-backup restic rsync sfdisk
 
 RUN pip3 install \
     --no-cache-dir \
     --break-system-packages \
-    rethinkdb
+    rethinkdb \
+    requests \
+    pyjwt
+
+# Set up Python path for common imports
+ENV PYTHONPATH /opt/isardvdi
+COPY component/_common/src /opt/isardvdi/isardvdi_common
 
 # Install backupninja
 COPY --from=build /usr/local/sbin/backupninja /usr/local/sbin/backupninja
@@ -49,6 +56,8 @@ RUN ln -s /usr/local/sbin/backupninja /etc/periodic/hourly/backupninja
 COPY docker/backupninja/run.sh /usr/local/bin/
 COPY docker/backupninja/nfs_mount.sh /usr/local/bin/
 COPY docker/backupninja/nfs_umount.sh /usr/local/bin/
+COPY docker/backupninja/backup_report.py /usr/local/bin/
+RUN chmod +x /usr/local/bin/backup_report.py
 COPY docker/backupninja/backup.d /usr/local/share/backup.d
 
 WORKDIR /

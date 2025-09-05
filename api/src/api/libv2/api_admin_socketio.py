@@ -608,21 +608,16 @@ class ConfigThread(threading.Thread):
             try:
                 with app.app_context():
                     for c in (
-                        r.table("backups")
-                        .merge({"table": "backups"})
-                        .changes(include_initial=False)
-                        .union(
-                            r.table("scheduler_jobs")
-                            .has_fields("name")
-                            .without("job_state")
-                            .merge(
-                                {
-                                    "table": "scheduler_jobs",
-                                    "date": r.row["date"].to_iso8601(),
-                                }
-                            )
-                            .changes(include_initial=False)
+                        r.table("scheduler_jobs")
+                        .has_fields("name")
+                        .without("job_state")
+                        .merge(
+                            {
+                                "table": "scheduler_jobs",
+                                "date": r.row["date"].to_iso8601(),
+                            }
                         )
+                        .changes(include_initial=False)
                         .run(db.conn)
                     ):
                         if self.stop == True:
@@ -643,20 +638,6 @@ class ConfigThread(threading.Thread):
                                 namespace="/administrators",
                                 room="admins",
                             )
-
-                            # ~ event= 'backup_deleted' if c['old_val']['table']=='backups' else 'sch_deleted'
-                            # ~ socketio.emit(event,
-                            # ~ json.dumps(c['old_val']),
-                            # ~ namespace='/administrators',
-                            # ~ room='config')
-                        # ~ else:
-                        # ~ event='backup_data' if c['new_val']['table']=='backups' else 'sch_data'
-                        # ~ if event=='sch_data' and 'name' not in c['new_val'].keys():
-                        # ~ continue
-                        # ~ socketio.emit(event,
-                        # ~ json.dumps(c['new_val']),
-                        # ~ namespace='/administrators',
-                        # ~ room='config')
             except ReqlDriverError:
                 print("ConfigThread: Rethink db connection lost!")
                 app.logger.error("ConfigThread: Rethink db connection lost!")

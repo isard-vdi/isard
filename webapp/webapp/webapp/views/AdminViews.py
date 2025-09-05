@@ -543,6 +543,17 @@ def admin_users_authentication():
     )
 
 
+@app.route("/isard-admin/admin/backups", methods=["GET"])
+@login_required
+@isAdmin
+def admin_backups():
+    return render_webapp(
+        "admin/pages/backups.html",
+        nav="Backups",
+        title="Backups",
+    )
+
+
 @app.route("/isard-admin/admin/system", methods=["GET"])
 @login_required
 @isAdmin
