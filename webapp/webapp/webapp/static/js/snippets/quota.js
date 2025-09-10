@@ -90,7 +90,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
                 $(parentid+"#quota-total_soft_size").val(usrquota.quota.total_soft_size);
                 $(parentid+"#quota-deployments_total").val(usrquota.quota.deployments_total);
                 $(parentid+"#quota-deployment_desktops").val(usrquota.quota.deployment_desktops);
-                $(parentid+"#quota-started_deployment_desktops").val(usrquota.quota.deployment_desktops);
+                $(parentid+"#quota-started_deployment_desktops").val(usrquota.quota.started_deployment_desktops);
             }else{
                 $(parentid+"#unlimited").iCheck('check');
                 enable=false
