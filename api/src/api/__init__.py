@@ -122,6 +122,15 @@ from api.libv2.bookings.api_booking import check_all_bookings
 check_all_bookings()
 
 
+from api.libv2.api_targets import (
+    update_bastion_desktops_haproxy_map,
+    update_bastion_haproxy_map,
+)
+
+update_bastion_haproxy_map()
+update_bastion_desktops_haproxy_map()
+
+
 """'
 Import all views
 """
