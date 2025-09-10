@@ -66,7 +66,7 @@ class LogsUsers:
             self.insert(payload)
             self.conn.close()
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.conn.close()
 
     @cached(users_cache, key=user_key)
