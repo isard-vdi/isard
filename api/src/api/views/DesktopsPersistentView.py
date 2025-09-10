@@ -110,6 +110,17 @@ def api_v3_desktop_start(payload, desktop_id):
                 raise e
 
         if desktop["needs_booking"]:
+            # If the user is neither admin or manager check that we are in a booking
+            if (
+                not payload["role_id"] in ["admin", "manager"]
+                and not desktop["booking_id"]
+            ):
+                raise Error(
+                    "precondition_required",
+                    "Desktop needs a booking to be started",
+                    description_code="desktop_not_booked",
+                )
+            # Check that the current plan is the one that allows to start the desktop
             try:
                 desktops.check_current_plan(payload, desktop_id)
             except Error as e:
@@ -119,7 +130,6 @@ def api_v3_desktop_start(payload, desktop_id):
                     "needs_deployment_booking",
                 ] or payload["role_id"] not in ["admin", "manager"]:
                     raise e
-
         # So now we have checked if desktop exists and if we can create and/or start it
         desktop_id = desktops.Start(desktop_id)
         logs_domain_start_api(
