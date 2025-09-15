@@ -712,6 +712,23 @@ WG_GUESTS_RESERVED_HOSTS=20
 # Set this to true if you want to test the infrastructure management. It won't run the actions
 #INFRASTRUCTURE_DRY_RUN=false
 
+# Set this to the internal network IP address of THIS HOST to expose core infrastructure services
+# for access from other infrastructure servers (hypervisor nodes, monitoring servers, etc.)
+# ONLY SET THIS on hosts that run central services (web, all-in-one, web+monitor flavours) that need
+# to be accessible from remote infrastructure nodes. This exposes:
+# - Database (RethinkDB) port 28015
+# - Redis port 6379
+# - Loki port 3100 (if monitoring enabled)
+# - Prometheus port 9090 (if monitoring enabled)
+#
+# ALTERNATIVE: If you don't set this variable, you'll need to configure firewall rules to allow
+# remote infrastructure nodes to reach the internal Docker container IPs (refer to documentation).
+#
+# SECURITY WARNING: Add this IP network to BLACKLIST_IPTABLES to prevent guest VMs from accessing
+# these infrastructure services on hypervisor nodes.
+# Example: INFRASTRUCTURE_HOST_IP=192.168.1.100
+#INFRASTRUCTURE_HOST_IP=
+
 # ------ Orchestrator -----------------------------------------------------
 # The interval at which the infrastructure status is going to be checked
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
