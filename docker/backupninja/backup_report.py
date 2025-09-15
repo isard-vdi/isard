@@ -545,31 +545,37 @@ class BackupLogParser:
                     stats_data = json.loads(stats_json)
 
                     # Create borg statistics structure
+                    stats_dict = stats_data.get("stats", {})
                     borg_stats = {
                         "repository": f"/backup/{backup_type}",
                         "backup_type": backup_type,
-                        "file_count": stats_data.get("nfiles"),
+                        "file_count": stats_dict.get("nfiles"),
                         "original_size": self._format_bytes(
-                            stats_data.get("original_size", 0)
+                            stats_dict.get("original_size", 0)
                         ),
                         "compressed_size": self._format_bytes(
-                            stats_data.get("compressed_size", 0)
+                            stats_dict.get("compressed_size", 0)
                         ),
                         "deduplicated_size": self._format_bytes(
-                            stats_data.get("deduplicated_size", 0)
+                            stats_dict.get("deduplicated_size", 0)
                         ),
-                        "original_size_bytes": stats_data.get("original_size", 0),
-                        "compressed_size_bytes": stats_data.get("compressed_size", 0),
-                        "deduplicated_size_bytes": stats_data.get(
+                        "original_size_bytes": stats_dict.get("original_size", 0),
+                        "compressed_size_bytes": stats_dict.get("compressed_size", 0),
+                        "deduplicated_size_bytes": stats_dict.get(
                             "deduplicated_size", 0
                         ),
                     }
 
                     # Find the corresponding borg action to attach the statistics
                     for action in actions:
+                        action_basename = (
+                            action.name.split("/")[-1].lower()
+                            if "/" in action.name
+                            else action.name.lower()
+                        )
                         if (
-                            backup_type in action.name.lower()
-                            and "borg" in action.name.lower()
+                            backup_type in action_basename
+                            and "borg.borg" in action_basename
                             and not hasattr(action, "borg_statistics")
                         ):
                             action.borg_statistics = borg_stats
@@ -1096,11 +1102,11 @@ class BackupLogParser:
 
             if backup_type:
                 # Update status based on action result
-                if action.status in ["SUCCESS"]:
-                    if backup_types_status[backup_type] != "failed":
-                        backup_types_status[backup_type] = "success"
-                elif action.status in ["ERROR", "FATAL"]:
+                if action.status in ["ERROR", "FATAL", "FAILED"]:
                     backup_types_status[backup_type] = "failed"
+                elif action.status in ["SUCCESS"]:
+                    if backup_types_status[backup_type] not in ["failed"]:
+                        backup_types_status[backup_type] = "success"
                 else:  # WARNING or other status
                     if backup_types_status[backup_type] == "not_included":
                         backup_types_status[backup_type] = (
@@ -1145,7 +1151,7 @@ class BackupLogParser:
             # Use actual parsed actions count, not FINISHED summary which may only count backup types
             total_actions = len(actions)
             fatal_count = sum(1 for a in actions if a.status == "FATAL")
-            error_count = sum(1 for a in actions if a.status == "ERROR")
+            error_count = sum(1 for a in actions if a.status in ["ERROR", "FAILED"])
             warning_count = sum(1 for a in actions if a.status == "WARNING")
             success_count = sum(1 for a in actions if a.status == "SUCCESS")
 
@@ -1209,7 +1215,7 @@ class BackupLogParser:
             # Fallback: count from parsed actions
             success_count = sum(1 for a in actions if a.status == "SUCCESS")
             warning_count = sum(1 for a in actions if a.status == "WARNING")
-            error_count = sum(1 for a in actions if a.status == "ERROR")
+            error_count = sum(1 for a in actions if a.status in ["ERROR", "FAILED"])
             fatal_count = sum(1 for a in actions if a.status == "FATAL")
 
             total_actions = len(actions)
