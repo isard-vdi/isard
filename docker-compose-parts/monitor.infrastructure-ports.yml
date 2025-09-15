@@ -1,0 +1,9 @@
+version: "3.5"
+services:
+  isard-loki:
+    ports:
+      - "${INFRASTRUCTURE_HOST_IP}:3100:3100"
+      
+  isard-prometheus:
+    ports:
+      - "${INFRASTRUCTURE_HOST_IP}:9090:9090"

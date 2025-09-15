@@ -1,0 +1,5 @@
+version: "3.5"
+services:
+  isard-db:
+    ports:
+      - "${INFRASTRUCTURE_HOST_IP}:28015:28015"

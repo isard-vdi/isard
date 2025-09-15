@@ -1,0 +1,5 @@
+version: "3.5"
+services:
+  isard-redis:
+    ports:
+      - "${INFRASTRUCTURE_HOST_IP}:6379:6379"

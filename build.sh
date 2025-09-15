@@ -361,6 +361,29 @@ flavour(){
 		fi
 	fi
 
+	# Handle INFRASTRUCTURE_HOST_IP port opening logic
+	if [ -n "$INFRASTRUCTURE_HOST_IP" ]; then
+		echo "INFO: INFRASTRUCTURE_HOST_IP is set to $INFRASTRUCTURE_HOST_IP"
+		echo "      Opening core infrastructure service ports on this IP"
+		
+		# Check which core infrastructure services are present and add their infrastructure-ports parts
+		if echo "$parts" | grep -q "\(^\|\s\)db\(\s\|$\)"; then
+			parts="$parts db.infrastructure-ports"
+			echo "      - Database port 28015 exposed on $INFRASTRUCTURE_HOST_IP"
+		fi
+		if echo "$parts" | grep -q "\(^\|\s\)redis\(\s\|$\)"; then
+			parts="$parts redis.infrastructure-ports"
+			echo "      - Redis port 6379 exposed on $INFRASTRUCTURE_HOST_IP"
+		fi
+		# Check for monitor service (contains loki and prometheus)
+		if echo "$parts" | grep -q "\(^\|\s\)monitor\(\s\|$\)"; then
+			parts="$parts monitor.infrastructure-ports"
+			echo "      - Loki port 3100 exposed on $INFRASTRUCTURE_HOST_IP"
+			echo "      - Prometheus port 9090 exposed on $INFRASTRUCTURE_HOST_IP"
+		fi
+		echo ""
+	fi
+
 	variants "$config_name" $parts
 }
 
