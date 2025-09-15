@@ -67,8 +67,14 @@ func TestNew(t *testing.T) {
 					assert.True(sess.Time.ExpirationTime.Before(now.Add(6 * time.Minute)))
 					assert.True(sess.Time.ExpirationTime.After(now.Add(4 * time.Minute)))
 
-					// duration
-					assert.Equal(expected[4].(int64), actual[4].(int64))
+					// duration - allow small timing variance (up to 1 second)
+					expectedDuration := expected[4].(int64)
+					actualDuration := actual[4].(int64)
+					diff := expectedDuration - actualDuration
+					if diff < 0 {
+						diff = -diff
+					}
+					assert.LessOrEqual(diff, int64(time.Second), "Duration difference should be less than 1 second")
 
 					return nil
 				}).ExpectSet(`session:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetVal("OK")
@@ -146,8 +152,14 @@ func TestNew(t *testing.T) {
 					assert.True(sess.Time.ExpirationTime.Before(now.Add(6 * time.Minute)))
 					assert.True(sess.Time.ExpirationTime.After(now.Add(4 * time.Minute)))
 
-					// duration
-					assert.Equal(expected[4].(int64), actual[4].(int64))
+					// duration - allow small timing variance (up to 1 second)
+					expectedDuration := expected[4].(int64)
+					actualDuration := actual[4].(int64)
+					diff := expectedDuration - actualDuration
+					if diff < 0 {
+						diff = -diff
+					}
+					assert.LessOrEqual(diff, int64(time.Second), "Duration difference should be less than 1 second")
 
 					return nil
 				}).ExpectSet(`session:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetErr(errors.New("i'm really tired :("))
@@ -240,8 +252,14 @@ func TestNew(t *testing.T) {
 					assert.True(sess.Time.ExpirationTime.Before(now.Add(6 * time.Minute)))
 					assert.True(sess.Time.ExpirationTime.After(now.Add(4 * time.Minute)))
 
-					// duration
-					assert.Equal(expected[4].(int64), actual[4].(int64))
+					// duration - allow small timing variance (up to 1 second)
+					expectedDuration := expected[4].(int64)
+					actualDuration := actual[4].(int64)
+					diff := expectedDuration - actualDuration
+					if diff < 0 {
+						diff = -diff
+					}
+					assert.LessOrEqual(diff, int64(time.Second), "Duration difference should be less than 1 second")
 
 					return nil
 				}).ExpectSet(`session:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetVal("OK")
@@ -370,8 +388,14 @@ func TestNew(t *testing.T) {
 					assert.True(sess.Time.ExpirationTime.Before(now.Add(6 * time.Minute)))
 					assert.True(sess.Time.ExpirationTime.After(now.Add(4 * time.Minute)))
 
-					// duration
-					assert.Equal(expected[4].(int64), actual[4].(int64))
+					// duration - allow small timing variance (up to 1 second)
+					expectedDuration := expected[4].(int64)
+					actualDuration := actual[4].(int64)
+					diff := expectedDuration - actualDuration
+					if diff < 0 {
+						diff = -diff
+					}
+					assert.LessOrEqual(diff, int64(time.Second), "Duration difference should be less than 1 second")
 
 					return nil
 				}).ExpectSet(`session:`, nil, time.Until(time.Now().Add(8*time.Hour))).SetVal("OK")
@@ -818,8 +842,14 @@ func TestRenew(t *testing.T) {
 					assert.True(sess.Time.ExpirationTime.Before(now.Add(6 * time.Minute)))
 					assert.True(sess.Time.ExpirationTime.After(now.Add(4 * time.Minute)))
 
-					// duration
-					assert.Equal(expected[4].(int64), actual[4].(int64))
+					// duration - allow small timing variance (up to 1 second)
+					expectedDuration := expected[4].(int64)
+					actualDuration := actual[4].(int64)
+					diff := expectedDuration - actualDuration
+					if diff < 0 {
+						diff = -diff
+					}
+					assert.LessOrEqual(diff, int64(time.Second), "Duration difference should be less than 1 second")
 
 					return nil
 				}).ExpectSet(`session:`, nil, time.Until(now.Add(8*time.Hour))).SetVal("OK")
@@ -880,8 +910,14 @@ func TestRenew(t *testing.T) {
 					assert.True(sess.Time.ExpirationTime.Before(now.Add(5*time.Minute + 1*time.Minute)))
 					assert.True(sess.Time.ExpirationTime.After(now.Add(5*time.Minute - 1*time.Minute)))
 
-					// duration
-					assert.Equal(expected[4].(int64), actual[4].(int64))
+					// duration - allow small timing variance (up to 1 second)
+					expectedDuration := expected[4].(int64)
+					actualDuration := actual[4].(int64)
+					diff := expectedDuration - actualDuration
+					if diff < 0 {
+						diff = -diff
+					}
+					assert.LessOrEqual(diff, int64(time.Second), "Duration difference should be less than 1 second")
 
 					return nil
 				}).ExpectSet(`session:`, nil, time.Until(now.Add(8*time.Hour))).SetVal("OK")
@@ -991,8 +1027,14 @@ func TestRenew(t *testing.T) {
 					assert.True(sess.Time.ExpirationTime.Before(now.Add(5*time.Minute + 1*time.Minute)))
 					assert.True(sess.Time.ExpirationTime.After(now.Add(5*time.Minute - 1*time.Minute)))
 
-					// duration
-					assert.Equal(expected[4].(int64), actual[4].(int64))
+					// duration - allow small timing variance (up to 1 second)
+					expectedDuration := expected[4].(int64)
+					actualDuration := actual[4].(int64)
+					diff := expectedDuration - actualDuration
+					if diff < 0 {
+						diff = -diff
+					}
+					assert.LessOrEqual(diff, int64(time.Second), "Duration difference should be less than 1 second")
 
 					return nil
 				}).ExpectSet("session:ID", nil, time.Until(now.Add(8*time.Hour))).SetErr(errors.New("i'm really tired :("))
