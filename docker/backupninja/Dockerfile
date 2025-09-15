@@ -57,7 +57,11 @@ COPY docker/backupninja/run.sh /usr/local/bin/
 COPY docker/backupninja/nfs_mount.sh /usr/local/bin/
 COPY docker/backupninja/nfs_umount.sh /usr/local/bin/
 COPY docker/backupninja/backup_report.py /usr/local/bin/
+COPY docker/backupninja/send_backup_report.sh /usr/local/bin/
+COPY docker/backupninja/borg_integrity_template.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/backup_report.py
+RUN chmod +x /usr/local/bin/send_backup_report.sh
+RUN chmod +x /usr/local/bin/borg_integrity_template.sh
 COPY docker/backupninja/backup.d /usr/local/share/backup.d
 
 WORKDIR /

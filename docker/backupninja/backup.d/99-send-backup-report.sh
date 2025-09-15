@@ -1,20 +1,23 @@
 #!/bin/sh
 
-# This script sends backup reports to the API for automated backups
+# This script sends backup reports to the API for both automated and manual backups
 # It should be the last script to run (hence the 99 prefix)
 # The 'when' variable will be dynamically set by run.sh based on enabled backup types
 
 LOG_FILE="/var/log/backupninja.log"
 
-# Add backup session end marker for automated backups
-echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_END: automated full backup completed by cron" >> "$LOG_FILE"
+# Determine backup type based on context (default to automated for scheduled runs)
+BACKUP_TYPE_FOR_SESSION="${BACKUP_TYPE:-automated}"
+
+# Add backup session end marker
+echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_END: $BACKUP_TYPE_FOR_SESSION full backup completed" >> "$LOG_FILE"
 
 # Set backup type for automated backups
 export BACKUP_TYPE="automated"
 
 # Send backup report to API
 echo "$(date '+%b %d %H:%M:%S') Info: Sending automated backup report to API..." >> "$LOG_FILE"
-python3 /usr/local/bin/backup_report.py
+python3 /usr/local/bin/backup_report.py 2>&1 | tee -a "$LOG_FILE"
 
 # Log the result
 if [ $? -eq 0 ]; then

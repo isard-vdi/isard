@@ -66,7 +66,7 @@ if [ "$BACKUP_DB_ENABLED" = "true" ]; then
     template_jobs="$template_jobs 12-db-dump.sh 13-db-borg.borg 14-db-compact.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 19-db-nfs-umount.sh"
     
-    static_jobs="15-db-borg-stats.sh"
+    static_jobs="15-db-borg-integrity.sh"
 
     for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
@@ -93,7 +93,7 @@ if [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
     template_jobs="$template_jobs 22-redis-dump.sh 23-redis-borg.borg 24-redis-compact.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 29-redis-nfs-umount.sh"
     
-    static_jobs="25-redis-borg-stats.sh"
+    static_jobs="25-redis-borg-integrity.sh"
 
     for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
@@ -120,7 +120,7 @@ if [ "$BACKUP_STATS_ENABLED" = "true" ]; then
     template_jobs="$template_jobs 32-stats-dump.sh 33-stats-borg.borg 34-stats-compact.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 39-stats-nfs-umount.sh"
     
-    static_jobs="35-stats-borg-stats.sh"
+    static_jobs="35-stats-borg-integrity.sh"
 
     for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
@@ -147,7 +147,7 @@ if [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
     template_jobs="$template_jobs 82-config-borg.borg 84-config-compact.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 89-config-nfs-umount.sh"
     
-    static_jobs="85-config-borg-stats.sh"
+    static_jobs="85-config-borg-integrity.sh"
 
     for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
@@ -201,7 +201,7 @@ if [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
     template_jobs="$template_jobs 92-disks-borg.borg 94-disks-compact.sh"
     [ "$BACKUP_NFS_ENABLED" = "true" ] && template_jobs="$template_jobs 99-disks-nfs-umount.sh"
     
-    static_jobs="95-disks-borg-stats.sh"
+    static_jobs="95-disks-borg-integrity.sh"
 
     for job in $template_jobs; do
         envsubst < "/usr/local/share/backup.d/$job" > "/usr/local/etc/backup.d/$job"
@@ -225,49 +225,38 @@ ENABLED_WHEN_SCHEDULES=""
 # Get unique when schedules (preserve whole phrases using | as delimiter)
 UNIQUE_SCHEDULES=$(echo "$ENABLED_WHEN_SCHEDULES" | tr '|' '\n' | grep -v "^$" | sort -u | grep -v "disabled")
 
-# Create session start marker for automated backups if any schedules are enabled
+# Create session start and end markers for each unique schedule
 if [ -n "$UNIQUE_SCHEDULES" ] && [ "$UNIQUE_SCHEDULES" != "" ]; then
-    # Create a single start marker script for all automated backups
-    START_SCRIPT="/usr/local/etc/backup.d/1-backup-start.sh"
-    # Extract the first schedule for the start marker (they should all be the same anyway)
-    FIRST_SCHEDULE=$(echo "$UNIQUE_SCHEDULES" | head -n1)
-    cat > "$START_SCRIPT" << EOF
+    SCHEDULE_INDEX=0
+    echo "$UNIQUE_SCHEDULES" | while IFS= read -r SCHEDULE; do
+        if [ -n "$SCHEDULE" ]; then
+            # Create start marker script for this schedule
+            START_SCRIPT="/usr/local/etc/backup.d/01-backup-start-$SCHEDULE_INDEX.sh"
+            cat > "$START_SCRIPT" << EOF
 #!/bin/sh
 # Add backup session start marker for automated backups
 LOG_FILE="/var/log/backupninja.log"
-echo "\$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_START: automated full backup initiated by cron (schedule: $FIRST_SCHEDULE)" >> \$LOG_FILE
+echo "\$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_START: automated full backup initiated by cron (schedule: $SCHEDULE)" >> \$LOG_FILE
 EOF
-    chmod 700 "$START_SCRIPT"
-    
-    # Set the schedule for the start marker to match enabled backups
-    if [ "$BACKUP_DB_ENABLED" = "true" ]; then
-        sed -i "1a\\when = $BACKUP_DB_WHEN" "$START_SCRIPT"
-    elif [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
-        sed -i "1a\\when = $BACKUP_REDIS_WHEN" "$START_SCRIPT"
-    elif [ "$BACKUP_STATS_ENABLED" = "true" ]; then
-        sed -i "1a\\when = $BACKUP_STATS_WHEN" "$START_SCRIPT"
-    elif [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
-        sed -i "1a\\when = $BACKUP_CONFIG_WHEN" "$START_SCRIPT"
-    elif [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
-        sed -i "1a\\when = $BACKUP_DISKS_WHEN" "$START_SCRIPT"
-    fi
-    
-    # Copy the reporting script as a static job for automated backups
-    cp "/usr/local/share/backup.d/99-send-backup-report.sh" "/usr/local/etc/backup.d/99-send-backup-report.sh"
-    chmod 700 "/usr/local/etc/backup.d/99-send-backup-report.sh"
-    
-    # Set the schedule for the reporting script to match any enabled backup
-    if [ "$BACKUP_DB_ENABLED" = "true" ]; then
-        sed -i "1a\\when = $BACKUP_DB_WHEN" "/usr/local/etc/backup.d/99-send-backup-report.sh"
-    elif [ "$BACKUP_REDIS_ENABLED" = "true" ]; then
-        sed -i "1a\\when = $BACKUP_REDIS_WHEN" "/usr/local/etc/backup.d/99-send-backup-report.sh"
-    elif [ "$BACKUP_STATS_ENABLED" = "true" ]; then
-        sed -i "1a\\when = $BACKUP_STATS_WHEN" "/usr/local/etc/backup.d/99-send-backup-report.sh"
-    elif [ "$BACKUP_CONFIG_ENABLED" = "true" ]; then
-        sed -i "1a\\when = $BACKUP_CONFIG_WHEN" "/usr/local/etc/backup.d/99-send-backup-report.sh"
-    elif [ "$BACKUP_DISKS_ENABLED" = "true" ]; then
-        sed -i "1a\\when = $BACKUP_DISKS_WHEN" "/usr/local/etc/backup.d/99-send-backup-report.sh"
-    fi
+            chmod 700 "$START_SCRIPT"
+            # Add when clause to start marker
+            sed -i "1a\\when = $SCHEDULE" "$START_SCRIPT"
+
+            # Create end marker and report sender as shell script for this schedule  
+            END_SCRIPT="/usr/local/etc/backup.d/99-send-report-$SCHEDULE_INDEX.sh"
+            cat > "$END_SCRIPT" << EOF
+#!/bin/sh
+# Send backup report to API after automated backup completion
+export BACKUP_TYPE="automated"
+/usr/local/bin/send_backup_report.sh
+EOF
+            chmod 700 "$END_SCRIPT"
+            # Add when clause to end marker
+            sed -i "1a\\when = $SCHEDULE" "$END_SCRIPT"
+            
+            SCHEDULE_INDEX=$((SCHEDULE_INDEX + 1))
+        fi
+    done
 fi
 
 # Set correct permissions to the files
