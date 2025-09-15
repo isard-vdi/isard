@@ -1,6 +1,8 @@
 #!/bin/sh -i
 set -e
 
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting HAProxy container initialization..."
+
 prepare.sh
 
 if [ ! -n "$WEBAPP_HOST" ]; then
@@ -13,10 +15,18 @@ if [ ! -n "$GRAFANA_HOST" ]; then
         export GRAFANA_HOST='isard-grafana'
 fi
 
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Checking for SSL certificate..."
 if [ ! -f /certs/chain.pem ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] No SSL certificate found, generating self-signed certificate"
         auto-generate-certs.sh
+elif [ ! -s /certs/chain.pem ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] SSL certificate file is empty, regenerating self-signed certificate"
+        auto-generate-certs.sh
+else
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] SSL certificate found ($(stat -c%s /certs/chain.pem) bytes)"
 fi
 
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting file monitoring for automatic reloads..."
 inotifyd haproxy-reload /certs/chain.pem:c /usr/local/etc/haproxy/bastion_domains/subdomains.map:c /usr/local/etc/haproxy/bastion_domains/individual.map:c /usr/local/etc/haproxy/lists/black.lst:c /usr/local/etc/haproxy/lists/external/black.lst:c /usr/local/etc/haproxy/lists/white.lst:c &
 
 # first arg is `-f` or `--some-option`

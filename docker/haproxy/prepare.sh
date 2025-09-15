@@ -41,9 +41,15 @@ fi
 
 if [ -n "$VIDEO_DOMAIN" ]
 then
-  LETSENCRYPT_DOMAIN="$VIDEO_DOMAIN" LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" letsencrypt.sh
+  echo "Using VIDEO_DOMAIN: $VIDEO_DOMAIN for Let's Encrypt certificate"
+  if ! LETSENCRYPT_DOMAIN="$VIDEO_DOMAIN" LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" letsencrypt.sh; then
+    echo "WARNING: Let's Encrypt certificate acquisition failed for $VIDEO_DOMAIN"
+  fi
 else
-  LETSENCRYPT_DOMAIN="$DOMAIN" LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" letsencrypt.sh
+  echo "Using DOMAIN: $DOMAIN for Let's Encrypt certificate"
+  if ! LETSENCRYPT_DOMAIN="$DOMAIN" LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" letsencrypt.sh; then
+    echo "WARNING: Let's Encrypt certificate acquisition failed for $DOMAIN"
+  fi
 fi
 
 mkdir -p /usr/local/etc/haproxy/lists/external
