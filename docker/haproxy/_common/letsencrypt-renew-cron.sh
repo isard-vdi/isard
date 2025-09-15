@@ -32,6 +32,16 @@ fi
 echo "Attempting to renew certificate for $LETSENCRYPT_DOMAIN"
 if certbot renew --http-01-port 8080 --cert-name "$LETSENCRYPT_DOMAIN"; then
     echo "Certificate renewal completed successfully"
+    # Note: certbot renew automatically calls deployment hooks, but let's verify
+    if [ ! -f /certs/chain.pem ] || [ ! -s /certs/chain.pem ]; then
+        echo "WARNING: /certs/chain.pem missing after renewal, manually triggering deployment"
+        CERT_PATH="/etc/letsencrypt/live/$(echo "$LETSENCRYPT_DOMAIN" | tr '[:upper:]' '[:lower:]')"
+        if [ -d "$CERT_PATH" ] && [ -f "$CERT_PATH/fullchain.pem" ] && [ -f "$CERT_PATH/privkey.pem" ]; then
+            if [ -f /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh ]; then
+                RENEWED_LINEAGE="$CERT_PATH" /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh
+            fi
+        fi
+    fi
 else
     echo "Certificate renewal failed, attempting to re-issue certificate"
 
@@ -49,11 +59,27 @@ else
         if certbot certonly --standalone -d "$LETSENCRYPT_DOMAIN" -m "$LETSENCRYPT_EMAIL" -n --agree-tos --http-01-port 8080 --force-renewal; then
             echo "Certificate re-issued successfully with new account"
 
-            # Execute the deployment hook manually
-            if [ -f /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh ]; then
-                RENEWED_LINEAGE="/etc/letsencrypt/live/$(echo "$LETSENCRYPT_DOMAIN" | tr '[:upper:]' '[:lower:]')" /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh
+            # Wait for filesystem sync
+            sleep 2
+
+            # Execute the deployment hook manually with proper verification
+            CERT_PATH="/etc/letsencrypt/live/$(echo "$LETSENCRYPT_DOMAIN" | tr '[:upper:]' '[:lower:]')"
+            if [ -d "$CERT_PATH" ] && [ -f "$CERT_PATH/fullchain.pem" ] && [ -f "$CERT_PATH/privkey.pem" ]; then
+                if [ -f /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh ]; then
+                    echo "Deploying re-issued certificate..."
+                    if RENEWED_LINEAGE="$CERT_PATH" /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh; then
+                        echo "Certificate deployment successful"
+                    else
+                        echo "ERROR: Certificate deployment failed"
+                        exit 1
+                    fi
+                else
+                    echo "ERROR: Deployment hook not found, certificate may not be properly deployed"
+                    exit 1
+                fi
             else
-                echo "WARNING: Deployment hook not found, certificate may not be properly deployed"
+                echo "ERROR: Certificate files not found after re-issuance"
+                exit 1
             fi
         else
             echo "ERROR: Failed to re-issue certificate"

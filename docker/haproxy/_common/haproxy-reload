@@ -1,6 +1,25 @@
 #!/bin/sh
-# haproxy runs with -W flag that reloads with USR2 signal, see haproxy-docker-entrypoint.sh
-# that is a customization of original ones
-# https://github.com/docker-library/haproxy/blob/master/2.3/docker-entrypoint.sh#L14
-# http://cbonte.github.io/haproxy-dconv/2.3/configuration.html#3.1-master-worker
-kill -SIGUSR2 1
+# Enhanced HAProxy reload script with logging and error handling
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] HAProxy-reload: $1"
+}
+
+# Verify HAProxy configuration before reloading
+if haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg >/dev/null 2>&1; then
+    log "Configuration is valid, reloading HAProxy..."
+    # haproxy runs with -W flag that reloads with USR2 signal, see haproxy-docker-entrypoint.sh
+    # that is a customization of original ones
+    # https://github.com/docker-library/haproxy/blob/master/2.3/docker-entrypoint.sh#L14
+    # http://cbonte.github.io/haproxy-dconv/2.3/configuration.html#3.1-master-worker
+    kill -SIGUSR2 1
+    if [ $? -eq 0 ]; then
+        log "HAProxy reload signal sent successfully"
+    else
+        log "ERROR: Failed to send reload signal to HAProxy"
+    fi
+else
+    log "ERROR: HAProxy configuration is invalid, skipping reload"
+    log "Configuration errors:"
+    haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg 2>&1 | head -10
+fi

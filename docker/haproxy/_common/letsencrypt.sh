@@ -25,13 +25,51 @@ then
     if certbot certonly --standalone -d "$LETSENCRYPT_DOMAIN" -m "$LETSENCRYPT_EMAIL" -n --agree-tos --http-01-port 80
     then
       echo "Let's Encrypt certificate obtained successfully"
+
+      # Wait for filesystem sync and verify certificate files exist
+      sleep 2
+      CERT_PATH="/etc/letsencrypt/live/$(echo "$LETSENCRYPT_DOMAIN" | tr '[:upper:]' '[:lower:]')"
+
+      # Verify certificate files exist before deployment
+      if [ ! -d "$CERT_PATH" ]; then
+        echo "ERROR: Certificate directory $CERT_PATH does not exist"
+        echo "Available directories in /etc/letsencrypt/live/:"
+        ls -la /etc/letsencrypt/live/ 2>/dev/null || echo "No directories found"
+        return 1
+      fi
+
+      if [ ! -f "$CERT_PATH/fullchain.pem" ] || [ ! -f "$CERT_PATH/privkey.pem" ]; then
+        echo "ERROR: Certificate files missing in $CERT_PATH"
+        echo "Contents of $CERT_PATH:"
+        ls -la "$CERT_PATH" 2>/dev/null || echo "Directory not accessible"
+        return 1
+      fi
+
       # Execute the deployment hook manually for initial certificate
       if [ -f /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh ]
       then
-        RENEWED_LINEAGE="/etc/letsencrypt/live/$(echo "$LETSENCRYPT_DOMAIN" | tr '[:upper:]' '[:lower:]')" /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh
+        echo "Deploying certificate to HAProxy format..."
+        if RENEWED_LINEAGE="$CERT_PATH" /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh
+        then
+          echo "Certificate deployment successful"
+          # Verify the final chain.pem was created
+          if [ -f /certs/chain.pem ] && [ -s /certs/chain.pem ]; then
+            echo "Successfully created /certs/chain.pem"
+          else
+            echo "ERROR: /certs/chain.pem was not created or is empty"
+            return 1
+          fi
+        else
+          echo "ERROR: Certificate deployment hook failed"
+          return 1
+        fi
+      else
+        echo "ERROR: Deployment hook not found at /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh"
+        return 1
       fi
     else
       echo "Let's Encrypt certificate generation failed, will fallback to self-signed certificates"
+      return 1
     fi
   fi
 fi
