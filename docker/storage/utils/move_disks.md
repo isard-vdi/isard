@@ -8,6 +8,30 @@ The `move_disks` script is a bilateral storage migration tool for IsardVDI that 
 
 Converted the hardcoded storage migration script to use flexible CLI parameters, making it configurable for different environments and use cases. The script now supports both absolute and relative date filtering, customizable threading, bandwidth limiting, and dry-run capabilities.
 
+## Size Filtering Options
+
+The script offers two mutually exclusive size filtering approaches for fast→slow migrations:
+
+### Individual File Size Filtering (`--min-size-mb`)
+
+Filters files based on individual file size threshold:
+- Skips any file smaller than the specified size
+- Example: `--min-size-mb 1000` skips all files < 1GB
+
+### Cumulative Size Filtering (`--min-size-total-mb`)
+
+Filters files based on cumulative size threshold:
+- Sorts files by size (smallest first)
+- Skips files cumulatively until their total size reaches the threshold
+- Moves all remaining files (the larger ones)
+- Example: `--min-size-total-mb 1000000` skips the smallest files totaling ~1TB
+
+**Use Cases:**
+- **Individual filtering**: "Don't move files smaller than X"
+- **Cumulative filtering**: "Skip the smallest X TB worth of files"
+
+The cumulative approach is ideal for capacity management when you want to migrate larger files while preserving a specific amount of smaller files on fast storage.
+
 ## Migration Logic
 
 - **Fast→Slow**: Files older than the date threshold are moved from fast storage to slow storage
@@ -46,6 +70,13 @@ Converted the hardcoded storage migration script to use flexible CLI parameters,
 | `--bandwidth-limit` | `200000` | Bandwidth limit in KB/s (0 for unlimited) |
 | `--rsync-timeout` | `3600` | Timeout in seconds for rsync operations |
 | `--startup-delay` | `10` | Seconds to wait before starting processing |
+
+### File Filtering Options (Mutually Exclusive)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--min-size-mb` | `0` | Individual file size threshold in MB for fast→slow migration (0 to disable) |
+| `--min-size-total-mb` | - | Cumulative size threshold in MB - skips smallest files until their total reaches this amount (for fast→slow migration) |
 
 ### Utility Options
 
@@ -103,6 +134,12 @@ Converted the hardcoded storage migration script to use flexible CLI parameters,
 # Limited bandwidth and threading
 ./move_disks --past-days 30 --threads-fast-to-slow 2 --bandwidth-limit 100000
 
+# Only move files larger than 100MB from fast to slow storage
+./move_disks --past-days 7 --min-size-mb 100
+
+# Skip smallest 500GB worth of files (preserve small files on fast storage)
+./move_disks --past-days 7 --min-size-total-mb 500000
+
 # High performance settings
 ./move_disks --past-days 7 --threads-fast-to-slow 8 --threads-slow-to-fast 6 --bandwidth-limit 0
 
@@ -137,7 +174,108 @@ Converted the hardcoded storage migration script to use flexible CLI parameters,
 
 # Maintenance mode (move very old files, no recent file moves)
 ./move_disks --past-days 90 --threads-slow-to-fast 0 --bandwidth-limit 50000
+
+# Only migrate large files to preserve small files on fast storage
+./move_disks --past-days 14 --min-size-mb 500
+
+# Skip smallest 1TB worth of files (cumulative filtering)
+./move_disks --past-days 14 --min-size-total-mb 1000000
+
+# Preview migration with cumulative filtering
+./move_disks --dry-run --past-days 7 --min-size-total-mb 500000
 ```
+
+## Progress Reporting and Statistics
+
+### Real-Time Progress Display
+
+During migration, the script provides detailed real-time progress for each direction:
+
+```
+[fast→vdo3] Files: 125/892 | Moved: 98 files (2.1 TB) | Current: 45.2 GB | Avg Speed: 127.5 MB/s
+[vdo3→fast] Files: 45/0 | Moved: 0, Failed/Skipped: 45 | Avg Speed: 0 B/s
+```
+
+**Progress Information:**
+- **Files processed/total**: Current position in the migration queue
+- **Successfully moved**: Actual files moved vs failed/skipped count
+- **Data moved**: Real-time cumulative data transferred
+- **Current file size**: Size of the file currently being processed
+- **Average speed**: Running average transfer speed based on actual completion times
+
+### Comprehensive Migration Summary
+
+Before migration starts, the script shows a detailed summary:
+
+```
+================================================================================
+COMPREHENSIVE MIGRATION SUMMARY
+================================================================================
+TOTAL FILES FOUND: 23854 files (76.8 TB)
+  ├─ fast pool: 3218 files (5.4 TB)
+  └─ vdo3 pool: 20636 files (71.4 TB)
+
+FILES TO BE MOVED: 892 files (4.1 TB)
+  ├─ fast → vdo3: 892 files (4.1 TB)
+  └─ vdo3 → fast: 0 files (0 B)
+
+FILES EXCLUDED: 2326 files (1.0 TB)
+  └─ Smallest files totaling 1.0 TB (fast→slow only): 2326 files
+
+PROCESSING CONFIGURATION:
+  ├─ Date threshold: 2030-01-01T00:00:00
+  ├─ Max threads fast→vdo3: 4
+  ├─ Max threads vdo3→fast: 3
+  ├─ Bandwidth limit: 200000 KB/s
+  └─ Cumulative size threshold: 1000000 MB
+================================================================================
+```
+
+### Final Statistics with Accuracy Analysis
+
+After migration completes, detailed statistics compare estimates vs actual results:
+
+```
+================================================================================
+MIGRATION COMPLETE - FINAL STATISTICS
+================================================================================
+Total Migration Time: 45.3m
+Migration Start: 2025-09-25 14:30:15
+Migration End: 2025-09-25 15:15:32
+
+--- ESTIMATED vs ACTUAL COMPARISON ---
+Estimated files to move: 892
+Actual files moved: 743
+File migration accuracy: 83.3%
+
+Estimated data to move: 5.1 TB
+Actual data moved: 4.2 TB
+Data migration accuracy: 82.4%
+
+File difference: -149 files
+Size difference: 900.0 GB less
+
+--- fast→vdo3 ---
+Files processed: 892
+Files moved successfully: 743 (estimated: 892)
+Data moved: 4.2 TB (estimated: 5.1 TB)
+Migration accuracy: 83.3% files
+                    82.4% data
+Average file transfer time: 3.7s
+Overall transfer speed: 154.8 MB/s
+
+Skipped/Failed: 149 files
+  - Recycled status: 45
+  - Not ready: 67
+  - Database errors: 23
+  - Invalid qcow2: 14
+```
+
+**Key Metrics:**
+- **Migration accuracy**: Percentage of estimated files/data actually moved
+- **Performance metrics**: Transfer speeds and timing information
+- **Detailed failure analysis**: Categorized reasons for skipped files
+- **Operational insights**: Helps improve future migration planning
 
 ## Error Handling and Logging
 
@@ -200,8 +338,8 @@ For simpler setups, a single daily migration job:
 # PATH environment for cron
 PATH=/usr/lib/sysstat:/usr/sbin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# Daily storage migration - files older than 14 days with balanced settings
-59 0 * * * root /usr/bin/docker exec -i isard-storage /opt/isard/move_disks --past-days 14 --threads-fast-to-slow 3 --threads-slow-to-fast 2 --bandwidth-limit 150000 >> /var/log/isard-storage.move_disks.$(date +\%Y-\%m-\%d).log 2>&1 && find /var/log -name "isard-storage.move_disks.*.log" -mtime +30 -delete
+# Daily storage migration - files older than 14 days with balanced settings, only move files >50MB
+59 0 * * * root /usr/bin/docker exec -i isard-storage /opt/isard/move_disks --past-days 14 --min-size-mb 50 --threads-fast-to-slow 3 --threads-slow-to-fast 2 --bandwidth-limit 150000 >> /var/log/isard-storage.move_disks.$(date +\%Y-\%m-\%d).log 2>&1 && find /var/log -name "isard-storage.move_disks.*.log" -mtime +30 -delete
 ```
 
 ### Customization Examples

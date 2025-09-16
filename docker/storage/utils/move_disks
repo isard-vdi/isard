@@ -246,18 +246,22 @@ def is_valid_qcow2(file_absolute_path):
         return False
 
 
-def get_sorted_file_paths_by_date(iterate_path, filter_date):
+def get_sorted_file_paths_by_date(iterate_path, filter_date, min_size_bytes=0, min_size_total_bytes=0, is_fast_pool=False, size_filter_type="none"):
     """
     Collect and return file paths separated by modification date.
 
     Args:
         iterate_path (str): The path to iterate and collect files from.
         filter_date (str): ISO-format date string to filter files (e.g., "2025-01-01T00:00:00").
+        min_size_bytes (int): Minimum file size in bytes for individual filtering (0 to disable).
+        min_size_total_bytes (int): Minimum total size in bytes for cumulative filtering (0 to disable).
+        is_fast_pool (bool): True if this is the fast pool (applies size filtering to old files).
+        size_filter_type (str): Type of filtering ("none", "individual", "cumulative").
 
     Returns:
         tuple: (files_before_data, files_after_data)
-               - files_before_data: (file_paths, total_size) sorted oldest first (for fast→slow migration)
-               - files_after_data: (file_paths, total_size) sorted newest first (for slow→fast migration)
+               - files_before_data: (file_paths, total_size, filtered_count, filtered_size) sorted oldest first (for fast→slow migration)
+               - files_after_data: (file_paths, total_size, filtered_count, filtered_size) sorted newest first (for slow→fast migration)
     """
     files_before = []
     files_after = []
@@ -268,6 +272,8 @@ def get_sorted_file_paths_by_date(iterate_path, filter_date):
     newest_date = datetime.fromtimestamp(0)
     total_size_before = 0
     total_size_after = 0
+    filtered_count_before = 0
+    filtered_size_before = 0
 
     for file in Path(iterate_path).rglob("*"):
         if file.is_file():
@@ -276,7 +282,7 @@ def get_sorted_file_paths_by_date(iterate_path, filter_date):
             mtime = datetime.fromtimestamp(file.stat().st_mtime)
             file_size = file.stat().st_size
 
-            # Separate files by date
+            # Separate files by date (no filtering yet)
             if mtime < filter_dt:
                 files_before.append((file, mtime, file_size))
                 total_size_before += file_size
@@ -289,6 +295,54 @@ def get_sorted_file_paths_by_date(iterate_path, filter_date):
                 oldest_date = mtime
             if mtime > newest_date:
                 newest_date = mtime
+
+    # Apply size filtering for fast→slow moves (old files from fast pool)
+    files_to_move_before = []
+    filtered_count_before = 0
+    filtered_size_before = 0
+    move_size_before = 0
+
+    if is_fast_pool and len(files_before) > 0:
+        if size_filter_type == "individual" and min_size_bytes > 0:
+            # Individual file size filtering
+            for file_data in files_before:
+                file, mtime, file_size = file_data
+                if file_size >= min_size_bytes:
+                    files_to_move_before.append(file_data)
+                    move_size_before += file_size
+                else:
+                    filtered_count_before += 1
+                    filtered_size_before += file_size
+
+        elif size_filter_type == "cumulative" and min_size_total_bytes > 0:
+            # Cumulative size filtering - sort by size (smallest first), skip until threshold reached
+            files_by_size = sorted(files_before, key=lambda x: x[2])  # Sort by file size
+            cumulative_size = 0
+
+            for file_data in files_by_size:
+                file, mtime, file_size = file_data
+                if cumulative_size < min_size_total_bytes:
+                    # Still accumulating small files to skip
+                    cumulative_size += file_size
+                    filtered_count_before += 1
+                    filtered_size_before += file_size
+                else:
+                    # Threshold reached, include this and all remaining files
+                    files_to_move_before.append(file_data)
+                    move_size_before += file_size
+
+        else:
+            # No filtering
+            files_to_move_before = files_before
+            move_size_before = total_size_before
+    else:
+        # Not fast pool, no filtering
+        files_to_move_before = files_before
+        move_size_before = total_size_before
+
+    # Update totals for files that will actually be moved
+    total_size_before = move_size_before
+    files_before = files_to_move_before
 
     def format_size(size_bytes):
         """Convert bytes to human readable format."""
@@ -304,6 +358,15 @@ def get_sorted_file_paths_by_date(iterate_path, filter_date):
     print(
         f"Files before {filter_date}: {len(files_before)} ({format_size(total_size_before)})"
     )
+    if filtered_count_before > 0:
+        if size_filter_type == "individual":
+            print(
+                f"  Filtered out (size < {min_size_bytes // (1024*1024)}MB): {filtered_count_before} ({format_size(filtered_size_before)})"
+            )
+        elif size_filter_type == "cumulative":
+            print(
+                f"  Filtered out (smallest files totaling {format_size(filtered_size_before)}): {filtered_count_before} files"
+            )
     print(
         f"Files after {filter_date}: {len(files_after)} ({format_size(total_size_after)})"
     )
@@ -319,21 +382,36 @@ def get_sorted_file_paths_by_date(iterate_path, filter_date):
     sorted_paths_before = [str(file[0]) for file in files_before]
     sorted_paths_after = [str(file[0]) for file in files_after]
 
-    return (sorted_paths_before, total_size_before), (
+    return (sorted_paths_before, total_size_before, filtered_count_before, filtered_size_before), (
         sorted_paths_after,
         total_size_after,
+        0,  # No filtering for after files
+        0,  # No filtering for after files
     )
 
 
-def move_discs_api(file_path, destination_pool_id, rsync_timeout=1000):
+def move_discs_api(file_path, destination_pool_id, rsync_timeout=1000, min_size_bytes=0, is_fast_to_slow=False):
     """Move a disk file to the destination pool via API.
 
     Args:
         file_path (str): Path to the file to move
         destination_pool_id (str): ID of the destination storage pool
         rsync_timeout (int): Timeout in seconds for rsync operations
+        min_size_bytes (int): Minimum file size in bytes for fast→slow moves (0 to disable)
+        is_fast_to_slow (bool): True if this is a fast→slow migration
     """
     if is_valid_qcow2(file_path):
+        # Check file size threshold for fast→slow moves
+        if is_fast_to_slow and min_size_bytes > 0:
+            try:
+                file_size = Path(file_path).stat().st_size
+                if file_size < min_size_bytes:
+                    print(f"Skipping {file_path} - file size {file_size // (1024*1024)}MB below threshold {min_size_bytes // (1024*1024)}MB")
+                    return
+            except OSError as e:
+                print(f"Warning: Could not get file size for {file_path}: {e}")
+                # Continue with migration if we can't get file size
+
         storage_id = file_path.split("/")[-1].split(".")[0]
 
         # First check if storage exists and get its status
@@ -390,6 +468,103 @@ def move_discs_api(file_path, destination_pool_id, rsync_timeout=1000):
         save_to_file("non_valid_qcow_files.json", file_path)
 
 
+def move_discs_api_with_stats(file_path, destination_pool_id, rsync_timeout=1000, min_size_bytes=0, is_fast_to_slow=False, stats=None, worker_type=None, lock=None):
+    """Move a disk file to the destination pool via API with statistics tracking.
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if is_valid_qcow2(file_path):
+        # Check file size threshold for fast→slow moves
+        if is_fast_to_slow and min_size_bytes > 0:
+            try:
+                file_size = Path(file_path).stat().st_size
+                if file_size < min_size_bytes:
+                    print(f"Skipping {file_path} - file size {file_size // (1024*1024)}MB below threshold {min_size_bytes // (1024*1024)}MB")
+                    with lock:
+                        stats['skipped_size'][worker_type] += 1
+                    return False
+            except OSError as e:
+                print(f"Warning: Could not get file size for {file_path}: {e}")
+                # Continue with migration if we can't get file size
+
+        storage_id = file_path.split("/")[-1].split(".")[0]
+
+        # First check if storage exists and get its status
+        try:
+            statuses = get_storage_statuses(storage_id)
+        except Exception as e:
+            print(f"Storage {storage_id} does not exist in database")
+            save_to_file("non_existing_in_db.json", file_path)
+            with lock:
+                stats['failed_db'][worker_type] += 1
+            return False
+
+        # Skip files with "recycled" status immediately
+        if statuses.get("status") == "recycled":
+            print(f"Skipping {file_path} - storage status is 'recycled'")
+            save_to_file("recycled_storage.json", file_path)
+            with lock:
+                stats['skipped_recycled'][worker_type] += 1
+            return False
+
+        if statuses.get("status") == "deleted":
+            print(f"Skipping {file_path} - storage status is 'deleted'")
+            with lock:
+                stats['skipped_deleted'][worker_type] += 1
+            return False
+
+        print(f"Moving {file_path} to pool")
+        status = wait_ready(storage_id, 0)
+        if status is None:
+            print(f"Storage {storage_id} does not exist in database when going to move")
+            save_to_file("non_existing_in_db.json", file_path)
+            with lock:
+                stats['failed_db'][worker_type] += 1
+            return False
+        if status is False:
+            print(
+                f"Storage/Domain {storage_id} is not ready. Status: {statuses.get('status')}"
+            )
+            save_to_file("not_ready.json", file_path)
+            with lock:
+                stats['failed_not_ready'][worker_type] += 1
+            return False
+        try:
+            pprint(rsync_to_storage_pool(storage_id, destination_pool_id))
+            status = wait_ready(storage_id, rsync_timeout)
+            if status is None:
+                print(f"WARNING!!! Storage {storage_id} does not exist after rsync")
+                save_to_file("non_existing_in_db_after_rsync.json", file_path)
+                with lock:
+                    stats['failed_after_rsync'][worker_type] += 1
+                return False
+            if status is False:
+                print(
+                    f"WARNING!!! Storage/Domain for storage {storage_id} is not ready after rsync"
+                )
+                save_to_file("not_ready_after_rsync.json", file_path)
+                with lock:
+                    stats['failed_after_rsync'][worker_type] += 1
+                return False
+            save_to_file(get_dated_moved_filename(), file_path)
+            return True
+        except Exception as e:
+            print(f"WARNING!!! Failed to move {file_path} to pool")
+            print(e)
+            save_to_file("failed_to_move_to_pool.json", file_path)
+            with lock:
+                stats['failed_rsync'][worker_type] += 1
+            return False
+
+    else:
+        print(f"Skipping {file_path} - not a valid qcow2 file")
+        save_to_file("non_valid_qcow_files.json", file_path)
+        with lock:
+            stats['skipped_invalid'][worker_type] += 1
+        return False
+
+
 def worker(
     queue,
     destination_pool_id,
@@ -399,6 +574,8 @@ def worker(
     stop_requested,
     rsync_timeout,
     worker_type,
+    min_size_bytes=0,
+    stats=None,
 ):
     """Worker function for processing files in threads.
 
@@ -411,6 +588,8 @@ def worker(
         stop_requested (threading.Event): Event to signal stop request
         rsync_timeout (int): Timeout in seconds for rsync operations
         worker_type (str): Type of worker ("fast_to_slow" or "slow_to_fast")
+        min_size_bytes (int): Minimum file size in bytes for fast→slow moves
+        stats (dict): Statistics tracking dictionary
     """
     while queue and not stop_requested.is_set():
         file_path = None
@@ -418,10 +597,61 @@ def worker(
             if queue:
                 file_path = queue.pop(0)
         if file_path:
-            move_discs_api(file_path, destination_pool_id, rsync_timeout)
+            file_start_time = time.time()
+            try:
+                file_size = Path(file_path).stat().st_size
+            except OSError:
+                file_size = 0
+
+            is_fast_to_slow = "fast" in worker_type.lower() and "slow" in worker_type.lower()
+
+            # Track the attempt
+            with lock:
+                stats['attempts'][worker_type] += 1
+
+            # Try to move the file
+            success = move_discs_api_with_stats(file_path, destination_pool_id, rsync_timeout, min_size_bytes, is_fast_to_slow, stats, worker_type, lock)
+
+            file_end_time = time.time()
+            file_duration = file_end_time - file_start_time
+
             with lock:
                 progress_counter[0] += 1
-                print(f"[{worker_type}] Progress: {progress_counter[0]}/{total_files}")
+                if success:
+                    stats['bytes_moved'][worker_type] += file_size
+                    stats['files_moved'][worker_type] += 1
+                    stats['total_time'][worker_type] += file_duration
+
+                # Calculate running statistics
+                total_moved_files = stats['files_moved'][worker_type]
+                total_moved_bytes = stats['bytes_moved'][worker_type]
+
+                def format_size(size_bytes):
+                    if size_bytes == 0:
+                        return "0 B"
+                    for unit in ["B", "KB", "MB", "GB", "TB"]:
+                        if size_bytes < 1024.0:
+                            return f"{size_bytes:.1f} {unit}"
+                        size_bytes /= 1024.0
+                    return f"{size_bytes:.1f} PB"
+
+                def format_speed(bytes_per_second):
+                    return format_size(bytes_per_second) + "/s"
+
+                # Calculate average speed for this direction
+                avg_speed = 0
+                if stats['total_time'][worker_type] > 0:
+                    avg_speed = total_moved_bytes / stats['total_time'][worker_type]
+
+                status_line = f"[{worker_type}] Files: {progress_counter[0]}/{total_files} | "
+                if success:
+                    status_line += f"Moved: {total_moved_files} files ({format_size(total_moved_bytes)}) | "
+                    status_line += f"Current: {format_size(file_size)} | Avg Speed: {format_speed(avg_speed)}"
+                else:
+                    failed_count = progress_counter[0] - total_moved_files
+                    status_line += f"Moved: {total_moved_files}, Failed/Skipped: {failed_count} | Avg Speed: {format_speed(avg_speed)}"
+
+                print(status_line)
 
 
 def signal_handler(sig, frame, stop_requested):
@@ -440,6 +670,8 @@ Examples:
   %(prog)s --fast-pool fast --slow-pool vdo3 --filter-date 2024-01-01T00:00:00
   %(prog)s --fast-pool ssd --slow-pool hdd --past-days 30  # Files older than 30 days
   %(prog)s --past-days 7 --threads-fast-to-slow 2 --bandwidth-limit 100000
+  %(prog)s --min-size-mb 1000 --past-days 14  # Skip files < 1GB for fast→slow
+  %(prog)s --min-size-total-mb 1000000 --past-days 14  # Skip smallest 1TB worth of files
   %(prog)s --list-pools  # Show available storage pools
   %(prog)s --dry-run --past-days 14  # Preview migration for files older than 14 days
         """
@@ -504,6 +736,20 @@ Examples:
         type=int,
         default=10,
         help="Seconds to wait before starting processing (default: 10)"
+    )
+
+    # File filtering options (mutually exclusive)
+    size_group = parser.add_mutually_exclusive_group()
+    size_group.add_argument(
+        "--min-size-mb",
+        type=int,
+        default=0,
+        help="Minimum file size in MB for fast→slow migration (0 to disable, only affects fast→slow moves) (default: 0)"
+    )
+    size_group.add_argument(
+        "--min-size-total-mb",
+        type=int,
+        help="Skip smallest files until their total size reaches this threshold in MB (cumulative size filtering for fast→slow moves)"
     )
 
     # Utility options
@@ -583,6 +829,15 @@ def main():
         print("ERROR: Bandwidth limit cannot be negative")
         sys.exit(1)
 
+    # Validate minimum size parameters
+    if args.min_size_mb is not None and args.min_size_mb < 0:
+        print("ERROR: Minimum file size cannot be negative")
+        sys.exit(1)
+
+    if args.min_size_total_mb is not None and args.min_size_total_mb < 0:
+        print("ERROR: Minimum total size cannot be negative")
+        sys.exit(1)
+
     # =============================================================================
     # STARTUP CLEANUP
     # =============================================================================
@@ -610,6 +865,20 @@ def main():
     # Processing Configuration (from CLI arguments)
     STARTUP_DELAY = args.startup_delay
     RSYNC_TIMEOUT = args.rsync_timeout
+
+    # Size filtering configuration
+    if args.min_size_mb is not None and args.min_size_mb > 0:
+        MIN_SIZE_BYTES = args.min_size_mb * 1024 * 1024  # Convert MB to bytes
+        MIN_SIZE_TOTAL_BYTES = 0
+        SIZE_FILTER_TYPE = "individual"
+    elif args.min_size_total_mb is not None:
+        MIN_SIZE_BYTES = 0
+        MIN_SIZE_TOTAL_BYTES = args.min_size_total_mb * 1024 * 1024  # Convert MB to bytes
+        SIZE_FILTER_TYPE = "cumulative"
+    else:
+        MIN_SIZE_BYTES = 0
+        MIN_SIZE_TOTAL_BYTES = 0
+        SIZE_FILTER_TYPE = "none"
 
     # =============================================================================
     # DYNAMIC POOL RESOLUTION
@@ -668,14 +937,14 @@ def main():
 
     # Get file paths from both pools
     print(f"Scanning {FAST_POOL_NAME} pool ({FAST_POOL_PATH})...")
-    fast_result = get_sorted_file_paths_by_date(FAST_POOL_PATH, FILTER_DATE)
-    fast_files_before, fast_size_before = fast_result[0]
-    fast_files_after, fast_size_after = fast_result[1]
+    fast_result = get_sorted_file_paths_by_date(FAST_POOL_PATH, FILTER_DATE, MIN_SIZE_BYTES, MIN_SIZE_TOTAL_BYTES, True, SIZE_FILTER_TYPE)
+    fast_files_before, fast_size_before, fast_filtered_count, fast_filtered_size = fast_result[0]
+    fast_files_after, fast_size_after, _, _ = fast_result[1]
 
     print(f"Scanning {SLOW_POOL_NAME} pool ({SLOW_POOL_PATH})...")
-    slow_result = get_sorted_file_paths_by_date(SLOW_POOL_PATH, FILTER_DATE)
-    slow_files_before, slow_size_before = slow_result[0]
-    slow_files_after, slow_size_after = slow_result[1]
+    slow_result = get_sorted_file_paths_by_date(SLOW_POOL_PATH, FILTER_DATE, 0, 0, False, "none")
+    slow_files_before, slow_size_before, _, _ = slow_result[0]
+    slow_files_after, slow_size_after, _, _ = slow_result[1]
 
     def format_size(size_bytes):
         """Convert bytes to human readable format."""
@@ -704,16 +973,59 @@ def main():
     total_fast_to_slow = len(fast_to_slow_queue)
     total_slow_to_fast = len(slow_to_fast_queue)
 
-    print(f"\nMigration Summary:")
-    print(
-        f"{FAST_POOL_NAME} → {SLOW_POOL_NAME}: {total_fast_to_slow} files ({format_size(fast_size_before)})"
-    )
-    print(
-        f"{SLOW_POOL_NAME} → {FAST_POOL_NAME}: {total_slow_to_fast} files ({format_size(slow_size_after)})"
-    )
-    print(f"Total data to move: {format_size(fast_size_before + slow_size_after)}")
-    print(f"Max threads {FAST_POOL_NAME}→{SLOW_POOL_NAME}: {MAX_THREADS_FAST_TO_SLOW}")
-    print(f"Max threads {SLOW_POOL_NAME}→{FAST_POOL_NAME}: {MAX_THREADS_SLOW_TO_FAST}")
+    # Calculate comprehensive totals
+    # Fast pool totals (all files before + after the date threshold)
+    fast_total_files_scanned = len(fast_files_before) + fast_filtered_count + len(fast_files_after)
+    fast_total_size_scanned = fast_size_before + fast_filtered_size + fast_size_after
+
+    # Slow pool totals
+    slow_total_files_scanned = len(slow_files_before) + len(slow_files_after)
+    slow_total_size_scanned = slow_size_before + slow_size_after
+
+    # Overall totals
+    total_files_found = fast_total_files_scanned + slow_total_files_scanned
+    total_size_found = fast_total_size_scanned + slow_total_size_scanned
+
+    total_files_to_move = total_fast_to_slow + total_slow_to_fast
+    total_size_to_move = fast_size_before + slow_size_after
+
+    total_files_excluded = fast_filtered_count  # Only fast→slow has exclusions
+    total_size_excluded = fast_filtered_size
+
+    print(f"\n" + "="*80)
+    print("COMPREHENSIVE MIGRATION SUMMARY")
+    print("="*80)
+
+    print(f"TOTAL FILES FOUND: {total_files_found} files ({format_size(total_size_found)})")
+    print(f"  ├─ {FAST_POOL_NAME} pool: {fast_total_files_scanned} files ({format_size(fast_total_size_scanned)})")
+    print(f"  └─ {SLOW_POOL_NAME} pool: {slow_total_files_scanned} files ({format_size(slow_total_size_scanned)})")
+    print()
+
+    print(f"FILES TO BE MOVED: {total_files_to_move} files ({format_size(total_size_to_move)})")
+    print(f"  ├─ {FAST_POOL_NAME} → {SLOW_POOL_NAME}: {total_fast_to_slow} files ({format_size(fast_size_before)})")
+    print(f"  └─ {SLOW_POOL_NAME} → {FAST_POOL_NAME}: {total_slow_to_fast} files ({format_size(slow_size_after)})")
+    print()
+
+    if total_files_excluded > 0:
+        print(f"FILES EXCLUDED: {total_files_excluded} files ({format_size(total_size_excluded)})")
+        if SIZE_FILTER_TYPE == "individual":
+            print(f"  └─ Individual size < {MIN_SIZE_BYTES // (1024*1024)}MB (fast→slow only): {fast_filtered_count} files ({format_size(fast_filtered_size)})")
+        elif SIZE_FILTER_TYPE == "cumulative":
+            print(f"  └─ Smallest files totaling {format_size(fast_filtered_size)} (fast→slow only): {fast_filtered_count} files")
+        print()
+
+    print(f"PROCESSING CONFIGURATION:")
+    print(f"  ├─ Date threshold: {FILTER_DATE}")
+    print(f"  ├─ Max threads {FAST_POOL_NAME}→{SLOW_POOL_NAME}: {MAX_THREADS_FAST_TO_SLOW}")
+    print(f"  ├─ Max threads {SLOW_POOL_NAME}→{FAST_POOL_NAME}: {MAX_THREADS_SLOW_TO_FAST}")
+    print(f"  ├─ Bandwidth limit: {BANDWIDTH_LIMIT} KB/s")
+    if SIZE_FILTER_TYPE == "individual":
+        print(f"  └─ Individual size threshold: {MIN_SIZE_BYTES // (1024*1024)} MB")
+    elif SIZE_FILTER_TYPE == "cumulative":
+        print(f"  └─ Cumulative size threshold: {MIN_SIZE_TOTAL_BYTES // (1024*1024)} MB")
+    else:
+        print(f"  └─ Size filtering: disabled")
+    print("="*80)
 
     # Handle dry-run mode
     if args.dry_run:
@@ -747,6 +1059,29 @@ def main():
         print("Startup cancelled by user.")
         return
 
+    # Start timing
+    migration_start_time = time.time()
+    initial_data_size = fast_size_before + slow_size_after
+
+    # Initialize statistics tracking
+    fast_to_slow_name = f"{FAST_POOL_NAME}→{SLOW_POOL_NAME}"
+    slow_to_fast_name = f"{SLOW_POOL_NAME}→{FAST_POOL_NAME}"
+
+    stats = {
+        'attempts': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'files_moved': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'bytes_moved': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'total_time': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'skipped_size': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'skipped_recycled': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'skipped_deleted': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'skipped_invalid': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'failed_db': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'failed_not_ready': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'failed_after_rsync': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'failed_rsync': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+    }
+
     # Start worker threads for fast → slow migration
     if total_fast_to_slow > 0:
         if MAX_THREADS_FAST_TO_SLOW > 0:
@@ -764,7 +1099,9 @@ def main():
                         total_fast_to_slow,
                         stop_requested,
                         RSYNC_TIMEOUT,
-                        f"{FAST_POOL_NAME}→{SLOW_POOL_NAME}",
+                        fast_to_slow_name,
+                        MIN_SIZE_BYTES,
+                        stats,
                     ),
                     name=f"FastToSlow-{i+1}",
                 )
@@ -792,7 +1129,9 @@ def main():
                         total_slow_to_fast,
                         stop_requested,
                         RSYNC_TIMEOUT,
-                        f"{SLOW_POOL_NAME}→{FAST_POOL_NAME}",
+                        slow_to_fast_name,
+                        0,  # No size threshold for slow→fast moves
+                        stats,
                     ),
                     name=f"SlowToFast-{i+1}",
                 )
@@ -807,13 +1146,153 @@ def main():
     for thread in all_threads:
         thread.join()
 
-    print("\n=== MIGRATION COMPLETE ===")
-    print(
-        f"{FAST_POOL_NAME} → {SLOW_POOL_NAME} completed: {fast_to_slow_progress[0]}/{total_fast_to_slow}"
-    )
-    print(
-        f"{SLOW_POOL_NAME} → {FAST_POOL_NAME} completed: {slow_to_fast_progress[0]}/{total_slow_to_fast}"
-    )
+    # Calculate final statistics
+    migration_end_time = time.time()
+    total_migration_time = migration_end_time - migration_start_time
+
+    def format_time(seconds):
+        """Convert seconds to human readable format."""
+        if seconds < 60:
+            return f"{seconds:.1f}s"
+        elif seconds < 3600:
+            minutes = seconds / 60
+            return f"{minutes:.1f}m"
+        else:
+            hours = seconds / 3600
+            return f"{hours:.1f}h"
+
+    def format_size(size_bytes):
+        """Convert bytes to human readable format."""
+        if size_bytes == 0:
+            return "0 B"
+        for unit in ["B", "KB", "MB", "GB", "TB"]:
+            if size_bytes < 1024.0:
+                return f"{size_bytes:.1f} {unit}"
+            size_bytes /= 1024.0
+        return f"{size_bytes:.1f} PB"
+
+    def format_speed(bytes_per_second):
+        """Convert bytes per second to human readable format."""
+        return format_size(bytes_per_second) + "/s"
+
+    print("\n" + "="*80)
+    print("MIGRATION COMPLETE - FINAL STATISTICS")
+    print("="*80)
+
+    print(f"Total Migration Time: {format_time(total_migration_time)}")
+    print(f"Migration Start: {datetime.fromtimestamp(migration_start_time).strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Migration End: {datetime.fromtimestamp(migration_end_time).strftime('%Y-%m-%d %H:%M:%S')}")
+    print()
+
+    # Calculate estimated vs actual comparison
+    estimated_files_total = total_fast_to_slow + total_slow_to_fast
+    estimated_size_total = initial_data_size
+    actual_files_total = stats['files_moved'][fast_to_slow_name] + stats['files_moved'][slow_to_fast_name]
+    actual_size_total = stats['bytes_moved'][fast_to_slow_name] + stats['bytes_moved'][slow_to_fast_name]
+
+    print("--- ESTIMATED vs ACTUAL COMPARISON ---")
+    print(f"Estimated files to move: {estimated_files_total}")
+    print(f"Actual files moved: {actual_files_total}")
+    if estimated_files_total > 0:
+        file_accuracy = (actual_files_total / estimated_files_total) * 100
+        print(f"File migration accuracy: {file_accuracy:.1f}%")
+
+    print(f"Estimated data to move: {format_size(estimated_size_total)}")
+    print(f"Actual data moved: {format_size(actual_size_total)}")
+    if estimated_size_total > 0:
+        size_accuracy = (actual_size_total / estimated_size_total) * 100
+        print(f"Data migration accuracy: {size_accuracy:.1f}%")
+
+    # Show the difference
+    file_diff = actual_files_total - estimated_files_total
+    size_diff = actual_size_total - estimated_size_total
+    print(f"File difference: {file_diff:+d} files")
+    print(f"Size difference: {format_size(abs(size_diff))} {'more' if size_diff >= 0 else 'less'}")
+    print()
+
+    # Summary by direction
+    for direction in [fast_to_slow_name, slow_to_fast_name]:
+        print(f"--- {direction} ---")
+        attempts = stats['attempts'][direction]
+        moved = stats['files_moved'][direction]
+        bytes_moved = stats['bytes_moved'][direction]
+        avg_time = stats['total_time'][direction] / moved if moved > 0 else 0
+
+        # Get estimated values for this direction
+        if direction == fast_to_slow_name:
+            estimated_files = total_fast_to_slow
+            estimated_size = fast_size_before
+        else:
+            estimated_files = total_slow_to_fast
+            estimated_size = slow_size_after
+
+        print(f"Files processed: {attempts}")
+        print(f"Files moved successfully: {moved} (estimated: {estimated_files})")
+        print(f"Data moved: {format_size(bytes_moved)} (estimated: {format_size(estimated_size)})")
+
+        # Show accuracy for this direction
+        if estimated_files > 0:
+            file_accuracy = (moved / estimated_files) * 100
+            print(f"Migration accuracy: {file_accuracy:.1f}% files")
+        if estimated_size > 0:
+            size_accuracy = (bytes_moved / estimated_size) * 100
+            print(f"                    {size_accuracy:.1f}% data")
+
+        if moved > 0:
+            overall_speed = bytes_moved / total_migration_time if total_migration_time > 0 else 0
+            print(f"Average file transfer time: {format_time(avg_time)}")
+            print(f"Overall transfer speed: {format_speed(overall_speed)}")
+
+        # Failure/skip breakdown
+        failures = (
+            stats['skipped_size'][direction] +
+            stats['skipped_recycled'][direction] +
+            stats['skipped_deleted'][direction] +
+            stats['skipped_invalid'][direction] +
+            stats['failed_db'][direction] +
+            stats['failed_not_ready'][direction] +
+            stats['failed_after_rsync'][direction] +
+            stats['failed_rsync'][direction]
+        )
+
+        if failures > 0:
+            print(f"Skipped/Failed: {failures} files")
+            if stats['skipped_size'][direction] > 0:
+                print(f"  - Size threshold: {stats['skipped_size'][direction]}")
+            if stats['skipped_recycled'][direction] > 0:
+                print(f"  - Recycled status: {stats['skipped_recycled'][direction]}")
+            if stats['skipped_deleted'][direction] > 0:
+                print(f"  - Deleted status: {stats['skipped_deleted'][direction]}")
+            if stats['skipped_invalid'][direction] > 0:
+                print(f"  - Invalid qcow2: {stats['skipped_invalid'][direction]}")
+            if stats['failed_db'][direction] > 0:
+                print(f"  - Database errors: {stats['failed_db'][direction]}")
+            if stats['failed_not_ready'][direction] > 0:
+                print(f"  - Not ready: {stats['failed_not_ready'][direction]}")
+            if stats['failed_after_rsync'][direction] > 0:
+                print(f"  - Post-rsync failures: {stats['failed_after_rsync'][direction]}")
+            if stats['failed_rsync'][direction] > 0:
+                print(f"  - Rsync failures: {stats['failed_rsync'][direction]}")
+
+        print()
+
+    # Overall summary
+    total_moved = stats['files_moved'][fast_to_slow_name] + stats['files_moved'][slow_to_fast_name]
+    total_bytes_moved = stats['bytes_moved'][fast_to_slow_name] + stats['bytes_moved'][slow_to_fast_name]
+    total_attempts = stats['attempts'][fast_to_slow_name] + stats['attempts'][slow_to_fast_name]
+
+    print("--- OVERALL SUMMARY ---")
+    print(f"Total files processed: {total_attempts}")
+    print(f"Total files moved: {total_moved}")
+    print(f"Total data moved: {format_size(total_bytes_moved)}")
+
+    if total_bytes_moved > 0 and total_migration_time > 0:
+        overall_speed = total_bytes_moved / total_migration_time
+        print(f"Average migration speed: {format_speed(overall_speed)}")
+        efficiency = (total_moved / total_attempts * 100) if total_attempts > 0 else 0
+        print(f"Migration efficiency: {efficiency:.1f}% ({total_moved}/{total_attempts})")
+
+    print("="*80)
     print("All done")
 
 
