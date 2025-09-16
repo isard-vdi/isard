@@ -20,12 +20,14 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import argparse
 import os
 import signal
 import subprocess
+import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from pprint import pprint
 
@@ -428,40 +430,186 @@ def signal_handler(sig, frame, stop_requested):
     stop_requested.set()
 
 
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Bilateral storage migration tool for IsardVDI",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --fast-pool fast --slow-pool vdo3 --filter-date 2024-01-01T00:00:00
+  %(prog)s --fast-pool ssd --slow-pool hdd --past-days 30  # Files older than 30 days
+  %(prog)s --past-days 7 --threads-fast-to-slow 2 --bandwidth-limit 100000
+  %(prog)s --list-pools  # Show available storage pools
+  %(prog)s --dry-run --past-days 14  # Preview migration for files older than 14 days
+        """
+    )
+
+    # Pool configuration
+    parser.add_argument(
+        "--fast-pool",
+        type=str,
+        default="fast",
+        help="Name of the fast storage pool (default: fast)"
+    )
+    parser.add_argument(
+        "--slow-pool",
+        type=str,
+        default="vdo3",
+        help="Name of the slow storage pool (default: vdo3)"
+    )
+
+    # Date filtering (mutually exclusive options)
+    date_group = parser.add_mutually_exclusive_group()
+    date_group.add_argument(
+        "--filter-date",
+        type=str,
+        help="Date threshold for file classification (ISO format: YYYY-MM-DDTHH:MM:SS)"
+    )
+    date_group.add_argument(
+        "--past-days",
+        type=int,
+        help="Number of days ago from today to use as filter date (e.g., 30 for files older than 30 days)"
+    )
+
+    # Threading configuration
+    parser.add_argument(
+        "--threads-fast-to-slow",
+        type=int,
+        default=4,
+        help="Number of threads for moving old files fast → slow (0 to disable) (default: 4)"
+    )
+    parser.add_argument(
+        "--threads-slow-to-fast",
+        type=int,
+        default=3,
+        help="Number of threads for moving recent files slow → fast (0 to disable) (default: 3)"
+    )
+
+    # Performance configuration
+    parser.add_argument(
+        "--bandwidth-limit",
+        type=int,
+        default=200000,
+        help="Bandwidth limit in KB/s (0 for unlimited) (default: 200000)"
+    )
+    parser.add_argument(
+        "--rsync-timeout",
+        type=int,
+        default=3600,
+        help="Timeout in seconds for rsync operations (default: 3600)"
+    )
+    parser.add_argument(
+        "--startup-delay",
+        type=int,
+        default=10,
+        help="Seconds to wait before starting processing (default: 10)"
+    )
+
+    # Utility options
+    parser.add_argument(
+        "--list-pools",
+        action="store_true",
+        help="List available storage pools and exit"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show migration plan without executing (preview mode)"
+    )
+    parser.add_argument(
+        "--no-cleanup",
+        action="store_true",
+        help="Skip cleanup of bad files logs at startup"
+    )
+
+    return parser.parse_args()
+
+
+def validate_date_format(date_string):
+    """Validate and parse the date string."""
+    try:
+        datetime.fromisoformat(date_string)
+        return True
+    except ValueError:
+        return False
+
+
 def main():
     """Main function to execute the bilateral storage migration process."""
+
+    # Parse command line arguments
+    args = parse_arguments()
+
+    # Handle list-pools option
+    if args.list_pools:
+        print("=== AVAILABLE STORAGE POOLS ===")
+        show_storage_pools_info()
+        return
+
+    # Handle date filtering options
+    if args.past_days is not None:
+        # Calculate filter date from past days
+        if args.past_days < 0:
+            print("ERROR: Past days cannot be negative")
+            sys.exit(1)
+
+        filter_date = datetime.now() - timedelta(days=args.past_days)
+        FILTER_DATE = filter_date.strftime("%Y-%m-%dT%H:%M:%S")
+        print(f"Using calculated filter date from {args.past_days} days ago: {FILTER_DATE}")
+    elif args.filter_date is not None:
+        # Use provided filter date
+        if not validate_date_format(args.filter_date):
+            print(f"ERROR: Invalid date format '{args.filter_date}'. Use ISO format: YYYY-MM-DDTHH:MM:SS")
+            sys.exit(1)
+        FILTER_DATE = args.filter_date
+    else:
+        # Default to 30 days ago if neither option is provided
+        filter_date = datetime.now() - timedelta(days=30)
+        FILTER_DATE = filter_date.strftime("%Y-%m-%dT%H:%M:%S")
+        print(f"No date filter specified. Using default of 30 days ago: {FILTER_DATE}")
+
+    # Validate thread counts
+    if args.threads_fast_to_slow < 0 or args.threads_slow_to_fast < 0:
+        print("ERROR: Thread counts cannot be negative")
+        sys.exit(1)
+
+    if args.threads_fast_to_slow == 0 and args.threads_slow_to_fast == 0:
+        print("ERROR: At least one migration direction must be enabled (threads > 0)")
+        sys.exit(1)
+
+    # Validate bandwidth limit
+    if args.bandwidth_limit < 0:
+        print("ERROR: Bandwidth limit cannot be negative")
+        sys.exit(1)
 
     # =============================================================================
     # STARTUP CLEANUP
     # =============================================================================
 
-    print("=== STARTUP CLEANUP ===")
-    cleanup_bad_files_logs()
-    print()
+    if not args.no_cleanup:
+        print("=== STARTUP CLEANUP ===")
+        cleanup_bad_files_logs()
+        print()
 
     # =============================================================================
-    # CONFIGURATION PARAMETERS
+    # CONFIGURATION FROM CLI ARGUMENTS
     # =============================================================================
 
-    # Storage Pool Names (will be resolved dynamically)
-    FAST_POOL_NAME = "fast"  # Name of the fast storage pool
-    SLOW_POOL_NAME = "vdo3"  # Name of the slow storage pool
+    # Storage Pool Names (from CLI arguments)
+    FAST_POOL_NAME = args.fast_pool
+    SLOW_POOL_NAME = args.slow_pool
 
-    # Processing Configuration
-    FILTER_DATE = "2026-07-07T00:00:00"  # Date threshold for file classification
+    # FILTER_DATE is already set above based on CLI arguments
 
-    # Threading Configuration
-    MAX_THREADS_FAST_TO_SLOW = 4  # Threads for moving old files fast → slow (Set to 0 to disable this direction)
-    MAX_THREADS_SLOW_TO_FAST = 3  # Threads for moving recent files slow → fast (Set to 0 to disable this direction)
-    BANDWIDTH_LIMIT = (
-        200000  # Bandwidth limit in KB/s (100MB/s) - Set to 0 for unlimited bandwidth
-    )
+    # Threading Configuration (from CLI arguments)
+    MAX_THREADS_FAST_TO_SLOW = args.threads_fast_to_slow
+    MAX_THREADS_SLOW_TO_FAST = args.threads_slow_to_fast
+    BANDWIDTH_LIMIT = args.bandwidth_limit
 
-    # Processing Configuration
-    STARTUP_DELAY = 10  # Seconds to wait before starting processing
-    RSYNC_TIMEOUT = (
-        3600  # Timeout in seconds for rsync operations (3600 seconds = 1 hour)
-    )
+    # Processing Configuration (from CLI arguments)
+    STARTUP_DELAY = args.startup_delay
+    RSYNC_TIMEOUT = args.rsync_timeout
 
     # =============================================================================
     # DYNAMIC POOL RESOLUTION
@@ -566,6 +714,12 @@ def main():
     print(f"Total data to move: {format_size(fast_size_before + slow_size_after)}")
     print(f"Max threads {FAST_POOL_NAME}→{SLOW_POOL_NAME}: {MAX_THREADS_FAST_TO_SLOW}")
     print(f"Max threads {SLOW_POOL_NAME}→{FAST_POOL_NAME}: {MAX_THREADS_SLOW_TO_FAST}")
+
+    # Handle dry-run mode
+    if args.dry_run:
+        print("\n=== DRY RUN MODE - NO FILES WILL BE MOVED ===")
+        print("Migration plan completed. Use without --dry-run to execute.")
+        return
 
     # Setup signal handler for graceful shutdown
     signal.signal(
