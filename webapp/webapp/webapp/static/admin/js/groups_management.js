@@ -702,7 +702,7 @@ function actionsGroupDetail(){
                             url: "/api/v3/admin/user",
                             data: JSON.stringify({
                                 user: users,
-                                delete_user: data['delete-user']
+                                delete_user: true
                             }),
                             contentType: "application/json",
                             success: function (data) {
