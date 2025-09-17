@@ -2,6 +2,11 @@
 
 when = $BACKUP_CONFIG_WHEN
 
+# Only run if config backup is enabled
+if [ "$when" = "disabled" ]; then
+    exit 0
+fi
+
 # Check if today is Saturday (6)
 if [ $(date +%u) -eq 6 ]; then
     # Check if the path exists

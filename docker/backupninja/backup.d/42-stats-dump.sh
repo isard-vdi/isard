@@ -16,3 +16,7 @@ curl -sX POST ${PROMETHEUS_ADDRESS}/api/v1/admin/tsdb/snapshot |
 # Loki
 #
 curl -sX POST -H "Content-Type: application/json" ${LOKI_ADDRESS}/flush
+if [ $? -ne 0 ]; then
+    echo "Fatal: Loki flush failed - unable to connect to Loki at $LOKI_ADDRESS" >&2
+    exit 1
+fi

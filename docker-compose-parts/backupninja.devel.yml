@@ -12,5 +12,14 @@ services:
       source: ${BUILD_ROOT_PATH}/docker/backupninja/nfs_umount.sh
       target: /usr/local/bin/nfs_umount.sh
     - type: bind
+      source: ${BUILD_ROOT_PATH}/docker/backupninja/backup_report.py
+      target: /usr/local/bin/backup_report.py
+    - type: bind
+      source: ${BUILD_ROOT_PATH}/docker/backupninja/send_backup_report.sh
+      target: /usr/local/bin/send_backup_report.sh
+    - type: bind
+      source: ${BUILD_ROOT_PATH}/docker/backupninja/borg_integrity_template.sh
+      target: /usr/local/bin/borg_integrity_template.sh
+    - type: bind
       source: ${BUILD_ROOT_PATH}/docker/backupninja/backup.d
       target: /usr/local/share/backup.d

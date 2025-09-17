@@ -135,6 +135,7 @@ update_bastion_desktops_haproxy_map()
 Import all views
 """
 from .views import (
+    AdminBackupsView,
     AdminDomainsView,
     AdminDownloadsView,
     AdminLoginConfigView,
