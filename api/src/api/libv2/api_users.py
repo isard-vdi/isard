@@ -458,11 +458,12 @@ class ApiUsers:
             if os.environ.get("FRONTEND_SHOW_TEMPORAL") == None
             else os.environ.get("FRONTEND_SHOW_TEMPORAL") == "True"
         )
-        frontend_show_change_email = (
-            payload.get("provider") == "local"
-            and Configuration.smtp.get("enabled")
-            and self.get_email_policy(payload["category_id"], payload["role_id"])
-        )
+        frontend_show_change_email = Configuration.smtp.get("enabled")
+        if payload["provider"] in ["saml", "ldap"]:
+            env_var = f"AUTHENTICATION_AUTHENTICATION_{payload['provider'].upper()}_SAVE_EMAIL"
+            if os.environ.get(env_var, "").lower() == "true":
+                frontend_show_change_email = False
+
         isard_user_storage_update_user_quota(payload["user_id"])
         if can_use_bastion(payload):
             bastion_allowed = True
@@ -941,6 +942,13 @@ class ApiUsers:
         if encrypted_password != False:
             password = encrypted_password
 
+        # If the user is created by SAML or LDAP and its configured to save the email we consider the email verified
+        email_verified = False
+        if provider in ["saml", "ldap"]:
+            env_var = f"AUTHENTICATION_AUTHENTICATION_{provider.upper()}_SAVE_EMAIL"
+            if os.environ.get(env_var, "").lower() == "true":
+                email_verified = int(time.time())
+
         user = {
             "id": user_id,
             "name": name,
@@ -960,7 +968,7 @@ class ApiUsers:
             "secondary_groups": secondary_groups,
             "password_history": [password],
             "email_verification_token": None,
-            "email_verified": False,
+            "email_verified": email_verified,
             "api_key": None,
         }
         with app.app_context():
@@ -1007,13 +1015,26 @@ class ApiUsers:
             users = (
                 r.table("users")
                 .get_all(r.args(user_ids))
-                .pluck("id", "category", "group", "uid")
+                .pluck("id", "category", "group", "uid", "provider")
                 .run(db.conn)
             )
 
         for user in users:
-            if Configuration.smtp.get("enabled") and data.get("email"):
-                if data.get("email") != user["email"]:
+            if (
+                data.get("email")
+                and not data.get("email_verified")
+                and Configuration.smtp.get("enabled")
+                and data["email"] != user["email"]
+            ):
+                should_verify_email = True
+
+                # Check if SAML/LDAP user with auto-save email enabled
+                if user["provider"] in ["saml", "ldap"]:
+                    env_var = f"AUTHENTICATION_AUTHENTICATION_{user['provider'].upper()}_SAVE_EMAIL"
+                    if os.environ.get(env_var, "").lower() == "true":
+                        should_verify_email = False
+
+                if should_verify_email:
                     if self.get_email_policy(user["category"], user["role"]):
                         token = validate_email_jwt(user["id"], data["email"])["jwt"]
                         with app.app_context():
@@ -1023,7 +1044,7 @@ class ApiUsers:
                                     "email_verified": False,
                                 }
                             ).run(db.conn)
-                        send_verification_email(data.get("email"), user["id"], token)
+                        send_verification_email(data["email"], user["id"], token)
                     else:
                         with app.app_context():
                             r.table("users").get(user["id"]).update(
@@ -1154,30 +1175,49 @@ class ApiUsers:
             user = (
                 r.table("users")
                 .get(user_id)
-                .pluck("id", "email", "category", "role", "email_verified", "group")
+                .pluck(
+                    "id",
+                    "email",
+                    "category",
+                    "role",
+                    "email_verified",
+                    "group",
+                    "provider",
+                )
                 .run(db.conn)
             )
 
-        if Configuration.smtp.get("enabled") and data.get("email"):
-            if data.get("email") != user["email"]:
+        if (
+            data.get("email")
+            and not data.get("email_verified")
+            and Configuration.smtp.get("enabled")
+            and data["email"] != user["email"]
+        ):
+            should_verify_email = True
+
+            # Check if SAML/LDAP user with auto-save email enabled
+            if user["provider"] in ["saml", "ldap"]:
+                env_var = f"AUTHENTICATION_AUTHENTICATION_{user['provider'].upper()}_SAVE_EMAIL"
+                if os.environ.get(env_var, "").lower() == "true":
+                    should_verify_email = False
+
+            if should_verify_email:
                 if self.get_email_policy(user["category"], user["role"]):
                     token = validate_email_jwt(user["id"], data["email"])["jwt"]
-                    with app.app_context():
-                        r.table("users").get(user["id"]).update(
-                            {
-                                "email_verification_token": token,
-                                "email_verified": None,
-                            }
-                        ).run(db.conn)
-                    send_verification_email(data.get("email"), user["id"], token)
+                    data.update(
+                        {
+                            "email_verification_token": token,
+                            "email_verified": False,
+                        }
+                    )
+                    send_verification_email(data["email"], user["id"], token)
                 else:
-                    with app.app_context():
-                        r.table("users").get(user["id"]).update(
-                            {
-                                "email_verification_token": None,
-                                "email_verified": None,
-                            }
-                        ).run(db.conn)
+                    data.update(
+                        {
+                            "email_verification_token": None,
+                            "email_verified": False,
+                        }
+                    )
 
         if data.get("category") and user["category"] != data["category"]:
             raise Error(
@@ -2338,6 +2378,12 @@ class ApiUsers:
                 .pluck("email_verified", "category", "role", "provider")
                 .run(db.conn)
             )
+        if user["provider"] in ["saml", "ldap"]:
+            env_var = (
+                f'AUTHENTICATION_AUTHENTICATION_{user["provider"].upper()}_SAVE_EMAIL'
+            )
+            if os.environ.get(env_var, "").lower() == "true":
+                return True
         policy = self.get_email_policy(user["category"], user["role"])
         if not policy:
             return True
