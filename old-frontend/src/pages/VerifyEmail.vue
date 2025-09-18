@@ -90,7 +90,7 @@ export default {
     const $store = context.root.$store
     const route = context.root.$route
     const user = computed(() => $store.getters.getUser)
-    const emailAddress = ref(user.value ? user.value.current_email : null)
+    const emailAddress = ref('')
     const sendEmailButtonDisabled = ref(false)
     const alertType = ref('')
 
@@ -109,8 +109,6 @@ export default {
         alertType.value = 'error'
         showAlert()
       })
-    } else {
-      emailAddress.value = user.value.current_email
     }
 
     const v$ = useVuelidate({
