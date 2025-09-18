@@ -192,13 +192,16 @@ def get_user_full_data(user_id):
 
 
 @cached(cache=TTLCache(maxsize=200, ttl=30))
-def get_policies_category_role(category_id, role_id):
+def get_policies_category_role_provider(category_id, role_id, provider):
     with app.app_context():
         return list(
             r.table("authentication")
             .filter(
-                (r.row["category"] in [category_id, "all"])
-                | (r.row["role"] in [role_id, "all"])
+                (r.row["type"] == provider)
+                & (
+                    (r.row["category"] in [category_id, "all"])
+                    | (r.row["role"] in [role_id, "all"])
+                )
             )
             .run(db.conn)
         )
@@ -1035,7 +1038,9 @@ class ApiUsers:
                         should_verify_email = False
 
                 if should_verify_email:
-                    if self.get_email_policy(user["category"], user["role"]):
+                    if self.get_email_policy(
+                        user["category"], user["role"], user["provider"]
+                    ):
                         token = validate_email_jwt(user["id"], data["email"])["jwt"]
                         with app.app_context():
                             r.table("users").get(user["id"]).update(
@@ -1202,7 +1207,9 @@ class ApiUsers:
                     should_verify_email = False
 
             if should_verify_email:
-                if self.get_email_policy(user["category"], user["role"]):
+                if self.get_email_policy(
+                    user["category"], user["role"], user["provider"]
+                ):
                     token = validate_email_jwt(user["id"], data["email"])["jwt"]
                     data.update(
                         {
@@ -2259,20 +2266,22 @@ class ApiUsers:
 
     @cached(
         TTLCache(maxsize=100, ttl=10),
-        key=lambda self, subtype, category, role, user_id=None: (
+        key=lambda self, subtype, category, role, provider, user_id=None: (
             subtype,
             category,
             role,
+            provider,
             user_id,
         ),
     )
-    def get_user_policy(self, subtype, category, role, user_id=None):
+    def get_user_policy(self, subtype, category, role, provider, user_id=None):
         if user_id:
-            user = get_document("users", user_id, ["category", "role"])
+            user = get_document("users", user_id, ["category", "role", "provider"])
             category = user["category"]
             role = user["role"]
+            provider = user["provider"]
 
-        policies = get_policies_category_role(category, role)
+        policies = get_policies_category_role_provider(category, role, provider)
         matching_policies = []
         for policy in policies:
             if policy["category"] == category and policy["role"] == role:
@@ -2290,23 +2299,29 @@ class ApiUsers:
         else:
             return False
 
-    def get_user_password_policy(self, category=None, role=None, user_id=None):
-        return self.get_user_policy("password", category, role, user_id)
+    def get_user_password_policy(
+        self, category=None, role=None, provider=None, user_id=None
+    ):
+        return self.get_user_policy("password", category, role, provider, user_id)
 
-    def get_email_policy(self, category=None, role=None, user_id=None):
-        return self.get_user_policy("email_verification", category, role, user_id)
+    def get_email_policy(self, category=None, role=None, provider=None, user_id=None):
+        return self.get_user_policy(
+            "email_verification", category, role, provider, user_id
+        )
 
     def change_password(self, password, user_id):
         with app.app_context():
             user = (
                 r.table("users")
                 .get(user_id)
-                .pluck("category", "role", "password_history")
+                .pluck("category", "role", "password_history", "provider")
                 .run(db.conn)
             )
 
         p = Password()
-        policy = self.get_user_password_policy(user["category"], user["role"])
+        policy = self.get_user_password_policy(
+            user["category"], user["role"], user["provider"]
+        )
 
         p.check_policy(password, policy, user_id)
         password = p.encrypt(password)
@@ -2338,7 +2353,7 @@ class ApiUsers:
         if user["provider"] != "local":
             return False
         policy = self.get_user_password_policy(
-            category=user["category"], role=user["role"]
+            category=user["category"], role=user["role"], provider=user["provider"]
         )
         if not policy:
             return False
@@ -2384,7 +2399,7 @@ class ApiUsers:
             )
             if os.environ.get(env_var, "").lower() == "true":
                 return True
-        policy = self.get_email_policy(user["category"], user["role"])
+        policy = self.get_email_policy(user["category"], user["role"], user["provider"])
         if not policy:
             return True
         else:
@@ -2395,13 +2410,17 @@ class ApiUsers:
             user = (
                 r.table("users")
                 .get(user_id)
-                .pluck("role", "category", "lang", "disclaimer_acknowledged")
+                .pluck(
+                    "role", "category", "provider", "lang", "disclaimer_acknowledged"
+                )
                 .run(db.conn)
             )
         if user.get("disclaimer_acknowledged"):
             return False
 
-        policy = self.get_user_policy("disclaimer", "all", user["role"], user_id)
+        policy = self.get_user_policy(
+            "disclaimer", "all", user["role"], user["provider"], user_id
+        )
         if policy:
             return True
         else:
@@ -2639,10 +2658,14 @@ class ApiUsers:
 
         p = Password()
         if item_type == "csv":
-            policy = self.get_user_password_policy(user["category_id"], user["role"])
+            policy = self.get_user_password_policy(
+                user["category_id"], user["role"], user["provider"]
+            )
             user["password"] = p.generate_password(policy)
         elif item_type == "generate":
-            policy = self.get_user_password_policy(match["category_id"], user["role"])
+            policy = self.get_user_password_policy(
+                match["category_id"], user["role"], user["provider"]
+            )
             p.check_policy(user["password"], policy, username=user["username"])
 
         return user

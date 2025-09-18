@@ -30,6 +30,13 @@
                             If there is no match, it defaults to a policy for all roles and all categories.</p>
                         <div class="item form-group">
                             <div class="row" style="margin-bottom:15px;" id="scope">
+                                <div class="col-md-6 col-xs-2" id="type-select">
+                                    <label class="control-label" for="type">Type<span
+                                            class="required">*</span></label>
+                                    <select class="form-control" style="width:100%" name="type"
+                                        id="type"></select>
+                                    <div class="select2-resize-handle"></div>
+                                </div>
                                 <div class="col-md-6 col-xs-2" id="category-select">
                                     <label class="control-label" for="category">Category<span
                                             class="required">*</span></label>
@@ -42,80 +49,77 @@
                                     <select class="form-control" style="width:100%" name="role" id="role"></select>
                                 </div>
                             </div>
-                            <div class="x_content">
+                            <div class="password_fields x_content">
                                 <div class="x_title">
                                     <h4> Password
                                     </h4>
                                     <div class="clearfix"></div>
                                 </div>
-
-                                <div id="password_fields" class="policy_fields">
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="digits"
-                                            title="Minimum number of numerical digits">Digits<span
-                                                class="required">*</span></label>
-                                        <input id="digits" data-parsley-type="number" class="form-control roundbox"
-                                            name="digits" type="number" value="0" style="width:100%"
-                                            required="required">
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="length"
-                                            title="Minimum character length of the password">Character length<span
-                                                class="required">*</span></label>
-                                        <input id="length" data-parsley-type="number" class="form-control roundbox"
-                                            name="length" type="number" value="8" style="width:100%"
-                                            required="required">
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="lowercase"
-                                            title="Minimum number of lowercase characters">Lowercase chars<span
-                                                class="required">*</span></label>
-                                        <input id="lowercase" data-parsley-type="number" class="form-control roundbox"
-                                            name="lowercase" type="number" value="0" style="width:100%"
-                                            required="required">
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="uppercase"
-                                            title="Minimum number of uppercase characters">Uppercase chars<span
-                                                class="required">*</span></label>
-                                        <input id="uppercase" data-parsley-type="number" class="form-control roundbox"
-                                            name="uppercase" type="number" value="0" style="width:100%"
-                                            required="required">
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="special_characters"
-                                            title="Minimum number of special characters">Special
-                                            chars<span class="required">*</span></label>
-                                        <input id="special_characters" data-parsley-type="number"
-                                            class="form-control roundbox" name="special_characters" type="number"
-                                            value="0" style="width:100%" required="required">
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="not_username"
-                                            title="Check if the password can contain the username">No
-                                            username<span class="required">*</span></label>
-                                        <select id="not_username" class="form-control roundbox" name="not_username"
-                                            type="boolean" value="0" style="width:100%" required="required">
-                                            <option value="true" selected>yes</option>
-                                            <option value="false">no</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="expiration"
-                                            title="Number of days until the password expires">Expiration days<span
-                                                class="required">*</span></label>
-                                        <input id="expiration" data-parsley-type="number" class="form-control roundbox"
-                                            name="expiration" type="number" value="0" style="width:100%"
-                                            required="required">
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="old_passwords"
-                                            title="Number of old passwords to be remembered">Old
-                                            passwords<span class="required">*</span></label>
-                                        <input id="old_passwords" data-parsley-type="number"
-                                            class="form-control roundbox" name="old_passwords" type="number" value="0"
-                                            style="width:100%" required="required">
-                                    </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="digits"
+                                        title="Minimum number of numerical digits">Digits<span
+                                            class="required">*</span></label>
+                                    <input id="digits" data-parsley-type="number" class="form-control roundbox"
+                                        name="digits" type="number" value="0" style="width:100%"
+                                        required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="length"
+                                        title="Minimum character length of the password">Character length<span
+                                            class="required">*</span></label>
+                                    <input id="length" data-parsley-type="number" class="form-control roundbox"
+                                        name="length" type="number" value="8" style="width:100%"
+                                        required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="lowercase"
+                                        title="Minimum number of lowercase characters">Lowercase chars<span
+                                            class="required">*</span></label>
+                                    <input id="lowercase" data-parsley-type="number" class="form-control roundbox"
+                                        name="lowercase" type="number" value="0" style="width:100%"
+                                        required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="uppercase"
+                                        title="Minimum number of uppercase characters">Uppercase chars<span
+                                            class="required">*</span></label>
+                                    <input id="uppercase" data-parsley-type="number" class="form-control roundbox"
+                                        name="uppercase" type="number" value="0" style="width:100%"
+                                        required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="special_characters"
+                                        title="Minimum number of special characters">Special
+                                        chars<span class="required">*</span></label>
+                                    <input id="special_characters" data-parsley-type="number"
+                                        class="form-control roundbox" name="special_characters" type="number"
+                                        value="0" style="width:100%" required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="not_username"
+                                        title="Check if the password can contain the username">No
+                                        username<span class="required">*</span></label>
+                                    <select id="not_username" class="form-control roundbox" name="not_username"
+                                        type="boolean" value="0" style="width:100%" required="required">
+                                        <option value="true" selected>yes</option>
+                                        <option value="false">no</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="expiration"
+                                        title="Number of days until the password expires">Expiration days<span
+                                            class="required">*</span></label>
+                                    <input id="expiration" data-parsley-type="number" class="form-control roundbox"
+                                        name="expiration" type="number" value="0" style="width:100%"
+                                        required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="old_passwords"
+                                        title="Number of old passwords to be remembered">Old
+                                        passwords<span class="required">*</span></label>
+                                    <input id="old_passwords" data-parsley-type="number"
+                                        class="form-control roundbox" name="old_passwords" type="number" value="0"
+                                        style="width:100%" required="required">
                                 </div>
                             </div>
 
@@ -220,6 +224,13 @@
                     <div class="x_panel">
                         <div class="item form-group">
                             <div class="row" style="margin-bottom:15px;" id="scope">
+                                <div class="col-md-6 col-xs-2" id="type-select">
+                                    <label class="control-label" for="type">Type<span
+                                            class="required">*</span></label>
+                                    <select class="form-control" disabled style="width:100%" name="type"
+                                        id="type"></select>
+                                    <div class="select2-resize-handle"></div>
+                                </div>
                                 <div class="col-md-6 col-xs-2" id="category-select">
                                     <label class="control-label" for="category">Category<span
                                             class="required">*</span></label>
@@ -233,80 +244,77 @@
                                         id="role"></select>
                                 </div>
                             </div>
-                            <div class="x_content">
+                            <div class="password_fields x_content">
                                 <div class="x_title">
                                     <h4> Password
                                     </h4>
                                     <div class="clearfix"></div>
                                 </div>
-
-                                <div id="password_fields" class="policy_fields">
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="digits"
-                                            title="Minimum number of numerical digits">Digits<span
-                                                class="required">*</span></label>
-                                        <input id="digits" data-parsley-type="number" class="form-control roundbox"
-                                            name="digits" type="number" value="0" style="width:100%"
-                                            required="required">
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="length"
-                                            title="Minimum character length of the password">Character length<span
-                                                class="required">*</span></label>
-                                        <input id="length" data-parsley-type="number" class="form-control roundbox"
-                                            name="length" type="number" value="8" style="width:100%"
-                                            required="required">
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="lowercase"
-                                            title="Minimum number of lowercase characters">Lowercase chars<span
-                                                class="required">*</span></label>
-                                        <input id="lowercase" data-parsley-type="number" class="form-control roundbox"
-                                            name="lowercase" type="number" value="0" style="width:100%"
-                                            required="required">
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="uppercase"
-                                            title="Minimum number of uppercase characters">Uppercase chars<span
-                                                class="required">*</span></label>
-                                        <input id="uppercase" data-parsley-type="number" class="form-control roundbox"
-                                            name="uppercase" type="number" value="0" style="width:100%"
-                                            required="required">
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="special_characters"
-                                            title="Minimum number of special characters">Special
-                                            chars<span class="required">*</span></label>
-                                        <input id="special_characters" data-parsley-type="number"
-                                            class="form-control roundbox" name="special_characters" type="number"
-                                            value="0" style="width:100%" required="required">
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="not_username"
-                                            title="Check if the password can contain the username">No
-                                            username<span class="required">*</span></label>
-                                        <select id="not_username" class="form-control roundbox" name="not_username"
-                                            type="boolean" value="0" style="width:100%" required="required">
-                                            <option value="true" selected>yes</option>
-                                            <option value="false">no</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="expiration"
-                                            title="Number of days until the password expires">Expiration days<span
-                                                class="required">*</span></label>
-                                        <input id="expiration" data-parsley-type="number" class="form-control roundbox"
-                                            name="expiration" type="number" value="0" style="width:100%"
-                                            required="required">
-                                    </div>
-                                    <div class="col-md-3 col-xs-12">
-                                        <label class="control-label" for="old_passwords"
-                                            title="Number of old passwords to be remembered">Old
-                                            passwords<span class="required">*</span></label>
-                                        <input id="old_passwords" data-parsley-type="number"
-                                            class="form-control roundbox" name="old_passwords" type="number" value="0"
-                                            style="width:100%" required="required">
-                                    </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="digits"
+                                        title="Minimum number of numerical digits">Digits<span
+                                            class="required">*</span></label>
+                                    <input id="digits" data-parsley-type="number" class="form-control roundbox"
+                                        name="digits" type="number" value="0" style="width:100%"
+                                        required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="length"
+                                        title="Minimum character length of the password">Character length<span
+                                            class="required">*</span></label>
+                                    <input id="length" data-parsley-type="number" class="form-control roundbox"
+                                        name="length" type="number" value="8" style="width:100%"
+                                        required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="lowercase"
+                                        title="Minimum number of lowercase characters">Lowercase chars<span
+                                            class="required">*</span></label>
+                                    <input id="lowercase" data-parsley-type="number" class="form-control roundbox"
+                                        name="lowercase" type="number" value="0" style="width:100%"
+                                        required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="uppercase"
+                                        title="Minimum number of uppercase characters">Uppercase chars<span
+                                            class="required">*</span></label>
+                                    <input id="uppercase" data-parsley-type="number" class="form-control roundbox"
+                                        name="uppercase" type="number" value="0" style="width:100%"
+                                        required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="special_characters"
+                                        title="Minimum number of special characters">Special
+                                        chars<span class="required">*</span></label>
+                                    <input id="special_characters" data-parsley-type="number"
+                                        class="form-control roundbox" name="special_characters" type="number"
+                                        value="0" style="width:100%" required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="not_username"
+                                        title="Check if the password can contain the username">No
+                                        username<span class="required">*</span></label>
+                                    <select id="not_username" class="form-control roundbox" name="not_username"
+                                        type="boolean" value="0" style="width:100%" required="required">
+                                        <option value="true" selected>yes</option>
+                                        <option value="false">no</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="expiration"
+                                        title="Number of days until the password expires">Expiration days<span
+                                            class="required">*</span></label>
+                                    <input id="expiration" data-parsley-type="number" class="form-control roundbox"
+                                        name="expiration" type="number" value="0" style="width:100%"
+                                        required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="old_passwords"
+                                        title="Number of old passwords to be remembered">Old
+                                        passwords<span class="required">*</span></label>
+                                    <input id="old_passwords" data-parsley-type="number"
+                                        class="form-control roundbox" name="old_passwords" type="number" value="0"
+                                        style="width:100%" required="required">
                                 </div>
                             </div>
 

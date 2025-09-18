@@ -23,7 +23,7 @@ $(document).ready(function () {
 
     user_policy_table = $('#users-password-policy').DataTable({
         "ajax": {
-            "url": "/api/v3/admin/authentication/policies/local",
+            "url": "/api/v3/admin/authentication/policies",
             "type": 'GET',
         },
         "sAjaxDataProp": "",
@@ -37,6 +37,7 @@ $(document).ready(function () {
         "info": false,
         "deferRender": true,
         "columns": [
+            { 'data': 'type' },
             { "data": "category_name" },
             {
                 "data": "role", "render": function (data, type, row) {
@@ -63,19 +64,51 @@ $(document).ready(function () {
                     }
                 }
             },
-            { "data": "password.digits" },
-            { "data": "password.length" },
-            { "data": "password.lowercase" },
-            { "data": "password.uppercase" },
-            { "data": "password.special_characters" },
             {
-                "data": "password.expiration"
+                "data": "password.digits",
+                "render": function (data, type, row) {
+                    return row.type !== "local" ? "-" : data;
+                }
             },
             {
-                "data": "password.old_passwords"
+                "data": "password.length",
+                "render": function (data, type, row) {
+                    return row.type !== "local" ? "-" : data;
+                }
+            },
+            {
+                "data": "password.lowercase",
+                "render": function (data, type, row) {
+                    return row.type !== "local" ? "-" : data;
+                }
+            },
+            {
+                "data": "password.uppercase",
+                "render": function (data, type, row) {
+                    return row.type !== "local" ? "-" : data;
+                }
+            },
+            {
+                "data": "password.special_characters",
+                "render": function (data, type, row) {
+                    return row.type !== "local" ? "-" : data;
+                }
+            },
+            {
+                "data": "password.expiration",
+                "render": function (data, type, row) {
+                    return row.type !== "local" ? "-" : data;
+                }
+            },
+            {
+                "data": "password.old_passwords",
+                "render": function (data, type, row) {
+                    return row.type !== "local" ? "-" : data;
+                }
             },
             {
                 "data": "password.not_username", "render": function (data, type, row) {
+                    if (row.type === "saml") return "-";
                     return (data == true ? '<i class="fa fa-check" style="color:lightgreen"></i>' : "-");
                 }
             },
@@ -87,7 +120,7 @@ $(document).ready(function () {
                     if (row.email_verification || row.disclaimer || row.password.expiration) {
                         buttons += '<button id="btn-policy-force" class="btn btn-xs" type="button" data-placement="top" title="Force verification at login"><i class="fa fa-repeat" style="color:darkblue"></i></button>'
                     }
-                    if (!((row.category_name == "all") && (row.role == "all"))) {
+                    if (!((row.category_name == "all") && (row.role == "all") && (row.type == "local"))) {
                         buttons += `<button id="btn-policy-delete" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>`;
                     }
                     return buttons
@@ -146,6 +179,20 @@ $(document).ready(function () {
                 });
             }
         })
+
+        $.ajax({
+            type: "GET",
+            url: "/api/v3/admin/authentication/providers",
+            async: false,
+            cache: false,
+            success: function (type) {
+                $.each(type, function (key, value) {
+                    $(modal + ' #type-select select').append(
+                        `<option value="${key}">${key}</option>`
+                    );
+                });
+            }
+        })
     });
 
 
@@ -168,7 +215,7 @@ $(document).ready(function () {
                 data = {
                     'category': data["category"],
                     'role': data["role"],
-                    'type': "local",
+                    'type': data["type"],
                     "password": {
                         'digits': parseInt(data['digits']),
                         'expiration': parseInt(data['expiration']),
@@ -212,10 +259,13 @@ $(document).ready(function () {
     });
 
 
-    $('#modalPolicyAdd #policy-select select').on("change", function () {
-        var policy = $('#modalPolicyAdd #policy-select select').val();
-        $('#modalPolicyAdd .policy_fields').hide();
-        $(`#modalPolicyAdd #${policy}_fields`).show();
+    $('#modalPolicyAdd #type-select select').on("change", function () {
+        var type = $('#modalPolicyAdd #type-select select').val();
+        if (type === 'local') {
+            $('#modalPolicyAdd .password_fields').show();
+        } else {
+            $('#modalPolicyAdd .password_fields').hide();
+        }
     });
 
     $('#local_panel').find(' tbody').on('click', 'button', function () {
@@ -300,7 +350,27 @@ $(document).ready(function () {
                     });
                 }
             });
+            $.ajax({
+                type: "GET",
+                url: "/api/v3/admin/authentication/providers",
+                async: false,
+                cache: false,
+                success: function (type) {
+                    $.each(type, function (key, value) {
+                        $(modal + ' #type-select select').append(
+                            `<option value="${key}">${key}</option>`
+                        );
+                    });
+                }
+            })
             $(modal + " #role").val(data.role);
+            $(modal + " #type").val(data.type);
+            var type = $('#modalPolicyEdit #type-select select').val();
+            if (type === 'local') {
+                $('#modalPolicyEdit .password_fields').show();
+            } else {
+                $('#modalPolicyEdit .password_fields').hide();
+            }
             $.ajax({
                 type: "GET",
                 url: `/api/v3/admin/authentication/policy/${data.id}`,
@@ -353,7 +423,7 @@ $(document).ready(function () {
                 })
             } else {
                 var data = {
-                    'type': 'local',
+                    'type': formData['type'],
                     'password': {
                         'digits': parseInt(formData['digits']),
                         'expiration': parseInt(formData['expiration']),

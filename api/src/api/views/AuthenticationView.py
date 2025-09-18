@@ -60,7 +60,7 @@ def admin_authentication_policy_add(payload):
     )
 
 
-@app.route("/api/v3/admin/authentication/policies/local", methods=["GET"])
+@app.route("/api/v3/admin/authentication/policies", methods=["GET"])
 @is_admin
 def admin_authentication_policies(payload):
     policies = get_policies()

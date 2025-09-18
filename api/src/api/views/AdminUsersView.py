@@ -403,7 +403,9 @@ def api_v3_admin_user_insert(payload):
     quotas.UserCreate(category_id=data["category"], group_id=data["group"])
 
     p = Password()
-    policy = users.get_user_password_policy(data["category"], data["role"])
+    policy = users.get_user_password_policy(
+        data["category"], data["role"], data["provider"]
+    )
     p.check_policy(data["password"], policy, username=data["username"])
     data["password"] = p.encrypt(data["password"])
 
