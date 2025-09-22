@@ -592,6 +592,7 @@ generate_code(){
 		;;
 	devel | test | production)
 		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
+		docker pull "$DOCKER_IMAGE"
 		;;
 	*)
 		echo "Error: unknown usage $USAGE for code generation"
