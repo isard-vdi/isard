@@ -153,11 +153,13 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 	if !a.Provider(u.Provider).SaveEmail() {
 		u.Email = ""
 	}
-
+	providerName := u.Name
+	// TODO: The exists function should not override the given user, only check its existence
 	uExists, err := u.Exists(ctx, a.DB)
 	if err != nil {
 		return "", "", fmt.Errorf("check if user exists: %w", err)
 	}
+	u.Name = providerName
 
 	// Remove weird characters from the user and group names
 	normalizeIdentity(g, u)
