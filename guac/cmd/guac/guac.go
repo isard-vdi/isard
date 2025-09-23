@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -13,7 +13,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/wwt/guac"
-	isardvdi "gitlab.com/isard/isardvdi-sdk-go"
 )
 
 var (
@@ -31,43 +30,82 @@ func init() {
 	if apiAddr == "" || apiAddr == "isard-api" {
 		apiAddr = "isard-api:5000"
 	} else {
-                apiAddr = "https://" + apiAddr
-        }
+		apiAddr = "https://" + apiAddr
+	}
 }
 
 func isAuthenticated(handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logrus.Infof("****Authenticating request: %s %s", r.Method, r.URL.String())
+
 		tkn := r.URL.Query().Get("session")
 		if tkn == "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		cli, err := isardvdi.NewClient(&isardvdi.Cfg{
-			Host:  fmt.Sprintf("http://%s", apiAddr),
-			Token: tkn,
-		})
+		allowed, err := userOwnsDesktop(tkn, r.URL.Query().Get("hostname"))
 		if err != nil {
-			logrus.Errorf("error creating the client: %v", err)
+			logrus.Errorf("error checking if user owns desktop: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		if err := cli.UserOwnsDesktop(r.Context(), &isardvdi.UserOwnsDesktopOpts{
-			IP: r.URL.Query().Get("hostname"),
-		}); err != nil {
-			if errors.Is(err, isardvdi.ErrForbidden) {
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-
-			logrus.Errorf("unknown error: %w", err)
-			w.WriteHeader(http.StatusInternalServerError)
+		if !allowed {
+			logrus.Errorf("check if user owns desktop: %w", err)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		handler.ServeHTTP(w, r)
 	})
+}
+
+func userOwnsDesktop(tkn string, hostname string) (bool, error) {
+	baseurl, err := url.Parse(fmt.Sprintf("http://%s", apiAddr))
+	if err != nil {
+		return false, fmt.Errorf("error parsing API URL: %v", err)
+	}
+	baseurl.Path = "/api/v3/"
+
+	path, err := url.Parse("user/owns_desktop")
+	if err != nil {
+		return false, fmt.Errorf("error parsing relative API URL: %v", err)
+	}
+
+	rawBody := map[string]interface{}{}
+	rawBody["ip"] = hostname
+	url := baseurl.ResolveReference(path)
+	body, err := json.Marshal(rawBody)
+	if err != nil {
+		return false, fmt.Errorf("error encoding body: %v", err)
+	}
+	buf := bytes.NewBuffer(body)
+	req, err := http.NewRequest(http.MethodGet, url.String(), buf)
+	if err != nil {
+		return false, fmt.Errorf("error creating request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "isardvdi-guac")
+	req.Header.Set("Authorization", "Bearer "+tkn)
+
+	rsp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("error performing request: %v", err)
+	}
+	defer rsp.Body.Close()
+
+	switch {
+	case rsp.StatusCode >= 500:
+		return false, fmt.Errorf("API request failed with status: %s", rsp.Status)
+	case rsp.StatusCode == 401 || rsp.StatusCode == 403:
+		return false, nil
+	case rsp.StatusCode >= 400:
+		return false, fmt.Errorf("API request failed with status: %s", rsp.Status)
+	default:
+		return true, nil
+	}
 }
 
 func logLevel() {
