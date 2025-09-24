@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import time
+from distutils.util import strtobool
 from uuid import uuid4
 
 import humanfriendly as hf
@@ -19,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 174
+release_version = 175
+# release 175: Import SMTP configuration from NOTIFY_EMAIL* envitonment variables
 # release 174: Add task index to storage table
 # release 173: Remove enabled field from maintenance_text
 # release 172: New deployment structure to match future labs feature
@@ -921,6 +923,27 @@ password:s:%s"""
                 self.del_keys(table, [{"maintenance_text": "enabled"}])
             except Exception as e:
                 print(e)
+
+        if version == 175:
+            r.table(table).update(
+                {
+                    "smtp": {
+                        "enabled": bool(
+                            strtobool(os.environ.get("NOTIFY_EMAIL", "False"))
+                        ),
+                        "host": os.environ.get(
+                            "NOTIFY_EMAIL_SMTP_SERVER", "example.com"
+                        ),
+                        "port": int(os.environ.get("NOTIFY_EMAIL_SMPT_PORT", 587)),
+                        "username": os.environ.get(
+                            "NOTIFY_EMAIL_USERNAME", "user@example.com"
+                        ),
+                        "password": os.environ.get(
+                            "NOTIFY_EMAIL_PASSWORD", "SomePlainStoredPassphrase"
+                        ),
+                    }
+                }
+            ).run(self.conn)
 
         return True
 

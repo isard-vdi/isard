@@ -69,9 +69,11 @@
 
 
     {% include '/admin/pages/system_modals.html' %}
+    {% include '/snippets/smtp.html' %}
     {% endblock %}
     {% block pagescript %}
     <script src="/isard-admin/static/js/restful.js"></script>
     <script src="/isard-admin/static/admin/js/system.js"></script>
     <script src="/isard-admin/static/js/snippets/form_items.js"></script>
+    <script src="/isard-admin/static/js/smtp.js"></script>
     {% endblock %}

@@ -41,3 +41,9 @@ services:
       WEBAPP_ADMIN_PWD:
       LOG_EXCEPT_ID_LEVEL:
       ENGINE_GUESTS_DISK_DRIVER_CACHE:
+      # Transitional NOTIFY_EMAIL* variables to import SMTP setting to db via migration 175
+      NOTIFY_EMAIL:
+      NOTIFY_EMAIL_SMTP_SERVER:
+      NOTIFY_EMAIL_SMPT_PORT:
+      NOTIFY_EMAIL_USERNAME:
+      NOTIFY_EMAIL_PASSWORD:

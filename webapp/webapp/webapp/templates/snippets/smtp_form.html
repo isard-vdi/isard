@@ -1,0 +1,72 @@
+{#
+#
+#   Copyright © 2025 Simó Albert i Beltran
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+{% set disabled = 'disabled="disabled"' if smtp_form_disabled else '' %}
+<form id="{{ smtp_form_id }}" class="form-smtp form-horizontal form-label-left">
+    <div class="x_panel">
+        <div class="x_content">
+            <div class="item form-group">
+                <label for="enabled" class="control-label col-sm-3 col-xs-12">Enabled</label>
+                <div class="checkbox col-sm-9 col-xs-12">
+                    <input name="enabled" type="checkbox" {{ disabled }} />
+                </div>
+            </div>
+            <div class="item form-group">
+                <label for="host" class="control-label col-sm-3 col-xs-12">
+                    Host <span class="required">*</span>
+                </label>
+                <div class="col-sm-9 col-xs-12">
+                    <input name="host" type="text" required="required" data-parsley-length="[1, 253]"
+                        placeholder="example.com" class="form-control" required="required"
+                        data-parsley-trigger="change" {{ disabled }} />
+                </div>
+            </div>
+            <div class="item form-group">
+                <label for="port" class="control-label col-sm-3 col-xs-12">
+                    StartTLS Port <span class="required">*</span>
+                </label>
+                <div class="col-sm-9 col-xs-12">
+                    <input name="port" type="number" required="required" min="1" max="65535"
+                        class="form-control" placeholder="587" data-parsley-trigger="change"
+                        {{ disabled }} />
+                </div>
+            </div>
+            <div class="item form-group">
+                <label for="username" class="control-label col-md-3 col-sm-3 col-xs-12">
+                    Username <span class="required">*</span>
+                </label>
+                <div class="col-sm-9 col-xs-12">
+                    <input name="username" required="required" placeholder="user@examplecom"
+                        class="form-control" data-parsley-trigger="change" {{ disabled }}/>
+                </div>
+            </div>
+            <div class="item form-group">
+                <label for="password" class="control-label col-md-3 col-sm-3 col-xs-12">
+                    Password <span class="required">*</span>
+                </label>
+                <div class="col-sm-9 col-xs-12">
+                    <input name="password" type="password" required="required" class="form-control"
+                        data-parsley-trigger="change" {{ disabled }}/>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
