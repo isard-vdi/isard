@@ -69,7 +69,8 @@
               <div class="col-md-12 category-wrapper">
                 <label class="control-label" for="category">Category
                 </label>
-                <select id="category" required multiple name="categories[]" class="roundbox" style="width:100%"></select>
+                <select id="category" required multiple name="categories[]" class="roundbox"
+                  style="width:100%"></select>
               </div>
               <br>
               <div class="row table-wrapper">
@@ -206,12 +207,7 @@
               </div>
               <br>
 
-              <div class="col-md-12">
-                <label class="control-label">QoS Disk:</label>
-                <select id="qos_disk_id" class="roundbox form-control" name="qos_disk_id">
-                  <option selected></option>
-                </select>
-              </div>
+
               <!-- <div class="row">
                 <div class="col-md-4 col-xs-12">
                   <div class="checkbox">
@@ -325,7 +321,8 @@
               <div class="col-md-12 category-wrapper">
                 <label class="control-label" for="category">Category
                 </label>
-                <select id="category" required multiple name="categories[]" class="roundbox" style="width:100%"></select>
+                <select id="category" required multiple name="categories[]" class="roundbox"
+                  style="width:100%"></select>
               </div>
               <br>
 
@@ -344,14 +341,6 @@
                   <tbody>
                   </tbody>
                 </table>
-              </div>
-              <br>
-
-              <div class="col-md-12">
-                <label class="control-label">QoS Disk:</label>
-                <select id="qos_disk_id" class="roundbox form-control" name="qos_disk_id">
-                  <option selected></option>
-                </select>
               </div>
               <!-- <div class="row">
                 <div class="col-md-4 col-xs-12">
@@ -404,6 +393,49 @@
             </li>
           </ul>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT POOL'S QoS -->
+
+<div class="modal fade" id="modalQoSStoragePool" tabindex="-1" role="dialog" aria-labelledby="modalAddStoragePool"
+  aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">
+          <span aria-hidden="true">&times;</span>
+          <span class="sr-only">Close</span>
+        </button>
+        <h4 class="modal-title" id="myModalLabel">
+          <i class="fa fa-road fa-1x"> </i> <i class="fa fa-object-group"> </i> Edit Storage Pool QoS
+        </h4>
+      </div>
+      <!-- Modal Body -->
+      <div class="modal-body">
+        <form id="modalQoS" class="form-inline form-label-left">
+          <div class="col-md-12">
+            <input id="id" name="id" type="hidden" required>
+            <label class="control-label">QoS Disk:</label>
+            <select id="qos_disk_id" class="roundbox form-control" name="qos_disk_id">
+              <option selected></option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <!-- Modal Footer -->
+      <div class="modal-footer">
+        <ul class="nav navbar-left panel_toolbox">
+          <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+          </li>
+        </ul>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><button id="send" type="button" class="btn btn-success">Update QoS</button></li>
+          </li>
+        </ul>
       </div>
     </div>
   </div>

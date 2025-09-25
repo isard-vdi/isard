@@ -98,5 +98,4 @@ write:
   default: true
 qos_disk_id:
   type: string
-  required: true
   coerce: sanitize

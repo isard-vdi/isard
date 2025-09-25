@@ -433,7 +433,8 @@ def update_storage_pool(storage_pool_id, data):
         for key in ["name", "description", "mountpoint", "categories"]:
             if key in data:
                 data.pop(key)
-        _check_default_paths(data["paths"])
+        if "paths" in data:
+            _check_default_paths(data["paths"])
 
     # If the pool is disabled, the virt pool must be disabled too
     if data.get("enabled") is not None:
