@@ -154,15 +154,27 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		u.Email = ""
 	}
 	providerName := u.Name
-	// TODO: The exists function should not override the given user, only check its existence
-	uExists, err := u.Exists(ctx, a.DB)
+	dbUser, uExists, err := u.FindExisting(ctx, a.DB)
 	if err != nil {
 		return "", "", fmt.Errorf("check if user exists: %w", err)
 	}
-	u.Name = providerName
 
 	// Remove weird characters from the user and group names
 	normalizeIdentity(g, u)
+
+	// Flag to track if we need to update existing user
+	var needsUpdate bool
+	if uExists {
+		// Check if provider name differs from database name
+		if dbUser.Name != providerName {
+			needsUpdate = true
+			// Keep the provider name
+			u.Name = providerName
+		} else {
+			// Use the existing database user data
+			*u = *dbUser
+		}
+	}
 
 	if !uExists {
 		// Manual registration
@@ -198,6 +210,11 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		// Automatic registration!
 		if err := a.registerUser(u); err != nil {
 			return "", "", fmt.Errorf("auto register user: %w", err)
+		}
+	} else if needsUpdate {
+		// Update existing user if provider name has changed
+		if err := u.Update(ctx, a.DB); err != nil {
+			return "", "", fmt.Errorf("update user: %w", err)
 		}
 	}
 
