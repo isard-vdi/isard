@@ -47,9 +47,21 @@
                           <h5 class="text-medium-gray">
                             {{ profile.username }}
                           </h5>
+                          <EmailVerificationModal v-if="config.showChangeEmailButton" />
+                          <b-button
+                            v-if="config.showChangeEmailButton"
+                            class="rounded-pill mr-2 pl-2 pr-3 btn-blue"
+                            :title="$t('components.profile.change-email')"
+                            @click="showEmailVerificationModal()"
+                          >
+                            <b-icon
+                              icon="envelope-fill"
+                              scale="0.75"
+                            />
+                            {{ $t('components.profile.change-email') }}
+                          </b-button>
                           <template v-if="profile.provider === 'local'">
                             <PasswordModal />
-                            <EmailVerificationModal v-if="config.showChangeEmailButton" />
                             <b-button
                               class="rounded-pill mx-1 pr-3 btn-dark-blue"
                               :title="$t('components.profile.change-password')"
@@ -60,18 +72,6 @@
                                 scale="0.75"
                               />
                               {{ $t('components.profile.change-password') }}
-                            </b-button>
-                            <b-button
-                              v-if="config.showChangeEmailButton"
-                              class="rounded-pill mr-2 pl-2 pr-3 btn-blue"
-                              :title="$t('components.profile.change-email')"
-                              @click="showEmailVerificationModal()"
-                            >
-                              <b-icon
-                                icon="envelope-fill"
-                                scale="0.75"
-                              />
-                              {{ $t('components.profile.change-email') }}
                             </b-button>
                           </template>
                           <b-button

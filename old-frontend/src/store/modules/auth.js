@@ -282,10 +282,6 @@ export default {
           context.commit('setUser', data)
         })
         // Email verification page
-      } else {
-        context.commit('setUser', {
-          current_email: tokenPayload.current_email
-        })
       }
     },
     async updateSession (context, session) {
