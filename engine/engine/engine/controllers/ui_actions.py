@@ -754,12 +754,13 @@ class UiActions(object):
             return False
 
         disk_index_in_bus = 0
-        if "disks" in dict_domain["hardware"]:
-            disk_list = [d for d in create_dict["hardware"]["disks"]]
+        if "disks" in dict_domain["hardware"] and len(dict_domain["hardware"]["disks"]):
             create_disk_template_created_list_in_domain(id_domain)
-            for i in range(len(disk_list)):
-                # for disk in dict_domain['hardware']['disks']:
-                path_domain_disk = dict_domain["hardware"]["disks"][i]["file"]
+            for i in range(1):
+                path_domain_disk = get_storage_id_filename(
+                    dict_domain["create_dict"]["hardware"]["disks"][i]["storage_id"]
+                )
+
                 type_path_selected = "template"
 
                 new_file, path_selected = get_path_to_disk(
