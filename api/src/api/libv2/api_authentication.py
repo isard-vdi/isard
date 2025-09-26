@@ -74,7 +74,7 @@ def add_policy(data):
         raise Error(
             "bad_request", "Disclaimer option only available for all categories"
         )
-    if not check_duplicate_policy(data["category"], data["role"]):
+    if not check_duplicate_policy(data["category"], data["role"], data["type"]):
         raise Error(
             "conflict",
             data["type"] + " policy for this category and role already exists",
@@ -88,7 +88,6 @@ def get_policies():
     with app.app_context():
         return list(
             r.table("authentication")
-            .get_all("local", index="type")
             .merge(
                 lambda policy: {
                     "category_name": (
@@ -118,20 +117,25 @@ def edit_policy(policy_id, data):
 
 def delete_policy(policy_id):
     policy = get_policy(policy_id)
-    if policy["role"] == "all" and policy["category"] == "all":
+    if (
+        policy["role"] == "all"
+        and policy["category"] == "all"
+        and policy["type"] == "local"
+    ):
         raise Error("forbidden", "Can not delete default permissions")
 
     with app.app_context():
         r.table("authentication").get(policy_id).delete().run(db.conn)
 
 
-def check_duplicate_policy(category, role):
+def check_duplicate_policy(category, role, type):
     with app.app_context():
         return (
             len(
                 list(
                     r.table("authentication")
                     .get_all([category, role], index="category-role")
+                    .filter({"type": type})
                     .run(db.conn)
                 )
             )
@@ -162,7 +166,7 @@ def get_providers():
 def force_policy_at_login(policy_id, policy_field):
     policy = get_policy(policy_id)
 
-    query = r.table("users")
+    query = r.table("users").get_all(policy["type"], index="provider")
     if policy["category"] != "all":
         query.filter({"category": policy["category"]})
     if policy["role"] != "all":
@@ -173,10 +177,12 @@ def force_policy_at_login(policy_id, policy_field):
 
 def get_disclaimer_template(user_id):
     with app.app_context():
-        user = r.table("users").get(user_id).pluck("role", "lang").run(db.conn)
-    template_id = users.get_user_policy("disclaimer", "all", user["role"], user_id).get(
-        "template"
-    )
+        user = (
+            r.table("users").get(user_id).pluck("role", "lang", "provider").run(db.conn)
+        )
+    template_id = users.get_user_policy(
+        "disclaimer", "all", user["role"], user["provider"], user_id
+    ).get("template")
     if template_id:
         with app.app_context():
             disclaimer = r.table("notification_tmpls").get(template_id).run(db.conn)

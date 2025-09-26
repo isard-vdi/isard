@@ -56,6 +56,9 @@ id:
 type:
   allowed:
     - local
+    - saml
+    - google
+    - ldap
 disclaimer:
   type: [boolean, dict]
   default: false
