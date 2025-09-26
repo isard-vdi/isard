@@ -168,6 +168,7 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		// Check if provider name differs from database name
 		if dbUser.Name != providerName {
 			needsUpdate = true
+			*u = *dbUser
 			// Keep the provider name
 			u.Name = providerName
 		} else {
