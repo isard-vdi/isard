@@ -167,6 +167,38 @@ func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 	return true, nil
 }
 
+func (u *User) FindExisting(ctx context.Context, sess r.QueryExecutor) (*User, bool, error) {
+	res, err := r.Table("users").Filter(r.And(
+		r.Eq(r.Row.Field("uid"), u.UID),
+		r.Eq(r.Row.Field("provider"), u.Provider),
+		r.Eq(r.Row.Field("category"), u.Category),
+	), r.FilterOpts{}).Run(sess)
+	if err != nil {
+		return nil, false, &db.Err{
+			Err: err,
+		}
+	}
+	defer res.Close()
+
+	if res.IsNil() {
+		return nil, false, nil
+	}
+
+	var dbUser User
+	if err := res.One(&dbUser); err != nil {
+		if errors.Is(err, r.ErrEmptyResult) {
+			return nil, false, nil
+		}
+
+		return nil, false, &db.Err{
+			Msg: "read db response",
+			Err: err,
+		}
+	}
+
+	return &dbUser, true, nil
+}
+
 func (u *User) ExistsWithVerifiedEmail(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 	res, err := r.Table("users").Filter(r.And(
 		r.Eq(r.Row.Field("category"), u.Category),
