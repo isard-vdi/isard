@@ -13,12 +13,31 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/wwt/guac"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 var (
 	guacdAddr string
 	apiAddr   string
 )
+
+type LoginClaims struct {
+	*jwt.RegisteredClaims
+	KeyID     string          `json:"kid"`
+	Type      string          `json:"type,omitempty"`
+	SessionID string          `json:"session_id"`
+	Data      LoginClaimsData `json:"data"`
+}
+
+type LoginClaimsData struct {
+	Provider   string `json:"provider"`
+	ID         string `json:"user_id"`
+	RoleID     string `json:"role_id"`
+	CategoryID string `json:"category_id"`
+	GroupID    string `json:"group_id"`
+	Name       string `json:"name"`
+}
 
 func init() {
 	guacdAddr = os.Getenv("GUACD_ADDR")
@@ -36,15 +55,26 @@ func init() {
 
 func isAuthenticated(handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logrus.Infof("****Authenticating request: %s %s", r.Method, r.URL.String())
+		logrus.Infof("Authenticating request: %s %s", r.Method, r.URL.String())
 
 		tkn := r.URL.Query().Get("session")
+		hostname := r.URL.Query().Get("hostname")
+
 		if tkn == "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		allowed, err := userOwnsDesktop(tkn, r.URL.Query().Get("hostname"))
+		claims, err := verifyToken(tkn)
+		if err != nil {
+			logrus.Errorf("error verifying token: %v", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		logrus.Infof("User %s (id: %s) is trying to access %s", claims.Data.Name, claims.Data.ID, hostname)
+
+		allowed, err := userOwnsDesktop(tkn, hostname)
 		if err != nil {
 			logrus.Errorf("error checking if user owns desktop: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -52,13 +82,27 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 		}
 
 		if !allowed {
-			logrus.Errorf("check if user owns desktop: %w", err)
+			logrus.Errorf("user %s (id: %s) doesn't own desktop %s", claims.Data.Name, claims.Data.ID, hostname)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		handler.ServeHTTP(w, r)
 	})
+}
+
+func verifyToken(tokenString string) (*LoginClaims, error) {
+	token, _, err := jwt.NewParser().ParseUnverified(tokenString, &LoginClaims{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(*LoginClaims); ok {
+		return claims, nil
+	} else {
+		return nil, fmt.Errorf("invalid token claims")
+	}
 }
 
 func userOwnsDesktop(tkn string, hostname string) (bool, error) {
