@@ -417,9 +417,7 @@ def storage_domains_force_update(storage_id):
     if not Storage.exists(storage_id):
         return
     for domain in Storage(storage_id).domains:
-        domain.force_update = (
-            True  # Engine will recreate it's hardware dict before next start
-        )
+        domain.status = "StartingPaused"
 
 
 def _valid_storage_pool(storage, new_path):
