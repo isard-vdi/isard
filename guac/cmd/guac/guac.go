@@ -39,6 +39,19 @@ type LoginClaimsData struct {
 	Name       string `json:"name"`
 }
 
+type ViewerClaims struct {
+	*jwt.RegisteredClaims
+	KeyID string           `json:"kid"`
+	Type  string           `json:"type,omitempty"`
+	Data  ViewerClaimsData `json:"data"`
+}
+
+type ViewerClaimsData struct {
+	DesktopID  string `json:"desktop_id"`
+	RoleID     string `json:"role_id,omitempty"`
+	CategoryID string `json:"category_id,omitempty"`
+}
+
 func init() {
 	guacdAddr = os.Getenv("GUACD_ADDR")
 	if guacdAddr == "" {
@@ -55,7 +68,7 @@ func init() {
 
 func isAuthenticated(handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logrus.Infof("Authenticating request: %s %s", r.Method, r.URL.String())
+		logrus.Infof("authenticating request: %s %s", r.Method, r.URL.String())
 
 		tkn := r.URL.Query().Get("session")
 		hostname := r.URL.Query().Get("hostname")
@@ -65,47 +78,76 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 			return
 		}
 
-		claims, err := verifyToken(tkn)
+		iclaims, err := verifyToken(tkn)
 		if err != nil {
 			logrus.Errorf("error verifying token: %v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		logrus.Infof("User %s (id: %s) is trying to access %s", claims.Data.Name, claims.Data.ID, hostname)
+		switch claims := iclaims.(type) {
+		case *LoginClaims:
+			logrus.Infof("User %s (id: %s) is trying to access %s", claims.Data.Name, claims.Data.ID, hostname)
 
-		allowed, err := userOwnsDesktop(tkn, hostname)
-		if err != nil {
-			logrus.Errorf("error checking if user owns desktop: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+			ownership, err := ownsDesktop(tkn, hostname)
+			if err != nil {
+				logrus.Errorf("error checking if user owns desktop: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 
-		if !allowed {
-			logrus.Errorf("user %s (id: %s) doesn't own desktop %s", claims.Data.Name, claims.Data.ID, hostname)
+			if !ownership {
+				logrus.Errorf("user %s (id: %s) doesn't own desktop %s", claims.Data.Name, claims.Data.ID, hostname)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			logrus.Debug("User authorized")
+		case *ViewerClaims:
+			logrus.Infof("Viewer for desktop %s is trying to access %s", claims.Data.DesktopID, hostname)
+
+			ownership, err := ownsDesktop(tkn, hostname)
+			if err != nil {
+				logrus.Errorf("error checking viewer owns desktop: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			if !ownership {
+				logrus.Errorf("viewer doesn't own desktop %s", hostname)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			logrus.Debug("Viewer authorized")
+		default:
+			logrus.Errorf("unknown claims type or missing required fields")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
+		logrus.Debug("done authenticating request")
 		handler.ServeHTTP(w, r)
 	})
 }
 
-func verifyToken(tokenString string) (*LoginClaims, error) {
-	token, _, err := jwt.NewParser().ParseUnverified(tokenString, &LoginClaims{})
-
-	if err != nil {
-		return nil, err
+func verifyToken(tokenString string) (jwt.Claims, error) {
+	loginClaims := &LoginClaims{}
+	_, _, err := jwt.NewParser().ParseUnverified(tokenString, loginClaims)
+	if err == nil && loginClaims.SessionID != "" && loginClaims.Data.ID != "" {
+		return loginClaims, nil
 	}
 
-	if claims, ok := token.Claims.(*LoginClaims); ok {
-		return claims, nil
-	} else {
-		return nil, fmt.Errorf("invalid token claims")
+	viewerClaims := &ViewerClaims{}
+	_, _, err = jwt.NewParser().ParseUnverified(tokenString, viewerClaims)
+	if err == nil && viewerClaims.Data.DesktopID != "" {
+		return viewerClaims, nil
 	}
+
+	return nil, fmt.Errorf("token does not match known claim types")
 }
 
-func userOwnsDesktop(tkn string, hostname string) (bool, error) {
+func ownsDesktop(tkn string, hostname string) (bool, error) {
 	baseurl, err := url.Parse(fmt.Sprintf("http://%s", apiAddr))
 	if err != nil {
 		return false, fmt.Errorf("error parsing API URL: %v", err)
