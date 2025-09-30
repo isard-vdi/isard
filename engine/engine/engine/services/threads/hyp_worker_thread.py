@@ -958,6 +958,17 @@ class HypWorkerThread(threading.Thread):
 
         domain, error = self._lookup_domain(action, intervals, "shutdown")
         if error:
+            # Handle case where domain is already gone (stopped by another operation)
+            if (
+                isinstance(error, libvirtError)
+                and error.get_error_code() == VIR_ERR_NO_DOMAIN
+            ):
+                logs.workers.info(
+                    f"Domain {action['id_domain']} not found during shutdown - already stopped"
+                )
+                # Don't set to Failed - domain is already in desired end state
+                return
+
             self._handle_domain_action_error(
                 action, error, action_time, intervals, "shutdown"
             )
@@ -985,6 +996,17 @@ class HypWorkerThread(threading.Thread):
                 time.time() - action_time,
                 "Shutting-down",
             )
+        except libvirtError as e:
+            # Handle case where domain disappeared between lookup and shutdown
+            if e.get_error_code() == VIR_ERR_NO_DOMAIN:
+                logs.workers.info(
+                    f"Domain {action['id_domain']} disappeared during shutdown - already stopped"
+                )
+                return
+            else:
+                self._handle_domain_action_error(
+                    action, e, action_time, intervals, "shutdown"
+                )
         except Exception as e:
             self._handle_domain_action_error(
                 action, e, action_time, intervals, "shutdown"
@@ -996,6 +1018,9 @@ class HypWorkerThread(threading.Thread):
 
         domain, error = self._lookup_domain(action, intervals, "stop")
         if error:
+
+            ## Hande libvirtNotfound
+
             if (
                 isinstance(error, libvirtError)
                 and error.get_error_code() == VIR_ERR_NO_DOMAIN
@@ -1018,6 +1043,17 @@ class HypWorkerThread(threading.Thread):
             # Finalize the stop operation
             self._finalize_domain_stop(action, action_time, intervals)
 
+        except libvirtError as e:
+            # Check if domain not found during destroy - this is OK for stop operation
+            if e.get_error_code() == VIR_ERR_NO_DOMAIN:
+                logs.workers.info(
+                    f"Domain {action['id_domain']} not found during destroy - already stopped"
+                )
+                self._finalize_domain_stop(action, action_time, intervals)
+            else:
+                self._handle_domain_action_error(
+                    action, e, action_time, intervals, "stop"
+                )
         except Exception as e:
             self._handle_domain_action_error(action, e, action_time, intervals, "stop")
 
