@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package haproxy.v1;
+
+option go_package = "gitlab.com/isard/isardvdi/pkg/gen/proto/go/haproxy/v1;haproxyv1";
+
+// HaproxyBastionService manages HAProxy bastion domain maps dynamically
+// without requiring full HAProxy reloads
+service HaproxyBastionService {
+    // AddSubdomain adds a subdomain to subdomains.map
+    rpc AddSubdomain(AddSubdomainRequest) returns (AddSubdomainResponse) {}
+
+    // DeleteSubdomain removes a subdomain from subdomains.map
+    rpc DeleteSubdomain(DeleteSubdomainRequest) returns (DeleteSubdomainResponse) {}
+
+    // AddIndividualDomain adds a domain to individual.map
+    rpc AddIndividualDomain(AddIndividualDomainRequest) returns (AddIndividualDomainResponse) {}
+
+    // DeleteIndividualDomain removes a domain from individual.map
+    rpc DeleteIndividualDomain(DeleteIndividualDomainRequest) returns (DeleteIndividualDomainResponse) {}
+
+    // SyncMaps performs full synchronization of all maps
+    rpc SyncMaps(SyncMapsRequest) returns (SyncMapsResponse) {}
+
+    // GetCurrentMaps returns current HAProxy map state
+    rpc GetCurrentMaps(GetCurrentMapsRequest) returns (GetCurrentMapsResponse) {}
+}
+
+message AddSubdomainRequest {
+    string domain = 1;
+}
+
+message AddSubdomainResponse {}
+
+message DeleteSubdomainRequest {
+    string domain = 1;
+}
+
+message DeleteSubdomainResponse {}
+
+message AddIndividualDomainRequest {
+    string domain = 1;
+}
+
+message AddIndividualDomainResponse {}
+
+message DeleteIndividualDomainRequest {
+    string domain = 1;
+}
+
+message DeleteIndividualDomainResponse {}
+
+message SyncMapsRequest {
+    repeated string subdomains = 1;
+    repeated string individual_domains = 2;
+}
+
+message SyncMapsResponse {
+    int32 subdomains_added = 1;
+    int32 subdomains_removed = 2;
+    int32 individual_added = 3;
+    int32 individual_removed = 4;
+}
+
+message GetCurrentMapsRequest {}
+
+message GetCurrentMapsResponse {
+    repeated string subdomains = 1;
+    repeated string individual_domains = 2;
+}
