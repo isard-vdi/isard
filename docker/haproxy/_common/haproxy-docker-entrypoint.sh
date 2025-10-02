@@ -29,12 +29,6 @@ fi
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting file monitoring for automatic reloads..."
 inotifyd haproxy-reload /certs/chain.pem:c /usr/local/etc/haproxy/lists/black.lst:c /usr/local/etc/haproxy/lists/external/black.lst:c /usr/local/etc/haproxy/lists/white.lst:c &
 
-# Start haproxy-bastion-sync for portal flavours
-if [ "$CFG" = "portal" ]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting haproxy-bastion-sync microservice..."
-    haproxy-bastion-sync &
-fi
-
 # first arg is `-f` or `--some-option`
 if [ "${1#-}" != "$1" ]; then
         set -- haproxy "$@"
@@ -46,6 +40,17 @@ if [ "$1" = 'haproxy' ]; then
         #   -W  -- "master-worker mode" (similar to the old "haproxy-systemd-wrapper"; allows for reload via "SIGUSR2")
         #   -db -- disables background mode
         set -- haproxy -W -db "$@"
+fi
+
+# Start haproxy-bastion-sync AFTER haproxy starts (in background)
+# This ensures the stats socket exists before the microservice tries to connect
+if [ "$CFG" = "portal" ]; then
+    (
+        # Wait a moment for HAProxy to start and create the socket
+        sleep 2
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting haproxy-bastion-sync microservice..."
+        haproxy-bastion-sync
+    ) &
 fi
 
 exec "$@"

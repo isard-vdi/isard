@@ -58,13 +58,22 @@ func (s *Socket) Close() error {
 }
 
 // Execute sends a command to HAProxy and returns the response
+// HAProxy closes the socket after each command, so we reconnect each time
 func (s *Socket) Execute(command string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.conn == nil {
-		return "", fmt.Errorf("not connected to HAProxy socket")
+	// Reconnect for each command (HAProxy closes connection after response)
+	if s.conn != nil {
+		s.conn.Close()
 	}
+
+	conn, err := net.DialTimeout("unix", s.path, 5*time.Second)
+	if err != nil {
+		s.conn = nil
+		return "", fmt.Errorf("dial HAProxy socket: %w", err)
+	}
+	s.conn = conn
 
 	// Set write deadline
 	if err := s.conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
@@ -72,9 +81,8 @@ func (s *Socket) Execute(command string) (string, error) {
 	}
 
 	// Send command
-	_, err := fmt.Fprintf(s.conn, "%s\n", command)
+	_, err = fmt.Fprintf(s.conn, "%s\n", command)
 	if err != nil {
-		// Try to reconnect on write error
 		s.conn.Close()
 		s.conn = nil
 		return "", fmt.Errorf("write command: %w", err)
@@ -99,7 +107,6 @@ func (s *Socket) Execute(command string) (string, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		// Try to reconnect on read error
 		s.conn.Close()
 		s.conn = nil
 		return "", fmt.Errorf("read response: %w", err)
