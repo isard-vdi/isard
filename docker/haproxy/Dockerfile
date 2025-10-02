@@ -20,6 +20,9 @@ COPY pkg /build/pkg
 
 WORKDIR /build/pkg/haproxy-bastion-sync
 
+# Generate go.sum and download dependencies
+RUN go mod tidy
+
 # Build binary
 RUN CGO_ENABLED=0 go build -o bin/haproxy-bastion-sync cmd/haproxy-bastion-sync/main.go
 
