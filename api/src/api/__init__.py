@@ -92,11 +92,16 @@ app.internal_users = InternalUsers()
 
 # # ###### GRPC client
 
-from isardvdi_common.grpc_client import create_operations_client, create_sessions_client
+from isardvdi_common.grpc_client import (
+    create_haproxy_bastion_client,
+    create_operations_client,
+    create_sessions_client,
+)
 
 # TODO: Get from env
 app.sessions_client = create_sessions_client("isard-sessions", 1312)
 app.operations_client = create_operations_client("isard-operations", 1312)
+app.haproxy_bastion_client = create_haproxy_bastion_client("isard-portal", 1313)
 
 print("Starting isard api...")
 

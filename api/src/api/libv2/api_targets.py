@@ -108,10 +108,26 @@ def update_bastion_haproxy_map():
         ]
         domains.extend(category_domains)
 
+        # Write to file (always, for HAProxy restart)
         with open("/api/api/bastion_domains/subdomains.map", "w") as f:
             for domain in domains:
                 if domain:
                     f.write(f"{domain}\n")
+
+        # Update HAProxy via gRPC (if available)
+        try:
+            from haproxy.v1 import haproxy_pb2
+
+            app.haproxy_bastion_client.SyncMaps(
+                haproxy_pb2.SyncMapsRequest(
+                    subdomains=[d for d in domains if d],
+                    individual_domains=[],  # Not changed in this function
+                ),
+                timeout=5,
+            )
+        except Exception as e:
+            app.logger.warning(f"Failed to sync subdomains to HAProxy via gRPC: {e}")
+            # Graceful degradation: file is written, will be used on next reload
 
 
 def update_bastion_desktops_haproxy_map():
@@ -127,9 +143,27 @@ def update_bastion_desktops_haproxy_map():
             if t.get("domain") and isinstance(t["domain"], str)
         ]
 
+        # Write to file (always, for HAProxy restart)
         with open("/api/api/bastion_domains/individual.map", "w") as f:
             for domain in domains:
                 f.write(f"{domain}\n")
+
+        # Update HAProxy via gRPC (if available)
+        try:
+            from haproxy.v1 import haproxy_pb2
+
+            app.haproxy_bastion_client.SyncMaps(
+                haproxy_pb2.SyncMapsRequest(
+                    subdomains=[],  # Not changed in this function
+                    individual_domains=domains,
+                ),
+                timeout=5,
+            )
+        except Exception as e:
+            app.logger.warning(
+                f"Failed to sync individual domains to HAProxy via gRPC: {e}"
+            )
+            # Graceful degradation: file is written, will be used on next reload
 
 
 def bastion_domain_verification_required() -> bool:

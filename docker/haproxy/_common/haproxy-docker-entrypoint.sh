@@ -27,7 +27,13 @@ else
 fi
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting file monitoring for automatic reloads..."
-inotifyd haproxy-reload /certs/chain.pem:c /usr/local/etc/haproxy/bastion_domains/subdomains.map:c /usr/local/etc/haproxy/bastion_domains/individual.map:c /usr/local/etc/haproxy/lists/black.lst:c /usr/local/etc/haproxy/lists/external/black.lst:c /usr/local/etc/haproxy/lists/white.lst:c &
+inotifyd haproxy-reload /certs/chain.pem:c /usr/local/etc/haproxy/lists/black.lst:c /usr/local/etc/haproxy/lists/external/black.lst:c /usr/local/etc/haproxy/lists/white.lst:c &
+
+# Start haproxy-bastion-sync for portal flavours
+if [ "$CFG" = "portal" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting haproxy-bastion-sync microservice..."
+    haproxy-bastion-sync &
+fi
 
 # first arg is `-f` or `--some-option`
 if [ "${1#-}" != "$1" ]; then
