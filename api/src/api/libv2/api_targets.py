@@ -85,7 +85,9 @@ def update_category_bastion_domain(category_id, domain):
     update_bastion_haproxy_map()
 
 
-def _call_grpc_with_infinite_retry(func, *args, initial_delay=1, max_delay=30, **kwargs):
+def _call_grpc_with_infinite_retry(
+    func, *args, initial_delay=1, max_delay=30, **kwargs
+):
     """
     Call a gRPC function with infinite retry and exponential backoff.
     Waits forever until connection is established, with delays capped at max_delay.
