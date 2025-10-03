@@ -415,7 +415,18 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // TODO: The session might not be expired but it could be revoked
-    if (Date.now() + store.getters.getTimeDrift > ((sessionData.exp - 30) * 1000)) {
+    // Check session expiration with fallback logic
+    const now = Date.now()
+    const timeDrift = store.getters.getTimeDrift
+    const sessionExpiry = (sessionData.exp - 30) * 1000
+
+    // Use time drift if less than 24 hours difference between server and client
+    // Otherwise use local time only
+    const shouldRenew = Math.abs(timeDrift) < (24 * 60 * 60 * 1000)
+      ? now + timeDrift > sessionExpiry
+      : now > sessionExpiry
+
+    if (shouldRenew) {
       await store.dispatch('renew')
       session = store.getters.getSession
       if (session) {

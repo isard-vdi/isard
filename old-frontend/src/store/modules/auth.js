@@ -294,7 +294,17 @@ export default {
       // Unixtime in seconds
       const server = jwt.iat * 1000
 
-      context.commit('setTimeDrift', server - local)
+      let drift = server - local
+
+      // Maximum allowed drift: 24 hours in either direction
+      const MAX_DRIFT = 24 * 60 * 60 * 1000
+
+      if (Math.abs(drift) > MAX_DRIFT) {
+        console.warn(`Extreme time drift detected: ${drift}ms. Changing to a safe range.`)
+        drift = drift > 0 ? MAX_DRIFT : -MAX_DRIFT
+      }
+
+      context.commit('setTimeDrift', drift)
     },
     // Email verification
     sendVerifyEmail (context, data) {
