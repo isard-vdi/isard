@@ -56,6 +56,7 @@
                   :max="new Date(new Date().setFullYear(new Date().getFullYear() + 1))"
                   :min="new Date(new Date().setDate(new Date().getDate() + 1))"
                   :locale="$i18n.locale"
+                  no-flip
                 />
               </b-col>
               <b-button
