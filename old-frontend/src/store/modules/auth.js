@@ -176,6 +176,7 @@ export default {
           context.dispatch('fetchConfig')
         })
         .catch((e) => {
+          console.error('Session renewal failed:', e)
           context.dispatch('showExpiredSessionModal', 'expired')
         })
     },

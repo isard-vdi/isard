@@ -418,13 +418,14 @@ router.beforeEach(async (to, from, next) => {
     // Check session expiration with fallback logic
     const now = Date.now()
     const timeDrift = store.getters.getTimeDrift
-    const sessionExpiry = (sessionData.exp - 30) * 1000
+    // adjustedNow = now + timeDrift (if time drift is reasonable)
+    const adjustedNow = now + (Math.abs(timeDrift) < (24 * 60 * 60 * 1000) ? timeDrift : 0) // 24h in ms
+    const tokenExpiration = sessionData.exp * 1000 // in ms
+    const maxRenewTime = store.getters.getConfig.session?.maxRenewTime * 1000 // in ms
 
-    // Use time drift if less than 24 hours difference between server and client
-    // Otherwise use local time only
-    const shouldRenew = Math.abs(timeDrift) < (24 * 60 * 60 * 1000)
-      ? now + timeDrift > sessionExpiry
-      : now > sessionExpiry
+    // Auto-renew 30s before expiration or within renewal window (after expiration but before max time)
+    const isExpired = adjustedNow > tokenExpiration
+    const shouldRenew = adjustedNow > tokenExpiration - 30000 && (!isExpired || (maxRenewTime && adjustedNow < maxRenewTime))
 
     if (shouldRenew) {
       await store.dispatch('renew')
