@@ -33,7 +33,8 @@ export default {
     expiredSessionModal: {
       show: false,
       kind: 'renew'
-    }
+    },
+    isRenewing: false
   },
   getters: {
     getSession: (state) => {
@@ -56,6 +57,9 @@ export default {
     },
     getExpiredSessionModal: (state) => {
       return state.expiredSessionModal
+    },
+    getIsRenewing: (state) => {
+      return state.isRenewing
     }
   },
   mutations: {
@@ -94,6 +98,9 @@ export default {
     },
     setExpiredSessionModal (state, payload) {
       state.expiredSessionModal = payload
+    },
+    setRenewingFlag (state, isRenewing) {
+      state.isRenewing = isRenewing
     }
   },
   actions: {
@@ -156,6 +163,9 @@ export default {
       })
     },
     renew (context, closeModal = false) {
+      // Set a flag to prevent renewal loops across tabs
+      context.commit('setRenewingFlag', true)
+
       const authentication = axios.create({
         baseURL: authenticationSegment
       })
@@ -178,6 +188,10 @@ export default {
         .catch((e) => {
           console.error('Session renewal failed:', e)
           context.dispatch('showExpiredSessionModal', 'expired')
+        })
+        .finally(() => {
+          // Clear the renewal flag
+          context.commit('setRenewingFlag', false)
         })
     },
     logout (context, redirect = true) {
@@ -363,6 +377,50 @@ export default {
     },
     showExpiredSessionModal (context, kind) {
       context.commit('setExpiredSessionModal', { show: true, kind: kind })
+    },
+    syncSessionFromCookie (context, newSessionToken) {
+      // This action is called when the session cookie changes in another tab
+      // It synchronizes the current tab's session state and dismisses modals if appropriate
+
+      // Don't sync if this tab is currently renewing (to prevent loops)
+      if (context.getters.getIsRenewing) {
+        return
+      }
+
+      const oldSession = context.getters.getSession
+      if (oldSession !== newSessionToken) {
+        // Update the session in the store
+        context.commit('setSession', newSessionToken)
+
+        // Update time drift based on the new token
+        context.dispatch('updateTimeDrift', jwtDecode(newSessionToken))
+
+        // Check if we should dismiss the renewal modal
+        const config = context.rootGetters.getConfig
+        if (config.session) {
+          const now = Date.now()
+          const timeDrift = context.getters.getTimeDrift
+          const adjustedNow = now + timeDrift
+
+          const sessionData = jwtDecode(newSessionToken)
+          const tokenExpiration = sessionData.exp * 1000
+          const maxRenewTime = config.session.maxRenewTime * 1000
+
+          // If the new token is not expired yet, dismiss the renewal modal
+          if (adjustedNow < tokenExpiration) {
+            context.commit('setExpiredSessionModal', { show: false, kind: 'renew' })
+
+            // Re-fetch config to update timers with the new session
+            context.dispatch('fetchConfig')
+          } else if (adjustedNow < maxRenewTime) {
+            // Token is still expired but within renewal window - keep showing renewal modal
+            context.dispatch('showExpiredSessionModal', 'renew')
+          } else {
+            // Max renew time exceeded - show expired modal for logout
+            context.dispatch('showExpiredSessionModal', 'expired')
+          }
+        }
+      }
     }
   }
 }
