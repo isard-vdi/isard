@@ -8,7 +8,15 @@ grpc_gevent.init_gevent()
 
 
 def _create_grpc_client(stub, host, port):
-    chan = grpc.insecure_channel(f"{host}:{port}")
+    chan = grpc.insecure_channel(
+        f"{host}:{port}",
+        options=[
+            ("grpc.keepalive_time_ms", 10000),
+            ("grpc.keepalive_timeout_ms", 5000),
+            ("grpc.keepalive_permit_without_calls", True),
+            ("grpc.http2.max_pings_without_data", 0),
+        ],
+    )
     return stub(chan)
 
 

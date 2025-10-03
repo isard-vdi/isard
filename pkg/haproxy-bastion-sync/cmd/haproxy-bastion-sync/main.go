@@ -49,33 +49,13 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to connect to HAProxy socket")
 	}
 
-	// Initialize map store
+	// Initialize map store with empty maps (will be populated via gRPC)
 	store := haproxy.NewMapStore(c.Maps.SubdomainsPath, c.Maps.IndividualPath, &log.Logger)
-
-	// Load maps from files
-	log.Info().Msg("loading maps from files")
-	if err := store.LoadFromFiles(); err != nil {
-		log.Fatal().Err(err).Msg("failed to load maps from files")
-	}
 
 	// Initialize syncer
 	syncer := haproxy.NewSyncer(socket, store, c.Maps.SubdomainsPath, c.Maps.IndividualPath, &log.Logger)
 
-	// Perform initial sync with HAProxy
-	log.Info().Msg("performing initial sync with HAProxy")
-	subdomains := store.GetSubdomains()
-	individual := store.GetIndividual()
-	result, err := syncer.SyncAll(subdomains, individual)
-	if err != nil {
-		log.Warn().Err(err).Msg("initial sync failed, continuing anyway")
-	} else {
-		log.Info().
-			Int32("subdomains_added", result.SubdomainsAdded).
-			Int32("subdomains_removed", result.SubdomainsRemoved).
-			Int32("individual_added", result.IndividualAdded).
-			Int32("individual_removed", result.IndividualRemoved).
-			Msg("initial sync completed")
-	}
+	log.Info().Msg("waiting for initial domain sync via gRPC from API...")
 
 	// Start gRPC server
 	wg.Add(1)

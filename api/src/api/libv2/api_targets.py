@@ -1,9 +1,11 @@
 import threading
+import time
 import traceback
 import uuid
 from typing import Literal
 
 import dns.resolver
+import grpc
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -83,6 +85,27 @@ def update_category_bastion_domain(category_id, domain):
     update_bastion_haproxy_map()
 
 
+def _call_grpc_with_infinite_retry(func, *args, initial_delay=1, max_delay=30, **kwargs):
+    """
+    Call a gRPC function with infinite retry and exponential backoff.
+    Waits forever until connection is established, with delays capped at max_delay.
+    """
+    delay = initial_delay
+    while True:
+        try:
+            return func(*args, wait_for_ready=True, timeout=30, **kwargs)
+        except grpc.RpcError as e:
+            if e.code() == grpc.StatusCode.UNAVAILABLE:
+                app.logger.warning(
+                    f"gRPC service unavailable, retrying in {delay}s... ({e.details()})"
+                )
+                time.sleep(delay)
+                delay = min(delay * 2, max_delay)  # Exponential backoff, capped at 30s
+                continue
+            # For other errors, re-raise
+            raise
+
+
 def update_bastion_haproxy_map():
     """
     Update the bastion domain map for haproxy.
@@ -108,26 +131,16 @@ def update_bastion_haproxy_map():
         ]
         domains.extend(category_domains)
 
-        # Write to file (always, for HAProxy restart)
-        with open("/api/api/bastion_domains/subdomains.map", "w") as f:
-            for domain in domains:
-                if domain:
-                    f.write(f"{domain}\n")
+        # Update HAProxy via gRPC with infinite retry
+        from haproxy.v1 import haproxy_pb2
 
-        # Update HAProxy via gRPC (if available)
-        try:
-            from haproxy.v1 import haproxy_pb2
-
-            app.haproxy_bastion_client.SyncMaps(
-                haproxy_pb2.SyncMapsRequest(
-                    subdomains=[d for d in domains if d],
-                    individual_domains=[],  # Not changed in this function
-                ),
-                timeout=5,
-            )
-        except Exception as e:
-            app.logger.warning(f"Failed to sync subdomains to HAProxy via gRPC: {e}")
-            # Graceful degradation: file is written, will be used on next reload
+        _call_grpc_with_infinite_retry(
+            app.haproxy_bastion_client.SyncMaps,
+            haproxy_pb2.SyncMapsRequest(
+                subdomains=[d for d in domains if d],
+                individual_domains=[],  # Not changed in this function
+            ),
+        )
 
 
 def update_bastion_desktops_haproxy_map():
@@ -143,27 +156,16 @@ def update_bastion_desktops_haproxy_map():
             if t.get("domain") and isinstance(t["domain"], str)
         ]
 
-        # Write to file (always, for HAProxy restart)
-        with open("/api/api/bastion_domains/individual.map", "w") as f:
-            for domain in domains:
-                f.write(f"{domain}\n")
+        # Update HAProxy via gRPC with infinite retry
+        from haproxy.v1 import haproxy_pb2
 
-        # Update HAProxy via gRPC (if available)
-        try:
-            from haproxy.v1 import haproxy_pb2
-
-            app.haproxy_bastion_client.SyncMaps(
-                haproxy_pb2.SyncMapsRequest(
-                    subdomains=[],  # Not changed in this function
-                    individual_domains=domains,
-                ),
-                timeout=5,
-            )
-        except Exception as e:
-            app.logger.warning(
-                f"Failed to sync individual domains to HAProxy via gRPC: {e}"
-            )
-            # Graceful degradation: file is written, will be used on next reload
+        _call_grpc_with_infinite_retry(
+            app.haproxy_bastion_client.SyncMaps,
+            haproxy_pb2.SyncMapsRequest(
+                subdomains=[],  # Not changed in this function
+                individual_domains=domains,
+            ),
+        )
 
 
 def bastion_domain_verification_required() -> bool:
