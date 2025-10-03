@@ -93,10 +93,14 @@ def admin_storage_pool_get_by_path(payload):
 @app.route("/api/v3/admin/storage_pool/<storage_pool_id>", methods=["PUT"])
 @is_admin
 def admin_storage_pool_update(payload, storage_pool_id):
-    if storage_pool_id == DEFAULT_STORAGE_POOL_ID:
-        raise Error("bad_request", "Cannot update default storage pool")
     data = request.get_json()
     data = _validate_item("storage_pool_update", data)
+
+    if storage_pool_id == DEFAULT_STORAGE_POOL_ID:
+        allowed_keys = {"id", "qos_disk_id"}
+        extra_keys = [k for k in data.keys() if k not in allowed_keys]
+        if extra_keys:
+            raise Error("bad_request", "Cannot update default storage pool")
 
     update_storage_pool(storage_pool_id, data)
     return (

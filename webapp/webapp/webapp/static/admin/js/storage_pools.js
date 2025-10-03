@@ -112,18 +112,21 @@ $(document).ready(function () {
         title: "Action",
         render: function (data, type, full, meta) {
           if (data.is_default) {
-            return '<button id="btn-edit" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
+            return `<button id="btn-edit" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>
+                    <button id="btn-qos" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-road" style="color:darkblue"></i></button>`
           } else {
             return data.enabled ?
               `<!--'<button id="btn-allowed" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>--> \
                   <button id="btn-edit" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
-                  <button id="btn-enable" class="btn btn-xs" type="button" data-placement="top" title="Enable storage pool"><i class="fa fa-power-off" style="color:darkgreen"></i>
-                  <button id="btn-enable-virt" class="btn btn-xs" type="button" data-placement="top" title="Enable virtualization"><i class="fa fa-rocket" style="color:darkgreen"></i></button>`
+                  <button id="btn-enable" class="btn btn-xs" type="button" data-placement="top" title="Enable storage pool"><i class="fa fa-power-off" style="color:darkgreen"></i></button>
+                  <button id="btn-enable-virt" class="btn btn-xs" type="button" data-placement="top" title="Enable virtualization"><i class="fa fa-rocket" style="color:darkgreen"></i></button>
+                  <button id="btn-qos" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-road" style="color:darkblue"></i></button>`
               :
               `<!--'<button id="btn-allowed" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>--> \
                   <button id="btn-edit" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
-                  <button id="btn-enable" class="btn btn-xs" type="button" data-placement="top" title="Enable storage pool"><i class="fa fa-power-off" style="color:darkgreen"></i> \
-                  <button id="btn-delete" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>`
+                  <button id="btn-enable" class="btn btn-xs" type="button" data-placement="top" title="Enable storage pool"><i class="fa fa-power-off" style="color:darkgreen"></i></button> \
+                  <button id="btn-delete" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>
+                  <button id="btn-qos" class="btn btn-xs" type="button" data-placement="top" ><i class="fa fa-road" style="color:darkblue"></i></button>`
           }
         }
       },
@@ -171,6 +174,16 @@ $(document).ready(function () {
       case 'btn-allowed':
         modalAllowedsFormShow("storage_pool", data);
         break;
+      case 'btn-qos':
+        let modal = "#modalQoSStoragePool";
+        populateQosDisk(modal, data.qos_disk_id);
+        $(modal + " #id").val(data.id);
+        $(modal).modal({
+          backdrop: "static",
+          keyboard: false,
+        }).modal("show");
+        break;
+
       case 'btn-edit':
         var isDefault = isDefaultPool(data.id);
         if (isDefault) {
@@ -183,28 +196,29 @@ $(document).ready(function () {
             opacity: 1,
             type: 'error'
           });
-        } else {
-          $("#modalEditStoragePool #modalEdit #category").attr("disabled", isDefault);
-          $("#modalEditStoragePool #modalEdit #name").attr("disabled", isDefault);
-          $("#modalEditStoragePool #modalEdit #description").attr("disabled", isDefault);
-          $("#modalEditStoragePool #modalEdit #mountpoint").attr("disabled", isDefault);
+        return;
+        }
 
-          $("#modalEditStoragePool #modalEdit")[0].reset();
-          $('#modalEdit #pathsTableEdit tbody').html('');
-          $("#modalEditStoragePool #category").select2({
-            dropdownParent: $("#modalEditStoragePool"),
-          });
-          populateCategory("#modalEditStoragePool", data.categories);
-          populateQosDisk("#modalEditStoragePool", data.qos_disk_id);
+        $("#modalEditStoragePool #modalEdit #category").attr("disabled", isDefault);
+        $("#modalEditStoragePool #modalEdit #name").attr("disabled", isDefault);
+        $("#modalEditStoragePool #modalEdit #description").attr("disabled", isDefault);
+        $("#modalEditStoragePool #modalEdit #mountpoint").attr("disabled", isDefault);
 
-          $("#modalEditStoragePool").modal({
-            backdrop: "static",
-            keyboard: false,
-          }).modal("show");
-          $("#modalEditStoragePool #modalEdit").parsley();
-          $("#modalEdit #id").val(data.id);
-          $("#modalEdit #name").val(data.name);
-          $("#modalEdit #description").val(data.description);
+        $("#modalEditStoragePool #modalEdit")[0].reset();
+        $('#modalEdit #pathsTableEdit tbody').html('');
+        $("#modalEditStoragePool #category").select2({
+          dropdownParent: $("#modalEditStoragePool"),
+        });
+        populateCategory("#modalEditStoragePool", data.categories);
+
+        $("#modalEditStoragePool").modal({
+          backdrop: "static",
+          keyboard: false,
+        }).modal("show");
+        $("#modalEditStoragePool #modalEdit").parsley();
+        $("#modalEdit #id").val(data.id);
+        $("#modalEdit #name").val(data.name);
+        $("#modalEdit #description").val(data.description);
 
           var fullMountpoint = data.mountpoint.split("/");
           var mountpointVar = fullMountpoint.pop();
@@ -274,7 +288,6 @@ $(document).ready(function () {
                 additionalCell.style.borderTop = '3px solid rgb(221, 221, 221)';
               }
             }
-          }
 
           if (isDefault) {
             $("#modalEdit #category").attr("disabled", true);
@@ -741,6 +754,14 @@ $("#modalEditStoragePool #send").off('click').on('click', function (e) {
   }
 });
 
+
+$("#modalQoSStoragePool #send").off('click').on('click', function (e) {
+  var form = $('#modalQoSStoragePool #modalQoS');
+  data = form.serializeObject();
+  data["id"] = form.find("#id").val();
+  updateStoragePool(data);
+});
+
 function populateQosDisk(modal, qos_disk_id) {
   $(modal + " #qos_disk_id").empty();
   $(modal + ' #qos_disk_id').append(
@@ -756,6 +777,9 @@ function populateQosDisk(modal, qos_disk_id) {
           `<option value="${value.id}">${value.name}</option>`
         );
       });
+      if (qos_disk_id) {
+        $(modal + " #qos_disk_id").val(qos_disk_id).trigger("change");
+      }
     }
   });
 }
