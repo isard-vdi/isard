@@ -105,23 +105,25 @@ def show_cache_occupancy():
 ## User with names
 
 
-def get_cached_user_with_names(user_id):
+def get_cached_user_with_names(user_id, with_secondary_groups_names=True):
     user = get_cached("users", user_id)
     if user is None:
         return None
-    return dict(
+    base = dict(
         user,
         **{
             "role_name": get_document("roles", user["role"], ["name"]),
             "category_name": get_document("categories", user["category"], ["name"]),
             "group_name": get_document("groups", user["group"], ["name"]),
             "user_name": user["name"],
-            "secondary_groups_names": [
-                get_document("groups", group_id, ["name"])
-                for group_id in user["secondary_groups"]
-            ],
         },
     )
+    if with_secondary_groups_names:
+        base["secondary_groups_names"] = [
+            get_document("groups", group_id, ["name"])
+            for group_id in user["secondary_groups"]
+        ]
+    return base
 
 
 @cached(cache=TTLCache(maxsize=200, ttl=5))
