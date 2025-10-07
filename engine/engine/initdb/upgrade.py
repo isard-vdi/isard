@@ -20,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 175
+release_version = 176
+# release 176: Delete null parents on domains
 # release 175: Import SMTP configuration from NOTIFY_EMAIL* envitonment variables
 # release 174: Add task index to storage table
 # release 173: Remove enabled field from maintenance_text
@@ -3303,6 +3304,18 @@ password:s:%s"""
                             }
                         }
                     }
+                ).run(
+                    self.conn
+                )
+            except Exception as e:
+                print(e)
+
+        if version == 176:
+            try:
+                r.table(table).filter(
+                    lambda d: d.has_fields("parents") & d["parents"].contains(None)
+                ).update(
+                    {"parents": r.row["parents"].filter(lambda p: p.ne(None))}
                 ).run(
                     self.conn
                 )

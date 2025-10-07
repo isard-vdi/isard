@@ -338,7 +338,7 @@ class ApiDesktopsPersistent:
                 "hardware": {"disks": template.create_dict["hardware"]["disks"]}
             },
             "xml": template.xml,
-            "parents": template.parents if template.parents else [None],
+            "parents": template.parents if template.parents else [],
         }
         # Merge the new data with the existing desktop_data
         desktop_data = {**desktop_data, **new_desktop_data}

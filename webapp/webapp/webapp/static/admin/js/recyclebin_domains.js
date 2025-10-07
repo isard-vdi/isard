@@ -439,7 +439,7 @@ $(document).ready(function () {
             error: function (xhr, ajaxOptions, thrownError) {
               new PNotify({
                 title: "ERROR deleting storage",
-                text: xhr.responseJSON.description,
+                text: xhr.responseJSON?.description || 'Something went wrong',
                 hide: true,
                 delay: 3000,
                 icon: 'fa fa-warning',
@@ -475,7 +475,7 @@ $(document).ready(function () {
             error: function (xhr) {
               notice.update({
                 title: `ERROR restoring ${data['item_type']}`,
-                text: xhr.responseJSON.description,
+                text: xhr.responseJSON?.description || 'Something went wrong',
                 type: 'error',
                 hide: true,
                 icon: 'fa fa-warning',
