@@ -164,7 +164,7 @@ function listenCookieChange(callback, cookieName, interval = 1000) {
         const cookie = getCookie(cookieName)
         if (cookie !== lastCookie) {
             try {
-                callback(null, { oldValue: lastCookie, newValue: cookie }, cookieName)
+                callback({ oldValue: lastCookie, newValue: cookie }, cookieName)
             } finally {
                 lastCookie = cookie
             }
