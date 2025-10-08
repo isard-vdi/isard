@@ -385,6 +385,20 @@ const submitLogin = async (options: ClientOptions<LoginData>) => {
   }
 
   if (isLoginClaims(jwt)) {
+    // Calculate and store time drift for session management
+    const serverTime = jwt.iat * 1000 // Convert from seconds to milliseconds
+    const localTime = Date.now()
+    let drift = serverTime - localTime
+
+    // Maximum allowed drift: 24 hours in either direction
+    const MAX_DRIFT = 24 * 60 * 60 * 1000
+    if (Math.abs(drift) > MAX_DRIFT) {
+      console.warn(`Extreme time drift detected: ${drift}ms. Changing to a safe range.`)
+      drift = drift > 0 ? MAX_DRIFT : -MAX_DRIFT
+    }
+
+    localStorage.setItem('auth_time_drift', drift.toString())
+
     // Login to Webapp
     if (['admin', 'manager'].includes(jwt.data.role_id)) {
       try {
