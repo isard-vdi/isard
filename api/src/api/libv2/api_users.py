@@ -2659,12 +2659,12 @@ class ApiUsers:
         p = Password()
         if item_type == "csv":
             policy = self.get_user_password_policy(
-                user["category_id"], user["role"], user["provider"]
+                user["category_id"], user["role"], "local"
             )
             user["password"] = p.generate_password(policy)
         elif item_type == "generate":
             policy = self.get_user_password_policy(
-                match["category_id"], user["role"], user["provider"]
+                match["category_id"], user["role"], "local"
             )
             p.check_policy(user["password"], policy, username=user["username"])
 
