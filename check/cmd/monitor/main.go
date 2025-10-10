@@ -92,9 +92,7 @@ type MonitorConfig struct {
 
 type MonitorInstance struct {
 	Host            string                         `json:"host"`
-	Category        string                         `json:"category"`
-	Username        string                         `json:"username"`
-	Password        string                         `json:"password"`
+	ApiKey          string                         `json:"api_key"`
 	TemplateID      string                         `json:"template_id"`
 	HypersNum       int                            `json:"hypers_num"`
 	FailMaintenance bool                           `json:"fail_maintenance"`
@@ -118,11 +116,9 @@ func doCheck(ctx context.Context, wg *sync.WaitGroup, checkAddr string, instance
 	rsp, err := cli.CheckIsardVDI(ctx, &checkv1.CheckIsardVDIRequest{
 		Host: instance.Host,
 		Auth: &checkv1.Auth{
-			Method: &checkv1.Auth_Form{
-				Form: &checkv1.AuthForm{
-					Category: instance.Category,
-					Username: instance.Username,
-					Password: instance.Password,
+			Method: &checkv1.Auth_Token{
+				Token: &checkv1.AuthToken{
+					Token: instance.ApiKey,
 				},
 			},
 		},

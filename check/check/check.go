@@ -64,6 +64,7 @@ func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth A
 	if err := c.auth(ctx, cli, authMethod, auth); err != nil {
 		return CheckResult{}, err
 	}
+	c.log.Debug().Msg("authenticated with api key")
 
 	version, err := cli.Version(ctx)
 	if err != nil {
