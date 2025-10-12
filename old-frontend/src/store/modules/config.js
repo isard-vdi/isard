@@ -1,6 +1,8 @@
 import axios from 'axios'
 import { apiV3Segment, authenticationSegment } from '../../shared/constants'
 import { ConfigUtils } from '../../utils/configUtils'
+import { jwtDecode } from 'jwt-decode'
+import store from '@/store'
 
 export default {
   state: {
@@ -51,19 +53,43 @@ export default {
       if (context.getters.getConfig.session.id !== 'isardvdi-service') {
         // Clear all timeouts
         context.commit('clearTimeouts')
-        // Create a new timeout that shows a modal when the session is about to expire (5 minutes before)
-        if (context.getters.getConfig.session.maxRenewTime < context.getters.getConfig.session.maxTime) {
-          context.commit('addTimeout', setTimeout(() => {
+        const now = Date.now()
+        const timeDrift = store.getters.getTimeDrift
+        const adjustedNow = now + timeDrift
+
+        const session = store.getters.getSession
+        if (session) {
+          const sessionData = jwtDecode(session)
+
+          // Token expiration time (when renewal window starts)
+          const tokenExpiration = sessionData.exp * 1000
+
+          // Max renew time from config (when renewal window ends)
+          const maxRenewTime = store.getters.getConfig.session.maxRenewTime * 1000
+
+          // Show renewal modal 30 seconds before token expiration
+          const renewalWindowDelay = tokenExpiration - adjustedNow - 30000
+          if (renewalWindowDelay > 0) {
+            context.commit('addTimeout', setTimeout(() => {
+              context.dispatch('showExpiredSessionModal', 'renew')
+            }, renewalWindowDelay))
+          // Unlikely case: If the session is expired, the axios interceptor or router should have already attempted renewal before fetchConfig runs
+          // but in case fetchConfig is called before that happens, check if we're already in the renewal window
+          // and show the modal immediately
+          } else if (adjustedNow < maxRenewTime) {
             context.dispatch('showExpiredSessionModal', 'renew')
-          }, (context.getters.getConfig.session.maxRenewTime * 1000 - 300000) - Date.now()))
-          // Create a new timeout that shows a modal when the session is expired
-          context.commit('addTimeout', setTimeout(() => {
+          }
+
+          // Force logout when max renew time is reached
+          const forceLogoutDelay = maxRenewTime - adjustedNow
+          if (forceLogoutDelay > 0) {
+            context.commit('addTimeout', setTimeout(() => {
+              context.dispatch('showExpiredSessionModal', 'expired')
+            }, forceLogoutDelay))
+          // Unlikely case: If max renew time has already passed, force logout immediately
+          } else {
             context.dispatch('showExpiredSessionModal', 'expired')
-          }, context.getters.getConfig.session.maxRenewTime * 1000 - Date.now()))
-        } else {
-          context.commit('addTimeout', setTimeout(() => {
-            context.dispatch('showExpiredSessionModal', 'renew')
-          }, (context.getters.getConfig.session.maxTime * 1000 - 300000) - Date.now()))
+          }
         }
       }
     },

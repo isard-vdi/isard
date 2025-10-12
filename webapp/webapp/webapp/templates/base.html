@@ -129,11 +129,12 @@
       console.log(message)
     };
 
-    listenCookieChange((_, { oldValue, newValue }) => {
+    const sessionCookieName = 'isardvdi_session'
+    listenCookieChange(({ oldValue, newValue }) => {
       if (!getCookie('isardvdi_session')) {
         window.location = '/isard-admin/logout'
       }
-    }, 1000);
+    }, sessionCookieName,  1000);
   </script>
   <!-- isard quota sse -->
   <script src="/isard-admin/static/js/quota.js"></script>

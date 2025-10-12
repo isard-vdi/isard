@@ -25,14 +25,33 @@ export default {
   setup (_, context) {
     const $store = context.root.$store
     const viewsNotRedirected = ['VerifyEmail', 'ResetPassword', 'ForgotPassword']
+    let syncTimeout = null
+
     onBeforeMount(() => {
-      listenCookieChange((_, { oldValue, newValue }) => {
+      listenCookieChange(({ oldValue, newValue }) => {
         if (!getCookie(sessionCookieName)) {
+          // Session cookie was removed - handle logout
           $store.dispatch('logout', !viewsNotRedirected.includes(context.root.$route.name))
+        } else if (oldValue && newValue && oldValue !== newValue) {
+          console.log('Session cookie changed, syncing session...')
+          console.log('Old Value:', oldValue)
+          console.log('New Value:', newValue)
+          // Debounce session sync to prevent rapid successive calls
+          if (syncTimeout) {
+            clearTimeout(syncTimeout)
+          }
+          syncTimeout = setTimeout(() => {
+            // Session cookie changed (renewed in another tab) - sync the session
+            $store.dispatch('syncSessionFromCookie', newValue)
+          }, 100) // 100ms debounce
         }
       }, sessionCookieName, 1000)
     })
     onBeforeUnmount(() => {
+      // Clear any pending sync timeout
+      if (syncTimeout) {
+        clearTimeout(syncTimeout)
+      }
       $store.dispatch('closeSocket')
     })
   }

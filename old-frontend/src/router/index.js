@@ -415,7 +415,19 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // TODO: The session might not be expired but it could be revoked
-    if (Date.now() + store.getters.getTimeDrift > ((sessionData.exp - 30) * 1000)) {
+    // Check session expiration with fallback logic
+    const now = Date.now()
+    const timeDrift = store.getters.getTimeDrift
+    // adjustedNow = now + timeDrift (if time drift is reasonable)
+    const adjustedNow = now + (Math.abs(timeDrift) < (24 * 60 * 60 * 1000) ? timeDrift : 0) // 24h in ms
+    const tokenExpiration = sessionData.exp * 1000 // in ms
+    const maxRenewTime = store.getters.getConfig.session?.maxRenewTime * 1000 // in ms
+
+    // Auto-renew 30s before expiration or within renewal window (after expiration but before max time)
+    const isExpired = adjustedNow > tokenExpiration
+    const shouldRenew = adjustedNow > tokenExpiration - 30000 && (!isExpired || (maxRenewTime && adjustedNow < maxRenewTime))
+
+    if (shouldRenew) {
       await store.dispatch('renew')
       session = store.getters.getSession
       if (session) {

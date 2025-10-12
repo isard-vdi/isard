@@ -20,7 +20,19 @@ export default function axiosSetUp () {
       if (getCookie(sessionCookieName)) {
         const session = store.getters.getSession
         const sessionData = jwtDecode(session)
-        if (!config.url.includes('logout') && Date.now() + store.getters.getTimeDrift > ((sessionData.exp - 30) * 1000)) {
+        // Check session expiration with fallback logic
+        const now = Date.now()
+        const timeDrift = store.getters.getTimeDrift
+        // adjustedNow = now + timeDrift (if time drift is reasonable)
+        const adjustedNow = now + (Math.abs(timeDrift) < (24 * 60 * 60 * 1000) ? timeDrift : 0) // 24h in ms
+        const tokenExpiration = sessionData.exp * 1000 // in ms
+        const maxRenewTime = store.getters.getConfig.session?.maxRenewTime * 1000 // in ms
+
+        // Auto-renew 30s before expiration or within renewal window (after expiration but before max time)
+        const isExpired = adjustedNow > tokenExpiration
+        const shouldRenew = adjustedNow > tokenExpiration - 30000 && (!isExpired || (maxRenewTime && adjustedNow < maxRenewTime))
+
+        if (!config.url.includes('logout') && shouldRenew) {
           await store.dispatch('renew')
           if (!store.getters.getSession) {
             return Promise.reject(new Error('Session cannot be renewed'))

@@ -75,7 +75,14 @@ function renewSession(sessionCookie) {
             success: function (response) {
                 saveCookie('isardvdi_session', response.token)
                 let sessionData = jwtDecode(response.token)
-                localStorage.setItem('auth_time_drift', (sessionData.iat * 1000) - Date.now())
+                let drift = (sessionData.iat * 1000) - Date.now()
+                // Maximum allowed drift: 24 hours in either direction
+                const MAX_DRIFT = 24 * 60 * 60 * 1000
+                if (Math.abs(drift) > MAX_DRIFT) {
+                    console.warn('Extreme time drift detected: ' + drift + 'ms. Changing to a safe range.')
+                    drift = drift > 0 ? MAX_DRIFT : -MAX_DRIFT
+                }
+                localStorage.setItem('auth_time_drift', drift)
             },
             // If it can't be renewed logout the user
             error: function (xhr, status, error) {
@@ -91,7 +98,17 @@ function setAjaxHeader() {
         beforeSend: function (jqXHR, settings) {
             let sessionData = jwtDecode(sessionCookie)
             let timeDrift = Number(localStorage.getItem('auth_time_drift')) || 0;
-            if (Date.now() + timeDrift > ((sessionData.exp - 30) * 1000)) {
+            // Check session expiration with fallback logic
+            const now = Date.now()
+            const sessionExpiry = (sessionData.exp - 30) * 1000
+
+            // Use time drift if less than 24 hours difference between server and client
+            // Otherwise use local time only
+            const shouldRenew = Math.abs(timeDrift) < (24 * 60 * 60 * 1000)
+                ? now + timeDrift > sessionExpiry
+                : now > sessionExpiry
+
+            if (shouldRenew) {
                 renewSession(sessionCookie)
                 sessionCookie = getCookie('isardvdi_session')
             }
@@ -147,7 +164,7 @@ function listenCookieChange(callback, cookieName, interval = 1000) {
         const cookie = getCookie(cookieName)
         if (cookie !== lastCookie) {
             try {
-                callback(null, { oldValue: lastCookie, newValue: cookie }, cookieName)
+                callback({ oldValue: lastCookie, newValue: cookie }, cookieName)
             } finally {
                 lastCookie = cookie
             }
