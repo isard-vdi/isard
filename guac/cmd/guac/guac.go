@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -13,13 +13,44 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/wwt/guac"
-	isardvdi "gitlab.com/isard/isardvdi-sdk-go"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 var (
 	guacdAddr string
 	apiAddr   string
 )
+
+type LoginClaims struct {
+	*jwt.RegisteredClaims
+	KeyID     string          `json:"kid"`
+	Type      string          `json:"type,omitempty"`
+	SessionID string          `json:"session_id"`
+	Data      LoginClaimsData `json:"data"`
+}
+
+type LoginClaimsData struct {
+	Provider   string `json:"provider"`
+	ID         string `json:"user_id"`
+	RoleID     string `json:"role_id"`
+	CategoryID string `json:"category_id"`
+	GroupID    string `json:"group_id"`
+	Name       string `json:"name"`
+}
+
+type ViewerClaims struct {
+	*jwt.RegisteredClaims
+	KeyID string           `json:"kid"`
+	Type  string           `json:"type,omitempty"`
+	Data  ViewerClaimsData `json:"data"`
+}
+
+type ViewerClaimsData struct {
+	DesktopID  string `json:"desktop_id"`
+	RoleID     string `json:"role_id,omitempty"`
+	CategoryID string `json:"category_id,omitempty"`
+}
 
 func init() {
 	guacdAddr = os.Getenv("GUACD_ADDR")
@@ -31,43 +62,136 @@ func init() {
 	if apiAddr == "" || apiAddr == "isard-api" {
 		apiAddr = "isard-api:5000"
 	} else {
-                apiAddr = "https://" + apiAddr
-        }
+		apiAddr = "https://" + apiAddr
+	}
 }
 
 func isAuthenticated(handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logrus.Infof("authenticating request: %s %s", r.Method, r.URL.String())
+
 		tkn := r.URL.Query().Get("session")
+		hostname := r.URL.Query().Get("hostname")
+
 		if tkn == "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		cli, err := isardvdi.NewClient(&isardvdi.Cfg{
-			Host:  fmt.Sprintf("http://%s", apiAddr),
-			Token: tkn,
-		})
+		iclaims, err := verifyToken(tkn)
 		if err != nil {
-			logrus.Errorf("error creating the client: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logrus.Errorf("error verifying token: %v", err)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		if err := cli.UserOwnsDesktop(r.Context(), &isardvdi.UserOwnsDesktopOpts{
-			IP: r.URL.Query().Get("hostname"),
-		}); err != nil {
-			if errors.Is(err, isardvdi.ErrForbidden) {
+		switch claims := iclaims.(type) {
+		case *LoginClaims:
+			logrus.Infof("User %s (id: %s) is trying to access %s", claims.Data.Name, claims.Data.ID, hostname)
+
+			ownership, err := ownsDesktop(tkn, hostname)
+			if err != nil {
+				logrus.Errorf("error checking if user owns desktop: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			if !ownership {
+				logrus.Errorf("user %s (id: %s) doesn't own desktop %s", claims.Data.Name, claims.Data.ID, hostname)
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
-			logrus.Errorf("unknown error: %w", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logrus.Debug("User authorized")
+		case *ViewerClaims:
+			logrus.Infof("Viewer for desktop %s is trying to access %s", claims.Data.DesktopID, hostname)
+
+			ownership, err := ownsDesktop(tkn, hostname)
+			if err != nil {
+				logrus.Errorf("error checking viewer owns desktop: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			if !ownership {
+				logrus.Errorf("viewer doesn't own desktop %s", hostname)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			logrus.Debug("Viewer authorized")
+		default:
+			logrus.Errorf("unknown claims type or missing required fields")
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
+		logrus.Debug("done authenticating request")
 		handler.ServeHTTP(w, r)
 	})
+}
+
+func verifyToken(tokenString string) (jwt.Claims, error) {
+	loginClaims := &LoginClaims{}
+	_, _, err := jwt.NewParser().ParseUnverified(tokenString, loginClaims)
+	if err == nil && loginClaims.SessionID != "" && loginClaims.Data.ID != "" {
+		return loginClaims, nil
+	}
+
+	viewerClaims := &ViewerClaims{}
+	_, _, err = jwt.NewParser().ParseUnverified(tokenString, viewerClaims)
+	if err == nil && viewerClaims.Data.DesktopID != "" {
+		return viewerClaims, nil
+	}
+
+	return nil, fmt.Errorf("token does not match known claim types")
+}
+
+func ownsDesktop(tkn string, hostname string) (bool, error) {
+	baseurl, err := url.Parse(fmt.Sprintf("http://%s", apiAddr))
+	if err != nil {
+		return false, fmt.Errorf("error parsing API URL: %v", err)
+	}
+	baseurl.Path = "/api/v3/"
+
+	path, err := url.Parse("user/owns_desktop")
+	if err != nil {
+		return false, fmt.Errorf("error parsing relative API URL: %v", err)
+	}
+
+	rawBody := map[string]interface{}{}
+	rawBody["ip"] = hostname
+	url := baseurl.ResolveReference(path)
+	body, err := json.Marshal(rawBody)
+	if err != nil {
+		return false, fmt.Errorf("error encoding body: %v", err)
+	}
+	buf := bytes.NewBuffer(body)
+	req, err := http.NewRequest(http.MethodGet, url.String(), buf)
+	if err != nil {
+		return false, fmt.Errorf("error creating request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "isardvdi-guac")
+	req.Header.Set("Authorization", "Bearer "+tkn)
+
+	rsp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("error performing request: %v", err)
+	}
+	defer rsp.Body.Close()
+
+	switch {
+	case rsp.StatusCode >= 500:
+		return false, fmt.Errorf("API request failed with status: %s", rsp.Status)
+	case rsp.StatusCode == 401 || rsp.StatusCode == 403:
+		return false, nil
+	case rsp.StatusCode >= 400:
+		return false, fmt.Errorf("API request failed with status: %s", rsp.Status)
+	default:
+		return true, nil
+	}
 }
 
 func logLevel() {
