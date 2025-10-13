@@ -1180,10 +1180,19 @@ function setDesktopTemplateTree(desktop_id) {
         url: "/api/v3/admin/domain/template_tree/" + desktop_id,
         type: 'GET',
         contentType: 'application/json',
-        success: function(data)
-        {
-            const rootElement = $('#domain_template_tree_'+desktop_id+' tbody');
-            renderTable(data, rootElement,1, renderDesktopTree);
+        success: function(data) {
+           const rootElement = $('#domain_template_tree_'+desktop_id+' tbody');
+           if (data.length > 0) {
+                renderTable(data, rootElement,1, renderDesktopTree);
+            } else {
+                rootElement.append(`
+                    <tr>
+                        <td colspan="5" class="text-center alert"style="background-color: #f7f7f7;">
+                            This desktop has no parents
+                        </td>
+                    </tr>
+                `);
+            }
         }
     });
 }

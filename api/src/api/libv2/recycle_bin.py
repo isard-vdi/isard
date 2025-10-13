@@ -1236,16 +1236,18 @@ class RecycleBin(object):
 
     def validate_parents(self, parents, templates, error_message):
         for parent in parents:
-            with app.app_context():
-                if not (
-                    r.table("domains").get(parent).run(db.conn)
-                    or any(t["id"] == parent for t in templates)
-                ):
-                    raise Error(
-                        "precondition_required",
-                        error_message.format(parent),
-                        description_code="parent_template_not_found",
-                    )
+            # check if null in case of corrupted data caused by a convert template bug in previous versions
+            if parent is not None:
+                with app.app_context():
+                    if not (
+                        r.table("domains").get(parent).run(db.conn)
+                        or any(t["id"] == parent for t in templates)
+                    ):
+                        raise Error(
+                            "precondition_required",
+                            error_message.format(parent),
+                            description_code="parent_template_not_found",
+                        )
 
     def send_socket_user(self, kind, data):
         socketio.emit(
@@ -1315,8 +1317,21 @@ class RecycleBin(object):
             self.agent_category_name,
             self.agent_role,
         )
+        # Remove None entries from parents to avoid corrupted domains on restore
         with app.app_context():
-            r.table("domains").insert(self.desktops + self.templates).run(db.conn)
+            docs = self.desktops + self.templates
+            r.table("domains").insert(
+                r.expr(docs).map(
+                    lambda d: d.merge(
+                        r.branch(
+                            d.has_fields("parents")
+                            & r.type_of(d["parents"]).eq("ARRAY"),
+                            {"parents": d["parents"].filter(lambda p: p.ne(None))},
+                            {},
+                        )
+                    )
+                )
+            ).run(db.conn)
         with app.app_context():
             r.table("targets").insert(self.targets).run(db.conn)
         with app.app_context():

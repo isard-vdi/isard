@@ -336,7 +336,12 @@ def default_guest_properties():
 def _parse_desktop(desktop):
     desktop = parse_frontend_desktop_status(desktop)
     desktop["image"] = desktop.get("image", None)
-    desktop["from_template"] = desktop.get("parents", [None])[-1]
+
+    parents = desktop.get("parents")
+    desktop["from_template"] = (
+        parents[-1] if isinstance(parents, (list, tuple)) and parents else None
+    )
+
     if desktop.get("persistent", True):
         desktop["type"] = "persistent"
     else:
