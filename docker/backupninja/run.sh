@@ -229,7 +229,7 @@ EOF
 
             # Create session-level NFS mount script for this schedule
             if [ "$BACKUP_NFS_ENABLED" = "true" ]; then
-                NFS_MOUNT_SCRIPT="/usr/local/etc/backup.d/05-session-nfs-mount-$SCHEDULE_INDEX.sh"
+                NFS_MOUNT_SCRIPT="/usr/local/etc/backup.d/11-session-nfs-mount-$SCHEDULE_INDEX.sh"
                 envsubst < "/usr/local/share/backup.d/05-session-nfs-mount.sh" > "$NFS_MOUNT_SCRIPT"
                 chmod 700 "$NFS_MOUNT_SCRIPT"
                 # Add when clause to NFS mount script
@@ -250,7 +250,7 @@ EOF
 
             # Create session-level NFS unmount script for this schedule
             if [ "$BACKUP_NFS_ENABLED" = "true" ]; then
-                NFS_UMOUNT_SCRIPT="/usr/local/etc/backup.d/95-session-nfs-umount-$SCHEDULE_INDEX.sh"
+                NFS_UMOUNT_SCRIPT="/usr/local/etc/backup.d/91-session-nfs-umount-$SCHEDULE_INDEX.sh"
                 envsubst < "/usr/local/share/backup.d/95-session-nfs-umount.sh" > "$NFS_UMOUNT_SCRIPT"
                 chmod 700 "$NFS_UMOUNT_SCRIPT"
                 # Add when clause to NFS unmount script
@@ -310,6 +310,9 @@ case "$1" in
             done
         }
 
+        # Mount NFS if enabled
+        mount_nfs
+
         # Add backup session start marker
         echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_START: manual $2 backup initiated by user" >> "$LOG_FILE"
 
@@ -324,6 +327,9 @@ case "$1" in
         echo "Sending backup report to API..."
         export BACKUP_TYPE="manual"
         python3 /usr/local/bin/backup_report.py || echo "Warning: Failed to send backup report to API"
+
+        # Unmount NFS if enabled
+        umount_nfs
         ;;
 
     "execute-now-all")
@@ -334,7 +340,10 @@ case "$1" in
                 backupninja --run "$script" --now || true
             done
         }
-        
+
+        # Mount NFS if enabled
+        mount_nfs
+
         # Add backup session start marker for all backups
         echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_START: manual full backup initiated by user" >> "$LOG_FILE"
 
@@ -351,6 +360,9 @@ case "$1" in
         echo "Sending backup report to API..."
         export BACKUP_TYPE="manual"
         python3 /usr/local/bin/backup_report.py || echo "Warning: Failed to send backup report to API"
+
+        # Unmount NFS if enabled
+        umount_nfs
         ;;
 
     "list")
