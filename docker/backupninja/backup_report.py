@@ -54,6 +54,7 @@ class BackupReport:
     backup_types_status: Optional[Dict[str, str]] = None
     backup_type_summary: Optional[Dict[str, Any]] = None
     filesystem_metrics: Optional[Dict[str, Any]] = None
+    backup_config: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
@@ -92,6 +93,10 @@ class BackupReport:
         # Add filesystem metrics if available
         if self.filesystem_metrics:
             result["filesystem_metrics"] = self.filesystem_metrics
+
+        # Add backup configuration if available
+        if self.backup_config:
+            result["backup_config"] = self.backup_config
 
         return result
 
@@ -184,7 +189,9 @@ class BackupLogParser:
 
         if session_start_index != -1:
             # Found a SESSION_START marker, use it as the boundary
-            logger.info(f"Fallback: Found SESSION_START at index {session_start_index}, FINISHED at {finished_index}")
+            logger.info(
+                f"Fallback: Found SESSION_START at index {session_start_index}, FINISHED at {finished_index}"
+            )
             return log_lines[session_start_index : finished_index + 1]
 
         # If no SESSION_START found, fall back to date-based logic (old method)
@@ -533,6 +540,84 @@ class BackupLogParser:
             logger.error(f"Full traceback: {traceback.format_exc()}")
 
         return filesystem_metrics
+
+    def _collect_backup_configuration(self) -> Dict[str, Any]:
+        """Collect backup configuration from environment variables"""
+        logger.info("Collecting backup configuration from environment variables")
+
+        def parse_schedule(schedule_str):
+            """Parse schedule string like 'everyday at 01' to extract hour"""
+            if not schedule_str:
+                return None
+            match = re.search(r"at\s+(\d{1,2})(?::(\d{2}))?", schedule_str)
+            if match:
+                hour = int(match.group(1))
+                minute = int(match.group(2)) if match.group(2) else 0
+                return {"hour": hour, "minute": minute, "text": schedule_str}
+            return None
+
+        backup_config = {
+            "schedule": {
+                "db": parse_schedule(os.getenv("BACKUP_DB_WHEN")),
+                "redis": parse_schedule(os.getenv("BACKUP_REDIS_WHEN")),
+                "stats": parse_schedule(os.getenv("BACKUP_STATS_WHEN")),
+                "config": parse_schedule(os.getenv("BACKUP_CONFIG_WHEN")),
+                "disks": parse_schedule(os.getenv("BACKUP_DISKS_WHEN")),
+            },
+            "enabled": {
+                "db": os.getenv("BACKUP_DB_ENABLED", "false").lower() == "true",
+                "redis": os.getenv("BACKUP_REDIS_ENABLED", "false").lower() == "true",
+                "stats": os.getenv("BACKUP_STATS_ENABLED", "false").lower() == "true",
+                "config": os.getenv("BACKUP_CONFIG_ENABLED", "false").lower() == "true",
+                "disks": os.getenv("BACKUP_DISKS_ENABLED", "false").lower() == "true",
+            },
+            "prune_policies": {
+                "db": os.getenv("BACKUP_DB_PRUNE", ""),
+                "redis": os.getenv("BACKUP_REDIS_PRUNE", ""),
+                "stats": os.getenv("BACKUP_STATS_PRUNE", ""),
+                "config": os.getenv("BACKUP_CONFIG_PRUNE", ""),
+                "disks": os.getenv("BACKUP_DISKS_PRUNE", ""),
+            },
+            "nfs": {
+                "enabled": os.getenv("BACKUP_NFS_ENABLED", "false").lower() == "true",
+                "server": os.getenv("BACKUP_NFS_SERVER", ""),
+                "folder": os.getenv("BACKUP_NFS_FOLDER", ""),
+            },
+            "disks": {
+                "templates_enabled": os.getenv(
+                    "BACKUP_DISKS_TEMPLATES_ENABLED", "false"
+                ).lower()
+                == "true",
+                "groups_enabled": os.getenv(
+                    "BACKUP_DISKS_GROUPS_ENABLED", "false"
+                ).lower()
+                == "true",
+                "media_enabled": os.getenv(
+                    "BACKUP_DISKS_MEDIA_ENABLED", "false"
+                ).lower()
+                == "true",
+            },
+            "email": os.getenv("BACKUP_REPORT_EMAIL", ""),
+            "backup_dir": os.getenv("BACKUP_DIR", "/opt/isard-local/backup"),
+        }
+
+        # Calculate main schedule hour (most common among enabled backups)
+        enabled_schedules = []
+        for backup_type, enabled in backup_config["enabled"].items():
+            if enabled and backup_config["schedule"][backup_type]:
+                enabled_schedules.append(backup_config["schedule"][backup_type])
+
+        if enabled_schedules:
+            # Find most common hour
+            hours = [s["hour"] for s in enabled_schedules]
+            main_hour = max(set(hours), key=hours.count)
+            main_schedule = next(s for s in enabled_schedules if s["hour"] == main_hour)
+            backup_config["main_schedule"] = main_schedule
+        else:
+            backup_config["main_schedule"] = None
+
+        logger.info(f"Collected backup configuration: {backup_config['enabled']}")
+        return backup_config
 
     def _parse_structured_borg_statistics(
         self, log_lines: List[str], actions: List[BackupAction]
@@ -1151,6 +1236,9 @@ class BackupLogParser:
         # Collect basic filesystem metrics
         filesystem_metrics = self._collect_basic_filesystem_metrics()
 
+        # Collect backup configuration
+        backup_config = self._collect_backup_configuration()
+
         # Categorize actions by backup type for detailed reporting
         actions_by_type = self._categorize_actions_by_type(actions)
         backup_type_summary = self._generate_backup_type_summary(
@@ -1222,6 +1310,7 @@ class BackupLogParser:
                 backup_types_status=backup_types_status,
                 backup_type_summary=backup_type_summary,
                 filesystem_metrics=filesystem_metrics,
+                backup_config=backup_config,
             )
 
         elif actions:
@@ -1296,6 +1385,7 @@ class BackupLogParser:
                 backup_types_status=backup_types_status,
                 backup_type_summary=backup_type_summary,
                 filesystem_metrics=filesystem_metrics,
+                backup_config=backup_config,
             )
 
         else:
