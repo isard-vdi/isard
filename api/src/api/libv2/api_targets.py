@@ -6,6 +6,7 @@ from typing import Literal
 
 import dns.resolver
 import grpc
+from haproxy.v1 import haproxy_pb2
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -54,6 +55,19 @@ def update_bastion_config(
     Update the bastion config.
     """
     with app.app_context():
+        old_domain = (
+            r.table("config").get(1).pluck("bastion").run(db.conn).get("bastion")
+        ).get("domain")
+    if old_domain != domain:
+        if old_domain:
+            app.haproxy_bastion_client.DeleteSubdomain(
+                haproxy_pb2.DeleteSubdomainRequest(domain=old_domain)
+            )
+        app.haproxy_bastion_client.AddSubdomain(
+            haproxy_pb2.AddSubdomainRequest(domain=domain)
+        )
+
+    with app.app_context():
         r.table("config").get(1).update(
             {
                 "bastion": {
@@ -65,8 +79,6 @@ def update_bastion_config(
         ).run(db.conn)
     invalidate_cache("config", 1)
 
-    update_bastion_haproxy_map()
-
 
 def get_category_bastion_domain(category_id: str) -> str:
     """
@@ -77,12 +89,25 @@ def get_category_bastion_domain(category_id: str) -> str:
 
 def update_category_bastion_domain(category_id, domain):
     with app.app_context():
+        old_domain = (
+            r.table("categories").get(category_id).pluck("bastion_domain").run(db.conn)
+        ).get("bastion_domain")
+    if old_domain == domain:
+        return
+
+    with app.app_context():
         r.table("categories").get(category_id).update({"bastion_domain": domain}).run(
             db.conn
         )
     invalidate_cache("categories", category_id)
 
-    update_bastion_haproxy_map()
+    if old_domain:
+        app.haproxy_bastion_client.DeleteSubdomain(
+            haproxy_pb2.DeleteSubdomainRequest(domain=old_domain)
+        )
+    app.haproxy_bastion_client.AddSubdomain(
+        haproxy_pb2.AddSubdomainRequest(domain=domain)
+    )
 
 
 def _call_grpc_with_infinite_retry(
@@ -123,9 +148,9 @@ def update_bastion_haproxy_map():
     Update the bastion domain map for haproxy.
     """
     with subdomains_lock:
-        domains = []
+        subdomains = []
         with app.app_context():
-            domains.append(
+            subdomains.append(
                 r.table("config")
                 .get(1)
                 .pluck("bastion")
@@ -141,41 +166,21 @@ def update_bastion_haproxy_map():
         category_domains = [
             domain for domain in category_domains if isinstance(domain, str)
         ]
-        domains.extend(category_domains)
+        subdomains.extend(category_domains)
 
-        # Update HAProxy via gRPC with infinite retry
-        from haproxy.v1 import haproxy_pb2
-
-        _call_grpc_with_infinite_retry(
-            app.haproxy_bastion_client.SyncMaps,
-            haproxy_pb2.SyncMapsRequest(
-                subdomains=[d for d in domains if d],
-                individual_domains=[],  # Not changed in this function
-            ),
-        )
-
-
-def update_bastion_desktops_haproxy_map():
-    """
-    Update the bastion domain map for haproxy.
-    """
-    with individual_lock:
         with app.app_context():
             targets = list(r.table("targets").pluck("domain").run(db.conn))
-        domains = [
+        individual_domains = [
             t["domain"]
             for t in targets
             if t.get("domain") and isinstance(t["domain"], str)
         ]
 
-        # Update HAProxy via gRPC with infinite retry
-        from haproxy.v1 import haproxy_pb2
-
         _call_grpc_with_infinite_retry(
             app.haproxy_bastion_client.SyncMaps,
             haproxy_pb2.SyncMapsRequest(
-                subdomains=[],  # Not changed in this function
-                individual_domains=domains,
+                subdomains=subdomains,
+                individual_domains=individual_domains,
             ),
         )
 
@@ -289,7 +294,15 @@ class ApiTargets:
         if data.get("ssh"):
             target["ssh"] = data["ssh"]
         if "domain" in data:
-            if data["domain"] is None:
+            if data["domain"] == target.get("domain"):
+                pass
+            elif data["domain"] is None:
+                if target.get("domain"):
+                    app.haproxy_bastion_client.DeleteIndividualDomain(
+                        haproxy_pb2.DeleteIndividualDomainRequest(
+                            domain=target["domain"]
+                        )
+                    )
                 target["domain"] = None
             else:
                 if bastion_domain_verification_required():
@@ -306,13 +319,21 @@ class ApiTargets:
                         kind="cname",
                     )
 
+                if target.get("domain"):
+                    app.haproxy_bastion_client.DeleteIndividualDomain(
+                        haproxy_pb2.DeleteIndividualDomainRequest(
+                            domain=target["domain"]
+                        )
+                    )
+
                 target["domain"] = data["domain"]
+
+                app.haproxy_bastion_client.AddIndividualDomain(
+                    haproxy_pb2.AddIndividualDomainRequest(domain=data["domain"])
+                )
 
         with app.app_context():
             r.db("isard").table("targets").get(target["id"]).update(target).run(db.conn)
-
-        if "domain" in data:
-            update_bastion_desktops_haproxy_map()
 
         return target
 

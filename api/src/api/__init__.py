@@ -127,17 +127,13 @@ from api.libv2.bookings.api_booking import check_all_bookings
 check_all_bookings()
 
 
-from api.libv2.api_targets import (
-    update_bastion_desktops_haproxy_map,
-    update_bastion_haproxy_map,
-)
+from api.libv2.api_targets import update_bastion_haproxy_map
 
 # Initialize bastion domains in HAProxy
 # Non-critical: API can start even if this fails
 try:
     app.logger.info("Syncing bastion domains to HAProxy...")
     update_bastion_haproxy_map()
-    update_bastion_desktops_haproxy_map()
     app.logger.info("Bastion domains synced successfully")
 except Exception as e:
     app.logger.warning(f"Failed to sync bastion domains on startup: {e}")
