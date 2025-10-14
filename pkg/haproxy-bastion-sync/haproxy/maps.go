@@ -12,11 +12,11 @@ import (
 
 // MapStore manages in-memory storage of HAProxy map files
 type MapStore struct {
-	subdomains  map[string]bool
-	individual  map[string]bool
-	mu          sync.RWMutex
-	log         *zerolog.Logger
-	subdomPath  string
+	subdomains     map[string]bool
+	individual     map[string]bool
+	mu             sync.RWMutex
+	log            *zerolog.Logger
+	subdomPath     string
 	individualPath string
 }
 

@@ -13,12 +13,9 @@ type Cfg struct {
 }
 
 type Maps struct {
-	// SubdomainsPath is the identifier for the subdomains virtual map
-	SubdomainsPath string `mapstructure:"subdomains_path"`
-	// IndividualPath is the identifier for the individual domains virtual map
-	IndividualPath string `mapstructure:"individual_path"`
-	// SocketPath is the path to the HAProxy stats socket
-	SocketPath string `mapstructure:"socket_path"`
+	SubdomainsPath string `mapstructure:"subdomains_path"` // The identifier for the subdomains virtual map
+	IndividualPath string `mapstructure:"individual_path"` // The identifier for the individual domains virtual map
+	SocketPath     string `mapstructure:"socket_path"`     // The path to the HAProxy stats socket
 }
 
 func New() Cfg {

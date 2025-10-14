@@ -8,10 +8,10 @@ import (
 
 // Syncer handles synchronization between map files and HAProxy runtime
 type Syncer struct {
-	socket   *Socket
-	store    *MapStore
-	log      *zerolog.Logger
-	subdomPath string
+	socket         *Socket
+	store          *MapStore
+	log            *zerolog.Logger
+	subdomPath     string
 	individualPath string
 }
 
