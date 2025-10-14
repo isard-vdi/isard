@@ -13,9 +13,9 @@ type Cfg struct {
 }
 
 type Maps struct {
-	// SubdomainsPath is the path to the subdomains map file
+	// SubdomainsPath is the identifier for the subdomains virtual map
 	SubdomainsPath string `mapstructure:"subdomains_path"`
-	// IndividualPath is the path to the individual domains map file
+	// IndividualPath is the identifier for the individual domains virtual map
 	IndividualPath string `mapstructure:"individual_path"`
 	// SocketPath is the path to the HAProxy stats socket
 	SocketPath string `mapstructure:"socket_path"`
@@ -38,8 +38,8 @@ func setDefaults() {
 	})
 
 	viper.SetDefault("maps", map[string]interface{}{
-		"subdomains_path": "/usr/local/etc/haproxy/bastion_domains/subdomains.map",
-		"individual_path": "/usr/local/etc/haproxy/bastion_domains/individual.map",
+		"subdomains_path": "virt@subdomains",
+		"individual_path": "virt@individual",
 		"socket_path":     "/var/run/haproxy.sock",
 	})
 }

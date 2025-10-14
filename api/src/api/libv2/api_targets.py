@@ -86,26 +86,36 @@ def update_category_bastion_domain(category_id, domain):
 
 
 def _call_grpc_with_infinite_retry(
-    func, *args, initial_delay=1, max_delay=30, **kwargs
+    func, *args, initial_delay=1, max_delay=30, max_retries=60, **kwargs
 ):
     """
-    Call a gRPC function with infinite retry and exponential backoff.
-    Waits forever until connection is established, with delays capped at max_delay.
+    Call a gRPC function with retry and exponential backoff.
+    Retries up to max_retries times with delays capped at max_delay.
     """
     delay = initial_delay
-    while True:
+    attempt = 0
+    while attempt < max_retries:
         try:
             return func(*args, wait_for_ready=True, timeout=30, **kwargs)
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.UNAVAILABLE:
+                attempt += 1
+                if attempt >= max_retries:
+                    app.logger.error(
+                        f"gRPC service unavailable after {max_retries} attempts, giving up"
+                    )
+                    raise
                 app.logger.warning(
-                    f"gRPC service unavailable, retrying in {delay}s... ({e.details()})"
+                    f"gRPC service unavailable, retrying in {delay}s... (attempt {attempt}/{max_retries}) ({e.details()})"
                 )
                 time.sleep(delay)
                 delay = min(delay * 2, max_delay)  # Exponential backoff, capped at 30s
                 continue
             # For other errors, re-raise
             raise
+
+    # If we exhausted all retries
+    raise grpc.RpcError(f"Failed after {max_retries} attempts")
 
 
 def update_bastion_haproxy_map():
