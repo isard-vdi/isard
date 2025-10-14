@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package haproxy.v1;
 
-option go_package = "gitlab.com/isard/isardvdi/pkg/gen/proto/go/haproxy/v1;haproxyv1";
-
 // HaproxyBastionService manages HAProxy bastion domain maps dynamically
 // without requiring full HAProxy reloads
 service HaproxyBastionService {
