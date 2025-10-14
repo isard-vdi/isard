@@ -7,9 +7,7 @@
     "instances": [
         {
             "host": "https://example.com",
-            "category": "default",
-            "username": "admin",
-            "password": "password",
+            "api_key": "api_key",
             "template_id": "tempalte_id",
             "fail_maintenance": true,
             "fail_self_signed": true,
