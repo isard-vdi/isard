@@ -11,6 +11,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .caches import get_cached_user_with_names
+
 r = RethinkDB()
 import json
 import os
@@ -132,27 +134,20 @@ class DomainsThread(threading.Thread):
                                 if c["old_val"]["progress"] == c["new_val"]["progress"]:
                                     data.pop("progress")
                             if c["old_val"] == None:
-                                user = (
-                                    r.table("users")
-                                    .get(data["user"])
-                                    .pluck("role", "group", "category")
-                                    .merge(
-                                        lambda usr: {
-                                            "group_name": r.table("groups").get(
-                                                usr["group"]
-                                            )["name"]
-                                        }
-                                    )
-                                    .merge(
-                                        lambda usr: {
-                                            "category_name": r.table("categories").get(
-                                                usr["category"]
-                                            )["name"]
-                                        }
-                                    )
-                                    .run(db.conn)
+                                user = get_cached_user_with_names(
+                                    data["user"], with_secondary_groups_names=False
                                 )
-                                data.update(user)
+                                if user:
+                                    data.update(
+                                        {
+                                            "role": user["role"],
+                                            "group": user["group"],
+                                            "category": user["category"],
+                                            "group_name": user["group_name"],
+                                            "category_name": user["category_name"],
+                                            "user_name": user["user_name"],
+                                        }
+                                    )
                             if data["kind"] == "desktop":
                                 event = "desktop_data"
                                 start_logs_id = data.pop("start_logs_id", None)
