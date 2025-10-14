@@ -150,10 +150,10 @@ func (s *Socket) ShowMap(mapFile string) ([]string, error) {
 // Since our maps don't have values, we use empty string
 func (s *Socket) AddMap(mapFile, key string) error {
 	// HAProxy requires at least an empty value
-	cmd := fmt.Sprintf("add map %s %s", mapFile, key)
+	cmd := fmt.Sprintf("add map %s %s _", mapFile, key)
 	_, err := s.Execute(cmd)
 	if err != nil {
-		return fmt.Errorf("add map %s %s: %w", mapFile, key, err)
+		return fmt.Errorf("add map %s %s _: %w", mapFile, key, err)
 	}
 
 	s.log.Debug().
