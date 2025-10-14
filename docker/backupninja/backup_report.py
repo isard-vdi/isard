@@ -162,7 +162,7 @@ class BackupLogParser:
         return session_lines
 
     def _find_last_completed_backup_fallback(self, log_lines: List[str]) -> List[str]:
-        """Fallback method for finding completed backup session (original implementation)"""
+        """Fallback method for finding completed backup session (improved with SESSION_START detection)"""
         # Find the last FINISHED line
         finished_index = -1
         for i in range(len(log_lines) - 1, -1, -1):
@@ -174,8 +174,21 @@ class BackupLogParser:
             # No completed backup found
             return []
 
-        # Find the start of this backup session
-        # Look backwards for the first action that doesn't belong to this session
+        # NEW: Look for BACKUP_SESSION_START markers between here and the start of logs
+        # This is more reliable than date-based matching
+        session_start_index = -1
+        for i in range(finished_index, -1, -1):
+            if "BACKUP_SESSION_START:" in log_lines[i]:
+                session_start_index = i
+                break
+
+        if session_start_index != -1:
+            # Found a SESSION_START marker, use it as the boundary
+            logger.info(f"Fallback: Found SESSION_START at index {session_start_index}, FINISHED at {finished_index}")
+            return log_lines[session_start_index : finished_index + 1]
+
+        # If no SESSION_START found, fall back to date-based logic (old method)
+        logger.info("Fallback: No SESSION_START found, using date-based matching")
         session_lines = []
         current_date = None
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # This script sends backup reports to the API for both automated and manual backups
-# It should be the last script to run (hence the 99 prefix)
+# It should be the last script to run (hence the 98 prefix)
 # The 'when' variable will be dynamically set by run.sh based on enabled backup types
 
 LOG_FILE="/var/log/backupninja.log"
@@ -9,8 +9,11 @@ LOG_FILE="/var/log/backupninja.log"
 # Determine backup type based on context (default to automated for scheduled runs)
 BACKUP_TYPE_FOR_SESSION="${BACKUP_TYPE:-automated}"
 
-# Add backup session end marker
+# Add backup session end marker BEFORE calling the parser
 echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_END: $BACKUP_TYPE_FOR_SESSION full backup completed" >> "$LOG_FILE"
+
+# Force flush to ensure marker is written to disk before parser reads
+sync
 
 # Set backup type for automated backups
 export BACKUP_TYPE="automated"

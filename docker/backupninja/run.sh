@@ -323,6 +323,9 @@ case "$1" in
         # Add backup session end marker
         echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_END: manual $2 backup completed" >> "$LOG_FILE"
 
+        # Force flush to ensure marker is written before parser reads
+        sync
+
         # Send backup report to API after manual execution
         echo "Sending backup report to API..."
         export BACKUP_TYPE="manual"
@@ -355,6 +358,9 @@ case "$1" in
 
         # Add backup session end marker
         echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_END: manual full backup completed" >> "$LOG_FILE"
+
+        # Force flush to ensure marker is written before parser reads
+        sync
 
         # Send backup report to API after manual execution of full backup
         echo "Sending backup report to API..."
