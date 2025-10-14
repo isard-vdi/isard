@@ -355,6 +355,66 @@ $(document).ready(function () {
 
                 content += '</div>';
 
+                // Backup Configuration
+                if (data.backup_config && typeof data.backup_config === 'object') {
+                    content += '<div class="col-md-12"><h4>Backup Configuration</h4>';
+
+                    // Schedule Information
+                    if (data.backup_config.main_schedule) {
+                        var sched = data.backup_config.main_schedule;
+                        var schedTime = sched.hour.toString().padStart(2, '0') + ':' + (sched.minute || 0).toString().padStart(2, '0');
+                        content += '<p><strong>Main Schedule:</strong> ' + sched.text + ' (' + schedTime + ')';
+                        var nextRun = moment().hour(sched.hour).minute(sched.minute || 0).second(0);
+                        if (moment().isAfter(nextRun)) {
+                            nextRun.add(1, 'day');
+                        }
+                        content += ' <span class="text-muted">- Next run: ' + nextRun.format('MMM DD, HH:mm') + '</span></p>';
+                    }
+
+                    // Enabled Backup Types
+                    content += '<p><strong>Enabled Types:</strong> ';
+                    var enabledTypes = [];
+                    if (data.backup_config.enabled) {
+                        Object.keys(data.backup_config.enabled).forEach(function(type) {
+                            if (data.backup_config.enabled[type]) {
+                                enabledTypes.push('<span class="label label-success">' + type.toUpperCase() + '</span>');
+                            }
+                        });
+                    }
+                    content += enabledTypes.join(' ') + '</p>';
+
+                    // NFS Configuration
+                    if (data.backup_config.nfs && data.backup_config.nfs.enabled) {
+                        content += '<p><strong>NFS Storage:</strong> <code>' +
+                                   data.backup_config.nfs.server + ':' + data.backup_config.nfs.folder + '</code></p>';
+                    }
+
+                    // Retention Policies
+                    if (data.backup_config.prune_policies) {
+                        content += '<p><strong>Retention Policies:</strong></p>';
+                        content += '<table class="table table-sm table-bordered"><thead><tr><th>Type</th><th>Policy</th></tr></thead><tbody>';
+                        Object.keys(data.backup_config.prune_policies).forEach(function(type) {
+                            if (data.backup_config.enabled[type] && data.backup_config.prune_policies[type]) {
+                                content += '<tr><td><strong>' + type.toUpperCase() + '</strong></td>';
+                                content += '<td><small><code>' + data.backup_config.prune_policies[type] + '</code></small></td></tr>';
+                            }
+                        });
+                        content += '</tbody></table>';
+                    }
+
+                    // Disk Backup Settings
+                    if (data.backup_config.disks && data.backup_config.enabled && data.backup_config.enabled.disks) {
+                        content += '<p><strong>Disk Backup Includes:</strong> ';
+                        var diskTypes = [];
+                        if (data.backup_config.disks.templates_enabled) diskTypes.push('<i class="fa fa-check text-success"></i> Templates');
+                        if (data.backup_config.disks.groups_enabled) diskTypes.push('<i class="fa fa-check text-success"></i> Groups');
+                        if (data.backup_config.disks.media_enabled) diskTypes.push('<i class="fa fa-check text-success"></i> Media');
+                        content += diskTypes.join(' | ') + '</p>';
+                    }
+
+                    content += '</div>';
+                }
+
                 // Backup Types Details
                 if (data.backup_types && typeof data.backup_types === 'object') {
                     content += '<div class="row mt-3"><div class="col-md-12"><h4>Backup Types</h4>';
@@ -619,6 +679,17 @@ function loadStorageStatus() {
                         content += '</div>';
                     }
                     
+                    // Show NFS info if available
+                    if (latestBackupWithMetrics.backup_config &&
+                        latestBackupWithMetrics.backup_config.nfs &&
+                        latestBackupWithMetrics.backup_config.nfs.enabled) {
+
+                        var nfs = latestBackupWithMetrics.backup_config.nfs;
+                        content += '<div class="text-muted small mt-2" style="margin-top: 10px;">';
+                        content += '<i class="fa fa-server"></i> NFS: <code>' + nfs.server + ':' + nfs.folder + '</code>';
+                        content += '</div>';
+                    }
+
                     content += '</div>';
                     $('#storage-status').html(content);
                 } else {
@@ -636,23 +707,37 @@ function loadStorageStatus() {
 
 function loadBackupScheduleStatus() {
     $.ajax({
-        url: '/api/v3/admin/backups/config',
+        url: '/api/v3/admin/backups',
         type: 'GET',
-        success: function (config) {
-            var scheduleHour = config.main_schedule_hour || 19;
-            window.backupScheduleHour = scheduleHour;
-            
-            var nextBackup = moment().hour(scheduleHour).minute(0).second(0);
-            if (moment().isAfter(nextBackup)) {
-                nextBackup.add(1, 'day');
+        success: function (data) {
+            if (data && data.length > 0) {
+                var latestBackup = data[0];
+                var scheduleHour = 19; // default fallback
+                var scheduleMinute = 0;
+
+                // Use backup_config from the actual backup report (from backupninja container)
+                if (latestBackup.backup_config && latestBackup.backup_config.main_schedule) {
+                    scheduleHour = latestBackup.backup_config.main_schedule.hour;
+                    scheduleMinute = latestBackup.backup_config.main_schedule.minute || 0;
+                }
+
+                window.backupScheduleHour = scheduleHour;
+
+                var nextBackup = moment().hour(scheduleHour).minute(scheduleMinute).second(0);
+                if (moment().isAfter(nextBackup)) {
+                    nextBackup.add(1, 'day');
+                }
+
+                var content = '<div class="text-center">';
+                var timeStr = scheduleHour.toString().padStart(2, '0') + ':' + scheduleMinute.toString().padStart(2, '0');
+                content += '<h4>Daily at ' + timeStr + '</h4>';
+                content += '<p>Next: ' + nextBackup.format('MMM DD, HH:mm') + '</p>';
+                content += '</div>';
+
+                $('#backup-schedule-status').html(content);
+            } else {
+                $('#backup-schedule-status').html('<div class="text-center text-muted">No backup data</div>');
             }
-            
-            var content = '<div class="text-center">';
-            content += '<h4>Daily at ' + scheduleHour + ':00</h4>';
-            content += '<p>Next: ' + nextBackup.format('MMM DD, HH:mm') + '</p>';
-            content += '</div>';
-            
-            $('#backup-schedule-status').html(content);
         },
         error: function () {
             $('#backup-schedule-status').html('<div class="text-center text-danger">Failed to load</div>');
