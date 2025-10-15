@@ -92,11 +92,16 @@ app.internal_users = InternalUsers()
 
 # # ###### GRPC client
 
-from isardvdi_common.grpc_client import create_operations_client, create_sessions_client
+from isardvdi_common.grpc_client import (
+    create_haproxy_bastion_client,
+    create_operations_client,
+    create_sessions_client,
+)
 
 # TODO: Get from env
 app.sessions_client = create_sessions_client("isard-sessions", 1312)
 app.operations_client = create_operations_client("isard-operations", 1312)
+app.haproxy_bastion_client = create_haproxy_bastion_client("isard-portal", 1313)
 
 print("Starting isard api...")
 
@@ -122,13 +127,17 @@ from api.libv2.bookings.api_booking import check_all_bookings
 check_all_bookings()
 
 
-from api.libv2.api_targets import (
-    update_bastion_desktops_haproxy_map,
-    update_bastion_haproxy_map,
-)
+from api.libv2.api_targets import update_bastion_haproxy_map
 
-update_bastion_haproxy_map()
-update_bastion_desktops_haproxy_map()
+# Initialize bastion domains in HAProxy
+# Non-critical: API can start even if this fails
+try:
+    app.logger.info("Syncing bastion domains to HAProxy...")
+    update_bastion_haproxy_map()
+    app.logger.info("Bastion domains synced successfully")
+except Exception as e:
+    app.logger.warning(f"Failed to sync bastion domains on startup: {e}")
+    app.logger.warning("Bastion functionality may be unavailable until sync succeeds")
 
 
 """'

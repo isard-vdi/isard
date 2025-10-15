@@ -6,4 +6,5 @@ services:
       dockerfile: docker/haproxy/Dockerfile
       target: production
       args:
+        GOLANG_BUILD_IMAGE: ${GOLANG_BUILD_IMAGE}
         HAPROXY_RUN_IMAGE: ${HAPROXY_RUN_IMAGE}
