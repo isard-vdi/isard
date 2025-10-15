@@ -236,8 +236,8 @@ EOF
                 sed -i "1a\\when = $SCHEDULE" "$NFS_MOUNT_SCRIPT"
             fi
 
-            # Create end marker and report sender as shell script for this schedule  
-            END_SCRIPT="/usr/local/etc/backup.d/98-session-report-$SCHEDULE_INDEX.sh"
+            # Create end marker and report sender as shell script for this schedule
+            END_SCRIPT="/usr/local/etc/backup.d/90-session-report-$SCHEDULE_INDEX.sh"
             cat > "$END_SCRIPT" << EOF
 #!/bin/sh
 # Send backup report to API after automated backup completion
@@ -323,6 +323,9 @@ case "$1" in
         # Add backup session end marker
         echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_END: manual $2 backup completed" >> "$LOG_FILE"
 
+        # Force flush to ensure marker is written before parser reads
+        sync
+
         # Send backup report to API after manual execution
         echo "Sending backup report to API..."
         export BACKUP_TYPE="manual"
@@ -355,6 +358,9 @@ case "$1" in
 
         # Add backup session end marker
         echo "$(date '+%b %d %H:%M:%S') Info: BACKUP_SESSION_END: manual full backup completed" >> "$LOG_FILE"
+
+        # Force flush to ensure marker is written before parser reads
+        sync
 
         # Send backup report to API after manual execution of full backup
         echo "Sending backup report to API..."
