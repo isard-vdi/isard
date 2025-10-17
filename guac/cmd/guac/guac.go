@@ -68,7 +68,7 @@ func init() {
 
 func isAuthenticated(handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logrus.Infof("authenticating request: %s %s", r.Method, r.URL.String())
+		logrus.Debugf("authenticating request: %s %s", r.Method, r.URL.String())
 
 		tkn := r.URL.Query().Get("session")
 		hostname := r.URL.Query().Get("hostname")
