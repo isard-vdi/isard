@@ -14,10 +14,10 @@ export class ConfigUtils {
       can_use_bastion_individual_domains: canUseBastionIndividualDomains,
       migrations_block: migrationsBlock,
       session: {
-        id,
-        max_renew_time: maxRenewTime,
-        max_time: maxTime
-      }
+        id = '',
+        max_renew_time: maxRenewTime = 0,
+        max_time: maxTime = 0
+      } = {}
     } = config
     return {
       showBookingsButton,

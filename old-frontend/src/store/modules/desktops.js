@@ -410,7 +410,7 @@ export default {
       axios.get(`${apiV3Segment}/direct/docs`).then(response => {
         const config = context.getters.getConfig
         config.viewersDocumentationUrl = response.data.viewers_documentation_url
-        context.commit('setConfig', ConfigUtils.parseConfig(config.value))
+        context.commit('setConfig', ConfigUtils.parseConfig(config))
       })
       return axios.get(`/api/v3/direct/${payload.token}`).then(response => {
         context.commit('saveDirectViewer', DirectViewerUtils.parseDirectViewer(response.data))
