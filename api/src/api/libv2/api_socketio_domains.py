@@ -192,6 +192,7 @@ class DomainsThread(threading.Thread):
                         if (
                             event == "update"
                             and item == "desktop"
+                            and data.get("jumperurl")
                             and (
                                 not data.get("tag", False)
                                 or (
@@ -199,11 +200,10 @@ class DomainsThread(threading.Thread):
                                     and data.get("tag_visible", False)
                                 )
                             )
-                            and data.get("jumperurl")
                             and c.get("new_val", {}).get("status") == "Started"
-                            and c.get("old_val", {}).get("status")
-                            not in ["Unknown", "Started"]
                             and c.get("new_val", {}).get("viewer", {}).get("passwd")
+                            and c.get("old_val", {}).get("viewer", {}).get("guest_ip")
+                            != c.get("new_val", {}).get("viewer", {}).get("guest_ip")
                         ):
                             try:
                                 viewers = common.DesktopViewerFromToken(
