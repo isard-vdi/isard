@@ -183,7 +183,7 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 			// If the user has logged in correctly, but doesn't exist in the DB, they have to register first!
 			ss, err := token.SignRegisterToken(a.Secret, u)
 
-			a.Log.Info().Err(err).Str("usr", u.UID).Str("tkn", ss).Msg("register token signed")
+			a.Log.Info().Err(err).Str("usr", u.UID).Msg("register token signed")
 
 			return ss, redirect, err
 		}
@@ -325,7 +325,7 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 		}
 	}
 
-	a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Str("redirect", redirect).Msg("login succeeded")
+	a.Log.Info().Str("usr", u.ID).Str("redirect", redirect).Msg("login succeeded")
 
 	return ss, redirect, nil
 }
@@ -354,7 +354,7 @@ func (a *Authentication) finishRegister(ctx context.Context, remoteAddr, ss, red
 		return "", "", err
 	}
 
-	a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
+	a.Log.Info().Str("usr", u.ID).Msg("register succeeded")
 
 	return ss, redirect, nil
 }
