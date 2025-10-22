@@ -52,7 +52,12 @@ export default new Vuex.Store({
       title: '',
       message: ''
     },
-    loginConfig: {}
+    loginConfig: {
+      notification_cover: {
+        title: '',
+        description: ''
+      }
+    }
   },
   getters: {
     getCategories: state => {
