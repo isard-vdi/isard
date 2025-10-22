@@ -478,6 +478,7 @@
                 "unstable": "The network connection server appears unstable",
                 "error": "Connection error",
                 "cookie-error": "The required cookie to establish a connection is not setted",
+                "viewer-token-error": "It is necessary to reopen the viewer to connect properly",
                 "cookie-expired": "The required cookie to establish a connection has expired",
                 "retrying": "Retry {retry} of {maxRetries}",
                 "rdp-not-running": "The RDP service in the desktop doesn't exist or is not running"

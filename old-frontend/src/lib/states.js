@@ -62,6 +62,14 @@ export default {
   COOKIE_ERROR: 'COOKIE_ERROR',
 
   /**
+   * The Guacamole connection can't be established since the viewer token
+   * cookie is missing.
+   *
+   * @type String
+   */
+  VIEWER_TOKEN_ERROR: 'VIEWER_TOKEN_ERROR',
+
+  /**
    * The Guacamole connection can't be established since the needed cookie is
    * expired.
    *

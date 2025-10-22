@@ -91,6 +91,9 @@ export default {
       if (!cookie) {
         this.connectionState = states.COOKIE_ERROR
         return
+      } else if (!cookies.getCookie('viewerToken')) {
+        this.connectionState = states.VIEWER_TOKEN_ERROR
+        return
       }
       const params = jwtDecode(cookie).web_viewer
       if (new Date() > new Date(params.exp * 1000)) {
