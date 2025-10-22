@@ -37,6 +37,7 @@ export default {
       WAITING: i18n.t('components.rdp-modal.title.connecting'),
       CLIENT_ERROR: i18n.t('components.rdp-modal.title.error'),
       COOKIE_ERROR: i18n.t('components.rdp-modal.title.error'),
+      VIEWER_TOKEN_ERROR: i18n.t('components.rdp-modal.title.error'),
       COOKIE_EXPIRED: i18n.t('components.rdp-modal.title.error'),
       RETRYING: i18n.t('components.rdp-modal.title.retrying'),
       RDP_NOT_RUNNING: i18n.t('components.rdp-modal.title.rdp-not-running')
@@ -50,6 +51,7 @@ export default {
       WAITING: i18n.t('components.rdp-modal.message.connecting'),
       CLIENT_ERROR: i18n.t('components.rdp-modal.message.error'),
       COOKIE_ERROR: i18n.t('components.rdp-modal.message.cookie-error'),
+      VIEWER_TOKEN_ERROR: i18n.t('components.rdp-modal.message.viewer-token-error'),
       COOKIE_EXPIRED: i18n.t('components.rdp-modal.message.cookie-expired'),
       RETRYING: i18n.t('components.rdp-modal.message.retrying', { retry: props.retry, maxRetries: props.maxRetries }),
       RDP_NOT_RUNNING: i18n.t('components.rdp-modal.message.rdp-not-running')

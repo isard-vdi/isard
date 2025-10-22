@@ -477,6 +477,7 @@
         "unstable": "La conexión con el servidor es inestable",
         "error": "Error de conexión",
         "cookie-error": "No se ha encontrado la cookie necesaria para realizar la conexión",
+        "viewer-token-error": "Es necesario volver a abrir el visor para conectarse correctamente",
         "cookie-expired": "La cookie necesaria para realizar la conexión ha caducado",
         "retrying": "Reintento {retry} de {maxRetries}",
         "rdp-not-running": "El servicio RDP en el escritorio no existe o no está en ejecución"

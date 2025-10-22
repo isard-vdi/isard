@@ -196,6 +196,7 @@
         "unstable": "La connexió amb el servidor és inestable",
         "error": "Error de connexió",
         "cookie-error": "No s'ha trobat la galeta necessaria per realitzar la connexió",
+        "viewer-token-error": "És necessari tornar a obrir el visor per connectar-se correctament",
         "cookie-expired": "La galeta necessaria per realitzar la connexió ha expirat",
         "retrying": "Reintent {retry} de {maxRetries}",
         "rdp-not-running": "El servei RDP a l'escriptori no existeix o no està en execució"
