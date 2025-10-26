@@ -764,6 +764,44 @@ def get_domain(id):
         close_rethink_connection(r_conn)
         return None
     close_rethink_connection(r_conn)
+
+    # Log warnings for invalid hardware values (actual validation done at start time)
+    if dict_domain:
+        # Check hardware dict
+        if "hardware" in dict_domain and isinstance(dict_domain["hardware"], dict):
+            hw = dict_domain["hardware"]
+            if "vcpus" in hw and (not isinstance(hw["vcpus"], int) or hw["vcpus"] < 1):
+                logs.main.warning(
+                    f"Domain {id} has invalid hardware vcpus={hw['vcpus']}"
+                )
+            if "memory" in hw and (
+                not isinstance(hw["memory"], (int, float)) or hw["memory"] < 0.025
+            ):
+                logs.main.warning(
+                    f"Domain {id} has invalid hardware memory={hw['memory']}GB (minimum 0.025GB)"
+                )
+
+        # Check create_dict hardware
+        if "create_dict" in dict_domain and isinstance(
+            dict_domain["create_dict"], dict
+        ):
+            if "hardware" in dict_domain["create_dict"] and isinstance(
+                dict_domain["create_dict"]["hardware"], dict
+            ):
+                hw = dict_domain["create_dict"]["hardware"]
+                if "vcpus" in hw and (
+                    not isinstance(hw["vcpus"], int) or hw["vcpus"] < 1
+                ):
+                    logs.main.warning(
+                        f"Domain {id} has invalid create_dict hardware vcpus={hw['vcpus']}"
+                    )
+                if "memory" in hw and (
+                    not isinstance(hw["memory"], (int, float)) or hw["memory"] < 0.025
+                ):
+                    logs.main.warning(
+                        f"Domain {id} has invalid create_dict hardware memory={hw['memory']}GB (minimum 0.025GB)"
+                    )
+
     return dict_domain
 
 
