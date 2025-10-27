@@ -492,7 +492,14 @@ class Storage(RethinkCustomBase):
         :param action: Action
         :type action: str
         """
-        if self.status != "ready" and action != "delete":
+        if action == "move":
+            if self.status not in ["ready", "recycled"]:
+                raise Exception(
+                    "precondition_required",
+                    f"Storage {self.id} can only be moved from 'ready' or 'recycled' status. Current status is '{self.status}'",
+                    "storage_invalid_status_for_move",
+                )
+        elif self.status != "ready" and action != "delete":
             raise Exception(
                 "precondition_required",
                 f"Storage {self.id} must be Ready in order to operate with it. It's actual status is {self.status}",
@@ -505,13 +512,12 @@ class Storage(RethinkCustomBase):
                 f"Storage {self.id} must have all domains stopped in order to set it to maintenance. Some desktops are not stopped.",
                 "desktops_not_stopped",
             )
-        if any(domain.kind != "desktop" for domain in domains):
-            if len(self.children) > 0:
-                raise Exception(
-                    "precondition_required",
-                    f"Storage {self.id} has children storages. It must be empty in order to set it to maintenance.",
-                    "storage_has_children",
-                )
+        if len(self.children) > 0:
+            raise Exception(
+                "precondition_required",
+                f"Storage {self.id} has children storages that depend on it as backing file",
+                "storage_has_children",
+            )
         for domain in self.domains:
             domain.status = "Maintenance"
             domain.current_action = action
@@ -560,6 +566,10 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
+        # Capture original status to preserve it after move
+        original_status = self.status
+        final_status = "recycled" if original_status == "recycled" else "ready"
+
         origin_path = self.path
 
         queue_rsync = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
@@ -590,7 +600,7 @@ class Storage(RethinkCustomBase):
                         "job_kwargs": {
                             "kwargs": {
                                 "id": self.id,
-                                "status": "ready",
+                                "status": final_status,
                                 "directory_path": destination_path.split("/" + self.id)[
                                     0
                                 ],
@@ -607,12 +617,12 @@ class Storage(RethinkCustomBase):
                                     "kwargs": {
                                         "statuses": {
                                             JobStatus.CANCELED: {
-                                                self.status: {
+                                                original_status: {
                                                     "storage": [self.id],
                                                 },
                                             },
                                             JobStatus.FAILED: {
-                                                self.status: {
+                                                original_status: {
                                                     "storage": [self.id],
                                                 },
                                             },

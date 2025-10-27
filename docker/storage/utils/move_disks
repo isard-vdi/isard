@@ -34,6 +34,16 @@ from pprint import pprint
 from isardvdi_common.api_rest import ApiRest
 
 
+def timestamp():
+    """Get current timestamp string for logging."""
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def log(message):
+    """Print message with timestamp prefix."""
+    print(f"[{timestamp()}] {message}")
+
+
 def ensure_data_folder():
     """Ensure the data folder exists."""
     os.makedirs("/logs", exist_ok=True)
@@ -161,6 +171,27 @@ def get_storage_statuses(storage_id):
     )
 
 
+def get_all_recycled_storage():
+    """
+    Get all recycled storage in ONE API call for optimization.
+
+    Returns:
+        dict: Mapping of storage_id -> storage info for all recycled storage
+    """
+    api = ApiRest()
+    try:
+        storages = api.get(
+            "/admin/storage/recycled",
+            timeout=60,
+        )
+        # Create lookup dict for O(1) access: {storage_id: storage_info}
+        return {s["id"]: s for s in storages}
+    except Exception as e:
+        print(f"Warning: Could not fetch recycled storage list: {e}")
+        print("Falling back to individual API calls per file")
+        return {}
+
+
 def rsync_to_storage_pool(storage_id, storage_pool_id):
     global BWLIMIT
     api = ApiRest()
@@ -176,7 +207,7 @@ def rsync_to_storage_pool(storage_id, storage_pool_id):
     )
 
 
-def wait_ready(storage_id, timeout_seconds):
+def wait_ready(storage_id, timeout_seconds, stop_requested=None):
     if timeout_seconds == 0:
         try:
             statuses = get_storage_statuses(storage_id)
@@ -184,18 +215,38 @@ def wait_ready(storage_id, timeout_seconds):
             return None
         ss = statuses["status"]
         if not len(statuses["domains"]):
+            # For recycled storages without domains, just check storage status
+            if ss == "recycled":
+                print(f"Storage path {statuses['path']} has no domains (recycled storage)")
+                return True
+            # For other statuses, log and check if ready
             print(f"Storage path {statuses['path']} has no domains")
             save_to_file("files_with_no_domains.json", statuses["path"])
             if ss == "ready":
                 return True
             return False
         ds = statuses["domains"][0]["status"]
-        if ss == "ready" and ds == "Stopped":
+        if ss in ["ready", "recycled"] and ds == "Stopped":
             return True
         return False
 
     start_time = time.time()
+    last_warning_time = start_time
+    WARNING_INTERVAL = 300  # Warn every 5 minutes
+
     while time.time() - start_time < timeout_seconds:
+        elapsed = time.time() - start_time
+
+        # Warn if stuck for more than 5 minutes
+        if elapsed - (last_warning_time - start_time) >= WARNING_INTERVAL:
+            log(f"WARNING: Still waiting for storage {storage_id} after {int(elapsed/60)} minutes...")
+            last_warning_time = time.time()
+
+        # Check if stop was requested (CTRL+C)
+        if stop_requested and stop_requested.is_set():
+            log(f"Stop requested - aborting wait for storage {storage_id}")
+            return False  # Exit early, file will be logged as failed
+
         try:
             statuses = get_storage_statuses(storage_id)
         except Exception as e:
@@ -203,13 +254,34 @@ def wait_ready(storage_id, timeout_seconds):
 
         ss = statuses["status"]
         if not len(statuses["domains"]):
-            print(f"Storage path {statuses['path']} has no domains")
-            save_to_file("files_with_no_domains.json", statuses["path"])
+            # For storages without domains (including recycled), check status
             if ss == "ready":
                 return True
-            return False
+            elif ss in ["recycled", "maintenance"]:
+                # Storage transitioning during rsync operation
+                log(f"Waiting for rsync to complete for storage {storage_id} (status: {ss})...")
+                time.sleep(5)
+                continue  # Continue waiting, don't try to access domains[0]
+            else:
+                # Other unexpected status
+                print(f"Storage path {statuses['path']} has no domains, unexpected status: {ss}")
+                save_to_file("files_with_no_domains.json", statuses["path"])
+                return False
+        # If we reach here, storage has domains
         ds = statuses["domains"][0]["status"]
-        if ss == "ready" and ds == "Stopped":
+        if ss == "recycled":
+            # This is an invalid state: recycled storage should not have domains
+            print(f"WARNING: Storage {storage_id} is recycled but has domains attached (invalid state)")
+            save_to_file("invalid_recycled_with_domains.json", {
+                "storage_id": storage_id,
+                "path": statuses["path"],
+                "domain_id": statuses["domains"][0].get("id"),
+                "domain_status": ds
+            })
+            # Continue anyway - treat like ready storage
+            if ds == "Stopped":
+                return True
+        elif ss == "ready" and ds == "Stopped":
             return True
         time.sleep(5)
     return False
@@ -246,7 +318,7 @@ def is_valid_qcow2(file_absolute_path):
         return False
 
 
-def get_sorted_file_paths_by_date(iterate_path, filter_date, min_size_bytes=0, min_size_total_bytes=0, is_fast_pool=False, size_filter_type="none"):
+def get_sorted_file_paths_by_date(iterate_path, filter_date, min_size_bytes=0, min_size_total_bytes=0, is_fast_pool=False, size_filter_type="none", check_recycled=False, recycled_files_list=None, destination_pool_path=None):
     """
     Collect and return file paths separated by modification date.
 
@@ -257,6 +329,9 @@ def get_sorted_file_paths_by_date(iterate_path, filter_date, min_size_bytes=0, m
         min_size_total_bytes (int): Minimum total size in bytes for cumulative filtering (0 to disable).
         is_fast_pool (bool): True if this is the fast pool (applies size filtering to old files).
         size_filter_type (str): Type of filtering ("none", "individual", "cumulative").
+        check_recycled (bool): If True, check DB for recycled status and add to recycled_files_list.
+        recycled_files_list (list): List to append (file_path, size) tuples for recycled files.
+        destination_pool_path (str): Destination pool path (used to skip recycled files already in destination).
 
     Returns:
         tuple: (files_before_data, files_after_data)
@@ -275,12 +350,42 @@ def get_sorted_file_paths_by_date(iterate_path, filter_date, min_size_bytes=0, m
     filtered_count_before = 0
     filtered_size_before = 0
 
+    # OPTIMIZATION: Fetch all recycled storage at once (instead of per-file API calls)
+    recycled_storage_map = {}
+    if check_recycled and recycled_files_list is not None:
+        print("Fetching all recycled storage from API (optimization: single API call)...")
+        recycled_storage_map = get_all_recycled_storage()
+        print(f"Found {len(recycled_storage_map)} recycled storage entries in database")
+
     for file in Path(iterate_path).rglob("*"):
         if file.is_file():
             total += 1
             # Get the modification time and size of the file
             mtime = datetime.fromtimestamp(file.stat().st_mtime)
             file_size = file.stat().st_size
+
+            # Check if file is recycled (for force-recycled mode) - OPTIMIZED with O(1) lookup
+            if check_recycled and recycled_files_list is not None:
+                storage_id = file.stem
+                # O(1) dictionary lookup instead of API call per file!
+                if storage_id in recycled_storage_map:
+                    storage_info = recycled_storage_map[storage_id]
+                    directory_path = storage_info.get("directory_path", "")
+
+                    # Check if already in destination pool - skip if so
+                    if destination_pool_path and directory_path.startswith(destination_pool_path):
+                        print(f"Skipping recycled {file} - already in destination pool {destination_pool_path}")
+                        continue  # Skip - already in destination
+
+                    # Only include desktop usage (groups subdirectory) - vdo3 only supports desktop
+                    if directory_path.endswith("/groups") or "/groups/" in directory_path:
+                        recycled_files_list.append((str(file), file_size))
+                        print(f"Found recycled desktop: {file} (will move to slow pool)")
+                    else:
+                        # Extract usage type from directory path for logging
+                        usage_type = directory_path.split("/")[-1] if directory_path else "unknown"
+                        print(f"Skipping recycled {file} - usage type '{usage_type}' not supported by destination pool (only 'groups'/desktop supported)")
+                    continue  # Skip normal date classification
 
             # Separate files by date (no filtering yet)
             if mtime < filter_dt:
@@ -390,7 +495,7 @@ def get_sorted_file_paths_by_date(iterate_path, filter_date, min_size_bytes=0, m
     )
 
 
-def move_discs_api(file_path, destination_pool_id, rsync_timeout=1000, min_size_bytes=0, is_fast_to_slow=False):
+def move_discs_api(file_path, destination_pool_id, rsync_timeout=1000, min_size_bytes=0, is_fast_to_slow=False, stop_requested=None):
     """Move a disk file to the destination pool via API.
 
     Args:
@@ -399,6 +504,7 @@ def move_discs_api(file_path, destination_pool_id, rsync_timeout=1000, min_size_
         rsync_timeout (int): Timeout in seconds for rsync operations
         min_size_bytes (int): Minimum file size in bytes for fast→slow moves (0 to disable)
         is_fast_to_slow (bool): True if this is a fast→slow migration
+        stop_requested (threading.Event): Event to signal stop request (for graceful shutdown)
     """
     if is_valid_qcow2(file_path):
         # Check file size threshold for fast→slow moves
@@ -422,18 +528,16 @@ def move_discs_api(file_path, destination_pool_id, rsync_timeout=1000, min_size_
             save_to_file("non_existing_in_db.json", file_path)
             return
 
-        # Skip files with "recycled" status immediately
+        # Allow moving recycled storages
         if statuses.get("status") == "recycled":
-            print(f"Skipping {file_path} - storage status is 'recycled'")
-            save_to_file("recycled_storage.json", file_path)
-            return
+            print(f"Moving recycled storage {file_path}")
 
         if statuses.get("status") == "deleted":
             print(f"Skipping {file_path} - storage status is 'deleted'")
             return
 
         print(f"Moving {file_path} to pool")
-        status = wait_ready(storage_id, 0)
+        status = wait_ready(storage_id, 0, stop_requested)
         if status is None:
             print(f"Storage {storage_id} does not exist in database when going to move")
             save_to_file("non_existing_in_db.json", file_path)
@@ -446,7 +550,7 @@ def move_discs_api(file_path, destination_pool_id, rsync_timeout=1000, min_size_
             return
         try:
             pprint(rsync_to_storage_pool(storage_id, destination_pool_id))
-            status = wait_ready(storage_id, rsync_timeout)
+            status = wait_ready(storage_id, rsync_timeout, stop_requested)
             if status is None:
                 print(f"WARNING!!! Storage {storage_id} does not exist after rsync")
                 save_to_file("non_existing_in_db_after_rsync.json", file_path)
@@ -468,8 +572,20 @@ def move_discs_api(file_path, destination_pool_id, rsync_timeout=1000, min_size_
         save_to_file("non_valid_qcow_files.json", file_path)
 
 
-def move_discs_api_with_stats(file_path, destination_pool_id, rsync_timeout=1000, min_size_bytes=0, is_fast_to_slow=False, stats=None, worker_type=None, lock=None):
+def move_discs_api_with_stats(file_path, destination_pool_id, rsync_timeout=1000, min_size_bytes=0, is_fast_to_slow=False, stats=None, worker_type=None, lock=None, stop_requested=None, active_rsyncs=None):
     """Move a disk file to the destination pool via API with statistics tracking.
+
+    Args:
+        file_path (str): Path to the file to move
+        destination_pool_id (str): ID of the destination storage pool
+        rsync_timeout (int): Timeout in seconds for rsync operations
+        min_size_bytes (int): Minimum file size in bytes for fast→slow moves (0 to disable)
+        is_fast_to_slow (bool): True if this is a fast→slow migration
+        stats (dict): Statistics tracking dictionary
+        worker_type (str): Type of worker ("fast_to_slow" or "slow_to_fast")
+        lock (threading.Lock): Thread lock for synchronization
+        stop_requested (threading.Event): Event to signal stop request (for graceful shutdown)
+        active_rsyncs (dict): Shared dict to track active rsync operations
 
     Returns:
         bool: True if successful, False otherwise
@@ -500,30 +616,26 @@ def move_discs_api_with_stats(file_path, destination_pool_id, rsync_timeout=1000
                 stats['failed_db'][worker_type] += 1
             return False
 
-        # Skip files with "recycled" status immediately
+        # Allow moving recycled storages
         if statuses.get("status") == "recycled":
-            print(f"Skipping {file_path} - storage status is 'recycled'")
-            save_to_file("recycled_storage.json", file_path)
-            with lock:
-                stats['skipped_recycled'][worker_type] += 1
-            return False
+            log(f"Moving recycled storage {file_path}")
 
         if statuses.get("status") == "deleted":
-            print(f"Skipping {file_path} - storage status is 'deleted'")
+            log(f"Skipping {file_path} - storage status is 'deleted'")
             with lock:
                 stats['skipped_deleted'][worker_type] += 1
             return False
 
-        print(f"Moving {file_path} to pool")
-        status = wait_ready(storage_id, 0)
+        log(f"Moving {file_path} to pool")
+        status = wait_ready(storage_id, 0, stop_requested)
         if status is None:
-            print(f"Storage {storage_id} does not exist in database when going to move")
+            log(f"Storage {storage_id} does not exist in database when going to move")
             save_to_file("non_existing_in_db.json", file_path)
             with lock:
                 stats['failed_db'][worker_type] += 1
             return False
         if status is False:
-            print(
+            log(
                 f"Storage/Domain {storage_id} is not ready. Status: {statuses.get('status')}"
             )
             save_to_file("not_ready.json", file_path)
@@ -531,16 +643,32 @@ def move_discs_api_with_stats(file_path, destination_pool_id, rsync_timeout=1000
                 stats['failed_not_ready'][worker_type] += 1
             return False
         try:
-            pprint(rsync_to_storage_pool(storage_id, destination_pool_id))
-            status = wait_ready(storage_id, rsync_timeout)
+            log(f"Task ID: {rsync_to_storage_pool(storage_id, destination_pool_id).get('task_id', 'N/A')}")
+
+            # Track this rsync as active
+            if active_rsyncs is not None:
+                with lock:
+                    active_rsyncs[storage_id] = {
+                        "file_path": file_path,
+                        "start_time": time.time()
+                    }
+
+            status = wait_ready(storage_id, rsync_timeout, stop_requested)
+
+            # Remove from active rsyncs if completed successfully
+            if status is True and active_rsyncs is not None:
+                with lock:
+                    if storage_id in active_rsyncs:
+                        del active_rsyncs[storage_id]
+
             if status is None:
-                print(f"WARNING!!! Storage {storage_id} does not exist after rsync")
+                log(f"WARNING!!! Storage {storage_id} does not exist after rsync")
                 save_to_file("non_existing_in_db_after_rsync.json", file_path)
                 with lock:
                     stats['failed_after_rsync'][worker_type] += 1
                 return False
             if status is False:
-                print(
+                log(
                     f"WARNING!!! Storage/Domain for storage {storage_id} is not ready after rsync"
                 )
                 save_to_file("not_ready_after_rsync.json", file_path)
@@ -550,15 +678,15 @@ def move_discs_api_with_stats(file_path, destination_pool_id, rsync_timeout=1000
             save_to_file(get_dated_moved_filename(), file_path)
             return True
         except Exception as e:
-            print(f"WARNING!!! Failed to move {file_path} to pool")
-            print(e)
+            log(f"WARNING!!! Failed to move {file_path} to pool")
+            log(str(e))
             save_to_file("failed_to_move_to_pool.json", file_path)
             with lock:
                 stats['failed_rsync'][worker_type] += 1
             return False
 
     else:
-        print(f"Skipping {file_path} - not a valid qcow2 file")
+        log(f"Skipping {file_path} - not a valid qcow2 file")
         save_to_file("non_valid_qcow_files.json", file_path)
         with lock:
             stats['skipped_invalid'][worker_type] += 1
@@ -576,6 +704,8 @@ def worker(
     worker_type,
     min_size_bytes=0,
     stats=None,
+    current_file_tracker=None,
+    active_rsyncs=None,
 ):
     """Worker function for processing files in threads.
 
@@ -590,6 +720,8 @@ def worker(
         worker_type (str): Type of worker ("fast_to_slow" or "slow_to_fast")
         min_size_bytes (int): Minimum file size in bytes for fast→slow moves
         stats (dict): Statistics tracking dictionary
+        current_file_tracker (dict): Shared dict to track current file being processed
+        active_rsyncs (dict): Shared dict to track active rsync operations
     """
     while queue and not stop_requested.is_set():
         file_path = None
@@ -597,6 +729,11 @@ def worker(
             if queue:
                 file_path = queue.pop(0)
         if file_path:
+            # Track current file
+            thread_name = threading.current_thread().name
+            if current_file_tracker is not None:
+                with lock:
+                    current_file_tracker[thread_name] = file_path
             file_start_time = time.time()
             try:
                 file_size = Path(file_path).stat().st_size
@@ -610,12 +747,16 @@ def worker(
                 stats['attempts'][worker_type] += 1
 
             # Try to move the file
-            success = move_discs_api_with_stats(file_path, destination_pool_id, rsync_timeout, min_size_bytes, is_fast_to_slow, stats, worker_type, lock)
+            success = move_discs_api_with_stats(file_path, destination_pool_id, rsync_timeout, min_size_bytes, is_fast_to_slow, stats, worker_type, lock, stop_requested, active_rsyncs)
 
             file_end_time = time.time()
             file_duration = file_end_time - file_start_time
 
             with lock:
+                # Clear current file from tracker
+                if current_file_tracker is not None and thread_name in current_file_tracker:
+                    del current_file_tracker[thread_name]
+
                 progress_counter[0] += 1
                 if success:
                     stats['bytes_moved'][worker_type] += file_size
@@ -643,15 +784,40 @@ def worker(
                 if stats['total_time'][worker_type] > 0:
                     avg_speed = total_moved_bytes / stats['total_time'][worker_type]
 
+                # Calculate ETA based on files remaining
+                files_remaining = total_files - progress_counter[0]
+                eta_str = ""
+                if total_moved_files > 0 and files_remaining > 0 and stats['total_time'][worker_type] > 0:
+                    avg_time_per_file = stats['total_time'][worker_type] / total_moved_files
+                    eta_seconds = avg_time_per_file * files_remaining
+
+                    def format_eta(seconds):
+                        if seconds < 60:
+                            return f"{int(seconds)}s"
+                        elif seconds < 3600:
+                            return f"{int(seconds / 60)}m"
+                        else:
+                            hours = seconds / 3600
+                            return f"{hours:.1f}h"
+
+                    eta_str = f" | ETA: {format_eta(eta_seconds)}"
+
                 status_line = f"[{worker_type}] Files: {progress_counter[0]}/{total_files} | "
                 if success:
                     status_line += f"Moved: {total_moved_files} files ({format_size(total_moved_bytes)}) | "
-                    status_line += f"Current: {format_size(file_size)} | Avg Speed: {format_speed(avg_speed)}"
+                    status_line += f"Last: {format_size(file_size)} | Avg Speed: {format_speed(avg_speed)}{eta_str}"
                 else:
                     failed_count = progress_counter[0] - total_moved_files
-                    status_line += f"Moved: {total_moved_files}, Failed/Skipped: {failed_count} | Avg Speed: {format_speed(avg_speed)}"
+                    status_line += f"Moved: {total_moved_files}, Failed/Skipped: {failed_count} | Avg Speed: {format_speed(avg_speed)}{eta_str}"
 
-                print(status_line)
+                # Show currently processing files
+                if current_file_tracker is not None and current_file_tracker:
+                    active_files = [Path(f).name for f in current_file_tracker.values()]
+                    status_line += f" | Active: {', '.join(active_files[:3])}"  # Show up to 3 active files
+                    if len(active_files) > 3:
+                        status_line += f" (+{len(active_files)-3} more)"
+
+                log(status_line)
 
 
 def signal_handler(sig, frame, stop_requested):
@@ -672,6 +838,7 @@ Examples:
   %(prog)s --past-days 7 --threads-fast-to-slow 2 --bandwidth-limit 100000
   %(prog)s --min-size-mb 1000 --past-days 14  # Skip files < 1GB for fast→slow
   %(prog)s --min-size-total-mb 1000000 --past-days 14  # Skip smallest 1TB worth of files
+  %(prog)s --force-recycled --past-days 30  # Move recycled files + normal date-based migration
   %(prog)s --list-pools  # Show available storage pools
   %(prog)s --dry-run --past-days 14  # Preview migration for files older than 14 days
         """
@@ -767,6 +934,11 @@ Examples:
         "--no-cleanup",
         action="store_true",
         help="Skip cleanup of bad files logs at startup"
+    )
+    parser.add_argument(
+        "--force-recycled",
+        action="store_true",
+        help="Move all recycled storage files to slow pool, bypassing date filters"
     )
 
     return parser.parse_args()
@@ -935,16 +1107,40 @@ def main():
     print(f"Files after date: {SLOW_POOL_NAME} → {FAST_POOL_NAME} pool (newest first)")
     print()
 
+    # Initialize recycled files lists for force-recycled mode
+    recycled_from_fast = []
+    recycled_from_slow = []
+
     # Get file paths from both pools
     print(f"Scanning {FAST_POOL_NAME} pool ({FAST_POOL_PATH})...")
-    fast_result = get_sorted_file_paths_by_date(FAST_POOL_PATH, FILTER_DATE, MIN_SIZE_BYTES, MIN_SIZE_TOTAL_BYTES, True, SIZE_FILTER_TYPE)
+    fast_result = get_sorted_file_paths_by_date(FAST_POOL_PATH, FILTER_DATE, MIN_SIZE_BYTES, MIN_SIZE_TOTAL_BYTES, True, SIZE_FILTER_TYPE, check_recycled=args.force_recycled, recycled_files_list=recycled_from_fast, destination_pool_path=SLOW_POOL_PATH if args.force_recycled else None)
     fast_files_before, fast_size_before, fast_filtered_count, fast_filtered_size = fast_result[0]
     fast_files_after, fast_size_after, _, _ = fast_result[1]
 
     print(f"Scanning {SLOW_POOL_NAME} pool ({SLOW_POOL_PATH})...")
-    slow_result = get_sorted_file_paths_by_date(SLOW_POOL_PATH, FILTER_DATE, 0, 0, False, "none")
+    slow_result = get_sorted_file_paths_by_date(SLOW_POOL_PATH, FILTER_DATE, 0, 0, False, "none", check_recycled=args.force_recycled, recycled_files_list=recycled_from_slow, destination_pool_path=SLOW_POOL_PATH if args.force_recycled else None)
     slow_files_before, slow_size_before, _, _ = slow_result[0]
     slow_files_after, slow_size_after, _, _ = slow_result[1]
+
+    # Display force-recycled mode info
+    if args.force_recycled and (recycled_from_fast or recycled_from_slow):
+        recycled_size_fast = sum(f[1] for f in recycled_from_fast)
+        recycled_size_slow = sum(f[1] for f in recycled_from_slow)
+
+        def format_size(size_bytes):
+            """Convert bytes to human readable format."""
+            if size_bytes == 0:
+                return "0 B"
+            for unit in ["B", "KB", "MB", "GB", "TB"]:
+                if size_bytes < 1024.0:
+                    return f"{size_bytes:.1f} {unit}"
+                size_bytes /= 1024.0
+            return f"{size_bytes:.1f} PB"
+
+        print(f"\n=== FORCE RECYCLED MODE ===")
+        print(f"Found {len(recycled_from_fast)} recycled files in {FAST_POOL_NAME} ({format_size(recycled_size_fast)})")
+        print(f"Found {len(recycled_from_slow)} recycled files in {SLOW_POOL_NAME} ({format_size(recycled_size_slow)})")
+        print(f"All will be moved to {SLOW_POOL_NAME} pool (bypassing date filters)\n")
 
     def format_size(size_bytes):
         """Convert bytes to human readable format."""
@@ -962,6 +1158,20 @@ def main():
     # Recent files from slow pool → fast pool
     slow_to_fast_queue = slow_files_after.copy()
 
+    # Add recycled files to fast→slow queue (force-recycled mode)
+    if args.force_recycled:
+        recycled_paths_fast = [f[0] for f in recycled_from_fast]
+        recycled_paths_slow = [f[0] for f in recycled_from_slow]
+        recycled_size_fast = sum(f[1] for f in recycled_from_fast)
+        recycled_size_slow = sum(f[1] for f in recycled_from_slow)
+
+        if recycled_from_fast:
+            fast_to_slow_queue.extend(recycled_paths_fast)
+            fast_size_before += recycled_size_fast
+        if recycled_from_slow:
+            fast_to_slow_queue.extend(recycled_paths_slow)
+            fast_size_before += recycled_size_slow
+
     # Initialize threading variables
     all_threads = []
     stop_requested = threading.Event()
@@ -969,6 +1179,13 @@ def main():
     # Progress counters
     fast_to_slow_progress = [0]
     slow_to_fast_progress = [0]
+
+    # Current file trackers (shared between threads)
+    current_file_tracker_fast = {}
+    current_file_tracker_slow = {}
+
+    # Active rsync tracker (tracks rsyncs in progress for graceful shutdown)
+    active_rsyncs = {}
 
     total_fast_to_slow = len(fast_to_slow_queue)
     total_slow_to_fast = len(slow_to_fast_queue)
@@ -1005,6 +1222,16 @@ def main():
     print(f"  ├─ {FAST_POOL_NAME} → {SLOW_POOL_NAME}: {total_fast_to_slow} files ({format_size(fast_size_before)})")
     print(f"  └─ {SLOW_POOL_NAME} → {FAST_POOL_NAME}: {total_slow_to_fast} files ({format_size(slow_size_after)})")
     print()
+
+    # Show recycled files info if force-recycled mode is enabled
+    if args.force_recycled and (recycled_from_fast or recycled_from_slow):
+        total_recycled = len(recycled_from_fast) + len(recycled_from_slow)
+        total_recycled_size = sum(f[1] for f in recycled_from_fast) + sum(f[1] for f in recycled_from_slow)
+        print(f"RECYCLED FILES (FORCED): {total_recycled} files ({format_size(total_recycled_size)})")
+        print(f"  ├─ From {FAST_POOL_NAME}: {len(recycled_from_fast)} files")
+        print(f"  └─ From {SLOW_POOL_NAME}: {len(recycled_from_slow)} files")
+        print(f"  → All moved to {SLOW_POOL_NAME} (bypassing date filters)")
+        print()
 
     if total_files_excluded > 0:
         print(f"FILES EXCLUDED: {total_files_excluded} files ({format_size(total_size_excluded)})")
@@ -1082,6 +1309,19 @@ def main():
         'failed_rsync': {fast_to_slow_name: 0, slow_to_fast_name: 0},
     }
 
+    # Store configuration metadata for final statistics
+    migration_config = {
+        'force_recycled': args.force_recycled,
+        'recycled_count_fast': len(recycled_from_fast) if args.force_recycled else 0,
+        'recycled_count_slow': len(recycled_from_slow) if args.force_recycled else 0,
+        'size_filter_type': SIZE_FILTER_TYPE,
+        'min_size_bytes': MIN_SIZE_BYTES,
+        'min_size_total_bytes': MIN_SIZE_TOTAL_BYTES,
+        'filtered_count': fast_filtered_count,
+        'filtered_size': fast_filtered_size,
+        'filter_date': FILTER_DATE,
+    }
+
     # Start worker threads for fast → slow migration
     if total_fast_to_slow > 0:
         if MAX_THREADS_FAST_TO_SLOW > 0:
@@ -1102,6 +1342,8 @@ def main():
                         fast_to_slow_name,
                         MIN_SIZE_BYTES,
                         stats,
+                        current_file_tracker_fast,
+                        active_rsyncs,
                     ),
                     name=f"FastToSlow-{i+1}",
                 )
@@ -1132,6 +1374,8 @@ def main():
                         slow_to_fast_name,
                         0,  # No size threshold for slow→fast moves
                         stats,
+                        current_file_tracker_slow,
+                        active_rsyncs,
                     ),
                     name=f"SlowToFast-{i+1}",
                 )
@@ -1145,6 +1389,37 @@ def main():
     # Wait for all threads to finish
     for thread in all_threads:
         thread.join()
+
+    # Wait for any in-progress rsync tasks to complete (after CTRL+C)
+    if active_rsyncs:
+        log(f"\nWaiting for {len(active_rsyncs)} active rsync task(s) to complete...")
+        for storage_id, info in list(active_rsyncs.items()):
+            log(f"  - {Path(info['file_path']).name}")
+
+        while active_rsyncs:
+            remaining = len(active_rsyncs)
+            log(f"Waiting for rsync completion: {remaining} file(s) remaining...")
+
+            for storage_id in list(active_rsyncs.keys()):
+                try:
+                    statuses = get_storage_statuses(storage_id)
+                    ss = statuses["status"]
+
+                    # Check if rsync completed (ready or recycled status)
+                    if ss in ["ready", "recycled"]:
+                        file_path = Path(active_rsyncs[storage_id]["file_path"]).name
+                        log(f"Rsync completed for {file_path}")
+                        del active_rsyncs[storage_id]
+                except Exception as e:
+                    # If storage no longer exists, remove from tracking
+                    log(f"Storage {storage_id} no longer exists, removing from tracking")
+                    if storage_id in active_rsyncs:
+                        del active_rsyncs[storage_id]
+
+            if active_rsyncs:
+                time.sleep(5)  # Poll every 5 seconds
+
+        log("All rsync tasks completed\n")
 
     # Calculate final statistics
     migration_end_time = time.time()
@@ -1208,6 +1483,27 @@ def main():
     size_diff = actual_size_total - estimated_size_total
     print(f"File difference: {file_diff:+d} files")
     print(f"Size difference: {format_size(abs(size_diff))} {'more' if size_diff >= 0 else 'less'}")
+    print()
+
+    # Show migration configuration details
+    print("--- MIGRATION CONFIGURATION ---")
+    print(f"Date filter: {migration_config['filter_date']}")
+    if migration_config['force_recycled']:
+        total_recycled = migration_config['recycled_count_fast'] + migration_config['recycled_count_slow']
+        print(f"Force recycled mode: ENABLED ({total_recycled} recycled files targeted)")
+        print(f"  ├─ From {FAST_POOL_NAME}: {migration_config['recycled_count_fast']} files")
+        print(f"  └─ From {SLOW_POOL_NAME}: {migration_config['recycled_count_slow']} files")
+    else:
+        print(f"Force recycled mode: DISABLED")
+
+    if migration_config['size_filter_type'] == "individual":
+        print(f"Size filtering: Individual files < {migration_config['min_size_bytes'] // (1024*1024)} MB excluded")
+        print(f"  └─ Filtered out: {migration_config['filtered_count']} files ({format_size(migration_config['filtered_size'])})")
+    elif migration_config['size_filter_type'] == "cumulative":
+        print(f"Size filtering: Smallest files totaling {format_size(migration_config['min_size_total_bytes'])} excluded")
+        print(f"  └─ Filtered out: {migration_config['filtered_count']} files ({format_size(migration_config['filtered_size'])})")
+    else:
+        print(f"Size filtering: DISABLED")
     print()
 
     # Summary by direction

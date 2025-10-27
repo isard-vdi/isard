@@ -418,6 +418,9 @@ def storage_domains_force_update(storage_id):
         return
     for domain in Storage(storage_id).domains:
         domain.status = "StartingPaused"
+        domain.force_update = (
+            True  # Engine will recreate hardware dict with updated storage paths
+        )
 
 
 def _valid_storage_pool(storage, new_path):
