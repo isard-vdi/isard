@@ -27,6 +27,7 @@ from engine.services.db import (
     get_qos_disk_iotune,
     remove_fieds_when_stopped,
     update_domain_dict_hardware,
+    update_domain_status,
     update_domain_viewer_passwd,
     update_table_field,
 )
@@ -461,6 +462,34 @@ class DomainXML(object):
                 self.tree.xpath("/domain/name")[0].addnext(element)
 
     def set_memory(self, memory, unit="KiB", current=-1, max=-1):
+        # Validate memory to prevent hypervisor hangs
+        # Convert to bytes for consistent validation (minimum 64MB = 67108864 bytes)
+        unit_multipliers = {
+            "b": 1,
+            "bytes": 1,
+            "KB": 1000,
+            "K": 1024,
+            "KiB": 1024,
+            "MB": 1000000,
+            "M": 1048576,
+            "MiB": 1048576,
+            "GB": 1000000000,
+            "G": 1073741824,
+            "GiB": 1073741824,
+            "TB": 1000000000000,
+            "T": 1099511627776,
+            "TiB": 1099511627776,
+        }
+        multiplier = unit_multipliers.get(unit, 1024)  # Default to KiB if unknown
+        memory_bytes = memory * multiplier
+        min_memory_bytes = 26214400  # 25 MiB
+
+        if not isinstance(memory, (int, float)) or memory_bytes < min_memory_bytes:
+            raise ValueError(
+                f"Invalid memory value: {memory} {unit} ({memory_bytes} bytes). "
+                f"Must be >= 64MB (67108864 bytes)."
+            )
+
         if self.tree.xpath("/domain/memory"):
             self.tree.xpath("/domain/memory")[0].set("unit", unit)
             self.tree.xpath("/domain/memory")[0].text = str(memory)
@@ -503,6 +532,10 @@ class DomainXML(object):
                 self.remove_branch("/domain/maxMemory")
 
     def set_vcpu(self, vcpus, placement="static"):
+        # Validate vcpus to prevent hypervisor hangs
+        if not isinstance(vcpus, int) or vcpus < 1:
+            raise ValueError(f"Invalid vcpus value: {vcpus}. Must be integer >= 1.")
+
         # example from libvirt.org  <vcpu placement='static' cpuset="1-4,^3,6" current="1">2</vcpu>
         if self.tree.xpath("/domain/vcpu"):
             # self.tree.xpath('/domain/vcpu')[0].attrib.pop('placement')
@@ -1715,6 +1748,45 @@ def create_dict_interface_hardware_from_id(id_net, mac_address):
 def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     remove_fieds_when_stopped(id_domain)
     dict_domain = get_domain(id_domain)
+
+    # Validate hardware values before starting domain
+    errors = []
+    if "hardware" in dict_domain and isinstance(dict_domain["hardware"], dict):
+        hw = dict_domain["hardware"]
+        if "vcpus" in hw:
+            if not isinstance(hw["vcpus"], int) or hw["vcpus"] < 1:
+                errors.append(f"Invalid vcpus={hw['vcpus']} (must be integer >= 1)")
+        if "memory" in hw:
+            if not isinstance(hw["memory"], (int, float)) or hw["memory"] < 0.025:
+                errors.append(
+                    f"Invalid memory={hw['memory']}GB (must be >= 0.025GB / 25MB)"
+                )
+
+    if "create_dict" in dict_domain and isinstance(dict_domain["create_dict"], dict):
+        if "hardware" in dict_domain["create_dict"] and isinstance(
+            dict_domain["create_dict"]["hardware"], dict
+        ):
+            hw = dict_domain["create_dict"]["hardware"]
+            if "vcpus" in hw:
+                if not isinstance(hw["vcpus"], int) or hw["vcpus"] < 1:
+                    errors.append(
+                        f"Invalid create_dict vcpus={hw['vcpus']} (must be integer >= 1)"
+                    )
+            if "memory" in hw:
+                if not isinstance(hw["memory"], (int, float)) or hw["memory"] < 0.025:
+                    errors.append(
+                        f"Invalid create_dict memory={hw['memory']}GB (must be >= 0.025GB / 25MB)"
+                    )
+
+    if errors:
+        error_detail = "Invalid hardware configuration: " + "; ".join(errors)
+        log.error(f"Domain {id_domain} cannot start: {error_detail}")
+        update_domain_status(
+            "Failed",
+            id_domain,
+            detail=error_detail,
+        )
+        return False
 
     xml = dict_domain["xml"]
     x = DomainXML(xml, id_domain=id_domain)

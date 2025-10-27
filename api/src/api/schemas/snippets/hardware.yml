@@ -10,9 +10,11 @@ boot_order:
 vcpus:
   type: integer
   default: 2
+  min: 1
 memory:
   type: float
   default: 4
+  min: 0.025
 graphics:
   type: list
   default: ["default"]
@@ -34,6 +36,7 @@ interfaces:
 disk_size:
   type: integer
   default: 40
+  min: 1
 disk_bus:
   type: string
   default: default

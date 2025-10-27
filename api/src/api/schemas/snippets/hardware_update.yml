@@ -13,9 +13,11 @@ boot_order:
 vcpus:
   type: integer
   empty: false
+  min: 1
 memory:
   type: float
   empty: false
+  min: 0.025
 graphics:
   type: list
   empty: false
