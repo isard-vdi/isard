@@ -839,6 +839,8 @@ Examples:
   %(prog)s --min-size-mb 1000 --past-days 14  # Skip files < 1GB for fast→slow
   %(prog)s --min-size-total-mb 1000000 --past-days 14  # Skip smallest 1TB worth of files
   %(prog)s --force-recycled --past-days 30  # Move recycled files + normal date-based migration
+  %(prog)s --only-recycled  # Move ONLY recycled files (no regular date-based migration)
+  %(prog)s --only-recycled --threads-fast-to-slow 2  # Move only recycled with limited threads
   %(prog)s --list-pools  # Show available storage pools
   %(prog)s --dry-run --past-days 14  # Preview migration for files older than 14 days
         """
@@ -940,6 +942,11 @@ Examples:
         action="store_true",
         help="Move all recycled storage files to slow pool, bypassing date filters"
     )
+    parser.add_argument(
+        "--only-recycled",
+        action="store_true",
+        help="Move ONLY recycled files (no regular date-based migration). Implies --force-recycled"
+    )
 
     return parser.parse_args()
 
@@ -958,6 +965,10 @@ def main():
 
     # Parse command line arguments
     args = parse_arguments()
+
+    # Handle --only-recycled implying --force-recycled
+    if args.only_recycled:
+        args.force_recycled = True
 
     # Handle list-pools option
     if args.list_pools:
@@ -1101,11 +1112,17 @@ def main():
     global BWLIMIT
     BWLIMIT = BANDWIDTH_LIMIT
 
-    print("=== BILATERAL STORAGE MIGRATION ===")
-    print(f"Date threshold: {FILTER_DATE}")
-    print(f"Files before date: {FAST_POOL_NAME} → {SLOW_POOL_NAME} pool (oldest first)")
-    print(f"Files after date: {SLOW_POOL_NAME} → {FAST_POOL_NAME} pool (newest first)")
-    print()
+    if args.only_recycled:
+        print("=== RECYCLED FILES ONLY MIGRATION ===")
+        print(f"Mode: ONLY moving recycled files (date-based migration DISABLED)")
+        print(f"Target: All recycled files → {SLOW_POOL_NAME} pool")
+        print()
+    else:
+        print("=== BILATERAL STORAGE MIGRATION ===")
+        print(f"Date threshold: {FILTER_DATE}")
+        print(f"Files before date: {FAST_POOL_NAME} → {SLOW_POOL_NAME} pool (oldest first)")
+        print(f"Files after date: {SLOW_POOL_NAME} → {FAST_POOL_NAME} pool (newest first)")
+        print()
 
     # Initialize recycled files lists for force-recycled mode
     recycled_from_fast = []
@@ -1153,10 +1170,18 @@ def main():
         return f"{size_bytes:.1f} PB"
 
     # Prepare migration queues
-    # Old files from fast pool → slow pool
-    fast_to_slow_queue = fast_files_before.copy()
-    # Recent files from slow pool → fast pool
-    slow_to_fast_queue = slow_files_after.copy()
+    if args.only_recycled:
+        # Only-recycled mode: Skip regular files, only process recycled files
+        fast_to_slow_queue = []
+        slow_to_fast_queue = []
+        fast_size_before = 0
+        slow_size_after = 0
+    else:
+        # Normal mode: Include regular date-based files
+        # Old files from fast pool → slow pool
+        fast_to_slow_queue = fast_files_before.copy()
+        # Recent files from slow pool → fast pool
+        slow_to_fast_queue = slow_files_after.copy()
 
     # Add recycled files to fast→slow queue (force-recycled mode)
     if args.force_recycled:

@@ -85,6 +85,8 @@ The cumulative approach is ideal for capacity management when you want to migrat
 | `--list-pools` | Show available storage pools and exit |
 | `--dry-run` | Preview migration plan without executing |
 | `--no-cleanup` | Skip cleanup of bad files logs at startup |
+| `--force-recycled` | Move all recycled storage files to slow pool in addition to regular date-based migration |
+| `--only-recycled` | Move ONLY recycled files (disables regular date-based migration). Implies `--force-recycled` |
 | `--help` | Show help message and exit |
 
 ## Usage Examples
@@ -184,6 +186,32 @@ The cumulative approach is ideal for capacity management when you want to migrat
 # Preview migration with cumulative filtering
 ./move_disks --dry-run --past-days 7 --min-size-total-mb 500000
 ```
+
+### Recycled Files Migration
+
+```bash
+# Move ONLY recycled files (no regular date-based migration)
+./move_disks --only-recycled
+
+# Move only recycled files with limited threads
+./move_disks --only-recycled --threads-fast-to-slow 2 --bandwidth-limit 50000
+
+# Preview recycled-only migration
+./move_disks --only-recycled --dry-run
+
+# Move recycled files IN ADDITION to normal migration
+./move_disks --force-recycled --past-days 30
+
+# Move recycled files with regular 7-day migration
+./move_disks --force-recycled --past-days 7 --threads-fast-to-slow 3 --threads-slow-to-fast 2
+```
+
+**Note on Recycled Files:**
+- `--only-recycled`: Moves **ONLY** recycled files, completely disables date-based migration
+- `--force-recycled`: Moves recycled files **IN ADDITION** to normal date-based migration
+- Recycled files are always moved to the slow pool
+- Only desktop/groups usage recycled files are moved (vdo3 requirement)
+- Files already in destination pool are automatically skipped
 
 ## Progress Reporting and Statistics
 
