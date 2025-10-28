@@ -234,6 +234,9 @@ def wait_ready(storage_id, timeout_seconds, stop_requested=None):
     last_warning_time = start_time
     WARNING_INTERVAL = 300  # Warn every 5 minutes
 
+    # Track if we've seen maintenance status (indicates rsync was actively running)
+    seen_maintenance = False
+
     while time.time() - start_time < timeout_seconds:
         elapsed = time.time() - start_time
 
@@ -257,11 +260,24 @@ def wait_ready(storage_id, timeout_seconds, stop_requested=None):
             # For storages without domains (including recycled), check status
             if ss == "ready":
                 return True
-            elif ss in ["recycled", "maintenance"]:
-                # Storage transitioning during rsync operation
+            elif ss == "maintenance":
+                # Storage actively being rsynced
+                seen_maintenance = True
                 log(f"Waiting for rsync to complete for storage {storage_id} (status: {ss})...")
                 time.sleep(5)
-                continue  # Continue waiting, don't try to access domains[0]
+                continue
+            elif ss == "recycled":
+                # For recycled storages: if we've seen maintenance status,
+                # and now it's back to recycled, the rsync has completed
+                if seen_maintenance or elapsed > 10:
+                    # Either we saw it transition through maintenance, or we've waited 10+ seconds
+                    # (in case maintenance status was very brief)
+                    return True
+                else:
+                    # Still waiting for rsync to start/process
+                    log(f"Waiting for rsync to complete for storage {storage_id} (status: {ss})...")
+                    time.sleep(5)
+                    continue
             else:
                 # Other unexpected status
                 print(f"Storage path {statuses['path']} has no domains, unexpected status: {ss}")
