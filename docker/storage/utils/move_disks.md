@@ -78,6 +78,15 @@ The cumulative approach is ideal for capacity management when you want to migrat
 | `--min-size-mb` | `0` | Individual file size threshold in MB for fast→slow migration (0 to disable) |
 | `--min-size-total-mb` | - | Cumulative size threshold in MB - skips smallest files until their total reaches this amount (for fast→slow migration) |
 
+### Migration Size Limits
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--limit-fast-to-slow` | `0` | Maximum total data to move from fast→slow in MB (0 for unlimited) |
+| `--limit-slow-to-fast` | `0` | Maximum total data to move from slow→fast in MB (0 for unlimited) |
+
+**Note:** These limits cap the total amount of data migrated in each direction. Files are processed in order (oldest first for fast→slow, newest first for slow→fast) until the limit is reached. Remaining files are excluded and logged.
+
 ### Utility Options
 
 | Parameter | Description |
@@ -85,6 +94,8 @@ The cumulative approach is ideal for capacity management when you want to migrat
 | `--list-pools` | Show available storage pools and exit |
 | `--dry-run` | Preview migration plan without executing |
 | `--no-cleanup` | Skip cleanup of bad files logs at startup |
+| `--force-recycled` | Move all recycled storage files to slow pool in addition to regular date-based migration |
+| `--only-recycled` | Move ONLY recycled files (disables regular date-based migration). Implies `--force-recycled` |
 | `--help` | Show help message and exit |
 
 ## Usage Examples
@@ -184,6 +195,63 @@ The cumulative approach is ideal for capacity management when you want to migrat
 # Preview migration with cumulative filtering
 ./move_disks --dry-run --past-days 7 --min-size-total-mb 500000
 ```
+
+### Recycled Files Migration
+
+```bash
+# Move ONLY recycled files (no regular date-based migration)
+./move_disks --only-recycled
+
+# Move only recycled files with limited threads
+./move_disks --only-recycled --threads-fast-to-slow 2 --bandwidth-limit 50000
+
+# Preview recycled-only migration
+./move_disks --only-recycled --dry-run
+
+# Move recycled files IN ADDITION to normal migration
+./move_disks --force-recycled --past-days 30
+
+# Move recycled files with regular 7-day migration
+./move_disks --force-recycled --past-days 7 --threads-fast-to-slow 3 --threads-slow-to-fast 2
+```
+
+**Note on Recycled Files:**
+- `--only-recycled`: Moves **ONLY** recycled files, completely disables date-based migration
+- `--force-recycled`: Moves recycled files **IN ADDITION** to normal date-based migration
+- Recycled files are always moved to the slow pool
+- Only desktop/groups usage recycled files are moved (vdo3 requirement)
+- Files already in destination pool are automatically skipped
+
+### Migration Size Limits
+
+```bash
+# Limit fast→slow migration to 2TB (2048000 MB)
+./move_disks --past-days 30 --limit-fast-to-slow 2048000
+
+# Limit slow→fast migration to 500GB (512000 MB)
+./move_disks --past-days 7 --limit-slow-to-fast 512000
+
+# Limit both directions (1TB fast→slow, 500GB slow→fast)
+./move_disks --past-days 14 --limit-fast-to-slow 1024000 --limit-slow-to-fast 512000
+
+# Preview with limits
+./move_disks --dry-run --past-days 30 --limit-fast-to-slow 2048000
+
+# Combine with other filters: only move large files up to 2TB total
+./move_disks --past-days 30 --min-size-mb 1000 --limit-fast-to-slow 2048000
+
+# Move only recycled files with a 1TB limit
+./move_disks --only-recycled --limit-fast-to-slow 1024000
+```
+
+**Note on Migration Limits:**
+- Limits are specified in MB (megabytes)
+- Files are processed in order until the limit is reached
+- Fast→slow: processes oldest files first (up to the limit)
+- Slow→fast: processes newest files first (up to the limit)
+- Remaining files beyond the limit are excluded and counted in statistics
+- Useful for gradual migrations or bandwidth/time constraints
+- Combine with `--dry-run` to preview which files will be selected
 
 ## Progress Reporting and Statistics
 
