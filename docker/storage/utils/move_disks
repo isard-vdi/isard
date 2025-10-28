@@ -841,6 +841,8 @@ Examples:
   %(prog)s --force-recycled --past-days 30  # Move recycled files + normal date-based migration
   %(prog)s --only-recycled  # Move ONLY recycled files (no regular date-based migration)
   %(prog)s --only-recycled --threads-fast-to-slow 2  # Move only recycled with limited threads
+  %(prog)s --past-days 30 --limit-fast-to-slow 2048000  # Limit fast→slow to 2TB
+  %(prog)s --limit-fast-to-slow 1024000 --limit-slow-to-fast 512000  # Limit both directions
   %(prog)s --list-pools  # Show available storage pools
   %(prog)s --dry-run --past-days 14  # Preview migration for files older than 14 days
         """
@@ -919,6 +921,20 @@ Examples:
         "--min-size-total-mb",
         type=int,
         help="Skip smallest files until their total size reaches this threshold in MB (cumulative size filtering for fast→slow moves)"
+    )
+
+    # Migration size limits
+    parser.add_argument(
+        "--limit-fast-to-slow",
+        type=int,
+        default=0,
+        help="Maximum total data to move from fast→slow in MB (0 for unlimited) (default: 0)"
+    )
+    parser.add_argument(
+        "--limit-slow-to-fast",
+        type=int,
+        default=0,
+        help="Maximum total data to move from slow→fast in MB (0 for unlimited) (default: 0)"
     )
 
     # Utility options
@@ -1019,6 +1035,15 @@ def main():
 
     if args.min_size_total_mb is not None and args.min_size_total_mb < 0:
         print("ERROR: Minimum total size cannot be negative")
+        sys.exit(1)
+
+    # Validate migration size limits
+    if args.limit_fast_to_slow < 0:
+        print("ERROR: Fast→slow limit cannot be negative")
+        sys.exit(1)
+
+    if args.limit_slow_to_fast < 0:
+        print("ERROR: Slow→fast limit cannot be negative")
         sys.exit(1)
 
     # =============================================================================
@@ -1197,6 +1222,61 @@ def main():
             fast_to_slow_queue.extend(recycled_paths_slow)
             fast_size_before += recycled_size_slow
 
+    # Apply migration size limits
+    limit_fast_to_slow_bytes = args.limit_fast_to_slow * 1024 * 1024  # Convert MB to bytes
+    limit_slow_to_fast_bytes = args.limit_slow_to_fast * 1024 * 1024  # Convert MB to bytes
+
+    excluded_by_limit_fast = 0
+    excluded_by_limit_slow = 0
+    excluded_size_fast = 0
+    excluded_size_slow = 0
+
+    if limit_fast_to_slow_bytes > 0 and fast_to_slow_queue:
+        original_count = len(fast_to_slow_queue)
+        original_size = fast_size_before
+        limited_queue = []
+        cumulative_size = 0
+
+        for file_path in fast_to_slow_queue:
+            try:
+                file_size = Path(file_path).stat().st_size
+                if cumulative_size + file_size <= limit_fast_to_slow_bytes:
+                    limited_queue.append(file_path)
+                    cumulative_size += file_size
+                # Once limit reached, stop adding files
+            except OSError:
+                # If we can't get file size, skip it
+                pass
+
+        # Update queue and calculate exclusions
+        excluded_by_limit_fast = original_count - len(limited_queue)
+        excluded_size_fast = original_size - cumulative_size
+        fast_to_slow_queue = limited_queue
+        fast_size_before = cumulative_size
+
+    if limit_slow_to_fast_bytes > 0 and slow_to_fast_queue:
+        original_count = len(slow_to_fast_queue)
+        original_size = slow_size_after
+        limited_queue = []
+        cumulative_size = 0
+
+        for file_path in slow_to_fast_queue:
+            try:
+                file_size = Path(file_path).stat().st_size
+                if cumulative_size + file_size <= limit_slow_to_fast_bytes:
+                    limited_queue.append(file_path)
+                    cumulative_size += file_size
+                # Once limit reached, stop adding files
+            except OSError:
+                # If we can't get file size, skip it
+                pass
+
+        # Update queue and calculate exclusions
+        excluded_by_limit_slow = original_count - len(limited_queue)
+        excluded_size_slow = original_size - cumulative_size
+        slow_to_fast_queue = limited_queue
+        slow_size_after = cumulative_size
+
     # Initialize threading variables
     all_threads = []
     stop_requested = threading.Event()
@@ -1258,12 +1338,24 @@ def main():
         print(f"  → All moved to {SLOW_POOL_NAME} (bypassing date filters)")
         print()
 
+    # Update total exclusions to include limit-based exclusions
+    total_files_excluded = fast_filtered_count + excluded_by_limit_fast + excluded_by_limit_slow
+    total_size_excluded = fast_filtered_size + excluded_size_fast + excluded_size_slow
+
     if total_files_excluded > 0:
         print(f"FILES EXCLUDED: {total_files_excluded} files ({format_size(total_size_excluded)})")
         if SIZE_FILTER_TYPE == "individual":
-            print(f"  └─ Individual size < {MIN_SIZE_BYTES // (1024*1024)}MB (fast→slow only): {fast_filtered_count} files ({format_size(fast_filtered_size)})")
+            print(f"  ├─ Individual size < {MIN_SIZE_BYTES // (1024*1024)}MB (fast→slow only): {fast_filtered_count} files ({format_size(fast_filtered_size)})")
         elif SIZE_FILTER_TYPE == "cumulative":
-            print(f"  └─ Smallest files totaling {format_size(fast_filtered_size)} (fast→slow only): {fast_filtered_count} files")
+            print(f"  ├─ Smallest files totaling {format_size(fast_filtered_size)} (fast→slow only): {fast_filtered_count} files")
+
+        if excluded_by_limit_fast > 0:
+            print(f"  ├─ Exceeds fast→slow limit: {excluded_by_limit_fast} files ({format_size(excluded_size_fast)})")
+        if excluded_by_limit_slow > 0:
+            print(f"  └─ Exceeds slow→fast limit: {excluded_by_limit_slow} files ({format_size(excluded_size_slow)})")
+        elif SIZE_FILTER_TYPE != "none":
+            # Change last item marker if no limit exclusions
+            pass
         print()
 
     print(f"PROCESSING CONFIGURATION:")
@@ -1271,12 +1363,26 @@ def main():
     print(f"  ├─ Max threads {FAST_POOL_NAME}→{SLOW_POOL_NAME}: {MAX_THREADS_FAST_TO_SLOW}")
     print(f"  ├─ Max threads {SLOW_POOL_NAME}→{FAST_POOL_NAME}: {MAX_THREADS_SLOW_TO_FAST}")
     print(f"  ├─ Bandwidth limit: {BANDWIDTH_LIMIT} KB/s")
+
+    # Size filtering
     if SIZE_FILTER_TYPE == "individual":
-        print(f"  └─ Individual size threshold: {MIN_SIZE_BYTES // (1024*1024)} MB")
+        print(f"  ├─ Individual size threshold: {MIN_SIZE_BYTES // (1024*1024)} MB")
     elif SIZE_FILTER_TYPE == "cumulative":
-        print(f"  └─ Cumulative size threshold: {MIN_SIZE_TOTAL_BYTES // (1024*1024)} MB")
+        print(f"  ├─ Cumulative size threshold: {MIN_SIZE_TOTAL_BYTES // (1024*1024)} MB")
     else:
-        print(f"  └─ Size filtering: disabled")
+        print(f"  ├─ Size filtering: disabled")
+
+    # Migration limits
+    if args.limit_fast_to_slow > 0 and args.limit_slow_to_fast > 0:
+        print(f"  ├─ Migration limit {FAST_POOL_NAME}→{SLOW_POOL_NAME}: {args.limit_fast_to_slow} MB ({format_size(limit_fast_to_slow_bytes)})")
+        print(f"  └─ Migration limit {SLOW_POOL_NAME}→{FAST_POOL_NAME}: {args.limit_slow_to_fast} MB ({format_size(limit_slow_to_fast_bytes)})")
+    elif args.limit_fast_to_slow > 0:
+        print(f"  └─ Migration limit {FAST_POOL_NAME}→{SLOW_POOL_NAME}: {args.limit_fast_to_slow} MB ({format_size(limit_fast_to_slow_bytes)})")
+    elif args.limit_slow_to_fast > 0:
+        print(f"  └─ Migration limit {SLOW_POOL_NAME}→{FAST_POOL_NAME}: {args.limit_slow_to_fast} MB ({format_size(limit_slow_to_fast_bytes)})")
+    else:
+        print(f"  └─ Migration limits: disabled")
+
     print("="*80)
 
     # Handle dry-run mode
