@@ -2323,7 +2323,8 @@ class ApiUsers:
             user["category"], user["role"], user["provider"]
         )
 
-        p.check_policy(password, policy, user_id)
+        if policy:
+            p.check_policy(password, policy, user_id)
         password = p.encrypt(password)
 
         if policy["old_passwords"] == 0:
@@ -2666,7 +2667,8 @@ class ApiUsers:
             policy = self.get_user_password_policy(
                 match["category_id"], user["role"], "local"
             )
-            p.check_policy(user["password"], policy, username=user["username"])
+            if policy:
+                p.check_policy(user["password"], policy, username=user["username"])
 
         return user
 

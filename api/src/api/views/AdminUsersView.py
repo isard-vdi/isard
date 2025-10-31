@@ -406,7 +406,8 @@ def api_v3_admin_user_insert(payload):
     policy = users.get_user_password_policy(
         data["category"], data["role"], data["provider"]
     )
-    p.check_policy(data["password"], policy, username=data["username"])
+    if policy:
+        p.check_policy(data["password"], policy, username=data["username"])
     data["password"] = p.encrypt(data["password"])
 
     data["password_history"] = [data["password"]]
@@ -1090,9 +1091,10 @@ def admin_users_validate_edit(payload):
         if user.get("password"):
             p = Password()
             policy = users.get_user_password_policy(user_id=user_list[i]["id"])
-            p.check_policy(
-                user["password"], policy, user_list[i]["id"], user.get("username")
-            )
+            if policy:
+                p.check_policy(
+                    user["password"], policy, user_list[i]["id"], user.get("username")
+                )
 
         user_list[i]["category_id"] = cg_data["category_id"]
         user_list[i]["group_id"] = cg_data["group_id"]
