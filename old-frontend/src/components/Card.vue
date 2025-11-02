@@ -231,9 +231,9 @@
             <DesktopButton
               v-else-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState === desktopStates.stopped )"
               class="card-button"
-              :active="true"
+              :active="!isPendingOperation(desktop.id)"
               :button-class="buttCssColor"
-              :spinner-active="false"
+              :spinner-active="isPendingOperation(desktop.id)"
               :butt-text="$t(`views.select-template.status.${desktopState}.action`)"
               :icon-name="desktop.buttonIconName"
               @buttonClicked="changeDesktopStatus(desktop, { action: status[desktopState || 'stopped'].action, desktopId: desktop.id, storage: desktop.storage })"
@@ -387,7 +387,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getViewers', 'getCurrentTab', 'getUser', 'getConfig']),
+    ...mapGetters(['getViewers', 'getCurrentTab', 'getUser', 'getConfig', 'isPendingOperation']),
     filterViewerFromList () {
       return DesktopUtils.filterViewerFromList(this.desktop.viewers, this.getDefaultViewer)
     },

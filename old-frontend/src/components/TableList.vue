@@ -191,9 +191,9 @@
                   <DesktopButton
                     v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading].includes(getItemState(data.item))"
                     class="table-action-button"
-                    :active="true"
+                    :active="!isPendingOperation(data.item.id)"
                     :button-class="buttCssColor(getItemState(data.item))"
-                    :spinner-active="false"
+                    :spinner-active="isPendingOperation(data.item.id)"
                     :butt-text="$t(`views.select-template.status.${getItemState(data.item)}.action`)"
                     :icon-name="data.item.buttonIconName"
                     @buttonClicked="changeDesktopStatus(data.item, { action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id, storage: data.item.storage })"
@@ -473,7 +473,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getViewers', 'getUser']),
+    ...mapGetters(['getViewers', 'getUser', 'isPendingOperation']),
     stateBarCssClass () {
       const states = {
         stopped: 'state-off',
