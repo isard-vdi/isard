@@ -669,16 +669,16 @@ class ApiDesktopsPersistent:
         return get_document("domains", desktop_id, ["user"])
 
     def Start(self, desktop_id):
-        desktop_start(desktop_id)
-        return desktop_id
+        status = desktop_start(desktop_id)
+        return status
 
     def Stop(self, desktop_id):
-        desktop_stop(desktop_id)
-        return desktop_id
+        status = desktop_stop(desktop_id)
+        return status
 
     def Updating(self, desktop_id):
-        desktop_updating(desktop_id)
-        return desktop_id
+        status = desktop_updating(desktop_id)
+        return status
 
     def Reset(self, token, request):
         desktop_id = common.DesktopFromToken(token)["id"]
