@@ -1,0 +1,815 @@
+#!/bin/bash
+
+#===============================================================================
+# QCOW2 Sparsification Script
+#===============================================================================
+# Description: Processes qcow2 disk images in parallel using virt-sparsify
+#              to reclaim unused space in Docker isard-storage environment.
+#              Scans /isard/groups and /isard/storage_pools recursively.
+#
+# Usage: ./sparsify [OPTIONS]
+#
+# Options:
+#   --max-parallel N       Maximum parallel jobs (default: 2)
+#   --min-size SIZE        Minimum file size to process in bytes (default: 0)
+#   --owner USER:GROUP     Only process files with this ownership (default: root:root)
+#   --exclude PATTERN      Exclude files matching pattern (can be used multiple times)
+#   --dry-run              Preview operations without making changes
+#   --resume               Resume from previous interrupted run
+#   --no-backup            Skip creating backup before sparsification
+#   --verbose              Enable verbose output
+#   --quiet                Suppress non-essential output
+#   --log-format FORMAT    Log format: text|csv|json (default: text)
+#   --help                 Display this help message
+#
+# Example:
+#   ./sparsify --max-parallel 5 --dry-run
+#   ./sparsify --min-size 1073741824 --exclude "*/temp/*" --verbose
+#===============================================================================
+
+set -o pipefail
+
+#-------------------------------------------------------------------------------
+# Default Configuration
+#-------------------------------------------------------------------------------
+# Hardcoded target directories (only these paths can be sparsified)
+TARGET_DIRS=("/isard/groups" "/isard/storage_pools")
+MAX_PARALLEL=2
+MIN_SIZE=0
+OWNER_FILTER="root:root"
+DRY_RUN=false
+RESUME=false
+CREATE_BACKUP=true
+VERBOSE=false
+QUIET=false
+LOG_FORMAT="text"
+EXCLUDE_PATTERNS=()
+
+#-------------------------------------------------------------------------------
+# State and Log Files
+#-------------------------------------------------------------------------------
+STATE_DIR="/tmp/sparsify_state_$$"
+STATS_FILE="$STATE_DIR/stats.txt"
+PROCESSED_FILE="$STATE_DIR/processed.txt"
+LOG_SUCCESS="$STATE_DIR/success.log"
+LOG_FAILURE="$STATE_DIR/failure.log"
+LOCK_FILE="$STATE_DIR/lock"
+INTERRUPT_FLAG="$STATE_DIR/interrupt"
+EXCLUDE_PATTERNS_FILE="$STATE_DIR/exclude_patterns.txt"
+
+#-------------------------------------------------------------------------------
+# Color Codes (for terminal output)
+#-------------------------------------------------------------------------------
+if [ -t 1 ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    CYAN='\033[0;36m'
+    NC='\033[0m' # No Color
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    CYAN=''
+    NC=''
+fi
+
+#-------------------------------------------------------------------------------
+# Function: show_help
+# Description: Display usage information
+#-------------------------------------------------------------------------------
+show_help() {
+    sed -n '3,27p' "$0" | sed 's/^# \?//'
+    exit 0
+}
+
+#-------------------------------------------------------------------------------
+# Function: log_message
+# Description: Thread-safe logging with level support
+# Arguments: $1 - log level (INFO|WARN|ERROR|SUCCESS)
+#            $2 - message
+#-------------------------------------------------------------------------------
+log_message() {
+    local level="$1"
+    local message="$2"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+    if [ "$QUIET" = true ] && [ "$level" != "ERROR" ]; then
+        return
+    fi
+
+    case "$level" in
+        INFO)
+            [ "$VERBOSE" = true ] && echo -e "${BLUE}[INFO]${NC} $message" >&2
+            ;;
+        WARN)
+            echo -e "${YELLOW}[WARN]${NC} $message" >&2
+            ;;
+        ERROR)
+            echo -e "${RED}[ERROR]${NC} $message" >&2
+            ;;
+        SUCCESS)
+            echo -e "${GREEN}[SUCCESS]${NC} $message" >&2
+            ;;
+        *)
+            echo "$message" >&2
+            ;;
+    esac
+}
+
+#-------------------------------------------------------------------------------
+# Function: update_stats
+# Description: Thread-safe statistics update using file locking
+# Arguments: $1 - space_saved (in bytes, can be negative)
+#            $2 - increment remaining files counter (-1 or 0)
+#            $3 - increment processed files counter (0 or 1)
+#-------------------------------------------------------------------------------
+update_stats() {
+    local space_saved="$1"
+    local remaining_delta="$2"
+    local processed_delta="${3:-0}"
+
+    # Acquire exclusive lock
+    (
+        flock -x 200
+
+        # Read current values (format: total_saved remaining processed total)
+        if [ -f "$STATS_FILE" ]; then
+            read total_saved remaining processed total < "$STATS_FILE"
+            # Validate and set defaults if corrupted
+            total_saved=${total_saved:-0}
+            remaining=${remaining:-0}
+            processed=${processed:-0}
+            total=${total:-0}
+        else
+            total_saved=0
+            remaining=0
+            processed=0
+            total=0
+        fi
+
+        # Update values
+        total_saved=$((total_saved + space_saved))
+        remaining=$((remaining + remaining_delta))
+        processed=$((processed + processed_delta))
+
+        # Write back
+        echo "$total_saved $remaining $processed $total" > "$STATS_FILE"
+
+    ) 200>"$LOCK_FILE"
+}
+
+#-------------------------------------------------------------------------------
+# Function: get_stats
+# Description: Read current statistics with lock protection
+# Returns: Prints "total_saved remaining_files processed_files total_files"
+#-------------------------------------------------------------------------------
+get_stats() {
+    (
+        flock -s 200
+        if [ -f "$STATS_FILE" ]; then
+            cat "$STATS_FILE"
+        else
+            echo "0 0 0 0"
+        fi
+    ) 200>"$LOCK_FILE"
+}
+
+#-------------------------------------------------------------------------------
+# Function: mark_processed
+# Description: Mark a file as processed (for resume capability)
+# Arguments: $1 - file path
+#-------------------------------------------------------------------------------
+mark_processed() {
+    local file="$1"
+    echo "$file" >> "$PROCESSED_FILE"
+}
+
+#-------------------------------------------------------------------------------
+# Function: is_processed
+# Description: Check if file was already processed
+# Arguments: $1 - file path
+# Returns: 0 if processed, 1 if not
+#-------------------------------------------------------------------------------
+is_processed() {
+    local file="$1"
+    [ -f "$PROCESSED_FILE" ] && grep -Fxq "$file" "$PROCESSED_FILE"
+}
+
+#-------------------------------------------------------------------------------
+# Function: is_excluded
+# Description: Check if file matches any exclude pattern
+# Arguments: $1 - file path
+# Returns: 0 if excluded, 1 if not
+#-------------------------------------------------------------------------------
+is_excluded() {
+    local file="$1"
+
+    # Read exclude patterns from file if it exists
+    if [ -f "$EXCLUDE_PATTERNS_FILE" ]; then
+        while IFS= read -r pattern; do
+            if [[ "$file" == $pattern ]]; then
+                return 0
+            fi
+        done < "$EXCLUDE_PATTERNS_FILE"
+    fi
+
+    return 1
+}
+
+#-------------------------------------------------------------------------------
+# Function: check_interrupt
+# Description: Check if interrupt signal was received
+# Returns: 0 if interrupted, 1 if not
+#-------------------------------------------------------------------------------
+check_interrupt() {
+    [ -f "$INTERRUPT_FLAG" ]
+}
+
+#-------------------------------------------------------------------------------
+# Function: format_bytes
+# Description: Format bytes to human-readable format
+# Arguments: $1 - bytes
+#-------------------------------------------------------------------------------
+format_bytes() {
+    local bytes="$1"
+    if command -v numfmt &> /dev/null; then
+        numfmt --to=iec "$bytes"
+    else
+        echo "${bytes}B"
+    fi
+}
+
+#-------------------------------------------------------------------------------
+# Function: check_dependencies
+# Description: Verify required tools are available
+#-------------------------------------------------------------------------------
+check_dependencies() {
+    local missing_deps=()
+
+    for cmd in virt-sparsify find xargs flock stat; do
+        if ! command -v "$cmd" &> /dev/null; then
+            missing_deps+=("$cmd")
+        fi
+    done
+
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        log_message ERROR "Missing required dependencies: ${missing_deps[*]}"
+        log_message ERROR "Please install missing tools and try again."
+        exit 1
+    fi
+}
+
+#-------------------------------------------------------------------------------
+# Function: validate_configuration
+# Description: Validate configuration parameters
+#-------------------------------------------------------------------------------
+validate_configuration() {
+    # Check target directories exist and are readable
+    for dir in "${TARGET_DIRS[@]}"; do
+        if [ ! -d "$dir" ]; then
+            log_message WARN "Target directory does not exist: $dir (will be skipped)"
+        elif [ ! -r "$dir" ]; then
+            log_message ERROR "Target directory is not readable: $dir"
+            exit 1
+        fi
+    done
+
+    # Validate max parallel
+    if ! [[ "$MAX_PARALLEL" =~ ^[0-9]+$ ]] || [ "$MAX_PARALLEL" -lt 1 ]; then
+        log_message ERROR "Invalid --max-parallel value: $MAX_PARALLEL (must be positive integer)"
+        exit 1
+    fi
+
+    # Validate min size
+    if ! [[ "$MIN_SIZE" =~ ^[0-9]+$ ]] || [ "$MIN_SIZE" -lt 0 ]; then
+        log_message ERROR "Invalid --min-size value: $MIN_SIZE (must be non-negative integer)"
+        exit 1
+    fi
+
+    # Validate log format
+    if [[ ! "$LOG_FORMAT" =~ ^(text|csv|json)$ ]]; then
+        log_message ERROR "Invalid --log-format value: $LOG_FORMAT (must be text, csv, or json)"
+        exit 1
+    fi
+}
+
+#-------------------------------------------------------------------------------
+# Function: cleanup
+# Description: Cleanup handler for interruption
+#-------------------------------------------------------------------------------
+cleanup() {
+    echo ""
+    log_message WARN "Script interrupted. Stopping new operations and waiting for active processes..."
+
+    # Create interrupt flag to stop new work
+    touch "$INTERRUPT_FLAG"
+
+    # Give processes time to finish current operations (30 seconds max)
+    local wait_count=0
+    local max_wait=30
+
+    while [ $wait_count -lt $max_wait ]; do
+        # Check if any child processes still running
+        if ! jobs -p | grep -q .; then
+            break
+        fi
+        sleep 1
+        wait_count=$((wait_count + 1))
+        if [ $((wait_count % 5)) -eq 0 ]; then
+            echo "Waiting for active operations to complete... ($wait_count/${max_wait}s)"
+        fi
+    done
+
+    # Force kill any remaining processes
+    if jobs -p | grep -q .; then
+        log_message WARN "Timeout reached. Forcing termination of remaining processes..."
+        jobs -p | xargs -r kill -9 2>/dev/null
+    fi
+
+    # Wait for all background jobs to finish
+    wait 2>/dev/null
+
+    # Print final statistics
+    read total_saved remaining processed total <<< $(get_stats)
+
+    echo ""
+    echo "========================================="
+    echo "           Interruption Summary"
+    echo "========================================="
+    echo "Total files: $total"
+    echo "Processed: $processed"
+    echo "Remaining: $remaining"
+    echo "Total space saved: $(format_bytes $total_saved)"
+    echo ""
+    echo "Logs:"
+    echo "  Success: $LOG_SUCCESS"
+    echo "  Failure: $LOG_FAILURE"
+    echo ""
+    echo "To resume, run with --resume flag"
+    echo "State directory: $STATE_DIR"
+    echo "========================================="
+
+    exit 130
+}
+
+#-------------------------------------------------------------------------------
+# Function: process_file
+# Description: Process a single qcow2 file
+# Arguments: $1 - file path
+#-------------------------------------------------------------------------------
+process_file() {
+    local file="$1"
+    local result="success"
+    local message=""
+    local before_size=0
+    local after_size=0
+    local saved=0
+
+    # Check for interrupt flag before starting
+    if check_interrupt; then
+        log_message INFO "Interrupt detected, skipping: $file"
+        return
+    fi
+
+    # Skip if file no longer exists
+    if [ ! -e "$file" ]; then
+        log_message WARN "File deleted, skipping: $file"
+        update_stats 0 -1 0
+        return
+    fi
+
+    # Skip if already processed (resume mode)
+    if [ "$RESUME" = true ] && is_processed "$file"; then
+        log_message INFO "Already processed, skipping: $file"
+        update_stats 0 -1 0
+        return
+    fi
+
+    # Check exclusion patterns
+    if is_excluded "$file"; then
+        log_message INFO "Excluded by pattern, skipping: $file"
+        update_stats 0 -1 0
+        return
+    fi
+
+    # Validate file integrity and backing chain (also detects in-use files via locks)
+    local error_output
+    error_output=$(qemu-img info --backing-chain "$file" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -ne 0 ]; then
+        # Parse error to determine specific reason
+        local skip_reason=""
+        if echo "$error_output" | grep -q "Failed to get.*lock\|Is another process using"; then
+            skip_reason="File in use by another process (VM running?)"
+            log_message WARN "$skip_reason, skipping: $file"
+        elif echo "$error_output" | grep -q "Could not open backing file"; then
+            skip_reason="Missing backing file"
+            log_message WARN "$skip_reason, skipping: $file"
+        elif echo "$error_output" | grep -q "No such file or directory"; then
+            skip_reason="File not found or broken symlink"
+            log_message WARN "$skip_reason, skipping: $file"
+        else
+            skip_reason="File corrupted or validation failed"
+            log_message WARN "$skip_reason, skipping: $file"
+        fi
+
+        # Log detailed error to failure log
+        echo "VALIDATION FAILED: $file - $skip_reason" >> "$LOG_FAILURE"
+        if [ "$VERBOSE" = true ]; then
+            echo "$error_output" | head -2 >> "$LOG_FAILURE"
+        fi
+
+        update_stats 0 -1 0
+        return
+    fi
+
+    # Check ownership
+    local current_owner=$(stat -c '%U:%G' "$file" 2>/dev/null)
+    if [ "$current_owner" != "$OWNER_FILTER" ]; then
+        log_message INFO "Owner mismatch ($current_owner != $OWNER_FILTER), skipping: $file"
+        update_stats 0 -1 0
+        return
+    fi
+
+    # Check minimum size
+    before_size=$(stat --format="%s" "$file" 2>/dev/null)
+    if [ -z "$before_size" ] || [ "$before_size" -lt "$MIN_SIZE" ]; then
+        if [ -n "$before_size" ]; then
+            log_message INFO "Below minimum size ($(format_bytes $before_size) < $(format_bytes $MIN_SIZE)), skipping: $file"
+        else
+            log_message WARN "Cannot determine file size, skipping: $file"
+        fi
+        update_stats 0 -1 0
+        return
+    fi
+
+    log_message INFO "Processing: $file ($(format_bytes $before_size))"
+
+    # Dry run mode
+    if [ "$DRY_RUN" = true ]; then
+        echo "DRY RUN: Would sparsify $file" >> "$LOG_SUCCESS"
+        update_stats 0 -1 1
+        mark_processed "$file"
+        return
+    fi
+
+    # Create backup if requested
+    if [ "$CREATE_BACKUP" = true ]; then
+        local backup_file="${file}.sparsify-backup"
+        if ! cp --reflink=auto "$file" "$backup_file" 2>/dev/null; then
+            log_message WARN "Backup creation failed, proceeding without backup: $file"
+        else
+            log_message INFO "Backup created: $backup_file"
+        fi
+    fi
+
+    # Protect critical sparsification operation from signals
+    trap '' SIGINT SIGTERM
+
+    # Perform sparsification with error suppression
+    local error_log="/tmp/virt_sparsify_error_$$_${RANDOM}.log"
+    local virt_result=0
+
+    if [ "$VERBOSE" = true ]; then
+        # Verbose mode: show all output
+        virt-sparsify --in-place "$file" 2>&1 || virt_result=$?
+    else
+        # Normal mode: suppress verbose errors, capture to log
+        virt-sparsify --in-place "$file" 2>"$error_log" || virt_result=$?
+    fi
+
+    if [ $virt_result -eq 0 ]; then
+        # Success
+        rm -f "$error_log"
+        after_size=$(stat --format="%s" "$file" 2>/dev/null)
+        saved=$((before_size - after_size))
+
+        if [ "$saved" -gt 0 ]; then
+            message="Sparsified successfully: Saved $(format_bytes $saved)"
+            log_message SUCCESS "$message - $file"
+        else
+            message="Sparsified: No space saved (file may already be sparse)"
+            log_message INFO "$message - $file"
+            saved=0
+        fi
+
+        # Log success based on format
+        case "$LOG_FORMAT" in
+            csv)
+                echo "\"$file\",\"$before_size\",\"$after_size\",\"$saved\",\"success\"" >> "$LOG_SUCCESS"
+                ;;
+            json)
+                echo "{\"file\":\"$file\",\"before\":$before_size,\"after\":$after_size,\"saved\":$saved,\"status\":\"success\"}" >> "$LOG_SUCCESS"
+                ;;
+            *)
+                echo "SUCCESS: $file | Before: $(format_bytes $before_size) | After: $(format_bytes $after_size) | Saved: $(format_bytes $saved)" >> "$LOG_SUCCESS"
+                ;;
+        esac
+
+        # Remove backup on success if created
+        if [ "$CREATE_BACKUP" = true ]; then
+            rm -f "${file}.sparsify-backup"
+        fi
+    else
+        # Failure - extract useful error info
+        result="failure"
+        local error_reason="unknown error"
+
+        if [ -f "$error_log" ]; then
+            if grep -q "guestfs_launch failed" "$error_log"; then
+                error_reason="libguestfs launch failed (KVM unavailable or file corrupted)"
+            elif grep -q "No space left" "$error_log"; then
+                error_reason="no space left on device"
+            elif grep -q "permission denied" "$error_log" -i; then
+                error_reason="permission denied"
+            elif grep -q "file is already" "$error_log"; then
+                error_reason="file already sparse"
+            else
+                error_reason=$(grep "error:" "$error_log" | head -1 | sed 's/^.*error: //' | cut -c1-100)
+            fi
+
+            # Save full error log for debugging
+            cat "$error_log" >> "$LOG_FAILURE"
+            rm -f "$error_log"
+        fi
+
+        message="Sparsification failed: $error_reason"
+        log_message ERROR "$message - $file"
+        saved=0
+
+        # Log failure based on format
+        case "$LOG_FORMAT" in
+            csv)
+                echo "\"$file\",\"$before_size\",\"0\",\"0\",\"failure: $error_reason\"" >> "$LOG_FAILURE"
+                ;;
+            json)
+                echo "{\"file\":\"$file\",\"before\":$before_size,\"status\":\"failure\",\"error\":\"$error_reason\"}" >> "$LOG_FAILURE"
+                ;;
+            *)
+                echo "FAILURE: $file | Size: $(format_bytes $before_size) | Reason: $error_reason" >> "$LOG_FAILURE"
+                ;;
+        esac
+
+        # Restore backup on failure if created
+        if [ "$CREATE_BACKUP" = true ] && [ -f "${file}.sparsify-backup" ]; then
+            mv "${file}.sparsify-backup" "$file"
+            log_message INFO "Restored from backup: $file"
+        fi
+    fi
+
+    # Restore signal handling
+    trap cleanup SIGINT SIGTERM
+
+    # Update statistics
+    update_stats "$saved" -1 1
+    mark_processed "$file"
+
+    # Display running statistics
+    read total_saved remaining processed total <<< $(get_stats)
+    if [ "$QUIET" != true ]; then
+        echo "Progress: Processed $processed/$total | Remaining: $remaining | Saved: $(format_bytes $total_saved)"
+    fi
+}
+
+#-------------------------------------------------------------------------------
+# Function: parse_arguments
+# Description: Parse command line arguments
+#-------------------------------------------------------------------------------
+parse_arguments() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --max-parallel)
+                MAX_PARALLEL="$2"
+                shift 2
+                ;;
+            --min-size)
+                MIN_SIZE="$2"
+                shift 2
+                ;;
+            --owner)
+                OWNER_FILTER="$2"
+                shift 2
+                ;;
+            --exclude)
+                EXCLUDE_PATTERNS+=("$2")
+                shift 2
+                ;;
+            --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            --resume)
+                RESUME=true
+                shift
+                ;;
+            --no-backup)
+                CREATE_BACKUP=false
+                shift
+                ;;
+            --verbose)
+                VERBOSE=true
+                shift
+                ;;
+            --quiet)
+                QUIET=true
+                shift
+                ;;
+            --log-format)
+                LOG_FORMAT="$2"
+                shift 2
+                ;;
+            --help)
+                show_help
+                ;;
+            *)
+                log_message ERROR "Unknown option: $1"
+                echo "Use --help for usage information"
+                exit 1
+                ;;
+        esac
+    done
+}
+
+#-------------------------------------------------------------------------------
+# Function: initialize
+# Description: Initialize state directory and files
+#-------------------------------------------------------------------------------
+initialize() {
+    # Create state directory
+    mkdir -p "$STATE_DIR"
+
+    # Save exclude patterns to file for subprocesses
+    > "$EXCLUDE_PATTERNS_FILE"
+    for pattern in "${EXCLUDE_PATTERNS[@]}"; do
+        echo "$pattern" >> "$EXCLUDE_PATTERNS_FILE"
+    done
+
+    # Initialize log files with headers based on format
+    if [ "$RESUME" != true ]; then
+        case "$LOG_FORMAT" in
+            csv)
+                echo "\"File\",\"Before (bytes)\",\"After (bytes)\",\"Saved (bytes)\",\"Status\"" > "$LOG_SUCCESS"
+                echo "\"File\",\"Size (bytes)\",\"Before (bytes)\",\"After (bytes)\",\"Status\"" > "$LOG_FAILURE"
+                ;;
+            *)
+                > "$LOG_SUCCESS"
+                > "$LOG_FAILURE"
+                ;;
+        esac
+        > "$PROCESSED_FILE"
+        > "$STATS_FILE"
+        > "$INTERRUPT_FLAG" 2>/dev/null && rm -f "$INTERRUPT_FLAG"
+    fi
+}
+
+#-------------------------------------------------------------------------------
+# Function: main
+# Description: Main execution flow
+#-------------------------------------------------------------------------------
+main() {
+    # Parse arguments
+    parse_arguments "$@"
+
+    # Check dependencies
+    check_dependencies
+
+    # Validate configuration
+    validate_configuration
+
+    # Initialize state
+    initialize
+
+    # Setup signal handlers
+    trap cleanup SIGINT SIGTERM
+
+    # Display configuration
+    echo "========================================="
+    echo "     QCOW2 Sparsification Script"
+    echo "========================================="
+    echo "Configuration:"
+    echo "  Target directories: ${TARGET_DIRS[*]}"
+    echo "  Max parallel jobs: $MAX_PARALLEL"
+    echo "  Minimum file size: $(format_bytes $MIN_SIZE)"
+    echo "  Owner filter: $OWNER_FILTER"
+    echo "  Dry run: $DRY_RUN"
+    echo "  Resume mode: $RESUME"
+    echo "  Create backup: $CREATE_BACKUP"
+    echo "  Log format: $LOG_FORMAT"
+    [ ${#EXCLUDE_PATTERNS[@]} -gt 0 ] && echo "  Exclude patterns: ${EXCLUDE_PATTERNS[*]}"
+    echo "========================================="
+    echo ""
+
+    # Find all qcow2 files in all target directories
+    log_message INFO "Scanning for .qcow2 files in ${TARGET_DIRS[*]}..."
+
+    local qcow2_files=""
+    for dir in "${TARGET_DIRS[@]}"; do
+        if [ -d "$dir" ] && [ -r "$dir" ]; then
+            log_message INFO "Scanning $dir..."
+            local dir_files=$(find "$dir" -type f -name "*.qcow2" 2>/dev/null)
+            if [ -n "$dir_files" ]; then
+                if [ -z "$qcow2_files" ]; then
+                    qcow2_files="$dir_files"
+                else
+                    qcow2_files="$qcow2_files"$'\n'"$dir_files"
+                fi
+            fi
+        fi
+    done
+
+    if [ -z "$qcow2_files" ]; then
+        log_message WARN "No .qcow2 files found in any target directory"
+        exit 0
+    fi
+
+    local total_files=$(echo "$qcow2_files" | wc -l)
+
+    # Initialize stats with total count (format: total_saved remaining processed total)
+    (
+        flock -x 200
+        echo "0 $total_files 0 $total_files" > "$STATS_FILE"
+    ) 200>"$LOCK_FILE"
+
+    log_message INFO "Found $total_files .qcow2 files"
+    echo ""
+
+    # Export necessary functions and variables for parallel jobs
+    export -f process_file
+    export -f log_message
+    export -f update_stats
+    export -f get_stats
+    export -f mark_processed
+    export -f is_processed
+    export -f is_excluded
+    export -f check_interrupt
+    export -f format_bytes
+    export OWNER_FILTER
+    export MIN_SIZE
+    export DRY_RUN
+    export RESUME
+    export CREATE_BACKUP
+    export VERBOSE
+    export QUIET
+    export LOG_FORMAT
+    export STATS_FILE
+    export PROCESSED_FILE
+    export LOG_SUCCESS
+    export LOG_FAILURE
+    export LOCK_FILE
+    export STATE_DIR
+    export RED GREEN YELLOW BLUE CYAN NC
+    export EXCLUDE_PATTERNS_FILE
+    export INTERRUPT_FLAG
+
+    # Process files in parallel
+    echo "$qcow2_files" | xargs -I {} -P "$MAX_PARALLEL" bash -c 'process_file "$@"' _ {}
+
+    # Final summary
+    read total_saved remaining processed total <<< $(get_stats)
+
+    echo ""
+    echo "========================================="
+    echo "           Final Summary"
+    echo "========================================="
+    echo "Total files found: $total"
+    echo "Files processed: $processed"
+    echo "Files skipped: $((total - processed))"
+    echo "Total space saved: $(format_bytes $total_saved)"
+    echo ""
+    echo "Logs:"
+    echo "  Success log: $LOG_SUCCESS"
+    echo "  Failure log: $LOG_FAILURE"
+    echo ""
+
+    # Count successes and failures
+    if [ -f "$LOG_SUCCESS" ]; then
+        local success_count=$(grep -c "^SUCCESS:\|^DRY RUN:" "$LOG_SUCCESS" 2>/dev/null || true)
+        success_count=${success_count:-0}
+        echo "  Successful operations: $success_count"
+    fi
+
+    if [ -f "$LOG_FAILURE" ]; then
+        local failure_count=$(grep -c "^FAILURE:" "$LOG_FAILURE" 2>/dev/null || true)
+        failure_count=${failure_count:-0}
+        echo "  Failed operations: $failure_count"
+
+        if [ "$failure_count" -gt 0 ]; then
+            echo ""
+            echo "  Review $LOG_FAILURE for details on failed operations"
+        fi
+    fi
+
+    echo "========================================="
+
+    # Exit with error if there were failures
+    if [ -f "$LOG_FAILURE" ] && [ -s "$LOG_FAILURE" ]; then
+        exit 1
+    fi
+}
+
+# Execute main function with all arguments
+main "$@"
