@@ -835,9 +835,7 @@ class Storage(RethinkCustomBase):
         :param priority: Priority
         :type priority: str
         """
-        resize_queue = (
-            f"storage.{StoragePool.get_best_for_action('resize').id}.{priority}"
-        )
+        resize_queue = f"storage.{StoragePool.get_best_for_action('resize', path=self.directory_path).id}.{priority}"
 
         self.set_maintenance("resize")
         self.create_task(
@@ -972,7 +970,7 @@ class Storage(RethinkCustomBase):
         """
         queue_sparsify = f"storage.{StoragePool.get_best_for_action('sparsify', path=self.directory_path).id}.{priority}"
         # Use a different queue to avoid having to wait when launching in bulk
-        queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain',path=self.directory_path).id}.{secondary_priority}"
+        queue_backing_chain = f"storage.{StoragePool.get_best_for_action('qemu_img_info_backing_chain', path=self.directory_path).id}.{secondary_priority}"
 
         self.set_maintenance("sparsify")
         self.create_task(
@@ -1023,9 +1021,7 @@ class Storage(RethinkCustomBase):
         :param priority: Priority
         :type priority: str
         """
-        disconnect_queue = (
-            f"storage.{StoragePool.get_best_for_action('disconnect').id}.{priority}"
-        )
+        disconnect_queue = f"storage.{StoragePool.get_best_for_action('disconnect', path=self.directory_path).id}.{priority}"
 
         self.set_maintenance("disconnect")
         self.create_task(
@@ -1422,7 +1418,9 @@ class Storage(RethinkCustomBase):
         :return: Task ID
         :rtype: str
         """
-        storage_pool = StoragePool.get_best_for_action("abort")
+        storage_pool = StoragePool.get_best_for_action(
+            "abort", path=self.directory_path
+        )
 
         self.create_task(
             user_id=user_id,
@@ -1512,7 +1510,7 @@ class Storage(RethinkCustomBase):
             },
             dependents=[
                 {
-                    "queue": f"storage.{StoragePool.get_best_for_action('touch').id}.{priority}",
+                    "queue": f"storage.{StoragePool.get_best_for_action('touch', path=new_path).id}.{priority}",
                     "task": "touch",
                     "job_kwargs": {
                         "kwargs": {
@@ -1521,7 +1519,7 @@ class Storage(RethinkCustomBase):
                     },
                     "dependents": [
                         {
-                            "queue": f"storage.{StoragePool.get_best_for_action('find').id}.{priority}",
+                            "queue": f"storage.{StoragePool.get_best_for_action('find', path=self.directory_path).id}.{priority}",
                             "task": "find",
                             "job_kwargs": {
                                 "kwargs": {
@@ -1592,7 +1590,7 @@ class Storage(RethinkCustomBase):
         self.set_maintenance("delete_path")
         self.create_task(
             user_id=user_id,
-            queue=f"storage.{StoragePool.get_best_for_action('delete').id}.{priority}",
+            queue=f"storage.{StoragePool.get_best_for_action('delete', path=self.directory_path).id}.{priority}",
             task="delete",
             retry=retry,
             retry_intervals=15,
@@ -1603,7 +1601,7 @@ class Storage(RethinkCustomBase):
             },
             dependents=[
                 {
-                    "queue": f"storage.{StoragePool.get_best_for_action('find').id}.{priority}",
+                    "queue": f"storage.{StoragePool.get_best_for_action('find', path=self.directory_path).id}.{priority}",
                     "task": "find",
                     "job_kwargs": {
                         "kwargs": {
