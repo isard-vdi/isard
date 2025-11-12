@@ -622,7 +622,8 @@ def storage_disconnect(payload, storage_id, priority="low", retry=0):
         return jsonify(
             {
                 "task_id": storage.disconnect_chain(
-                    priority,
+                    user_id=payload.get("user_id"),
+                    priority=priority,
                     retry=retry,
                 )
             }
