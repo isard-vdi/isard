@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"regexp"
 	"slices"
@@ -48,14 +49,43 @@ type SAML struct {
 }
 
 func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *SAML {
-	remoteMetadataURL, err := url.Parse(cfg.SAML.MetadataURL)
-	if err != nil {
-		log.Fatal().Err(err).Msg("parse metadata URL")
+	var metadata *saml.EntityDescriptor
+	var err error
+
+	// Try to load metadata from local file first (if configured)
+	if cfg.SAML.MetadataFile != "" {
+		log.Info().Str("file", cfg.SAML.MetadataFile).Msg("attempting to load IdP metadata from local file")
+
+		data, readErr := os.ReadFile(cfg.SAML.MetadataFile)
+		if readErr == nil {
+			metadata, err = samlsp.ParseMetadata(data)
+			if err == nil {
+				log.Info().Str("file", cfg.SAML.MetadataFile).Msg("successfully loaded IdP metadata from local file")
+			} else {
+				log.Warn().Err(err).Str("file", cfg.SAML.MetadataFile).Msg("failed to parse local metadata file, falling back to URL")
+			}
+		} else {
+			log.Info().Err(readErr).Str("file", cfg.SAML.MetadataFile).Msg("local metadata file not found, falling back to URL")
+		}
 	}
 
-	metadata, err := samlsp.FetchMetadata(context.Background(), http.DefaultClient, *remoteMetadataURL)
-	if err != nil {
-		log.Fatal().Err(err).Msg("fetch metadata")
+	// Fall back to URL fetch if local file didn't work or wasn't configured
+	if metadata == nil {
+		if cfg.SAML.MetadataURL == "" {
+			log.Fatal().Msg("neither metadata file nor metadata URL is configured")
+		}
+
+		remoteMetadataURL, err := url.Parse(cfg.SAML.MetadataURL)
+		if err != nil {
+			log.Fatal().Err(err).Msg("parse metadata URL")
+		}
+
+		log.Info().Str("url", cfg.SAML.MetadataURL).Msg("fetching IdP metadata from URL")
+		metadata, err = samlsp.FetchMetadata(context.Background(), http.DefaultClient, *remoteMetadataURL)
+		if err != nil {
+			log.Fatal().Err(err).Msg("fetch metadata from URL failed")
+		}
+		log.Info().Str("url", cfg.SAML.MetadataURL).Msg("successfully fetched IdP metadata from URL")
 	}
 
 	k, err := tls.LoadX509KeyPair(cfg.SAML.CertFile, cfg.SAML.KeyFile)
@@ -101,6 +131,18 @@ func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *
 	sloURL := *baseURL
 	sloURL.Path = path.Join(baseURL.Path, SLORoute)
 	middleware.ServiceProvider.SloURL = sloURL
+
+	// Set custom Entity ID if configured, otherwise it defaults to MetadataURL
+	if cfg.SAML.EntityID != "" {
+		middleware.ServiceProvider.EntityID = cfg.SAML.EntityID
+		log.Info().Str("entity_id", cfg.SAML.EntityID).Msg("using custom SAML Entity ID")
+	}
+
+	// Enable SAML AuthnRequest signing if configured
+	if cfg.SAML.SignatureMethod != "" {
+		middleware.ServiceProvider.SignatureMethod = cfg.SAML.SignatureMethod
+		log.Info().Str("signature_method", cfg.SAML.SignatureMethod).Msg("SAML request signing enabled")
+	}
 
 	s := &SAML{
 		Cfg:        cfg,

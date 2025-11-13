@@ -22,7 +22,6 @@ services:
       interval: 5s
     volumes:
       - "/opt/isard/authentication/keys:/keys"
-      - "/opt/isard/authentication/metadata:/metadata"
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
@@ -90,6 +89,9 @@ services:
 
       AUTHENTICATION_AUTHENTICATION_SAML_ENABLED:
       AUTHENTICATION_AUTHENTICATION_SAML_METADATA_URL:
+      AUTHENTICATION_AUTHENTICATION_SAML_METADATA_FILE:
+      AUTHENTICATION_AUTHENTICATION_SAML_ENTITY_ID:
+      AUTHENTICATION_AUTHENTICATION_SAML_SIGNATURE_METHOD:
       AUTHENTICATION_AUTHENTICATION_SAML_KEY_FILE:
       AUTHENTICATION_AUTHENTICATION_SAML_CERT_FILE:
       AUTHENTICATION_AUTHENTICATION_SAML_MAX_ISSUE_DELAY:
