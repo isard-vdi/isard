@@ -132,6 +132,12 @@ func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *
 	sloURL.Path = path.Join(baseURL.Path, SLORoute)
 	middleware.ServiceProvider.SloURL = sloURL
 
+	// Set custom Entity ID if configured, otherwise it defaults to MetadataURL
+	if cfg.SAML.EntityID != "" {
+		middleware.ServiceProvider.EntityID = cfg.SAML.EntityID
+		log.Info().Str("entity_id", cfg.SAML.EntityID).Msg("using custom SAML Entity ID")
+	}
+
 	s := &SAML{
 		Cfg:        cfg,
 		log:        log,

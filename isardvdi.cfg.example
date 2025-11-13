@@ -248,6 +248,10 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 ## This allows the service to start without network access to the IdP
 ## To create this file: curl -o /opt/isard/keys/idp-metadata.xml <METADATA_URL>
 #AUTHENTICATION_AUTHENTICATION_SAML_METADATA_FILE=/keys/idp-metadata.xml
+## Optional: Custom Entity ID for SAML Service Provider
+## If not set, defaults to the metadata URL (https://DOMAIN/authentication/saml/metadata)
+## Set this if your IdP requires a specific Entity ID (e.g., "vdi-pro")
+#AUTHENTICATION_AUTHENTICATION_SAML_ENTITY_ID=
 ## If the key and cert files don't exist, they will be self signed automatically
 #AUTHENTICATION_AUTHENTICATION_SAML_KEY_FILE=/keys/isardvdi.key
 #AUTHENTICATION_AUTHENTICATION_SAML_CERT_FILE=/keys/isardvdi.cert
