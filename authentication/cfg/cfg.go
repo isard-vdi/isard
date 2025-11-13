@@ -95,6 +95,7 @@ type AuthenticationSAML struct {
 	Enabled bool
 
 	MetadataURL   string        `mapstructure:"metadata_url"`
+	MetadataFile  string        `mapstructure:"metadata_file"`
 	KeyFile       string        `mapstructure:"key_file"`
 	CertFile      string        `mapstructure:"cert_file"`
 	MaxIssueDelay time.Duration `mapstructure:"max_issue_delay"`
@@ -228,6 +229,7 @@ func setDefaults() {
 		"saml": map[string]interface{}{
 			"enabled":             false,
 			"metadata_url":        "",
+			"metadata_file":       "/keys/idp-metadata.xml",
 			"key_file":            "/keys/isardvdi.key",
 			"cert_file":           "/keys/isardvdi.cert",
 			"max_issue_delay":     "90s",

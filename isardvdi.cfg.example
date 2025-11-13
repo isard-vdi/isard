@@ -1,4 +1,4 @@
-# Isard main config v2.29.0
+# Isard main config v2.30.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -243,6 +243,11 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 ## SAML
 #AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=false
 #AUTHENTICATION_AUTHENTICATION_SAML_METADATA_URL=
+## Optional: Local IdP metadata file (checked before fetching from URL)
+## If this file exists, it will be used instead of fetching from METADATA_URL
+## This allows the service to start without network access to the IdP
+## To create this file: curl -o /opt/isard/keys/idp-metadata.xml <METADATA_URL>
+#AUTHENTICATION_AUTHENTICATION_SAML_METADATA_FILE=/keys/idp-metadata.xml
 ## If the key and cert files don't exist, they will be self signed automatically
 #AUTHENTICATION_AUTHENTICATION_SAML_KEY_FILE=/keys/isardvdi.key
 #AUTHENTICATION_AUTHENTICATION_SAML_CERT_FILE=/keys/isardvdi.cert
