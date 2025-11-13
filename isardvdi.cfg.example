@@ -252,6 +252,14 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 ## If not set, defaults to the metadata URL (https://DOMAIN/authentication/saml/metadata)
 ## Set this if your IdP requires a specific Entity ID (e.g., "vdi-pro")
 #AUTHENTICATION_AUTHENTICATION_SAML_ENTITY_ID=
+## Optional: Signature method for signing SAML AuthnRequests
+## If not set, requests will NOT be signed (current default behavior)
+## Set this if your IdP requires signed requests (AuthnRequestsSigned="true")
+## Valid values (use full URI):
+##   - http://www.w3.org/2001/04/xmldsig-more#rsa-sha256 (recommended, SHA-256)
+##   - http://www.w3.org/2000/09/xmldsig#rsa-sha1 (legacy, SHA-1)
+##   - http://www.w3.org/2001/04/xmldsig-more#rsa-sha512 (strong, SHA-512)
+#AUTHENTICATION_AUTHENTICATION_SAML_SIGNATURE_METHOD=
 ## If the key and cert files don't exist, they will be self signed automatically
 #AUTHENTICATION_AUTHENTICATION_SAML_KEY_FILE=/keys/isardvdi.key
 #AUTHENTICATION_AUTHENTICATION_SAML_CERT_FILE=/keys/isardvdi.cert

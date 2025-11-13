@@ -138,6 +138,12 @@ func InitSAML(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *
 		log.Info().Str("entity_id", cfg.SAML.EntityID).Msg("using custom SAML Entity ID")
 	}
 
+	// Enable SAML AuthnRequest signing if configured
+	if cfg.SAML.SignatureMethod != "" {
+		middleware.ServiceProvider.SignatureMethod = cfg.SAML.SignatureMethod
+		log.Info().Str("signature_method", cfg.SAML.SignatureMethod).Msg("SAML request signing enabled")
+	}
+
 	s := &SAML{
 		Cfg:        cfg,
 		log:        log,
