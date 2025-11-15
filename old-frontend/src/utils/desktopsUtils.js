@@ -10,13 +10,13 @@ export class DesktopUtils {
   }
 
   static parseDesktop (item) {
-    const { description, icon, id, name, state, type, viewers, ip, template, progress, image, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, editable, scheduled, server, tag, reservables, interfaces, current_action: currentAction, storage, permissions, queue } = item
+    const { description, icon, id, name, type, viewers, ip, template, progress, image, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, editable, scheduled, server, tag, reservables, interfaces, current_action: currentAction, storage, permissions, queue } = item
     return {
       description,
       icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
       id,
       name: name.trim(),
-      state: this.getState(state),
+      state: this.parseState(item),
       type,
       ip,
       viewers: (viewers !== undefined && viewers !== null) ? viewers : [],
@@ -39,6 +39,11 @@ export class DesktopUtils {
       permissions,
       queue
     }
+  }
+
+  static parseState (item) {
+    const { state } = item
+    return this.getState(state)
   }
 
   static parseTemplates (items) {

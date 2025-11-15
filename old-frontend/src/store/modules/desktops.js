@@ -54,7 +54,8 @@ const getDefaultState = () => {
       show: false,
       desktop: {},
       bastion: { http: {}, ssh: {} }
-    }
+    },
+    pendingOperations: {} // Track pending desktop operations for button state management
   }
 }
 
@@ -113,6 +114,16 @@ export default {
     },
     getBastionModal: state => {
       return state.bastionModal
+    },
+    isPendingOperation: (state) => (desktopId) => {
+      const pending = state.pendingOperations[desktopId]
+      if (!pending) return false
+
+      // Auto-expire after 5 seconds (safety timeout)
+      if (Date.now() - pending.timestamp > 5000) {
+        return false
+      }
+      return true
     }
   },
   mutations: {
@@ -147,6 +158,19 @@ export default {
       if (item) {
         Object.assign(item, desktop)
       }
+    },
+    SET_PENDING_OPERATION: (state, { desktopId, action }) => {
+      state.pendingOperations = {
+        ...state.pendingOperations,
+        [desktopId]: {
+          action,
+          timestamp: Date.now()
+        }
+      }
+    },
+    CLEAR_PENDING_OPERATION: (state, desktopId) => {
+      const { [desktopId]: removed, ...rest } = state.pendingOperations
+      state.pendingOperations = rest
     },
     remove_desktop: (state, desktop) => {
       const desktopIndex = state.desktops.findIndex(d => d.id === desktop.id)
@@ -235,7 +259,26 @@ export default {
     },
     socket_desktopUpdate (context, data) {
       const desktop = DesktopUtils.parseDesktop(JSON.parse(data))
-      context.commit('update_desktop', desktop)
+
+      // Only update if there are actual changes
+      const existingDesktop = context.getters.getDesktop(desktop.id)
+      if (existingDesktop) {
+        const hasChanges = Object.keys(desktop).some(key =>
+          JSON.stringify(existingDesktop[key]) !== JSON.stringify(desktop[key])
+        )
+
+        if (hasChanges) {
+          context.commit('update_desktop', desktop)
+          // Clear pending operation when status update arrives
+          // This provides faster feedback than setTimeout
+          if (['Started', 'Stopped', 'Failed'].includes(desktop.status)) {
+            context.commit('CLEAR_PENDING_OPERATION', desktop.id)
+          }
+        }
+      } else {
+        // Desktop doesn't exist, add it
+        context.commit('add_desktop', desktop)
+      }
     },
     socket_desktopDelete (context, data) {
       const desktop = JSON.parse(data)
@@ -272,12 +315,32 @@ export default {
       })
     },
     changeDesktopStatus (context, data) {
-      axios.get(`${apiV3Segment}/desktop/${data.action}/${data.desktopId}`).then(response => {
+      // Check for pending operation (500ms debounce)
+      const pending = context.state.pendingOperations[data.desktopId]
+      if (pending && Date.now() - pending.timestamp < 500) {
+        console.log('Debounced: Ignoring rapid click for desktop', data.desktopId)
+        return Promise.resolve() // Return resolved promise for consistency
+      }
+
+      // Set pending state
+      context.commit('SET_PENDING_OPERATION', {
+        desktopId: data.desktopId,
+        action: data.action
+      })
+
+      return axios.get(`${apiV3Segment}/desktop/${data.action}/${data.desktopId}`).then(response => {
+        context.commit('update_desktop', { id: data.desktopId, state: DesktopUtils.parseState({ state: response.data.status }) })
+        // Once the request is successful, we can clear the pending state
+        context.commit('CLEAR_PENDING_OPERATION', data.desktopId)
         if (data.action === 'start') {
           context.dispatch('fetchNotifications', { trigger: 'start_desktop', display: 'modal' })
         }
+        return response
       }).catch(e => {
+        // Clear immediately on error so user can retry
+        context.commit('CLEAR_PENDING_OPERATION', data.desktopId)
         ErrorUtils.handleErrors(e, this._vm.$snotify)
+        throw e
       })
     },
     cancelOperation (_, data) {

@@ -120,8 +120,12 @@ def get_desktop(desktop_id):
 def desktop_start(desktop_id, wait_seconds=0, paused=False):
     domain = get_desktop(desktop_id)
     status = domain["status"]
+
+    # Early return - already in starting or started state
     if status in ["Started", "Starting", "StartingPaused", "CreatingAndStarting"]:
-        return True
+        return status
+
+    # Only allow starting from Stopped or Failed
     if status not in ["Stopped", "Failed"]:
         raise Error(
             "precondition_required",
@@ -129,32 +133,49 @@ def desktop_start(desktop_id, wait_seconds=0, paused=False):
             traceback.format_exc(),
             description_code="unable_to_start_desktop_from",
         )
+
     if not Domain(desktop_id).storage_ready:
         raise Error(
             error="precondition_required",
             description="Desktop storages aren't ready",
             description_code="desktop_storage_not_ready",
         )
+
     qos_disk_id = get_desktop_qos_disk_id(domain)
+    target_status = "StartingPaused" if paused else "Starting"
+
     with app.app_context():
-        domain = (
+        result = (
             r.table("domains")
             .get(desktop_id)
             .update(
-                {
-                    "status": "Starting",
-                    "viewer": {},
-                    "accessed": int(time.time()),
-                    "create_dict": {"hardware": {"qos_disk_id": qos_disk_id}},
-                },
+                lambda row: r.branch(
+                    row["status"].match("Stopped|Failed"),
+                    {
+                        "status": target_status,
+                        "viewer": {},
+                        "accessed": int(time.time()),
+                        "create_dict": {"hardware": {"qos_disk_id": qos_disk_id}},
+                    },
+                    {},
+                ),
                 return_changes=True,
             )
             .run(db.conn)
         )
-    if not len(domain.get("changes", [])):
-        return "Starting"
 
-    return wait_status(desktop_id, "Starting", wait_seconds=wait_seconds)
+    if not result.get("changes"):
+        # Another request already changed status - return current status
+        with app.app_context():
+            current_status = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck("status")["status"]
+                .run(db.conn)
+            )
+        return current_status
+
+    return wait_status(desktop_id, target_status, wait_seconds=wait_seconds)
 
 
 def desktops_start(desktops_ids, paused=False, batch_size=15, wait_seconds=3):
@@ -240,34 +261,99 @@ def desktops_start(desktops_ids, paused=False, batch_size=15, wait_seconds=3):
 
 
 def desktop_stop(desktop_id, force=False, wait_seconds=0):
-    domain = get_desktop(desktop_id)
-    status = domain["status"]
+    with app.app_context():
+        status = (
+            r.table("domains").get(desktop_id).pluck("status")["status"].run(db.conn)
+        )
+
+    # Early return - already in final state
     if status in ["Stopped", "Stopping", "Failed"]:
         return status
+
+    # Transition 1: Started → Shutting-down (graceful) OR Started → Stopping (force)
     if status == "Started":
-        if not force:
+        target_status = "Stopping" if force else "Shutting-down"
+
+        with app.app_context():
+            result = (
+                r.table("domains")
+                .get(desktop_id)
+                .update(
+                    lambda row: r.branch(
+                        row["status"].match("Started"),
+                        {
+                            "status": target_status,
+                            "accessed": int(time.time()),
+                        },
+                        {},
+                    ),
+                    return_changes=True,
+                )
+                .run(db.conn)
+            )
+
+        if not result.get("changes"):
+            # Another request already changed status - return current status
             with app.app_context():
-                r.table("domains").get(desktop_id).update(
-                    {"status": "Shutting-down", "accessed": int(time.time())}
-                ).run(db.conn)
-            return wait_status(desktop_id, "Shutting-down", wait_seconds=wait_seconds)
-        else:
-            with app.app_context():
-                r.table("domains").get(desktop_id).update(
-                    {"status": "Stopping", "accessed": int(time.time())}
-                ).run(db.conn)
-            return wait_status(desktop_id, "Stopping", wait_seconds=wait_seconds)
+                current = (
+                    r.table("domains").get(desktop_id).pluck("status").run(db.conn)
+                )
+            return current["status"]
+
+        return wait_status(desktop_id, target_status, wait_seconds=wait_seconds)
+
+    # Transition 2: Shutting-down → Stopping (force escalation)
     if status == "Shutting-down":
         with app.app_context():
-            r.table("domains").get(desktop_id).update(
-                {"status": "Stopping", "accessed": int(time.time())}
-            ).run(db.conn)
+            result = (
+                r.table("domains")
+                .get(desktop_id)
+                .update(
+                    lambda row: r.branch(
+                        row["status"].match("Shutting-down"),
+                        {"status": "Stopping", "accessed": int(time.time())},
+                        {},
+                    ),
+                    return_changes=True,
+                )
+                .run(db.conn)
+            )
+
+        if not result.get("changes"):
+            # Already transitioned (likely to Stopping or Stopped)
+            with app.app_context():
+                current = (
+                    r.table("domains").get(desktop_id).pluck("status").run(db.conn)
+                )
+            return current["status"]
+
         return wait_status(desktop_id, "Stopping", wait_seconds=wait_seconds)
+
+    # Transition 3: Paused → Stopped
     if status == "Paused":
         with app.app_context():
-            r.table("domains").get(desktop_id).update(
-                {"status": "Stopped", "accessed": int(time.time())}
-            ).run(db.conn)
+            result = (
+                r.table("domains")
+                .get(desktop_id)
+                .update(
+                    lambda row: r.branch(
+                        row["status"].match("Paused"),
+                        {"status": "Stopped", "accessed": int(time.time())},
+                        {},
+                    ),
+                    return_changes=True,
+                )
+                .run(db.conn)
+            )
+
+        if not result.get("changes"):
+            # Already transitioned
+            with app.app_context():
+                current = (
+                    r.table("domains").get(desktop_id).pluck("status").run(db.conn)
+                )
+            return current["status"]
+
         return wait_status(desktop_id, "Stopped", wait_seconds=wait_seconds)
 
     raise Error(
@@ -342,8 +428,12 @@ def desktops_stop(
 
 
 def desktop_reset(desktop_id):
-    domain = get_desktop(desktop_id)
+    with app.app_context():
+        domain = r.table("domains").get(desktop_id).pluck("status").run(db.conn)
+
     status = domain["status"]
+
+    # Only allow reset from these states
     if status not in ["Started", "Shutting-down", "Suspended", "Stopping"]:
         raise Error(
             "precondition_required",
@@ -351,10 +441,30 @@ def desktop_reset(desktop_id):
             traceback.format_exc(),
             description_code="unable_to_start_desktop_from",
         )
+
+    # Atomic update - only if still in one of the allowed states
     with app.app_context():
-        r.table("domains").get(desktop_id).update(
-            {"status": "Resetting", "accessed": int(time.time())}
-        ).run(db.conn)
+        result = (
+            r.table("domains")
+            .get(desktop_id)
+            .update(
+                lambda row: r.branch(
+                    row["status"].match("Started|Shutting-down|Suspended|Stopping"),
+                    {"status": "Resetting", "accessed": int(time.time())},
+                    {},
+                ),
+                return_changes=True,
+            )
+            .run(db.conn)
+        )
+
+    if not result.get("changes"):
+        # Status changed by another action - return current status
+        with app.app_context():
+            current = r.table("domains").get(desktop_id).pluck("status").run(db.conn)
+        return current["status"]
+
+    return "Resetting"
 
 
 def desktop_delete(desktop_id, agent_id, permanent=False):
@@ -477,7 +587,46 @@ def templates_delete(template_id, agent_id):
 
 def desktop_updating(desktop_id):
     with app.app_context():
-        r.table("domains").get(desktop_id).update({"status": "Updating"}).run(db.conn)
+        domain = r.table("domains").get(desktop_id).pluck("status").run(db.conn)
+
+    status = domain["status"]
+
+    # Early return if already updating
+    if status == "Updating":
+        return "Updating"
+
+    # Only allow updating from Stopped or Failed status
+    if status not in ["Stopped", "Failed"]:
+        raise Error(
+            "precondition_required",
+            f"Desktop can't be updated from {status} status. Desktop must be stopped first.",
+            traceback.format_exc(),
+            description_code="unable_to_update_desktop_from",
+        )
+
+    # Atomic update - only if still Stopped
+    with app.app_context():
+        result = (
+            r.table("domains")
+            .get(desktop_id)
+            .update(
+                lambda row: r.branch(
+                    row["status"].match("Stopped|Failed"),
+                    {"status": "Updating"},
+                    {},
+                ),
+                return_changes=True,
+            )
+            .run(db.conn)
+        )
+
+    if not result.get("changes"):
+        # Status changed by another action - return current status
+        with app.app_context():
+            current = r.table("domains").get(desktop_id).pluck("status").run(db.conn)
+        return current["status"]
+
+    return "Updating"
 
 
 def desktops_force_failed(desktops_ids, batch_size=100):

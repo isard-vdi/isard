@@ -137,9 +137,9 @@
         <DesktopButton
           v-if="![desktopStates.working].includes(getItemState(data.item))"
           class="table-action-button"
-          :active="canStart(data.item) && !desktopsCreating"
+          :active="canStart(data.item) && !desktopsCreating && !isPendingOperation(data.item.id)"
           :button-class="canStart(data.item) ? buttCssColor(getItemState(data.item)) : ''"
-          :spinner-active="false"
+          :spinner-active="isPendingOperation(data.item.id)"
           :butt-text="$t(`views.select-template.status.${getItemState(data.item)}.action`)"
           :icon-name="data.item.buttonIconName"
           @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
@@ -370,7 +370,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getDeployment', 'getDeploymentLoaded', 'getViewers']),
+    ...mapGetters(['getDeployment', 'getDeploymentLoaded', 'getViewers', 'isPendingOperation']),
     sortedDesktops () {
       return this.getDeployment.desktops.slice().sort(d => {
         // return started desktops first
