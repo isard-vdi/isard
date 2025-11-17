@@ -153,10 +153,13 @@ func matchRegexMultiple(re *regexp.Regexp, s string) []string {
 
 func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor, secret string, re *regexp.Regexp, rawCategories []string, u *types.ProviderUserData) (string, *ProviderError) {
 	categories := []*model.Category{}
+	extractedUIDs := []string{}
 	for _, c := range rawCategories {
 		match := matchRegexMultiple(re, c)
 		for _, m := range match {
 			log.Debug().Str("match", m).Msg("guess category match")
+
+			extractedUIDs = append(extractedUIDs, m)
 
 			category := &model.Category{
 				UID: m,
@@ -171,6 +174,7 @@ func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor,
 			}
 
 			if !exists {
+				log.Info().Str("extracted_uid", m).Str("raw", c).Msg("category with this UID not found in database")
 				continue
 			}
 
@@ -182,7 +186,7 @@ func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor,
 	case 0:
 		return "", &ProviderError{
 			User:   ErrUserDisallowed,
-			Detail: fmt.Errorf("user doesn't have any valid category, recieved raw argument: '%s'", rawCategories),
+			Detail: fmt.Errorf("user doesn't have any valid category, received raw: '%s', extracted UIDs: '%s' (none found in database)", rawCategories, extractedUIDs),
 		}
 
 	case 1:
