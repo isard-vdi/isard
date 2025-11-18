@@ -20,10 +20,12 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import argparse
 import datetime
 import json
 import os
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from pathlib import Path
 from time import time
@@ -68,6 +70,20 @@ def size(paths):
     )  # Convert bytes to GB and round to 2 decimals
 
 
+def format_time_remaining(seconds):
+    """Format seconds into human-readable time string."""
+    if seconds < 60:
+        return f"{int(seconds)}s"
+    elif seconds < 3600:
+        minutes = int(seconds / 60)
+        secs = int(seconds % 60)
+        return f"{minutes}m {secs}s"
+    else:
+        hours = int(seconds / 3600)
+        minutes = int((seconds % 3600) / 60)
+        return f"{hours}h {minutes}m"
+
+
 def modification(file_path):
     file = Path(file_path)
     if not file.is_file():
@@ -108,10 +124,33 @@ def get_qcow_info(file_path):
         return None
 
 
+def get_qcow_full_info(file_path):
+    """Get complete Qcow2 file metadata including actual-size."""
+    try:
+        result = subprocess.run(
+            ["qemu-img", "info", "-U", "--output=json", file_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True,
+        )
+        info = json.loads(result.stdout)
+        return {
+            "actual-size": info.get("actual-size", 0),
+            "virtual-size": info.get("virtual-size", 0),
+            "backing-filename": info.get("backing-filename"),
+        }
+    except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
+        return None
+
+
 def analyze_qcow_dependencies(qcow_files):
     """Analyze dependencies and categorize files."""
     dependency_map = {}
     reverse_map = {}
+    total_files = len(qcow_files)
+    processed = 0
+    start_time = time()
 
     # Build dependency and reverse maps
     for qcow in qcow_files:
@@ -121,6 +160,19 @@ def analyze_qcow_dependencies(qcow_files):
         # Build reverse map for derivatives
         if backing_file:
             reverse_map.setdefault(backing_file, []).append(qcow)
+
+        processed += 1
+
+        # Show progress every 50 files or at completion
+        if processed % 50 == 0 or processed == total_files:
+            elapsed = time() - start_time
+            if processed > 0 and processed < total_files:
+                avg_time = elapsed / processed
+                remaining = avg_time * (total_files - processed)
+                percentage = (processed / total_files) * 100
+                print(f"  - Analyzing dependencies: {processed}/{total_files} files ({percentage:.1f}%) - Est. {format_time_remaining(remaining)} remaining")
+            elif processed == total_files:
+                print(f"  - Analyzing dependencies: {processed}/{total_files} files (100.0%) - Done")
 
     # Identify orphans and files without derivatives
     wo_backing = [file for file, backing in dependency_map.items() if backing is None]
@@ -169,9 +221,26 @@ def parse_backing_chain(output):
 def analyze_qcow_integrity(qcow_files):
     """Analyze the integrity of a list of Qcow2 files and check for broken backing chains."""
     broken_files = []
+    total_files = len(qcow_files)
+    processed = 0
+    start_time = time()
+
     for qcow in qcow_files:
         if get_backing_chain(qcow) is None:
             broken_files.append(qcow)
+        processed += 1
+
+        # Show progress every 50 files or at completion
+        if processed % 50 == 0 or processed == total_files:
+            elapsed = time() - start_time
+            if processed > 0 and processed < total_files:
+                avg_time = elapsed / processed
+                remaining = avg_time * (total_files - processed)
+                percentage = (processed / total_files) * 100
+                print(f"  - Checking integrity: {processed}/{total_files} files ({percentage:.1f}%) - Est. {format_time_remaining(remaining)} remaining")
+            elif processed == total_files:
+                print(f"  - Checking integrity: {processed}/{total_files} files (100.0%) - Done")
+
     return broken_files
 
 
@@ -197,6 +266,27 @@ def get_db_storages():
         )
 
 
+def get_db_storages_with_size():
+    """Get storages from database with qemu-img-info.actual-size for comparison."""
+    with get_conn() as conn:
+        return list(
+            r.table("storage")
+            .filter(lambda storage: storage["status"] != "deleted")
+            .merge(
+                {
+                    "path": r.row["directory_path"]
+                    + "/"
+                    + r.row["id"]
+                    + "."
+                    + r.row["type"],
+                    "db_actual_size": r.row["qemu-img-info"]["actual-size"].default(0),
+                }
+            )
+            .pluck("id", "path", "status", "db_actual_size")
+            .run(conn)
+        )
+
+
 def get_volatile_storages():
     base_path = "/isard"
     return [
@@ -206,38 +296,228 @@ def get_volatile_storages():
 
 def get_system_storages():
     base_path = "/isard"
-    storages = {
-        "groups": [
-            str(file)
-            for file in Path(base_path + "/groups").rglob("*")
-            if file.is_file()
-        ],
-        "templates": [
-            str(file)
-            for file in Path(base_path + "/templates").rglob("*")
-            if file.is_file()
-        ],
-        "volatile": [
-            str(file)
-            for file in Path(base_path + "/volatile").rglob("*")
-            if file.is_file()
-        ],
-        "storage_pools": [
-            str(file)
-            for file in Path(base_path + "/storage_pools").rglob("*")
-            if file.is_file()
-        ],
+
+    print("  - Scanning groups directory...")
+    groups = [
+        str(file)
+        for file in Path(base_path + "/groups").rglob("*")
+        if file.is_file()
+    ]
+
+    print("  - Scanning templates directory...")
+    templates = [
+        str(file)
+        for file in Path(base_path + "/templates").rglob("*")
+        if file.is_file()
+    ]
+
+    print("  - Scanning volatile directory...")
+    volatile = [
+        str(file)
+        for file in Path(base_path + "/volatile").rglob("*")
+        if file.is_file()
+    ]
+
+    print("  - Scanning storage_pools directory...")
+    storage_pools = [
+        str(file)
+        for file in Path(base_path + "/storage_pools").rglob("*")
+        if file.is_file()
+    ]
+
+    return groups + templates + volatile + storage_pools
+
+
+### SIZE COMPARISON
+
+
+def get_file_size_worker(file_path):
+    """Worker function to get actual size for a single file."""
+    info = get_qcow_full_info(file_path)
+    if info:
+        return file_path, info["actual-size"]
+    return file_path, None
+
+
+def compare_storage_sizes(db_storages_with_size, fs_files, threshold_gb=0.1):
+    """Compare database qemu-img-info.actual-size with real file system sizes.
+
+    Args:
+        db_storages_with_size: List of dicts from get_db_storages_with_size()
+        fs_files: List of file paths from get_system_storages()
+        threshold_gb: Only report discrepancies above this threshold (in GB)
+
+    Returns:
+        Dict with comparison results
+    """
+    # Create lookup dict for DB storages
+    db_lookup = {s["path"]: s for s in db_storages_with_size}
+
+    # Filter to only qcow2 files that exist in DB
+    qcow_files = [f for f in fs_files if f.endswith(".qcow2") and f in db_lookup]
+
+    print(f"  - Getting actual sizes for {len(qcow_files)} qcow2 files...")
+
+    # Get actual sizes from file system in parallel
+    fs_sizes = {}
+    total_files = len(qcow_files)
+    processed = 0
+    start_time = time()
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(get_file_size_worker, f): f for f in qcow_files}
+
+        for future in as_completed(futures):
+            file_path, actual_size = future.result()
+            fs_sizes[file_path] = actual_size
+            processed += 1
+            if processed % 100 == 0 or processed == total_files:
+                elapsed = time() - start_time
+                if processed > 0 and processed < total_files:
+                    avg_time = elapsed / processed
+                    remaining = avg_time * (total_files - processed)
+                    percentage = (processed / total_files) * 100
+                    print(f"  - Progress: {processed}/{total_files} files ({percentage:.1f}%) - Est. {format_time_remaining(remaining)} remaining")
+                elif processed == total_files:
+                    print(f"  - Progress: {processed}/{total_files} files (100.0%) - Done")
+
+    # Compare sizes
+    matched = []
+    discrepancies = []
+    missing_in_fs = []
+    total_db_size = 0
+    total_fs_size = 0
+
+    for db_storage in db_storages_with_size:
+        path = db_storage["path"]
+        db_size = db_storage["db_actual_size"]
+        total_db_size += db_size
+
+        if path in fs_sizes:
+            fs_size = fs_sizes[path]
+            if fs_size is not None:
+                total_fs_size += fs_size
+                diff_bytes = abs(fs_size - db_size)
+                diff_gb = diff_bytes / (1024**3)
+
+                if diff_gb >= threshold_gb:
+                    discrepancies.append({
+                        "path": path,
+                        "id": db_storage["id"],
+                        "db_size_gb": round(db_size / (1024**3), 2),
+                        "fs_size_gb": round(fs_size / (1024**3), 2),
+                        "diff_gb": round(diff_gb, 2),
+                        "diff_pct": round((diff_bytes / max(db_size, 1)) * 100, 1),
+                    })
+                else:
+                    matched.append(path)
+            else:
+                missing_in_fs.append(path)
+
+    # Sort discrepancies by size difference (largest first)
+    discrepancies.sort(key=lambda x: x["diff_gb"], reverse=True)
+
+    return {
+        "matched": matched,
+        "discrepancies": discrepancies,
+        "missing_in_fs": missing_in_fs,
+        "total_db_size_gb": round(total_db_size / (1024**3), 2),
+        "total_fs_size_gb": round(total_fs_size / (1024**3), 2),
+        "total_diff_gb": round(abs(total_fs_size - total_db_size) / (1024**3), 2),
     }
-    return (
-        storages["groups"]
-        + storages["templates"]
-        + storages["volatile"]
-        + storages["storage_pools"]
+
+
+def print_size_comparison_report(comparison, threshold_gb=0.1):
+    """Print formatted size comparison report."""
+    print("\n" + "=" * 80)
+    print("STORAGE SIZE COMPARISON REPORT")
+    print("=" * 80)
+
+    # Summary table
+    summary_data = [
+        ["Metric", "Value"],
+        ["Total DB Size (GB)", comparison["total_db_size_gb"]],
+        ["Total FS Size (GB)", comparison["total_fs_size_gb"]],
+        ["Total Difference (GB)", comparison["total_diff_gb"]],
+        ["Matched Files", len(comparison["matched"])],
+        [f"Discrepancies (>{threshold_gb} GB)", len(comparison["discrepancies"])],
+        ["Missing in FS", len(comparison["missing_in_fs"])],
+    ]
+
+    print("\nSummary:")
+    print(
+        tabulate(
+            summary_data,
+            headers="firstrow",
+            tablefmt="grid",
+            stralign="left",
+            numalign="right",
+        )
     )
 
+    # Discrepancies table (show top 20)
+    if comparison["discrepancies"]:
+        print(f"\nTop Discrepancies (showing up to 20):")
+        disc_data = [["Path", "DB Size (GB)", "FS Size (GB)", "Diff (GB)", "Diff (%)"]]
+        for disc in comparison["discrepancies"][:20]:
+            # Shorten path for display
+            short_path = disc["path"].replace("/isard/", ".../")
+            if len(short_path) > 60:
+                short_path = "..." + short_path[-57:]
+            disc_data.append([
+                short_path,
+                disc["db_size_gb"],
+                disc["fs_size_gb"],
+                disc["diff_gb"],
+                disc["diff_pct"],
+            ])
+
+        print(
+            tabulate(
+                disc_data,
+                headers="firstrow",
+                tablefmt="grid",
+                stralign="left",
+                numalign="right",
+            )
+        )
+
+        if len(comparison["discrepancies"]) > 20:
+            print(f"\n  ... and {len(comparison['discrepancies']) - 20} more discrepancies")
+
+    # Missing files
+    if comparison["missing_in_fs"]:
+        print(f"\nFiles in DB but failed to get size from FS ({len(comparison['missing_in_fs'])}):")
+        for path in comparison["missing_in_fs"][:10]:
+            print(f"  - {path}")
+        if len(comparison["missing_in_fs"]) > 10:
+            print(f"  ... and {len(comparison['missing_in_fs']) - 10} more")
+
+    print("\n" + "=" * 80)
+
+
+### MAIN EXECUTION
+
+if __name__ == "__main__":
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="Analyze IsardVDI storage integrity and optionally compare sizes."
+    )
+    parser.add_argument(
+        "--compare-sizes",
+        action="store_true",
+        help="Compare database qemu-img-info.actual-size with real file sizes",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.1,
+        help="Size difference threshold in GB for reporting discrepancies (default: 0.1)",
+    )
+    args = parser.parse_args()
 
 t = time()
-print(f"Starting integrity.py")
+print(f"Starting storage analysis...")
 print(f"Getting storages from database...")
 db_storages = get_db_storages()
 print(f" - Got {len(db_storages)} storages from database in {time()-t:.2f} seconds")
@@ -340,3 +620,25 @@ print(
     + size(broken_chain)
     + size(set(qcow_dependencies["wo_derivatives"]) & storages_in_system_not_in_db),
 )
+
+# Size comparison (if requested)
+if args.compare_sizes:
+    print("\n" + "=" * 80)
+    print("STARTING SIZE COMPARISON ANALYSIS")
+    print("=" * 80)
+    print(f"Fetching storage data with qemu-img-info.actual-size from database...")
+    size_comparison_start = time()
+    db_storages_with_size = get_db_storages_with_size()
+    print(
+        f" - Got {len(db_storages_with_size)} storages from database in {time()-size_comparison_start:.2f} seconds"
+    )
+
+    print(f"Comparing database sizes with file system sizes (threshold: {args.threshold} GB)...")
+    comparison_result = compare_storage_sizes(
+        db_storages_with_size, sys_storages, args.threshold
+    )
+    print(f" - Comparison completed in {time()-size_comparison_start:.2f} seconds")
+
+    print_size_comparison_report(comparison_result, args.threshold)
+
+print(f"\nTotal execution time: {time()-t:.2f} seconds")
