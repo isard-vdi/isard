@@ -154,12 +154,20 @@ func matchRegexMultiple(re *regexp.Regexp, s string) []string {
 func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor, secret string, re *regexp.Regexp, rawCategories []string, u *types.ProviderUserData) (string, *ProviderError) {
 	categories := []*model.Category{}
 	extractedUIDs := []string{}
+	seenUIDs := make(map[string]bool)
+
 	for _, c := range rawCategories {
 		match := matchRegexMultiple(re, c)
 		for _, m := range match {
 			log.Debug().Str("match", m).Msg("guess category match")
 
 			extractedUIDs = append(extractedUIDs, m)
+
+			// Skip if we've already processed this UID to avoid duplicates
+			if seenUIDs[m] {
+				log.Debug().Str("uid", m).Msg("skipping duplicate category UID")
+				continue
+			}
 
 			category := &model.Category{
 				UID: m,
@@ -178,6 +186,7 @@ func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor,
 				continue
 			}
 
+			seenUIDs[m] = true
 			categories = append(categories, category)
 		}
 	}
