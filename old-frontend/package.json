@@ -14,7 +14,7 @@
     "@fortawesome/free-brands-svg-icons": "^5.13.0",
     "@fortawesome/free-solid-svg-icons": "^5.13.0",
     "@fortawesome/vue-fontawesome": "^0.1.9",
-    "@isard/guacamole-common-js": "^1.5.5",
+    "@isard/guacamole-common-js": "^1.6.60",
     "@novnc/novnc": "^1.2.0",
     "@vue/composition-api": "^1.7.2",
     "@vuelidate/core": "^2.0.3",

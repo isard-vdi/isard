@@ -4,7 +4,7 @@
     class="viewport-rdp"
   >
     <modal
-      v-show="clientState!==3"
+      v-show="clientState !== 3"
       ref="modal"
       :retry="clientRetries"
       :max-retries="maxClientRetries"
@@ -17,7 +17,7 @@
     />
     <!-- tabindex allows for div to be focused -->
     <div
-      v-show="clientState===3"
+      v-show="clientState === 3"
       ref="display"
       class="display-rdp"
       tabindex="0"
@@ -48,6 +48,7 @@ export default {
       resizing: false,
       currentAdjustedHeight: null,
       client: null,
+      inputSink: null,
       keyboard: null,
       mouse: null,
       lastEvent: null,
@@ -300,7 +301,7 @@ export default {
         }
       }
 
-      this.client.onsync = () => {}
+      this.client.onsync = () => { }
 
       // Test for argument mutability whenever an argument value is received
       this.client.onargv = (stream, mimetype, name) => {
@@ -380,23 +381,21 @@ export default {
       // Change to test in Oracle to hide software cursor
       this.display.showCursor(false)
 
-      // allows focusing on the display div so that keyboard doesn't always go to session
-      displayElm.onclick = () => {
-        displayElm.focus()
-      }
-      displayElm.onfocus = () => {
-        displayElm.className = 'focus'
-      }
-      displayElm.onblur = () => {
-        displayElm.className = ''
+      this.inputSink = new Guacamole.InputSink()
+      displayElm.appendChild(this.inputSink.getElement())
+
+      this.keyboard = new Guacamole.Keyboard(this.inputSink.getElement())
+      this.installKeyboard()
+
+      this.mouse.onmouseup = this.mouse.onmousemove = this.handleMouseState
+      this.mouse.onmousedown = (e) => {
+        this.inputSink.focus()
+        this.handleMouseState(e)
       }
 
-      this.keyboard = new Guacamole.Keyboard(displayElm)
-      this.installKeyboard()
-      this.mouse.onmousedown = this.mouse.onmouseup = this.mouse.onmousemove = this.handleMouseState
       setTimeout(() => {
         this.resize()
-        displayElm.focus()
+        this.inputSink.focus()
       }, 1000) // $nextTick wasn't enough
     },
     installKeyboard () {
@@ -406,9 +405,11 @@ export default {
       this.keyboard.onkeyup = (keysym) => {
         this.client.sendKeyEvent(0, keysym)
       }
+
+      this.inputSink.focus()
     },
     uninstallKeyboard () {
-      this.keyboard.onkeydown = this.keyboard.onkeyup = () => {}
+      this.keyboard.onkeydown = this.keyboard.onkeyup = () => { }
     }
   }
 }

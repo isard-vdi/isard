@@ -1220,10 +1220,10 @@
     cssnano-preset-default "^4.0.0"
     postcss "^7.0.0"
 
-"@isard/guacamole-common-js@^1.5.5":
-  version "1.5.5"
-  resolved "https://gitlab.com/api/v4/projects/70892521/packages/npm/@isard/guacamole-common-js/-/@isard/guacamole-common-js-1.5.5.tgz#3fafff78db2085a98b0bac3447906ca8046c678c"
-  integrity sha1-P6//eNsghamLC6w0R5BsqARsZ4w=
+"@isard/guacamole-common-js@^1.6.60":
+  version "1.6.60"
+  resolved "https://gitlab.com/api/v4/projects/70892521/packages/npm/@isard/guacamole-common-js/-/@isard/guacamole-common-js-1.6.60.tgz#b0047c3cd377085c4f48defba3259618aa814a37"
+  integrity sha1-sAR8PNN3CFxPSN77oyWWGKqBSjc=
 
 "@jridgewell/gen-mapping@^0.1.0":
   version "0.1.1"
