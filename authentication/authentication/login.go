@@ -189,23 +189,25 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		}
 
 		// Automatic group registration!
-		for _, group := range append(secondary, g) {
-			gExists, err := group.Exists(ctx, a.DB)
-			if err != nil {
-				return "", "", fmt.Errorf("check if group exists: %w", err)
-			}
+		if g != nil {
+			for _, group := range append(secondary, g) {
+				gExists, err := group.Exists(ctx, a.DB)
+				if err != nil {
+					return "", "", fmt.Errorf("check if group exists: %w", err)
+				}
 
-			if !gExists {
-				if err := a.registerGroup(group); err != nil {
-					return "", "", fmt.Errorf("auto register group: %w", err)
+				if !gExists {
+					if err := a.registerGroup(group); err != nil {
+						return "", "", fmt.Errorf("auto register group: %w", err)
+					}
 				}
 			}
-		}
 
-		// Set the user group to the new group created
-		u.Group = g.ID
-		for _, group := range secondary {
-			u.SecondaryGroups = append(u.SecondaryGroups, group.ID)
+			// Set the user group to the new group created
+			u.Group = g.ID
+			for _, group := range secondary {
+				u.SecondaryGroups = append(u.SecondaryGroups, group.ID)
+			}
 		}
 
 		// Automatic registration!
