@@ -232,7 +232,13 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 
 	if l.cfg.GuessCategory {
 		attrCategories := entry.GetAttributeValues(l.cfg.FieldCategory)
-		tkn, err := guessCategory(ctx, l.log, l.db, l.secret, l.ReCategory, attrCategories, u)
+		var attrGroups *[]string
+		if l.cfg.AutoRegister {
+			g := entry.GetAttributeValues(l.cfg.FieldGroup)
+			attrGroups = &g
+		}
+
+		tkn, err := guessCategory(ctx, l.log, l.db, l.secret, l.ReCategory, attrCategories, attrGroups, nil, u)
 		if err != nil {
 			return nil, nil, nil, "", "", err
 		}
@@ -254,11 +260,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 		}
 
 		var err *ProviderError
-		g, secondary, err = guessGroup(ctx, l.db, guessGroupOpts{
-			Provider:     l,
-			ReGroup:      l.ReGroup,
-			DefaultGroup: l.cfg.GroupDefault,
-		}, u, attrGroups)
+		g, secondary, err = l.GuessGroups(ctx, u, attrGroups)
 		if err != nil {
 			return nil, nil, nil, "", "", err
 		}
@@ -279,14 +281,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 			}
 		}
 
-		u.Role, err = guessRole(guessRoleOpts{
-			ReRole:          l.ReRole,
-			RoleAdminIDs:    l.cfg.RoleAdminIDs,
-			RoleManagerIDs:  l.cfg.RoleManagerIDs,
-			RoleAdvancedIDs: l.cfg.RoleAdvancedIDs,
-			RoleUserIDs:     l.cfg.RoleUserIDs,
-			RoleDefault:     l.cfg.RoleDefault,
-		}, attrRoles)
+		u.Role, err = l.GuessRole(ctx, u, attrRoles)
 		if err != nil {
 			return nil, nil, nil, "", "", err
 		}
@@ -297,7 +292,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 
 func (l *LDAP) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	return nil, nil, nil, "", "", &ProviderError{
-		User:   errInvalidIDP,
+		User:   ErrInvalidIDP,
 		Detail: errors.New("the LDAP provider doesn't support the callback operation"),
 	}
 }
@@ -336,4 +331,23 @@ func (LDAP) Logout(context.Context, string) (string, error) {
 
 func (l *LDAP) SaveEmail() bool {
 	return l.cfg.SaveEmail
+}
+
+func (l *LDAP) GuessGroups(ctx context.Context, u *types.ProviderUserData, rawGroups []string) (*model.Group, []*model.Group, *ProviderError) {
+	return guessGroup(ctx, l.db, guessGroupOpts{
+		Provider:     l,
+		ReGroup:      l.ReGroup,
+		DefaultGroup: l.cfg.GroupDefault,
+	}, u, rawGroups)
+}
+
+func (l *LDAP) GuessRole(ctx context.Context, u *types.ProviderUserData, rawRoles []string) (*model.Role, *ProviderError) {
+	return guessRole(guessRoleOpts{
+		ReRole:          l.ReRole,
+		RoleAdminIDs:    l.cfg.RoleAdminIDs,
+		RoleManagerIDs:  l.cfg.RoleManagerIDs,
+		RoleAdvancedIDs: l.cfg.RoleAdvancedIDs,
+		RoleUserIDs:     l.cfg.RoleUserIDs,
+		RoleDefault:     l.cfg.RoleDefault,
+	}, rawRoles)
 }

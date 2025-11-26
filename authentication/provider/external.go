@@ -78,7 +78,7 @@ func (e *External) Login(ctx context.Context, categoryID string, args LoginArgs)
 
 func (External) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	return nil, nil, nil, "", "", &ProviderError{
-		User:   errInvalidIDP,
+		User:   ErrInvalidIDP,
 		Detail: errors.New("the external provider doesn't support the callback operation"),
 	}
 }
@@ -101,4 +101,18 @@ func (External) Logout(context.Context, string) (string, error) {
 
 func (External) SaveEmail() bool {
 	return true
+}
+
+func (External) GuessGroups(context.Context, *types.ProviderUserData, []string) (*model.Group, []*model.Group, *ProviderError) {
+	return nil, nil, &ProviderError{
+		User:   ErrInvalidIDP,
+		Detail: errors.New("the external provider doesn't support the guess groups operation"),
+	}
+}
+
+func (External) GuessRole(context.Context, *types.ProviderUserData, []string) (*model.Role, *ProviderError) {
+	return nil, &ProviderError{
+		User:   ErrInvalidIDP,
+		Detail: errors.New("the external provider doesn't support the guess role operation"),
+	}
 }

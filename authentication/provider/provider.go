@@ -48,6 +48,8 @@ type Provider interface {
 	Healthcheck() error
 	Logout(ctx context.Context, tkn string) (redirect string, err error)
 	SaveEmail() bool
+	GuessGroups(ctx context.Context, u *types.ProviderUserData, rawGroups []string) (g *model.Group, secondary []*model.Group, err *ProviderError)
+	GuessRole(ctx context.Context, u *types.ProviderUserData, rawRoles []string) (r *model.Role, err *ProviderError)
 }
 
 type ProviderError struct {
@@ -75,7 +77,7 @@ var (
 	ErrUserDisabled       = errors.New("disabled user")
 	ErrUserDisallowed     = errors.New("user can't use IsardVDI")
 	ErrUnknownIDP         = errors.New("unknown identity provider")
-	errInvalidIDP         = errors.New("invalid identity provider for this operation")
+	ErrInvalidIDP         = errors.New("invalid identity provider for this operation")
 )
 
 var _ Provider = &Unknown{}
@@ -116,6 +118,20 @@ func (Unknown) SaveEmail() bool {
 	return true
 }
 
+func (Unknown) GuessGroups(context.Context, *types.ProviderUserData, []string) (*model.Group, []*model.Group, *ProviderError) {
+	return nil, nil, &ProviderError{
+		User:   ErrUnknownIDP,
+		Detail: errors.New("unknown provider"),
+	}
+}
+
+func (Unknown) GuessRole(context.Context, *types.ProviderUserData, []string) (*model.Role, *ProviderError) {
+	return nil, &ProviderError{
+		User:   ErrUnknownIDP,
+		Detail: errors.New("unknown provider"),
+	}
+}
+
 func matchRegex(re *regexp.Regexp, s string) string {
 	result := re.FindStringSubmatch(s)
 	// the first submatch is the whole match, the 2nd is the 1st group
@@ -151,7 +167,7 @@ func matchRegexMultiple(re *regexp.Regexp, s string) []string {
 	return allMatches
 }
 
-func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor, secret string, re *regexp.Regexp, rawCategories []string, u *types.ProviderUserData) (string, *ProviderError) {
+func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor, secret string, re *regexp.Regexp, rawCategories []string, rawGroups *[]string, rawRoles *[]string, u *types.ProviderUserData) (string, *ProviderError) {
 	categories := []*model.Category{}
 	extractedUIDs := []string{}
 	seenUIDs := make(map[string]bool)
@@ -203,7 +219,7 @@ func guessCategory(ctx context.Context, log *zerolog.Logger, db r.QueryExecutor,
 		return "", nil
 
 	default:
-		tkn, err := token.SignCategorySelectToken(secret, categories, u)
+		tkn, err := token.SignCategorySelectToken(secret, categories, rawGroups, rawRoles, u)
 		if err != nil {
 			return "", &ProviderError{
 				User:   ErrInternal,

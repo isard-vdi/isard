@@ -282,7 +282,18 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 			}
 		}
 
-		tkn, err := guessCategory(ctx, s.log, s.db, s.Cfg.Secret, s.ReCategory, attrCategories, u)
+		var (
+			attrGroups *[]string
+			attrRole   *[]string
+		)
+		if s.Cfg.SAML.AutoRegister {
+			g := attrs[s.Cfg.SAML.FieldGroup]
+			attrGroups = &g
+			r := attrs[s.Cfg.SAML.FieldRole]
+			attrRole = &r
+		}
+
+		tkn, err := guessCategory(ctx, s.log, s.db, s.Cfg.Secret, s.ReCategory, attrCategories, attrGroups, attrRole, u)
 		if err != nil {
 			return nil, nil, nil, "", "", err
 		}
@@ -305,11 +316,7 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 		}
 
 		var err *ProviderError
-		g, secondary, err = guessGroup(ctx, s.db, guessGroupOpts{
-			Provider:     s,
-			ReGroup:      s.ReGroup,
-			DefaultGroup: s.Cfg.SAML.GroupDefault,
-		}, u, attrGroups)
+		g, secondary, err = s.GuessGroups(ctx, u, attrGroups)
 		if err != nil {
 			return nil, nil, nil, "", "", err
 		}
@@ -323,14 +330,7 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 			attrRole = []string{}
 		}
 
-		u.Role, err = guessRole(guessRoleOpts{
-			ReRole:          s.ReRole,
-			RoleAdminIDs:    s.Cfg.SAML.RoleAdminIDs,
-			RoleManagerIDs:  s.Cfg.SAML.RoleManagerIDs,
-			RoleAdvancedIDs: s.Cfg.SAML.RoleAdvancedIDs,
-			RoleUserIDs:     s.Cfg.SAML.RoleUserIDs,
-			RoleDefault:     s.Cfg.SAML.RoleDefault,
-		}, attrRole)
+		u.Role, err = s.GuessRole(ctx, u, attrRole)
 		if err != nil {
 			return nil, nil, nil, "", "", err
 		}
@@ -395,4 +395,23 @@ func (s SAML) Logout(context.Context, string) (string, error) {
 
 func (s *SAML) SaveEmail() bool {
 	return s.Cfg.SAML.SaveEmail
+}
+
+func (s *SAML) GuessGroups(ctx context.Context, u *types.ProviderUserData, rawGroups []string) (*model.Group, []*model.Group, *ProviderError) {
+	return guessGroup(ctx, s.db, guessGroupOpts{
+		Provider:     s,
+		ReGroup:      s.ReGroup,
+		DefaultGroup: s.Cfg.SAML.GroupDefault,
+	}, u, rawGroups)
+}
+
+func (s *SAML) GuessRole(ctx context.Context, u *types.ProviderUserData, rawRoles []string) (*model.Role, *ProviderError) {
+	return guessRole(guessRoleOpts{
+		ReRole:          s.ReRole,
+		RoleAdminIDs:    s.Cfg.SAML.RoleAdminIDs,
+		RoleManagerIDs:  s.Cfg.SAML.RoleManagerIDs,
+		RoleAdvancedIDs: s.Cfg.SAML.RoleAdvancedIDs,
+		RoleUserIDs:     s.Cfg.SAML.RoleUserIDs,
+		RoleDefault:     s.Cfg.SAML.RoleDefault,
+	}, rawRoles)
 }

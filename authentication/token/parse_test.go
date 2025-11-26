@@ -271,11 +271,13 @@ func TestParseCategorySelectToken(t *testing.T) {
 	}{
 		"should work if the token is a valid category-select token": {
 			PrepareToken: func() string {
+				rawRoles := []string{"admin", "melina", "potato"}
+
 				ss, err := token.SignCategorySelectToken("", []*model.Category{{
 					ID:          "Nefics",
 					Name:        "Nefix :D",
 					Description: "Don't cry Nefics",
-				}}, &types.ProviderUserData{
+				}}, nil, &rawRoles, &types.ProviderUserData{
 					Provider: "SAML",
 					Category: "Test cat",
 					UID:      "0000000",
@@ -293,6 +295,8 @@ func TestParseCategorySelectToken(t *testing.T) {
 				claims.IssuedAt = nil
 				claims.NotBefore = nil
 
+				rawRoles := []string{"admin", "melina", "potato"}
+
 				assert.Equal(&token.CategorySelectClaims{
 					TypeClaims: token.TypeClaims{
 						RegisteredClaims: &jwt.RegisteredClaims{
@@ -306,6 +310,7 @@ func TestParseCategorySelectToken(t *testing.T) {
 						Name:  "Nefix :D",
 						Photo: "",
 					}},
+					RawRoles: &rawRoles,
 					User: types.ProviderUserData{
 						Provider: "SAML",
 						Category: "Test cat",

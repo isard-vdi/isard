@@ -477,6 +477,9 @@ func TestLogin(t *testing.T) {
 				name := "Néfix Estrada"
 				email := "nefix@example.org"
 
+				rawGroups := []string{"group1", "group2", "group3"}
+				rawRoles := []string{"admin", "melina", "virtual", "machine"}
+
 				ss, err := token.SignCategorySelectToken("", []*model.Category{{
 					ID:          "12168f82-4142-4da2-8529-dbe3fb05d7bb",
 					UID:         "default",
@@ -487,7 +490,7 @@ func TestLogin(t *testing.T) {
 					UID:         "categoria",
 					Name:        "Categoria de Néfix",
 					Description: "Aquesta és la categoria que pertany a Néfix",
-				}}, &types.ProviderUserData{
+				}}, &rawGroups, &rawRoles, &types.ProviderUserData{
 					Provider: "local",
 					UID:      "nefix",
 
