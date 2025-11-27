@@ -94,6 +94,16 @@ class RecycleBinDeleteQueue:
         recycle_bin_id = item.get("recycle_bin_id")
         if recycle_bin_id not in self.recycle_bin_ids:
             update_status(recycle_bin_id, item.get("user_id"), "queued")
+            add_log(
+                "queued",
+                recycle_bin_id,
+                "system",
+                "isard-scheduler",
+                "isard-scheduler",
+                None,
+                None,
+                None,
+            )
             self.queue.put(item)
             self.recycle_bin_ids.add(recycle_bin_id)
             app.logger.debug(
@@ -390,107 +400,14 @@ def update_status(rb_id, owner_id, status):
 
 def update_task_status(task):
     start = absolute_start = time.time()
+
+    # First, atomically update the task status and get the updated document
+    start = time.time()
     with app.app_context():
-        rb = (
+        update_result = (
             r.table("recycle_bin")
             .get(task["recycle_bin_id"])
-            .pluck(
-                {
-                    "owner_id": True,
-                    "agent_type": True,
-                    "agent_id": True,
-                    "agent_name": True,
-                    "agent_category_id": True,
-                    "agent_category_name": True,
-                    "agent_role": True,
-                    "tasks": True,
-                    "storages": {"id"},
-                }
-            )
-            .run(db.conn)
-        )
-    log.debug(
-        "RecycleBin %s update_task_status: Got recycle bin in %s seconds",
-        task["recycle_bin_id"],
-        time.time() - start,
-    )
-
-    start = time.time()
-    for t in rb["tasks"]:
-        if t["id"] == task["id"]:
-            t["status"] = task["status"]
-            break
-    log.debug(
-        "RecycleBin %s update_task_status: Updated task status in %s seconds",
-        task["recycle_bin_id"],
-        time.time() - start,
-    )
-
-    # Check if all the recycle bin tasks are finished then update the recycle bin status to deleted
-    start = time.time()
-    finished_tasks = list(filter(lambda t: (t["status"] == "finished"), rb["tasks"]))
-    log.debug(
-        "RecycleBin %s update_task_status: Filtered finished tasks in %s seconds",
-        task["recycle_bin_id"],
-        time.time() - start,
-    )
-
-    if len(finished_tasks) == len(rb["storages"]):
-        start = time.time()
-        with app.app_context():
-            r.table("recycle_bin").get(task["recycle_bin_id"]).update(
-                {
-                    "status": "deleted",
-                    "tasks": r.row["tasks"].map(
-                        lambda rb_task: r.branch(
-                            rb_task["id"] == task["id"],
-                            rb_task.merge({"status": task["status"]}),
-                            rb_task,
-                        )
-                    ),
-                }
-            ).run(db.conn)
-        log.debug(
-            "RecycleBin %s update_task_status: Updated recycle bin status to deleted in %s seconds",
-            task["recycle_bin_id"],
-            time.time() - start,
-        )
-        start = time.time()
-        send_socket_user(
-            "update_recycle_bin",
-            {"id": task["recycle_bin_id"], "status": "deleted"},
-            rb["owner_id"],
-        )
-        send_socket_admin(
-            "update_recycle_bin",
-            {"id": task["recycle_bin_id"], "status": "deleted"},
-        )
-        log.debug(
-            "RecycleBin %s update_task_status: Sent socket events in %s seconds",
-            task["recycle_bin_id"],
-            time.time() - start,
-        )
-        start = time.time()
-        add_log(
-            "deleted",
-            task["recycle_bin_id"],
-            rb["agent_type"],
-            rb["agent_id"],
-            rb["agent_name"],
-            rb["agent_category_id"],
-            rb["agent_category_name"],
-            rb["agent_role"],
-        )
-        log.debug(
-            "RecycleBin %s update_task_status: Added log entry in %s seconds",
-            task["recycle_bin_id"],
-            time.time() - start,
-        )
-    # Otherwise only update the tasks status
-    else:
-        start = time.time()
-        with app.app_context():
-            r.table("recycle_bin").get(task["recycle_bin_id"]).update(
+            .update(
                 {
                     "tasks": r.row["tasks"].map(
                         lambda rb_task: r.branch(
@@ -499,13 +416,102 @@ def update_task_status(task):
                             rb_task,
                         )
                     )
-                }
-            ).run(db.conn)
+                },
+                return_changes=True,
+            )
+            .run(db.conn)
+        )
+    log.debug(
+        "RecycleBin %s update_task_status: Updated task status in %s seconds",
+        task["recycle_bin_id"],
+        time.time() - start,
+    )
+
+    # If no document was updated, return early
+    if not update_result.get("changes"):
+        log.warning(
+            "RecycleBin %s update_task_status: No document found or updated",
+            task["recycle_bin_id"],
+        )
+        return
+
+    # Get the updated document to check if all tasks are finished
+    updated_rb = update_result["changes"][0]["new_val"]
+
+    # Check if all the recycle bin tasks are finished then update the recycle bin status to deleted
+    start = time.time()
+    finished_tasks = list(
+        filter(lambda t: (t["status"] == "finished"), updated_rb["tasks"])
+    )
+    log.debug(
+        "RecycleBin %s update_task_status: Filtered finished tasks in %s seconds",
+        task["recycle_bin_id"],
+        time.time() - start,
+    )
+
+    # Only proceed if all tasks are finished and status is not already "deleted"
+    if (
+        len(finished_tasks) == len(updated_rb["storages"])
+        and updated_rb.get("status") != "deleted"
+    ):
+
+        start = time.time()
+        with app.app_context():
+            # Atomically update status to deleted, but only if it's not already deleted
+            # This prevents race conditions where multiple tasks try to set status to deleted
+            final_update_result = (
+                r.table("recycle_bin")
+                .get(task["recycle_bin_id"])
+                .update(
+                    lambda doc: r.branch(
+                        doc["status"] != "deleted",
+                        {"status": "deleted"},
+                        {},  # No update if already deleted
+                    ),
+                    return_changes=True,
+                )
+                .run(db.conn)
+            )
         log.debug(
-            "RecycleBin %s update_task_status: Updated tasks status in %s seconds",
+            "RecycleBin %s update_task_status: Updated recycle bin status to deleted in %s seconds",
             task["recycle_bin_id"],
             time.time() - start,
         )
+
+        # Only send notifications and add log if we actually changed the status
+        if final_update_result.get("changes"):
+            start = time.time()
+            send_socket_user(
+                "update_recycle_bin",
+                {"id": task["recycle_bin_id"], "status": "deleted"},
+                updated_rb["owner_id"],
+            )
+            send_socket_admin(
+                "update_recycle_bin",
+                {"id": task["recycle_bin_id"], "status": "deleted"},
+            )
+            log.debug(
+                "RecycleBin %s update_task_status: Sent socket events in %s seconds",
+                task["recycle_bin_id"],
+                time.time() - start,
+            )
+            start = time.time()
+            add_log(
+                "deleted",
+                task["recycle_bin_id"],
+                updated_rb["agent_type"],
+                updated_rb["agent_id"],
+                updated_rb["agent_name"],
+                updated_rb["agent_category_id"],
+                updated_rb["agent_category_name"],
+                updated_rb["agent_role"],
+            )
+            log.debug(
+                "RecycleBin %s update_task_status: Added log entry in %s seconds",
+                task["recycle_bin_id"],
+                time.time() - start,
+            )
+
     log.debug(
         "RecycleBin %s update_task_status: Finished in %s seconds",
         task["recycle_bin_id"],
