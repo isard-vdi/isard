@@ -117,58 +117,85 @@ class RecycleBinDeleteQueue:
     def perform_operation(self, recycle_bin_id, user_id):
         # Example operation using user_id
         app.logger.debug(f"Performing operation with user_id {user_id}")
-        rb = RecycleBin(id=recycle_bin_id)
-        rb.delete_storage(user_id)
-        if rb.item_type in ["user", "group", "category"]:
-            dependants_rb_ids = []
-            for user in rb.users:
-                with app.app_context():
-                    dependants_rb_ids += set(
-                        r.table("recycle_bin")
-                        .get_all([user["id"], "recycled"], index=f"owner_status")
-                        .filter(lambda rb: rb["id"] != recycle_bin_id)
-                        .pluck("id")["id"]
-                        .run(db.conn)
-                    )
-            if rb.item_type == "group":
-                for group in rb.groups:
+        try:
+            rb = RecycleBin(id=recycle_bin_id)
+            rb.delete_storage(user_id)
+            if rb.item_type in ["user", "group", "category"]:
+                dependants_rb_ids = []
+                for user in rb.users:
                     with app.app_context():
                         dependants_rb_ids += set(
                             r.table("recycle_bin")
-                            .get_all(
-                                [group["id"], "recycled"], index=f"owner_group_status"
-                            )
+                            .get_all([user["id"], "recycled"], index=f"owner_status")
                             .filter(lambda rb: rb["id"] != recycle_bin_id)
                             .pluck("id")["id"]
                             .run(db.conn)
                         )
-            elif rb.item_type == "category":
-                for category in rb.categories:
-                    with app.app_context():
-                        dependants_rb_ids += set(
-                            r.table("recycle_bin")
-                            .get_all(
-                                [category["id"], "recycled"],
-                                index=f"owner_category_status",
+                if rb.item_type == "group":
+                    for group in rb.groups:
+                        with app.app_context():
+                            dependants_rb_ids += set(
+                                r.table("recycle_bin")
+                                .get_all(
+                                    [group["id"], "recycled"],
+                                    index=f"owner_group_status",
+                                )
+                                .filter(lambda rb: rb["id"] != recycle_bin_id)
+                                .pluck("id")["id"]
+                                .run(db.conn)
                             )
-                            .filter(lambda rb: rb["id"] != recycle_bin_id)
-                            .pluck("id")["id"]
-                            .run(db.conn)
-                        )
-            for d_rb_id in dependants_rb_ids:
-                self.enqueue({"recycle_bin_id": d_rb_id, "user_id": user_id})
+                elif rb.item_type == "category":
+                    for category in rb.categories:
+                        with app.app_context():
+                            dependants_rb_ids += set(
+                                r.table("recycle_bin")
+                                .get_all(
+                                    [category["id"], "recycled"],
+                                    index=f"owner_category_status",
+                                )
+                                .filter(lambda rb: rb["id"] != recycle_bin_id)
+                                .pluck("id")["id"]
+                                .run(db.conn)
+                            )
+                for d_rb_id in dependants_rb_ids:
+                    self.enqueue({"recycle_bin_id": d_rb_id, "user_id": user_id})
+        except Exception as e:
+            app.logger.error(
+                f"Error processing recycle bin {recycle_bin_id}: {str(e)}",
+                exc_info=True,
+            )
+            # Update status back to recycled so it can be retried or manually handled
+            try:
+                update_status(recycle_bin_id, user_id, "recycled")
+            except Exception as status_error:
+                app.logger.error(
+                    f"Failed to update status for recycle bin {recycle_bin_id}: {str(status_error)}"
+                )
 
     def process_next_item(self):
         item = self.dequeue()
         if item:
             user_id = item.get("user_id")
             recycle_bin_id = item.get("recycle_bin_id")
-            self.perform_operation(recycle_bin_id, user_id)
-            self.queue.task_done()
+            try:
+                self.perform_operation(recycle_bin_id, user_id)
+            except Exception as e:
+                app.logger.error(
+                    f"Uncaught error in process_next_item for recycle bin {recycle_bin_id}: {str(e)}",
+                    exc_info=True,
+                )
+            finally:
+                self.queue.task_done()
 
     def _background_worker(self):
         while not self.stop_event.is_set():
-            self.process_next_item()
+            try:
+                self.process_next_item()
+            except Exception as e:
+                app.logger.error(
+                    f"Critical error in recycle bin background worker: {str(e)}",
+                    exc_info=True,
+                )
             time.sleep(0.1)  # Add a small sleep to prevent a tight loop
 
     def stop(self):
