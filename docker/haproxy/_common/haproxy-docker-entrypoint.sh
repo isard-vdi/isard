@@ -3,8 +3,13 @@ set -e
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting HAProxy container initialization..."
 
-prepare.sh
-
+# Set default variables
+if [ ! -n "$HTTP_PORT" ]; then
+        export HTTP_PORT=80
+fi
+if [ ! -n "$HTTPS_PORT" ]; then
+        export HTTPS_PORT=443
+fi
 if [ ! -n "$WEBAPP_HOST" ]; then
         export WEBAPP_HOST='isard-webapp'
 fi
@@ -14,6 +19,36 @@ fi
 if [ ! -n "$GRAFANA_HOST" ]; then
         export GRAFANA_HOST='isard-grafana'
 fi
+# This is kept for backwards compatibility
+if [ -n "$LETSENCRYPT_EMAIL" ]; then
+        export ACME_EMAIL="$LETSENCRYPT_EMAIL"
+fi
+if [ ! -n "$ACME_SERVER" ]; then
+        export ACME_SERVER="letsencrypt"
+fi
+
+# Prepare ACME variables
+if [ -n "$ACME_EMAIL" ]; then
+    export ACME_DOMAIN="$DOMAIN"
+    if [ -n "$VIDEO_DOMAIN" ]; then
+        export ACME_DOMAIN="$VIDEO_DOMAIN"
+        echo "Using VIDEO_DOMAIN: $VIDEO_DOMAIN for ACME certificate"
+    else
+        echo "Using DOMAIN: $DOMAIN for ACME certificate"
+    fi
+fi
+
+# Decide which parts will be active
+FLAVOUR="$(echo -n "$FLAVOUR" | tr '+' ' ')"
+
+if [ "$FLAVOUR" = "all-in-one" ]
+then
+  FLAVOUR="web video monitor"
+fi
+
+
+# Prepare HAProxy configuration
+prepare.sh
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Checking for SSL certificate..."
 if [ ! -f /certs/chain.pem ]; then
@@ -26,8 +61,13 @@ else
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] SSL certificate found ($(stat -c%s /certs/chain.pem) bytes)"
 fi
 
+# Start file monitoring for HAProxy reloads
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting file monitoring for automatic reloads..."
-inotifyd haproxy-reload /certs/chain.pem:c /usr/local/etc/haproxy/lists/black.lst:c /usr/local/etc/haproxy/lists/external/black.lst:c /usr/local/etc/haproxy/lists/white.lst:c &
+inotifyd haproxy-reload /usr/local/etc/haproxy/lists/black.lst:c /usr/local/etc/haproxy/lists/external/black.lst:c /usr/local/etc/haproxy/lists/white.lst:c &
+
+
+# Load the ACME generated thumbprint
+export ACME_ACCOUNT_THUMBPRINT="$(cat /etc/acme/account-thumbprint)"
 
 # first arg is `-f` or `--some-option`
 if [ "${1#-}" != "$1" ]; then
@@ -42,15 +82,31 @@ if [ "$1" = 'haproxy' ]; then
         set -- haproxy -W -db "$@"
 fi
 
-# Start haproxy-bastion-sync AFTER haproxy starts (in background)
-# This ensures the stats socket exists before the microservice tries to connect
-if [ "$CFG" = "portal" ]; then
+# Start ACME certificate management AFTER haproxy starts (in background)
+# This ensures the admin socket exists before the program tries to connect
+# This also ensures the frontend is listening
+if [ -n "$ACME_EMAIL" ]; then
+    (
+        # Wait a moment for HAProxy to start and create the socket
+        sleep 3
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting ACME certificate management..."
+        if ! acme-management.sh generate; then
+            echo "WARNING: ACME certificate acquisition failed for $ACME_DOMAIN"
+        fi
+    ) &
+fi
+
+for part in $FLAVOUR; do
+  if [ "$part" = "web" ]; then
+    # Start haproxy-bastion-sync AFTER haproxy starts (in background)
+    # This ensures the stats socket exists before the microservice tries to connect
     (
         # Wait a moment for HAProxy to start and create the socket
         sleep 2
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting haproxy-bastion-sync microservice..."
         haproxy-bastion-sync
     ) &
-fi
+  fi
+done
 
 exec "$@"
