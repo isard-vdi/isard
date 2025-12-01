@@ -720,7 +720,13 @@ class ApiAdmin:
                             "derivates": r.db("isard")
                             .table("domains")
                             .get_all(template_id, index="parents")
-                            .count(),
+                            .count()
+                            .add(
+                                r.db("isard")
+                                .table("deployments")
+                                .get_all(template_id, index="template")
+                                .count()
+                            ),
                             "category_name": r.table("categories")
                             .get(domain["category"])["name"]
                             .default(False),
@@ -808,7 +814,13 @@ class ApiAdmin:
                     "derivates": r.table("domains")
                     .get_all(domain["id"], index="parents")
                     .distinct()
-                    .count(),
+                    .count()
+                    .add(
+                        r.db("isard")
+                        .table("deployments")
+                        .get_all(domain["id"], index="template")
+                        .count()
+                    )
                 }
             )
         )
