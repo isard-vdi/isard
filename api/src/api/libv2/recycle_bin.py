@@ -1889,9 +1889,24 @@ class RecycleBinTemplate(RecycleBinDomain):
 
         # First recycle deployments to avoid overlapping desktops deletions
         deployments = get_template_derivated_deployments(template_id)
+        failed_deployments = []
         for deployment in deployments:
-            rcb_deployment = RecycleBinDeployment(id=self.id, user_id=self.agent_id)
-            rcb_deployment.add(deployment["id"])
+            try:
+                rcb_deployment = RecycleBinDeployment(id=self.id, user_id=self.agent_id)
+                rcb_deployment.add(deployment["id"])
+            except Exception as e:
+                log.error(
+                    f"Failed to recycle deployment {deployment['id']} while deleting template {template_id}: {e}"
+                )
+                failed_deployments.append(deployment["id"])
+
+        if failed_deployments:
+            raise Error(
+                "precondition_required",
+                f"Failed to recycle some deployments: {failed_deployments}. Template deletion aborted.",
+                traceback.format_exc(),
+                description_code="deployment_recycle_failed",
+            )
 
         if template_id:
             with app.app_context():
