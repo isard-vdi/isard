@@ -20,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 176
+release_version = 177
+# release 177: Recreate deployment indexes considering the new create_dict structure
 # release 176: Delete null parents on domains
 # release 175: Import SMTP configuration from NOTIFY_EMAIL* envitonment variables
 # release 174: Add task index to storage table
@@ -3685,6 +3686,75 @@ password:s:%s"""
                         r.table(table).get(deployment["id"]).update(update_data).run(
                             self.conn
                         )
+
+            except Exception as e:
+                print(e)
+
+        if version == 177:
+            try:
+                # Recreate the indexes considering the new structure under the create_dict list
+                # Template
+                # The index will match any of the templates in the create_dict list
+                r.table(table).index_drop("template").run(self.conn)
+                r.table(table).index_create(
+                    "template",
+                    lambda domain: domain["create_dict"].concat_map(
+                        lambda data: [data["template"]]
+                    ),
+                    multi=True,
+                ).run(self.conn)
+
+                # Media
+                r.table(table).index_drop("isos").run(self.conn)
+                r.table(table).index_create(
+                    "isos",
+                    lambda domain: domain["create_dict"].concat_map(
+                        lambda data: data["hardware"]["isos"].concat_map(
+                            lambda iso: [iso["id"]]
+                        )
+                    ),
+                    multi=True,
+                ).run(self.conn)
+
+                # Interfaces
+                r.table(table).index_drop("interfaces").run(self.conn)
+                r.table(table).index_create(
+                    "interfaces",
+                    lambda domain: domain["create_dict"].concat_map(
+                        lambda data: data["hardware"]["interfaces"]
+                    ),
+                    multi=True,
+                ).run(self.conn)
+
+                # Boot
+                r.table(table).index_drop("boot_order").run(self.conn)
+                r.table(table).index_create(
+                    "boot_order",
+                    lambda domain: domain["create_dict"].concat_map(
+                        lambda data: data["hardware"]["boot_order"]
+                    ),
+                    multi=True,
+                ).run(self.conn)
+
+                # Video
+                r.table(table).index_drop("videos").run(self.conn)
+                r.table(table).index_create(
+                    "videos",
+                    lambda domain: domain["create_dict"].concat_map(
+                        lambda data: data["hardware"]["videos"]
+                    ),
+                    multi=True,
+                ).run(self.conn)
+
+                # Vgpus
+                r.table(table).index_drop("vgpus").run(self.conn)
+                r.table(table).index_create(
+                    "vgpus",
+                    lambda domain: domain["create_dict"].concat_map(
+                        lambda data: data["reservables"]["vgpus"]
+                    ),
+                    multi=True,
+                ).run(self.conn)
 
             except Exception as e:
                 print(e)

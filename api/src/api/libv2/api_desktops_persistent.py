@@ -1163,22 +1163,36 @@ def unassign_resource_from_desktops_and_deployments(table, item):
                     }
                 }
             ).run(db.conn)
-        with app.app_context():
-            r.table("deployments").get_all(r.args(not_allowed_deployments)).update(
-                {
-                    "create_dict": {
-                        "hardware": {
-                            "isos": r.row["create_dict"]["hardware"]["isos"].filter(
-                                lambda media: media["id"].ne(item["id"])
+        deployments_batch_size = 100
+        for i in range(0, len(not_allowed_deployments), deployments_batch_size):
+            batch_deployments = not_allowed_deployments[i : i + deployments_batch_size]
+            with app.app_context():
+                r.table("deployments").get_all(r.args(batch_deployments)).update(
+                    lambda deployment: {
+                        "create_dict": deployment["create_dict"].map(
+                            lambda create_item: create_item.merge(
+                                {
+                                    "hardware": create_item["hardware"].merge(
+                                        {
+                                            "isos": create_item["hardware"][
+                                                "isos"
+                                            ].filter(
+                                                lambda media: media["id"].ne(item["id"])
+                                            )
+                                        }
+                                    )
+                                }
                             )
-                        }
+                        )
                     }
-                }
-            ).run(db.conn)
+                ).run(db.conn)
 
     elif table == "reservables_vgpus":
         api_ri.deassign_desktops_with_gpu(
             "gpus", item["id"], desktops=not_allowed_desktops
+        )
+        api_ri.deassign_deployments_with_gpu(
+            "gpus", item["id"], deployments=not_allowed_deployments
         )
     elif table == "interfaces":
         if item["id"] == "wireguard":
@@ -1224,18 +1238,27 @@ def unassign_resource_from_desktops_and_deployments(table, item):
                     }
                 }
             ).run(db.conn)
-        with app.app_context():
-            r.table("deployments").get_all(r.args(not_allowed_deployments)).update(
-                {
-                    "create_dict": {
-                        "hardware": {
-                            "interfaces": r.row["create_dict"]["hardware"][
-                                "interfaces"
-                            ].difference([item["id"]])
-                        }
+        deployments_batch_size = 100
+        for i in range(0, len(not_allowed_deployments), deployments_batch_size):
+            batch_deployments = not_allowed_deployments[i : i + deployments_batch_size]
+            with app.app_context():
+                r.table("deployments").get_all(r.args(batch_deployments)).update(
+                    lambda deployment: {
+                        "create_dict": deployment["create_dict"].map(
+                            lambda create_item: create_item.merge(
+                                {
+                                    "hardware": create_item["hardware"].merge(
+                                        {
+                                            "interfaces": create_item["hardware"][
+                                                "interfaces"
+                                            ].difference([item["id"]])
+                                        }
+                                    )
+                                }
+                            )
+                        )
                     }
-                }
-            ).run(db.conn)
+                ).run(db.conn)
     elif table in ["boots", "videos"]:
         fields = {
             "boots": "boot_order",
@@ -1253,18 +1276,27 @@ def unassign_resource_from_desktops_and_deployments(table, item):
                     }
                 }
             ).run(db.conn)
-        with app.app_context():
-            r.table("deployments").get_all(r.args(not_allowed_desktops)).update(
-                {
-                    "create_dict": {
-                        "hardware": {
-                            fields[table]: r.row["create_dict"]["hardware"][
-                                fields[table]
-                            ].difference([item["id"]])
-                        }
+        deployments_batch_size = 100
+        for i in range(0, len(not_allowed_deployments), deployments_batch_size):
+            batch_deployments = not_allowed_deployments[i : i + deployments_batch_size]
+            with app.app_context():
+                r.table("deployments").get_all(r.args(batch_deployments)).update(
+                    lambda deployment: {
+                        "create_dict": deployment["create_dict"].map(
+                            lambda create_item: create_item.merge(
+                                {
+                                    "hardware": create_item["hardware"].merge(
+                                        {
+                                            fields[table]: create_item["hardware"][
+                                                fields[table]
+                                            ].difference([item["id"]])
+                                        }
+                                    )
+                                }
+                            )
+                        )
                     }
-                }
-            ).run(db.conn)
+                ).run(db.conn)
     return not_allowed_desktops
 
 
