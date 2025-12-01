@@ -40,6 +40,7 @@ from .caches import get_config
 from .flask_rethink import RDB
 from .helpers import (
     desktops_stop,
+    get_template_derivated_deployments,
     get_template_with_all_derivatives,
     unassign_item_from_resource,
 )
@@ -1886,12 +1887,19 @@ class RecycleBinTemplate(RecycleBinDomain):
         :type template_id: str, None
         """
 
+        # First recycle deployments to avoid overlapping desktops deletions
+        deployments = get_template_derivated_deployments(template_id)
+        for deployment in deployments:
+            rcb_deployment = RecycleBinDeployment(id=self.id, user_id=self.agent_id)
+            rcb_deployment.add(deployment["id"])
+
         if template_id:
             with app.app_context():
                 template = r.table("domains").get(template_id).run(db.conn)
             self._add_item_name(template["name"])
             # Get template ids tree
             data = get_template_with_all_derivatives(template_id, user_id=self.agent_id)
+
         domains = [
             {
                 "id": t["id"],

@@ -282,24 +282,7 @@ def api_v3_template_delete_tree(payload, template_id):
     tree = admin.get_template_tree_list(template["id"], payload["user_id"])[0]
 
     derivates = templates.check_children(payload, tree)
-    deployments = templates.get_deployments_with_template(
-        template_id, return_username=True
-    )
     derivates["is_duplicated"] = templates.is_duplicate(template["id"])
-    for dp in deployments:
-        try:
-            ownsDeploymentId(payload, dp["id"])
-            derivates["domains"].append(
-                {
-                    "id": dp["id"],
-                    "kind": "deployment",
-                    "name": dp["name"],
-                    "user": dp["username"],
-                }
-            )
-        except:
-            derivates["domains"].append({})
-            derivates["pending"] = True
 
     return (
         json.dumps(derivates),

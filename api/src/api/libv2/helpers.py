@@ -1247,6 +1247,107 @@ def get_template_with_all_derivatives(template_id, user_id=None):
     return all_domains_id
 
 
+def get_template_derivated_deployments(template_id):
+    """
+    Get all deployments derivated from a template.
+    """
+    derivated_templates = _derivated_templates(template_id) + _duplicated(template_id)
+    derivated_template_ids = [t["id"] for t in derivated_templates]
+    with app.app_context():
+        deployments = list(
+            r.table("deployments")
+            .get_all(r.args(derivated_template_ids), index="template")
+            .pluck("id", "name", "user", "group")
+            .merge(
+                lambda d: {
+                    "user_data": r.table("users")
+                    .get(d["user"])
+                    .pluck("username", "name", "category", "group")
+                }
+            )
+            .merge(
+                lambda d: {
+                    "username": d["user_data"]["username"],
+                    "user_name": d["user_data"]["name"],
+                    "category": d["user_data"]["category"],
+                    "category_name": r.table("categories").get(
+                        d["user_data"]["category"]
+                    )["name"],
+                    "group_name": r.table("groups").get(d["user_data"]["group"])[
+                        "name"
+                    ],
+                    "kind": "deployment",
+                    "template_id": template_id,  # Return the origin template for the dependency tree
+                }
+            )
+            .without("user_data")
+            .run(db.conn)
+        )
+    return deployments
+
+
+# Retrieves only derivated templates.
+def _derivated_templates(template_id):
+    """
+    Retrieves only derivated templates from a given template.
+
+    :param template_id: The ID of the template to get derivatives from
+    :type template_id: str
+    :return: A list of template dictionaries including the original template
+    :rtype: list
+    """
+    with app.app_context():
+        # Get all templates derived from the given template
+        derivated = list(
+            r.table("domains")
+            .get_all(template_id, index="parents")
+            .filter({"kind": "template"})
+            .pluck(
+                "id",
+                "name",
+                "parents",
+                "duplicate_parent_template",
+                "user",
+                "group",
+                "category",
+                "kind",
+            )
+            .merge(
+                lambda d: {
+                    "username": r.table("users").get(d["user"])["username"],
+                    "user_name": r.table("users").get(d["user"])["name"],
+                }
+            )
+            .run(db.conn)
+        )
+
+        # Get the original template
+        original = (
+            r.table("domains")
+            .get(template_id)
+            .pluck(
+                "id",
+                "name",
+                "parents",
+                "duplicate_parent_template",
+                "user",
+                "group",
+                "category",
+                "kind",
+            )
+            .merge(
+                lambda d: {
+                    "username": r.table("users").get(d["user"])["username"],
+                    "user_name": r.table("users").get(d["user"])["name"],
+                }
+            )
+            .run(db.conn)
+        )
+
+        # Combine results, with original template first
+        return [original] + derivated if original else derivated
+
+
 # Call get_template_tree_list. This is a subfunction only.
 def template_tree_recursion(template_id, levels):
     nodes = [dict(n) for n in levels.get(template_id, [])]
@@ -1258,6 +1359,14 @@ def template_tree_recursion(template_id, levels):
 
 
 def _derivated(template_id):
+    """
+    Retrieves all the derivated domains from a template, including desktops.
+
+    :param template_id: The ID of the template to get derivatives from
+    :type template_id: str
+    :return: A list of domain dictionaries including desktops
+    :rtype: list
+    """
     with app.app_context():
         return list(
             r.db("isard")

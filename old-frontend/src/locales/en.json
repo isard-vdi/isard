@@ -1040,6 +1040,7 @@
                 "delete": {
                     "title": "Dependency warning",
                     "warning": {
+                        "deployments": "To delete this template, all dependent deployments will be removed too. Remember that templates can also be invisible to users instead of being deleted.",
                         "pending": "WARNING! Some domains depend on this template, which you do NOT own.",
                         "delete": "WARNING! These templates and desktops depend on this template and they will also be deleted.",
                         "footer": "You can not delete this template. Please contact the administrator"

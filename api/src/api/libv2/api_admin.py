@@ -65,7 +65,7 @@ from .api_user_storage import (
     isard_user_storage_update_group,
     isard_user_storage_update_user,
 )
-from .helpers import _check, get_user_data
+from .helpers import _check, get_template_derivated_deployments, get_user_data
 from .load_validator_schemas import IsardValidator
 from .validators import _validate_item, _validate_table
 
@@ -925,8 +925,6 @@ class ApiAdmin:
                 "category": d["category_name"],
                 "group": d["group_name"],
                 "kind": d["kind"] if d["kind"] == "desktop" else "template",
-                "status": d["status"],
-                "icon": "fa fa-desktop" if d["kind"] == "desktop" else "fa fa-cube",
                 "children": recursion,
             }
         ]
@@ -943,7 +941,7 @@ class ApiAdmin:
 
     def _derivated(self, template_id):
         with app.app_context():
-            return list(
+            domains = list(
                 r.db("isard")
                 .table("domains")
                 .get_all(template_id, index="parents")
@@ -969,6 +967,10 @@ class ApiAdmin:
                 )
                 .run(db.conn)
             )
+
+        deployments = get_template_derivated_deployments(template_id)
+
+        return domains + deployments
 
     def _duplicated(self, template_id):
         with app.app_context():
@@ -1050,26 +1052,19 @@ class ApiAdmin:
                     {
                         "id": d["id"],
                         "title": d["name"],
-                        "expanded": (
-                            True if not d.get("unselectable") else not d["unselectable"]
-                        ),
-                        "unselectable": (
-                            False if not d.get("unselectable") else d["unselectable"]
-                        ),
-                        "selected": True if user["id"] == d["user"] else False,
                         "parent": (
-                            d["parents"][-1]
-                            if d.get("parents")
-                            else d["duplicate_parent_template"]
+                            d.get("template_id")
+                            if d.get("kind") == "deployment"
+                            else (
+                                d["parents"][-1]
+                                if d.get("parents")
+                                else d["duplicate_parent_template"]
+                            )
                         ),
                         "user": d["username"],
                         "category": d["category_name"],
                         "group": d["group_name"],
-                        "kind": d["kind"] if d["kind"] == "desktop" else "template",
-                        "status": d["status"],
-                        "icon": (
-                            "fa fa-desktop" if d["kind"] == "desktop" else "fa fa-cube"
-                        ),
+                        "kind": d["kind"],
                         "duplicate_parent_template": d.get(
                             "duplicate_parent_template", False
                         ),
@@ -1081,22 +1076,19 @@ class ApiAdmin:
                     {
                         "id": d["id"],
                         "title": d["name"],
-                        "expanded": True,
-                        "unselectable": False if user["id"] == d["user"] else True,
-                        "selected": True if user["id"] == d["user"] else False,
                         "parent": (
-                            d["parents"][-1]
-                            if d.get("parents")
-                            else d["duplicate_parent_template"]
+                            d.get("template_id")
+                            if d.get("kind") == "deployment"
+                            else (
+                                d["parents"][-1]
+                                if d.get("parents")
+                                else d["duplicate_parent_template"]
+                            )
                         ),
                         "user": d["username"],
                         "category": d["category_name"],
                         "group": d["group_name"],
-                        "kind": d["kind"] if d["kind"] == "desktop" else "template",
-                        "status": d["status"],
-                        "icon": (
-                            "fa fa-desktop" if d["kind"] == "desktop" else "fa fa-cube"
-                        ),
+                        "kind": d["kind"],
                         "duplicate_parent_template": d.get(
                             "duplicate_parent_template", False
                         ),

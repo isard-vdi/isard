@@ -11,7 +11,12 @@ const getDefaultState = () => {
     templates_loaded: false,
     sharedTemplates: [],
     sharedTemplates_loaded: false,
-    templateDerivatives: {},
+    templateDerivatives: {
+      domains: [],
+      deployments: [],
+      pending: false,
+      is_duplicated: false
+    },
     templateId: '',
     templateName: '',
     modalDerivativesShow: {
