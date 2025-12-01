@@ -469,13 +469,13 @@ class ResourceItemsGpus:
             deployments = list(
                 r.table("deployments")
                 .get_all(subitem_id, index="vgpus")
-                .pluck("id", "user", {"create_dict": {"tag_name": True}})
+                .pluck("id", "user", "tag_name")
                 .map(
                     lambda doc: {
                         "id": doc["id"],
                         "user": doc["user"],
                         "username": r.table("users").get(doc["user"])["username"],
-                        "tag_name": doc["create_dict"]["tag_name"],
+                        "tag_name": doc["tag_name"],
                     }
                 )
                 .run(db.conn)
