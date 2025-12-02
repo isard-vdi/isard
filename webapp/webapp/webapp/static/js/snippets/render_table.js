@@ -32,12 +32,24 @@ function renderTable(data, parentElement, level, renderCallback) {
 return parentElement;
 }
 
+const iconMap = {
+  deployment: 'fa-tv',
+  template: 'fa-cube',
+  desktop: 'fa-desktop'
+};
+
+const kindMap = {
+  deployment: 'Deployment',
+  template: 'Template',
+  desktop: 'Desktop'
+};
+
 // Custom rendering callback function for table rows
 function renderTemplateTree(row, item, level) {
-    // Title column (indented based on level)
-    row.append('<td class="nested-td nested-level-' + level + '">' + '&nbsp;&nbsp;'.repeat(level - 1) + '<i class="fa ' + (item.kind === 'template' ? 'fa-cube' : 'fa-desktop') + '"></i>&nbsp;' + item.title + '</td>');
+    // Title column (indented based on level) 
+    row.append('<td class="nested-td nested-level-' + level + '">' + '&nbsp;&nbsp;'.repeat(level - 1) + '<i class="fa ' + iconMap[item.kind] + '"></i>&nbsp;' + item.title + '</td>');
     // Template/Desktop column
-    row.append('<td class="nested-td">' + (item.kind === 'template' ? 'Template' : 'Desktop') + '</td>');
+    row.append('<td class="nested-td">' + kindMap[item.kind] + '</td>');
     // Duplicate column
     row.append('<td class="nested-td">' + (item.duplicate_parent_template ? '<i class="fa fa-check"></i>' : '') + '</td>');
     // User column

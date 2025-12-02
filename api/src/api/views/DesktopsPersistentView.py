@@ -493,7 +493,7 @@ def api_v3_template_to_desktop(payload):
     derivatives = templates.check_children(payload, tree)
 
     # TODO: Allow to convert with derivatives
-    if len(derivatives["domains"]) > 1:
+    if len(derivatives["domains"]) > 1 or len(derivatives["deployments"]) > 0:
         raise Error(
             "precondition_required",
             "Unable to convert template with derivatives",

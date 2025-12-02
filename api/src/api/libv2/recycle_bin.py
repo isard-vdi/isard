@@ -40,6 +40,7 @@ from .caches import get_config
 from .flask_rethink import RDB
 from .helpers import (
     desktops_stop,
+    get_template_derivated_deployments,
     get_template_with_all_derivatives,
     unassign_item_from_resource,
 )
@@ -674,7 +675,7 @@ def get_user_recycle_bin_cutoff_time(user_id):
     :return: User recycle bin cutoff time (in hours)
     :rtype: int
     """
-    if user_id == "isard-scheduler" or user_id.startswith("external_"):
+    if user_id in ["isard-scheduler", "system"] or user_id.startswith("external_"):
         return get_system_recycle_bin_cutoff_time()
     with app.app_context():
         user_category = (
@@ -1086,7 +1087,7 @@ class RecycleBin(object):
         :param user_id: str, None
         """
 
-        if user_id and (user_id != "isard-scheduler"):
+        if user_id and (user_id not in ["isard-scheduler", "system"]):
             user = get_user_data(user_id)
             self.agent_id = user_id
             self.agent_name = user["user_name"]
@@ -1886,12 +1887,34 @@ class RecycleBinTemplate(RecycleBinDomain):
         :type template_id: str, None
         """
 
+        # First recycle deployments to avoid overlapping desktops deletions
+        deployments = get_template_derivated_deployments(template_id)
+        failed_deployments = []
+        for deployment in deployments:
+            try:
+                rcb_deployment = RecycleBinDeployment(id=self.id, user_id=self.agent_id)
+                rcb_deployment.add(deployment["id"])
+            except Exception as e:
+                log.error(
+                    f"Failed to recycle deployment {deployment['id']} while deleting template {template_id}: {e}"
+                )
+                failed_deployments.append(deployment["id"])
+
+        if failed_deployments:
+            raise Error(
+                "precondition_required",
+                f"Failed to recycle some deployments: {failed_deployments}. Template deletion aborted.",
+                traceback.format_exc(),
+                description_code="deployment_recycle_failed",
+            )
+
         if template_id:
             with app.app_context():
                 template = r.table("domains").get(template_id).run(db.conn)
             self._add_item_name(template["name"])
             # Get template ids tree
             data = get_template_with_all_derivatives(template_id, user_id=self.agent_id)
+
         domains = [
             {
                 "id": t["id"],

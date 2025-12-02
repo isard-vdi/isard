@@ -11,7 +11,12 @@ const getDefaultState = () => {
     templates_loaded: false,
     sharedTemplates: [],
     sharedTemplates_loaded: false,
-    templateDerivatives: {},
+    templateDerivatives: {
+      domains: [],
+      deployments: [],
+      pending: false,
+      is_duplicated: false
+    },
     templateId: '',
     templateName: '',
     modalDerivativesShow: {
@@ -169,7 +174,7 @@ export default {
         throw e
       })
     },
-    ConvertToDesktop (context, data) {
+    convertToDesktop (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.converting-template'))
       axios.post(`${apiV3Segment}/template/to/desktop`, { template_id: data.templateId, name: data.name }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

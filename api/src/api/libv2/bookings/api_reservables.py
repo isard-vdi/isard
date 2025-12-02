@@ -90,6 +90,11 @@ class Reservables:
     def deassign_desktops_with_gpu(self, item_type, item_id, desktops=None):
         return self.reservable[item_type].deassign_desktops_with_gpu(item_id, desktops)
 
+    def deassign_deployments_with_gpu(self, item_type, item_id, deployments=None):
+        return self.reservable[item_type].deassign_deployments_with_gpu(
+            item_id, deployments
+        )
+
     def check_last_subitem(self, item_type, item_id):
         return self.reservable[item_type].check_last_subitem(item_id)
 
@@ -464,13 +469,13 @@ class ResourceItemsGpus:
             deployments = list(
                 r.table("deployments")
                 .get_all(subitem_id, index="vgpus")
-                .pluck("id", "user", {"create_dict": {"tag_name": True}})
+                .pluck("id", "user", "tag_name")
                 .map(
                     lambda doc: {
                         "id": doc["id"],
                         "user": doc["user"],
                         "username": r.table("users").get(doc["user"])["username"],
-                        "tag_name": doc["create_dict"]["tag_name"],
+                        "tag_name": doc["tag_name"],
                     }
                 )
                 .run(db.conn)
@@ -500,6 +505,35 @@ class ResourceItemsGpus:
                 db.conn
             )
         return desktops
+
+    def deassign_deployments_with_gpu(self, item_id, deployments=None):
+        deployments_batch_size = 100
+        for i in range(0, len(deployments), deployments_batch_size):
+            batch_deployments = deployments[i : i + deployments_batch_size]
+            with app.app_context():
+                r.table("deployments").get_all(r.args(batch_deployments)).update(
+                    lambda deployment: {
+                        "create_dict": deployment["create_dict"].map(
+                            lambda create_item: create_item.merge(
+                                {
+                                    "reservables": create_item["reservables"].merge(
+                                        {
+                                            "vgpus": r.branch(
+                                                create_item["reservables"]["vgpus"]
+                                                .difference([item_id])
+                                                .is_empty(),
+                                                None,
+                                                create_item["reservables"][
+                                                    "vgpus"
+                                                ].difference([item_id]),
+                                            )
+                                        }
+                                    )
+                                }
+                            )
+                        )
+                    }
+                ).run(db.conn)
 
     def get_subitem_parent_item(self, subitem):
         parts = subitem.split("-")

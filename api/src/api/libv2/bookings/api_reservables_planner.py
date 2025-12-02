@@ -394,6 +394,16 @@ class ReservablesPlanner:
                 self.reservables.deassign_desktops_with_gpu(
                     item_type, subitem_id, desktops_ids
                 )
+            # unassign from deployments
+            deployments_ids = (
+                [deployment["id"] for deployment in data["deployments"]]
+                if data.get("deployments")
+                else None
+            )
+            if deployments_ids:
+                self.reservables.deassign_deployments_with_gpu(
+                    item_type, subitem_id, deployments_ids
+                )
             # delete plans and its bookings
             if data.get("plans"):
                 for plan in data["plans"]:

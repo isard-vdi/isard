@@ -2572,43 +2572,47 @@ class ApiUsers:
                 )
 
             for deployment in deployments:
-                revoke_hardware_permissions(deployment, user_gen_payload)
-                new_create_dict = {
-                    "hardware": deployment["create_dict"]["hardware"],
-                    "reservables": deployment["create_dict"]["reservables"],
-                }
+                new_create_dict = []
+                for create_dict in deployment["create_dict"]:
+                    revoke_hardware_permissions(
+                        {"create_dict": create_dict}, user_gen_payload
+                    )
+                    new_create_dict.append(create_dict)
+                    allowed_interfaces = create_dict["hardware"]["interfaces"]
+                    with app.app_context():
+                        r.table("domains").get_all(
+                            deployment["id"], index="tag"
+                        ).update(
+                            lambda desktop: {
+                                "create_dict": {
+                                    "hardware": {
+                                        "interfaces": desktop["create_dict"][
+                                            "hardware"
+                                        ]["interfaces"].filter(
+                                            lambda interface: r.expr(
+                                                allowed_interfaces
+                                            ).contains(interface["id"])
+                                        ),
+                                        "boot_order": create_dict["hardware"][
+                                            "boot_order"
+                                        ],
+                                        "disk_bus": create_dict["hardware"]["disk_bus"],
+                                        "floppies": create_dict["hardware"]["floppies"],
+                                        "isos": create_dict["hardware"]["isos"],
+                                        "memory": create_dict["hardware"]["memory"],
+                                        "vcpus": create_dict["hardware"]["vcpus"],
+                                        "videos": create_dict["hardware"]["videos"],
+                                    },
+                                    "reservables": create_dict["reservables"],
+                                }
+                            }
+                        ).run(
+                            db.conn
+                        )
+
                 with app.app_context():
                     r.table("deployments").get(deployment["id"]).update(
                         {"create_dict": new_create_dict}
-                    ).run(db.conn)
-
-                # Limit deployment desktops hardware
-                allowed_interfaces = new_create_dict["hardware"]["interfaces"]
-                with app.app_context():
-                    r.table("domains").get_all(deployment["id"], index="tag").update(
-                        lambda desktop: {
-                            "create_dict": {
-                                "hardware": {
-                                    "interfaces": desktop["create_dict"]["hardware"][
-                                        "interfaces"
-                                    ].filter(
-                                        lambda interface: r.expr(
-                                            allowed_interfaces
-                                        ).contains(interface["id"])
-                                    ),
-                                    "boot_order": new_create_dict["hardware"][
-                                        "boot_order"
-                                    ],
-                                    "disk_bus": new_create_dict["hardware"]["disk_bus"],
-                                    "floppies": new_create_dict["hardware"]["floppies"],
-                                    "isos": new_create_dict["hardware"]["isos"],
-                                    "memory": new_create_dict["hardware"]["memory"],
-                                    "vcpus": new_create_dict["hardware"]["vcpus"],
-                                    "videos": new_create_dict["hardware"]["videos"],
-                                },
-                                "reservables": new_create_dict["reservables"],
-                            }
-                        }
                     ).run(db.conn)
 
     def bulk_user_check(self, payload, user, item_type):

@@ -1630,7 +1630,8 @@
     "bastion_domain_not_found": "El dominio no existe. Por favor, comprueba el nombre del dominio e inténtalo de nuevo.",
     "bastion_domain_error": "Se ha producido un error al comprobar el dominio. Por favor, inténtalo de nuevo más tarde.",
     "bastion_domain_mismatch": "El dominio no coincide con el valor esperado. Por favor, comprueba el nombre del dominio e inténtalo de nuevo.",
-    "bastion_domain_exists": "El dominio ya existe. Por favor, elige un nombre de dominio diferente."
+    "bastion_domain_exists": "El dominio ya existe. Por favor, elige un nombre de dominio diferente.",
+    "parent_template_not_found": "El elemento no se puede restaurar ya que la plantilla padre no existe."
   },
   "router": {
     "titles": {

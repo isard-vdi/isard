@@ -1,7 +1,7 @@
 <template>
   <b-modal
     id="ConvertToDesktopModal"
-    v-model="ShowConvertToDesktopModal"
+    v-model="showConvertToDesktopModal"
     size="xl"
     :title="headerTitle"
     centered
@@ -9,7 +9,7 @@
     @hidden="closeConvertToDesktopModal"
   >
     <div class="mx-4">
-      <template v-if="!derivatives.pending">
+      <template v-if="canConvert">
         <span
           class="text-info"
         >
@@ -46,75 +46,39 @@
         </b-form>
       </template>
 
-      <hr
-        v-if="(!derivatives.pending) && (derivativesFiltered.domains.length > 0 || derivatives.pending || derivatives.is_duplicated )"
-      >
-
       <span
-        v-if="derivativesFiltered.domains.length > 0 || derivatives.pending || derivatives.is_duplicated"
+        v-if="hasWarnings"
         class="text-danger"
       >
         <p
-          v-if="derivativesFiltered.domains.length > 0"
+          v-if="derivatives.is_duplicated"
         >
           <b-icon
             class="mr-2"
             variant="danger"
             icon="exclamation-triangle-fill"
           />
-          {{ $t(`views.templates.modal.convert.warning.title`) }}
-        </p>
-        <p
-          v-if="derivatives.pending"
-        >
-          {{ $t(`views.templates.modal.convert.warning.pending`, {ammount: derivativesAmount }) }}
-        </p>
-        <p
-          v-if="derivatives.is_duplicated"
-        >
           {{ $t(`views.templates.modal.convert.warning.duplicate`) }}
         </p>
-        <!-- <p
-          v-else
-        >
-          {{ $t(`views.templates.modal.convert.warning.delete`) }}
-        </p> -->
+        <p v-else>
+          <b-icon
+            class="mr-2"
+            variant="danger"
+            icon="exclamation-triangle-fill"
+          />
+          <span v-if="hasDerivatives">
+            {{ $t(`views.templates.modal.convert.warning.title`) }}
+          </span>
+          <span v-if="derivatives.pending">
+            {{ $t(`views.templates.modal.convert.warning.pending`, {ammount: derivativesAmount }) }}
+          </span>
+        </p>
       </span>
 
-      <!-- <ul
-        v-if="derivativesFiltered.domains.length > 0"
-        class="nav nav-tabs"
-      >
-        <li class="nav-item">
-          <span
-            class="nav-link cursor-pointer"
-            :class="{ 'active': derivativesView === 'list' }"
-            @click="$store.commit('setDerivativesView', 'list')"
-          >
-            <b-icon
-              icon="list-ul"
-            />
-            list
-          </span>
-        </li>
-        <li class="nav-item">
-          <span
-            class="nav-link cursor-pointer"
-            :class="{ 'active': derivativesView === 'diagram' }"
-            @click="$store.commit('setDerivativesView', 'diagram')"
-          >
-            <b-icon
-              icon="diagram2-fill"
-            />
-            diagram
-          </span>
-        </li>
-      </ul> -->
-
       <IsardTable
-        v-if="derivativesFiltered.domains.length > 0 && derivativesView === 'list'"
+        v-if="hasDerivatives && derivativesView === 'list'"
         class="mt-3"
-        :items="derivativesFiltered.domains"
+        :items="derivativesFiltered.domains.concat(derivatives.deployments)"
         :fields="fields"
         :sort-by="fields.name"
         :sort-desc="true"
@@ -126,23 +90,22 @@
         table-class="convert-table"
         :hide-components="['bottomPagination']"
       />
-
-      <b-form-checkbox
-        v-if="!derivativesFiltered.domains.length && (!derivatives.pending && derivativesFiltered.domains.length > 0)"
+      <!-- TODO: User this check when allowing automatically deleting the user dependencies -->
+      <!-- <b-form-checkbox
+        v-if="canConvert && derivativesFiltered.domains.length > 0"
         id="checkbox-confirmation"
         v-model="confirmation"
-        :state="checkState"
       >
         {{ $t(`views.templates.modal.convert.warning.confirm`) }}
-        <b-form-invalid-feedback :state="checkState">
+        <b-form-invalid-feedback :state="confirmation">
           {{ $t(`views.templates.modal.convert.warning.confirm-unchecked`) }}
         </b-form-invalid-feedback>
-      </b-form-checkbox>
+      </b-form-checkbox> -->
     </div>
     <template #modal-footer>
       <div class="w-100 d-flex flex-row justify-content-between align-items-center">
         <p
-          v-if="derivativesFiltered.domains.length > 0|| derivatives.pending"
+          v-if="hasWarnings"
           class="text-danger my-2 mr-4"
         >
           {{ $t(`views.templates.modal.convert.warning.footer`) }}
@@ -150,9 +113,9 @@
         <span class="flex-grow-1" />
         <b-button
           squared
-          :variant="derivativesFiltered.domains.length > 0 || derivatives.pending || derivatives.is_duplicated ? 'secondary' : 'purple'"
-          :disabled="derivativesFiltered.domains.length > 0 || derivatives.pending || derivatives.is_duplicated"
-          @click="ConvertToDesktop"
+          :variant="hasWarnings ? 'secondary' : 'purple'"
+          :disabled="hasWarnings"
+          @click="convertToDesktop"
         >
           {{ $t(`views.templates.modal.convert.button.apply`) }}
         </b-button>
@@ -179,51 +142,43 @@ export default {
 
     const derivatives = computed(() => $store.getters.getTemplateDerivatives)
 
-    const derivativesFiltered = ref({ domains: [] })
-    watch(() => $store.getters.getTemplateDerivatives.domains, (newVal) => {
-      derivativesFiltered.value.domains = newVal.filter(domain => Object.keys(domain).length !== 0).filter(domain => domain.id !== $store.getters.getTemplateId)
-    })
+    // Remove the template itself from the derivatives list
+    const derivativesFiltered = computed(() => ({
+      domains: derivatives.value.domains
+        .filter(domain => domain.id !== $store.getters.getTemplateId)
+    }))
 
-    const derivativesAmount = ref(0)
-    watch(() => $store.getters.getTemplateDerivatives.domains, (newVal) => {
-      derivativesAmount.value = newVal.filter(domain => Object.keys(domain).length === 0).length
-    })
+    const derivativesAmount = computed(() =>
+      derivativesFiltered.value.domains.length +
+      derivatives.value.deployments.length
+    )
 
     const name = ref('')
     watch(() => $store.getters.getTemplateName, (newVal) => {
       name.value = newVal
     })
 
-    const ShowConvertToDesktopModal = computed(() => $store.getters.getShowConvertToDesktopModal)
-
-    const checkState = ref(null)
-    const confirmation = ref(false)
-    watch(() => confirmation.value, (newVal, oldVal) => {
-      if (newVal === false && oldVal === true) {
-        checkState.value = false
-      }
-      if (newVal === true) {
-        checkState.value = true
-      }
+    const showConvertToDesktopModal = computed({
+      get: () => $store.getters.getShowConvertToDesktopModal,
+      set: (value) => $store.commit('setShowConvertToDesktopModal', value)
     })
 
-    const ConvertToDesktop = () => {
-      if (confirmation.value === true || !(derivativesFiltered.value.domains.length > 0 || derivatives.value.pending)) {
-        $store.dispatch('ConvertToDesktop', { templateId: $store.getters.getTemplateId, name: name.value }).then(() => {
+    // const confirmation = ref(false)
+
+    const convertToDesktop = () => {
+      if (!hasWarnings.value) {
+        $store.dispatch('convertToDesktop', { templateId: $store.getters.getTemplateId, name: name.value }).then(() => {
           closeConvertToDesktopModal()
         })
-      } else {
-        checkState.value = false
       }
     }
     const closeConvertToDesktopModal = () => {
       $store.commit('setShowConvertToDesktopModal', false)
-      confirmation.value = false
-      checkState.value = null
+      // confirmation.value = false
     }
 
     const headerTitle = computed(() => {
-      if (derivativesAmount.value > 0) {
+      if (derivativesFiltered.value.domains.length > 0 || derivatives.value.deployments.length > 0 || derivatives.value.pending) {
         return i18n.t('views.templates.modal.convert.title.warning')
       } else {
         return i18n.t('views.templates.modal.convert.title.ok', { name: $store.getters.getTemplateName })
@@ -231,20 +186,19 @@ export default {
     })
 
     const headerClass = computed(() => {
-      if (derivativesAmount.value > 0) {
+      if (derivativesFiltered.value.domains.length > 0 || derivatives.value.deployments.length > 0 || derivatives.value.pending) {
         return 'bg-red text-white'
       } else {
         return 'bg-purple text-white'
       }
     })
 
-    const sameName = computed(() => {
-      if (name.value === $store.getters.getTemplateName) {
-        return true
-      } else {
-        return false
-      }
+    const hasDerivatives = computed(() => {
+      // Domain can only be 1, that is the template itself
+      return derivativesFiltered.value.domains.length > 0 || derivatives.value.deployments.length > 0 || derivatives.value.pending
     })
+    const hasWarnings = computed(() => hasDerivatives.value || derivatives.value.is_duplicated)
+    const canConvert = computed(() => !hasWarnings.value)
 
     const derivativesView = computed(() => $store.getters.getDerivativesView)
 
@@ -255,17 +209,18 @@ export default {
       loading,
       name,
       closeConvertToDesktopModal,
-      ShowConvertToDesktopModal,
-      confirmation,
-      ConvertToDesktop,
+      showConvertToDesktopModal,
+      // confirmation,
+      convertToDesktop,
       derivatives,
       derivativesFiltered,
       derivativesAmount,
       headerTitle,
       headerClass,
-      sameName,
       derivativesView,
-      checkState
+      hasDerivatives,
+      hasWarnings,
+      canConvert
     }
   },
   data () {

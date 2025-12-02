@@ -15,7 +15,7 @@ from api import app
 
 from ..libv2.caches import get_document
 from ..libv2.validators import _validate_item
-from ..views.decorators import ownsDomainId
+from ..views.decorators import ownsDeploymentId, ownsDomainId
 from .api_cards import ApiCards
 
 r = RethinkDB()
@@ -278,49 +278,42 @@ class ApiTemplates:
                     "user": domain_tree["user"],
                 }
             ]
+            deployments = []
             pending = False
         except:
             domains = [{}]
+            deployments = []
             pending = True
 
-        for domain in domain_tree["children"]:
-            domain_result = {
-                "id": domain["id"],
-                "kind": domain["kind"],
-                "name": domain["title"],
-                "user": domain["user"],
+        for item in domain_tree["children"]:
+            item_result = {
+                "id": item["id"],
+                "kind": item["kind"],
+                "name": item["title"],
+                "user": item["user"],
             }
 
-            if domain.get("children"):
-                child_result = self.check_children(payload, domain)
+            if item.get("children"):
+                child_result = self.check_children(payload, item)
                 domains.extend(child_result["domains"])
                 pending = pending or child_result["pending"]
             else:
-                try:
-                    ownsDomainId(payload, domain["id"])
-                    domains.append(domain_result)
-                except:
-                    pending = True
-                    domains.append({})
+                if item["kind"] == "deployment":
+                    try:
+                        ownsDeploymentId(payload, item["id"], True)
+                        deployments.append(item_result)
+                    except:
+                        pending = True
+                        deployments.append({})
+                else:
+                    try:
+                        ownsDomainId(payload, item["id"])
+                        domains.append(item_result)
+                    except:
+                        pending = True
+                domains.append({})
 
-        return {"domains": domains, "pending": pending}
-
-    def get_deployments_with_template(self, template_id, return_username=False):
-        query = r.table("deployments").get_all(template_id, index="template")
-        if return_username:
-            with app.app_context():
-                return list(
-                    query.merge(
-                        lambda deployment: {
-                            "username": r.table("users").get(deployment["user"])[
-                                "username"
-                            ]
-                        }
-                    ).run(db.conn)
-                )
-        else:
-            with app.app_context():
-                return list(query.run(db.conn))
+        return {"deployments": deployments, "domains": domains, "pending": pending}
 
     def is_duplicate(self, template_id):
         with app.app_context():
