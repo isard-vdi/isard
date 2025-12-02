@@ -225,7 +225,7 @@ def get_selected_users(
             for u in list(
                 r.table("domains")
                 .get_all(r.args(users_ids), index="user")
-                .filter({"name": desktop_name, "tag": deployment_id})
+                .filter({"kind": "desktop", "name": desktop_name, "tag": deployment_id})
                 .pluck("id", "user", "username")
                 .run(db.conn)
             )
