@@ -675,7 +675,7 @@ def get_user_recycle_bin_cutoff_time(user_id):
     :return: User recycle bin cutoff time (in hours)
     :rtype: int
     """
-    if user_id == "isard-scheduler" or user_id.startswith("external_"):
+    if user_id in ["isard-scheduler", "system"] or user_id.startswith("external_"):
         return get_system_recycle_bin_cutoff_time()
     with app.app_context():
         user_category = (
@@ -1087,7 +1087,7 @@ class RecycleBin(object):
         :param user_id: str, None
         """
 
-        if user_id and (user_id != "isard-scheduler"):
+        if user_id and (user_id not in ["isard-scheduler", "system"]):
             user = get_user_data(user_id)
             self.agent_id = user_id
             self.agent_name = user["user_name"]

@@ -44,7 +44,11 @@ alloweds = ApiAllowed()
 
 from api.libv2.quotas import Quotas
 
-from ..api_desktop_events import deployment_delete_desktops, desktops_stop
+from ..api_desktop_events import (
+    deployment_delete,
+    deployment_delete_desktops,
+    desktops_stop,
+)
 from ..api_desktops_common import ApiDesktopsCommon
 from ..api_desktops_persistent import ApiDesktopsPersistent
 from ..bookings.api_booking import Bookings
@@ -146,12 +150,8 @@ def lists(user_id):
     parsed_deployments = []
     for deployment in deployments:
         if not deployment["template"]:
-
-            # TODO: commented to avoid accidental deletions
-            # Template does no exist anymore
-            # with app.app_context():
-            #     r.table("deployments").get(deployment["id"]).delete().run(db.conn)
-            #     invalidate_cache("deployments", deployment["id"])
+            # If the template does not exist, delete the deployment
+            deployment_delete(deployment["id"], "system")
             continue
         parsed_deployments.append(
             {**deployment, **_parse_deployment_booking(deployment)}
