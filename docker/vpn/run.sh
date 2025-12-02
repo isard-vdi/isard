@@ -11,6 +11,15 @@ function extract_conntrack () {
 }
 extract_conntrack &
 
+# OVS Security Stats loop (JSON format)
+function ovs_stats_loop () {
+    while : ; do
+        python3 /ovs/security-stats.py 2>/dev/null
+        sleep 60
+    done
+}
+ovs_stats_loop &
+
 # Start guacd
 echo "$(date): INFO: Starting guacd server"
 guacd -b 0.0.0.0 -L info -f >> /var/log/guacd 2>&1 &
