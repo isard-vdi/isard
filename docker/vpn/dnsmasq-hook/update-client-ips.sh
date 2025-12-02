@@ -1,8 +1,23 @@
 #!/bin/sh
-#$1 - add 
-#$2 - 52:54:00:2c:7a:13 
-#$3 - 192.168.128.76 
-#$4 - slax
+# DHCP hook for VLAN 4095 (WireGuard guest network)
+# Args: $1=action (add|old|del), $2=MAC, $3=IP, $4=hostname
+
+ACTION=$1
+MAC=$2
+IP=$3
 
 export API_HYPERVISORS_SECRET=$API_HYPERVISORS_SECRET
+
+# Notify API of IP assignment (existing functionality)
 /usr/bin/python3 /dnsmasq-hook/update-client-ips.py "$@"
+
+# Static ARP entries for ARP cache poisoning protection
+# Static entries cannot be overwritten by ARP replies
+case "$ACTION" in
+    add|old)
+        arp -s "$IP" "$MAC" dev vlan-wg 2>/dev/null || true
+        ;;
+    del)
+        arp -d "$IP" dev vlan-wg 2>/dev/null || true
+        ;;
+esac

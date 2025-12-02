@@ -330,6 +330,11 @@ class Wg(object):
                         .split("(")[0]
                         .split(" ")[-1]
                     )
+                    # Forward VLAN 4095 traffic from hypervisor using NORMAL switching
+                    # NORMAL enables MAC learning and proper forwarding:
+                    # - Traffic to VPN (10.2.0.1): forwards to vlan-wg (access port strips tag)
+                    # - Traffic to bastion (10.2.0.2): forwards to bastion port (trunk)
+                    # - Traffic to samba (10.2.0.3): forwards to samba port (trunk)
                     subprocess.run(
                         [
                             "ovs-ofctl",
@@ -337,9 +342,11 @@ class Wg(object):
                             "ovsbr0",
                             "priority=201,in_port="
                             + str(port)
-                            + ",dl_vlan=0x4095,actions=output:1",
+                            + ",dl_vlan=4095,actions=NORMAL",
                         ]
                     )
+
+                    # Drop other VLAN 4095 traffic from this hypervisor
                     subprocess.run(
                         [
                             "ovs-ofctl",
@@ -347,7 +354,7 @@ class Wg(object):
                             "ovsbr0",
                             "priority=200,in_port="
                             + str(port)
-                            + ",dl_vlan=0x4095,actions=drop",
+                            + ",dl_vlan=4095,actions=drop",
                         ]
                     )
 

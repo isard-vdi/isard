@@ -40,6 +40,7 @@ ovs-vswitchd --detach --verbose --pidfile  >> /var/log/ovs 2>&1
 
 echo "$(date): INFO: Adding OVS default bridge"
 ovs-vsctl add-br ovsbr0 >> /var/log/ovs 2>&1
+ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13 >> /var/log/ovs 2>&1
 ip link set ovsbr0 up >> /var/log/ovs 2>&1
 
 echo "$(date): INFO: Adding OVS vlan-wg port to default bridge with tag 4095"
@@ -53,19 +54,40 @@ while ! ip a s vlan-wg; do
   sleep 1
 done
 
-# Bastion port
+# ============================================================================
+# SECURITY: RSTP for Loop Protection
+# ============================================================================
+# Enable RSTP to detect and block L2 loops (e.g., trunk added to multiple containers via pipework)
+# Both VPN and Hypervisor OVS bridges need RSTP for cross-container loop detection
+ovs-vsctl set Bridge ovsbr0 rstp_enable=true
+echo "$(date): [SECURITY] RSTP enabled for loop protection"
+
+# Bastion port (geneve tunnel to bastion container)
 ovs-vsctl add-port ovsbr0 bastion -- set interface bastion type=geneve options:remote_ip=172.31.255.117 >> /var/log/ovs 2>&1
 
-# Samba port
+# Samba port (geneve tunnel to samba container)
 ovs-vsctl add-port ovsbr0 samba -- set interface samba type=geneve options:remote_ip=172.31.255.100 >> /var/log/ovs 2>&1
+
+# Get port numbers for bastion and samba
+BASTION_PORT=$(ovs-vsctl get Interface bastion ofport 2>/dev/null)
+SAMBA_PORT=$(ovs-vsctl get Interface samba ofport 2>/dev/null)
+
+# Forward VLAN 4095 traffic from bastion/samba using NORMAL (floods to all VLAN 4095 ports)
+# This allows bastion/samba to reach both vlan-wg and hypervisors
+if [ -n "$BASTION_PORT" ] && [ "$BASTION_PORT" != "-1" ]; then
+    ovs-ofctl add-flow ovsbr0 "priority=201,in_port=${BASTION_PORT},dl_vlan=4095,actions=NORMAL"
+    echo "$(date): [SECURITY] Added bastion VLAN 4095 flow rule (port ${BASTION_PORT})"
+fi
+if [ -n "$SAMBA_PORT" ] && [ "$SAMBA_PORT" != "-1" ]; then
+    ovs-ofctl add-flow ovsbr0 "priority=201,in_port=${SAMBA_PORT},dl_vlan=4095,actions=NORMAL"
+    echo "$(date): [SECURITY] Added samba VLAN 4095 flow rule (port ${SAMBA_PORT})"
+fi
 
 # Handle trunk interface mapping (similar to hypervisor)
 if [ -z ${HYPERVISOR_HOST_TRUNK_INTERFACE+x} ];
 then
     echo "$(date): INFO: No VPN trunk interface set in isardvdi.cfg"
 else
-    echo "$(date): INFO: Activating RSTP for VPN trunk"
-    ovs-vsctl set Bridge ovsbr0 rstp_enable=true
     echo "$(date): INFO: Setting VPN trunk interface: '$HYPERVISOR_HOST_TRUNK_INTERFACE'"
     ovs-vsctl add-port ovsbr0 $HYPERVISOR_HOST_TRUNK_INTERFACE
     echo "$(date): INFO: VPN trunk interface $HYPERVISOR_HOST_TRUNK_INTERFACE added to OVS bridge"
@@ -80,7 +102,7 @@ pid-file=/var/run/ovs-vlan-wg.pid
 except-interface=lo
 bind-dynamic
 interface=vlan-wg
-dhcp-range=10.2.0.21,10.2.255.254,255.255.0.0
+dhcp-range=10.2.0.16,10.2.255.254,255.255.0.0
 dhcp-no-override
 dhcp-authoritative
 dhcp-lease-max=100000
