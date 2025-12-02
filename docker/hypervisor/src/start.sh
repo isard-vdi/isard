@@ -139,7 +139,11 @@ do
         wg-quick down wg0  >/dev/null 2>&1
         wg-quick up wg0  >/dev/null 2>&1
     fi
-    sleep 30 &
+
+    # OVS Security Stats (JSON format, every 60s)
+    python3 /src/ovs/security-stats.py 2>/dev/null
+
+    sleep 60 &
     wait $!
 done
 
