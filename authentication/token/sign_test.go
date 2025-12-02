@@ -189,8 +189,12 @@ func TestSignPasswordResetToken(t *testing.T) {
 func TestSignCategorySelectToken(t *testing.T) {
 	assert := assert.New(t)
 
+	rawGroups := []string{"group1", "group2", "group3"}
+
 	cases := map[string]struct {
 		Categories  []*model.Category
+		RawGroups   *[]string
+		RawRoles    *[]string
 		User        *types.ProviderUserData
 		ExpectedErr string
 		CheckToken  func(string)
@@ -205,6 +209,7 @@ func TestSignCategorySelectToken(t *testing.T) {
 					Photo:       "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 				},
 			},
+			RawGroups: &rawGroups,
 			User: &types.ProviderUserData{
 				Provider: "SAML",
 				Category: "Test cat",
@@ -256,6 +261,7 @@ func TestSignCategorySelectToken(t *testing.T) {
 							"photo": "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 						},
 					},
+					"raw_groups": []any{"group1", "group2", "group3"},
 					"user": map[string]any{
 						"provider": "SAML",
 						"category": "Test cat",
@@ -269,7 +275,7 @@ func TestSignCategorySelectToken(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ss, err := token.SignCategorySelectToken("", tc.Categories, tc.User)
+			ss, err := token.SignCategorySelectToken("", tc.Categories, tc.RawGroups, tc.RawRoles, tc.User)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

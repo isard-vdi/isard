@@ -189,23 +189,25 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 		}
 
 		// Automatic group registration!
-		for _, group := range append(secondary, g) {
-			gExists, err := group.Exists(ctx, a.DB)
-			if err != nil {
-				return "", "", fmt.Errorf("check if group exists: %w", err)
-			}
+		if g != nil {
+			for _, group := range append(secondary, g) {
+				gExists, err := group.Exists(ctx, a.DB)
+				if err != nil {
+					return "", "", fmt.Errorf("check if group exists: %w", err)
+				}
 
-			if !gExists {
-				if err := a.registerGroup(group); err != nil {
-					return "", "", fmt.Errorf("auto register group: %w", err)
+				if !gExists {
+					if err := a.registerGroup(group); err != nil {
+						return "", "", fmt.Errorf("auto register group: %w", err)
+					}
 				}
 			}
-		}
 
-		// Set the user group to the new group created
-		u.Group = g.ID
-		for _, group := range secondary {
-			u.SecondaryGroups = append(u.SecondaryGroups, group.ID)
+			// Set the user group to the new group created
+			u.Group = g.ID
+			for _, group := range secondary {
+				u.SecondaryGroups = append(u.SecondaryGroups, group.ID)
+			}
 		}
 
 		// Automatic registration!
@@ -393,10 +395,28 @@ func (a *Authentication) finishCategorySelect(ctx context.Context, remoteAddr, c
 		return "", "", err
 	}
 
+	p := a.Provider(claims.User.Provider)
+
 	u := &claims.User
 	u.Category = categoryID
 
-	return a.startLogin(ctx, remoteAddr, a.Provider(claims.User.Provider), nil, []*model.Group{}, u, redirect)
+	var g *model.Group
+	secondary := []*model.Group{}
+	if claims.RawGroups != nil && len(*claims.RawGroups) != 0 {
+		g, secondary, err = p.GuessGroups(ctx, u, *claims.RawGroups)
+		if err != nil && !errors.Is(err, provider.ErrInvalidIDP) {
+			return "", "", fmt.Errorf("guess groups from token: %w", err)
+		}
+	}
+
+	if claims.RawRoles != nil && len(*claims.RawRoles) != 0 {
+		u.Role, err = p.GuessRole(ctx, u, *claims.RawRoles)
+		if err != nil && !errors.Is(err, provider.ErrInvalidIDP) {
+			return "", "", fmt.Errorf("guess role from token: %w", err)
+		}
+	}
+
+	return a.startLogin(ctx, remoteAddr, p, g, secondary, u, redirect)
 }
 
 func isDefaultAdmin(u *model.User) bool {

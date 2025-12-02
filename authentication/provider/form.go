@@ -141,7 +141,7 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 
 func (f *Form) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	return nil, nil, nil, "", "", &ProviderError{
-		User:   errInvalidIDP,
+		User:   ErrInvalidIDP,
 		Detail: errors.New("the local provider doesn't support the callback operation"),
 	}
 }
@@ -189,4 +189,18 @@ func (Form) Logout(context.Context, string) (string, error) {
 
 func (Form) SaveEmail() bool {
 	return true
+}
+
+func (Form) GuessGroups(context.Context, *types.ProviderUserData, []string) (*model.Group, []*model.Group, *ProviderError) {
+	return nil, nil, &ProviderError{
+		User:   ErrInvalidIDP,
+		Detail: errors.New("the form provider doesn't support the guess groups operation"),
+	}
+}
+
+func (Form) GuessRole(context.Context, *types.ProviderUserData, []string) (*model.Role, *ProviderError) {
+	return nil, &ProviderError{
+		User:   ErrInvalidIDP,
+		Detail: errors.New("the form provider doesn't support the guess role operation"),
+	}
 }

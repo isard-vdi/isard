@@ -70,11 +70,16 @@ func TestGuessCategory(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
+	rawGroups := []string{"group1", "group2", "group3"}
+	rawRoles := []string{"hello", "admin", "how", "are", "you?:)"}
+
 	cases := map[string]struct {
 		PrepareDB       func(*r.Mock)
 		Secret          string
 		PrepareRegexp   func() *regexp.Regexp
 		RawCategories   []string
+		RawGroups       *[]string
+		RawRoles        *[]string
 		PrepareUserData func() *types.ProviderUserData
 
 		ExpectedErr   string
@@ -119,6 +124,8 @@ func TestGuessCategory(t *testing.T) {
 				return re
 			},
 			RawCategories: []string{"categoria1", "categoria2", "categoria3"},
+			RawGroups:     &rawGroups,
+			RawRoles:      &rawRoles,
 			PrepareUserData: func() *types.ProviderUserData {
 				name := "Néfix Estrada"
 				return &types.ProviderUserData{
@@ -149,6 +156,12 @@ func TestGuessCategory(t *testing.T) {
 					Name:  "Categoria 3",
 					Photo: "https://clipground.com/images/potato-emoji-clipart-9.jpg",
 				}}, claims.Categories)
+
+				expectedRawGroups := []string{"group1", "group2", "group3"}
+				expectedRawRoles := []string{"hello", "admin", "how", "are", "you?:)"}
+
+				assert.Equal(&expectedRawGroups, claims.RawGroups)
+				assert.Equal(&expectedRawRoles, claims.RawRoles)
 			},
 			CheckUserData: func(u *types.ProviderUserData) {
 				name := "Néfix Estrada"
@@ -281,7 +294,7 @@ func TestGuessCategory(t *testing.T) {
 
 				assert.Equal(expected, u)
 			},
-			ExpectedErr: "user can't use IsardVDI: user doesn't have any valid category, recieved raw argument: '[categoria1 categoria2]'",
+			ExpectedErr: "user can't use IsardVDI: user doesn't have any valid category, received raw: '[categoria1 categoria2]', extracted UIDs: '[]' (none found in database)",
 		},
 		"should parse the categories correctly from a single field, with multiple regex matches": {
 			PrepareDB: func(m *r.Mock) {
@@ -418,7 +431,7 @@ func TestGuessCategory(t *testing.T) {
 
 			ctx := context.Background()
 			u := tc.PrepareUserData()
-			tkn, err := guessCategory(ctx, log.New("authentication-test", "debug"), mock, tc.Secret, tc.PrepareRegexp(), tc.RawCategories, u)
+			tkn, err := guessCategory(ctx, log.New("authentication-test", "debug"), mock, tc.Secret, tc.PrepareRegexp(), tc.RawCategories, tc.RawGroups, tc.RawRoles, u)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

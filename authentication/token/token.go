@@ -213,6 +213,8 @@ func (c PasswordResetClaims) Validate() error {
 type CategorySelectClaims struct {
 	TypeClaims
 	Categories []CategorySelectClaimsCategory `json:"categories"`
+	RawGroups  *[]string                      `json:"raw_groups,omitempty"`
+	RawRoles   *[]string                      `json:"raw_roles,omitempty"`
 	User       types.ProviderUserData         `json:"user"`
 }
 

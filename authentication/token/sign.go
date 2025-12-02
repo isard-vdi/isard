@@ -232,7 +232,7 @@ func SignPasswordResetToken(secret string, userID string) (string, error) {
 	return ss, nil
 }
 
-func SignCategorySelectToken(secret string, categories []*model.Category, u *types.ProviderUserData) (string, error) {
+func SignCategorySelectToken(secret string, categories []*model.Category, rawGroups, rawRoles *[]string, u *types.ProviderUserData) (string, error) {
 	categoriesClaims := []CategorySelectClaimsCategory{}
 	for _, c := range categories {
 		categoriesClaims = append(categoriesClaims, CategorySelectClaimsCategory{
@@ -255,6 +255,8 @@ func SignCategorySelectToken(secret string, categories []*model.Category, u *typ
 			Type:  TypeCategorySelect,
 		},
 		Categories: categoriesClaims,
+		RawGroups:  rawGroups,
+		RawRoles:   rawRoles,
 		User:       *u,
 	})
 

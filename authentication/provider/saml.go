@@ -282,7 +282,18 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 			}
 		}
 
-		tkn, err := guessCategory(ctx, s.log, s.db, s.Cfg.Secret, s.ReCategory, attrCategories, u)
+		var (
+			attrGroups *[]string
+			attrRole   *[]string
+		)
+		if s.Cfg.SAML.AutoRegister {
+			g := attrs[s.Cfg.SAML.FieldGroup]
+			attrGroups = &g
+			r := attrs[s.Cfg.SAML.FieldRole]
+			attrRole = &r
+		}
+
+		tkn, err := guessCategory(ctx, s.log, s.db, s.Cfg.Secret, s.ReCategory, attrCategories, attrGroups, attrRole, u)
 		if err != nil {
 			return nil, nil, nil, "", "", err
 		}
@@ -305,11 +316,7 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 		}
 
 		var err *ProviderError
-		g, secondary, err = guessGroup(ctx, s.db, guessGroupOpts{
-			Provider:     s,
-			ReGroup:      s.ReGroup,
-			DefaultGroup: s.Cfg.SAML.GroupDefault,
-		}, u, attrGroups)
+		g, secondary, err = s.GuessGroups(ctx, u, attrGroups)
 		if err != nil {
 			return nil, nil, nil, "", "", err
 		}
@@ -323,17 +330,12 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 			attrRole = []string{}
 		}
 
-		u.Role, err = guessRole(guessRoleOpts{
-			ReRole:          s.ReRole,
-			RoleAdminIDs:    s.Cfg.SAML.RoleAdminIDs,
-			RoleManagerIDs:  s.Cfg.SAML.RoleManagerIDs,
-			RoleAdvancedIDs: s.Cfg.SAML.RoleAdvancedIDs,
-			RoleUserIDs:     s.Cfg.SAML.RoleUserIDs,
-			RoleDefault:     s.Cfg.SAML.RoleDefault,
-		}, attrRole)
+		u.Role, err = s.GuessRole(ctx, u, attrRole)
 		if err != nil {
 			return nil, nil, nil, "", "", err
 		}
+
+		s.log.Info().Strs("raw_role_attributes", attrRole).Str("assigned_role", string(*u.Role)).Msg("role extraction completed")
 	}
 
 	return g, secondary, u, "", "", nil
@@ -343,12 +345,20 @@ func (s *SAML) AutoRegister(u *model.User) bool {
 	if s.Cfg.SAML.AutoRegister {
 		if len(s.Cfg.SAML.AutoRegisterRoles) != 0 {
 			// If the user role is in the autoregister roles list, auto register
-			return slices.Contains(s.Cfg.SAML.AutoRegisterRoles, string(u.Role))
+			allowed := slices.Contains(s.Cfg.SAML.AutoRegisterRoles, string(u.Role))
+			if allowed {
+				s.log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Strs("allowed_roles", s.Cfg.SAML.AutoRegisterRoles).Msg("auto-registration allowed: user role matches allowed roles list")
+			} else {
+				s.log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Strs("allowed_roles", s.Cfg.SAML.AutoRegisterRoles).Msg("auto-registration denied: user role not in allowed roles list")
+			}
+			return allowed
 		}
 
+		s.log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Msg("auto-registration allowed: no role restrictions configured")
 		return true
 	}
 
+	s.log.Info().Str("usr", u.UID).Msg("auto-registration denied: auto_register is disabled in configuration")
 	return false
 }
 
@@ -385,4 +395,23 @@ func (s SAML) Logout(context.Context, string) (string, error) {
 
 func (s *SAML) SaveEmail() bool {
 	return s.Cfg.SAML.SaveEmail
+}
+
+func (s *SAML) GuessGroups(ctx context.Context, u *types.ProviderUserData, rawGroups []string) (*model.Group, []*model.Group, *ProviderError) {
+	return guessGroup(ctx, s.db, guessGroupOpts{
+		Provider:     s,
+		ReGroup:      s.ReGroup,
+		DefaultGroup: s.Cfg.SAML.GroupDefault,
+	}, u, rawGroups)
+}
+
+func (s *SAML) GuessRole(ctx context.Context, u *types.ProviderUserData, rawRoles []string) (*model.Role, *ProviderError) {
+	return guessRole(guessRoleOpts{
+		ReRole:          s.ReRole,
+		RoleAdminIDs:    s.Cfg.SAML.RoleAdminIDs,
+		RoleManagerIDs:  s.Cfg.SAML.RoleManagerIDs,
+		RoleAdvancedIDs: s.Cfg.SAML.RoleAdvancedIDs,
+		RoleUserIDs:     s.Cfg.SAML.RoleUserIDs,
+		RoleDefault:     s.Cfg.SAML.RoleDefault,
+	}, rawRoles)
 }

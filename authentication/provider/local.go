@@ -68,7 +68,7 @@ func (l *Local) Login(ctx context.Context, categoryID string, args LoginArgs) (*
 
 func (l *Local) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	return nil, nil, nil, "", "", &ProviderError{
-		User:   errInvalidIDP,
+		User:   ErrInvalidIDP,
 		Detail: errors.New("the local provider doesn't support the callback operation"),
 	}
 }
@@ -103,4 +103,18 @@ func (Local) Logout(context.Context, string) (string, error) {
 
 func (Local) SaveEmail() bool {
 	return true
+}
+
+func (Local) GuessGroups(context.Context, *types.ProviderUserData, []string) (*model.Group, []*model.Group, *ProviderError) {
+	return nil, nil, &ProviderError{
+		User:   ErrInvalidIDP,
+		Detail: errors.New("the local provider doesn't support the guess groups operation"),
+	}
+}
+
+func (Local) GuessRole(context.Context, *types.ProviderUserData, []string) (*model.Role, *ProviderError) {
+	return nil, &ProviderError{
+		User:   ErrInvalidIDP,
+		Detail: errors.New("the local provider doesn't support the guess role operation"),
+	}
 }

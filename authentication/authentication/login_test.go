@@ -8,7 +8,9 @@ import (
 
 	"gitlab.com/isard/isardvdi/authentication/authentication"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
+	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider"
+	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
@@ -345,6 +347,157 @@ func TestLogin(t *testing.T) {
 			CategoryID: "default",
 			PrepareArgs: func() provider.LoginArgs {
 				ss, err := token.SignPasswordResetRequiredToken("", "08fff46e-cbd3-40d2-9d8e-e2de7a8da654")
+				require.NoError(err)
+
+				return provider.LoginArgs{
+					Token: &ss,
+				}
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParseLoginToken("", ss)
+				assert.NoError(err)
+
+				assert.Equal("isard-authentication", claims.Issuer)
+				assert.Equal("isardvdi", claims.KeyID)
+				// TODO: Test time
+				assert.Equal(token.LoginClaimsData{
+					Provider:   "local",
+					ID:         "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					RoleID:     "user",
+					CategoryID: "default",
+					GroupID:    "default-default",
+					Name:       "Néfix Estrada",
+				}, claims.Data)
+			},
+			ExpectedRedirect: "",
+		},
+		"should finish the login flow if the uer provides a category-select token": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": nil,
+							},
+						},
+					},
+				}, nil)
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("uid"), "nefix"),
+					r.Eq(r.Row.Field("provider"), "local"),
+					r.Eq(r.Row.Field("category"), "default"),
+				), r.FilterOpts{})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                     "nefix",
+						"username":                "nefix",
+						"password":                "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"password_reset_token":    "",
+						"provider":                "local",
+						"active":                  true,
+						"category":                "default",
+						"role":                    "user",
+						"group":                   "default-default",
+						"name":                    "Néfix Estrada",
+						"email":                   "nefix@example.org",
+						"email_verified":          &now,
+						"disclaimer_acknowledged": true,
+						"api_key":                 "",
+					},
+				}, nil)
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return([]interface{}{
+					map[string]interface{}{
+						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                     "nefix",
+						"username":                "nefix",
+						"password":                "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"password_reset_token":    "",
+						"provider":                "local",
+						"active":                  true,
+						"category":                "default",
+						"role":                    "user",
+						"group":                   "default-default",
+						"name":                    "Néfix Estrada",
+						"email":                   "nefix@example.org",
+						"email_verified":          &now,
+						"disclaimer_acknowledged": true,
+						"api_key":                 "",
+					},
+				}, nil)
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
+					"id":                       "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"uid":                      "nefix",
+					"username":                 "nefix",
+					"password":                 "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+					"password_reset_token":     "",
+					"provider":                 "local",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "user",
+					"group":                    "default-default",
+					"secondary_groups":         []string{},
+					"name":                     "Néfix Estrada",
+					"email":                    "nefix@example.org",
+					"email_verified":           r.MockAnything(),
+					"email_verification_token": "",
+					"photo":                    "",
+					"disclaimer_acknowledged":  true,
+					"accessed":                 r.MockAnything(),
+					"api_key":                  "",
+				})).Return(r.WriteResponse{
+					Updated: 1,
+				}, nil)
+			},
+			PrepareAPI: func(c *sdk.MockSdk) {
+				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserNotificationsDisplays", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return([]string{}, nil)
+			},
+			PrepareSessions: func(s *grpcmock.Server) {
+				s.ExpectUnary("/sessions.v1.SessionsService/New").WithPayload(&sessionsv1.NewRequest{
+					UserId:     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					RemoteAddr: "127.0.0.1",
+				}).Return(&sessionsv1.NewResponse{
+					Id: "ThoJuroQueEsUnID",
+					Time: &sessionsv1.NewResponseTime{
+						MaxTime:        timestamppb.New(time.Now().Add(8 * time.Hour)),
+						MaxRenewTime:   timestamppb.New(time.Now().Add(30 * time.Minute)),
+						ExpirationTime: timestamppb.New(time.Now().Add(5 * time.Minute)),
+					},
+				})
+			},
+			RemoteAddr: "127.0.0.1",
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "nefix@example.org"
+
+				rawGroups := []string{"group1", "group2", "group3"}
+				rawRoles := []string{"admin", "melina", "virtual", "machine"}
+
+				ss, err := token.SignCategorySelectToken("", []*model.Category{{
+					ID:          "12168f82-4142-4da2-8529-dbe3fb05d7bb",
+					UID:         "default",
+					Name:        "Default",
+					Description: "This is the default category",
+				}, {
+					ID:          "0d75d9f4-d9e8-40ca-a78c-f9bd0623b04d",
+					UID:         "categoria",
+					Name:        "Categoria de Néfix",
+					Description: "Aquesta és la categoria que pertany a Néfix",
+				}}, &rawGroups, &rawRoles, &types.ProviderUserData{
+					Provider: "local",
+					UID:      "nefix",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+				})
 				require.NoError(err)
 
 				return provider.LoginArgs{

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -122,4 +123,18 @@ func (Google) Logout(context.Context, string) (string, error) {
 
 func (Google) SaveEmail() bool {
 	return true
+}
+
+func (Google) GuessGroups(context.Context, *types.ProviderUserData, []string) (*model.Group, []*model.Group, *ProviderError) {
+	return nil, nil, &ProviderError{
+		User:   ErrInvalidIDP,
+		Detail: errors.New("the google provider doesn't support the guess groups operation"),
+	}
+}
+
+func (Google) GuessRole(context.Context, *types.ProviderUserData, []string) (*model.Role, *ProviderError) {
+	return nil, &ProviderError{
+		User:   ErrInvalidIDP,
+		Detail: errors.New("the google provider doesn't support the guess role operation"),
+	}
 }
