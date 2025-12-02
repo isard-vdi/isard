@@ -1619,7 +1619,8 @@
         "bastion_domain_dns_not_found": "The domain DNS record was not found. Please check and try again.",
         "bastion_domain_dns_error": "There was an error checking the DNS for the domain. Please try again later.",
         "bastion_domain_dns_mismatch": "The DNS record for the domain does not match the expected value. Please check and try again.",
-        "bastion_domain_exists": "The domain already exists. Please choose a different domain name."
+        "bastion_domain_exists": "The domain already exists. Please choose a different domain name.",
+        "parent_template_not_found": "The item cannot be restored since the parent template does not exist."
     },
     "router": {
         "titles": {

@@ -1526,7 +1526,8 @@
     "bastion_domain_dns_not_found": "El registre DNS del domini no s'ha trobat. Si us plau, comprova-ho i torna-ho a provar.",
     "bastion_domain_dns_error": "S'ha produït un error al comprovar el DNS del domini. Torna-ho a provar més tard.",
     "bastion_domain_dns_mismatch": "El registre DNS del domini no coincideix amb el valor esperat. Si us plau, comprova-ho i torna-ho a provar.",
-    "bastion_domain_exists": "El domini ja existeix. Si us plau, tria un altre nom de domini."
+    "bastion_domain_exists": "El domini ja existeix. Si us plau, tria un altre nom de domini.",
+    "parent_template_not_found": "L'element no es pot restaurar ja que la plantilla pare no existeix."
   },
   "messages": {
     "title": {
