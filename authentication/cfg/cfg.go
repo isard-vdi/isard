@@ -51,9 +51,7 @@ type AuthenticationSAML struct {
 }
 
 type AuthenticationGoogle struct {
-	Enabled      bool
-	ClientID     string `mapstructure:"client_id"`
-	ClientSecret string `mapstructure:"client_secret"`
+	Enabled bool
 }
 
 type API struct {
@@ -110,9 +108,7 @@ func setDefaults() {
 			"enabled": false,
 		},
 		"google": map[string]interface{}{
-			"enabled":       false,
-			"client_id":     "",
-			"client_secret": "",
+			"enabled": false,
 		},
 	})
 
