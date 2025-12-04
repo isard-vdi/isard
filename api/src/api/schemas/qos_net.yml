@@ -17,7 +17,7 @@ name:
   required: true
   empty: false
   coerce: sanitize
-bandwith:
+bandwidth:
   type: dict
   schema:
     inbound:
