@@ -151,6 +151,40 @@ class UserIpTools(object):
 
     def set_default_policy(self):
         check_output(("/sbin/iptables", "-P", "FORWARD", "DROP"), text=True).strip()
+        # Block user-to-user traffic (wg0 to wg0)
+        check_output(
+            (
+                "/sbin/iptables",
+                "-I",
+                "FORWARD",
+                "-i",
+                "wg0",
+                "-o",
+                "wg0",
+                "-j",
+                "REJECT",
+                "--reject-with",
+                "icmp-host-prohibited",
+            ),
+            text=True,
+        ).strip()
+        # Block user access to infrastructure services (10.2.0.0/28)
+        check_output(
+            (
+                "/sbin/iptables",
+                "-I",
+                "FORWARD",
+                "-i",
+                "wg0",
+                "-d",
+                "10.2.0.0/28",
+                "-j",
+                "REJECT",
+                "--reject-with",
+                "icmp-host-prohibited",
+            ),
+            text=True,
+        ).strip()
 
     def flush_chains(self):
         check_output(("/sbin/iptables", "-F", "FORWARD"), text=True).strip()

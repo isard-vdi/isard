@@ -1,6 +1,7 @@
 #!/bin/bash
 flowdir=/var/run/openvswitch/libvirt-flows
-mkdir -p "${flowdir}"
+macportsdir=/var/run/openvswitch/mac-ports
+mkdir -p "${flowdir}" "${macportsdir}"
 
 domain_name="$1"
 domain_status="$2"
@@ -8,72 +9,105 @@ domain_status="$2"
 XML=$(cat -)
 
 flow_add(){
-    if [[ ! "$XML" == *"<tag id='4095'/>"* ]]; then
-        exit 0
-    fi
+    > "${flowdir}/${domain_name}"  # Create/clear flow file
 
-    i=0
-    until [[ $(echo $XML | xmllint --xpath "string(//interface[$i]/vlan/tag/@id)" -) -eq "4095" || i -eq 10 ]];
-    do
-        i=$((i+1))
+    # Count all OVS interfaces
+    interface_count=$(echo "$XML" | xmllint --xpath "count(//interface[virtualport[@type='openvswitch']])" - 2>/dev/null || echo 0)
+
+    for i in $(seq 1 $interface_count); do
+        port=$(echo "$XML" | xmllint --xpath "string(//interface[virtualport[@type='openvswitch']][$i]/target/@dev)" - 2>/dev/null)
+        mac=$(echo "$XML" | xmllint --xpath "string(//interface[virtualport[@type='openvswitch']][$i]/mac/@address)" - 2>/dev/null)
+        vlan=$(echo "$XML" | xmllint --xpath "string(//interface[virtualport[@type='openvswitch']][$i]/vlan/tag/@id)" - 2>/dev/null)
+
+        [ -z "$port" ] || [ -z "$mac" ] && continue
+
+        nport=$(ovs-ofctl show ovsbr0 | grep -E "^\s*[0-9]+\(${port}\)" | sed 's/^\s*\([0-9]*\).*/\1/')
+        [ -z "$nport" ] && continue
+
+        # ================================================================
+        # MAC Spoofing Protection (ALL OVS interfaces)
+        # ================================================================
+        # Allow traffic with correct source MAC → NORMAL switching
+        echo "priority=198,in_port=${nport},dl_src=${mac},actions=NORMAL" >> "${flowdir}/${domain_name}"
+        # Drop all other traffic from this port (wrong source MAC)
+        echo "priority=197,in_port=${nport},actions=drop" >> "${flowdir}/${domain_name}"
+
+        # ================================================================
+        # STP/BPDU Protection (ALL OVS interfaces)
+        # ================================================================
+        # Drop STP BPDU frames - prevent spanning tree manipulation
+        echo "priority=250,in_port=${nport},dl_dst=01:80:c2:00:00:00,actions=drop" >> "${flowdir}/${domain_name}"
+
+        # ================================================================
+        # Broadcast/Multicast Rate Limiting (ALL OVS interfaces)
+        # ================================================================
+        # Rate-limit broadcasts (meter 3: 10 pkt/s, burst 50) - prevents broadcast storms
+        echo "priority=190,in_port=${nport},dl_dst=ff:ff:ff:ff:ff:ff,actions=meter:3,NORMAL" >> "${flowdir}/${domain_name}"
+        # Rate-limit multicast (meter 4: 10 pkt/s, burst 50) - prevents multicast storms
+        echo "priority=190,in_port=${nport},dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,actions=meter:4,NORMAL" >> "${flowdir}/${domain_name}"
+
+        # ================================================================
+        # VLAN 4095 Special Handling (Infrastructure Network)
+        # ================================================================
+        if [ "$vlan" = "4095" ]; then
+            # Set port as access port with VLAN 4095
+            # This ensures guest traffic is tagged VLAN 4095 on ingress
+            ovs-vsctl set port "${port}" tag=4095
+
+            # Disable flooding for VLAN 4095 ports (explicit delivery via p221)
+            ovs-ofctl mod-port ovsbr0 "${nport}" no-flood
+
+            # ARP requests to infrastructure (10.2.0.0/28) - rate limited via meter 2
+            # Allows guest to ARP for gateway, samba, bastion, guacamole
+            echo "priority=206,arp,in_port=${nport},dl_src=${mac},arp_op=1,arp_tpa=10.2.0.0/28,actions=meter:2,NORMAL" >> "${flowdir}/${domain_name}"
+            # ARP replies - rate limited via meter 2 (prevents ARP reply floods)
+            echo "priority=206,arp,in_port=${nport},dl_src=${mac},arp_op=2,actions=meter:2,NORMAL" >> "${flowdir}/${domain_name}"
+
+            # DHCP requests from guest (discover/request are broadcasts)
+            # UDP src=68 (bootpc), dst=67 (bootps)
+            echo "priority=206,udp,in_port=${nport},dl_src=${mac},tp_src=68,tp_dst=67,actions=NORMAL" >> "${flowdir}/${domain_name}"
+
+            # Block ALL other broadcast traffic from this port
+            echo "priority=205,in_port=${nport},dl_dst=ff:ff:ff:ff:ff:ff,actions=drop" >> "${flowdir}/${domain_name}"
+
+            # Block ALL multicast traffic from this port
+            echo "priority=205,in_port=${nport},dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,actions=drop" >> "${flowdir}/${domain_name}"
+
+            # RA Guard - Block all IPv6 traffic on VLAN 4095
+            echo "priority=205,in_port=${nport},dl_type=0x86dd,dl_src=${mac},actions=drop" >> "${flowdir}/${domain_name}"
+
+            # Deliver traffic from VPN to guest - strip VLAN tag before output
+            # Using explicit output because NORMAL fails (no-flood + MAC not learned)
+            echo "priority=221,dl_dst=${mac},dl_vlan=4095,actions=strip_vlan,output:${nport}" >> "${flowdir}/${domain_name}"
+
+            # Write MAC-port-domain mapping for future DHCP snooper implementation
+            echo "${nport}:${domain_name}" > "${macportsdir}/${mac}"
+        fi
     done
-    if [[ i -eq 10 ]];
-    then
-        echo "Domain $domain_name can't be started. Were unable to get wg interface. This should not happen" >> /tmp/qemu-hook.log
-        exit 1
-    fi
 
-    port=$(echo ${XML}| xmllint --xpath //interface[${i}]/target/@dev - | sed 's/.*="\([^"]*\)"/\1/')
-    portgroup=$(echo ${XML} | xmllint --xpath //interface[${i}]/virtualport/parameters/@interfaceid - | sed 's/.*="\([^"]*\)"/\1/')
-    mac=$(echo ${XML} | xmllint --xpath //interface[${i}]/mac/@address - | sed 's/.*="\([^"]*\)"/\1/')
-    nport="$(ovs-ofctl show ovsbr0 | egrep "\(${port}\)" | cut -d '(' -f 1|tr -d ' ')"
-
-    ovs-ofctl mod-port ovsbr0 "${nport}" no-flood
-    # Incoming from guest is tagged 4095 goes to trunk port 1. Other traffic discarded.
-    echo "priority=201,dl_src=${mac},in_port=${nport},dl_vlan=0x4095,actions=output:1" > "${flowdir}/${domain_name}"
-    echo "priority=201,dl_type=0x0806,dl_src=${mac},in_port=${nport},dl_vlan=0x4095,arp_tpa=10.2.0.1,dl_dst=ff:ff:ff:ff:ff:ff,actions=output:1" >> "${flowdir}/${domain_name}"
-    echo "priority=200,in_port=${nport},dl_vlan=0x4095,actions=drop" >> "${flowdir}/${domain_name}"
-    # Outgoing to guest
-    echo "priority=201,dl_dst=${mac},dl_vlan=0x4095,actions=strip_vlan,output:${nport}" >> "${flowdir}/${domain_name}"
-    ovs-ofctl add-flows ovsbr0 "${flowdir}/${domain_name}"
-
-    # timestamp=$(date +"%Y-%m-%dT%H:%M:%S%:z")
-    # echo "{\"id\": \"$domain_name\", \"status\": \"$domain_status\", \"port\": \"$port\", \"portgroup\": \"$portgroup\", \"mac\": \"$mac\", \"nport\": \"$nport\", \"timestamp\": \"$timestamp\"}" >> /tmp/qemu-hook.log
-
+    [ -s "${flowdir}/${domain_name}" ] && ovs-ofctl -O OpenFlow13 add-flows ovsbr0 "${flowdir}/${domain_name}"
 }
 
-
 flow_del() {
-    if [[ ! "$XML" == *"<tag id='4095'/>"* ]]; then
-        exit 0
-    fi
-
     if [ -e "${flowdir}/${domain_name}" ]; then
-        cat "${flowdir}/${domain_name}" | sed -e 's/^priority=[0-9]*,//' | sed -e 's/,actions=.*//' | ovs-ofctl del-flows ovsbr0 -
+        cat "${flowdir}/${domain_name}" | sed -e 's/^priority=[0-9]*,//' -e 's/,actions=.*//' | ovs-ofctl del-flows ovsbr0 -
         rm -f "${flowdir}/${domain_name}"
     fi
+    # Clean up MAC-port mappings for this domain
+    for f in "${macportsdir}"/*; do
+        [ -f "$f" ] && grep -q ":${domain_name}$" "$f" && rm -f "$f"
+    done
 }
 
 timestamp=$(date +"%Y-%m-%dT%H:%M:%S%:z")
 echo "{\"id\": \"$domain_name\", \"status\": \"$domain_status\", \"time\": \"$timestamp\"}" >> /tmp/qemu-hook.log
+
 case "${domain_status}" in
-  started)
-    flow_add
-    ;;
-  stopped)
-    flow_del
-    ;;
-  reconnect)
-    flow_del
-    flow_add
-    ;;
-  migrate)
-    flow_add
-    ;;
-  *)
-    exit 0
-    echo "Unexpected libvirt task $*" > /tmp/qemu
-    ;;
+    started)   flow_add ;;
+    stopped)   flow_del ;;
+    reconnect) flow_del; flow_add ;;
+    migrate)   flow_add ;;
+    *)         exit 0 ;;
 esac
 
 exit 0
