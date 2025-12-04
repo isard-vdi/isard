@@ -83,6 +83,30 @@ if [ -n "$SAMBA_PORT" ] && [ "$SAMBA_PORT" != "-1" ]; then
     echo "$(date): [SECURITY] Added samba VLAN 4095 flow rule (port ${SAMBA_PORT})"
 fi
 
+# ============================================================================
+# SECURITY: VLAN 4095 Filtering at VPN
+# ============================================================================
+# Block STP/BPDU frames globally (prevent spanning tree manipulation)
+ovs-ofctl add-flow ovsbr0 "priority=500,dl_dst=01:80:c2:00:00:00,actions=drop"
+echo "$(date): [SECURITY] Blocked STP/BPDU frames"
+
+# Block IPv6 on VLAN 4095 (no IPv6 on infrastructure network)
+ovs-ofctl add-flow ovsbr0 "priority=400,dl_vlan=4095,dl_type=0x86dd,actions=drop"
+echo "$(date): [SECURITY] Blocked IPv6 on VLAN 4095"
+
+# Block multicast destination on VLAN 4095 (no multicast needed)
+ovs-ofctl add-flow ovsbr0 "priority=400,dl_vlan=4095,dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,actions=drop"
+echo "$(date): [SECURITY] Blocked multicast on VLAN 4095"
+
+# Allow broadcast from VPN gateway (vlan-wg), block from others
+VLAN_WG_MAC=$(ip link show vlan-wg 2>/dev/null | grep ether | awk '{print $2}')
+if [ -n "$VLAN_WG_MAC" ]; then
+    ovs-ofctl add-flow ovsbr0 "priority=401,dl_vlan=4095,dl_src=${VLAN_WG_MAC},dl_dst=ff:ff:ff:ff:ff:ff,actions=NORMAL"
+    echo "$(date): [SECURITY] Allowed broadcasts from VPN gateway ($VLAN_WG_MAC)"
+fi
+ovs-ofctl add-flow ovsbr0 "priority=400,dl_vlan=4095,dl_dst=ff:ff:ff:ff:ff:ff,actions=drop"
+echo "$(date): [SECURITY] Blocked broadcasts on VLAN 4095 (except VPN gateway)"
+
 # Handle trunk interface mapping (similar to hypervisor)
 if [ -z ${HYPERVISOR_HOST_TRUNK_INTERFACE+x} ];
 then

@@ -39,6 +39,14 @@ flow_add(){
         echo "priority=250,in_port=${nport},dl_dst=01:80:c2:00:00:00,actions=drop" >> "${flowdir}/${domain_name}"
 
         # ================================================================
+        # Broadcast/Multicast Rate Limiting (ALL OVS interfaces)
+        # ================================================================
+        # Rate-limit broadcasts (meter 3: 10 pkt/s, burst 50) - prevents broadcast storms
+        echo "priority=190,in_port=${nport},dl_dst=ff:ff:ff:ff:ff:ff,actions=meter:3,NORMAL" >> "${flowdir}/${domain_name}"
+        # Rate-limit multicast (meter 4: 10 pkt/s, burst 50) - prevents multicast storms
+        echo "priority=190,in_port=${nport},dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,actions=meter:4,NORMAL" >> "${flowdir}/${domain_name}"
+
+        # ================================================================
         # VLAN 4095 Special Handling (Infrastructure Network)
         # ================================================================
         if [ "$vlan" = "4095" ]; then
@@ -52,6 +60,8 @@ flow_add(){
             # ARP requests to infrastructure (10.2.0.0/28) - rate limited via meter 2
             # Allows guest to ARP for gateway, samba, bastion, guacamole
             echo "priority=206,arp,in_port=${nport},dl_src=${mac},arp_op=1,arp_tpa=10.2.0.0/28,actions=meter:2,NORMAL" >> "${flowdir}/${domain_name}"
+            # ARP replies - rate limited via meter 2 (prevents ARP reply floods)
+            echo "priority=206,arp,in_port=${nport},dl_src=${mac},arp_op=2,actions=meter:2,NORMAL" >> "${flowdir}/${domain_name}"
 
             # DHCP requests from guest (discover/request are broadcasts)
             # UDP src=68 (bootpc), dst=67 (bootps)

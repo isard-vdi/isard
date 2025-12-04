@@ -330,11 +330,37 @@ class Wg(object):
                         .split("(")[0]
                         .split(" ")[-1]
                     )
+                    # SECURITY: Allow only VM MACs (52:54:00:xx:xx:xx) from hypervisors
+                    # This blocks spoofed traffic with non-QEMU/KVM MAC addresses
+                    subprocess.run(
+                        [
+                            "ovs-ofctl",
+                            "add-flow",
+                            "ovsbr0",
+                            "priority=450,in_port="
+                            + str(port)
+                            + ",dl_vlan=4095,dl_src=52:54:00:00:00:00/ff:ff:ff:00:00:00,actions=NORMAL",
+                        ]
+                    )
+                    # Drop non-VM MACs from this hypervisor on VLAN 4095
+                    subprocess.run(
+                        [
+                            "ovs-ofctl",
+                            "add-flow",
+                            "ovsbr0",
+                            "priority=449,in_port="
+                            + str(port)
+                            + ",dl_vlan=4095,actions=drop",
+                        ]
+                    )
+
                     # Forward VLAN 4095 traffic from hypervisor using NORMAL switching
                     # NORMAL enables MAC learning and proper forwarding:
                     # - Traffic to VPN (10.2.0.1): forwards to vlan-wg (access port strips tag)
                     # - Traffic to bastion (10.2.0.2): forwards to bastion port (trunk)
                     # - Traffic to samba (10.2.0.3): forwards to samba port (trunk)
+                    # Note: This rule (p201) is now superseded by p450/449 above but kept
+                    # as documentation of the intended behavior
                     subprocess.run(
                         [
                             "ovs-ofctl",
