@@ -107,6 +107,27 @@ fi
 ovs-ofctl add-flow ovsbr0 "priority=400,dl_vlan=4095,dl_dst=ff:ff:ff:ff:ff:ff,actions=drop"
 echo "$(date): [SECURITY] Blocked broadcasts on VLAN 4095 (except VPN gateway)"
 
+# ============================================================================
+# SECURITY: ARP Spoofing Protection for VLAN 4095 (defense-in-depth)
+# ============================================================================
+# Block ARP packets claiming infrastructure IPs (10.2.0.0/28 = .1-.15)
+ovs-ofctl add-flow ovsbr0 "priority=410,arp,dl_vlan=4095,arp_spa=10.2.0.0/28,actions=drop"
+echo "$(date): [SECURITY] Blocked ARP spoofing for infra IPs (10.2.0.0/28)"
+
+# Block ARP packets claiming WireGuard user IPs
+ovs-ofctl add-flow ovsbr0 "priority=410,arp,dl_vlan=4095,arp_spa=10.0.0.0/16,actions=drop"
+echo "$(date): [SECURITY] Blocked ARP spoofing for WG user IPs (10.0.0.0/16)"
+
+# Block ARP packets claiming WireGuard hypervisor IPs
+ovs-ofctl add-flow ovsbr0 "priority=410,arp,dl_vlan=4095,arp_spa=10.1.0.0/24,actions=drop"
+echo "$(date): [SECURITY] Blocked ARP spoofing for WG hyper IPs (10.1.0.0/24)"
+
+# Block IP packets with spoofed source IPs (complements ARP protection)
+ovs-ofctl add-flow ovsbr0 "priority=410,ip,dl_vlan=4095,nw_src=10.2.0.0/28,actions=drop"
+ovs-ofctl add-flow ovsbr0 "priority=410,ip,dl_vlan=4095,nw_src=10.0.0.0/16,actions=drop"
+ovs-ofctl add-flow ovsbr0 "priority=410,ip,dl_vlan=4095,nw_src=10.1.0.0/24,actions=drop"
+echo "$(date): [SECURITY] Blocked IP spoofing for protected ranges"
+
 # Handle trunk interface mapping (similar to hypervisor)
 if [ -z ${HYPERVISOR_HOST_TRUNK_INTERFACE+x} ];
 then
