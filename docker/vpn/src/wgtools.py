@@ -446,6 +446,11 @@ class Wg(object):
             ).strip()
         self.uipt.remove_matching_rules(peer)
         if table == "hypervisors":
+            # Delete OVS flows for this hypervisor port before removing it
+            subprocess.run(
+                ["ovs-ofctl", "del-flows", "ovsbr0", "in_port=" + peer["id"]],
+                capture_output=True,
+            )
             print(
                 check_output(("ovs-vsctl", "del-port", peer["id"]), text=True).strip()
             )
