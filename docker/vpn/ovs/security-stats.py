@@ -2,16 +2,18 @@
 """OVS security stats for VLAN 4095 (VPN) in JSON format - runs every 60s"""
 
 import json
-import subprocess
-import re
 import os
+import re
+import subprocess
 from datetime import datetime
 
 
 def run_cmd(cmd):
     """Run command and return stdout"""
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=5
+        )
         return result.stdout
     except Exception:
         return ""
