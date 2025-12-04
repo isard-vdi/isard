@@ -172,11 +172,17 @@ func (s *Sessions) Renew(ctx context.Context, id, remoteAddr string) (*model.Ses
 		return nil, ErrRenewTimeExpired
 	}
 
-	if sess.Time.MaxTime.Before(now.Add(s.Cfg.ExpirationTime)) {
+	if sess.Time.MaxTime.Before(now) {
 		return nil, ErrMaxSessionTime
 	}
 
-	sess.Time.ExpirationTime = now.Add(s.Cfg.ExpirationTime)
+	// Set expiration time, but cap it at MaxTime if needed
+	expirationTime := now.Add(s.Cfg.ExpirationTime)
+	if expirationTime.After(sess.Time.MaxTime) {
+		sess.Time.ExpirationTime = sess.Time.MaxTime
+	} else {
+		sess.Time.ExpirationTime = expirationTime
+	}
 
 	if sess.Time.MaxRenewTime.Add(s.Cfg.MaxRenewTime).After(sess.Time.MaxTime) {
 		sess.Time.MaxRenewTime = sess.Time.MaxTime
