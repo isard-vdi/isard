@@ -632,6 +632,21 @@
                 "description": "Your session is about to expire. If you want to continue using the service, please click the renew button.",
                 "button": "Renew"
             },
+            "max-renew-time": {
+                "title": "Session expired",
+                "description": "Your session has expired and can no longer be renewed. Please log in again to continue.",
+                "button": "Log in again"
+            },
+            "max-time": {
+                "title": "Session expired",
+                "description": "Your session has reached the maximum time limit. Please log in again to continue.",
+                "button": "Log in again"
+            },
+            "error-renew": {
+                "title": "Session renewal error",
+                "description": "There was an error renewing your session. Please try again or log in.",
+                "button": "Log in again"
+            },
             "expired": {
                 "title": "Session expired",
                 "description": "Your session has expired. If you want to continue using the service, please click the log in again button.",

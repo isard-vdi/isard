@@ -383,7 +383,7 @@ const router = new VueRouter({
 router.beforeEach(async (to, from, next) => {
   moment.locale(localStorage.language)
   document.title = to.meta.title ? `${appTitle} - ${to.meta.title}` : appTitle
-  let session = store.getters.getSession
+  const session = store.getters.getSession
   if (to.matched.some((record) => record.meta.requiresAuth)) {
     // No session yet
     if (!session) {
@@ -414,77 +414,86 @@ router.beforeEach(async (to, from, next) => {
       return
     }
 
-    // TODO: The session might not be expired but it could be revoked
-    // Check session expiration with fallback logic
-    const now = Date.now()
-    const timeDrift = store.getters.getTimeDrift
-    // adjustedNow = now + timeDrift (if time drift is reasonable)
-    const adjustedNow = now + (Math.abs(timeDrift) < (24 * 60 * 60 * 1000) ? timeDrift : 0) // 24h in ms
-    const tokenExpiration = sessionData.exp * 1000 // in ms
-    const maxRenewTime = store.getters.getConfig.session?.maxRenewTime * 1000 // in ms
+    // Skip session renewal for special token types (disclaimer, email verification, password reset)
+    const skipRenewalTypes = [
+      'disclaimer-acknowledgement-required',
+      'email-verification-required',
+      'email-verification',
+      'password-reset-required',
+      'password-reset'
+    ]
 
-    // Auto-renew 30s before expiration or within renewal window (after expiration but before max time)
-    const isExpired = adjustedNow > tokenExpiration
-    const shouldRenew = adjustedNow > tokenExpiration - 30000 && (!isExpired || (maxRenewTime && adjustedNow < maxRenewTime))
+    if (!skipRenewalTypes.includes(sessionData.type)) {
+      // Renew the session 1 minute before it expires
+      const now = Date.now()
+      const timeDrift = store.getters.getTimeDrift
+      const adjustedNow = now + (Math.abs(timeDrift) < 86400000 ? timeDrift : 0)
 
-    if (shouldRenew) {
-      await store.dispatch('renew')
-      session = store.getters.getSession
-      if (session) {
-        store.dispatch('saveNavigation', { url: to })
-        next()
-      } else {
-        store.dispatch('logout')
-      }
-    } else {
-      store.dispatch('saveNavigation', { url: to })
-      store.dispatch('fetchUser')
-      // Logged in without requirements
-      if (!to.query.token && !sessionData.type) {
-        if (
-          to.meta.allowedRoles &&
-          to.meta.allowedRoles.includes(store.getters.getUser.role_id)
-        ) {
-          store.dispatch('openSocket', {})
-          if (isEmpty(store.getters.getConfig)) {
-            await store.dispatch('fetchConfig')
-            if (store.getters.getConfig.migrationsBlock) {
-              window.location.pathname = '/export-user'
-            }
-          }
-          if (!store.getters.getMaxTime) {
-            store.dispatch('fetchMaxTime')
-          }
-          next()
-        } else {
-          store.dispatch('saveNavigation', { url: from })
-          next({ name: 'desktops' })
+      if (
+        sessionData.session_id !== 'isardvdi-service' &&
+        sessionData.exp &&
+        adjustedNow > sessionData.exp * 1000 - 60000
+      ) {
+        // If the token is expired or expiring soon, try to renew it
+        try {
+          await store.dispatch('renew')
+        } catch (e) {
+          console.warn('The session was expired and could not be renewed:', e)
+          store.dispatch('logout')
+          window.location.pathname = '/login'
+          return
         }
-        // Requires disclaimer acceptance, will be redirected
-      } else if (
-        to.name !== 'Disclaimer' &&
-        ['disclaimer-acknowledgement-required'].includes(sessionData.type)
-      ) {
-        router.push({ name: 'Disclaimer' })
-        // Requires email verification, will be redirected
-      } else if (
-        to.name !== 'VerifyEmail' &&
-        ['email-verification-required', 'email-verification'].includes(
-          sessionData.type
-        )
-      ) {
-        router.push({ name: 'VerifyEmail' })
-        // Requires password reset, will be redirected
-      } else if (
-        to.name !== 'ResetPassword' &&
-        ['password-reset-required', 'password-reset'].includes(
-          sessionData.type
-        )
-      ) {
-        router.push({ name: 'ResetPassword' })
-      } else {
-        next()
       }
+    }
+
+    store.dispatch('saveNavigation', { url: to })
+    store.dispatch('fetchUser')
+
+    // Logged in without requirements
+    if (!to.query.token && !sessionData.type) {
+      if (
+        to.meta.allowedRoles &&
+        to.meta.allowedRoles.includes(store.getters.getUser.role_id)
+      ) {
+        store.dispatch('openSocket', {})
+        if (isEmpty(store.getters.getConfig)) {
+          await store.dispatch('fetchConfig')
+          if (store.getters.getConfig.migrationsBlock) {
+            window.location.pathname = '/export-user'
+          }
+        }
+        if (!store.getters.getMaxTime) {
+          store.dispatch('fetchMaxTime')
+        }
+        next()
+      } else {
+        store.dispatch('saveNavigation', { url: from })
+        next({ name: 'desktops' })
+      }
+    // Requires disclaimer acceptance, will be redirected
+    } else if (
+      to.name !== 'Disclaimer' &&
+      ['disclaimer-acknowledgement-required'].includes(sessionData.type)
+    ) {
+      router.push({ name: 'Disclaimer' })
+    // Requires email verification, will be redirected
+    } else if (
+      to.name !== 'VerifyEmail' &&
+      ['email-verification-required', 'email-verification'].includes(
+        sessionData.type
+      )
+    ) {
+      router.push({ name: 'VerifyEmail' })
+    // Requires password reset, will be redirected
+    } else if (
+      to.name !== 'ResetPassword' &&
+      ['password-reset-required', 'password-reset'].includes(
+        sessionData.type
+      )
+    ) {
+      router.push({ name: 'ResetPassword' })
+    } else {
+      next()
     }
   } else {
     if (

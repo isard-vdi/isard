@@ -16,28 +16,48 @@ export default function axiosSetUp () {
       if (document.querySelector('[type="submit"]')) {
         document.querySelector('[type="submit"]').setAttribute('disabled', 'disabled')
       }
-      // If the session is expired and it's not calling the logout endpoint try to renew the token
+
+      // Check if token needs renewal before making API requests
       if (getCookie(sessionCookieName)) {
         const session = store.getters.getSession
+
+        // Skip renewal for service sessions or logout requests
+        if (config.url.includes('logout', 'renew') || !session) {
+          config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
+          return config
+        }
+
         const sessionData = jwtDecode(session)
-        // Check session expiration with fallback logic
+
+        // Skip renewal for isard-service sessions
+        if (sessionData.session_id === 'isard-service') {
+          config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
+          return config
+        }
+
+        // Get current time and token expiration
         const now = Date.now()
         const timeDrift = store.getters.getTimeDrift
-        // adjustedNow = now + timeDrift (if time drift is reasonable)
-        const adjustedNow = now + (Math.abs(timeDrift) < (24 * 60 * 60 * 1000) ? timeDrift : 0) // 24h in ms
-        const tokenExpiration = sessionData.exp * 1000 // in ms
-        const maxRenewTime = store.getters.getConfig.session?.maxRenewTime * 1000 // in ms
+        const adjustedNow = now + (Math.abs(timeDrift) < 86400000 ? timeDrift : 0)
+        const tokenExp = sessionData.exp * 1000
+        const timeToExpiry = tokenExp - adjustedNow
 
-        // Auto-renew 30s before expiration or within renewal window (after expiration but before max time)
-        const isExpired = adjustedNow > tokenExpiration
-        const shouldRenew = adjustedNow > tokenExpiration - 30000 && (!isExpired || (maxRenewTime && adjustedNow < maxRenewTime))
-
-        if (!config.url.includes('logout') && shouldRenew) {
-          await store.dispatch('renew')
-          if (!store.getters.getSession) {
-            return Promise.reject(new Error('Session cannot be renewed'))
+        // Renew the session 1 minute before it expires
+        if (timeToExpiry < 60000) {
+          console.debug('🔄 Token expiring soon, renewing before request')
+          try {
+            await store.dispatch('renew')
+            if (!store.getters.getSession) {
+              console.error('❌ Token renewal failed')
+              return Promise.reject(new Error('Session cannot be renewed'))
+            }
+            console.debug('✅ Token renewed successfully before request')
+          } catch (error) {
+            console.error('❌ Failed to renew token before request:', error)
+            return Promise.reject(error)
           }
         }
+
         config.headers.Authorization = `Bearer ${getCookie(sessionCookieName)}`
       }
       return config
@@ -65,13 +85,20 @@ export default function axiosSetUp () {
       if (document.querySelector('[type="submit"]')) {
         document.querySelector('[type="submit"]').removeAttribute('disabled')
       }
+
+      // Check if error.response exists (network errors don't have response)
+      if (!error.response) {
+        console.error('Network error or request cancelled:', error.message)
+        return Promise.reject(error)
+      }
+
       if (!error.config.url.includes('scheduler') && error.response.status === 503) {
         // router.replace({ name: 'Maintenance' })
         window.location.pathname = '/maintenance'
       } else if (error.response.status === 500) {
         router.replace({
           name: 'Error',
-          params: { code: error.response && error.response.status.toString() }
+          params: { code: error.response.status.toString() }
         })
       } else if (error.response.status === 401) {
         store.dispatch('logout')
