@@ -247,7 +247,7 @@
                                     type="number" />
                             </div>
                             <div class="col-xs-3 form-group">
-                                <label>Floor</label>
+                                <label>Floor <i class="fa fa-info-circle" style="color:rgb(60, 127, 186)" title="Only works with 'network' type interfaces (not bridge/ovs). Guarantees minimum throughput."></i></label>
                                 <input id="qos-bandwidth-inbound-floor" name="qos-bandwidth-inbound-floor"
                                     class="form-control col-md-7 col-xs-12" value="5000" min="0" max="999999999"
                                     class="roundbox" pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change"
@@ -272,7 +272,7 @@
                                     type="number" />
                             </div>
                             <div class="col-xs-3 form-group">
-                                <label>Peak</label>
+                                <label>Peak <i class="fa fa-info-circle" style="color:rgb(60, 127, 186)" title="Currently ignored by Linux kernel ingress filters."></i></label>
                                 <input id="qos-bandwidth-outbound-peak" name="qos-bandwidth-outbound-peak"
                                     class="form-control" value="15000" min="0" max="999999999" class="roundbox"
                                     pattern="^[0-9@]+$" placeholder="" data-parsley-trigger="change" required
