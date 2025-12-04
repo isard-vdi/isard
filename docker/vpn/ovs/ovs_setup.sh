@@ -101,11 +101,14 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Blocked multicast on VLAN 4095"
 # Allow broadcast from VPN gateway (vlan-wg), block from others
 VLAN_WG_MAC=$(ip link show vlan-wg 2>/dev/null | grep ether | awk '{print $2}')
 if [ -n "$VLAN_WG_MAC" ]; then
-    ovs-ofctl add-flow ovsbr0 "priority=401,dl_vlan=4095,dl_src=${VLAN_WG_MAC},dl_dst=ff:ff:ff:ff:ff:ff,actions=NORMAL"
+    ovs-ofctl add-flow ovsbr0 "priority=402,dl_vlan=4095,dl_src=${VLAN_WG_MAC},dl_dst=ff:ff:ff:ff:ff:ff,actions=NORMAL"
     echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Allowed broadcasts from VPN gateway ($VLAN_WG_MAC)"
 fi
+# Allow DHCP requests from guests (UDP 68→67, broadcast) before blocking other broadcasts
+ovs-ofctl add-flow ovsbr0 "priority=401,udp,dl_vlan=4095,tp_src=68,tp_dst=67,dl_dst=ff:ff:ff:ff:ff:ff,actions=NORMAL"
+echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Allowed DHCP requests on VLAN 4095"
 ovs-ofctl add-flow ovsbr0 "priority=400,dl_vlan=4095,dl_dst=ff:ff:ff:ff:ff:ff,actions=drop"
-echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Blocked broadcasts on VLAN 4095 (except VPN gateway)"
+echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Blocked broadcasts on VLAN 4095 (except VPN gateway and DHCP)"
 
 # ============================================================================
 # SECURITY: ARP Spoofing Protection for VLAN 4095 (defense-in-depth)
