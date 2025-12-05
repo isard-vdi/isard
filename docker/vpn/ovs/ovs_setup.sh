@@ -72,15 +72,23 @@ ovs-vsctl add-port ovsbr0 samba -- set interface samba type=geneve options:remot
 BASTION_PORT=$(ovs-vsctl get Interface bastion ofport 2>/dev/null)
 SAMBA_PORT=$(ovs-vsctl get Interface samba ofport 2>/dev/null)
 
-# Forward VLAN 4095 traffic from bastion/samba using NORMAL (floods to all VLAN 4095 ports)
-# This allows bastion/samba to reach both vlan-wg and hypervisors
+# Get vlan-wg port number for VPN gateway
+VLAN_WG_PORT=$(ovs-vsctl get Interface vlan-wg ofport 2>/dev/null)
+
+# Allow traffic FROM infrastructure ports at higher priority than spoofing blocks (p410)
+# This ensures bastion, samba, and VPN gateway can communicate while still blocking
+# spoofed traffic from hypervisor ports
 if [ -n "$BASTION_PORT" ] && [ "$BASTION_PORT" != "-1" ]; then
-    ovs-ofctl add-flow ovsbr0 "priority=201,in_port=${BASTION_PORT},dl_vlan=4095,actions=NORMAL"
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Added bastion VLAN 4095 flow rule (port ${BASTION_PORT})"
+    ovs-ofctl add-flow ovsbr0 "priority=420,in_port=${BASTION_PORT},dl_vlan=4095,actions=NORMAL"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Added bastion VLAN 4095 flow rule (port ${BASTION_PORT}, priority 420)"
 fi
 if [ -n "$SAMBA_PORT" ] && [ "$SAMBA_PORT" != "-1" ]; then
-    ovs-ofctl add-flow ovsbr0 "priority=201,in_port=${SAMBA_PORT},dl_vlan=4095,actions=NORMAL"
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Added samba VLAN 4095 flow rule (port ${SAMBA_PORT})"
+    ovs-ofctl add-flow ovsbr0 "priority=420,in_port=${SAMBA_PORT},dl_vlan=4095,actions=NORMAL"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Added samba VLAN 4095 flow rule (port ${SAMBA_PORT}, priority 420)"
+fi
+if [ -n "$VLAN_WG_PORT" ] && [ "$VLAN_WG_PORT" != "-1" ]; then
+    ovs-ofctl add-flow ovsbr0 "priority=420,in_port=${VLAN_WG_PORT},dl_vlan=4095,actions=NORMAL"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Added VPN gateway VLAN 4095 flow rule (port ${VLAN_WG_PORT}, priority 420)"
 fi
 
 # ============================================================================
