@@ -1,4 +1,3 @@
-version: "3.5"
 services:
   isard-hypervisor:
     container_name: isard-hypervisor

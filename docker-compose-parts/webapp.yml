@@ -1,4 +1,3 @@
-version: '3.5'
 services:
   isard-webapp:
     container_name: isard-webapp

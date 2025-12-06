@@ -1,4 +1,3 @@
-version: '3.5'
 networks:
   isard-network:
     driver: bridge

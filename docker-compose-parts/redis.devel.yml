@@ -1,4 +1,3 @@
-version: "3.5"
 services:
   isard-redis:
     container_name: isard-redis

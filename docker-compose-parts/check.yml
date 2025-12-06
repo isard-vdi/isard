@@ -1,4 +1,3 @@
-version: '3.5'
 services:
   isard-check:
     container_name: isard-check
