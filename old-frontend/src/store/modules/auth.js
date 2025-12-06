@@ -175,7 +175,7 @@ export default {
       })
       return authentication
         .post('/renew', {})
-        .then((response) => {
+        .then(async (response) => {
           if (closeModal) {
             context.commit('setExpiredSessionModal', { show: false, kind: 'renew' })
           }
@@ -183,11 +183,10 @@ export default {
           context.dispatch('updateTimeDrift', jwtDecode(response.data.token))
           context.dispatch('openSocket', {})
           context.dispatch('fetchUser')
-          context.dispatch('fetchConfig')
+          await context.dispatch('fetchConfig')
         })
         .catch((e) => {
           console.error('Session renewal failed:', e)
-          context.dispatch('showExpiredSessionModal', 'expired')
         })
         .finally(() => {
           // Clear the renewal flag

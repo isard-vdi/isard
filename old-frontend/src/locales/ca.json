@@ -350,6 +350,21 @@
         "description": "La sessió està a punt d'expirar. Si vols continuar fent servir el servei, si us plau, prem el botó de renovar",
         "button": "Renovar"
       },
+      "max-renew-time": {
+        "title": "Sessió expirada",
+        "description": "La teva sessió ha expirat i ja no es pot renovar. Si us plau, torna a iniciar sessió per continuar.",
+        "button": "Tornar a iniciar sessió"
+      },
+      "max-time": {
+        "title": "Sessió expirada",
+        "description": "La teva sessió ha arribat al temps màxim permès. Si us plau, torna a iniciar sessió per continuar.",
+        "button": "Tornar a iniciar sessió"
+      },
+      "error-renew": {
+        "title": "Error en la renovació de la sessió",
+        "description": "Hi ha hagut un error en renovar la teva sessió. Si us plau, torna-ho a provar o inicia sessió.",
+        "button": "Tornar a iniciar sessió"
+      },
       "expired": {
         "title": "Sessió expirada",
         "description": "La sessió ha expirat. Si vols continuar fent servir el servei, si us plau, prem el botó de tornar a iniciar sessió",

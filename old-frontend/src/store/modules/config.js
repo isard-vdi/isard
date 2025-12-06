@@ -47,50 +47,84 @@ export default {
       commit('setProviders', rsp.data.providers)
     },
     async fetchConfig (context) {
+      // Clear all existing timeouts before setting new ones
+      context.commit('clearTimeouts')
+
       const rsp = await axios.get(`${apiV3Segment}/user/config`)
       context.commit('setConfig', ConfigUtils.parseConfig(rsp.data))
-      // Impersonate has an id of "isard-service" and we don't want to show the session modal
-      if (context.getters.getConfig.session.id !== 'isardvdi-service') {
-        // Clear all timeouts
-        context.commit('clearTimeouts')
-        const now = Date.now()
-        const timeDrift = store.getters.getTimeDrift
-        const adjustedNow = now + timeDrift
 
-        const session = store.getters.getSession
-        if (session) {
-          const sessionData = jwtDecode(session)
+      // Skip session management for isardvdi-service sessions
+      if (context.getters.getConfig.session?.id === 'isardvdi-service') {
+        console.debug('❌ Service session detected, skipping session timeouts')
+        return
+      }
 
-          // Token expiration time (when renewal window starts)
-          const tokenExpiration = sessionData.exp * 1000
+      const session = store.getters.getSession
+      if (!session) {
+        console.debug('❌ No session found, skipping timeout setup')
+        return
+      }
 
-          // Max renew time from config (when renewal window ends)
-          const maxRenewTime = store.getters.getConfig.session.maxRenewTime * 1000
+      const now = Date.now()
+      const timeDrift = store.getters.getTimeDrift
+      const adjustedNow = now + (Math.abs(timeDrift) < 86400000 ? timeDrift : 0)
 
-          // Show renewal modal 30 seconds before token expiration
-          const renewalWindowDelay = tokenExpiration - adjustedNow - 30000
-          if (renewalWindowDelay > 0) {
-            context.commit('addTimeout', setTimeout(() => {
-              context.dispatch('showExpiredSessionModal', 'renew')
-            }, renewalWindowDelay))
-          // Unlikely case: If the session is expired, the axios interceptor or router should have already attempted renewal before fetchConfig runs
-          // but in case fetchConfig is called before that happens, check if we're already in the renewal window
-          // and show the modal immediately
-          } else if (adjustedNow < maxRenewTime) {
-            context.dispatch('showExpiredSessionModal', 'renew')
-          }
+      const sessionData = jwtDecode(session)
+      const tokenExpiration = sessionData.exp * 1000
+      const maxRenewTime = context.getters.getConfig.session.maxRenewTime * 1000
+      const maxTime = context.getters.getConfig.session.maxTime * 1000
 
-          // Force logout when max renew time is reached
-          const forceLogoutDelay = maxRenewTime - adjustedNow
-          if (forceLogoutDelay > 0) {
-            context.commit('addTimeout', setTimeout(() => {
-              context.dispatch('showExpiredSessionModal', 'expired')
-            }, forceLogoutDelay))
-          // Unlikely case: If max renew time has already passed, force logout immediately
-          } else {
-            context.dispatch('showExpiredSessionModal', 'expired')
-          }
+      const timeToExpiry = tokenExpiration - adjustedNow
+      const timeToMaxRenew = maxRenewTime - adjustedNow
+
+      console.debug('⏰ Setting up session timeouts:', {
+        tokenExpiry: new Date(tokenExpiration).toLocaleString(),
+        maxRenewTime: new Date(maxRenewTime).toLocaleString(),
+        maxTime: new Date(maxTime).toLocaleString(),
+        timeToExpiry: Math.round(timeToExpiry / 1000) + 's',
+        timeToMaxRenew: Math.round(timeToMaxRenew / 1000) + 's'
+      })
+
+      // Case 1: Max renew time equals max time - no renewal possible
+      if (context.getters.getConfig.session.maxRenewTime === context.getters.getConfig.session.maxTime) {
+        console.debug('🔒 No renewal window (maxRenewTime === maxTime)')
+        if (timeToExpiry > 0) {
+          context.commit('addTimeout', setTimeout(() => {
+            console.debug('🔒 Max session time reached (no renewal)')
+            context.dispatch('showExpiredSessionModal', 'max-time')
+          }, timeToMaxRenew))
+        } else {
+          context.dispatch('showExpiredSessionModal', 'max-time')
         }
+        return
+      }
+
+      // Case 2: Normal session with renewal window
+      // Show renewal modal 1 minute before maxRenewTime is reached
+      const oneMinute = 60 * 1000 // 60 seconds in milliseconds
+      const timeToRenewalWarning = timeToMaxRenew - oneMinute
+
+      if (timeToRenewalWarning > 0) {
+        context.commit('addTimeout', setTimeout(() => {
+          console.debug('🔄 Showing renewal modal (1 minute before max renew time)')
+          context.dispatch('showExpiredSessionModal', 'renew')
+        }, timeToRenewalWarning))
+      } else if (timeToMaxRenew > 0) {
+        // Less than 1 minute until max renew time - show modal immediately
+        console.debug('⏰ Less than 1 minute until max renew time, showing modal now')
+        context.dispatch('showExpiredSessionModal', 'renew')
+      }
+
+      // Set max renew time timeout (when renewal window ends)
+      if (timeToMaxRenew > 0) {
+        context.commit('addTimeout', setTimeout(() => {
+          console.debug('🔒 Max renewal time reached')
+          context.dispatch('showExpiredSessionModal', 'max-renew-time')
+        }, timeToMaxRenew))
+      } else {
+        // Already past max renew time
+        console.debug('🔒 Already past max renewal time')
+        context.dispatch('showExpiredSessionModal', 'max-renew-time')
       }
     },
     async fetchMaintenanceText ({ _ }) {
