@@ -388,6 +388,13 @@ flavour(){
 		echo ""
 	fi
 
+	# Add IPv6 sysctl for squid if IPv6 is available on the host
+	if [ -f /proc/sys/net/ipv6/conf/all/disable_ipv6 ]; then
+		if echo "$parts" | grep -q "\(^\|\s\)squid\(\s\|$\)"; then
+			parts="$parts squid.ipv6"
+		fi
+	fi
+
 	variants "$config_name" $parts
 }
 
