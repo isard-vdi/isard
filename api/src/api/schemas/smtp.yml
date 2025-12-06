@@ -36,3 +36,5 @@ username:
 password:
   type: string
   required: true
+from:
+  type: string

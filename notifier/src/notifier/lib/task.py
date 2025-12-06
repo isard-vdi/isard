@@ -35,7 +35,7 @@ def mail(address: list, subject: str, text: str, html: str):
     message["Date"] = formatdate()
     message["Message-ID"] = make_msgid(domain=smtp.get("host"))
     message["Subject"] = subject
-    message["From"] = smtp.get("username")
+    message["From"] = smtp.get("from") if smtp.get("from") else smtp.get("username")
     message["To"] = ", ".join(address)
 
     part1 = MIMEText(text, "plain", "utf-8")
