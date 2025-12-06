@@ -5,4 +5,4 @@ from waitress import serve
 from notifier import app
 
 if __name__ == "__main__":
-    serve(app, listen="*:5000")
+    serve(app, listen="0.0.0.0:5000")
