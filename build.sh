@@ -274,6 +274,10 @@ merge(){
 			local delimiter="."
 		fi
 		$DOCKER_COMPOSE $version_args $args config > "docker-compose$delimiter$config_name.yml"
+		# Fix for Docker Compose v2.24+ which defaults create_host_path to false
+		sed -i -e 's/create_host_path: false/create_host_path: true/g' \
+		       -e 's/bind: {}/bind: {create_host_path: true}/g' \
+		       "docker-compose$delimiter$config_name.yml"
 	fi
 }
 parts_variant(){
