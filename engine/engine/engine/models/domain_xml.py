@@ -18,6 +18,7 @@ from io import StringIO
 from pprint import pprint
 
 import xmltodict
+from cachetools import TTLCache, cached
 from engine.services.db import (
     get_and_update_personal_vlan_id_from_domain_id,
     get_dict_from_item_in_table,
@@ -50,6 +51,24 @@ DEFAULT_BALLOON = 1
 BUS_TYPES = ["sata", "ide", "virtio"]
 
 BUS_LETTER = {"ide": "h", "sata": "s", "virtio": "v"}
+
+# TTL caches for interface and QoS lookups during batch domain creation
+# These avoid repeated DB queries for the same interface/QoS definitions
+_interface_cache = TTLCache(maxsize=200, ttl=30)
+_qos_net_cache = TTLCache(maxsize=100, ttl=30)
+
+
+@cached(cache=_interface_cache)
+def get_interface_cached(interface_id):
+    """Get interface with TTL caching for batch operations."""
+    return get_interface(interface_id)
+
+
+@cached(cache=_qos_net_cache)
+def get_qos_net_cached(qos_id):
+    """Get QoS network config with TTL caching for batch operations."""
+    return get_dict_from_item_in_table("qos_net", qos_id)
+
 
 XML_SNIPPET_NETWORK = """
     <interface type="network">
@@ -1533,10 +1552,9 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     # aunque la información que vale de verdad es la backing-chain del disco
     # template_name = hw['name']
 
+    # Set up interfaces - uses TTL-cached lookups (get_interface_cached, get_qos_net_cached)
+    # to avoid redundant DB queries when called multiple times in batch operations
     v.remove_interface()
-    """ for interface_index in range(len(v.vm_dict['interfaces'])):
-        v.(order=interface_index) """
-
     recreate_xml_interfaces(d, v)
 
     v.set_vcpu(hw["vcpus"])
@@ -1575,9 +1593,9 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     except:
         pass
 
-    update_domain_dict_hardware(id_domain, hw, xml=xml_raw)
-    update_table_field(
-        "domains", id_domain, "hardware_from_xml", hw_updated, merge_dict=False
+    # Batch update hardware, xml, and hardware_from_xml in a single DB call
+    update_domain_dict_hardware(
+        id_domain, hw, xml=xml_raw, hardware_from_xml=hw_updated
     )
 
     return xml_raw
@@ -1925,11 +1943,11 @@ def recreate_xml_interfaces(dict_domain, x):
                 log.debug(f"custom mac when starting: {custom_mac}")
 
     for interface_index, id_interface in enumerate(list_interfaces):
-        d_interface = get_interface(id_interface)
+        d_interface = get_interface_cached(id_interface)
         qos_id = d_interface["qos_id"]
         if qos_id:
             try:
-                dict_qos = get_dict_from_item_in_table("qos_net", qos_id)
+                dict_qos = get_qos_net_cached(qos_id)
                 try:
                     # validate and convert str to int
                     dict_bandwidth = BANDWIDTH_SCHEMA.validate(dict_qos["bandwidth"])
