@@ -39,6 +39,14 @@ python3 /src/lib/vpnc.py
 echo "---> Setting up OpenVswitch over wg..."
 sh -c "/src/ovs/setup.sh"
 
+echo "---> Starting OVS worker daemon..."
+# Worker uses Unix socket at /var/run/openvswitch/ovs-worker.sock
+python3 /src/ovs/ovs-worker.py &
+OVS_WORKER_PID=$!
+echo "OVS worker daemon started (PID: $OVS_WORKER_PID)"
+# Wait a moment for socket to be ready
+sleep 1
+
 env > /tmp/env # This is needed by the dnsmasq-hook to get the envvars
 # This is the route needed, should be added from above python script
 #ip r a $WG_USERS_NET via ${WG_HYPER_NET_WG_PEER}
