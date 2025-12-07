@@ -171,7 +171,7 @@ class OvsWorker:
             if data:
                 request = json.loads(data.decode())
                 self._handle_event(request)
-                conn.sendall(b"OK")
+                # Hook uses fire-and-forget, no ACK needed
         except Exception as e:
             log({"event": "connection_error", "error": str(e)})
         finally:
@@ -184,15 +184,6 @@ class OvsWorker:
         xml = request.get("xml", "")
         timestamp = request.get("timestamp", now_ms())
 
-        log(
-            {
-                "event": "received",
-                "id": domain,
-                "status": status,
-                "queue_length": self.process_queue.qsize(),
-            }
-        )
-
         with self.lock:
             state = self.domains[domain]
 
@@ -203,6 +194,17 @@ class OvsWorker:
 
             # Add event to domain's pending events
             state.events.append({"status": status, "xml": xml, "timestamp": timestamp})
+
+            log(
+                {
+                    "event": "received",
+                    "id": domain,
+                    "status": status,
+                    "count": len(state.events),
+                    "queued": self.process_queue.qsize(),
+                    "duration": now_ms() - timestamp,
+                }
+            )
 
             # Schedule processing based on event type
             # stopped: process immediately (cleanup should be fast)
@@ -224,7 +226,9 @@ class OvsWorker:
             state.timer = threading.Timer(delay, process)
             state.timer.start()
         else:
-            process()
+            # Immediate processing - called while lock is already held
+            # by _handle_event(), so call _process_domain() directly
+            self._process_domain(domain)
 
     def _process_domain(self, domain: str):
         """Process all pending events for a domain - determine final action"""
@@ -241,15 +245,23 @@ class OvsWorker:
         final_status = final_event["status"]
         final_xml = final_event["xml"]
 
+        # Calculate duration from first event
+        first_timestamp = events[0]["timestamp"]
+        duration = now_ms() - first_timestamp
+        event_count = len(events)
+        queued = self.process_queue.qsize()
+
         # Log coalescing if multiple events
-        if len(events) > 1:
-            self.stats["coalesced"] += len(events) - 1
+        if event_count > 1:
+            self.stats["coalesced"] += event_count - 1
             log(
                 {
                     "event": "coalesced",
                     "id": domain,
-                    "events": len(events),
-                    "final": final_status,
+                    "status": final_status,
+                    "count": event_count,
+                    "queued": queued,
+                    "duration": duration,
                 }
             )
 
@@ -257,28 +269,54 @@ class OvsWorker:
         if final_status == "started":
             if state.running:
                 # Already running, skip
-                log({"event": "skipped", "id": domain, "reason": "already_running"})
+                log(
+                    {
+                        "event": "skipped",
+                        "id": domain,
+                        "status": final_status,
+                        "reason": "already_running",
+                        "count": event_count,
+                        "queued": queued,
+                        "duration": duration,
+                    }
+                )
                 self.stats["skipped"] += 1
             else:
                 # Queue flow_add operation
                 self.process_queue.put(
-                    lambda d=domain, x=final_xml: self._flow_add(d, x)
+                    lambda d=domain, x=final_xml, c=event_count: self._flow_add(d, x, c)
                 )
 
         elif final_status == "stopped":
             if not state.running:
                 # Not running, skip
-                log({"event": "skipped", "id": domain, "reason": "not_running"})
+                log(
+                    {
+                        "event": "skipped",
+                        "id": domain,
+                        "status": final_status,
+                        "reason": "not_running",
+                        "count": event_count,
+                        "queued": queued,
+                        "duration": duration,
+                    }
+                )
                 self.stats["skipped"] += 1
             else:
                 # Queue flow_del operation
-                self.process_queue.put(lambda d=domain: self._flow_del(d))
+                self.process_queue.put(
+                    lambda d=domain, c=event_count: self._flow_del(d, c)
+                )
 
         elif final_status == "reconnect":
             # Always reapply flows
             if state.running:
-                self.process_queue.put(lambda d=domain: self._flow_del(d))
-            self.process_queue.put(lambda d=domain, x=final_xml: self._flow_add(d, x))
+                self.process_queue.put(
+                    lambda d=domain, c=event_count: self._flow_del(d, c)
+                )
+            self.process_queue.put(
+                lambda d=domain, x=final_xml, c=event_count: self._flow_add(d, x, c)
+            )
 
     # =========================================================================
     # OVS Operations
@@ -381,9 +419,29 @@ class OvsWorker:
                     )
         return interfaces
 
-    def _flow_add(self, domain: str, xml_str: str):
+    def _flow_add(self, domain: str, xml_str: str, count: int = 1):
         """Add flows for domain - runs in processor thread"""
         start_ms = now_ms()
+
+        # Check for libvirt_flags metadata - skip if start_paused (test domain)
+        try:
+            root = ET.fromstring(xml_str)
+            libvirt_flags = root.find(".//{http://isardvdi.com}libvirt_flags")
+            if libvirt_flags is not None and libvirt_flags.text == "start_paused":
+                log(
+                    {
+                        "event": "skipped",
+                        "id": domain,
+                        "status": "started",
+                        "reason": "start_paused",
+                        "count": count,
+                        "queued": self.process_queue.qsize(),
+                        "duration": now_ms() - start_ms,
+                    }
+                )
+                return
+        except ET.ParseError:
+            pass  # Continue with normal processing if XML parse fails
 
         interfaces = self._parse_interfaces(xml_str)
         if not interfaces:
@@ -391,8 +449,11 @@ class OvsWorker:
                 {
                     "event": "flow_add",
                     "id": domain,
+                    "status": "started",
+                    "count": count,
+                    "queued": self.process_queue.qsize(),
                     "interfaces": 0,
-                    "elapsed_ms": now_ms() - start_ms,
+                    "duration": now_ms() - start_ms,
                 }
             )
             return
@@ -500,19 +561,20 @@ class OvsWorker:
             self.domains[domain].flows = flows
             self.domains[domain].running = True
 
-        elapsed = now_ms() - start_ms
         log(
             {
                 "event": "flow_add",
                 "id": domain,
+                "status": "started",
+                "count": count,
+                "queued": self.process_queue.qsize(),
                 "interfaces": len(interfaces),
                 "flows": len(flows),
-                "vlan4095": vlan4095_count,
-                "elapsed_ms": elapsed,
+                "duration": now_ms() - start_ms,
             }
         )
 
-    def _flow_del(self, domain: str):
+    def _flow_del(self, domain: str, count: int = 1):
         """Delete flows for domain using in-memory cache"""
         start_ms = now_ms()
 
@@ -531,13 +593,15 @@ class OvsWorker:
 
             self._ofctl_del_flows(del_matches)
 
-        elapsed = now_ms() - start_ms
         log(
             {
                 "event": "flow_del",
                 "id": domain,
+                "status": "stopped",
+                "count": count,
+                "queued": self.process_queue.qsize(),
                 "flows": len(flows),
-                "elapsed_ms": elapsed,
+                "duration": now_ms() - start_ms,
             }
         )
 

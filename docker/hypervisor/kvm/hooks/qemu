@@ -30,12 +30,17 @@
 # └────────────────────────────────┴──────────┴───────┴────────────────────┘
 #
 # Events we handle:
-#   started  -> Add OVS flows (if domstate=running, skip if paused)
+#   started  -> Add OVS flows
 #   stopped  -> Delete OVS flows
 #   migrate  -> Add OVS flows (incoming migration destination)
 #   restore  -> Add OVS flows (restored from saved image)
 #   reconnect-> Reapply OVS flows
 #
+# NOTE: Pause/resume (virsh suspend/resume) do NOT trigger hooks.
+#       OVS flows remain in place during pause, which is correct behavior.
+#
+# IMPORTANT: Do NOT call virsh from this hook - it would deadlock libvirtd
+# (libvirt waits for hook to complete, hook waits for libvirt)
 # ============================================================================
 
 SOCKET=/var/run/openvswitch/ovs-worker.sock
@@ -50,18 +55,12 @@ XML=$(cat -)
 # Determine what action to take based on operation
 case "${operation}" in
     started)
-        # QEMU process started - check if START_PAUSED (test start)
-        state=$(virsh domstate "$domain_name" 2>/dev/null)
-        [ "$state" = "paused" ] && exit 0
         status="started"
         ;;
     stopped)
         status="stopped"
         ;;
     migrate|restore)
-        # Incoming migration or restore - VM should be running
-        state=$(virsh domstate "$domain_name" 2>/dev/null)
-        [ "$state" = "paused" ] && exit 0
         status="started"
         ;;
     reconnect)
@@ -74,30 +73,59 @@ case "${operation}" in
 esac
 
 # Send event to OVS worker daemon via Unix socket
-python3 -c "
+# Use timeout to ensure we never block libvirt for more than 2 seconds
+timeout 2 python3 -c "
 import socket
 import json
 import sys
+import os
+from datetime import datetime
+
+domain = '$domain_name'
+status = '$status'
+operation = '$operation'
+timestamp = $(date +%s%3N)
+xml_data = sys.stdin.read()
+sock_path = '$SOCKET'
+hyper_id = os.environ.get('HYPER_ID', 'unknown')
+
+def log_json(event, **kwargs):
+    \"\"\"Print JSON log to stdout for docker logs\"\"\"
+    msg = {
+        'type': 'qemu_hook',
+        'sysid': hyper_id,
+        'time': datetime.now().astimezone().isoformat(),
+        'event': event,
+        'domain': domain,
+        'operation': operation,
+        'status': status,
+        **kwargs
+    }
+    print(json.dumps(msg), flush=True)
+
+# Check if socket exists before attempting connection
+if not os.path.exists(sock_path):
+    log_json('worker_not_running')
+    sys.exit(0)
 
 request = {
-    'domain': '$domain_name',
-    'status': '$status',
-    'timestamp': $(date +%s%3N),
-    'xml': sys.stdin.read()
+    'domain': domain,
+    'status': status,
+    'timestamp': timestamp,
+    'xml': xml_data
 }
 
 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 try:
-    sock.settimeout(5)  # 5 second timeout
-    sock.connect('$SOCKET')
+    sock.settimeout(1)
+    sock.connect(sock_path)
     sock.sendall(json.dumps(request).encode())
-    sock.shutdown(socket.SHUT_WR)
-    response = sock.recv(1024)  # Wait for ACK
+    log_json('sent')
 except Exception as e:
-    # Log error but don't block libvirt
-    print(f'OVS worker error: {e}', file=sys.stderr)
+    log_json('error', error=str(e))
 finally:
     sock.close()
 " <<< "$XML"
 
+# ALWAYS exit 0 - never block libvirt
 exit 0
