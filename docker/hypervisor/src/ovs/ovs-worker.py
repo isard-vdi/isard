@@ -61,6 +61,7 @@ class DomainState:
     events: list = field(default_factory=list)  # Pending events
     timer: threading.Timer = None  # Delayed processing timer
     flows: list = field(default_factory=list)  # In-memory flow rules
+    meters: list = field(default_factory=list)  # Per-VM meter IDs
     running: bool = False  # Is domain currently running
 
 
@@ -413,6 +414,24 @@ class OvsWorker:
                 }
             )
 
+    def _create_meter(self, meter_id: int, rate: int, burst: int):
+        """Create a meter for per-VM rate limiting"""
+        # Delete first for idempotency (ignore errors if doesn't exist)
+        self._ofctl("-O", "OpenFlow13", "del-meter", BRIDGE, f"meter={meter_id}")
+        # Create meter with pktps (packets per second)
+        self._ofctl(
+            "-O",
+            "OpenFlow13",
+            "add-meter",
+            BRIDGE,
+            f"meter={meter_id},pktps,burst,bands=type=drop,rate={rate},burst_size={burst}",
+        )
+
+    def _delete_meters(self, meter_ids: list):
+        """Delete multiple meters"""
+        for meter_id in meter_ids:
+            self._ofctl("-O", "OpenFlow13", "del-meter", BRIDGE, f"meter={meter_id}")
+
     def _parse_interfaces(self, xml_str: str) -> list:
         """Parse OVS interfaces from domain XML"""
         try:
@@ -479,6 +498,7 @@ class OvsWorker:
             return
 
         flows = []
+        meters = []
         vlan4095_count = 0
 
         for iface in interfaces:
@@ -494,6 +514,20 @@ class OvsWorker:
             if not nport:
                 log({"event": "port_not_found", "port": port, "domain": domain})
                 continue
+
+            # ==============================================================
+            # Per-VM Meter IDs (base = 100 + ofport * 10)
+            # ==============================================================
+            meter_base = 100 + (nport * 10)
+            meter_arp = meter_base + 0  # VLAN 4095 ARP: 1 pkt/s
+            meter_dhcp = meter_base + 1  # VLAN 4095 DHCP: 2 pkt/s
+            meter_bcast = meter_base + 2  # Broadcast storm: 10 pkt/s
+            meter_mcast = meter_base + 3  # Multicast: 500 pkt/s (video)
+
+            # Create broadcast/multicast meters (all VLANs)
+            self._create_meter(meter_bcast, rate=10, burst=50)
+            self._create_meter(meter_mcast, rate=500, burst=750)
+            meters.extend([meter_bcast, meter_mcast])
 
             # ==============================================================
             # MAC Spoofing Protection (ALL OVS interfaces)
@@ -513,14 +547,15 @@ class OvsWorker:
 
             # ==============================================================
             # Broadcast/Multicast Rate Limiting (ALL OVS interfaces)
+            # Priority 199 = above MAC allow (198) to actually rate limit
             # ==============================================================
-            # Rate-limit broadcasts (meter 3: 10 pkt/s, burst 50)
+            # Rate-limit broadcasts (per-VM meter)
             flows.append(
-                f"priority=190,in_port={nport},dl_dst=ff:ff:ff:ff:ff:ff,actions=meter:3,NORMAL"
+                f"priority=199,in_port={nport},dl_src={mac},dl_dst=ff:ff:ff:ff:ff:ff,actions=meter:{meter_bcast},NORMAL"
             )
-            # Rate-limit multicast (meter 4: 10 pkt/s, burst 50)
+            # Rate-limit multicast (per-VM meter, higher rate for video)
             flows.append(
-                f"priority=190,in_port={nport},dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,actions=meter:4,NORMAL"
+                f"priority=199,in_port={nport},dl_src={mac},dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,actions=meter:{meter_mcast},NORMAL"
             )
 
             # ==============================================================
@@ -529,24 +564,38 @@ class OvsWorker:
             if vlan == "4095":
                 vlan4095_count += 1
 
+                # Create VLAN 4095 specific meters
+                self._create_meter(meter_arp, rate=1, burst=10)
+                self._create_meter(meter_dhcp, rate=2, burst=5)
+                meters.extend([meter_arp, meter_dhcp])
+
                 # Set port as access port with VLAN 4095 via OVSDB
                 self._set_port_tag(port, 4095)
 
                 # Disable flooding for VLAN 4095 ports (explicit delivery via p221)
                 self._ofctl_mod_port(nport, "no-flood")
 
-                # ARP requests to infrastructure (10.2.0.0/28) - rate limited
+                # ==== IP SPOOFING PROTECTION ====
+                # Block guest from claiming to be infrastructure (10.2.0.0/28)
                 flows.append(
-                    f"priority=206,arp,in_port={nport},dl_src={mac},arp_op=1,arp_tpa=10.2.0.0/28,actions=meter:2,NORMAL"
+                    f"priority=207,arp,in_port={nport},arp_spa=10.2.0.0/28,actions=drop"
                 )
-                # ARP replies - rate limited
                 flows.append(
-                    f"priority=206,arp,in_port={nport},dl_src={mac},arp_op=2,actions=meter:2,NORMAL"
+                    f"priority=207,ip,in_port={nport},nw_src=10.2.0.0/28,actions=drop"
                 )
 
-                # DHCP requests from guest (discover/request are broadcasts)
+                # ARP requests to infrastructure (10.2.0.0/28) - per-VM rate limited
                 flows.append(
-                    f"priority=206,udp,in_port={nport},dl_src={mac},tp_src=68,tp_dst=67,actions=NORMAL"
+                    f"priority=206,arp,in_port={nport},dl_src={mac},arp_op=1,arp_tpa=10.2.0.0/28,actions=meter:{meter_arp},NORMAL"
+                )
+                # ARP replies - per-VM rate limited
+                flows.append(
+                    f"priority=206,arp,in_port={nport},dl_src={mac},arp_op=2,actions=meter:{meter_arp},NORMAL"
+                )
+
+                # DHCP requests from guest - per-VM rate limited
+                flows.append(
+                    f"priority=206,udp,in_port={nport},dl_src={mac},tp_src=68,tp_dst=67,actions=meter:{meter_dhcp},NORMAL"
                 )
 
                 # Block ALL other broadcast traffic from this port
@@ -561,7 +610,17 @@ class OvsWorker:
 
                 # RA Guard - Block all IPv6 traffic on VLAN 4095
                 flows.append(
-                    f"priority=205,in_port={nport},dl_type=0x86dd,dl_src={mac},actions=drop"
+                    f"priority=205,ipv6,in_port={nport},dl_src={mac},actions=drop"
+                )
+
+                # ==== TRAFFIC RESTRICTION ====
+                # Allow IP traffic only to infrastructure range
+                flows.append(
+                    f"priority=204,ip,in_port={nport},dl_src={mac},nw_dst=10.2.0.0/28,actions=NORMAL"
+                )
+                # Block all other IP from guest
+                flows.append(
+                    f"priority=203,ip,in_port={nport},dl_src={mac},actions=drop"
                 )
 
                 # Deliver traffic from VPN to guest - strip VLAN tag before output
@@ -579,6 +638,7 @@ class OvsWorker:
         # Store in memory for cleanup
         with self.lock:
             self.domains[domain].flows = flows
+            self.domains[domain].meters = meters
             self.domains[domain].running = True
 
         log(
@@ -590,6 +650,7 @@ class OvsWorker:
                 "queued": self.process_queue.qsize(),
                 "interfaces": len(interfaces),
                 "flows": len(flows),
+                "meters": len(meters),
                 "duration": now_ms() - start_ms,
             }
         )
@@ -600,7 +661,9 @@ class OvsWorker:
 
         with self.lock:
             flows = self.domains[domain].flows.copy()
+            meters = self.domains[domain].meters.copy()
             self.domains[domain].flows = []
+            self.domains[domain].meters = []
             self.domains[domain].running = False
 
         if flows:
@@ -613,6 +676,10 @@ class OvsWorker:
 
             self._ofctl_del_flows(del_matches)
 
+        # Clean up per-VM meters
+        if meters:
+            self._delete_meters(meters)
+
         log(
             {
                 "event": "flow_del",
@@ -621,6 +688,7 @@ class OvsWorker:
                 "count": count,
                 "queued": self.process_queue.qsize(),
                 "flows": len(flows),
+                "meters": len(meters),
                 "duration": now_ms() - start_ms,
             }
         )
