@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 # from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
 
+from cachetools import TTLCache, cached
 from engine.models.domain_xml import (
     BUS_TYPES,
     populate_dict_hardware_from_create_dict,
@@ -73,6 +74,16 @@ Q_LONGOPERATIONS_PRIORITY_CREATE_DISK_FROM_TEMPLATE = 40
 Q_LONGOPERATIONS_PRIORITY_DOMAIN_FROM_TEMPLATE = 40
 
 updating_thread_pool = ThreadPoolExecutor(max_workers=1)
+
+# TTL cache for template lookups during batch domain creation
+# Avoids repeated DB queries when creating many domains from the same template
+_template_cache = TTLCache(maxsize=100, ttl=60)
+
+
+@cached(cache=_template_cache)
+def get_template_cached(template_id):
+    """Get template domain with TTL caching for batch operations."""
+    return get_domain(template_id)
 
 
 class UiActions(object):
@@ -1366,7 +1377,7 @@ class UiActions(object):
 
         elif xml_from_virt_install is False:
             id_template = domain["create_dict"]["origin"]
-            template = get_domain(id_template)
+            template = get_template_cached(id_template)
             if template is None:
                 logs.main.error(
                     "##### Traceback: creating_and_test_xml_start, xml_from...\n{}\n ...template {} not found when creating domain...\n {}\n...\n{}\n...".format(
