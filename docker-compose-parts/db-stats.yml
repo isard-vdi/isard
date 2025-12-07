@@ -1,4 +1,3 @@
-version: '3.5'
 services:
   isard-stats-rethinkdb:
     container_name: isard-stats-rethinkdb

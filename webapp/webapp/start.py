@@ -30,4 +30,4 @@ if __name__ == "__main__":
     if debug:
         app.run(host="0.0.0.0", port=5000, debug=debug)
     else:
-        serve(app, listen="*:5000")
+        serve(app, listen="0.0.0.0:5000")

@@ -1,4 +1,3 @@
-version: "3.5"
 services:
   isard-stats-go:
     image: ${DOCKER_IMAGE_PREFIX}stats-go:${DOCKER_IMAGE_TAG-latest}
