@@ -2001,6 +2001,30 @@ def recreate_xml_if_start_paused(xml, memory_mb=256):
     # Update to only one cpu
     # tree.xpath("/domain/vcpu")[0].text = "1"
 
+    # Add libvirt_flags metadata to indicate this is a start_paused domain
+    # This allows the OVS worker to skip applying flows for test domains
+    isard_ns = "http://isardvdi.com"
+    metadata = tree.xpath("/domain/metadata")
+
+    if metadata:
+        # Metadata exists, find or create isard element
+        isard = metadata[0].find(f"{{{isard_ns}}}isard")
+        if isard is None:
+            isard = etree.SubElement(metadata[0], f"{{{isard_ns}}}isard")
+            isard.set(f"{{http://www.w3.org/2000/xmlns/}}isard", isard_ns)
+        flags_elem = etree.SubElement(isard, f"{{{isard_ns}}}libvirt_flags")
+        flags_elem.text = "start_paused"
+    else:
+        # No metadata, insert after <name>
+        metadata_xml = """<metadata>
+    <isard:isard xmlns:isard="http://isardvdi.com">
+      <isard:libvirt_flags>start_paused</isard:libvirt_flags>
+    </isard:isard>
+  </metadata>"""
+        metadata_elem = etree.fromstring(metadata_xml)
+        name_elem = tree.xpath("/domain/name")[0]
+        name_elem.addnext(metadata_elem)
+
     xml_output = indent(etree.tostring(tree, encoding="unicode"))
     return xml_output
 

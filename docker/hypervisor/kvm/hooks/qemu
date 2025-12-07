@@ -1,113 +1,131 @@
 #!/bin/bash
-flowdir=/var/run/openvswitch/libvirt-flows
-macportsdir=/var/run/openvswitch/mac-ports
-mkdir -p "${flowdir}" "${macportsdir}"
+# ============================================================================
+# Qemu Hook - Sends events to OVS worker daemon via Unix socket
+# ============================================================================
+# This hook is called by libvirt on VM lifecycle events.
+# It sends a JSON request to the OVS worker daemon and exits immediately,
+# avoiding blocking libvirt while OVS operations are processed.
+#
+# The OVS worker daemon handles event coalescing and smart processing.
+# ============================================================================
+#
+# Libvirt Hook Arguments (from https://libvirt.org/hooks.html):
+#   $1 = guest name (or '-' if none)
+#   $2 = operation: prepare, start, started, stopped, release, migrate, restore, reconnect
+#   $3 = sub-operation: begin, end (or '-')
+#   $4 = extra argument (shutdown reason for 'release', or '-')
+#
+# Hook Invocations:
+# ┌────────────────────────────────┬──────────┬───────┬────────────────────┐
+# │ When                           │ $2       │ $3    │ $4                 │
+# ├────────────────────────────────┼──────────┼───────┼────────────────────┤
+# │ Before resource preparation    │ prepare  │ begin │ -                  │
+# │ After labeling, before launch  │ start    │ begin │ -                  │
+# │ After QEMU process starts      │ started  │ begin │ -                  │
+# │ Before shutdown cleanup        │ stopped  │ end   │ -                  │
+# │ After resource cleanup         │ release  │ end   │ <shutoff-reason>   │
+# │ Incoming migration             │ migrate  │ begin │ -                  │
+# │ Restore from saved image       │ restore  │ begin │ -                  │
+# │ Libvirt daemon reconnect       │ reconnect│ begin │ -                  │
+# └────────────────────────────────┴──────────┴───────┴────────────────────┘
+#
+# Events we handle:
+#   started  -> Add OVS flows
+#   stopped  -> Delete OVS flows
+#   migrate  -> Add OVS flows (incoming migration destination)
+#   restore  -> Add OVS flows (restored from saved image)
+#   reconnect-> Reapply OVS flows
+#
+# NOTE: Pause/resume (virsh suspend/resume) do NOT trigger hooks.
+#       OVS flows remain in place during pause, which is correct behavior.
+#
+# IMPORTANT: Do NOT call virsh from this hook - it would deadlock libvirtd
+# (libvirt waits for hook to complete, hook waits for libvirt)
+# ============================================================================
+
+SOCKET=/var/run/openvswitch/ovs-worker.sock
 
 domain_name="$1"
-domain_status="$2"
+operation="$2"
+sub_operation="$3"
 
+# Read XML from stdin immediately (must be consumed)
 XML=$(cat -)
 
-flow_add(){
-    > "${flowdir}/${domain_name}"  # Create/clear flow file
-
-    # Count all OVS interfaces
-    interface_count=$(echo "$XML" | xmllint --xpath "count(//interface[virtualport[@type='openvswitch']])" - 2>/dev/null || echo 0)
-
-    for i in $(seq 1 $interface_count); do
-        port=$(echo "$XML" | xmllint --xpath "string(//interface[virtualport[@type='openvswitch']][$i]/target/@dev)" - 2>/dev/null)
-        mac=$(echo "$XML" | xmllint --xpath "string(//interface[virtualport[@type='openvswitch']][$i]/mac/@address)" - 2>/dev/null)
-        vlan=$(echo "$XML" | xmllint --xpath "string(//interface[virtualport[@type='openvswitch']][$i]/vlan/tag/@id)" - 2>/dev/null)
-
-        [ -z "$port" ] || [ -z "$mac" ] && continue
-
-        nport=$(ovs-ofctl show ovsbr0 | grep -E "^\s*[0-9]+\(${port}\)" | sed 's/^\s*\([0-9]*\).*/\1/')
-        [ -z "$nport" ] && continue
-
-        # ================================================================
-        # MAC Spoofing Protection (ALL OVS interfaces)
-        # ================================================================
-        # Allow traffic with correct source MAC → NORMAL switching
-        echo "priority=198,in_port=${nport},dl_src=${mac},actions=NORMAL" >> "${flowdir}/${domain_name}"
-        # Drop all other traffic from this port (wrong source MAC)
-        echo "priority=197,in_port=${nport},actions=drop" >> "${flowdir}/${domain_name}"
-
-        # ================================================================
-        # STP/BPDU Protection (ALL OVS interfaces)
-        # ================================================================
-        # Drop STP BPDU frames - prevent spanning tree manipulation
-        echo "priority=250,in_port=${nport},dl_dst=01:80:c2:00:00:00,actions=drop" >> "${flowdir}/${domain_name}"
-
-        # ================================================================
-        # Broadcast/Multicast Rate Limiting (ALL OVS interfaces)
-        # ================================================================
-        # Rate-limit broadcasts (meter 3: 10 pkt/s, burst 50) - prevents broadcast storms
-        echo "priority=190,in_port=${nport},dl_dst=ff:ff:ff:ff:ff:ff,actions=meter:3,NORMAL" >> "${flowdir}/${domain_name}"
-        # Rate-limit multicast (meter 4: 10 pkt/s, burst 50) - prevents multicast storms
-        echo "priority=190,in_port=${nport},dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,actions=meter:4,NORMAL" >> "${flowdir}/${domain_name}"
-
-        # ================================================================
-        # VLAN 4095 Special Handling (Infrastructure Network)
-        # ================================================================
-        if [ "$vlan" = "4095" ]; then
-            # Set port as access port with VLAN 4095
-            # This ensures guest traffic is tagged VLAN 4095 on ingress
-            ovs-vsctl set port "${port}" tag=4095
-
-            # Disable flooding for VLAN 4095 ports (explicit delivery via p221)
-            ovs-ofctl mod-port ovsbr0 "${nport}" no-flood
-
-            # ARP requests to infrastructure (10.2.0.0/28) - rate limited via meter 2
-            # Allows guest to ARP for gateway, samba, bastion, guacamole
-            echo "priority=206,arp,in_port=${nport},dl_src=${mac},arp_op=1,arp_tpa=10.2.0.0/28,actions=meter:2,NORMAL" >> "${flowdir}/${domain_name}"
-            # ARP replies - rate limited via meter 2 (prevents ARP reply floods)
-            echo "priority=206,arp,in_port=${nport},dl_src=${mac},arp_op=2,actions=meter:2,NORMAL" >> "${flowdir}/${domain_name}"
-
-            # DHCP requests from guest (discover/request are broadcasts)
-            # UDP src=68 (bootpc), dst=67 (bootps)
-            echo "priority=206,udp,in_port=${nport},dl_src=${mac},tp_src=68,tp_dst=67,actions=NORMAL" >> "${flowdir}/${domain_name}"
-
-            # Block ALL other broadcast traffic from this port
-            echo "priority=205,in_port=${nport},dl_dst=ff:ff:ff:ff:ff:ff,actions=drop" >> "${flowdir}/${domain_name}"
-
-            # Block ALL multicast traffic from this port
-            echo "priority=205,in_port=${nport},dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,actions=drop" >> "${flowdir}/${domain_name}"
-
-            # RA Guard - Block all IPv6 traffic on VLAN 4095
-            echo "priority=205,in_port=${nport},dl_type=0x86dd,dl_src=${mac},actions=drop" >> "${flowdir}/${domain_name}"
-
-            # Deliver traffic from VPN to guest - strip VLAN tag before output
-            # Using explicit output because NORMAL fails (no-flood + MAC not learned)
-            echo "priority=221,dl_dst=${mac},dl_vlan=4095,actions=strip_vlan,output:${nport}" >> "${flowdir}/${domain_name}"
-
-            # Write MAC-port-domain mapping for future DHCP snooper implementation
-            echo "${nport}:${domain_name}" > "${macportsdir}/${mac}"
-        fi
-    done
-
-    [ -s "${flowdir}/${domain_name}" ] && ovs-ofctl -O OpenFlow13 add-flows ovsbr0 "${flowdir}/${domain_name}"
-}
-
-flow_del() {
-    if [ -e "${flowdir}/${domain_name}" ]; then
-        cat "${flowdir}/${domain_name}" | sed -e 's/^priority=[0-9]*,//' -e 's/,actions=.*//' | ovs-ofctl del-flows ovsbr0 -
-        rm -f "${flowdir}/${domain_name}"
-    fi
-    # Clean up MAC-port mappings for this domain
-    for f in "${macportsdir}"/*; do
-        [ -f "$f" ] && grep -q ":${domain_name}$" "$f" && rm -f "$f"
-    done
-}
-
-timestamp=$(date +"%Y-%m-%dT%H:%M:%S%:z")
-echo "{\"id\": \"$domain_name\", \"status\": \"$domain_status\", \"time\": \"$timestamp\"}" >> /tmp/qemu-hook.log
-
-case "${domain_status}" in
-    started)   flow_add ;;
-    stopped)   flow_del ;;
-    reconnect) flow_del; flow_add ;;
-    migrate)   flow_add ;;
-    *)         exit 0 ;;
+# Determine what action to take based on operation
+case "${operation}" in
+    started)
+        status="started"
+        ;;
+    stopped)
+        status="stopped"
+        ;;
+    migrate|restore)
+        status="started"
+        ;;
+    reconnect)
+        status="reconnect"
+        ;;
+    *)
+        # prepare, start, release - we don't need to act
+        exit 0
+        ;;
 esac
 
+# Send event to OVS worker daemon via Unix socket
+# Use timeout to ensure we never block libvirt for more than 2 seconds
+timeout 2 python3 -c "
+import socket
+import json
+import sys
+import os
+from datetime import datetime
+
+domain = '$domain_name'
+status = '$status'
+operation = '$operation'
+timestamp = $(date +%s%3N)
+xml_data = sys.stdin.read()
+sock_path = '$SOCKET'
+hyper_id = os.environ.get('HYPER_ID', 'unknown')
+
+def log_json(event, **kwargs):
+    \"\"\"Print JSON log to stdout for docker logs\"\"\"
+    msg = {
+        'type': 'qemu_hook',
+        'sysid': hyper_id,
+        'time': datetime.now().astimezone().isoformat(),
+        'event': event,
+        'domain': domain,
+        'operation': operation,
+        'status': status,
+        **kwargs
+    }
+    print(json.dumps(msg), flush=True)
+
+# Check if socket exists before attempting connection
+if not os.path.exists(sock_path):
+    log_json('worker_not_running')
+    sys.exit(0)
+
+request = {
+    'domain': domain,
+    'status': status,
+    'timestamp': timestamp,
+    'xml': xml_data
+}
+
+sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+try:
+    sock.settimeout(1)
+    sock.connect(sock_path)
+    sock.sendall(json.dumps(request).encode())
+    log_json('sent')
+except Exception as e:
+    log_json('error', error=str(e))
+finally:
+    sock.close()
+" <<< "$XML"
+
+# ALWAYS exit 0 - never block libvirt
 exit 0

@@ -138,31 +138,6 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] DNS spoofing protection enabled fo
 ovs-ofctl add-flow ovsbr0 "priority=210,dl_vlan=4095,dl_dst=01:00:00:00:00:00/01:00:00:00:00:00,actions=drop"
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Multicast destination blocking enabled for VLAN 4095"
 
-# ============================================================================
-# SECURITY: ARP Rate Limiting Meter for VLAN 4095 (used by qemu hook)
-# ============================================================================
-# Create meter for per-VM ARP rate limiting (1 pkt/sec sustained, burst of 10)
-# This meter is used by qemu hook rules for VLAN 4095 guest ports
-# Delete first for idempotency (handles re-runs)
-ovs-ofctl -O OpenFlow13 del-meter ovsbr0 meter=2 2>/dev/null || true
-ovs-ofctl -O OpenFlow13 add-meter ovsbr0 meter=2,pktps,burst,band=type=drop,rate=1,burst_size=10
-echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] ARP rate limiting meter created (meter=2, 1 pkt/sec, burst=10)"
-
-# ============================================================================
-# SECURITY: Broadcast/Multicast Rate Limiting Meters (ALL VLANs)
-# ============================================================================
-# Create meters for broadcast/multicast rate limiting - prevents storms and loops
-# Delete first for idempotency (handles re-runs)
-# Meter 3: Broadcast rate limiting (10 pkt/sec, burst 50)
-ovs-ofctl -O OpenFlow13 del-meter ovsbr0 meter=3 2>/dev/null || true
-ovs-ofctl -O OpenFlow13 add-meter ovsbr0 meter=3,pktps,burst,band=type=drop,rate=10,burst_size=50
-echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Broadcast rate limiting meter created (meter=3, 10 pkt/sec, burst=50)"
-
-# Meter 4: Multicast rate limiting (10 pkt/sec, burst 50)
-ovs-ofctl -O OpenFlow13 del-meter ovsbr0 meter=4 2>/dev/null || true
-ovs-ofctl -O OpenFlow13 add-meter ovsbr0 meter=4,pktps,burst,band=type=drop,rate=10,burst_size=50
-echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Multicast rate limiting meter created (meter=4, 10 pkt/sec, burst=50)"
-
 # ip a f eth0
 #ovs-vsctl add-port ovsbr0 eth0
 # ovs-vsctl add-port ovsbr0 eth0 tag=1 vlan_mode=native-tagged
