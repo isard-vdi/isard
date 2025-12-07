@@ -137,6 +137,10 @@ else
   echo "---> NOT enabling hypervisor because HYPER_ENABLED envvar missing or not true."
 fi
 
+echo "---> Setting process priorities..."
+chmod +x /src/lib/set-priorities.sh
+/src/lib/set-priorities.sh
+
 echo "---> HYPERVISOR READY <---"
 touch /tmp/qemu-hook.log
 tail -f /tmp/qemu-hook.log &
