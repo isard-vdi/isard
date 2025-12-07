@@ -322,17 +322,33 @@ class OvsWorker:
     # OVS Operations
     # =========================================================================
 
-    def _get_port_ofport(self, port_name: str) -> int | None:
-        """Get OpenFlow port number for a port using OVSDB"""
-        self._run_idl()
+    def _get_port_ofport(self, port_name: str, retries: int = 3) -> int | None:
+        """Get OpenFlow port number for a port using OVSDB with retry
 
-        for interface in self.idl.tables["Interface"].rows.values():
-            if interface.name == port_name:
-                ofport = interface.ofport
-                if ofport and len(ofport) > 0:
-                    port_num = ofport[0] if isinstance(ofport, list) else ofport
-                    if port_num > 0:
-                        return port_num
+        Uses short retries (200ms each) to avoid blocking processor queue.
+        The 2s coalesce delay should ensure port exists; retries are just
+        for IDL sync lag.
+        """
+        for attempt in range(retries):
+            # Poll IDL for updates
+            poller = ovs_poller.Poller()
+            self.idl.wait(poller)
+            poller.timer_wait(50)  # 50ms max wait for updates
+            poller.block()
+            self.idl.run()
+
+            for interface in self.idl.tables["Interface"].rows.values():
+                if interface.name == port_name:
+                    ofport = interface.ofport
+                    if ofport and len(ofport) > 0:
+                        port_num = ofport[0] if isinstance(ofport, list) else ofport
+                        if port_num > 0:
+                            return port_num
+
+            # Port not found yet, short wait before retry
+            if attempt < retries - 1:
+                time.sleep(0.2)
+
         return None
 
     def _set_port_tag(self, port_name: str, tag: int):
@@ -344,10 +360,14 @@ class OvsWorker:
                 txn = ovs_idl.Transaction(self.idl)
                 port.tag = tag
                 status = txn.commit_block()
-                if status != ovs_idl.Transaction.SUCCESS:
+                # UNCHANGED is expected if tag already set, not an error
+                if status not in (
+                    ovs_idl.Transaction.SUCCESS,
+                    ovs_idl.Transaction.UNCHANGED,
+                ):
                     log(
                         {
-                            "event": "set_port_tag_failed",
+                            "event": "set_port_tag_error",
                             "port": port_name,
                             "tag": tag,
                             "status": str(status),
