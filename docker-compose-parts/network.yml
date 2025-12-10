@@ -1,6 +1,8 @@
 networks:
   isard-network:
     driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 9000
     external: false
     name: isard-network
     ipam:
