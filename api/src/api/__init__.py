@@ -179,6 +179,7 @@ from .views import (
     Stats,
     StorageView,
     TemplatesView,
+    UserNetworksView,
     UsersView,
     ViewersConfigView,
     VpnViews,

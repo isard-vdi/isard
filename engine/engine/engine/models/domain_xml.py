@@ -98,6 +98,16 @@ XML_SNIPPET_OVS = """
     </interface>
 """
 
+# Ethernet interface: libvirt only creates tap device, OVS port managed by ovs-worker
+# Used for both admin interfaces (VLAN) and user_networks (OpenFlow metadata isolation)
+XML_SNIPPET_ETHERNET = """
+    <interface type='ethernet'>
+      <mac address='52:54:00:eb:b1:aa'/>
+      <model type='virtio'/>
+      <driver name='vhost'/>
+    </interface>
+"""
+
 XML_SNIPPET_CDROM = """
     <disk type="file" device="cdrom">
       <driver name="qemu" type="raw"/>
@@ -264,6 +274,10 @@ class DomainXML(object):
         self.index_disks["ide"] = 0
         self.index_disks["sata"] = 0
         self.d_graphics_types = None
+
+        # Collect mac→network mappings for ovs-worker
+        # These are added to metadata via add_mac2network_metadata()
+        self.mac2network_mappings = []
 
     # def update_xml(self,**kwargs):
     #     if kwargs.__contains__('vcpus'):
@@ -697,8 +711,17 @@ class DomainXML(object):
             interface_etree.xpath("/interface")[0].xpath("source")[0].set("bridge", net)
 
         elif type_interface == "ovs":
-            xml_snippet = XML_SNIPPET_OVS.format(vlan_id=net, ovs_br_name="ovsbr0")
-            interface_etree = etree.parse(StringIO(xml_snippet))
+            # Use ethernet type - ovs-worker manages OVS port via OVSDB IDL
+            interface_etree = etree.parse(StringIO(XML_SNIPPET_ETHERNET))
+            # Collect mapping for mac2network metadata
+            self.mac2network_mappings.append(
+                {
+                    "mac": mac,
+                    "kind": "interface",
+                    "interface_id": id_interface,
+                    "vlan_id": int(net),
+                }
+            )
 
         elif type_interface == "personal":
             vlan_id = False
@@ -731,10 +754,19 @@ class DomainXML(object):
                                 )
                                 return -1
                             if vlan_id:
-                                xml_snippet = XML_SNIPPET_OVS.format(
-                                    vlan_id=vlan_id, ovs_br_name="ovsbr0"
+                                # Use ethernet type - ovs-worker manages OVS port via OVSDB IDL
+                                interface_etree = etree.parse(
+                                    StringIO(XML_SNIPPET_ETHERNET)
                                 )
-                                interface_etree = etree.parse(StringIO(xml_snippet))
+                                # Collect mapping for mac2network metadata
+                                self.mac2network_mappings.append(
+                                    {
+                                        "mac": mac,
+                                        "kind": "interface",
+                                        "interface_id": id_interface,
+                                        "vlan_id": vlan_id,
+                                    }
+                                )
                             else:
                                 log.error(f"vlan_id not available for personal network")
                         else:
@@ -755,10 +787,21 @@ class DomainXML(object):
                 return -1
 
         elif type_interface.find("ovs") == 0 and len(type_interface) > 3:
+            # OVS with custom bridge (e.g., "ovs1" -> "ovsbr1")
             suffix_br = type_interface[3:]
             ovs_br_name = "ovsbr" + suffix_br
-            xml_snippet = XML_SNIPPET_OVS.format(vlan_id=net, ovs_br_name=ovs_br_name)
-            interface_etree = etree.parse(StringIO(xml_snippet))
+            # Use ethernet type - ovs-worker manages OVS port via OVSDB IDL
+            interface_etree = etree.parse(StringIO(XML_SNIPPET_ETHERNET))
+            # Collect mapping for mac2network metadata (include bridge name)
+            self.mac2network_mappings.append(
+                {
+                    "mac": mac,
+                    "kind": "interface",
+                    "interface_id": id_interface,
+                    "vlan_id": int(net),
+                    "bridge": ovs_br_name,  # Non-default bridge
+                }
+            )
 
         elif type_interface == "network":
             interface_etree = etree.parse(StringIO(XML_SNIPPET_NETWORK))
@@ -940,6 +983,57 @@ class DomainXML(object):
         self.add_to_domain(
             xpath_same, metadata_etree, xpath_next, xpath_previous, merge=True
         )
+
+    def add_mac2network_metadata(self, mappings: list):
+        """
+        Add mac2network mappings to XML metadata for ovs-worker.
+
+        Args:
+            mappings: List of dicts with keys:
+                - mac: MAC address
+                - kind: "interface" (VLAN) or "user_network" (metadata isolation)
+                - interface_id/network_id: Reference to interfaces/user_networks table
+                - vlan_id (for kind="interface") or metadata_id (for kind="user_network")
+
+        Example:
+            [
+                {"mac": "52:54:00:aa:bb:01", "kind": "interface", "interface_id": "wireguard", "vlan_id": 4095},
+                {"mac": "52:54:00:aa:bb:02", "kind": "user_network", "network_id": "uuid-here", "metadata_id": 12345},
+            ]
+        """
+        if not mappings:
+            return
+
+        isard_ns = "http://isardvdi.com"
+        metadata = self.tree.xpath("/domain/metadata")
+
+        if not metadata:
+            log.warning("No metadata element found, cannot add mac2network")
+            return
+
+        # Find or create isard element
+        isard = metadata[0].find(f"{{{isard_ns}}}isard")
+        if isard is None:
+            log.warning("No isard metadata element found, cannot add mac2network")
+            return
+
+        # Create mac2network element
+        mac2network = etree.SubElement(isard, f"{{{isard_ns}}}mac2network")
+
+        for mapping in mappings:
+            mapping_elem = etree.SubElement(mac2network, f"{{{isard_ns}}}mapping")
+            mapping_elem.set("mac", mapping["mac"])
+            mapping_elem.set("kind", mapping["kind"])
+
+            if mapping["kind"] == "interface":
+                mapping_elem.set("interface_id", mapping.get("interface_id", ""))
+                mapping_elem.set("vlan_id", str(mapping.get("vlan_id", "")))
+                # Optional: non-default bridge (e.g., "ovsbr1" instead of "ovsbr0")
+                if mapping.get("bridge"):
+                    mapping_elem.set("bridge", mapping["bridge"])
+            elif mapping["kind"] == "user_network":
+                mapping_elem.set("network_id", mapping.get("network_id", ""))
+                mapping_elem.set("metadata_id", str(mapping.get("metadata_id", "")))
 
     def add_qemu_guest_agent(self):
         xpath_same = "/domain/devices/channel"
@@ -1881,6 +1975,11 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     # recreate xml interfaces from create_dict
     recreate_xml_interfaces(dict_domain, x)
 
+    # Add mac2network metadata for ovs-worker
+    # (start_paused domains use different function, won't have this metadata)
+    if x.mac2network_mappings:
+        x.add_mac2network_metadata(x.mac2network_mappings)
+
     x.remove_selinux_options()
 
     x.set_domain_type_and_emulator()
@@ -1979,7 +2078,7 @@ def recreate_xml_interfaces(dict_domain, x):
         interface_index += 1
 
 
-def recreate_xml_if_start_paused(xml, memory_mb=256):
+def recreate_xml_if_start_paused(xml, memory_mb=64):
     xml = xml
     unit = "KiB"
     mem_size = memory_mb * 1024
@@ -1995,6 +2094,12 @@ def recreate_xml_if_start_paused(xml, memory_mb=256):
         log.error("xml that fail: \n{}".format(xml))
         log.error("Traceback: {}".format(traceback.format_exc()))
         return xml
+
+    # Remove mac2network metadata - start_paused domains shouldn't have OVS mappings
+    # This metadata is added by recreate_xml_to_start() but must be stripped for test domains
+    isard_nsmap = {"isard": "http://isardvdi.com"}
+    for mac2net in tree.xpath("//isard:mac2network", namespaces=isard_nsmap):
+        mac2net.getparent().remove(mac2net)
 
     try:
         type = "kvm"
@@ -2016,13 +2121,23 @@ def recreate_xml_if_start_paused(xml, memory_mb=256):
             tree.xpath(f"/domain/{tag}")[0].set("unit", unit)
             tree.xpath(f"/domain/{tag}")[0].text = str(mem_size)
 
-    # Update to only one cpu
-    # tree.xpath("/domain/vcpu")[0].text = "1"
+    # Update to only one cpu - minimizes resources for validation
+    tree.xpath("/domain/vcpu")[0].text = "1"
+
+    # Remove CPU topology to avoid mismatch with vcpu count
+    for topology in tree.xpath("/domain/cpu/topology"):
+        topology.getparent().remove(topology)
+
+    # Strip unnecessary devices - not needed for disk validation
+    # Note: redirdev and audio with type="spice*" require spice graphics
+    for device_type in ["graphics", "video", "sound", "channel", "redirdev", "audio"]:
+        for elem in tree.xpath(f"/domain/devices/{device_type}"):
+            elem.getparent().remove(elem)
 
     # Add libvirt_flags metadata to indicate this is a start_paused domain
     # This allows the OVS worker to skip applying flows for test domains
-    isard_ns = "http://isardvdi.com"
     metadata = tree.xpath("/domain/metadata")
+    isard_ns = "http://isardvdi.com"
 
     if metadata:
         # Metadata exists, find or create isard element

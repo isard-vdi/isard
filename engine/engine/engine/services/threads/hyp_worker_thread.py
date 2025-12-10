@@ -17,6 +17,7 @@ from engine.services.db import (
     get_hyp_hostname_from_id,
     get_hyp_status,
     get_hyp_viewer_info,
+    get_table_field,
     update_db_hyp_info,
     update_domain_status,
     update_domain_viewer_started_values,
@@ -770,14 +771,108 @@ class HypWorkerThread(threading.Thread):
             "Crashed",
         )
 
+    def _is_old_ovs_hypervisor(self):
+        """Check if this hypervisor uses old-style libvirt-managed OVS"""
+        return get_table_field("hypervisors", self.hyp_id, "old_ovs") is True
+
+    def _convert_xml_to_old_ovs(self, xml_str):
+        """Convert new ethernet interfaces to old libvirt-managed OVS style
+
+        Transforms:
+          <interface type='ethernet'>
+            <mac address='XX:XX:XX:XX:XX:XX'/>
+            <model type='virtio'/>
+            <driver name='vhost'/>
+          </interface>
+
+        To:
+          <interface type='bridge'>
+            <source bridge='ovsbr0'/>
+            <mac address='XX:XX:XX:XX:XX:XX'/>
+            <virtualport type='openvswitch'/>
+            <vlan><tag id='VLAN_ID'/></vlan>
+            <model type='virtio'/>
+          </interface>
+
+        Uses mac2network metadata to get VLAN IDs, then removes the metadata.
+        """
+        from io import StringIO
+
+        from lxml import etree
+
+        parser = etree.XMLParser(remove_blank_text=True)
+        tree = etree.parse(StringIO(xml_str), parser)
+        root = tree.getroot()
+
+        # Extract mac2network mappings from metadata
+        isard_ns = "http://isardvdi.com"
+        mac2vlan = {}
+        mac2bridge = {}
+        mac2network = root.find(f".//{{{isard_ns}}}mac2network")
+        if mac2network is not None:
+            for mapping in mac2network.findall(f"{{{isard_ns}}}mapping"):
+                mac = mapping.get("mac", "").lower()
+                vlan_id = mapping.get("vlan_id")
+                bridge = mapping.get("bridge", "ovsbr0")
+                if mac and vlan_id:
+                    mac2vlan[mac] = vlan_id
+                    mac2bridge[mac] = bridge
+            # Remove mac2network metadata (old hypervisors don't need it)
+            mac2network.getparent().remove(mac2network)
+
+        # Convert ethernet interfaces to bridge+ovs
+        for iface in root.findall(".//interface[@type='ethernet']"):
+            mac_elem = iface.find("mac")
+            if mac_elem is None:
+                continue
+            mac = mac_elem.get("address", "").lower()
+            vlan_id = mac2vlan.get(mac)
+
+            if vlan_id:
+                # Change type to bridge
+                iface.set("type", "bridge")
+
+                # Add source bridge
+                source = etree.SubElement(iface, "source")
+                source.set("bridge", mac2bridge.get(mac, "ovsbr0"))
+
+                # Add virtualport
+                vport = etree.SubElement(iface, "virtualport")
+                vport.set("type", "openvswitch")
+
+                # Add VLAN tag
+                vlan = etree.SubElement(iface, "vlan")
+                tag = etree.SubElement(vlan, "tag")
+                tag.set("id", str(vlan_id))
+
+                # Remove driver element (not used in bridge type)
+                driver = iface.find("driver")
+                if driver is not None:
+                    iface.remove(driver)
+            else:
+                logs.workers.warning(
+                    f"No VLAN mapping found for MAC {mac} on old_ovs hypervisor {self.hyp_id}"
+                )
+
+        return etree.tostring(root, encoding="unicode", pretty_print=True)
+
     def _handle_start_domain(self, action, action_time, intervals):
         """Handle start_domain action"""
-        logs.workers.debug(f"XML to start domain: {action['xml'][30:100]}")
+        xml = action["xml"]
+
+        # Convert to old-style OVS XML for legacy hypervisors
+        if self._is_old_ovs_hypervisor():
+            xml = self._convert_xml_to_old_ovs(xml)
+            logs.workers.debug(
+                f"Converted XML to old-style OVS for hypervisor {self.hyp_id}"
+            )
+
+        logs.workers.debug(f"XML to start domain: {xml[30:100]}")
 
         try:
             # Create the domain
             lt = time.time()
-            dom = self.h.conn.createXML(action["xml"])
+            dom = self.h.conn.createXML(xml)
             intervals.append({"libvirt createXML": round(time.time() - lt, 3)})
 
             # Get XML description
