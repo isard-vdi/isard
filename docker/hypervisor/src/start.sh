@@ -152,8 +152,7 @@ do
         wg-quick up wg0  >/dev/null 2>&1
     fi
 
-    # OVS Security Stats (JSON format, every 60s)
-    python3 /src/ovs/security-stats.py 2>/dev/null
+    # OVS Security Stats are now collected by ovs-worker.py internally
 
     sleep 60 &
     wait $!

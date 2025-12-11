@@ -92,6 +92,7 @@ class Populate(object):
             "hypervisors",
             "hypervisors_pools",
             "interfaces",
+            "user_networks",
             "graphics",
             "videos",
             "desktops_priority",
@@ -772,6 +773,22 @@ class Populate(object):
                 )
 
         self.index_create("interfaces", ["roles", "categories", "groups", "users"])
+        return True
+
+    """
+    USER_NETWORKS - User-created virtual networks with OpenFlow metadata isolation
+    """
+
+    def user_networks(self):
+        if not self.create_table("user_networks"):
+            # No initial data - users create their own networks
+            pass
+        # Create indexes for permission checking (same as interfaces)
+        self.index_create("user_networks", ["roles", "categories", "groups", "users"])
+        # Add owner indexes for filtering user's networks
+        self.index_create("user_networks", ["user", "group", "category"])
+        # Index for metadata_id uniqueness check (OpenFlow isolation)
+        self.index_create("user_networks", ["metadata_id"])
         return True
 
     """
