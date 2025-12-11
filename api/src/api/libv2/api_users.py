@@ -462,10 +462,16 @@ class ApiUsers:
             else os.environ.get("FRONTEND_SHOW_TEMPORAL") == "True"
         )
         frontend_show_change_email = Configuration.smtp.get("enabled")
-        if payload["provider"] in ["saml", "ldap"]:
+        if payload["provider"] == "saml":
             env_var = f"AUTHENTICATION_AUTHENTICATION_{payload['provider'].upper()}_SAVE_EMAIL"
             if os.environ.get(env_var, "").lower() == "true":
                 frontend_show_change_email = False
+        if payload["provider"] == "ldap":
+            frontend_show_change_email = (
+                not Configuration.auth.get("ldap", {})
+                .get("ldap_config", {})
+                .get("save_email")
+            )
 
         isard_user_storage_update_user_quota(payload["user_id"])
         if can_use_bastion(payload):

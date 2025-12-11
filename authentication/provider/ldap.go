@@ -6,21 +6,69 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strings"
 
-	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	"gitlab.com/isard/isardvdi/pkg/db"
 
 	"github.com/go-ldap/ldap/v3"
+	"github.com/patrickmn/go-cache"
 	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 var _ Provider = &LDAP{}
 
+type LDAPConfig struct {
+	Protocol   string `rethinkdb:"protocol"`
+	Host       string `rethinkdb:"host"`
+	Port       int    `rethinkdb:"port"`
+	BindDN     string `rethinkdb:"bind_dn"`
+	Password   string `rethinkdb:"password"`
+	BaseSearch string `rethinkdb:"base_search"`
+
+	Filter        string `rethinkdb:"filter"`
+	FieldUID      string `rethinkdb:"field_uid"`
+	RegexUID      string `rethinkdb:"regex_uid"`
+	FieldUsername string `rethinkdb:"field_username"`
+	RegexUsername string `rethinkdb:"regex_username"`
+	FieldName     string `rethinkdb:"field_name"`
+	RegexName     string `rethinkdb:"regex_name"`
+	FieldEmail    string `rethinkdb:"field_email"`
+	RegexEmail    string `rethinkdb:"regex_email"`
+	FieldPhoto    string `rethinkdb:"field_photo"`
+	RegexPhoto    string `rethinkdb:"regex_photo"`
+
+	AutoRegister      bool   `rethinkdb:"auto_register"`
+	AutoRegisterRoles string `rethinkdb:"auto_register_roles"`
+
+	GuessCategory bool   `rethinkdb:"guess_category"`
+	FieldCategory string `rethinkdb:"field_category"`
+	RegexCategory string `rethinkdb:"regex_category"`
+
+	FieldGroup   string `rethinkdb:"field_group"`
+	RegexGroup   string `rethinkdb:"regex_group"`
+	GroupDefault string `rethinkdb:"group_default"`
+
+	RoleListSearchBase string `rethinkdb:"role_list_search_base"`
+	RoleListFilter     string `rethinkdb:"role_list_filter"`
+	RoleListUseUserDN  bool   `rethinkdb:"role_list_use_user_dn"`
+	RoleListField      string `rethinkdb:"role_list_field"`
+	RoleListRegex      string `rethinkdb:"role_list_regex"`
+
+	RoleAdminIDs    string     `rethinkdb:"role_admin_ids"`
+	RoleManagerIDs  string     `rethinkdb:"role_manager_ids"`
+	RoleAdvancedIDs string     `rethinkdb:"role_advanced_ids"`
+	RoleUserIDs     string     `rethinkdb:"role_user_ids"`
+	RoleDefault     model.Role `rethinkdb:"role_default"`
+
+	SaveEmail bool `rethinkdb:"save_email"`
+}
+
 type LDAP struct {
-	cfg    cfg.AuthenticationLDAP
+	cfg    *LDAPConfig
 	secret string
 	log    *zerolog.Logger
 	db     r.QueryExecutor
@@ -33,72 +81,116 @@ type LDAP struct {
 	ReEmail    *regexp.Regexp
 	RePhoto    *regexp.Regexp
 	ReRole     *regexp.Regexp
+
+	AutoRegisterRoles []string
+
+	RoleAdminIDs    []string
+	RoleManagerIDs  []string
+	RoleAdvancedIDs []string
+	RoleUserIDs     []string
 }
 
-func InitLDAP(cfg cfg.AuthenticationLDAP, secret string, log *zerolog.Logger, db r.QueryExecutor) *LDAP {
-	l := &LDAP{
-		cfg:    cfg,
+func InitLDAP(secret string, log *zerolog.Logger, db r.QueryExecutor) *LDAP {
+	return &LDAP{
 		secret: secret,
 		log:    log,
 		db:     db,
 	}
+}
 
-	re, err := regexp.Compile(cfg.RegexUID)
+func (l *LDAP) LDAPConfig() error {
+	l.cfg = &LDAPConfig{}
+	if val, found := c.Get("ldap_config"); found {
+		l.cfg = val.(*LDAPConfig)
+	} else {
+		res, err := r.Table("config").Get(1).Field("auth").Field("ldap").Field("ldap_config").Run(l.db)
+		if err != nil {
+			return &db.Err{
+				Err: err,
+			}
+		}
+		if res.IsNil() {
+			return db.ErrNotFound
+		}
+		defer res.Close()
+		if err := res.One(l.cfg); err != nil {
+			return &db.Err{
+				Msg: "read db response",
+				Err: err,
+			}
+		}
+		c.Set("ldap_config", l.cfg, cache.DefaultExpiration)
+	}
+
+	re, err := regexp.Compile(l.cfg.RegexUID)
 	if err != nil {
-		log.Fatal().Err(err).Msg("invalid UID regex")
+		l.log.Fatal().Err(err).Msg("invalid UID regex")
 	}
 	l.ReUID = re
 
-	re, err = regexp.Compile(cfg.RegexUsername)
+	re, err = regexp.Compile(l.cfg.RegexUsername)
 	if err != nil {
-		log.Fatal().Err(err).Msg("invalid username regex")
+		l.log.Fatal().Err(err).Msg("invalid username regex")
 	}
 	l.ReUsername = re
 
-	re, err = regexp.Compile(cfg.RegexName)
+	re, err = regexp.Compile(l.cfg.RegexName)
 	if err != nil {
-		log.Fatal().Err(err).Msg("invalid name regex")
+		l.log.Fatal().Err(err).Msg("invalid name regex")
 	}
 	l.ReName = re
 
-	re, err = regexp.Compile(cfg.RegexEmail)
+	re, err = regexp.Compile(l.cfg.RegexEmail)
 	if err != nil {
-		log.Fatal().Err(err).Msg("invalid email regex")
+		l.log.Fatal().Err(err).Msg("invalid email regex")
 	}
 	l.ReEmail = re
 
-	re, err = regexp.Compile(cfg.RegexPhoto)
+	re, err = regexp.Compile(l.cfg.RegexPhoto)
 	if err != nil {
-		log.Fatal().Err(err).Msg("invalid photo regex")
+		l.log.Fatal().Err(err).Msg("invalid photo regex")
 	}
 	l.RePhoto = re
 
 	if l.cfg.GuessCategory {
-		re, err = regexp.Compile(cfg.RegexCategory)
+		re, err = regexp.Compile(l.cfg.RegexCategory)
 		if err != nil {
-			log.Fatal().Err(err).Msg("invalid category regex")
+			l.log.Fatal().Err(err).Msg("invalid category regex")
 		}
 		l.ReCategory = re
 	}
 
 	if l.cfg.AutoRegister {
-		re, err = regexp.Compile(cfg.RegexGroup)
+		re, err = regexp.Compile(l.cfg.RegexGroup)
 		if err != nil {
-			log.Fatal().Err(err).Msg("invalid group regex")
+			l.log.Fatal().Err(err).Msg("invalid group regex")
 		}
 		l.ReGroup = re
 
-		re, err = regexp.Compile(cfg.RoleListRegex)
+		re, err = regexp.Compile(l.cfg.RoleListRegex)
 		if err != nil {
-			log.Fatal().Err(err).Msg("invalid search group regex")
+			l.log.Fatal().Err(err).Msg("invalid search group regex")
 		}
 		l.ReRole = re
 	}
 
-	return l
+	l.AutoRegisterRoles = strings.Split(l.cfg.AutoRegisterRoles, ",")
+
+	l.RoleAdminIDs = strings.Split(l.cfg.RoleAdminIDs, ",")
+	l.RoleManagerIDs = strings.Split(l.cfg.RoleManagerIDs, ",")
+	l.RoleAdvancedIDs = strings.Split(l.cfg.RoleAdvancedIDs, ",")
+	l.RoleUserIDs = strings.Split(l.cfg.RoleUserIDs, ",")
+
+	return nil
 }
 
 func (l *LDAP) newConn() (*ldap.Conn, error) {
+	if err := l.LDAPConfig(); err != nil {
+		return nil, &ProviderError{
+			User:   ErrInternal,
+			Detail: err,
+		}
+	}
 	conn, err := ldap.DialURL(fmt.Sprintf("%s://%s:%d", l.cfg.Protocol, l.cfg.Host, l.cfg.Port))
 	if err != nil {
 		return nil, fmt.Errorf("connect to the LDAP server: : %w", err)
@@ -298,10 +390,13 @@ func (l *LDAP) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*
 }
 
 func (l *LDAP) AutoRegister(u *model.User) bool {
+	if err := l.LDAPConfig(); err != nil {
+		return false
+	}
 	if l.cfg.AutoRegister {
-		if len(l.cfg.AutoRegisterRoles) != 0 {
+		if len(l.AutoRegisterRoles) != 0 {
 			// If the user role is in the autoregister roles list, auto register
-			return slices.Contains(l.cfg.AutoRegisterRoles, string(u.Role))
+			return slices.Contains(l.AutoRegisterRoles, string(u.Role))
 		}
 
 		return true
@@ -330,10 +425,19 @@ func (LDAP) Logout(context.Context, string) (string, error) {
 }
 
 func (l *LDAP) SaveEmail() bool {
+	if err := l.LDAPConfig(); err != nil {
+		return true
+	}
 	return l.cfg.SaveEmail
 }
 
 func (l *LDAP) GuessGroups(ctx context.Context, u *types.ProviderUserData, rawGroups []string) (*model.Group, []*model.Group, *ProviderError) {
+	if err := l.LDAPConfig(); err != nil {
+		return nil, nil, &ProviderError{
+			User:   ErrInternal,
+			Detail: err,
+		}
+	}
 	return guessGroup(ctx, l.db, guessGroupOpts{
 		Provider:     l,
 		ReGroup:      l.ReGroup,
@@ -342,12 +446,18 @@ func (l *LDAP) GuessGroups(ctx context.Context, u *types.ProviderUserData, rawGr
 }
 
 func (l *LDAP) GuessRole(ctx context.Context, u *types.ProviderUserData, rawRoles []string) (*model.Role, *ProviderError) {
+	if err := l.LDAPConfig(); err != nil {
+		return nil, &ProviderError{
+			User:   ErrInternal,
+			Detail: err,
+		}
+	}
 	return guessRole(guessRoleOpts{
 		ReRole:          l.ReRole,
-		RoleAdminIDs:    l.cfg.RoleAdminIDs,
-		RoleManagerIDs:  l.cfg.RoleManagerIDs,
-		RoleAdvancedIDs: l.cfg.RoleAdvancedIDs,
-		RoleUserIDs:     l.cfg.RoleUserIDs,
+		RoleAdminIDs:    l.RoleAdminIDs,
+		RoleManagerIDs:  l.RoleManagerIDs,
+		RoleAdvancedIDs: l.RoleAdvancedIDs,
+		RoleUserIDs:     l.RoleUserIDs,
 		RoleDefault:     l.cfg.RoleDefault,
 	}, rawRoles)
 }

@@ -136,7 +136,7 @@
   </div>
 </div>
 
-<div class="row">
+<div class="row" id="ldap">
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel" id="ldap_panel">
       <div class="x_title">
@@ -151,6 +151,15 @@
         <div class="clearfix"></div>
       </div>
       <div class="x_content">
+        <h4>Configuration</h4>
+        <form id="form-ldap-config-show" class="form-horizontal form-label-left">
+          {% with disabled=True %}
+            {% include '/snippets/ldap_config_form.html' %}
+          {% endwith %}
+        </form>
+      </div>
+      <div class="x_content">
+        <h4>Migration</h4>
         <table id="ldap-table" class="table">
           <thead>
             <tr>

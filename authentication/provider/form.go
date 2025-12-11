@@ -32,7 +32,7 @@ func InitForm(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *
 	}
 
 	if cfg.LDAP.Enabled {
-		ldap := InitLDAP(cfg.LDAP, cfg.Secret, log, db)
+		ldap := InitLDAP(cfg.Secret, log, db)
 		providers[ldap.String()] = ldap
 	}
 
