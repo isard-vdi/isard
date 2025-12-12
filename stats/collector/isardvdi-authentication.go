@@ -85,7 +85,7 @@ func (a *IsardVDIAuthentication) Collect(ch chan<- prometheus.Metric) {
 			for _, e := range s.Entries {
 				type LogLine struct {
 					Message string `json:"message"`
-					Usr string `json:"usr"`
+					Usr     string `json:"usr"`
 				}
 				var logLine LogLine
 				if err := json.Unmarshal([]byte(e.Line), &logLine); err != nil {
