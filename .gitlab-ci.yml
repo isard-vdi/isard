@@ -110,6 +110,12 @@ check-python:
     - isort --check .
     - black --check .
 
+check-golang:
+  stage: lint
+  image: golangci/golangci-lint
+  script:
+    - golangci-lint fmt --diff
+
 check-frontend:
   stage: lint
   image: oven/bun:1.1.24-alpine
