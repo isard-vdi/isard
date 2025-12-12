@@ -403,6 +403,7 @@ func (a *Authentication) finishCategorySelect(ctx context.Context, remoteAddr, c
 	var g *model.Group
 	secondary := []*model.Group{}
 	if claims.RawGroups != nil && len(*claims.RawGroups) != 0 {
+		var err *provider.ProviderError
 		g, secondary, err = p.GuessGroups(ctx, u, *claims.RawGroups)
 		if err != nil && !errors.Is(err, provider.ErrInvalidIDP) {
 			return "", "", fmt.Errorf("guess groups from token: %w", err)
@@ -410,6 +411,7 @@ func (a *Authentication) finishCategorySelect(ctx context.Context, remoteAddr, c
 	}
 
 	if claims.RawRoles != nil && len(*claims.RawRoles) != 0 {
+		var err *provider.ProviderError
 		u.Role, err = p.GuessRole(ctx, u, *claims.RawRoles)
 		if err != nil && !errors.Is(err, provider.ErrInvalidIDP) {
 			return "", "", fmt.Errorf("guess role from token: %w", err)
