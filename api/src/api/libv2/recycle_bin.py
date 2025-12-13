@@ -1982,6 +1982,9 @@ class RecycleBinDeployment(RecycleBin):
     def add(self, deployment_id):
         with app.app_context():
             deployment = r.table("deployments").get(deployment_id).run(db.conn)
+        if deployment is None:
+            # Deployment already deleted, nothing to do
+            return
         self.add_deployment(deployment)
         super()._add_owner(deployment["user"])
         self._add_item_name(deployment["name"])
