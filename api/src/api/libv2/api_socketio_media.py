@@ -61,7 +61,7 @@ class MediaThread(threading.Thread):
                             index="status",
                         )
                         .changes(include_initial=False, squash=0.5)
-                        .run(db.conn)
+                        .run(db.connect())
                     ):
                         if self.stop == True:
                             break

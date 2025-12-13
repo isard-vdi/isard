@@ -44,7 +44,7 @@ class DeploymentsThread(threading.Thread):
                     for c in (
                         r.table("deployments")
                         .changes(include_initial=False)
-                        .run(db.conn)
+                        .run(db.connect())
                     ):
                         if self.stop == True:
                             break

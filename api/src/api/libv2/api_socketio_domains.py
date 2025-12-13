@@ -106,7 +106,7 @@ class DomainsThread(threading.Thread):
                             ]
                         )
                         .changes(include_initial=False)
-                        .run(db.conn)
+                        .run(db.connect())
                     ):
                         if self.stop == True:
                             break

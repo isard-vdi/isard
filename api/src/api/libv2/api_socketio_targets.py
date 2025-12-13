@@ -49,7 +49,9 @@ class TargetsThread(threading.Thread):
             try:
                 with app.app_context():
                     for c in (
-                        r.table("targets").changes(include_initial=False).run(db.conn)
+                        r.table("targets")
+                        .changes(include_initial=False)
+                        .run(db.connect())
                     ):
                         if self.stop is True:
                             break

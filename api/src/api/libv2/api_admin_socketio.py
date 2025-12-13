@@ -91,7 +91,7 @@ class DomainsThread(threading.Thread):
                             "persistent",
                         )
                         .changes(include_initial=False, squash=0.5)
-                        .run(db.conn)
+                        .run(db.connect())
                     ):
                         if self.stop == True:
                             break
@@ -286,7 +286,7 @@ class ResourcesThread(threading.Thread):
                                 )
                             )
                         )
-                        .run(db.conn)
+                        .run(db.connect())
                     ):
                         if self.stop == True:
                             break
@@ -361,7 +361,7 @@ class UsersThread(threading.Thread):
                                 .changes(include_initial=False, squash=0.5)
                             )
                         )
-                        .run(db.conn)
+                        .run(db.connect())
                     ):
                         if self.stop == True:
                             break
@@ -497,7 +497,7 @@ class HypervisorsThread(threading.Thread):
                             ]
                         )
                         .changes(include_initial=False)
-                        .run(db.conn)
+                        .run(db.connect())
                     ):
                         if self.stop == True:
                             break
@@ -613,7 +613,7 @@ class ConfigThread(threading.Thread):
                             }
                         )
                         .changes(include_initial=False)
-                        .run(db.conn)
+                        .run(db.connect())
                     ):
                         if self.stop == True:
                             break

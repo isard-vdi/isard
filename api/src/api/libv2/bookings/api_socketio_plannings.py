@@ -33,7 +33,7 @@ class PlanningsThread(threading.Thread):
                     for c in (
                         r.table("resource_planner")
                         .changes(include_initial=False)
-                        .run(db.conn)
+                        .run(db.connect())
                     ):
                         if self.stop == True:
                             break
