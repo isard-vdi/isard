@@ -271,63 +271,67 @@ class ResourcesThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("graphics")
-                        .merge({"table": "graphics"})
-                        .changes(include_initial=False)
-                        .union(
-                            r.table("videos")
-                            .merge({"table": "videos"})
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("graphics")
+                            .merge({"table": "graphics"})
                             .changes(include_initial=False)
                             .union(
-                                r.table("interfaces")
-                                .merge({"table": "interfaces"})
+                                r.table("videos")
+                                .merge({"table": "videos"})
                                 .changes(include_initial=False)
                                 .union(
-                                    r.table("qos_net")
-                                    .merge({"table": "qos_net"})
+                                    r.table("interfaces")
+                                    .merge({"table": "interfaces"})
                                     .changes(include_initial=False)
                                     .union(
-                                        r.table("qos_disk")
-                                        .merge({"table": "qos_disk"})
+                                        r.table("qos_net")
+                                        .merge({"table": "qos_net"})
                                         .changes(include_initial=False)
                                         .union(
-                                            r.table("remotevpn")
-                                            .merge({"table": "remotevpn"})
+                                            r.table("qos_disk")
+                                            .merge({"table": "qos_disk"})
                                             .changes(include_initial=False)
                                             .union(
-                                                r.table("boots")
-                                                .merge({"table": "boots"})
+                                                r.table("remotevpn")
+                                                .merge({"table": "remotevpn"})
                                                 .changes(include_initial=False)
+                                                .union(
+                                                    r.table("boots")
+                                                    .merge({"table": "boots"})
+                                                    .changes(include_initial=False)
+                                                )
                                             )
                                         )
                                     )
                                 )
                             )
-                        )
-                        .run(db.connect())
-                    ):
-                        if self.stop == True:
-                            break
-                        if c["new_val"] == None:
-                            data = {
-                                "table": c["old_val"]["table"],
-                                "data": c["old_val"],
-                            }
-                            event = "delete"
-                        else:
-                            data = {
-                                "table": c["new_val"]["table"],
-                                "data": c["new_val"],
-                            }
-                            event = "data"
-                        ## Admins should receive all updates on /isard-admin/admin namespace
-                        socketio.emit(
-                            event,
-                            json.dumps(data),  # app.isardapi.f.flatten_dict(data)),
-                            namespace="/administrators",
-                            room="admins",
-                        )
+                            .run(conn)
+                        ):
+                            if self.stop == True:
+                                break
+                            if c["new_val"] == None:
+                                data = {
+                                    "table": c["old_val"]["table"],
+                                    "data": c["old_val"],
+                                }
+                                event = "delete"
+                            else:
+                                data = {
+                                    "table": c["new_val"]["table"],
+                                    "data": c["new_val"],
+                                }
+                                event = "data"
+                            ## Admins should receive all updates on /isard-admin/admin namespace
+                            socketio.emit(
+                                event,
+                                json.dumps(data),  # app.isardapi.f.flatten_dict(data)),
+                                namespace="/administrators",
+                                room="admins",
+                            )
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("ResourcesThread: Rethink db connection lost!")
                 app.logger.error("ResourcesThread: Rethink db connection lost!")
@@ -635,37 +639,41 @@ class ConfigThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("scheduler_jobs")
-                        .has_fields("name")
-                        .without("job_state")
-                        .merge(
-                            {
-                                "table": "scheduler_jobs",
-                                "date": r.row["date"].to_iso8601(),
-                            }
-                        )
-                        .changes(include_initial=False)
-                        .run(db.connect())
-                    ):
-                        if self.stop == True:
-                            break
-                        if c["new_val"] == None:
-                            event = "_deleted"
-                            socketio.emit(
-                                c["old_val"]["table"] + event,
-                                json.dumps({"id": c["old_val"]["id"]}),
-                                namespace="/administrators",
-                                room="admins",
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("scheduler_jobs")
+                            .has_fields("name")
+                            .without("job_state")
+                            .merge(
+                                {
+                                    "table": "scheduler_jobs",
+                                    "date": r.row["date"].to_iso8601(),
+                                }
                             )
-                        else:
-                            event = "_data"
-                            socketio.emit(
-                                c["new_val"]["table"] + event,
-                                json.dumps(c["new_val"]),
-                                namespace="/administrators",
-                                room="admins",
-                            )
+                            .changes(include_initial=False)
+                            .run(conn)
+                        ):
+                            if self.stop == True:
+                                break
+                            if c["new_val"] == None:
+                                event = "_deleted"
+                                socketio.emit(
+                                    c["old_val"]["table"] + event,
+                                    json.dumps({"id": c["old_val"]["id"]}),
+                                    namespace="/administrators",
+                                    room="admins",
+                                )
+                            else:
+                                event = "_data"
+                                socketio.emit(
+                                    c["new_val"]["table"] + event,
+                                    json.dumps(c["new_val"]),
+                                    namespace="/administrators",
+                                    room="admins",
+                                )
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("ConfigThread: Rethink db connection lost!")
                 app.logger.error("ConfigThread: Rethink db connection lost!")

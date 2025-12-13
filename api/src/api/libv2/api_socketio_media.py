@@ -41,74 +41,78 @@ class MediaThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("media")
-                        .get_all(
-                            r.args(
-                                [
-                                    "Deleting",
-                                    "deleted",
-                                    "Downloaded",
-                                    "DownloadFailed",
-                                    "DownloadFailedInvalidFormat",
-                                    "DownloadStarting",
-                                    "Downloading",
-                                    "Download",
-                                    "DownloadAborting",
-                                    "ResetDownloading",
-                                ]
-                            ),
-                            index="status",
-                        )
-                        .changes(include_initial=False, squash=0.5)
-                        .run(db.connect())
-                    ):
-                        if self.stop == True:
-                            break
-                        if c["new_val"] == None:
-                            data = c["old_val"]
-                            event = "delete"
-                        elif c["new_val"]["status"] == "deleted":
-                            data = c["new_val"]
-                            event = "delete"
-                        elif c["old_val"] == None:
-                            data = c["new_val"]
-                            event = "add"
-                        else:
-                            data = c["new_val"]
-                            event = "update"
-                            if (
-                                c["old_val"]
-                                and c["new_val"].get("status")
-                                == "DownloadFailedInvalidFormat"
-                            ):
-                                media_task_delete(
-                                    c["new_val"]["id"],
-                                    c["new_val"]["user"],
-                                    keep_status=True,
-                                )
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("media")
+                            .get_all(
+                                r.args(
+                                    [
+                                        "Deleting",
+                                        "deleted",
+                                        "Downloaded",
+                                        "DownloadFailed",
+                                        "DownloadFailedInvalidFormat",
+                                        "DownloadStarting",
+                                        "Downloading",
+                                        "Download",
+                                        "DownloadAborting",
+                                        "ResetDownloading",
+                                    ]
+                                ),
+                                index="status",
+                            )
+                            .changes(include_initial=False, squash=0.5)
+                            .run(conn)
+                        ):
+                            if self.stop == True:
+                                break
+                            if c["new_val"] == None:
+                                data = c["old_val"]
+                                event = "delete"
+                            elif c["new_val"]["status"] == "deleted":
+                                data = c["new_val"]
+                                event = "delete"
+                            elif c["old_val"] == None:
+                                data = c["new_val"]
+                                event = "add"
+                            else:
+                                data = c["new_val"]
+                                event = "update"
+                                if (
+                                    c["old_val"]
+                                    and c["new_val"].get("status")
+                                    == "DownloadFailedInvalidFormat"
+                                ):
+                                    media_task_delete(
+                                        c["new_val"]["id"],
+                                        c["new_val"]["user"],
+                                        keep_status=True,
+                                    )
 
-                        ## TODO: Users should receive not only their media updates, also the shared one's with them!
-                        socketio.emit(
-                            "media_" + event,
-                            json.dumps(
-                                {**data, "editable": True}
-                            ),  # The owner can edit its data
-                            namespace="/userspace",
-                            room=data["user"],
-                        )
-                        socketio.emit(
-                            "media_" + event,
-                            json.dumps(data),
-                            namespace="/administrators",
-                            room=data["category"],
-                        )
-                        socketio.emit(
-                            "media_" + event,
-                            json.dumps(data),
-                            namespace="/administrators",
-                            room="admins",
-                        )
+                            ## TODO: Users should receive not only their media updates, also the shared one's with them!
+                            socketio.emit(
+                                "media_" + event,
+                                json.dumps(
+                                    {**data, "editable": True}
+                                ),  # The owner can edit its data
+                                namespace="/userspace",
+                                room=data["user"],
+                            )
+                            socketio.emit(
+                                "media_" + event,
+                                json.dumps(data),
+                                namespace="/administrators",
+                                room=data["category"],
+                            )
+                            socketio.emit(
+                                "media_" + event,
+                                json.dumps(data),
+                                namespace="/administrators",
+                                room="admins",
+                            )
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("MediaThread: Rethink db connection lost!")
                 log.error("MediaThread: Rethink db connection lost!")

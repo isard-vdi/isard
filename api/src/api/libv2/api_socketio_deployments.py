@@ -41,39 +41,42 @@ class DeploymentsThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("deployments")
-                        .changes(include_initial=False)
-                        .run(db.connect())
-                    ):
-                        if self.stop == True:
-                            break
-                        if c["new_val"] == None:
-                            event = "delete"
-                            user = c["old_val"]["user"]
-                            deployment = {"id": c["old_val"]["id"]}
-                        elif c["old_val"] == None:
-                            event = "add"
-                            user = c["new_val"]["user"]
-                            deployment = get(c["new_val"]["id"], False)
-                        else:
-                            event = "update"
-                            user = c["new_val"]["user"]
-                            deployment = get(c["new_val"]["id"], False)
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("deployments")
+                            .changes(include_initial=False)
+                            .run(conn)
+                        ):
+                            if self.stop == True:
+                                break
+                            if c["new_val"] == None:
+                                event = "delete"
+                                user = c["old_val"]["user"]
+                                deployment = {"id": c["old_val"]["id"]}
+                            elif c["old_val"] == None:
+                                event = "add"
+                                user = c["new_val"]["user"]
+                                deployment = get(c["new_val"]["id"], False)
+                            else:
+                                event = "update"
+                                user = c["new_val"]["user"]
+                                deployment = get(c["new_val"]["id"], False)
+                                socketio.emit(
+                                    "deployment_update",
+                                    json.dumps(deployment),
+                                    namespace="/userspace",
+                                    room=user,
+                                )
+
                             socketio.emit(
-                                "deployment_update",
+                                "deployments_" + event,
                                 json.dumps(deployment),
                                 namespace="/userspace",
                                 room=user,
                             )
-
-                        socketio.emit(
-                            "deployments_" + event,
-                            json.dumps(deployment),
-                            namespace="/userspace",
-                            room=user,
-                        )
-
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("DeploymentsThread: Rethink db connection lost!")
                 log.error("DeploymentsThread: Rethink db connection lost!")

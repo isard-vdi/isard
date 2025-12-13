@@ -30,32 +30,36 @@ class PlanningsThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("resource_planner")
-                        .changes(include_initial=False)
-                        .run(db.connect())
-                    ):
-                        if self.stop == True:
-                            break
-                        if c["new_val"] == None:
-                            event = "delete"
-                            plan = c["old_val"]
-                        elif c["old_val"] == None:
-                            event = "add"
-                            plan = c["new_val"]
-                        else:
-                            event = "update"
-                            plan = c["new_val"]
-                        # Format the date fields as strings
-                        plan["start"] = plan["start"].strftime("%Y-%m-%dT%H:%M%z")
-                        plan["end"] = plan["end"].strftime("%Y-%m-%dT%H:%M%z")
-                        # Emit event to user room
-                        socketio.emit(
-                            "plan_" + event,
-                            json.dumps(plan),
-                            namespace="/userspace",
-                            room=plan["user_id"],
-                        )
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("resource_planner")
+                            .changes(include_initial=False)
+                            .run(conn)
+                        ):
+                            if self.stop == True:
+                                break
+                            if c["new_val"] == None:
+                                event = "delete"
+                                plan = c["old_val"]
+                            elif c["old_val"] == None:
+                                event = "add"
+                                plan = c["new_val"]
+                            else:
+                                event = "update"
+                                plan = c["new_val"]
+                            # Format the date fields as strings
+                            plan["start"] = plan["start"].strftime("%Y-%m-%dT%H:%M%z")
+                            plan["end"] = plan["end"].strftime("%Y-%m-%dT%H:%M%z")
+                            # Emit event to user room
+                            socketio.emit(
+                                "plan_" + event,
+                                json.dumps(plan),
+                                namespace="/userspace",
+                                room=plan["user_id"],
+                            )
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("PlanningsThread: Rethink db connection lost!")
                 app.logger.error("PlanningsThread: Rethink db connection lost!")
