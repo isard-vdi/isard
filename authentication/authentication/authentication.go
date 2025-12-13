@@ -88,7 +88,7 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Inter
 	}
 
 	if cfg.Authentication.SAML.Enabled {
-		saml := provider.InitSAML(cfg.Authentication, log, db)
+		saml := provider.InitSAML(cfg.Authentication.Secret, cfg.Authentication.Host, log, db)
 		a.saml = saml.Middleware
 		providers[saml.String()] = saml
 	}

@@ -1,0 +1,317 @@
+{#
+#
+#   Copyright © 2025 Simó Albert i Beltran
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+{% with id_prefix = 'saml-config-show-' if disabled is true else 'saml-config-edit-' %}
+  <div class="x_panel">
+    <div class="x_content">
+      {% with
+        name="saml_config_metadata_url",
+        label="Metadata URL",
+        placeholder="",
+        required=false
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_metadata_file",
+        label="Metadata File",
+        placeholder="/keys/idp-metadata.xml",
+        required=false
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_entity_id",
+        label="Entity ID",
+        required=false
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_signature_method",
+        label="Signature Method",
+        required=false
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_key_file",
+        label="Key File",
+        placeholder="/keys/isardvdi.key"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_cert_file",
+        label="Cert File",
+        placeholder="/keys/isardvdi.cert"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_max_issue_delay",
+        label="Max Issue Delay",
+        placeholder="90s"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_field_uid",
+        label="Field UID"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_regex_uid",
+        label="Regex UID",
+        placeholder=".*"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_field_username",
+        label="Field Username"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_regex_username",
+        label="Regex Username",
+        placeholder=".*"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_field_name",
+        label="Field Name"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_regex_name",
+        label="Regex Name",
+        placeholder=".*"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_field_email",
+        label="Field Email",
+        required=false
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_regex_email",
+        label="Regex Email",
+        placeholder=".*"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_field_photo",
+        label="Field Photo",
+        required=false
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_regex_photo",
+        label="Regex Photo",
+        placeholder=".*"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_auto_register",
+        label="Auto Register",
+        type="checkbox"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_auto_register_roles",
+        label="Auto Register Roles",
+        placeholder="Coma separated roles",
+        required=False
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_guess_category",
+        label="Guess Category",
+        type="checkbox"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_field_category",
+        label="Field Category",
+        required=False
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_regex_category",
+        label="Regex Category",
+        placeholder=".*"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_field_group",
+        label="Field Group",
+        required=false
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_regex_group",
+        label="Regex Group",
+        placeholder=".*"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_group_default",
+        label="Default Group",
+        placeholder="default"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_field_role",
+        label="Field Role",
+        required=false
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_regex_role",
+        label="Regex Role",
+        placeholder=".*"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_role_admin_ids",
+        label="Role Admin IDs",
+        placeholder="Coma separated IDs",
+        required=False
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_role_manager_ids",
+        label="Role Manager IDs",
+        placeholder="Coma separated IDs",
+        required=False
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_role_advanced_ids",
+        label="Role Advanced IDs",
+        placeholder="Coma separated IDs",
+        required=False
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_role_user_ids",
+        label="Role User IDs",
+        placeholder="Coma separated IDs",
+        required=False
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      <div class="item form-group">
+        <label
+          for="{{ id_prefix }}saml_config_role_default"
+          class="control-label col-sm-3 col-xs-12"
+        >
+        Default Role
+        <span class="required">*</span>
+        </label>
+        <div class="col-sm-9 col-xs-12">
+          <select
+            id="{{ id_prefix }}saml_config_role_default"
+            name="saml_config_role_default"
+            class="form-control"
+            {{ 'disabled' if disabled else '' }}
+          >
+            <option value="user">User</option>
+            <option value="advanced">Advanced</option>
+            <option value="manager">Manager</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+      </div>
+
+      {% with
+        name="saml_config_logout_redirect_url",
+        label="Logout Redirect URL",
+        required=false
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      {% with
+        name="saml_config_save_email",
+        label="Save Email",
+        type="checkbox"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+    </div>
+  </div>
+{% endwith %}

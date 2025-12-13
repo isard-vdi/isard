@@ -1,5 +1,0 @@
-services:
-  isard-api:
-    environment:
-      # This is also added in authentication.test.yml
-      - AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=true

@@ -251,6 +251,10 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 
 ## SAML
 #AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=false
+
+## DEPRECATED variables AUTHENTICATION_AUTHENTICATION_SAML_* after migration
+## 182. Please configure it via administration web interface.
+
 #AUTHENTICATION_AUTHENTICATION_SAML_METADATA_URL=
 ## Optional: Local IdP metadata file (checked before fetching from URL)
 ## If this file exists, it will be used instead of fetching from METADATA_URL

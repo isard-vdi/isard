@@ -131,3 +131,89 @@ ldap_config:
     save_email:
       empty: false
       type: boolean
+saml_config:
+  type: dict
+  schema:
+    metadata_url:
+      type: string
+    metadata_file":
+      type: string
+    entity_id:
+      type: string
+    signature_method:
+      type: string
+    key_file:
+      type: string
+    cert_file:
+      type: string
+    max_issue_delay:
+      type: string
+    field_uid:
+      empty: false
+      type: string
+    regex_uid:
+      empty: false
+      type: string
+    field_username:
+      empty: false
+      type: string
+    regex_username:
+      empty: false
+      type: string
+    field_name:
+      type: string
+    regex_name:
+      empty: false
+      type: string
+    field_email:
+      type: string
+    regex_email:
+      empty: false
+      type: string
+    field_photo:
+      type: string
+    regex_photo:
+      empty: false
+      type: string
+    auto_register:
+      empty: false
+      type: boolean
+    auto_register_roles:
+      type: string
+    guess_category:
+      empty: false
+      type: boolean
+    field_category:
+      type: string
+    regex_category:
+      empty: false
+      type: string
+    field_group:
+      type: string
+    regex_group:
+      empty: false
+      type: string
+    group_default:
+      empty: false
+      type: string
+    field_role:
+      type: string
+    regex_role:
+      empty: false
+      type: string
+    role_admin_ids:
+      type: string
+    role_manager_ids:
+      type: string
+    role_advanced_ids:
+      type: string
+    role_user_ids:
+      type: string
+    role_default:
+      empty: false
+      type: string
+    logout_redirect_url:
+      type: string
+    save_email:
+      empty: false
+      type: boolean

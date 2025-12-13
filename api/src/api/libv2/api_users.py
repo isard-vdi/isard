@@ -462,14 +462,10 @@ class ApiUsers:
             else os.environ.get("FRONTEND_SHOW_TEMPORAL") == "True"
         )
         frontend_show_change_email = Configuration.smtp.get("enabled")
-        if payload["provider"] == "saml":
-            env_var = f"AUTHENTICATION_AUTHENTICATION_{payload['provider'].upper()}_SAVE_EMAIL"
-            if os.environ.get(env_var, "").lower() == "true":
-                frontend_show_change_email = False
-        if payload["provider"] == "ldap":
+        if payload["provider"] in ["ldap", "saml"]:
             frontend_show_change_email = (
-                not Configuration.auth.get("ldap", {})
-                .get("ldap_config", {})
+                not Configuration.auth.get(payload["provider"], {})
+                .get(f"{payload['provider']}_config", {})
                 .get("save_email")
             )
 

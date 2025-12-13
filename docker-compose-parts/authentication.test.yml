@@ -1,18 +1,4 @@
 services:
-  isard-authentication:
-    environment:
-      # SAML
-      - AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=true
-      - AUTHENTICATION_AUTHENTICATION_SAML_METADATA_URL=http://${DOCKER_NET:-172.31.255}.86:8080/simplesaml/saml2/idp/metadata.php
-      - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_UID=uid
-      - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_USERNAME=email
-      - AUTHENTICATION_AUTHENTICATION_SAML_REGEX_USERNAME=(.*)@.*
-      - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_NAME=email
-      - AUTHENTICATION_AUTHENTICATION_SAML_REGEX_NAME=(.*)@.*
-      - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_EMAIL=email
-      - AUTHENTICATION_AUTHENTICATION_SAML_GUESS_CATEGORY=true
-      - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_CATEGORY=categories
-
   # Credentials: https://github.com/rroemhild/docker-test-openldap#ldap-structure
   isard-authentication-test-ldap:
     container_name: isard-authentication-test-ldap
