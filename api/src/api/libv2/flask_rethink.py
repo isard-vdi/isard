@@ -7,6 +7,7 @@
 # coding=utf-8
 
 import logging as log
+import os
 import time
 
 import gevent
@@ -22,6 +23,13 @@ r = RethinkDB()
 # Global pool instance
 _pool = None
 
+# Query logging config
+_LOG_QUERIES = os.environ.get("RETHINKDB_LOG_QUERIES", "").lower() in (
+    "true",
+    "1",
+    "yes",
+)
+
 
 class PooledConnection:
     """Wrapper for a RethinkDB connection with creation timestamp."""
@@ -34,6 +42,35 @@ class PooledConnection:
 
     def __getattr__(self, name):
         return getattr(self.conn, name)
+
+
+class LoggingConnection:
+    """Connection wrapper that logs slow queries and optionally all queries."""
+
+    __slots__ = ("_conn",)
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def _start(self, term, **options):
+        start = time.time()
+        try:
+            return self._conn._start(term, **options)
+        finally:
+            elapsed_ms = (time.time() - start) * 1000
+            if elapsed_ms > 10000:  # > 10 seconds
+                log.warning(
+                    "slow rethinkdb query",
+                    extra={"duration_ms": round(elapsed_ms, 1), "query": str(term)},
+                )
+            elif _LOG_QUERIES:
+                log.debug(
+                    "rethinkdb query",
+                    extra={"duration_ms": round(elapsed_ms, 1), "query": str(term)},
+                )
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
 
 
 class ConnectionPool:
@@ -60,8 +97,17 @@ class ConnectionPool:
         self._queue = Queue()
         self._semaphore = BoundedSemaphore(pool_size)
         self._total_created = 0
+        self._acquired = 0
         self._shutdown = False
         self._cleanup_greenlet = gevent.spawn(self._cleanup_loop)
+
+    def _pool_status(self):
+        """Return pool status dict for structured logging."""
+        return {
+            "pool_in_use": self._acquired,
+            "pool_size": self._pool_size,
+            "pool_idle": self._queue.qsize(),
+        }
 
     def _create_connection(self):
         """Create a new RethinkDB connection."""
@@ -72,7 +118,10 @@ class ConnectionPool:
             auth_key=self._auth_key,
         )
         self._total_created += 1
-        log.debug(f"Created new RethinkDB connection (total: {self._total_created})")
+        log.debug(
+            "rethinkdb connection created",
+            extra={"connection_num": self._total_created, **self._pool_status()},
+        )
         return PooledConnection(conn)
 
     def _is_valid(self, pooled_conn):
@@ -93,7 +142,7 @@ class ConnectionPool:
             if pooled_conn and pooled_conn.conn:
                 pooled_conn.conn.close()
         except Exception as e:
-            log.debug(f"Error closing connection: {e}")
+            log.debug("rethinkdb connection close error", extra={"error": str(e)})
 
     def acquire(self, timeout=30):
         """
@@ -109,7 +158,12 @@ class ConnectionPool:
             try:
                 pooled_conn = self._queue.get_nowait()
                 if self._is_valid(pooled_conn):
-                    return pooled_conn.conn
+                    self._acquired += 1
+                    log.debug(
+                        "rethinkdb connection acquired from pool",
+                        extra=self._pool_status(),
+                    )
+                    return LoggingConnection(pooled_conn.conn)
                 else:
                     self._close_connection(pooled_conn)
                     self._semaphore.release()
@@ -120,27 +174,42 @@ class ConnectionPool:
             if self._semaphore.acquire(blocking=False):
                 try:
                     pooled_conn = self._create_connection()
-                    return pooled_conn.conn
+                    self._acquired += 1
+                    log.debug(
+                        "rethinkdb connection acquired new",
+                        extra=self._pool_status(),
+                    )
+                    return LoggingConnection(pooled_conn.conn)
                 except Exception as e:
                     self._semaphore.release()
-                    log.error(f"Failed to create RethinkDB connection: {e}")
+                    log.error(
+                        "rethinkdb connection create failed",
+                        extra={"error": str(e), **self._pool_status()},
+                    )
                     raise
 
             # Wait for a connection to become available
             remaining = deadline - time.time() if deadline else None
             if remaining is not None and remaining <= 0:
+                log.warning("rethinkdb pool timeout", extra=self._pool_status())
                 raise Empty("Connection pool timeout")
 
             try:
                 wait_time = min(remaining, 1.0) if remaining else 1.0
                 pooled_conn = self._queue.get(timeout=wait_time)
                 if self._is_valid(pooled_conn):
-                    return pooled_conn.conn
+                    self._acquired += 1
+                    log.debug(
+                        "rethinkdb connection acquired after wait",
+                        extra=self._pool_status(),
+                    )
+                    return LoggingConnection(pooled_conn.conn)
                 else:
                     self._close_connection(pooled_conn)
                     self._semaphore.release()
             except Empty:
                 if deadline and time.time() >= deadline:
+                    log.warning("rethinkdb pool timeout", extra=self._pool_status())
                     raise Empty("Connection pool timeout")
 
     def release(self, conn):
@@ -148,21 +217,27 @@ class ConnectionPool:
         if conn is None or self._shutdown:
             return
 
+        # Unwrap LoggingConnection if needed
+        raw_conn = conn._conn if isinstance(conn, LoggingConnection) else conn
+
+        self._acquired = max(0, self._acquired - 1)
         pooled_conn = PooledConnection.__new__(PooledConnection)
-        pooled_conn.conn = conn
+        pooled_conn.conn = raw_conn
 
         # Check if connection is still usable
         try:
-            if conn.is_open():
+            if raw_conn.is_open():
                 # Preserve original creation time if we can find it, otherwise use now
                 # (connection will be refreshed sooner, which is safe)
                 pooled_conn.created_at = time.time()
                 self._queue.put_nowait(pooled_conn)
+                log.debug("rethinkdb connection released", extra=self._pool_status())
                 return
         except Exception:
             pass
 
         # Connection is dead, release semaphore slot
+        log.debug("rethinkdb connection discarded", extra=self._pool_status())
         self._semaphore.release()
 
     def release_pool(self):
@@ -213,7 +288,8 @@ class ConnectionPool:
 
             if cleaned > 0:
                 log.debug(
-                    f"Connection pool cleanup: removed {cleaned} stale connections"
+                    "rethinkdb pool cleanup",
+                    extra={"cleaned": cleaned, **self._pool_status()},
                 )
 
 
@@ -229,7 +305,8 @@ def init_pool(host, port, db, auth_key="", pool_size=32, conn_ttl=3600):
         conn_ttl=conn_ttl,
     )
     log.info(
-        f"RethinkDB connection pool initialized: {host}:{port}/{db} (pool_size={pool_size})"
+        "rethinkdb pool initialized",
+        extra={"host": host, "port": port, "db": db, "pool_size": pool_size},
     )
     return _pool
 
@@ -269,7 +346,10 @@ class RDB(object):
                     try:
                         pool.release(conn)
                     except Exception as e:
-                        log.warning(f"Error releasing connection to pool: {e}")
+                        log.warning(
+                            "rethinkdb connection release error",
+                            extra={"error": str(e)},
+                        )
                 elif conn:
                     try:
                         conn.close()
