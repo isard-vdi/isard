@@ -12,10 +12,6 @@ type Err struct {
 }
 
 func (e *Err) Error() string {
-	if e == nil {
-		return ""
-	}
-
 	if e.Msg == "" {
 		return e.Err.Error()
 	}
@@ -24,10 +20,6 @@ func (e *Err) Error() string {
 }
 
 func (e *Err) Is(target error) bool {
-	if e == nil {
-		return false
-	}
-
 	t, ok := target.(*Err)
 	if !ok {
 		return false
@@ -37,10 +29,6 @@ func (e *Err) Is(target error) bool {
 }
 
 func (e *Err) Unwrap() error {
-	if e == nil {
-		return nil
-	}
-
 	return e.Err
 }
 
