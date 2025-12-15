@@ -2,9 +2,20 @@ services:
   isard-stats-go:
     image: ${DOCKER_IMAGE_PREFIX}stats-go:${DOCKER_IMAGE_TAG-latest}
     volumes:
-      - /opt/isard-local/conntrack:/conntrack
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      - type: bind
+        source: /opt/isard/conntrack
+        target: /conntrack
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
     container_name: isard-stats-go
     logging:
       driver: "json-file"
@@ -62,14 +73,20 @@ services:
     volumes:
       # Alloy
       - ${BUILD_ROOT_PATH}/docker/grafana-alloy:/usr/local/etc/alloy:ro
-      - /opt/isard/stats/alloy:/var/lib/alloy/data
+      - type: bind
+        source: /opt/isard/stats/conntrack
+        target: /var/lib/alloy/data
+        bind: {create_host_path: true}
       # Cadvisor and Node Exporter
       - /:/rootfs:ro,rslave
       # Cadvisor
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       # Node Exporter
-      - /opt/isard-local/stats/prometheus:/var/lib/prometheus:rw
+      - type: bind
+        source: /opt/isard/stats/prometheus
+        target: /var/lib/prometheus
+        bind: {create_host_path: true}
       # This is also used for log extraction
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
