@@ -23,7 +23,7 @@ Update to new database release version when new code version release
 release_version = 177
 # release 177: Recreate deployment indexes considering the new create_dict structure
 # release 176: Delete null parents on domains
-# release 175: Import SMTP configuration from NOTIFY_EMAIL* envitonment variables
+# release 175: Import SMTP configuration from NOTIFY_EMAIL* environment variables
 # release 174: Add task index to storage table
 # release 173: Remove enabled field from maintenance_text
 # release 172: New deployment structure to match future labs feature
