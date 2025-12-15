@@ -369,11 +369,6 @@ func (b *bastion) handleRequests(ctx context.Context, log *zerolog.Logger, targe
 
 		case <-ctx.Done():
 			return
-
-		default:
-			if targetConn == nil {
-				return
-			}
 		}
 	}
 }
@@ -390,11 +385,6 @@ func (b *bastion) handleChannels(ctx context.Context, log *zerolog.Logger, targe
 
 		case <-ctx.Done():
 			return
-
-		default:
-			if targetConn == nil {
-				return
-			}
 		}
 	}
 }
@@ -460,11 +450,6 @@ func (b *bastion) handleChannel(ctx context.Context, log *zerolog.Logger, target
 
 		case <-ctx.Done():
 			return
-
-		default:
-			if targetConn == nil {
-				return
-			}
 		}
 	}
 }
