@@ -20,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 178
+release_version = 179
+# release 179: Remove old LDAP configuration
 # release 178: Bastion targets support multiple domains (array)
 # release 177: Recreate deployment indexes considering the new create_dict structure
 # release 176: Delete null parents on domains
@@ -946,6 +947,11 @@ password:s:%s"""
                         ),
                     }
                 }
+            ).run(self.conn)
+
+        if version == 179:
+            r.table(table).replace(
+                r.row.without({"auth": {"ldap": ["bind_dn", "ldap_server"]}})
             ).run(self.conn)
 
         return True

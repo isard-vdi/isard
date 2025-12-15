@@ -203,8 +203,6 @@ class Populate(object):
                                 "local": {"active": True},
                                 "ldap": {
                                     "active": False,
-                                    "ldap_server": "ldap://ldap.domain.org",
-                                    "bind_dn": "dc=domain,dc=org",
                                 },
                             },
                             "disposable_desktops": {"active": False},
