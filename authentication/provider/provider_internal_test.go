@@ -498,6 +498,23 @@ func TestGuessRole(t *testing.T) {
 			AllUsrRoles: []string{"aaa", "bbb", "ccc", "ddd"},
 			ExpectedErr: "invalid credentials: emtpy user role, no default",
 		},
+		"should return an err if no role is found and there's no default #2": {
+			Cfg: guessRoleOpts{
+				ReRole:          regexp.MustCompile("([^,]+)+"),
+				RoleAdminIDs:    []string{"4ea5c9e6-c94f-4d70-8593-f1f83e88dd0e"},
+				RoleManagerIDs:  []string{"70899241-137a-4525-b762-32bec47f9292"},
+				RoleAdvancedIDs: []string{},
+				RoleUserIDs:     []string{},
+			},
+			AllUsrRoles: []string{
+				"cfa133fa-175d-4f6f-a160-2deb0b757e50",
+				"5df8e55b-9785-41e7-ae98-085e01de36c4",
+				"a0b4fc1c-8bae-4980-9fdd-1c91afa7f23c",
+				"71782231-4312-4dfa-8707-1720fe8e90ba",
+				"0a1e46a5-b6aa-4381-826e-147c8b507195",
+			},
+			ExpectedErr: "invalid credentials: emtpy user role, no default",
+		},
 	}
 
 	for name, tc := range cases {

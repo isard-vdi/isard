@@ -163,9 +163,5 @@ type RateLimitError struct {
 }
 
 func (e *RateLimitError) Error() string {
-	if e == nil {
-		return ""
-	}
-
 	return fmt.Sprintf("user '%s' has been rate limited, try again at '%s'", e.username, e.RetryAfter.String())
 }

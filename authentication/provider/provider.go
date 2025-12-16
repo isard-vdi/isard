@@ -60,26 +60,14 @@ type ProviderError struct {
 }
 
 func (p *ProviderError) Error() string {
-	if p == nil {
-		return ""
-	}
-
 	return fmt.Errorf("%w: %w", p.User, p.Detail).Error()
 }
 
 func (p *ProviderError) Is(target error) bool {
-	if p == nil {
-		return false
-	}
-
 	return errors.Is(p.User, target)
 }
 
 func (p *ProviderError) Unwrap() error {
-	if p == nil {
-		return nil
-	}
-
 	return p.Detail
 }
 
