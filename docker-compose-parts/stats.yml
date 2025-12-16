@@ -3,7 +3,7 @@ services:
     image: ${DOCKER_IMAGE_PREFIX}stats-go:${DOCKER_IMAGE_TAG-latest}
     volumes:
       - type: bind
-        source: /opt/isard/conntrack
+        source: /opt/isard-local/conntrack
         target: /conntrack
         bind: {create_host_path: true}
       - type: bind
@@ -76,7 +76,7 @@ services:
       # Alloy
       - ${BUILD_ROOT_PATH}/docker/grafana-alloy:/usr/local/etc/alloy:ro
       - type: bind
-        source: /opt/isard/stats/conntrack
+        source: /opt/isard/stats/alloy
         target: /var/lib/alloy/data
         bind: {create_host_path: true}
       # Cadvisor and Node Exporter
