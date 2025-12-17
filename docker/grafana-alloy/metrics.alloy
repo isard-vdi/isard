@@ -62,6 +62,14 @@ prometheus.scrape "metrics_cadvisor" {
 	scrape_interval = "30s"
 }
 
+prometheus.scrape "metrics_containers" {
+	targets = discovery.docker.containers.targets
+
+	forward_to      = [prometheus.relabel.add_domain.receiver]
+	job_name        = "containers"
+	scrape_interval = "30s"
+}
+
 prometheus.scrape "metrics_stats_go" {
 	targets = [{
 		__address__ = "isard-stats-go:9091",
