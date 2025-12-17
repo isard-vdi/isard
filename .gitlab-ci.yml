@@ -108,7 +108,7 @@ check-alloy-config:
   before_script:
     - apk add --no-cache alloy
   script:
-    - find . -iname "*.alloy" -exec alloy fmt -t {} ";" 
+    - find . -iname "*.alloy" | xargs -n1 alloy fmt -t
 
 check-python:
   stage: lint
