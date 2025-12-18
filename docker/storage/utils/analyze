@@ -56,6 +56,28 @@ from pathlib import Path
 from tabulate import tabulate
 
 
+def get_output_dir():
+    """Create and return timestamped output directory."""
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M")
+    output_dir = Path(f"/logs/analyze/{timestamp}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+
+def write_file_list(output_dir, filename, file_list):
+    """Write a list of file paths to a text file."""
+    filepath = output_dir / filename
+    with open(filepath, "w") as f:
+        for item in sorted(file_list):
+            f.write(f"{item}\n")
+    return len(file_list)
+
+
+def count_templates(file_list):
+    """Count files in /isard/templates directory."""
+    return len([f for f in file_list if "/isard/templates" in str(f)])
+
+
 def size(paths):
     total_size = 0
     for path in paths:
@@ -119,7 +141,9 @@ def get_qcow_info(file_path):
         )
         # Parse JSON output
         info = json.loads(result.stdout)  # Use json.loads to safely parse the output
-        return info.get("backing-filename")  # Get the backing file
+        # Use full-backing-filename (resolved absolute path) instead of backing-filename
+        # which could be relative and cause path matching issues
+        return info.get("full-backing-filename") or info.get("backing-filename")
     except subprocess.CalledProcessError:
         return None
 
@@ -535,7 +559,9 @@ broken_chain = analyze_qcow_integrity(qcow_storages)  # files with broken backin
 print(f" - Analyzed qcow integrity in {time()-t:.2f} seconds")
 valid_qcow_storages = set(qcow_storages) - set(broken_chain)
 print(f"Analyzing qcow dependencies...")
-qcow_dependencies = analyze_qcow_dependencies(valid_qcow_storages)
+# Analyze ALL qcow files (including broken ones) to correctly identify derivatives
+# A file with broken chain can still depend on a valid parent - we need to count that
+qcow_dependencies = analyze_qcow_dependencies(qcow_storages)
 print(f" - Analyzed qcow dependencies in {time()-t:.2f} seconds")
 
 print(f"Finished in {time()-t:.2f} seconds, generating report...")
@@ -621,6 +647,153 @@ print(
     + size(set(qcow_dependencies["wo_derivatives"]) & storages_in_system_not_in_db),
 )
 
+# Export results to files
+output_dir = get_output_dir()
+print(f"\nExporting results to {output_dir}...")
+
+# Calculate deletable files (system_not_in_db AND no_derivatives)
+deletable = set(qcow_dependencies["wo_derivatives"]) & storages_in_system_not_in_db
+volatile = get_volatile_storages()
+
+# Export file lists
+# ok_ prefix = informative only
+# bad_ prefix = candidates to be deleted
+# volatile_ prefix = volatile storage (can be deleted without problems)
+files_info = [
+    ("ok_db_not_in_system.txt", storages_in_db_not_in_system),
+    ("ok_system_not_in_db.txt", storages_in_system_not_in_db),
+    ("ok_no_backing_file.txt", qcow_dependencies["wo_backing"]),
+    ("ok_no_derivatives.txt", qcow_dependencies["wo_derivatives"]),
+    ("bad_broken_chain.txt", broken_chain),
+    ("volatile_storage.txt", volatile),
+    ("bad_non_qcow2.txt", non_qcow_storages),
+    ("bad_deletable_orphans.txt", deletable),
+]
+
+for filename, file_list in files_info:
+    write_file_list(output_dir, filename, file_list)
+
+# Count template files in each list
+templates_in_broken = count_templates(broken_chain)
+templates_in_deletable = count_templates(deletable)
+templates_in_system_not_db = count_templates(storages_in_system_not_in_db)
+templates_in_non_qcow2 = count_templates(non_qcow_storages)
+# Volatile files don't need template warnings - they're always safe to delete
+total_templates_in_deletable = templates_in_broken + templates_in_deletable + templates_in_non_qcow2
+
+# Generate README.md with summary tables
+readme_content = f"""# Storage Analysis Report
+
+Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+## Summary
+
+| Metric | Count |
+|--------|-------|
+| Storages in DB | {len(db_storages)} |
+| Storages in system | {len(sys_storages)} |
+| Qcow2 files | {len(qcow_storages)} |
+
+## Informative Files (ok_)
+
+| File | Count | Templates | Size (GB) | Description |
+|------|-------|-----------|-----------|-------------|
+| ok_db_not_in_system.txt | {len(storages_in_db_not_in_system)} | - | - | Paths in DB but missing on disk |
+| ok_system_not_in_db.txt | {len(storages_in_system_not_in_db)} | {templates_in_system_not_db} | {size(storages_in_system_not_in_db)} | Files on disk not in DB |
+| ok_no_backing_file.txt | {len(qcow_dependencies["wo_backing"])} | {count_templates(qcow_dependencies["wo_backing"])} | {size(qcow_dependencies["wo_backing"])} | Root images (no backing file) |
+| ok_no_derivatives.txt | {len(qcow_dependencies["wo_derivatives"])} | {count_templates(qcow_dependencies["wo_derivatives"])} | {size(qcow_dependencies["wo_derivatives"])} | Leaf images (no derivatives) |
+
+## Candidates to Delete (bad_)
+
+| File | Count | Templates | Size (GB) | Description |
+|------|-------|-----------|-----------|-------------|
+| bad_broken_chain.txt | {len(broken_chain)} | {templates_in_broken} | {size(broken_chain)} | Files with broken backing chains |
+| bad_non_qcow2.txt | {len(non_qcow_storages)} | {templates_in_non_qcow2} | {size(non_qcow_storages)} | Non-qcow2 files |
+| bad_deletable_orphans.txt | {len(deletable)} | {templates_in_deletable} | {size(deletable)} | Safe to delete (not in DB + no derivatives) |
+
+## Volatile Storage (volatile_)
+
+| File | Count | Size (GB) | Description |
+|------|-------|-----------|-------------|
+| volatile_storage.txt | {len(volatile)} | {size(volatile)} | Volatile storage files (safe to delete) |
+
+## Cleanup Summary
+
+| Action | File | Count | Templates | Size (GB) |
+|--------|------|-------|-----------|-----------|
+| Delete files | bad_deletable_orphans.txt | {len(deletable)} | {templates_in_deletable} | {size(deletable)} |
+| Delete files | bad_broken_chain.txt | {len(broken_chain)} | {templates_in_broken} | {size(broken_chain)} |
+| Delete files | bad_non_qcow2.txt | {len(non_qcow_storages)} | {templates_in_non_qcow2} | {size(non_qcow_storages)} |
+| Delete files | volatile_storage.txt | {len(volatile)} | - | {size(volatile)} |
+
+**Total deletable space:** {size(deletable) + size(broken_chain) + size(volatile) + size(non_qcow_storages)} GB
+
+{"⚠️  **WARNING: Some files are in /isard/templates - review carefully before deleting!**" if total_templates_in_deletable > 0 else ""}
+
+## Sample Commands
+
+{"⚠️  **WARNING:** Check for template files before running delete commands:" if total_templates_in_deletable > 0 else ""}
+```bash
+# Check for templates in any file before deleting
+grep "/isard/templates" *.txt
+```
+
+### Delete broken chain files
+{"⚠️  **WARNING: Contains " + str(templates_in_broken) + " template files! Review first:**" if templates_in_broken > 0 else ""}
+```bash
+{"grep '/isard/templates' bad_broken_chain.txt  # Review templates first!" if templates_in_broken > 0 else ""}
+cat bad_broken_chain.txt | xargs rm -f
+```
+
+### Delete volatile files
+```bash
+cat volatile_storage.txt | xargs rm -f
+```
+
+### Delete orphan files (safe to delete)
+{"⚠️  **WARNING: Contains " + str(templates_in_deletable) + " template files! Review first:**" if templates_in_deletable > 0 else ""}
+```bash
+{"grep '/isard/templates' bad_deletable_orphans.txt  # Review templates first!" if templates_in_deletable > 0 else ""}
+cat bad_deletable_orphans.txt | xargs rm -f
+```
+
+### Delete non-qcow2 files
+{"⚠️  **WARNING: Contains " + str(templates_in_non_qcow2) + " template files! Review first:**" if templates_in_non_qcow2 > 0 else ""}
+```bash
+{"grep '/isard/templates' bad_non_qcow2.txt  # Review templates first!" if templates_in_non_qcow2 > 0 else ""}
+cat bad_non_qcow2.txt | xargs rm -f
+```
+
+### Delete all bad_ files at once
+```bash
+cat bad_*.txt | sort -u | xargs rm -f
+```
+
+### Delete all deletable files (bad_ + volatile_)
+```bash
+cat bad_*.txt volatile_*.txt | sort -u | xargs rm -f
+```
+
+### Get qemu-img info for files not in DB
+```bash
+while read f; do echo "=== $f ===" && qemu-img info -U "$f"; done < ok_system_not_in_db.txt
+```
+
+### Count files in each list
+```bash
+for f in *.txt; do echo "$f: $(wc -l < "$f")"; done
+```
+
+### Filter out templates before deleting
+```bash
+# Example: delete only non-template files from bad_broken_chain.txt
+grep -v "/isard/templates" bad_broken_chain.txt | xargs rm -f
+```
+"""
+
+with open(output_dir / "README.md", "w") as f:
+    f.write(readme_content)
+
 # Size comparison (if requested)
 if args.compare_sizes:
     print("\n" + "=" * 80)
@@ -641,4 +814,37 @@ if args.compare_sizes:
 
     print_size_comparison_report(comparison_result, args.threshold)
 
-print(f"\nTotal execution time: {time()-t:.2f} seconds")
+    # Export paths with size discrepancies (informative - need find task, not deletion)
+    discrepancy_paths = [d["path"] for d in comparison_result["discrepancies"]]
+    write_file_list(output_dir, "ok_size_discrepancy_paths.txt", discrepancy_paths)
+
+    # Append size comparison section to README.md
+    templates_in_discrepancies = count_templates(discrepancy_paths)
+    size_section = f"""
+## Size Comparison (--compare-sizes)
+
+| Metric | Value |
+|--------|-------|
+| Total DB Size (GB) | {comparison_result["total_db_size_gb"]} |
+| Total FS Size (GB) | {comparison_result["total_fs_size_gb"]} |
+| Total Difference (GB) | {comparison_result["total_diff_gb"]} |
+| Matched Files | {len(comparison_result["matched"])} |
+| Discrepancies (>{args.threshold} GB) | {len(comparison_result["discrepancies"])} |
+
+| File | Count | Templates | Description |
+|------|-------|-----------|-------------|
+| ok_size_discrepancy_paths.txt | {len(discrepancy_paths)} | {templates_in_discrepancies} | Paths where DB size differs from actual file size |
+
+### Get qemu-img info for size discrepancies
+{"⚠️  **WARNING: Contains " + str(templates_in_discrepancies) + " template files! Review first:**" if templates_in_discrepancies > 0 else ""}
+```bash
+{"grep '/isard/templates' ok_size_discrepancy_paths.txt  # Review templates first!" if templates_in_discrepancies > 0 else ""}
+while read f; do echo "=== $f ===" && qemu-img info -U "$f"; done < ok_size_discrepancy_paths.txt
+```
+"""
+
+    with open(output_dir / "README.md", "a") as f:
+        f.write(size_section)
+
+print(f"\nResults exported to: {output_dir}")
+print(f"Total execution time: {time()-t:.2f} seconds")
