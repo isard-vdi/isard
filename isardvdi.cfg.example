@@ -715,6 +715,7 @@ WG_GUESTS_RESERVED_HOSTS=20
 
 # ------ Tempo -----------------------------------------------------
 #
+#TEMPO=false
 #TEMPO_ADDRESS=http://isard-tempo:3200
 #TEMPO_ADDRESS_OTEL_GRPC=isard-tempo:4317
 
