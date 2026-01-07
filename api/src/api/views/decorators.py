@@ -908,51 +908,80 @@ def checkDuplicateUID(uid, category_id=None):
             )
 
 
-def checkDuplicateBastionDomain(domain, category_id=None, target_id=None):
-    if domain is None:
+def checkDuplicateBastionDomains(domains, category_id=None, target_id=None):
+    """Validate multiple bastion domains for uniqueness and correctness."""
+    if not domains:
         return
+
+    if not isinstance(domains, list):
+        raise Error(
+            "bad_request",
+            "Domains must be a list",
+            traceback.format_exc(),
+        )
+
     try:
-        if domain == os.getenv("DOMAIN"):
-            raise Error(
-                "conflict",
-                "Bastion domain is the same as the default domain",
-                traceback.format_exc(),
-            )
+        system_domain = os.getenv("DOMAIN")
+        bastion_domain = get_document("config", 1, ["bastion"]).get("domain")
 
-        if domain == get_document("config", 1, ["bastion"]).get("domain"):
-            raise Error(
-                "conflict",
-                "Bastion domain is the same as the default domain",
-                traceback.format_exc(),
-            )
-
-        query = (
-            r.table("categories")
-            .get_all(domain, index="bastion_domain")
-            .filter(lambda item: (item["id"] != category_id))
-            .count()
-        )
-        with app.app_context():
-            if query.run(db.conn) > 0:
+        for domain in domains:
+            # Explicit validation - reject empty/invalid domains instead of silently skipping
+            if not domain or not isinstance(domain, str):
                 raise Error(
-                    "conflict",
-                    "Bastion domain already exists in another category",
+                    "bad_request",
+                    "Empty or invalid domains are not allowed in the domains list",
                     traceback.format_exc(),
                 )
 
-        query = (
-            r.table("targets")
-            .get_all(domain, index="domain")
-            .filter(lambda item: (item["id"] != target_id))
-            .count()
-        )
-        with app.app_context():
-            if query.run(db.conn) > 0:
+            domain = domain.strip()
+            if not domain:
                 raise Error(
-                    "conflict",
-                    "Bastion domain is already assigned to another target",
+                    "bad_request",
+                    "Whitespace-only domains are not allowed",
                     traceback.format_exc(),
                 )
+
+            if domain == system_domain:
+                raise Error(
+                    "conflict",
+                    "Bastion domain is the same as the default domain",
+                    traceback.format_exc(),
+                )
+
+            if domain == bastion_domain:
+                raise Error(
+                    "conflict",
+                    "Bastion domain is the same as the default domain",
+                    traceback.format_exc(),
+                )
+
+            query = (
+                r.table("categories")
+                .get_all(domain, index="bastion_domain")
+                .filter(lambda item: (item["id"] != category_id))
+                .count()
+            )
+            with app.app_context():
+                if query.run(db.conn) > 0:
+                    raise Error(
+                        "conflict",
+                        "Bastion domain already exists in another category",
+                        traceback.format_exc(),
+                    )
+
+            query = (
+                r.table("targets")
+                .get_all(domain, index="domains")
+                .filter(lambda item: (item["id"] != target_id))
+                .count()
+            )
+            with app.app_context():
+                if query.run(db.conn) > 0:
+                    raise Error(
+                        "conflict",
+                        "Bastion domain is already assigned to another target",
+                        traceback.format_exc(),
+                    )
 
     except Error:
         raise Error(
@@ -967,6 +996,13 @@ def checkDuplicateBastionDomain(domain, category_id=None, target_id=None):
             "Error checking bastion domain",
             traceback.format_exc(),
         )
+
+
+# Backward compatibility wrapper for single domain
+def checkDuplicateBastionDomain(domain, category_id=None, target_id=None):
+    if domain is None:
+        return
+    checkDuplicateBastionDomains([domain], category_id, target_id)
 
 
 def allowedTemplateId(payload, template_id):

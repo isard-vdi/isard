@@ -598,6 +598,22 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
+    updateBastionDomains (context, data) {
+      axios.put(`${apiV3Segment}/desktop/${data.desktop_id}/bastion/domains`, { domains: data.domains || [] }).then(response => {
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.bastion-domains-updated'))
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    verifyBastionDomain (context, data) {
+      return axios.post(`${apiV3Segment}/desktop/${data.desktop_id}/bastion/domain/verify`, { domain: data.domain })
+        .then(response => {
+          return { success: true }
+        }).catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+          return { success: false, error: e }
+        })
+    },
     socket_targetsAdd (context, data) {
       context.commit('addBastionTarget', JSON.parse(data))
     },

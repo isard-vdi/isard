@@ -160,7 +160,9 @@
                     "checkbox": "HTTP",
                     "http-port": "HTTP port",
                     "https-port": "HTTPS port",
-                    "domain-name": "Custom domain name (optional)"
+                    "domain-name": "Custom domain name (optional)",
+                    "domain-names": "Custom domain names (optional)",
+                    "add-domain": "Add domain"
                 },
                 "ssh": {
                     "checkbox": "SSH",
@@ -1315,7 +1317,8 @@
                     "http": "HTTP URL:",
                     "https": "HTTPS URL:",
                     "authorized-keys-ssh": "Authorized keys for SSH",
-                    "domain-name": "Custom domain name:"
+                    "domain-name": "Custom domain name:",
+                    "domain-names": "Custom domain names:"
                 },
                 "titles": {
                     "id_copy": "Copy bastion ID",
@@ -1333,9 +1336,17 @@
                     "title": "You can use your own domain name to access this desktop via bastion.",
                     "cname": "Add a CNAME record to your DNS provider pointing to: "
                 },
+                "domain-status": {
+                    "verified": "Domain verified and active",
+                    "verified-pending-save": "Domain verified (save to apply)",
+                    "not-verified": "Domain not verified - click shield to verify"
+                },
                 "buttons": {
                     "update-authorized-keys": "Update authorized keys",
-                    "update-domain": "Update custom domain"
+                    "update-domain": "Update custom domain",
+                    "update-domains": "Update custom domains",
+                    "add-domain": "Add domain",
+                    "verify-domain": "Verify domain DNS"
                 }
             }
         },
@@ -1467,7 +1478,9 @@
             "converting-template": "Converting template to desktop",
             "token-copied": "Token copied to clipboard",
             "authorized-ssh-keys-updated": "Authorized SSH keys updated",
-            "bastion-domain-updated": "Bastion domain updated"
+            "bastion-domain-updated": "Bastion domain updated",
+            "bastion-domains-updated": "Bastion domains updated",
+            "bastion-domain-verified": "Domain DNS verified successfully"
         },
         "loading": "Loading"
     },

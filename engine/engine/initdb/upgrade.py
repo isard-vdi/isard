@@ -20,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 177
+release_version = 178
+# release 178: Bastion targets support multiple domains (array)
 # release 177: Recreate deployment indexes considering the new create_dict structure
 # release 176: Delete null parents on domains
 # release 175: Import SMTP configuration from NOTIFY_EMAIL* envitonment variables
@@ -3600,7 +3601,6 @@ password:s:%s"""
                     create_dict_data = deployment["create_dict"]
                     update_data = {}
                     if not isinstance(create_dict_data, list):
-
                         # data that will be moved or added from create_dict into the root
                         update_data = {
                             "allowed": create_dict_data.get("allowed"),
@@ -3669,7 +3669,6 @@ password:s:%s"""
                     ):
                         create_dict = []
                         for cd in deployment["create_dict"]:
-
                             if "description" not in cd:
                                 cd["description"] = ""
                                 needs_update = True
@@ -6553,6 +6552,38 @@ password:s:%s"""
                 r.table(table).index_create("domain").run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 178:
+            # Migrate single 'domain' field to 'domains' array
+            # Check for both None and empty string to avoid creating [""]
+            try:
+                r.table(table).update(
+                    lambda row: {
+                        "domains": r.branch(
+                            row["domain"].ne(None) & row["domain"].ne(""),
+                            [row["domain"]],
+                            [],
+                        )
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            # Create multi-index for array lookup
+            try:
+                r.table(table).index_create("domains", multi=True).run(self.conn)
+                r.table(table).index_wait("domains").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            # Drop old domain index
+            try:
+                r.table(table).index_drop("domain").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            # Remove old domain field
+            self.del_keys(table, ["domain"])
 
         return True
 

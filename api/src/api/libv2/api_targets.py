@@ -169,12 +169,12 @@ def update_bastion_haproxy_map():
         subdomains.extend(category_domains)
 
         with app.app_context():
-            targets = list(r.table("targets").pluck("domain").run(db.conn))
-        individual_domains = [
-            t["domain"]
-            for t in targets
-            if t.get("domain") and isinstance(t["domain"], str)
-        ]
+            # Use indexed distinct for O(log n) performance instead of full table scan
+            individual_domains = list(
+                r.table("targets").distinct(index="domains").run(db.conn)
+            )
+            # Filter out any None/empty values that might be in the index
+            individual_domains = [d for d in individual_domains if d]
 
         _call_grpc_with_infinite_retry(
             app.haproxy_bastion_client.SyncMaps,
@@ -281,7 +281,7 @@ class ApiTargets:
                 "id": str(uuid.uuid4()),
                 "desktop_id": domain_id,
                 "user_id": user_id,
-                "domain": None,
+                "domains": [],
             }
             target["http"] = {"enabled": False, "http_port": 80, "https_port": 443}
             target["ssh"] = {"enabled": False, "port": 22, "authorized_keys": []}
@@ -293,44 +293,54 @@ class ApiTargets:
             target["http"] = data["http"]
         if data.get("ssh"):
             target["ssh"] = data["ssh"]
-        if "domain" in data:
-            if data["domain"] == target.get("domain"):
-                pass
-            elif data["domain"] is None:
-                if target.get("domain"):
-                    app.haproxy_bastion_client.DeleteIndividualDomain(
-                        haproxy_pb2.DeleteIndividualDomainRequest(
-                            domain=target["domain"]
-                        )
-                    )
-                target["domain"] = None
-            else:
-                if bastion_domain_verification_required():
-                    with app.app_context():
-                        category_id = (
-                            r.table("domains")
-                            .get(domain_id)
-                            .pluck("category")
-                            .run(db.conn)["category"]
-                        )
-                    check_bastion_domain_dns(
-                        data["domain"],
-                        f"{target['id']}.{get_bastion_domain(category_id)}",
-                        kind="cname",
-                    )
+        if "domains" in data:
+            # Filter out empty/whitespace-only strings
+            new_domains = [
+                d.strip() for d in (data["domains"] or []) if d and d.strip()
+            ]
+            old_domains = [d for d in target.get("domains", []) if d]
 
-                if target.get("domain"):
-                    app.haproxy_bastion_client.DeleteIndividualDomain(
-                        haproxy_pb2.DeleteIndividualDomainRequest(
-                            domain=target["domain"]
-                        )
-                    )
-
-                target["domain"] = data["domain"]
-
-                app.haproxy_bastion_client.AddIndividualDomain(
-                    haproxy_pb2.AddIndividualDomainRequest(domain=data["domain"])
+            # Validate max 10 domains
+            if len(new_domains) > 10:
+                raise Error(
+                    "bad_request",
+                    "Maximum 10 domains allowed per target",
+                    traceback.format_exc(),
                 )
+
+            # DNS verification for all new domains
+            if bastion_domain_verification_required():
+                with app.app_context():
+                    category_id = (
+                        r.table("domains")
+                        .get(domain_id)
+                        .pluck("category")
+                        .run(db.conn)["category"]
+                    )
+                for domain in new_domains:
+                    if domain and domain not in old_domains:
+                        check_bastion_domain_dns(
+                            domain,
+                            f"{target['id']}.{get_bastion_domain(category_id)}",
+                            kind="cname",
+                        )
+
+            # Calculate domains to add/remove
+            domains_to_add = set(new_domains) - set(old_domains)
+            domains_to_remove = set(old_domains) - set(new_domains)
+
+            # Update HAProxy
+            for domain in domains_to_remove:
+                app.haproxy_bastion_client.DeleteIndividualDomain(
+                    haproxy_pb2.DeleteIndividualDomainRequest(domain=domain)
+                )
+
+            for domain in domains_to_add:
+                app.haproxy_bastion_client.AddIndividualDomain(
+                    haproxy_pb2.AddIndividualDomainRequest(domain=domain)
+                )
+
+            target["domains"] = new_domains
 
         with app.app_context():
             r.db("isard").table("targets").get(target["id"]).update(target).run(db.conn)

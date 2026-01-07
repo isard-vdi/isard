@@ -1033,7 +1033,8 @@
           "http": "URL HTTP:",
           "https": "URL HTTPS:",
           "authorized-keys-ssh": "Claus SSH autoritzades",
-          "domain-name": "Nom de domini personalitzat:"
+          "domain-name": "Nom de domini personalitzat:",
+          "domain-names": "Noms de domini personalitzats:"
         },
         "titles": {
           "id_copy": "Copiar ID del bastió",
@@ -1051,9 +1052,17 @@
             "title": "Pots utilitzar el teu propi nom de domini per accedir a aquest escriptori mitjançant el bastió.",
             "cname": "Afegeix un registre CNAME al teu proveïdor de DNS apuntant a: "
         },
+        "domain-status": {
+            "verified": "Domini verificat i actiu",
+            "verified-pending-save": "Domini verificat (desa per aplicar)",
+            "not-verified": "Domini no verificat - fes clic a l'escut per verificar"
+        },
         "buttons": {
             "update-authorized-keys": "Actualitzar claus SSH autoritzades",
-            "bastion-domain-updated": "Actualitzar domini personalitzat"
+            "bastion-domain-updated": "Actualitzar domini personalitzat",
+            "update-domains": "Actualitzar dominis personalitzats",
+            "add-domain": "Afegir domini",
+            "verify-domain": "Verificar DNS del domini"
         }
       }
     },
@@ -1262,7 +1271,9 @@
           "checkbox": "HTTP",
           "http-port": "Port HTTP",
           "https-port": "Port HTTPS",
-          "domain-name": "Nom de domini personalitzat (opcional)"
+          "domain-name": "Nom de domini personalitzat (opcional)",
+          "domain-names": "Noms de domini personalitzats (opcional)",
+          "add-domain": "Afegir domini"
         },
         "ssh": {
           "checkbox": "SSH",
@@ -1629,7 +1640,9 @@
       "converting-template": "Convertint la plantilla a l'escriptori",
       "token-copied": "Codi de migració copiat al porta-retalls",
       "authorized-ssh-keys-updated": "Claus SSH autoritzades actualitzades",
-      "bastion-domain-updated": "Domini de bastió actualitzat"
+      "bastion-domain-updated": "Domini de bastió actualitzat",
+      "bastion-domains-updated": "Dominis de bastió actualitzats",
+      "bastion-domain-verified": "DNS del domini verificat correctament"
     },
     "loading": "Carregant"
   },

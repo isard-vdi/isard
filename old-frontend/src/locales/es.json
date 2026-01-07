@@ -160,7 +160,9 @@
           "checkbox": "HTTP",
           "http-port": "Puerto HTTP",
           "https-port": "Puerto HTTPS",
-          "domain-name": "Nombre de dominio personalizado (opcional)"
+          "domain-name": "Nombre de dominio personalizado (opcional)",
+          "domain-names": "Nombres de dominio personalizados (opcional)",
+          "add-domain": "Añadir dominio"
         },
         "ssh": {
           "checkbox": "SSH",
@@ -1326,7 +1328,8 @@
           "http": "URL HTTP:",
           "https": "URL HTTPS:",
           "authorized-keys-ssh": "Claves SSH autorizadas",
-          "domain-name": "Nombre de dominio personalizado:"
+          "domain-name": "Nombre de dominio personalizado:",
+          "domain-names": "Nombres de dominio personalizados:"
         },
         "titles": {
           "id_copy": "Copiar ID del bastión",
@@ -1344,9 +1347,17 @@
           "title": "Puedes usar tu propio nombre de dominio para acceder a este escritorio a través del bastión.",
           "cname": "Añade un registro CNAME a tu proveedor de DNS apuntando a: "
         },
+        "domain-status": {
+          "verified": "Dominio verificado y activo",
+          "verified-pending-save": "Dominio verificado (guarda para aplicar)",
+          "not-verified": "Dominio no verificado - haz clic en el escudo para verificar"
+        },
         "buttons": {
             "update-authorized-keys": "Actualizar claves SSH autorizadas",
-            "update-domain": "Actualizar dominio personalizado"
+            "update-domain": "Actualizar dominio personalizado",
+            "update-domains": "Actualizar dominios personalizados",
+            "add-domain": "Añadir dominio",
+            "verify-domain": "Verificar DNS del dominio"
         }
       }
     },
@@ -1478,7 +1489,9 @@
       "converting-template": "Convirtiendo la plantilla a escritorio",
       "token-copied": "Código de migración copiado en el portapapeles",
       "authorized-ssh-keys-updated": "Claves SSH autorizadas actualizadas",
-      "bastion-domain-updated": "Dominio del bastión actualizado"
+      "bastion-domain-updated": "Dominio del bastión actualizado",
+      "bastion-domains-updated": "Dominios del bastión actualizados",
+      "bastion-domain-verified": "DNS del dominio verificado correctamente"
     },
     "loading": "Cargando"
   },
