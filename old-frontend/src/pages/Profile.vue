@@ -242,7 +242,7 @@
                               <b-row>
                                 <b-col>
                                   <h6 class="font-weight-bold mt-4">
-                                    {{ $t('components.profile.info.secondary_groups') }}
+                                    {{ $t('components.profile.info.secondary-groups') }}
                                   </h6>
                                 </b-col>
                                 <b-col>

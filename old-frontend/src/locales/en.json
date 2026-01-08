@@ -567,7 +567,7 @@
                 "category": "Category",
                 "group": "Group",
                 "user-storage": "User storage",
-                "secondary_groups": "Secondary groups"
+                "secondary-groups": "Secondary groups"
             },
             "language": "Language",
             "quota": {

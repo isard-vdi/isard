@@ -285,7 +285,7 @@
         "category": "Categoria",
         "group": "Grup",
         "user-storage": "Emmagatzematge d'usuari",
-        "secondary-group": "Grups secundaris"
+        "secondary-groups": "Grups secundaris"
       },
       "language": "Idioma",
       "quota": {
@@ -1508,6 +1508,7 @@
     "wrong_password_entered": "La contrasenya introduïda és incorrecta",
     "not_verified": "L'adreça de correu no ha estat validada",
     "user_not_found": "No existeix cap usuari amb el correu electrònic proporcionat",
+    "invalid_token": "Token no vàlid",
     "old_passwords": "L'última contrasenya no pot ser cap de les últimes {num} contrasenyes",
     "no_storage_pool_available": "En aquest moment no està disponible la creació de recursos. Esperi uns minuts i torni-ho a provar.",
     "unable_to_get_domain_jumperurl": "No s'ha pogut obtenir l'enllaç del visor directe perquè el domini no existeix",
@@ -1525,7 +1526,6 @@
     "multiple_migrations_found_token": "S'han trobat múltiples migracions per al mateix codi de migració. Contacta amb el teu administrador",
     "migration_no_items_available": "Aquest usuari no té elements per migrar",
     "token_expired": "El token proporcionat ha expirat",
-    "invalid_token": "El token proporcionat no és vàlid",
     "same_user_migration": "No pots migrar al mateix compte. Quan obtinguis el token, has de tancar la sessió i tornar a iniciar-la amb el nou compte",
     "different_category_migration": "No pots migrar a un compte d'una categoria diferent",
     "role_migration_admin": "No pots migrar des d'un compte d'administrador",
@@ -1665,6 +1665,7 @@
       "forgot-password": "Reestablir contrasenya",
       "disclaimer": "Avís legal",
       "select_category": "Seleccioneu una categoria",
+      "export-user": "Exportar usuari",
       "verify-email": "Verificar correu electrònic"
     }
   },

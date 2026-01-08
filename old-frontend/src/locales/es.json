@@ -1681,6 +1681,7 @@
       "forgot-password": "Reestablecer contraseña",
       "disclaimer": "Aviso legal",
       "select_category": "Selecciona una categoría",
+      "export-user": "Exportar usuario",
       "verify-email": "Verificar correo electrónico"
     }
   },
