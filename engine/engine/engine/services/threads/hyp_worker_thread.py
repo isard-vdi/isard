@@ -177,9 +177,23 @@ class HypWorkerThread(threading.Thread):
         ):
             return
 
-        # All initialization successful
+        # All initialization successful - set hypervisor online first
         update_table_field("hypervisors", self.hyp_id, "stats", self.h.stats, soft=True)
         update_hyp_status(self.hyp_id, "Online")
+
+        # Certificate expiration check disabled - was causing startup delays
+        # try:
+        #     update_table_field(
+        #         "hypervisors",
+        #         self.hyp_id,
+        #         "viewer_status",
+        #         self.h.get_hyp_video_status(),
+        #         soft=True,
+        #     )
+        # except Exception as e:
+        #     logs.workers.warning(
+        #         f"Failed to update viewer status for {self.hyp_id}: {e}"
+        #     )
 
     def _establish_connection(self, host, port, user, nvidia_enabled):
         """Establish connection to the hypervisor"""
@@ -249,14 +263,6 @@ class HypWorkerThread(threading.Thread):
                 nvidia_enabled=nvidia_enabled,
                 force_get_hyp_info=force_get_hyp_info,
                 init_vgpu_profiles=init_vgpu_profiles,
-            )
-
-            update_table_field(
-                "hypervisors",
-                self.hyp_id,
-                "viewer_status",
-                self.h.get_hyp_video_status(),
-                soft=True,
             )
 
             self.h.get_system_stats()
