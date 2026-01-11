@@ -71,36 +71,40 @@ def check_spice_video_connection(
     return False
 
 
-@cached(cache=TTLCache(maxsize=10, ttl=5))
-def get_video_cert_expiration_days(host, port=443):
-    # Video certificate
-    try:
-        cert = ssl.get_server_certificate((host, port))
-        x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
-        expire_days = (
-            datetime.strptime(str(x509.get_notAfter().decode("ascii")), "%Y%m%d%H%M%SZ")
-            - datetime.now()
-        ).days
-        if expire_days <= 0:
-            logs.main.warning(
-                f"Certificate for {host}:{port} has already expired, days: {expire_days}"
-            )
-        return expire_days if expire_days > 0 else False
-    except Exception as e:
-        logs.main.error(f"Error retrieving certificate for {host}:{port} - {e}")
-        return False
+# Certificate check disabled - was causing startup delays due to network timeouts
+# SSL_CERT_CHECK_TIMEOUT = 5  # seconds
+#
+#
+# @cached(cache=TTLCache(maxsize=10, ttl=5))
+# def get_video_cert_expiration_days(host, port=443):
+#     # Video certificate
+#     old_timeout = socket.getdefaulttimeout()
+#     try:
+#         socket.setdefaulttimeout(SSL_CERT_CHECK_TIMEOUT)
+#         cert = ssl.get_server_certificate((host, port))
+#         x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
+#         expire_days = (
+#             datetime.strptime(str(x509.get_notAfter().decode("ascii")), "%Y%m%d%H%M%SZ")
+#             - datetime.now()
+#         ).days
+#         if expire_days <= 0:
+#             logs.main.warning(
+#                 f"Certificate for {host}:{port} has already expired, days: {expire_days}"
+#             )
+#         return expire_days if expire_days > 0 else False
+#     except Exception as e:
+#         logs.main.error(f"Error retrieving certificate for {host}:{port} - {e}")
+#         return False
+#     finally:
+#         socket.setdefaulttimeout(old_timeout)
 
 
-@cached(cache=TTLCache(maxsize=10, ttl=30))
 def get_hypervisor_video_status(
     html5_host, html5_port, static_host, spice_host, spice_proxy_host, spice_proxy_port
 ):
+    # Certificate checks disabled - was causing startup delays
     return {
-        "html5": get_video_cert_expiration_days(html5_host, html5_port),
-        "static": get_video_cert_expiration_days(static_host, html5_port),
+        "html5": True,
+        "static": True,
         "spice": True,
-        # Tunnel dns proxy resolution is not working, so isard-hypervisor can't be resolved
-        # "spice": check_spice_video_connection(
-        #     spice_proxy_host, spice_proxy_port, spice_host
-        # ),
     }
