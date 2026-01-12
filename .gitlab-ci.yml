@@ -102,6 +102,14 @@ version:
     paths:
       - .VERSION
 
+check-alloy-config:
+  stage: lint
+  image: alpine
+  before_script:
+    - apk add --no-cache alloy
+  script:
+    - find . -iname "*.alloy" | xargs -n1 alloy fmt -t
+
 check-python:
   stage: lint
   image: python:3.10-bullseye
@@ -387,3 +395,5 @@ container_scanning:
     matrix:
       - IMAGE: *containers
       - IMAGE: *containers_extra
+
+

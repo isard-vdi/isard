@@ -573,8 +573,35 @@ create_docker_compose_file(){
 		parts="$parts openapi"
 	fi
 
+	# Expand monitoring
+	if [ "$TEMPO" = "true" ]
+	then
+		echo "Adding Tempo"
+		parts="$parts monitor-tempo"
+	fi
+
+	if [ "$PYROSCOPE_EBPF" = "true" ]
+	then
+		echo "Adding Pyroscope"
+		parts="$parts monitor-pyroscope"
+	fi
+
 	# Build the docker-compose.yml
 	flavour "$config_name" $parts
+
+	# Expand monitoring
+	if [ "$TEMPO" != "true" ]
+	then
+		echo "Clean Tempo vars"
+		sed -i '/TEMPO.*/d' docker-compose*.yml
+	fi
+
+	if [ "$PYROSCOPE_EBPF" != "true" ]
+	then
+		echo "Clean Pyroscope"
+		sed -i '/PYROSCOPE.*/d' docker-compose*.yml
+	fi
+
 
 	if [ "$BACKUP_NFS_ENABLED" = "true" ]
 	then
@@ -590,6 +617,7 @@ create_docker_compose_file(){
 		fi
 		sed -i '/\/backup:\/backup/d' docker-compose*.yml
 	fi
+
 }
 
 generate_code(){

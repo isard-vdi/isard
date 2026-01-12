@@ -1,0 +1,8 @@
+logging {
+	level  = "info"
+	format = "json"
+}
+
+discovery.docker "containers" {
+	host = "unix:///var/run/docker.sock"
+}

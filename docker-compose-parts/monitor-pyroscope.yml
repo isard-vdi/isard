@@ -1,0 +1,20 @@
+services:
+  isard-pyroscope:
+    container_name: isard-pyroscope
+    image: grafana/pyroscope:1.9.0
+    user: root
+    volumes:
+      - /opt/isard/stats/pyroscope:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.71
+    restart: unless-stopped
+    command: >-
+      --pyroscopedb.data-path=/data

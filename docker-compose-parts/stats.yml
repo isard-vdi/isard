@@ -2,9 +2,20 @@ services:
   isard-stats-go:
     image: ${DOCKER_IMAGE_PREFIX}stats-go:${DOCKER_IMAGE_TAG-latest}
     volumes:
-      - /opt/isard-local/conntrack:/conntrack
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      - type: bind
+        source: /opt/isard-local/conntrack
+        target: /conntrack
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
     container_name: isard-stats-go
     logging:
       driver: "json-file"
@@ -51,102 +62,52 @@ services:
       TF_VAR_private_key:
       STATS_COLLECTORS_CONNTRACK_ENABLE:
 
-  isard-stats-node-exporter:
-    image: prom/node-exporter
-    container_name: isard-stats-node-exporter
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "5"
-        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    restart: "no"
-    command:
-      - '--path.rootfs=/host'
-      - '--collector.textfile.directory=/var/lib/prometheus'
-      - '--collector.disable-defaults'
-      - '--collector.cgroups'
-      - '--collector.cpu'
-      - '--collector.diskstats'
-      - '--collector.filesystem'
-      - '--collector.loadavg'
-      - '--collector.meminfo'
-      - '--collector.mountstats'
-      - '--collector.netclass'
-      - '--collector.netdev'
-      - '--collector.netstat'
-      - '--collector.nfs'
-      - '--collector.nfsd'
-      - '--collector.os'
-      - '--collector.schedstat'
-      - '--collector.stat'
-      - '--collector.textfile'
-    network_mode: host
-    pid: host
-    volumes:
-      - '/:/host:ro,rslave'
-      - /opt/isard-local/stats/prometheus:/var/lib/prometheus:rw
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
-
-  isard-stats-cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
-    container_name: isard-stats-cadvisor
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "5"
-        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    restart: "no"
-    command:
-      - '--docker_only=true'
-      - '--disable_metrics=cpu_topology,percpu,sched,process,hugetlb,referenced_memory,resctrl,cpuset,advtcp,memory_numa'
+  isard-grafana-alloy:
+    container_name: isard-grafana-alloy
+    image: grafana/alloy:v1.11.3
     privileged: true
+    user: root
+    pid: host
+    networks:
+      isard-network: {}
     devices:
       - /dev/kmsg:/dev/kmsg
     volumes:
-      - /:/rootfs:ro
+      # Alloy
+      - ${BUILD_ROOT_PATH}/docker/grafana-alloy:/usr/local/etc/alloy:ro
+      - type: bind
+        source: /opt/isard/stats/alloy
+        target: /var/lib/alloy/data
+        bind: {create_host_path: true}
+      # Cadvisor and Node Exporter
+      - /:/rootfs:ro,rslave
+      # Cadvisor
       - /var/run:/var/run:ro
       - /sys:/sys:ro
+      # Node Exporter
+      - type: bind
+        source: /opt/isard/stats/prometheus
+        target: /var/lib/prometheus
+        bind: {create_host_path: true}
+      # This is also used for log extraction
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
+      - /var/log:/var/log:ro
+      # General system
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
-    networks:
-      isard-network:
-        ipv4_address: ${DOCKER_NET:-172.31.255}.74
-
-  isard-grafana-agent:
-    container_name: isard-grafana-agent
-    image: grafana/agent:v0.43.3
-    volumes:
-      - ${BUILD_ROOT_PATH}/docker/grafana-agent/config.yml:/etc/agent/config.yml
-      - ${BUILD_ROOT_PATH}/docker/grafana-agent/web.yml:/etc/agent/web.yml
-      - ${BUILD_ROOT_PATH}/docker/grafana-agent/video.yml:/etc/agent/video.yml
-      - ${BUILD_ROOT_PATH}/docker/grafana-agent/monitor.yml:/etc/agent/monitor.yml
-      - ${BUILD_ROOT_PATH}/docker/grafana-agent/run.sh:/run.sh
-      - /opt/isard/stats/grafana-agent/custom:/custom
-      - /var/log:/var/log
-      - /var/lib/docker/containers:/var/lib/docker/containers
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
-    networks:
-      isard-network:
-        ipv4_address: ${DOCKER_NET:-172.31.255}.69
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "5"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    restart: "no"
-    entrypoint: /run.sh
+    restart: "unless-stopped"
+    entrypoint: /usr/local/etc/alloy/run.sh
     environment:
-      FLAVOUR:
-      ENABLE_STATS:
-      DOMAIN:
-      PROMETHEUS_ADDRESS: "${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}"
-      LOKI_ADDRESS: "${LOKI_ADDRESS:-http://isard-loki:3100}"
+      - FLAVOUR=${FLAVOUR}
+      - DOMAIN=${DOMAIN:-localhost}
+      - PROMETHEUS_ADDRESS=${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}
+      - LOKI_ADDRESS=${LOKI_ADDRESS:-http://isard-loki:3100}
+      - PYROSCOPE_EBPF=${PYROSCOPE_EBPF:-false}
+      - PYROSCOPE_ADDRESS=${PYROSCOPE_ADDRESS:-http://isard-pyroscope:4040}

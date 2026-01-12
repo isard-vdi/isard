@@ -1,0 +1,104 @@
+//
+// Metrics
+//
+prometheus.exporter.unix "exporter_node_exporter" {
+	rootfs_path    = "/rootfs"
+	set_collectors = [
+		"cgroups",
+		"cpu",
+		"diskstats",
+		"filesystem",
+		"loadavg",
+		"meminfo",
+		"mountstats",
+		"netclass",
+		"netdev",
+		"netstat",
+		"nfs",
+		"nfsd",
+		"os",
+		"schedstat",
+		"stat",
+		"textfile",
+	]
+
+	textfile {
+		directory = "/var/lib/prometheus"
+	}
+}
+
+prometheus.scrape "metrics_node_exporter" {
+	targets = prometheus.exporter.unix.exporter_node_exporter.targets
+
+	forward_to      = [prometheus.relabel.add_domain.receiver]
+	job_name        = "node_exporter"
+	scrape_interval = "30s"
+}
+
+prometheus.exporter.cadvisor "exporter_cadvisor" {
+	docker_host = "unix:///var/run/docker.sock"
+
+	docker_only      = true
+	disabled_metrics = [
+		"cpu_topology",
+		"percpu",
+		"sched",
+		"process",
+		"hugetlb",
+		"referenced_memory",
+		"resctrl",
+		"cpuset",
+		"advtcp",
+		"memory_numa",
+	]
+	storage_duration = "5m"
+}
+
+prometheus.scrape "metrics_cadvisor" {
+	targets = prometheus.exporter.cadvisor.exporter_cadvisor.targets
+
+	forward_to      = [prometheus.relabel.add_domain.receiver]
+	job_name        = "cadvisor"
+	scrape_interval = "30s"
+}
+
+prometheus.scrape "metrics_containers" {
+	targets = discovery.docker.containers.targets
+
+	forward_to      = [prometheus.relabel.add_domain.receiver]
+	job_name        = "containers"
+	scrape_interval = "30s"
+}
+
+prometheus.scrape "metrics_stats_go" {
+	targets = [{
+		__address__ = "isard-stats-go:9091",
+		domain      = env("DOMAIN"),
+	}]
+
+	forward_to      = [prometheus.remote_write.monitor.receiver]
+	job_name        = "stats_go"
+	scrape_interval = "30s"
+}
+
+prometheus.relabel "add_domain" {
+	forward_to = [prometheus.remote_write.monitor.receiver]
+
+	rule {
+		action        = "replace"
+		source_labels = ["__address__"]
+		target_label  = "domain"
+		replacement   = env("DOMAIN")
+	}
+}
+
+prometheus.remote_write "monitor" {
+	endpoint {
+		name = "monitor"
+		url  = env("PROMETHEUS_ADDRESS") + "/api/v1/write"
+
+		queue_config { }
+
+		metadata_config { }
+	}
+}
