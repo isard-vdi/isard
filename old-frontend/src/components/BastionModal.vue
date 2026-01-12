@@ -118,33 +118,24 @@
         class="ml-2 pr-3"
       >
         <label
-          for="sshAuthorizedKeysField"
           class="ml-2 mb-0"
         >
-          {{ $t('views.desktop.bastion_modal.labels.domain-name') }}
+          {{ $t('views.desktop.bastion_modal.labels.domain-names') }}
+          <b-badge variant="info">{{ domainNames.length }}/10</b-badge>
+          <b-button
+            variant="link"
+            size="sm"
+            :title="$t('views.desktop.bastion_modal.titles.domain-info')"
+            @click="showDNSInfo = !showDNSInfo"
+          >
+            <b-icon
+              icon="info-circle-fill"
+            />
+          </b-button>
         </label>
-        <b-input-group
-          id="bastionHttpUrl"
-          class="mb-3"
-        >
-          <b-form-input
-            v-model="DomainName"
-          />
-          <b-input-group-append>
-            <b-button
-              :title="$t('views.desktop.bastion_modal.titles.domain-info')"
-              class="btn-blue"
-              @click="showDNSInfo = !showDNSInfo"
-            >
-              <b-icon
-                icon="info-circle-fill"
-              />
-            </b-button>
-          </b-input-group-append>
-        </b-input-group>
         <div
           v-if="showDNSInfo"
-          class="w-100"
+          class="w-100 mb-2"
         >
           <b-alert
             show
@@ -167,12 +158,84 @@
             </code>
           </b-alert>
         </div>
+        <div
+          v-for="(domain, index) in domainNames"
+          :key="index"
+          class="w-100 mb-2"
+        >
+          <b-input-group>
+            <b-input-group-prepend>
+              <b-input-group-text
+                v-if="isDomainSaved(domain)"
+                v-b-tooltip.hover
+                :title="$t('views.desktop.bastion_modal.domain-status.verified')"
+                class="bg-success text-white"
+              >
+                <b-icon icon="check-circle-fill" />
+              </b-input-group-text>
+              <b-input-group-text
+                v-else-if="getDomainStatus(index) === 'verified'"
+                v-b-tooltip.hover
+                :title="$t('views.desktop.bastion_modal.domain-status.verified-pending-save')"
+                class="bg-info text-white"
+              >
+                <b-icon icon="check-circle" />
+              </b-input-group-text>
+              <b-input-group-text
+                v-else-if="getDomainStatus(index) === 'verifying'"
+                class="bg-secondary text-white"
+              >
+                <b-spinner small />
+              </b-input-group-text>
+              <b-input-group-text
+                v-else
+                v-b-tooltip.hover
+                :title="$t('views.desktop.bastion_modal.domain-status.not-verified')"
+                class="bg-warning text-dark"
+              >
+                <b-icon icon="exclamation-circle-fill" />
+              </b-input-group-text>
+            </b-input-group-prepend>
+            <b-form-input
+              :value="domain"
+              @input="updateDomainAtIndex(index, $event)"
+            />
+            <b-input-group-append>
+              <b-button
+                v-if="!isDomainSaved(domain) && getDomainStatus(index) !== 'verified' && getDomainStatus(index) !== 'verifying'"
+                variant="outline-primary"
+                :title="$t('views.desktop.bastion_modal.buttons.verify-domain')"
+                @click="verifyDomain(index)"
+              >
+                <b-icon icon="shield-check" />
+              </b-button>
+              <b-button
+                variant="outline-danger"
+                @click="removeDomainAtIndex(index)"
+              >
+                <b-icon icon="trash" />
+              </b-button>
+            </b-input-group-append>
+          </b-input-group>
+        </div>
+        <div
+          v-if="domainNames.length < 10"
+          class="w-100 mb-2"
+        >
+          <b-button
+            variant="outline-primary"
+            size="sm"
+            @click="addDomain"
+          >
+            <b-icon icon="plus" /> {{ $t('views.desktop.bastion_modal.buttons.add-domain') }}
+          </b-button>
+        </div>
         <div class="w-100">
           <b-button
             class="mt-2 btn-blue float-right"
-            @click="updateHttpDomain"
+            @click="updateHttpDomains"
           >
-            {{ $t('views.desktop.bastion_modal.buttons.update-domain') }}
+            {{ $t('views.desktop.bastion_modal.buttons.update-domains') }}
           </b-button>
         </div>
       </b-row>
@@ -257,17 +320,21 @@ export default {
       return modal.value?.bastion?.id.split('-').slice(0, -1).join('-') + '.' + modal.value.bastion.id.split('-').slice(-1)[0]
     })
 
+    const firstDomain = computed(() => {
+      const domains = modal.value.bastion.domains || []
+      return domains.length > 0 ? domains[0] : null
+    })
     const httpUrl = computed(() => {
       const port = config.value.httpPort === '80' ? '' : `:${config.value.httpPort}`
-      if (modal.value.bastion.domain) {
-        return `http://${modal.value.bastion.domain}${port}`
+      if (firstDomain.value) {
+        return `http://${firstDomain.value}${port}`
       }
-      return `http://${targetIdSplit.value}.${modal.value.bastion.domain || config.value.bastionDomain || window.location.hostname}${port}`
+      return `http://${targetIdSplit.value}.${config.value.bastionDomain || window.location.hostname}${port}`
     })
     const httpsUrl = computed(() => {
       const port = config.value.httpsPort === '443' ? '' : `:${config.value.httpsPort}`
-      if (modal.value.bastion.domain) {
-        return `https://${modal.value.bastion.domain}${port}`
+      if (firstDomain.value) {
+        return `https://${firstDomain.value}${port}`
       }
       return `https://${targetIdSplit.value}.${config.value.bastionDomain || window.location.hostname}${port}`
     })
@@ -296,23 +363,88 @@ export default {
       $store.dispatch('updateBastionAuthorizedKeys', modal.value.bastion)
     }
 
-    const DomainName = ref(modal.value.bastion.domain || '')
-    watch(() => modal.value.bastion.domain, (newValue) => {
-      DomainName.value = newValue || ''
+    // Track saved domains (from server) and local domain list
+    const savedDomains = ref(new Set(modal.value.bastion.domains || []))
+    const domainNames = ref([...(modal.value.bastion.domains || [])])
+    // Track verification status per index: 'pending', 'verifying', 'verified', 'failed'
+    const domainStatuses = ref({})
+
+    watch(() => modal.value.bastion.domains, (newValue) => {
+      savedDomains.value = new Set(newValue || [])
+      domainNames.value = [...(newValue || [])]
+      domainStatuses.value = {}
     })
+
+    const isDomainSaved = (domain) => {
+      return domain && savedDomains.value.has(domain)
+    }
+
+    const getDomainStatus = (index) => {
+      return domainStatuses.value[index] || 'pending'
+    }
+
+    const addDomain = () => {
+      if (domainNames.value.length < 10) {
+        domainNames.value = [...domainNames.value, '']
+      }
+    }
+    const removeDomainAtIndex = (index) => {
+      domainNames.value = domainNames.value.filter((_, i) => i !== index)
+      // Rebuild statuses with shifted indexes
+      const newStatuses = {}
+      Object.keys(domainStatuses.value).forEach(key => {
+        const keyNum = parseInt(key)
+        if (keyNum < index) {
+          newStatuses[keyNum] = domainStatuses.value[keyNum]
+        } else if (keyNum > index) {
+          newStatuses[keyNum - 1] = domainStatuses.value[keyNum]
+        }
+      })
+      domainStatuses.value = newStatuses
+    }
+    const updateDomainAtIndex = (index, value) => {
+      const newDomains = [...domainNames.value]
+      newDomains[index] = value
+      domainNames.value = newDomains
+      // Reset verification status when domain changes
+      if (domainStatuses.value[index]) {
+        const newStatuses = { ...domainStatuses.value }
+        delete newStatuses[index]
+        domainStatuses.value = newStatuses
+      }
+    }
+
+    const verifyDomain = async (index) => {
+      const domain = domainNames.value[index]
+      if (!domain || !domain.trim()) return
+
+      domainStatuses.value = { ...domainStatuses.value, [index]: 'verifying' }
+
+      const result = await $store.dispatch('verifyBastionDomain', {
+        desktop_id: modal.value.desktop.id,
+        domain: domain.trim()
+      })
+
+      if (result.success) {
+        domainStatuses.value = { ...domainStatuses.value, [index]: 'verified' }
+        $store.dispatch('showNotification', { message: i18n.t('messages.info.bastion-domain-verified') })
+      } else {
+        domainStatuses.value = { ...domainStatuses.value, [index]: 'failed' }
+      }
+    }
 
     const showDNSInfo = ref(false)
     const cnameTarget = computed(() => {
       return `${modal.value.bastion.id}.${config.value.bastionDomain}`
     })
 
-    const updateHttpDomain = () => {
+    const updateHttpDomains = () => {
       const data = {
-        ...modal.value.bastion,
-        domain: DomainName.value
+        desktop_id: modal.value.desktop.id,
+        domains: domainNames.value.filter(d => d)
       }
 
-      $store.dispatch('updateBastionDomainName', data)
+      $store.dispatch('updateBastionDomains', data)
     }
 
     const canChangeDomain = computed(() => {
@@ -329,10 +461,16 @@ export default {
       sshAuthorizedKeys,
       joinNewLine,
       updateSshAuthorizedKeys,
-      DomainName,
+      domainNames,
+      addDomain,
+      removeDomainAtIndex,
+      updateDomainAtIndex,
+      isDomainSaved,
+      getDomainStatus,
+      verifyDomain,
       showDNSInfo,
       cnameTarget,
-      updateHttpDomain,
+      updateHttpDomains,
       canChangeDomain
     }
   }

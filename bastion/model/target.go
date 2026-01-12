@@ -24,7 +24,7 @@ type Target struct {
 	ID        string     `rethinkdb:"id"`
 	UserID    string     `rethinkdb:"user_id"`
 	DesktopID string     `rethinkdb:"desktop_id"`
-	Domain    string     `rethinkdb:"domain"`
+	Domains   []string   `rethinkdb:"domains"`
 	HTTP      TargetHTTP `rethinkdb:"http"`
 	SSH       TargetSSH  `rethinkdb:"ssh"`
 }
@@ -79,7 +79,7 @@ func (t *Target) LoadFromDomain(ctx context.Context, sess r.QueryExecutor, domai
 		return nil
 	}
 
-	res, err := r.Table("targets").GetAllByIndex("domain", domain).Run(sess)
+	res, err := r.Table("targets").GetAllByIndex("domains", domain).Run(sess)
 	if err != nil {
 		return &db.Err{
 			Err: err,
@@ -99,7 +99,22 @@ func (t *Target) LoadFromDomain(ctx context.Context, sess r.QueryExecutor, domai
 	}
 
 	targetCache.Set(t.ID, *t, ttlcache.DefaultTTL)
-	targetCache.Set(t.Domain, *t, ttlcache.DefaultTTL)
+	// Cache all domains for this target
+	for _, d := range t.Domains {
+		if d != "" {
+			targetCache.Set(d, *t, ttlcache.DefaultTTL)
+		}
+	}
 
 	return nil
+}
+
+// HasDomain checks if the target has a specific domain
+func (t *Target) HasDomain(domain string) bool {
+	for _, d := range t.Domains {
+		if d == domain {
+			return true
+		}
+	}
+	return false
 }

@@ -7,10 +7,14 @@ user_id:
 desktop_id:
   type: string
   coerce: sanitize
-domain:
-  type: string
-  nullable: true
-  coerce: sanitize
+domains:
+  type: list
+  required: false
+  default: []
+  maxlength: 10
+  schema:
+    type: string
+    coerce: sanitize
 http:
   type: dict
   required: true

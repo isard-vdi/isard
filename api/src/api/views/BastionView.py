@@ -21,7 +21,7 @@ from .decorators import (
     bastion_enabled,
     can_use_bastion,
     can_use_bastion_individual_domains,
-    checkDuplicateBastionDomain,
+    checkDuplicateBastionDomains,
     has_token,
     is_admin,
     is_admin_or_manager,
@@ -77,7 +77,7 @@ def api_v3_update_desktop_bastion(payload, desktop_id):
     data = _validate_item("bastion", data)
 
     if not can_use_bastion_individual_domains(payload):
-        data["domain"] = None
+        data["domains"] = []
 
     targets.update_domain_target(desktop_id, data)
     return (
@@ -122,6 +122,132 @@ def api_v3_update_bastion_target_authorized_keys(payload, desktop_id):
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
+@app.route("/api/v3/desktop/<desktop_id>/bastion/domains", methods=["PUT"])
+@has_token
+def api_v3_update_bastion_target_domains(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    if can_use_bastion(payload) == False:
+        raise Error(
+            "forbidden",
+            "User can not use bastion",
+            traceback.format_exc(),
+        )
+
+    if not can_use_bastion_individual_domains(payload):
+        raise Error(
+            "forbidden",
+            "User can not use individual bastion domains",
+            traceback.format_exc(),
+        )
+
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request",
+            "Desktop bastion update incorrect body data",
+            traceback.format_exc(),
+        )
+
+    if "domains" not in data:
+        raise Error(
+            "bad_request",
+            "Domains list is required",
+            traceback.format_exc(),
+        )
+
+    domains = data["domains"]
+    if not isinstance(domains, list):
+        raise Error(
+            "bad_request",
+            "Domains must be a list",
+            traceback.format_exc(),
+        )
+
+    # Filter out empty/whitespace-only strings early
+    domains = [d.strip() for d in domains if d and d.strip()]
+
+    if len(domains) > 10:
+        raise Error(
+            "bad_request",
+            "Maximum 10 domains allowed",
+            traceback.format_exc(),
+        )
+
+    target = targets.get_domain_target(desktop_id)
+    old_domains = set(target.get("domains", []))
+
+    # Check duplicates for all domains (validates format before DNS)
+    checkDuplicateBastionDomains(domains, target_id=target["id"])
+
+    # DNS verification only for NEW domains (not already saved)
+    if bastion_domain_verification_required():
+        for domain in domains:
+            if domain not in old_domains:
+                check_bastion_domain_dns(
+                    domain,
+                    f"{target['id']}.{get_bastion_domain(payload['category_id'])}",
+                    kind="cname",
+                )
+
+    targets.update_domain_target(desktop_id, {"domains": domains})
+
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/desktop/<desktop_id>/bastion/domain/verify", methods=["POST"])
+@has_token
+def api_v3_verify_bastion_domain(payload, desktop_id):
+    """Verify a single domain's DNS without saving. Returns success if CNAME is valid."""
+    ownsDomainId(payload, desktop_id)
+    if can_use_bastion(payload) == False:
+        raise Error(
+            "forbidden",
+            "User can not use bastion",
+            traceback.format_exc(),
+        )
+
+    if not can_use_bastion_individual_domains(payload):
+        raise Error(
+            "forbidden",
+            "User can not use individual bastion domains",
+            traceback.format_exc(),
+        )
+
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request",
+            "Incorrect body data",
+            traceback.format_exc(),
+        )
+
+    domain = data.get("domain", "").strip()
+    if not domain:
+        raise Error(
+            "bad_request",
+            "Domain is required",
+            traceback.format_exc(),
+        )
+
+    target = targets.get_domain_target(desktop_id)
+
+    # Check for duplicates (excluding current target)
+    checkDuplicateBastionDomains([domain], target_id=target["id"])
+
+    # Verify DNS
+    if bastion_domain_verification_required():
+        check_bastion_domain_dns(
+            domain,
+            f"{target['id']}.{get_bastion_domain(payload['category_id'])}",
+            kind="cname",
+        )
+
+    return json.dumps({"verified": True}), 200, {"Content-Type": "application/json"}
+
+
+# Backward compatibility endpoint for single domain
 @app.route("/api/v3/desktop/<desktop_id>/bastion/domain", methods=["PUT"])
 @has_token
 def api_v3_update_bastion_target_domain_name(payload, desktop_id):
@@ -156,18 +282,22 @@ def api_v3_update_bastion_target_domain_name(payload, desktop_id):
             traceback.format_exc(),
         )
 
-    target = targets.get_domain_target(desktop_id)
-    target["domain"] = data["domain"]
+    # Convert single domain to array format
+    domain = data["domain"]
+    domains = [domain] if domain else []
 
-    if isinstance(data["domain"], str) and bastion_domain_verification_required():
+    target = targets.get_domain_target(desktop_id)
+
+    if domain and bastion_domain_verification_required():
         check_bastion_domain_dns(
-            data["domain"],
+            domain,
             f"{target['id']}.{get_bastion_domain(payload['category_id'])}",
             kind="cname",
         )
-    checkDuplicateBastionDomain(data["domain"], target_id=target["id"])
 
-    targets.update_domain_target(desktop_id, target)
+    checkDuplicateBastionDomains(domains, target_id=target["id"])
+
+    targets.update_domain_target(desktop_id, {"domains": domains})
 
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 

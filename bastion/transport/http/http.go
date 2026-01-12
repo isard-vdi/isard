@@ -328,7 +328,7 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 			return
 		}
 
-		if currentTarget.Domain != targetURL {
+		if !currentTarget.HasDomain(targetURL) {
 			switch currentCategory.BastionDomain {
 			case "":
 				if currentConfig.Bastion.Domain != "" && currentConfig.Bastion.Domain != targetURL {
