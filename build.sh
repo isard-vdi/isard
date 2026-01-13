@@ -593,13 +593,13 @@ create_docker_compose_file(){
 	if [ "$TEMPO" != "true" ]
 	then
 		echo "Clean Tempo vars"
-		sed -i '/TEMPO.*/d' docker-compose*.yml
+		sed -i '/\bTEMPO.*/d' docker-compose*.yml
 	fi
 
 	if [ "$PYROSCOPE_EBPF" != "true" ]
 	then
 		echo "Clean Pyroscope"
-		sed -i '/PYROSCOPE.*/d' docker-compose*.yml
+		sed -i '/\bPYROSCOPE.*/d' docker-compose*.yml
 	fi
 
 
