@@ -62,7 +62,7 @@ type TunnelMap struct {
 	tunnelTimeout time.Duration
 
 	// Map of all tunnels that are using HTTP, indexed by tunnel UUID.
-	tunnelMap     map[string]*LastAccessedTunnel
+	tunnelMap map[string]*LastAccessedTunnel
 }
 
 // NewTunnelMap creates a new TunnelMap and starts the scheduled job with the default timeout.

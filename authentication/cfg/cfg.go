@@ -133,7 +133,7 @@ type AuthenticationSAML struct {
 	RoleDefault     model.Role `mapstructure:"role_default"`
 
 	LogoutRedirectURL string `mapstructure:"logout_redirect_url"`
-	SaveEmail bool `mapstructure:"save_email"`
+	SaveEmail         bool   `mapstructure:"save_email"`
 }
 
 type AuthenticationGoogle struct {
