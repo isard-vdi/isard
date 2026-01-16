@@ -76,7 +76,7 @@ services:
       # Alloy
       - ${BUILD_ROOT_PATH}/docker/grafana-alloy:/usr/local/etc/alloy:ro
       - type: bind
-        source: /opt/isard/stats/alloy
+        source: /opt/isard-local/stats/alloy
         target: /var/lib/alloy/data
         bind: {create_host_path: true}
       # Cadvisor and Node Exporter
