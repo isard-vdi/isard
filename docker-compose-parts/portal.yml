@@ -19,7 +19,7 @@ services:
         target: 443
         mode: host
     volumes:
-      - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw
+      - /opt/isard/certs/acme:/etc/acme:rw
       - /opt/isard/certs/default:/certs:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
@@ -27,7 +27,7 @@ services:
       - /opt/isard-local/haproxy/cfg:/usr/local/etc/haproxy/cfg/customs
       - /opt/isard-local/haproxy/spoe:/usr/local/etc/haproxy/spoe
     environment:
-      CFG: portal
+      FLAVOUR: ${FLAVOUR:-all-in-one}
       FORBID_DOMAIN_IP: ${FORBID_DOMAIN_IP:-false}
       CORS: ${CORS:-*}
       BASTION_DOMAIN: ${BASTION_DOMAIN:-${DOMAIN}}

@@ -1,7 +1,7 @@
 services:
   isard-vpn:
-    container_name: isard-vpn 
-    image: ${DOCKER_IMAGE_PREFIX}vpn:${DOCKER_IMAGE_TAG:-latest}     
+    container_name: isard-vpn
+    image: ${DOCKER_IMAGE_PREFIX}vpn:${DOCKER_IMAGE_TAG:-latest}
     logging:
       driver: "json-file"
       options:
@@ -14,7 +14,7 @@ services:
         hard: 65536
     cap_add:
       - NET_ADMIN
-      - SYS_MODULE  
+      - SYS_MODULE
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.23
@@ -37,8 +37,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     env_file:
-      - .env  
+      - .env
     environment:
       # OVS Security Configuration (automatic based on API_DOMAIN)
       API_DOMAIN: ${API_DOMAIN:-}
-

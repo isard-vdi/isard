@@ -17,7 +17,7 @@ services:
       - published: ${VIEWER_BROWSER:-443}
         target: 443
     volumes:
-      - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw
+      - /opt/isard/certs/acme:/etc/acme:rw
       - /opt/isard/certs/default:/certs:rw
       - /opt/isard-local/environment:/usr/local/etc/environment
       - /etc/timezone:/etc/timezone:ro
@@ -26,7 +26,7 @@ services:
       - /opt/isard-local/haproxy/cfg:/usr/local/etc/haproxy/cfg/customs
       - /opt/isard-local/haproxy/spoe:/usr/local/etc/haproxy/spoe
     environment:
-      CFG: video
+      FLAVOUR: ${FLAVOUR:-all-in-one}
       ENV: /usr/local/etc/environment
       FORBID_DOMAIN_IP: ${FORBID_DOMAIN_IP:-false}
       CORS: ${CORS:-*}

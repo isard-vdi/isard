@@ -94,17 +94,22 @@ DIRECTVIEWER_MODE=browser
 API_ISARDVDI_SECRET=kpWpdF0NtI2XCEfzMp36hdSV9S42E7axS8D5TvP9c0A=
 API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 
-# ------ Letsencrypt certificate ---------------------------------------------
+# ------ ACME SSL certificate ---------------------------------------------
 ## You can use your own certificates if you concatenate into 
 ## /opt/isard/certs/default/chain.pem
 ## You can let isard generate autosigned certs (not recommended as
 ## html5 viewers will not work.
-## Or you can let isard generate letsencrypt certs for your domain.
+## Or you can let isard generate ACME certs for your domain.
 ## For this option to work be sure the DOMAIN points to this IP.
-## To avoid using letsencrypt let this variable commented.
-## The email will be used by letsencrypt to notify you expirations
-## although the renovation will be automatic.
-#LETSENCRYPT_EMAIL=
+## To avoid using ACME certs, let this variable commented.
+#ACME_EMAIL=
+## The following variable lets you configure the ACME CA that will be used
+## for certificate generation. Some values can be
+## - letsencrypt
+## - letsencrypt_test
+## - zerossl
+## Full list is in the CA_NAMES variable: https://github.com/acmesh-official/acme.sh/blob/master/acme.sh#L40
+#ACME_SERVER="letsencrypt"
 
 # ------ Sessions ------------------------------------------------------------
 # Maximum valid session time. If this duration is exceeded, the user won't be able to renew
@@ -369,7 +374,7 @@ GOLANG_BUILD_IMAGE=golang:1.24.3-alpine3.22
 GOLANG_RUN_IMAGE=alpine:3.22.0
 
 # Image used in haproxy.build flavour to build base for all the HAProxy's
-HAPROXY_RUN_IMAGE=haproxy:3.2-alpine3.22
+HAPROXY_RUN_IMAGE=haproxy:3.3-alpine3.22
 
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO
@@ -560,8 +565,8 @@ HAPROXY_LOGGING=.
 # ------ Video proxy host ----------------------------------------------------
 ## Where will the client browser reach isard-video to this host?
 ## Need to be set for flavours: 
-##   - video-standalone (to generate letsencrypt certs)
-##   - hypervisor (to generate letsencrypt certs and set up hyper in db)
+##   - video-standalone (to generate ACME certs)
+##   - hypervisor (to generate ACME certs and set up hyper in db)
 ##   - hypervisor-standalone ( to set up hyper in db)
 #VIDEO_DOMAIN=$DOMAIN
 

@@ -2,6 +2,7 @@ package haproxy
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/rs/zerolog"
 )
@@ -34,6 +35,15 @@ type SyncResult struct {
 	IndividualRemoved int32
 }
 
+func (s *Syncer) PrefixSubdomain(domain string) string {
+	return "." + domain
+}
+
+func (s *Syncer) RemovePrefixSubdomain(subdomain string) string {
+	sub, _ := strings.CutPrefix(subdomain, ".")
+	return sub
+}
+
 // SyncSubdomains synchronizes subdomain map with desired state
 func (s *Syncer) SyncSubdomains(desiredDomains []string) (*SyncResult, error) {
 	result := &SyncResult{}
@@ -47,7 +57,7 @@ func (s *Syncer) SyncSubdomains(desiredDomains []string) (*SyncResult, error) {
 	// Convert to maps for efficient lookup
 	current := make(map[string]bool)
 	for _, domain := range currentDomains {
-		current[domain] = true
+		current[s.RemovePrefixSubdomain(domain)] = true
 	}
 
 	desired := make(map[string]bool)
@@ -60,7 +70,7 @@ func (s *Syncer) SyncSubdomains(desiredDomains []string) (*SyncResult, error) {
 	// Find domains to add (in desired but not in current)
 	for domain := range desired {
 		if !current[domain] {
-			if err := s.socket.AddMap(s.subdomPath, domain); err != nil {
+			if err := s.socket.AddMap(s.subdomPath, s.PrefixSubdomain(domain)); err != nil {
 				s.log.Error().
 					Err(err).
 					Str("domain", domain).
@@ -75,7 +85,7 @@ func (s *Syncer) SyncSubdomains(desiredDomains []string) (*SyncResult, error) {
 	// Find domains to remove (in current but not in desired)
 	for domain := range current {
 		if !desired[domain] {
-			if err := s.socket.DelMap(s.subdomPath, domain); err != nil {
+			if err := s.socket.DelMap(s.subdomPath, s.PrefixSubdomain(domain)); err != nil {
 				s.log.Error().
 					Err(err).
 					Str("domain", domain).
@@ -203,7 +213,7 @@ func (s *Syncer) AddSubdomain(domain string) error {
 	}
 
 	// Add to HAProxy
-	if err := s.socket.AddMap(s.subdomPath, domain); err != nil {
+	if err := s.socket.AddMap(s.subdomPath, s.PrefixSubdomain(domain)); err != nil {
 		return fmt.Errorf("add to HAProxy: %w", err)
 	}
 
@@ -227,7 +237,7 @@ func (s *Syncer) DeleteSubdomain(domain string) error {
 	}
 
 	// Remove from HAProxy
-	if err := s.socket.DelMap(s.subdomPath, domain); err != nil {
+	if err := s.socket.DelMap(s.subdomPath, s.PrefixSubdomain(domain)); err != nil {
 		return fmt.Errorf("delete from HAProxy: %w", err)
 	}
 

@@ -1,4 +1,6 @@
 cd /certs
+mkdir self-signed
+cd self-signed
 
 # Self signed cert generic data
 C=CA
@@ -28,5 +30,7 @@ openssl x509 -req -days 9999 -in server-key.csr -CA ca-cert.pem -CAkey ca-key.pe
           -set_serial $RND -sha256 -out server-cert.pem
 
 echo '#### Concatenate certs for haprox'
-cat server-cert.pem server-key.pem > chain.pem
+cat server-cert.pem server-key.pem > ../chain.pem
 chmod 440 *
+cd ../
+chmod 440 chain.pem
