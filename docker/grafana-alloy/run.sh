@@ -21,4 +21,5 @@ fi
 alloy run \
         --storage.path=/var/lib/alloy/data \
         --server.http.listen-addr=0.0.0.0:12345 \
+        --server.http.ui-path-prefix=/debug/grafana-alloy \
         /etc/alloy
