@@ -391,6 +391,21 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 		}
 		proxyLog.Info().Str("local_addr_to_target", targetConn.LocalAddr().String()).Str("remote_addr_to_target", targetConn.RemoteAddr().String()).Msg("Connection to target established")
 
+		// Send PROXY Protocol v2 header to forward real client IP to guest
+		if remoteIP != "" && remotePort != "" {
+			targetConn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			if err := sendProxyProtocolV2(targetConn, remoteIP, remotePort, *currentDesktop.Viewer.GuestIP, targetPort); err != nil {
+				proxyLog.Error().Err(err).Msg("Failed to send PROXY protocol v2 header")
+				targetConn.Close()
+				if attempt == maxAttempts-1 {
+					return
+				}
+				continue
+			}
+			targetConn.SetWriteDeadline(time.Time{})
+			proxyLog.Debug().Msg("Sent PROXY protocol v2 header to target")
+		}
+
 		// Always replay peeked data if available (not just on first attempt)
 		if len(originalPeekedData) > 0 {
 			proxyLog.Debug().Int("bytes_to_replay", len(originalPeekedData)).Msg("Replaying initial peeked bytes to target")
@@ -478,4 +493,52 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 		}
 	}
 	baseLog.Info().Msg("handleProxy finished after all attempts")
+}
+
+// sendProxyProtocolV2 sends a PROXY Protocol v2 header to the target connection
+// to forward the real client IP address
+func sendProxyProtocolV2(targetConn net.Conn, remoteIP string, remotePort string, destIP string, destPort int) error {
+	srcPort, err := strconv.Atoi(remotePort)
+	if err != nil {
+		return fmt.Errorf("parse remote port: %w", err)
+	}
+
+	srcIP := net.ParseIP(remoteIP)
+	if srcIP == nil {
+		return fmt.Errorf("parse remote IP: %s", remoteIP)
+	}
+
+	dstIP := net.ParseIP(destIP)
+	if dstIP == nil {
+		return fmt.Errorf("parse destination IP: %s", destIP)
+	}
+
+	// Determine transport protocol based on IP version
+	var transportProtocol proxyproto.AddressFamilyAndProtocol
+	if srcIP.To4() != nil {
+		transportProtocol = proxyproto.TCPv4
+	} else {
+		transportProtocol = proxyproto.TCPv6
+	}
+
+	header := &proxyproto.Header{
+		Version:           2,
+		Command:           proxyproto.PROXY,
+		TransportProtocol: transportProtocol,
+		SourceAddr: &net.TCPAddr{
+			IP:   srcIP,
+			Port: srcPort,
+		},
+		DestinationAddr: &net.TCPAddr{
+			IP:   dstIP,
+			Port: destPort,
+		},
+	}
+
+	_, err = header.WriteTo(targetConn)
+	if err != nil {
+		return fmt.Errorf("write proxy protocol header: %w", err)
+	}
+
+	return nil
 }
