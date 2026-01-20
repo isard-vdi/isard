@@ -450,25 +450,146 @@ class hyp(object):
 
             # set_hyp_status(self.hostname,status_code)
 
+    def _get_nvidia_pci_ids(self):
+        """Quick scan to get list of NVIDIA PCI device IDs with model info.
+
+        This is a fast operation that only lists device names and models,
+        not full capabilities. Used to detect hardware changes.
+
+        Returns:
+            dict: Mapping of PCI bus ID to GPU model (e.g., {"pci_0000_41_00_0": "A40"})
+                  Returns empty dict on error.
+        """
+        try:
+            libvirt_mdev_names = self.conn.listDevices("mdev_types")
+            if not libvirt_mdev_names:
+                return {}
+
+            # Convert to PCI IDs (same logic as get_nvidia_capabilities)
+            pci_names = list(set([a[:-3] + "0_0" for a in libvirt_mdev_names]))
+            pci_devices = [
+                a for a in self.conn.listAllDevices() if a.name() in pci_names
+            ]
+
+            # Filter to only NVIDIA driver devices and extract model
+            nvidia_pci_info = {}
+            for dev in pci_devices:
+                xml_dict = xmltodict.parse(dev.XMLDesc())
+                if xml_dict["device"].get("driver", {}).get("name") == "nvidia":
+                    name = dev.name()
+                    # Get device PCI ID to determine model
+                    device_pci_id = int(
+                        xml_dict["device"]["capability"]["product"]["@id"], base=0
+                    )
+                    if device_pci_id in devid_nvidia_ampere.keys():
+                        model = devid_nvidia_ampere[device_pci_id]
+                    else:
+                        model = "UNKNOWN"
+                    nvidia_pci_info[name] = model
+
+            return nvidia_pci_info
+        except Exception as e:
+            logs.workers.warning(
+                f"[{self.id_hyp_rethink}] Could not get NVIDIA PCI IDs: {e}"
+            )
+            return {}
+
     def get_info_from_hypervisor(
         self, nvidia_enabled=False, force_get_hyp_info=False, init_vgpu_profiles=False
     ):
+        """Get hypervisor info, auto-detecting GPU hardware changes.
+
+        The force_get_hyp_info parameter is DEPRECATED and ignored.
+        GPU hardware changes are now auto-detected by comparing PCI IDs.
+        """
+        logs.workers.info(f"[{self.id_hyp_rethink}] Getting hypervisor info...")
+
+        # Warn if deprecated parameter is used
+        if force_get_hyp_info:
+            logs.workers.warning(
+                f"[{self.id_hyp_rethink}] DEPRECATED: force_get_hyp_info is set but ignored. "
+                f"GPU hardware changes are now auto-detected."
+            )
+
+        # Step 1: Load cached info from database
         info = self.info = get_hyp_info(self.id_hyp_rethink)
-        if (
-            info is False
-            or (type(info) == dict and len(info) < 1)
-            or force_get_hyp_info is True
-        ):
+        has_cached_info = info is not False and isinstance(info, dict) and len(info) > 0
+
+        if has_cached_info:
+            logs.workers.info(f"[{self.id_hyp_rethink}] Found cached hypervisor info")
+        else:
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] No cached info, will scan hypervisor"
+            )
+
+        # Step 2: Check for GPU hardware changes (if nvidia enabled and has cache)
+        needs_rescan = not has_cached_info
+
+        if has_cached_info and nvidia_enabled:
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Checking for GPU hardware changes..."
+            )
+
+            # Get cached GPU info: {pci_id: model}
+            cached_gpu_info = info.get("nvidia", {})
+            # Get current GPU info from hypervisor
+            current_gpu_info = self._get_nvidia_pci_ids()
+
+            logs.workers.debug(
+                f"[{self.id_hyp_rethink}] Cached GPU info: {cached_gpu_info}"
+            )
+            logs.workers.debug(
+                f"[{self.id_hyp_rethink}] Current GPU info: {current_gpu_info}"
+            )
+
+            # Compare both PCI IDs and models
+            if cached_gpu_info != current_gpu_info:
+                cached_pci_ids = set(cached_gpu_info.keys())
+                current_pci_ids = set(current_gpu_info.keys())
+                added = current_pci_ids - cached_pci_ids
+                removed = cached_pci_ids - current_pci_ids
+
+                # Check for model changes in same slots
+                model_changes = []
+                for pci_id in cached_pci_ids & current_pci_ids:
+                    if cached_gpu_info.get(pci_id) != current_gpu_info.get(pci_id):
+                        model_changes.append(
+                            f"{pci_id}: {cached_gpu_info.get(pci_id)} -> {current_gpu_info.get(pci_id)}"
+                        )
+
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] GPU hardware changed! "
+                    f"Added: {added or 'none'}, Removed: {removed or 'none'}, "
+                    f"Model changes: {model_changes or 'none'}"
+                )
+                needs_rescan = True
+            else:
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] GPU hardware unchanged "
+                    f"({len(current_gpu_info)} cards), using cached info"
+                )
+
+        # Step 3: Rescan if needed, otherwise use cache
+        if needs_rescan:
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Scanning hypervisor capabilities..."
+            )
             self.info = {}
             self.get_kvm_mod()
             self.get_hyp_info(nvidia_enabled)
-            logs.workers.debug(
-                "hypervisor motherboard: {}".format(
-                    self.info["motherboard_manufacturer"]
-                )
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Hypervisor scan complete: "
+                f"{self.info.get('cpu_model', 'unknown')} CPU, "
+                f"{len(self.info.get('nvidia', {}))} GPU cards"
             )
             update_db_hyp_info(self.id_hyp_rethink, self.info)
+
+            # Generate UUIDs for GPUs if found
             if len(self.info_nvidia) > 0:
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] Generating mdev UUIDs for "
+                    f"{len(self.info_nvidia)} GPU cards..."
+                )
                 d = update_db_hyp_nvidia_info(self.id_hyp_rethink, self.info_nvidia)
                 # CREATE UUIDS and SELECT vgpu_profile
                 index_vgpu_profile = {}
@@ -497,6 +618,8 @@ class hyp(object):
 
                     # self.info_nvidia[pci_bus]["vgpu_profile"] = vgpu_profile
                     update_vgpu_profile(vgpu_id, vgpu_profile)
+        else:
+            logs.workers.info(f"[{self.id_hyp_rethink}] Using cached hypervisor info")
 
     def load_info_from_db(self):
         self.info = get_hyp_info(self.id_hyp_rethink)
@@ -1326,7 +1449,7 @@ class hyp(object):
         }
 
         # Update database
-        from engine.services.db import new_rethink_connection, close_rethink_connection
+        from engine.services.db import close_rethink_connection, new_rethink_connection
         from rethinkdb import r
 
         r_conn = new_rethink_connection()

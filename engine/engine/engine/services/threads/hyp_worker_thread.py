@@ -265,20 +265,30 @@ class HypWorkerThread(threading.Thread):
     def _initialize_hypervisor_info(
         self, nvidia_enabled, force_get_hyp_info, init_vgpu_profiles
     ):
-        """Initialize hypervisor information"""
+        """Initialize hypervisor information
+
+        Note: force_get_hyp_info parameter is DEPRECATED and ignored.
+        GPU hardware changes are now auto-detected by the engine.
+        """
         logs.workers.info(
             f"[{self.hyp_id}] Starting hypervisor info initialization "
-            f"(nvidia_enabled={nvidia_enabled}, force_get_hyp_info={force_get_hyp_info})"
+            f"(nvidia_enabled={nvidia_enabled})"
         )
+        if force_get_hyp_info:
+            logs.workers.warning(
+                f"[{self.hyp_id}] DEPRECATED: force_get_hyp_info is set but ignored. "
+                f"GPU hardware changes are now auto-detected."
+            )
         try:
             # Step 1: Get info from hypervisor
             logs.workers.info(
                 f"[{self.hyp_id}] Step 1/4: Getting info from hypervisor..."
             )
             step_start = time.time()
+            # Note: force_get_hyp_info is passed but ignored by get_info_from_hypervisor()
             self.h.get_info_from_hypervisor(
                 nvidia_enabled=nvidia_enabled,
-                force_get_hyp_info=force_get_hyp_info,
+                force_get_hyp_info=False,  # Always pass False - auto-detection handles this
                 init_vgpu_profiles=init_vgpu_profiles,
             )
             logs.workers.info(

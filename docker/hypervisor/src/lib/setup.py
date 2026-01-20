@@ -70,9 +70,9 @@ def SetupHypervisor():
         "nvidia_enabled": (
             True if os.environ.get("GPU_NVIDIA_SCAN") == "true" else False
         ),
-        "force_get_hyp_info": (
-            True if os.environ.get("GPU_NVIDIA_RESCAN") == "true" else False
-        ),
+        # DEPRECATED: force_get_hyp_info is ignored - engine auto-detects GPU changes
+        # Kept as False for backwards compatibility with older API versions
+        "force_get_hyp_info": False,
         "min_free_mem_gb": os.environ.get("HYPER_FREEMEM", "0"),
         "min_free_gpu_mem_gb": os.environ.get("GPU_ONLY_MEM", "0"),
         "storage_pools": os.environ.get(
