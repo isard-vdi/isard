@@ -10,6 +10,10 @@ FROM ${DOCKER_IMAGE_PREFIX}rdpgw:$DOCKER_IMAGE_TAG as rdpgw
 FROM alpine:3.22.0 as production
 MAINTAINER isard <info@isardvdi.com>
 
+RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
+RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
+
 RUN apk -U upgrade --no-cache
 
 RUN apk add --no-cache \
@@ -22,9 +26,9 @@ RUN apk add --no-cache \
     # For python-iptables
     iptables-legacy \
     # For guacd (RDP Web)
-    guacamole-server \
-    guacamole-server-dev \
-    guacamole-server-rdp \
+    guacamole-server@community \
+    guacamole-server-dev@community \
+    guacamole-server-rdp@community \
     # For RDP stats
     conntrack-tools \
     # For the aplication itself
@@ -54,7 +58,8 @@ RUN apk add --no-cache --virtual .build_deps \
     libnftnl-dev \
     git && \
     pip3 install --break-system-package --no-cache-dir  -r requirements.txt && \
-    apk del .build_deps
+    rm requirements.txt
+    # apk del .build_deps
 
 # Required for python-iptables
 ENV XTABLES_LIBDIR=/usr/lib/xtables
