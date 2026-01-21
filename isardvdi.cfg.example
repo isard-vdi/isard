@@ -1,4 +1,4 @@
-# Isard main config v2.30.0
+# Isard main config v2.31.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -400,8 +400,9 @@ HAPROXY_LOGGING=.
 ##                 will also setup them.
 #GPU_NVIDIA_SCAN=false
 
-## Enabled existing hyper: Existing hyper will be scanned for NVIDIA GPUs
-##                         when enabled (from disabled) at web interface.
+## DEPRECATED: GPU_NVIDIA_RESCAN is no longer needed.
+## The engine now auto-detects GPU hardware changes by comparing PCI IDs.
+## This variable is ignored if set - kept only for backwards compatibility.
 #GPU_NVIDIA_RESCAN=false
 
 ## Only start desktops with GPU reservables (avoid )

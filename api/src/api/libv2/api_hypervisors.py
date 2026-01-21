@@ -299,7 +299,7 @@ class ApiHypervisors:
         isard_proxy_hyper_url="isard-hypervisor",
         isard_hyper_vpn_host="isard-vpn",
         nvidia_enabled=False,
-        force_get_hyp_info=False,
+        force_get_hyp_info=False,  # DEPRECATED: ignored, engine auto-detects GPU changes
         user="root",
         only_forced=False,
         min_free_mem_gb=0,
@@ -311,6 +311,7 @@ class ApiHypervisors:
         buffering_hyper=False,
         gpu_only=False,
     ):
+        # Note: force_get_hyp_info parameter is deprecated and ignored
         data = {}
 
         # Check if it is in database
@@ -421,7 +422,7 @@ class ApiHypervisors:
         isard_proxy_hyper_url="isard-hypervisor",
         isard_hyper_vpn_host="isard-vpn",
         nvidia_enabled=False,
-        force_get_hyp_info=False,
+        force_get_hyp_info=False,  # DEPRECATED: ignored, engine auto-detects GPU changes
         user="root",
         only_forced=False,
         min_free_mem_gb=0,
@@ -433,6 +434,7 @@ class ApiHypervisors:
         buffering_hyper=False,
         gpu_only=False,
     ):
+        # Note: force_get_hyp_info parameter is deprecated and ignored
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
             return False
@@ -465,7 +467,9 @@ class ApiHypervisors:
             "info": {},
             "only_forced": only_forced,
             "nvidia_enabled": nvidia_enabled,
-            "force_get_hyp_info": force_get_hyp_info,
+            # DEPRECATED: force_get_hyp_info is ignored - engine auto-detects GPU changes
+            # Always stored as False for backwards compatibility
+            "force_get_hyp_info": False,
             "min_free_mem_gb": min_free_mem_gb,
             "min_free_gpu_mem_gb": min_free_gpu_mem_gb,
             "storage_pools": storage_pools,

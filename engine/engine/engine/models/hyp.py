@@ -46,6 +46,7 @@ from engine.services.db.domains import (
 )
 from engine.services.db.hypervisors import get_hypervisor
 from engine.services.lib.functions import (
+    SSHTimeoutError,
     calcule_cpu_hyp_stats,
     exec_remote_cmd,
     execute_commands,
@@ -449,25 +450,146 @@ class hyp(object):
 
             # set_hyp_status(self.hostname,status_code)
 
+    def _get_nvidia_pci_ids(self):
+        """Quick scan to get list of NVIDIA PCI device IDs with model info.
+
+        This is a fast operation that only lists device names and models,
+        not full capabilities. Used to detect hardware changes.
+
+        Returns:
+            dict: Mapping of PCI bus ID to GPU model (e.g., {"pci_0000_41_00_0": "A40"})
+                  Returns empty dict on error.
+        """
+        try:
+            libvirt_mdev_names = self.conn.listDevices("mdev_types")
+            if not libvirt_mdev_names:
+                return {}
+
+            # Convert to PCI IDs (same logic as get_nvidia_capabilities)
+            pci_names = list(set([a[:-3] + "0_0" for a in libvirt_mdev_names]))
+            pci_devices = [
+                a for a in self.conn.listAllDevices() if a.name() in pci_names
+            ]
+
+            # Filter to only NVIDIA driver devices and extract model
+            nvidia_pci_info = {}
+            for dev in pci_devices:
+                xml_dict = xmltodict.parse(dev.XMLDesc())
+                if xml_dict["device"].get("driver", {}).get("name") == "nvidia":
+                    name = dev.name()
+                    # Get device PCI ID to determine model
+                    device_pci_id = int(
+                        xml_dict["device"]["capability"]["product"]["@id"], base=0
+                    )
+                    if device_pci_id in devid_nvidia_ampere.keys():
+                        model = devid_nvidia_ampere[device_pci_id]
+                    else:
+                        model = "UNKNOWN"
+                    nvidia_pci_info[name] = model
+
+            return nvidia_pci_info
+        except Exception as e:
+            logs.workers.warning(
+                f"[{self.id_hyp_rethink}] Could not get NVIDIA PCI IDs: {e}"
+            )
+            return {}
+
     def get_info_from_hypervisor(
         self, nvidia_enabled=False, force_get_hyp_info=False, init_vgpu_profiles=False
     ):
+        """Get hypervisor info, auto-detecting GPU hardware changes.
+
+        The force_get_hyp_info parameter is DEPRECATED and ignored.
+        GPU hardware changes are now auto-detected by comparing PCI IDs.
+        """
+        logs.workers.info(f"[{self.id_hyp_rethink}] Getting hypervisor info...")
+
+        # Warn if deprecated parameter is used
+        if force_get_hyp_info:
+            logs.workers.warning(
+                f"[{self.id_hyp_rethink}] DEPRECATED: force_get_hyp_info is set but ignored. "
+                f"GPU hardware changes are now auto-detected."
+            )
+
+        # Step 1: Load cached info from database
         info = self.info = get_hyp_info(self.id_hyp_rethink)
-        if (
-            info is False
-            or (type(info) == dict and len(info) < 1)
-            or force_get_hyp_info is True
-        ):
+        has_cached_info = info is not False and isinstance(info, dict) and len(info) > 0
+
+        if has_cached_info:
+            logs.workers.info(f"[{self.id_hyp_rethink}] Found cached hypervisor info")
+        else:
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] No cached info, will scan hypervisor"
+            )
+
+        # Step 2: Check for GPU hardware changes (if nvidia enabled and has cache)
+        needs_rescan = not has_cached_info
+
+        if has_cached_info and nvidia_enabled:
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Checking for GPU hardware changes..."
+            )
+
+            # Get cached GPU info: {pci_id: model}
+            cached_gpu_info = info.get("nvidia", {})
+            # Get current GPU info from hypervisor
+            current_gpu_info = self._get_nvidia_pci_ids()
+
+            logs.workers.debug(
+                f"[{self.id_hyp_rethink}] Cached GPU info: {cached_gpu_info}"
+            )
+            logs.workers.debug(
+                f"[{self.id_hyp_rethink}] Current GPU info: {current_gpu_info}"
+            )
+
+            # Compare both PCI IDs and models
+            if cached_gpu_info != current_gpu_info:
+                cached_pci_ids = set(cached_gpu_info.keys())
+                current_pci_ids = set(current_gpu_info.keys())
+                added = current_pci_ids - cached_pci_ids
+                removed = cached_pci_ids - current_pci_ids
+
+                # Check for model changes in same slots
+                model_changes = []
+                for pci_id in cached_pci_ids & current_pci_ids:
+                    if cached_gpu_info.get(pci_id) != current_gpu_info.get(pci_id):
+                        model_changes.append(
+                            f"{pci_id}: {cached_gpu_info.get(pci_id)} -> {current_gpu_info.get(pci_id)}"
+                        )
+
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] GPU hardware changed! "
+                    f"Added: {added or 'none'}, Removed: {removed or 'none'}, "
+                    f"Model changes: {model_changes or 'none'}"
+                )
+                needs_rescan = True
+            else:
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] GPU hardware unchanged "
+                    f"({len(current_gpu_info)} cards), using cached info"
+                )
+
+        # Step 3: Rescan if needed, otherwise use cache
+        if needs_rescan:
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Scanning hypervisor capabilities..."
+            )
             self.info = {}
             self.get_kvm_mod()
             self.get_hyp_info(nvidia_enabled)
-            logs.workers.debug(
-                "hypervisor motherboard: {}".format(
-                    self.info["motherboard_manufacturer"]
-                )
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Hypervisor scan complete: "
+                f"{self.info.get('cpu_model', 'unknown')} CPU, "
+                f"{len(self.info.get('nvidia', {}))} GPU cards"
             )
             update_db_hyp_info(self.id_hyp_rethink, self.info)
+
+            # Generate UUIDs for GPUs if found
             if len(self.info_nvidia) > 0:
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] Generating mdev UUIDs for "
+                    f"{len(self.info_nvidia)} GPU cards..."
+                )
                 d = update_db_hyp_nvidia_info(self.id_hyp_rethink, self.info_nvidia)
                 # CREATE UUIDS and SELECT vgpu_profile
                 index_vgpu_profile = {}
@@ -496,6 +618,8 @@ class hyp(object):
 
                     # self.info_nvidia[pci_bus]["vgpu_profile"] = vgpu_profile
                     update_vgpu_profile(vgpu_id, vgpu_profile)
+        else:
+            logs.workers.info(f"[{self.id_hyp_rethink}] Using cached hypervisor info")
 
     def load_info_from_db(self):
         self.info = get_hyp_info(self.id_hyp_rethink)
@@ -626,14 +750,39 @@ class hyp(object):
             update_table_field("vgpus", gpu_id, "vgpu_profile", new_profile)
 
     def create_mdevs_from_uuids(self):
+        """Create mdev devices from configured UUIDs.
+
+        Creates virtual GPU mdev devices on the hypervisor for each
+        configured UUID that isn't already running.
+        """
+        logs.workers.info(
+            f"[{self.id_hyp_rethink}] Creating mdevs from UUIDs. "
+            f"Processing {len(self.info_nvidia)} PCI devices..."
+        )
+
         d_mdevs_running = self.get_mdevs_with_domains()
+        logs.workers.debug(
+            f"[{self.id_hyp_rethink}] Found {len(d_mdevs_running)} mdevs already running"
+        )
+
         for pci_id, d_nvidia in self.info_nvidia.items():
             vgpu_id = "-".join([self.id_hyp_rethink, pci_id])
+            logs.workers.debug(
+                f"[{self.id_hyp_rethink}] Processing PCI device {pci_id} (vgpu_id: {vgpu_id})"
+            )
+
             vgpu_profile = get_vgpu_actual_profile(vgpu_id)
             if vgpu_profile:
+                logs.workers.debug(
+                    f"[{self.id_hyp_rethink}] Changing vGPU profile to {vgpu_profile}"
+                )
                 self.change_vgpu_profile(vgpu_id, vgpu_profile)
             else:
                 vgpu_profile = d_nvidia["vgpu_profile"]
+                logs.workers.debug(
+                    f"[{self.id_hyp_rethink}] Using default vGPU profile: {vgpu_profile}"
+                )
+
             cmds = []
             base_path = d_nvidia["path"]
             sub_paths = d_nvidia.get("sub_paths", False)
@@ -650,11 +799,19 @@ class hyp(object):
                     cmds.append(
                         f"echo {uuid_create} > '{path}/mdev_supported_types/{type_id}/create'"
                     )
+
             if len(cmds) > 0:
-                array_out_err = execute_commands(self.hostname, cmds, port=self.port)
-                if len([out for out in array_out_err if len(out["err"]) > 0]) == 0:
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] Executing {len(cmds)} mdev create commands for PCI {pci_id}..."
+                )
+                array_out_err = execute_commands(
+                    self.hostname, cmds, port=self.port, timeout=30
+                )
+                errors = [out for out in array_out_err if len(out["err"]) > 0]
+                if len(errors) == 0:
                     logs.workers.info(
-                        f"uuids created for pci_id {pci_id} in hypervisor {self.id_hyp_rethink} with profile {vgpu_profile} with type_id {type_id}"
+                        f"[{self.id_hyp_rethink}] Successfully created {len(cmds)} mdevs for PCI {pci_id} "
+                        f"with profile {vgpu_profile}"
                     )
 
                     for uuid_create in self.mdevs[pci_id][vgpu_profile].keys():
@@ -664,16 +821,55 @@ class hyp(object):
                         self.mdevs[pci_id][vgpu_profile][uuid_create]["created"] = True
                 else:
                     logs.workers.error(
-                        f"uuids NOT created for pci_id {pci_id} in hypervisor {self.id_hyp_rethink} with profile {vgpu_profile} with type_id {type_id}"
+                        f"[{self.id_hyp_rethink}] Failed to create mdevs for PCI {pci_id}: "
+                        f"{len(errors)}/{len(cmds)} commands failed"
                     )
                     for i, d in enumerate(array_out_err):
-                        logs.workers.error(
-                            f"CMD: {cmds[i]} / OUT: {d['out']} / ERROR: {d['err']}"
-                        )
+                        if d["err"]:
+                            logs.workers.error(
+                                f"[{self.id_hyp_rethink}] CMD: {cmds[i][:80]}... / ERROR: {d['err']}"
+                            )
+            else:
+                logs.workers.debug(
+                    f"[{self.id_hyp_rethink}] No new mdevs to create for PCI {pci_id} "
+                    f"(all already running)"
+                )
 
     def init_nvidia(self):
-        self.remove_domains_and_gpus_with_invalids_uuids()
+        """Initialize NVIDIA GPU/vGPU support for this hypervisor.
+
+        Uses reality-first reconciliation:
+        1. Reconcile: Adopt running mdevs into DB, update statuses
+        2. Create: Only create mdevs for empty slots if needed
+
+        Running VMs are NEVER destroyed during initialization.
+        """
+        logs.workers.info(f"[{self.id_hyp_rethink}] Starting NVIDIA initialization...")
+        start_time = time.time()
+
+        # Step 1: Reconcile mdevs with reality (adopt unknown mdevs, update DB)
+        logs.workers.info(
+            f"[{self.id_hyp_rethink}] NVIDIA init step 1/2: Reconciling mdevs with hypervisor reality..."
+        )
+        step_start = time.time()
+        self.reconcile_mdevs_with_reality()
+        logs.workers.info(
+            f"[{self.id_hyp_rethink}] NVIDIA init step 1/2: Completed in {time.time() - step_start:.2f}s"
+        )
+
+        # Step 2: Create mdevs for empty slots (if configured profile needs more)
+        logs.workers.info(
+            f"[{self.id_hyp_rethink}] NVIDIA init step 2/2: Creating mdevs for empty slots..."
+        )
+        step_start = time.time()
         self.create_mdevs_from_uuids()
+        logs.workers.info(
+            f"[{self.id_hyp_rethink}] NVIDIA init step 2/2: Completed in {time.time() - step_start:.2f}s"
+        )
+
+        logs.workers.info(
+            f"[{self.id_hyp_rethink}] NVIDIA initialization completed in {time.time() - start_time:.2f}s"
+        )
 
     def get_kvm_mod(self):
         for i in range(MAX_GET_KVM_RETRIES):
@@ -1161,15 +1357,33 @@ class hyp(object):
             return False, False, False
 
     def get_mdevs_with_domains(self):
+        """Get list of running mdevs and their associated domains.
+
+        Returns:
+            dict: Mapping of mdev UUID to its info (type_id, pci_id, vm_name)
+        """
+        logs.workers.debug(
+            f"[{self.id_hyp_rethink}] Getting mdevs with domains from hypervisor..."
+        )
         cmd = """ls /sys/bus/mdev/devices/ |  xargs -I % bash -c 'echo -n "% / "; cat /sys/bus/mdev/devices/%/nvidia/vm_name' """
         cmd_mdevctl = "mdevctl list"
+
+        logs.workers.debug(
+            f"[{self.id_hyp_rethink}] Executing mdev discovery commands..."
+        )
         array_out_err = execute_commands(
-            self.hostname, [cmd, cmd_mdevctl], port=self.port
+            self.hostname, [cmd, cmd_mdevctl], port=self.port, timeout=30
         )
         uuids_and_vms = array_out_err[0]["out"].splitlines()
         mdev_ctl_list = [
             a for a in array_out_err[1]["out"].splitlines() if len(a.strip()) > 0
         ]
+
+        logs.workers.debug(
+            f"[{self.id_hyp_rethink}] Found {len(uuids_and_vms)} mdev entries, "
+            f"{len(mdev_ctl_list)} mdevctl entries"
+        )
+
         if len(uuids_and_vms) > 0:
             d_mdevs_domains = {
                 b[0].strip(): {"vm_name": b[1].strip()}
@@ -1180,13 +1394,213 @@ class hyp(object):
                 for b in [a.split() for a in mdev_ctl_list]
             }
             [d.update(d_mdevs_domains.get(k, {})) for k, d in d_mdevs.items()]
+            logs.workers.debug(
+                f"[{self.id_hyp_rethink}] Parsed {len(d_mdevs)} running mdevs"
+            )
             return d_mdevs
         else:
+            logs.workers.debug(f"[{self.id_hyp_rethink}] No running mdevs found")
             return {}
 
+    def _get_profile_for_type_id(self, pci_id, type_id):
+        """Find the profile name for a given type_id on a PCI device.
+
+        Args:
+            pci_id: The PCI device ID (e.g., 'pci_0000_06_00_0')
+            type_id: The mdev type ID (e.g., 'nvidia-711')
+
+        Returns:
+            Profile name string or None if not found
+        """
+        if pci_id not in self.mdevs:
+            return None
+        for profile, mdevs in self.mdevs[pci_id].items():
+            for uuid, info in mdevs.items():
+                if info.get("type_id") == type_id:
+                    return profile
+        return None
+
+    def _adopt_mdev_to_db(self, uuid, pci_id, type_id, vm_name, profile):
+        """Adopt a running mdev that's not in the database.
+
+        Adds the mdev to self.mdevs and updates the vgpus table.
+
+        Args:
+            uuid: The mdev UUID
+            pci_id: The PCI device ID
+            type_id: The mdev type ID
+            vm_name: The VM name using this mdev (or empty string)
+            profile: The profile to add this mdev under
+        """
+        vgpu_id = "-".join([self.id_hyp_rethink, pci_id])
+
+        # Add to self.mdevs
+        if pci_id not in self.mdevs:
+            self.mdevs[pci_id] = {}
+        if profile not in self.mdevs[pci_id]:
+            self.mdevs[pci_id][profile] = {}
+
+        self.mdevs[pci_id][profile][uuid] = {
+            "pci_mdev_id": pci_id,
+            "type_id": type_id,
+            "created": True,
+            "domain_started": vm_name if vm_name else False,
+            "domain_reserved": False,
+        }
+
+        # Update database
+        from engine.services.db import close_rethink_connection, new_rethink_connection
+        from rethinkdb import r
+
+        r_conn = new_rethink_connection()
+        try:
+            r.table("vgpus").get(vgpu_id).update(
+                {"mdevs": {profile: {uuid: self.mdevs[pci_id][profile][uuid]}}}
+            ).run(r_conn)
+        finally:
+            close_rethink_connection(r_conn)
+
+    def reconcile_mdevs_with_reality(self):
+        """Reconcile database mdev state with actual hypervisor state.
+
+        PRINCIPLE: Reality wins. Database is updated to match hypervisor.
+        Running VMs are NEVER destroyed during reconciliation.
+
+        This function:
+        1. Gets actual running mdevs from hypervisor
+        2. Compares with database configuration
+        3. Adopts unknown mdevs into database (preserving running VMs)
+        4. Updates status of known mdevs
+        5. Marks non-running DB mdevs as not created
+        6. Only removes mdevs that have no VM and don't match any profile
+        """
+        logs.workers.info(
+            f"[{self.id_hyp_rethink}] Reconciling mdevs with hypervisor reality..."
+        )
+        start_time = time.time()
+
+        # Get actual state from hypervisor
+        running_mdevs = self.get_mdevs_with_domains()
+        logs.workers.info(
+            f"[{self.id_hyp_rethink}] Found {len(running_mdevs)} running mdevs on hypervisor"
+        )
+
+        # Build lookup of all configured UUIDs from database
+        all_db_uuids = {}
+        for pci_id, d_pci in self.mdevs.items():
+            for profile, d in d_pci.items():
+                for uuid, info in d.items():
+                    all_db_uuids[uuid] = {
+                        "pci_id": pci_id,
+                        "profile": profile,
+                        "type_id": info.get("type_id"),
+                        "pci_mdev_id": info.get("pci_mdev_id"),
+                    }
+
+        logs.workers.debug(
+            f"[{self.id_hyp_rethink}] Database has {len(all_db_uuids)} configured mdev UUIDs"
+        )
+
+        adopted_count = 0
+        updated_count = 0
+        orphan_uuids = []  # mdevs to remove (no VM, not in DB)
+
+        # Process each running mdev
+        for uuid, info in running_mdevs.items():
+            vm_name = info.get("vm_name", "")
+            type_id = info.get("type_id", "")
+            pci_id = info.get("pci_id", "")
+
+            if uuid in all_db_uuids:
+                # Known mdev - update its status in database
+                db_info = all_db_uuids[uuid]
+                update_vgpu_uuid_started_in_domain(
+                    hyp_id=self.id_hyp_rethink,
+                    pci_id=db_info["pci_id"],
+                    profile=db_info["profile"],
+                    mdev_uuid=uuid,
+                    domain_id=vm_name if vm_name else False,
+                )
+                # Also mark as created
+                vgpu_id = "-".join([self.id_hyp_rethink, db_info["pci_id"]])
+                update_vgpu_created(vgpu_id, db_info["profile"], uuid, created=True)
+                updated_count += 1
+            else:
+                # Unknown mdev - not in database
+                if vm_name:
+                    # Has running VM - MUST adopt to preserve production workload
+                    profile = self._get_profile_for_type_id(pci_id, type_id)
+                    if profile:
+                        logs.workers.info(
+                            f"[{self.id_hyp_rethink}] Adopting mdev {uuid} with running VM '{vm_name}' "
+                            f"(pci={pci_id}, type={type_id}, profile={profile})"
+                        )
+                        self._adopt_mdev_to_db(uuid, pci_id, type_id, vm_name, profile)
+                        adopted_count += 1
+                    else:
+                        logs.workers.warning(
+                            f"[{self.id_hyp_rethink}] Cannot adopt mdev {uuid} - "
+                            f"no matching profile for type_id={type_id}. VM '{vm_name}' preserved but not tracked."
+                        )
+                else:
+                    # No VM attached - check if we should adopt or remove
+                    profile = self._get_profile_for_type_id(pci_id, type_id)
+                    if profile:
+                        # Matches a known profile - adopt it
+                        logs.workers.info(
+                            f"[{self.id_hyp_rethink}] Adopting orphan mdev {uuid} "
+                            f"(pci={pci_id}, type={type_id}, profile={profile})"
+                        )
+                        self._adopt_mdev_to_db(uuid, pci_id, type_id, "", profile)
+                        adopted_count += 1
+                    else:
+                        # Doesn't match any profile - mark for removal
+                        logs.workers.debug(
+                            f"[{self.id_hyp_rethink}] Orphan mdev {uuid} doesn't match any profile, "
+                            f"marking for removal"
+                        )
+                        orphan_uuids.append(uuid)
+
+        # Mark non-running DB mdevs as not created
+        for uuid, db_info in all_db_uuids.items():
+            if uuid not in running_mdevs:
+                vgpu_id = "-".join([self.id_hyp_rethink, db_info["pci_id"]])
+                update_vgpu_created(vgpu_id, db_info["profile"], uuid, created=False)
+
+        # Remove orphan mdevs (no VM, no matching profile)
+        if orphan_uuids:
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Removing {len(orphan_uuids)} orphan mdevs with no matching profile"
+            )
+            cmds = [
+                f"echo 1 > /sys/bus/mdev/devices/{uuid}/remove" for uuid in orphan_uuids
+            ]
+            try:
+                execute_commands(self.hostname, cmds, port=self.port, timeout=30)
+            except Exception as e:
+                logs.workers.warning(
+                    f"[{self.id_hyp_rethink}] Some orphan mdev removals failed: {e}"
+                )
+
+        elapsed = time.time() - start_time
+        logs.workers.info(
+            f"[{self.id_hyp_rethink}] Reconciliation complete in {elapsed:.2f}s: "
+            f"{adopted_count} adopted, {updated_count} updated, {len(orphan_uuids)} orphans removed"
+        )
+
     def remove_domains_and_gpus_with_invalids_uuids(self):
+        """Remove domains and mdevs with invalid or stale UUIDs.
+
+        Cleans up mdevs that don't match the configured state,
+        and destroys any domains using invalid mdevs.
+        """
+        logs.workers.info(f"[{self.id_hyp_rethink}] Checking for invalid mdev UUIDs...")
+
         # get running mdevs
         d_mdevs_running = self.get_mdevs_with_domains()
+        logs.workers.debug(
+            f"[{self.id_hyp_rethink}] Found {len(d_mdevs_running)} running mdevs to validate"
+        )
 
         # get all uuids
         all_uuids = {}
@@ -1203,15 +1617,26 @@ class hyp(object):
                         "pci_mdev_id": i["pci_mdev_id"],
                     }
 
+        logs.workers.debug(
+            f"[{self.id_hyp_rethink}] Total configured UUIDs: {len(all_uuids)}"
+        )
+
         destroy_domains = []
         remove_uuids = []
 
         for uuid_running, d in d_mdevs_running.items():
             # if uuids not exists in database
             if uuid_running not in all_uuids.keys():
+                # SAFETY CHECK: Never remove mdevs that have running VMs attached
+                # This prevents destroying production workloads when database is out of sync
+                vm_name = d.get("vm_name", "")
+                if vm_name and len(vm_name) > 0:
+                    logs.workers.warning(
+                        f"[{self.id_hyp_rethink}] Skipping removal of mdev {uuid_running} - "
+                        f"has running VM '{vm_name}' attached. Database may be out of sync."
+                    )
+                    continue
                 remove_uuids.append(uuid_running)
-                if len(d.get("vm_name", [])) > 0:
-                    destroy_domains.append(d["vm_name"])
             else:
                 pci_mdev_id_running = d["pci_id"]
                 type_id_running = d["type_id"]
@@ -1238,28 +1663,63 @@ class hyp(object):
                                     domain_id=d["vm_name"],
                                 )
                 else:
+                    # Type or PCI mismatch - but check if VM is running first
+                    vm_name = d.get("vm_name", "")
+                    if vm_name and len(vm_name) > 0:
+                        logs.workers.warning(
+                            f"[{self.id_hyp_rethink}] Skipping removal of mdev {uuid_running} - "
+                            f"type/PCI mismatch but has running VM '{vm_name}'. "
+                            f"Running: type={type_id_running}, pci={pci_mdev_id_running}. "
+                            f"Expected: type={all_uuids[uuid_running]['type_id']}, pci={all_uuids[uuid_running]['pci_mdev_id']}"
+                        )
+                        continue
                     remove_uuids.append(uuid_running)
-                    destroy_domains.append(d["vm_name"])
+
+        if destroy_domains:
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Destroying {len(destroy_domains)} domains with invalid mdevs: {destroy_domains}"
+            )
+        if remove_uuids:
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Removing {len(remove_uuids)} invalid mdev UUIDs"
+            )
 
         for domain_id in destroy_domains:
             domains_to_destroy = {d.name(): d for d in self.conn.listAllDomains()}
             if domain_id in domains_to_destroy.keys():
                 try:
+                    logs.workers.info(
+                        f"[{self.id_hyp_rethink}] Destroying domain {domain_id} (invalid GPU)"
+                    )
                     domains_to_destroy[domain_id].destroy()
                 except Exception as e:
                     logs.main.error(
-                        f"domain {domain_id} with invalid gpu detected is destroyed "
+                        f"[{self.id_hyp_rethink}] Failed to destroy domain {domain_id}: {e}"
                     )
 
-        # cmds_remove_uuids = [f"echo 1 > /sys/bus/mdev/devices/{uuid_remove}/remove" for uuid_remove in remove_uuids]
         cmds_remove_uuids = [
             f"echo 1 > /sys/bus/mdev/devices/{uuid_remove}/remove"
             for uuid_remove in remove_uuids
         ]
         if len(cmds_remove_uuids) > 0:
-            array_out_err = execute_commands(
-                self.hostname, cmds_remove_uuids, port=self.port
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Executing {len(cmds_remove_uuids)} mdev removal commands..."
             )
+            array_out_err = execute_commands(
+                self.hostname, cmds_remove_uuids, port=self.port, timeout=30
+            )
+            errors = [out for out in array_out_err if out.get("err")]
+            if errors:
+                logs.workers.warning(
+                    f"[{self.id_hyp_rethink}] Some mdev removal commands had errors: "
+                    f"{len(errors)}/{len(cmds_remove_uuids)}"
+                )
+            else:
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] Successfully removed {len(cmds_remove_uuids)} invalid mdevs"
+                )
+        else:
+            logs.workers.debug(f"[{self.id_hyp_rethink}] No invalid mdevs to remove")
 
     def create_uuids(self, d_info_gpu):
         d_uuids = {}

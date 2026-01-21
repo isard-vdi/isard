@@ -30,6 +30,7 @@ from engine.services.db import (
 )
 from engine.services.db.hypervisors import update_hyp_thread_status
 from engine.services.lib.functions import (
+    SSHTimeoutError,
     exec_remote_list_of_cmds_dict,
     get_tid,
     update_status_db_from_running_domains,
@@ -222,10 +223,11 @@ class HypWorkerThread(threading.Thread):
 
     def _test_ssh_connection(self, host, port, user):
         """Test SSH connection to the hypervisor"""
+        logs.workers.info(f"[{self.hyp_id}] Testing SSH connection to {host}:{port}...")
         cmds = [{"cmd": "uname -a"}]
         try:
             array_out_err = exec_remote_list_of_cmds_dict(
-                host, cmds, username=user, port=port
+                host, cmds, username=user, port=port, timeout=30
             )
             output = array_out_err[0]["out"]
             logs.main.debug(f"Command: {cmds[0]}, output: {output}")
@@ -233,6 +235,8 @@ class HypWorkerThread(threading.Thread):
             if not output:
                 self._set_error("SSH command output is empty, SSH action failed")
                 return False
+
+            logs.workers.info(f"[{self.hyp_id}] SSH test passed")
 
             # SSH test passed
             launch_killall_curl(self.hostname, user, port)
@@ -249,6 +253,10 @@ class HypWorkerThread(threading.Thread):
             )
             return True
 
+        except SSHTimeoutError as e:
+            logs.workers.error(f"[{self.hyp_id}] SSH connection test timed out: {e}")
+            self._set_error(f"SSH connection test timed out: {e}")
+            return False
         except Exception as e:
             logs.exception_id.debug("0058")
             self._set_error(f"Testing SSH connection failed: {e}")
@@ -257,21 +265,68 @@ class HypWorkerThread(threading.Thread):
     def _initialize_hypervisor_info(
         self, nvidia_enabled, force_get_hyp_info, init_vgpu_profiles
     ):
-        """Initialize hypervisor information"""
+        """Initialize hypervisor information
+
+        Note: force_get_hyp_info parameter is DEPRECATED and ignored.
+        GPU hardware changes are now auto-detected by the engine.
+        """
+        logs.workers.info(
+            f"[{self.hyp_id}] Starting hypervisor info initialization "
+            f"(nvidia_enabled={nvidia_enabled})"
+        )
+        if force_get_hyp_info:
+            logs.workers.warning(
+                f"[{self.hyp_id}] DEPRECATED: force_get_hyp_info is set but ignored. "
+                f"GPU hardware changes are now auto-detected."
+            )
         try:
+            # Step 1: Get info from hypervisor
+            logs.workers.info(
+                f"[{self.hyp_id}] Step 1/4: Getting info from hypervisor..."
+            )
+            step_start = time.time()
+            # Note: force_get_hyp_info is passed but ignored by get_info_from_hypervisor()
             self.h.get_info_from_hypervisor(
                 nvidia_enabled=nvidia_enabled,
-                force_get_hyp_info=force_get_hyp_info,
+                force_get_hyp_info=False,  # Always pass False - auto-detection handles this
                 init_vgpu_profiles=init_vgpu_profiles,
             )
+            logs.workers.info(
+                f"[{self.hyp_id}] Step 1/4: get_info_from_hypervisor completed in {time.time() - step_start:.2f}s"
+            )
 
+            # Step 2: Get system stats
+            logs.workers.info(f"[{self.hyp_id}] Step 2/4: Getting system stats...")
+            step_start = time.time()
             self.h.get_system_stats()
-            self.h.load_info_from_db()
+            logs.workers.info(
+                f"[{self.hyp_id}] Step 2/4: get_system_stats completed in {time.time() - step_start:.2f}s"
+            )
 
-            # Initialize NVIDIA if enabled
+            # Step 3: Load info from database
+            logs.workers.info(
+                f"[{self.hyp_id}] Step 3/4: Loading info from database..."
+            )
+            step_start = time.time()
+            self.h.load_info_from_db()
+            logs.workers.info(
+                f"[{self.hyp_id}] Step 3/4: load_info_from_db completed in {time.time() - step_start:.2f}s"
+            )
+
+            # Step 4: Initialize NVIDIA if enabled
             if nvidia_enabled:
+                logs.workers.info(
+                    f"[{self.hyp_id}] Step 4/4: Initializing NVIDIA GPU support..."
+                )
+                step_start = time.time()
                 self.h.init_nvidia()
-                logs.workers.debug(f"NVIDIA info updated in hypervisor {self.hyp_id}")
+                logs.workers.info(
+                    f"[{self.hyp_id}] Step 4/4: init_nvidia completed in {time.time() - step_start:.2f}s"
+                )
+            else:
+                logs.workers.info(
+                    f"[{self.hyp_id}] Step 4/4: Skipping NVIDIA init (not enabled)"
+                )
 
             # Check virtualization support
             if self.h.info["kvm_module"] not in ["intel", "amd"]:
@@ -287,9 +342,22 @@ class HypWorkerThread(threading.Thread):
                 self.stop = True
                 return False
 
+            logs.workers.info(
+                f"[{self.hyp_id}] Hypervisor info initialization completed successfully"
+            )
             return True
+
+        except SSHTimeoutError as e:
+            logs.workers.error(
+                f"[{self.hyp_id}] SSH timeout during hypervisor initialization: {e}"
+            )
+            self._set_error(f"SSH timeout during initialization: {e}")
+            return False
         except Exception as e:
             logs.exception_id.debug("0059")
+            logs.workers.error(
+                f"[{self.hyp_id}] Failed to get hypervisor info: {e}\n{traceback.format_exc()}"
+            )
             self._set_error(f"Failed to get hypervisor info: {e}")
             return False
 

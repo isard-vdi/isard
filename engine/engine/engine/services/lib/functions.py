@@ -214,18 +214,57 @@ def create_new_disk_cmd(
     return cmd
 
 
-def exec_remote_cmd(command, hostname, username="root", port=22, sudo=False):
+class SSHTimeoutError(Exception):
+    """Exception raised when SSH commands timeout."""
+
+    pass
+
+
+def exec_remote_cmd(
+    command, hostname, username="root", port=22, sudo=False, timeout=30
+):
+    """Execute a single command on a remote host via SSH.
+
+    Args:
+        command: The command to execute
+        hostname: Remote host to connect to
+        username: SSH username
+        port: SSH port
+        sudo: Whether to use sudo (not implemented)
+        timeout: Timeout in seconds for connection and command execution
+
+    Returns:
+        dict with 'out' and 'err' keys containing command output
+
+    Raises:
+        SSHTimeoutError: If command execution times out
+    """
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(hostname, port=port, username=username)
-    stdin, stdout, stderr = client.exec_command(command)
+    try:
+        client.connect(
+            hostname,
+            port=port,
+            username=username,
+            timeout=timeout,
+            banner_timeout=timeout,
+        )
+        stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
 
-    out = stdout.read()
-    err = stderr.read()
+        # Set channel timeout for read operations
+        channel = stdout.channel
+        channel.settimeout(timeout)
 
-    client.close()
+        out = stdout.read()
+        err = stderr.read()
 
-    return {"out": out, "err": err}
+        return {"out": out, "err": err}
+    except socket.timeout as e:
+        raise SSHTimeoutError(
+            f"SSH command timed out after {timeout}s on {hostname}: {command[:100]}"
+        ) from e
+    finally:
+        client.close()
 
 
 def replace_path_disk(path_original, path_replace):
@@ -233,96 +272,216 @@ def replace_path_disk(path_original, path_replace):
 
 
 def exec_remote_updating_progress(
-    command, hostname, progress=[], username="root", port=22, sudo=False, id_domain=None
+    command,
+    hostname,
+    progress=None,
+    username="root",
+    port=22,
+    sudo=False,
+    id_domain=None,
+    timeout=300,
 ):
+    """Execute a command on a remote host while tracking progress updates.
+
+    This function is used for long-running operations that report progress
+    via stdout (e.g., disk operations showing percentage complete).
+
+    Args:
+        command: The command to execute
+        hostname: Remote host to connect to
+        progress: List to track progress percentages (default: creates new list)
+        username: SSH username
+        port: SSH port
+        sudo: Whether to use sudo (not implemented)
+        id_domain: Domain ID to update progress for
+        timeout: Timeout in seconds for connection and command (default 300 for long operations)
+
+    Returns:
+        dict with 'out' and 'err' keys containing final command output
+
+    Raises:
+        SSHTimeoutError: If connection or command times out
+    """
+    if progress is None:
+        progress = []
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(hostname, port=port, username=username)
-    stdin, stdout, stderr = client.exec_command(command)
-    progress.append(0)
+    try:
+        client.connect(
+            hostname,
+            port=port,
+            username=username,
+            timeout=timeout,
+            banner_timeout=timeout,
+        )
+        stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
 
-    # INFO TO DEVELOPER, AQUÍ FALTA ACTUALIZAR EL PROGRESO A LA BASE DE DATOS
-    # A PARTIR DE LA LISTA PROGRESS, COGIENDO EL ÚLTIMO PARÁMETRO
-    # SE PODRÍA IR MIRANDO, AUNQUE LO SUYO ES QUE SE ACTUALIZASE AQUÍ??
-    log.debug("jujuju {} ".format(type(stdout)))
-    while True:
-        # out = stdout.readline(64).decode('utf-8')
-        out = stdout.readline(64)
-        if out.find("%") >= 0:
-            tmp = out[: str(out).find("%")]
-            percent = tmp[tmp.rfind(" ") + 1 :]
-            if len(percent) > 0:
-                if percent.isdigit():
-                    percent = int(percent)
-                    if progress[-1] < percent:
-                        progress.append(percent)
-                        if id_domain != None:
-                            update_domain_progress(id_domain, percent)
-        log.debug(out)
-        if out == "":
-            break
+        # Set channel timeout for read operations
+        channel = stdout.channel
+        channel.settimeout(timeout)
 
-    out = stdout.read()
-    err = stderr.read()
+        progress.append(0)
 
-    client.close()
+        # Read progress updates line by line
+        log.debug("exec_remote_updating_progress: stdout type={}".format(type(stdout)))
+        while True:
+            out = stdout.readline(64)
+            if out.find("%") >= 0:
+                tmp = out[: str(out).find("%")]
+                percent = tmp[tmp.rfind(" ") + 1 :]
+                if len(percent) > 0:
+                    if percent.isdigit():
+                        percent = int(percent)
+                        if progress[-1] < percent:
+                            progress.append(percent)
+                            if id_domain != None:
+                                update_domain_progress(id_domain, percent)
+            log.debug(out)
+            if out == "":
+                break
 
-    return {"out": out, "err": err}
+        out = stdout.read()
+        err = stderr.read()
+
+        return {"out": out, "err": err}
+    except socket.timeout as e:
+        raise SSHTimeoutError(
+            f"SSH connection timed out after {timeout}s to {hostname}"
+        ) from e
+    finally:
+        client.close()
 
 
-def exec_remote_list_of_cmds(hostname, commands, username="root", port=22, sudo=False):
+def exec_remote_list_of_cmds(
+    hostname, commands, username="root", port=22, sudo=False, timeout=30
+):
+    """Execute a list of commands on a remote host via SSH.
+
+    Args:
+        hostname: Remote host to connect to
+        commands: List of command strings to execute
+        username: SSH username
+        port: SSH port
+        sudo: Whether to use sudo (not implemented)
+        timeout: Timeout in seconds for connection and each command
+
+    Returns:
+        List of dicts with 'out' and 'err' keys for each command
+
+    Raises:
+        SSHTimeoutError: If any command execution times out
+    """
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(hostname, port=port, username=username)
+    try:
+        client.connect(
+            hostname,
+            port=port,
+            username=username,
+            timeout=timeout,
+            banner_timeout=timeout,
+        )
 
-    returned_array = []
+        returned_array = []
 
-    for command in commands:
-        log.debug("command to launch in ssh in {}: {}".format(hostname, command))
-        # print('command to launch in ssh in {}: {}'.format(hostname, command))
-        stdin, stdout, stderr = client.exec_command(command)
-        out = stdout.read().decode("utf-8")
-        err = stderr.read().decode("utf-8")
-        returned_array.append({"out": out, "err": err})
-        log.debug("commnad launched / out: {} / error: {}".format(out, err))
-        # print('commnad launched / out: {} / error: {}'.format(out, err))
+        for command in commands:
+            log.debug("command to launch in ssh in {}: {}".format(hostname, command))
+            try:
+                stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
+                channel = stdout.channel
+                channel.settimeout(timeout)
+                out = stdout.read().decode("utf-8")
+                err = stderr.read().decode("utf-8")
+                returned_array.append({"out": out, "err": err})
+                log.debug("commnad launched / out: {} / error: {}".format(out, err))
+            except socket.timeout as e:
+                raise SSHTimeoutError(
+                    f"SSH command timed out after {timeout}s on {hostname}: {command[:100]}"
+                ) from e
 
-    client.close()
-
-    return returned_array
+        return returned_array
+    except socket.timeout as e:
+        raise SSHTimeoutError(
+            f"SSH connection timed out after {timeout}s to {hostname}"
+        ) from e
+    finally:
+        client.close()
 
 
 def exec_remote_list_of_cmds_dict(
-    hostname, list_dict_commands, username="root", port=22, ssh_key_str="", sudo=False
+    hostname,
+    list_dict_commands,
+    username="root",
+    port=22,
+    ssh_key_str="",
+    sudo=False,
+    timeout=30,
 ):
+    """Execute a list of commands (as dicts) on a remote host via SSH.
+
+    Args:
+        hostname: Remote host to connect to
+        list_dict_commands: List of dicts with 'cmd' key containing the command
+        username: SSH username
+        port: SSH port
+        ssh_key_str: SSH key string (not implemented)
+        sudo: Whether to use sudo (not implemented)
+        timeout: Timeout in seconds for connection and each command
+
+    Returns:
+        List of dicts with original keys plus 'out' and 'err' for each command
+
+    Raises:
+        SSHTimeoutError: If any command execution times out
+    """
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    if len(ssh_key_str) > 0:
-        # TODO: make ssh_key login
-        pass
-    else:
-        client.connect(hostname, port=port, username=username)
-
-    returned_array = list_dict_commands.copy()
-
-    i = 0
-    for command in list_dict_commands:
-        log.debug("command to launch in ssh in {}: {}".format(hostname, command["cmd"]))
-        # print('command dict to launch in ssh in {}: {}'.format(hostname, command['cmd']))
-        stdin, stdout, stderr = client.exec_command(command["cmd"])
-        returned_array[i]["out"] = stdout.read().decode("utf-8")
-        returned_array[i]["err"] = stderr.read().decode("utf-8")
-        log.debug(
-            "commnad launched / out: {} / error: {}".format(
-                returned_array[i]["out"], returned_array[i]["err"]
+    try:
+        if len(ssh_key_str) > 0:
+            # TODO: make ssh_key login
+            pass
+        else:
+            client.connect(
+                hostname,
+                port=port,
+                username=username,
+                timeout=timeout,
+                banner_timeout=timeout,
             )
-        )
-        # print('commnad dict launched / out: {} / error: {}'.format(returned_array[i]['out'], returned_array[i]['err']))
-        i = i + 1
 
-    client.close()
+        returned_array = list_dict_commands.copy()
 
-    return returned_array
+        i = 0
+        for command in list_dict_commands:
+            log.debug(
+                "command to launch in ssh in {}: {}".format(hostname, command["cmd"])
+            )
+            try:
+                stdin, stdout, stderr = client.exec_command(
+                    command["cmd"], timeout=timeout
+                )
+                channel = stdout.channel
+                channel.settimeout(timeout)
+                returned_array[i]["out"] = stdout.read().decode("utf-8")
+                returned_array[i]["err"] = stderr.read().decode("utf-8")
+                log.debug(
+                    "commnad launched / out: {} / error: {}".format(
+                        returned_array[i]["out"], returned_array[i]["err"]
+                    )
+                )
+            except socket.timeout as e:
+                raise SSHTimeoutError(
+                    f"SSH command timed out after {timeout}s on {hostname}: {command['cmd'][:100]}"
+                ) from e
+            i = i + 1
+
+        return returned_array
+    except socket.timeout as e:
+        raise SSHTimeoutError(
+            f"SSH connection timed out after {timeout}s to {hostname}"
+        ) from e
+    finally:
+        client.close()
 
 
 def new_dict_from_raw_dict_stats(raw_values, round_digits=6):
@@ -770,16 +929,34 @@ def try_ssh(hostname, port, user, timeout):
         return False
 
 
-def execute_commands(hostname, ssh_commands, dict_mode=False, user="root", port=22):
+def execute_commands(
+    hostname, ssh_commands, dict_mode=False, user="root", port=22, timeout=30
+):
+    """Execute SSH commands on a remote host with timeout support.
+
+    Args:
+        hostname: Remote host to connect to
+        ssh_commands: List of commands (strings or dicts with 'cmd' key)
+        dict_mode: Deprecated - auto-detected from ssh_commands type
+        user: SSH username
+        port: SSH port
+        timeout: Timeout in seconds for connection and each command
+
+    Returns:
+        List of dicts with 'out' and 'err' keys for each command
+
+    Raises:
+        SSHTimeoutError: If connection or command execution times out
+    """
     before = int(time.time())
     dict_mode = True if type(ssh_commands[0]) is dict else False
     if dict_mode == True:
         array_out_err = exec_remote_list_of_cmds_dict(
-            hostname, ssh_commands, username=user, port=port
+            hostname, ssh_commands, username=user, port=port, timeout=timeout
         )
     else:
         array_out_err = exec_remote_list_of_cmds(
-            hostname, ssh_commands, username=user, port=port
+            hostname, ssh_commands, username=user, port=port, timeout=timeout
         )
     after = int(time.time())
     time_elapsed = after - before

@@ -10,6 +10,7 @@ import queue
 import shlex
 import socket
 import threading
+import time
 import traceback
 
 from engine.config import CONFIG_DICT
@@ -126,6 +127,9 @@ def add_hyper_to_db(
 
 
 class HypervisorsOrchestratorThread(threading.Thread):
+    # Timeout in seconds before considering a "Stopping" thread as stuck
+    STUCK_THREAD_TIMEOUT = 60
+
     def __init__(
         self,
         name,
@@ -157,6 +161,9 @@ class HypervisorsOrchestratorThread(threading.Thread):
             "workers": self.q.workers,
         }
         self.socket_tries = 0
+
+        # Track when threads entered "Stopping" state for stuck detection
+        self.stopping_timestamps = {}
 
     def run(self):
         self.tid = get_tid()
@@ -277,6 +284,76 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 action = {"type": "stop_thread"}
                 self.q_disk_operations[hyp_id].put(action)
 
+    def _recover_stuck_stopping_threads(self, hyp_id, thread_status):
+        """Check for and recover threads stuck in 'Stopping' state.
+
+        Threads that have been in 'Stopping' state for longer than
+        STUCK_THREAD_TIMEOUT seconds are force-transitioned to 'Stopped'
+        so they can be restarted.
+
+        Args:
+            hyp_id: The hypervisor ID
+            thread_status: Dict with worker/disk_operations thread states
+
+        Returns:
+            Updated thread_status dict with stuck threads reset to 'Stopped'
+        """
+        current_time = time.time()
+        updated = False
+
+        for thread_type in ["worker", "disk_operations"]:
+            status = thread_status.get(thread_type, "Stopped")
+            if status == "Stopping":
+                # Track when we first saw this thread in Stopping state
+                key = f"{hyp_id}_{thread_type}"
+                if key not in self.stopping_timestamps:
+                    self.stopping_timestamps[key] = current_time
+                    logs.main.debug(
+                        f"[{hyp_id}] Thread {thread_type} entered Stopping state"
+                    )
+                else:
+                    elapsed = current_time - self.stopping_timestamps[key]
+                    if elapsed > self.STUCK_THREAD_TIMEOUT:
+                        logs.main.warning(
+                            f"[{hyp_id}] Thread {thread_type} stuck in 'Stopping' state "
+                            f"for {elapsed:.0f}s (>{self.STUCK_THREAD_TIMEOUT}s). "
+                            f"Forcing transition to 'Stopped'."
+                        )
+                        update_hyp_thread_status(thread_type, hyp_id, "Stopped")
+                        thread_status[thread_type] = "Stopped"
+                        del self.stopping_timestamps[key]
+                        updated = True
+
+                        # Clean up thread resources if they exist
+                        if thread_type == "worker" and hyp_id in self.t_workers:
+                            try:
+                                self.t_workers[hyp_id].stop = True
+                                self.t_workers.pop(hyp_id, None)
+                                self.q.workers.pop(hyp_id, None)
+                            except Exception as e:
+                                logs.main.error(
+                                    f"[{hyp_id}] Error cleaning up stuck worker thread: {e}"
+                                )
+                        elif (
+                            thread_type == "disk_operations"
+                            and hyp_id in self.t_disk_operations
+                        ):
+                            try:
+                                self.t_disk_operations[hyp_id].stop = True
+                                self.t_disk_operations.pop(hyp_id, None)
+                                self.q_disk_operations.pop(hyp_id, None)
+                            except Exception as e:
+                                logs.main.error(
+                                    f"[{hyp_id}] Error cleaning up stuck disk_operations thread: {e}"
+                                )
+            else:
+                # Thread is not in Stopping state, clear any tracking
+                key = f"{hyp_id}_{thread_type}"
+                if key in self.stopping_timestamps:
+                    del self.stopping_timestamps[key]
+
+        return thread_status
+
     def check_hyps_from_database(self):
         l_hyps = get_hypers_enabled_with_capabilities_status()
         for d_hyp in l_hyps:
@@ -284,6 +361,10 @@ class HypervisorsOrchestratorThread(threading.Thread):
             capabilities = d_hyp["capabilities"]
             status = d_hyp["status"]
             thread_status = d_hyp.get("thread_status", {})
+
+            # Check for and recover stuck threads first
+            thread_status = self._recover_stuck_stopping_threads(hyp_id, thread_status)
+
             # if status in Error or Offline start threads
             if status in ["Error", "Offline"]:
                 self.start_hyper_threads(hyp_id, capabilities, status, thread_status)
@@ -295,12 +376,13 @@ class HypervisorsOrchestratorThread(threading.Thread):
 
     def try_hyp_and_threads_alive(self, hyp_id):
         # try dns resolution
+        # Note: force_get_hyp_info is DEPRECATED and not used
         (
             hostname,
             port,
             user,
             nvidia_enabled,
-            force_get_hyp_info,
+            force_get_hyp_info,  # DEPRECATED: ignored, engine auto-detects GPU changes
             init_vgpu_profiles,
         ) = get_hyp_hostname_from_id(hyp_id)
         try:

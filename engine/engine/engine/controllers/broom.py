@@ -131,12 +131,13 @@ class ThreadBroom(threading.Thread):
                 t_broom_inner = time()
                 for hyp_id in HYPERS_ONLINE:
                     try:
+                        # Note: force_get_hyp_info is DEPRECATED and not used
                         (
                             hostname,
                             port,
                             user,
                             nvidia_enabled,
-                            force_get_hyp_info,
+                            force_get_hyp_info,  # DEPRECATED: ignored, engine auto-detects GPU changes
                             init_vgpu_profiles,
                         ) = get_hyp_hostname_from_id(hyp_id)
                         if hostname is False:

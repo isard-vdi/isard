@@ -114,6 +114,8 @@ def api_v3_hypervisor(hyper_id=False):
             nvidia_enabled = (
                 True if request.form.get("nvidia_enabled") == "True" else False
             )
+            # DEPRECATED: force_get_hyp_info is ignored - engine auto-detects GPU changes
+            # Kept for backwards compatibility with API calls
             force_get_hyp_info = (
                 True if request.form.get("force_get_hyp_info") == "True" else False
             )

@@ -69,6 +69,8 @@ only_forced:
   type: boolean
 nvidia_enabled:
   type: boolean
+# DEPRECATED: force_get_hyp_info is ignored - engine auto-detects GPU changes
+# Kept for backwards compatibility with older hypervisor registrations
 force_get_hyp_info:
   type: boolean
 min_free_mem_gb:

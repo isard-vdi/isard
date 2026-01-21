@@ -441,13 +441,18 @@ def launch_thread_worker(hyp_id, q_event_register, queue_master):
 
 
 def hyp_from_hyp_id(hyp_id):
+    """Create a hypervisor connection object from a hypervisor ID.
+
+    Note: force_get_hyp_info is unpacked but not used - it's DEPRECATED.
+    GPU hardware changes are now auto-detected by the engine.
+    """
     try:
         (
             host,
             port,
             user,
             nvidia_enabled,
-            force_get_hyp_info,
+            force_get_hyp_info,  # DEPRECATED: not used, kept for tuple unpacking
             init_vgpu_profiles,
         ) = get_hyp_hostname_from_id(hyp_id)
         h = hyp(hyp_id, host, user=user, port=port)

@@ -307,6 +307,14 @@ def get_hyp_system_info():
 
 
 def get_hyp_hostname_from_id(id):
+    """Get hypervisor connection info by ID.
+
+    Returns:
+        Tuple of (hostname, port, user, nvidia_enabled, force_get_hyp_info, init_vgpu_profiles)
+
+    Note: force_get_hyp_info is DEPRECATED and ignored by the engine.
+    GPU hardware changes are now auto-detected. Kept for backwards compatibility.
+    """
     try:
         with rethink_conn() as conn:
             l = (
@@ -317,6 +325,7 @@ def get_hyp_hostname_from_id(id):
                     "port",
                     "user",
                     "nvidia_enabled",
+                    # DEPRECATED: force_get_hyp_info is ignored - engine auto-detects GPU changes
                     "force_get_hyp_info",
                     "init_vgpu_profiles",
                 )
@@ -331,6 +340,7 @@ def get_hyp_hostname_from_id(id):
                 l["port"],
                 l["user"],
                 l.get("nvidia_enabled", False),
+                # DEPRECATED: Always returns value but it's ignored by caller
                 l.get("force_get_hyp_info", False),
                 l.get("init_vgpu_profiles", False),
             )
