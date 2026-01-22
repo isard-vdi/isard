@@ -6,3 +6,5 @@ services:
       target: production
       args:
         HAPROXY_RUN_IMAGE: ${HAPROXY_RUN_IMAGE}
+        DOCKER_IMAGE_PREFIX: ${DOCKER_IMAGE_PREFIX}
+        DOCKER_IMAGE_TAG: ${DOCKER_IMAGE_TAG}

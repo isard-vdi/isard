@@ -41,6 +41,7 @@ ALLINONE_PARTS="
 	engine
 	static
 	portal
+        haproxy-bastion-sync
 	hypervisor
 	websockify
 	squid
@@ -67,6 +68,7 @@ HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
 	network
 	video
+        haproxy-bastion-sync
 	hypervisor
 	websockify
 	squid
@@ -87,6 +89,7 @@ VIDEO_STANDALONE_KEY="video-standalone"
 VIDEO_STANDALONE_PARTS="
 	network
 	video
+        haproxy-bastion-sync
 	websockify
 	squid
 	stats
@@ -106,6 +109,7 @@ WEB_PARTS="
 	engine
 	static
 	portal
+        haproxy-bastion-sync
 	webapp
 	api
 	scheduler
@@ -127,6 +131,7 @@ MONITOR_STANDALONE_PARTS="
 	stats
 	monitor
 	monitor-proxy
+        haproxy-bastion-sync
 "
 WEB_MONITOR_KEY="web+monitor"
 # We remove the stats part, since it's already in the web parts. Also the proxy, since web already has one
