@@ -31,3 +31,103 @@ migration:
     force_migration:
       required: false
       type: boolean
+ldap_config:
+  type: dict
+  schema:
+    protocol:
+      empty: false
+      type: string
+    host:
+      empty: false
+      type: string
+    port:
+      min: 1
+      max: 65535
+      type: integer
+    bind_dn:
+      empty: false
+      type: string
+    password:
+      empty: false
+      type: string
+    base_search:
+      empty: false
+      type: string
+    filter:
+      empty: false
+      type: string
+    field_uid:
+      empty: false
+      type: string
+    regex_uid:
+      empty: false
+      type: string
+    field_username:
+      empty: false
+      type: string
+    regex_username:
+      empty: false
+      type: string
+    field_name:
+      type: string
+    regex_name:
+      empty: false
+      type: string
+    field_email:
+      type: string
+    regex_email:
+      empty: false
+      type: string
+    field_photo:
+      type: string
+    regex_photo:
+      empty: false
+      type: string
+    auto_register:
+      empty: false
+      type: boolean
+    auto_register_roles:
+      type: string
+    guess_category:
+      empty: false
+      type: boolean
+    field_category:
+      type: string
+    regex_category:
+      empty: false
+      type: string
+    field_group:
+      type: string
+    regex_group:
+      empty: false
+      type: string
+    group_default:
+      empty: false
+      type: string
+    role_list_search_base:
+      type: string
+    role_list_filter:
+      empty: false
+      type: string
+    role_list_use_user_dn:
+      empty: false
+      type: boolean
+    role_list_field:
+      type: string
+    role_list_regex:
+      empty: false
+      type: string
+    role_admin_ids:
+      type: string
+    role_manager_ids:
+      type: string
+    role_advanced_ids:
+      type: string
+    role_user_ids:
+      type: string
+    role_default:
+      empty: false
+      type: string
+    save_email:
+      empty: false
+      type: boolean

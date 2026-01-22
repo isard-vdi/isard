@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
@@ -25,6 +27,8 @@ const (
 	FormPasswordArgsKey                 = "form_password"
 	HTTPRequest         HTTPRequestType = "req"
 )
+
+var c = cache.New(time.Minute, time.Hour)
 
 type HTTPRequestType string
 

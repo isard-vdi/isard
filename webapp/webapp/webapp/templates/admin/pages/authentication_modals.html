@@ -42,6 +42,10 @@
             <div class="modal-body">
                 <form id="modalProviderConfigForm" class="form-horizontal form-label-left">
                     <input hidden name="provider" id="provider" />
+                    <div class="x_panel ldap_config">
+                        <h4><i class="fa fa-id-badge"></i> LDAP Config</h4>
+                        {% include '/snippets/ldap_config_form.html' %}
+                    </div>
                     <div class="x_panel">
                         <h4><i class="fa fa-exchange"></i> Migration</h4>
                         <!-- 4 iCheck checkboxes: allow automigration, delete user on migrate, allow user import and allow user export-->

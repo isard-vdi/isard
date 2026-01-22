@@ -49,15 +49,35 @@ $(document).ready(function () {
             type: "GET",
             url: `/api/v3/authentication/provider/${provider}`,
             success: function (data) {
-                data = data["migration"]
-                $(`${modal} #import`).iCheck(data.import ? 'check' : 'uncheck').iCheck('update');
-                $(`${modal} #export`).iCheck(data.export ? 'check' : 'uncheck').iCheck('update');
-                $(`${modal} #force`).iCheck(data.force_migration ? 'check' : 'uncheck').iCheck('update');
-                $(`${modal} #notification_bar`).iCheck(data.notification_bar.enabled ? 'check' : 'uncheck').iCheck('update');
-                $(`${modal} #action_after_migrate`).val(data.action_after_migrate);
-                $(`${modal} #template`).val(data.notification_bar.template);
-                $(`${modal} #level`).val(data.notification_bar.level);
+                if (provider == "ldap") {
+                  $(".ldap_config").show();
+                  $(".ldap_config :input").prop('disabled', false);
+                  $(".ldap_config :input:not(:checkbox)").each(
+                    function () {
+                      this.value = data.ldap_config[this.name.replace(/^ldap_config_/,"")]
+                    }
+                  );
+                  $('.ldap_config :checkbox').each(
+                    function () {
+                      if (data.ldap_config[this.name.replace(/^ldap_config_/,"")]) {
+                        $(this).iCheck('check').iCheck('update');
+                      }
+                    }
+                  );
+                } else {
+                  $(".ldap_config").hide();
+                  $(".ldap_config :input").prop('disabled', true);
+                }
+
+                $(`${modal} #import`).iCheck(data.migration.import ? 'check' : 'uncheck').iCheck('update');
+                $(`${modal} #export`).iCheck(data.migration.export ? 'check' : 'uncheck').iCheck('update');
+                $(`${modal} #force`).iCheck(data.migration.force_migration ? 'check' : 'uncheck').iCheck('update');
+                $(`${modal} #notification_bar`).iCheck(data.migration.notification_bar.enabled ? 'check' : 'uncheck').iCheck('update');
+                $(`${modal} #action_after_migrate`).val(data.migration.action_after_migrate);
+                $(`${modal} #template`).val(data.migration.notification_bar.template);
+                $(`${modal} #level`).val(data.migration.notification_bar.level);
                 $(modal + " select#level").trigger("change");
+                $("#modalProviderConfigForm").parsley().validate();
             }
         });
         $(modal).modal({
@@ -167,13 +187,33 @@ $(document).ready(function () {
             data.migration.notification_bar.level = formData.level;
             data.migration.notification_bar.template = formData.template;
         }
+        if (formData.provider == "ldap") {
+            for (const key in formData) {
+                if (key.startsWith("ldap_config_")) {
+                    name = key.replace(/^ldap_config_/,"")
+                    if (name == "port") {
+                        formData[key] = parseInt(formData[key])
+                    }
+                    (data.ldap_config ??={})[name] = formData[key]
+                }
+            }
+            checkboxes = [
+                "auto_register",
+                "guess_category",
+                "role_list_use_user_dn",
+                "save_email"
+            ]
+            for (checkbox of checkboxes) {
+                (data.ldap_config ??={})[checkbox] = formData[`ldap_config_${checkbox}`] == "on"
+            }
+        }
         $.ajax({
             type: "PUT",
             url: `/api/v3/authentication/provider/${formData.provider}`,
             data: JSON.stringify(data),
             contentType: "application/json",
             success: function (data) {
-                $("form").each(function () {
+                $(`#${formData.provider} form`).each(function () {
                     this.reset();
                 });
                 $(".modal").modal("hide");
@@ -349,6 +389,15 @@ function renderProviderDataTable(provider) {
             "url": `/api/v3/authentication/provider/${provider}`,
             "type": 'GET',
             "dataSrc": function (json) {
+                for (const key in (json.ldap_config ??={})) {
+                  if (typeof json.ldap_config[key] == 'boolean') {
+                    $(`#${provider} [name=ldap_config_${key}]`).iCheck(
+                      json.ldap_config[key] ? 'check' : 'uncheck'
+                    ).iCheck('update');
+                  } else {
+                    $(`#${provider} [name=ldap_config_${key}]`).val(json.ldap_config[key])
+                  }
+                }
                 return [json.migration];
             }
         },

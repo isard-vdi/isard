@@ -20,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 179
+release_version = 180
+# release 180: Import LDAP configuration from AUTHENTICATION_AUTHENTICATION_LDAP_* environment variables
 # release 179: Remove old LDAP configuration
 # release 178: Bastion targets support multiple domains (array)
 # release 177: Recreate deployment indexes considering the new create_dict structure
@@ -953,6 +954,71 @@ password:s:%s"""
             r.table(table).replace(
                 r.row.without({"auth": {"ldap": ["bind_dn", "ldap_server"]}})
             ).run(self.conn)
+
+        if version == 180:
+            ldap_config = {}
+            default_config = {
+                "protocol": "ldap",
+                "host": "",
+                "bind_dn": "",
+                "password": "",
+                "base_search": "",
+                "filter": "(&(objectClass=person)(uid=%s)",
+                "field_uid": "",
+                "regex_uid": ".*",
+                "field_username": "",
+                "regex_username": ".*",
+                "field_name": "",
+                "regex_name": ".*",
+                "field_email": "",
+                "regex_email": ".*",
+                "field_photo": "",
+                "regex_photo": ".*",
+                "field_category": "",
+                "regex_category": ".*",
+                "field_group": "",
+                "regex_group": ".*",
+                "group_default": "default",
+                "role_list_search_base": "",
+                "role_list_filter": "(&(objectClass=posixGroup)(memberUid=%s))",
+                "role_list_field": "",
+                "role_list_regex": ".*",
+                "role_admin_ids": "",
+                "role_manager_ids": "",
+                "role_advanced_ids": "",
+                "role_user_ids": "",
+                "role_default": "user",
+            }
+            for config_key, config_value in default_config.items():
+                ldap_config[config_key] = os.environ.get(
+                    f"AUTHENTICATION_AUTHENTICATION_LDAP_{config_key.upper()}",
+                    config_value,
+                )
+            default_config = {
+                "auto_register": "false",
+                "guess_category": "false",
+                "role_list_use_user_dn": "false",
+                "save_email": "true",
+            }
+            for config_key, config_value in default_config.items():
+                ldap_config[config_key] = bool(
+                    strtobool(
+                        os.environ.get(
+                            f"AUTHENTICATION_AUTHENTICATION_LDAP_{config_key.upper()}",
+                            config_value,
+                        )
+                    )
+                )
+            ldap_config["port"] = int(
+                os.environ.get(f"AUTHENTICATION_AUTHENTICATION_LDAP_PORT", 389)
+            )
+            ldap_config["auto_register_roles"] = os.environ.get(
+                "AUTHENTICATION_AUTHENTICATION_LDAP_AUTO_REGISTER_GROUPS", ""
+            )
+
+            r.table(table).update({"auth": {"ldap": {"ldap_config": ldap_config}}}).run(
+                self.conn
+            )
 
         return True
 
