@@ -1365,7 +1365,7 @@ class hyp(object):
         logs.workers.debug(
             f"[{self.id_hyp_rethink}] Getting mdevs with domains from hypervisor..."
         )
-        cmd = """ls /sys/bus/mdev/devices/ |  xargs -I % bash -c 'echo -n "% / "; cat /sys/bus/mdev/devices/%/nvidia/vm_name' """
+        cmd = """ls /sys/bus/mdev/devices/ | xargs -I % bash -c 'echo -n "% / "; cat /sys/bus/mdev/devices/%/nvidia/vm_name 2>/dev/null || true; echo' """
         cmd_mdevctl = "mdevctl list"
 
         logs.workers.debug(
@@ -1419,6 +1419,42 @@ class hyp(object):
                 if info.get("type_id") == type_id:
                     return profile
         return None
+
+    def _validate_vm_name(self, vm_name):
+        """Validate that a vm_name is a real domain and not a parsing artifact.
+
+        Args:
+            vm_name: The VM name to validate
+
+        Returns:
+            True if vm_name is valid (exists in libvirt), False otherwise
+        """
+        import re
+
+        # Check if empty
+        if not vm_name or not vm_name.strip():
+            return False
+
+        # Check if it looks like an mdev UUID (parsing bug indicator)
+        uuid_pattern = re.compile(
+            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            re.IGNORECASE,
+        )
+        if uuid_pattern.match(vm_name.strip()):
+            logs.workers.warning(
+                f"[{self.id_hyp_rethink}] vm_name '{vm_name}' looks like an mdev UUID - rejecting as invalid"
+            )
+            return False
+
+        # Verify domain actually exists in libvirt
+        try:
+            self.conn.lookupByName(vm_name)
+            return True
+        except Exception:
+            logs.workers.debug(
+                f"[{self.id_hyp_rethink}] vm_name '{vm_name}' not found in libvirt"
+            )
+            return False
 
     def _adopt_mdev_to_db(self, uuid, pci_id, type_id, vm_name, profile):
         """Adopt a running mdev that's not in the database.
@@ -1511,6 +1547,9 @@ class hyp(object):
             type_id = info.get("type_id", "")
             pci_id = info.get("pci_id", "")
 
+            # Validate vm_name before using it
+            validated_vm_name = vm_name if self._validate_vm_name(vm_name) else ""
+
             if uuid in all_db_uuids:
                 # Known mdev - update its status in database
                 db_info = all_db_uuids[uuid]
@@ -1519,7 +1558,7 @@ class hyp(object):
                     pci_id=db_info["pci_id"],
                     profile=db_info["profile"],
                     mdev_uuid=uuid,
-                    domain_id=vm_name if vm_name else False,
+                    domain_id=validated_vm_name if validated_vm_name else False,
                 )
                 # Also mark as created
                 vgpu_id = "-".join([self.id_hyp_rethink, db_info["pci_id"]])
@@ -1527,20 +1566,22 @@ class hyp(object):
                 updated_count += 1
             else:
                 # Unknown mdev - not in database
-                if vm_name:
+                if validated_vm_name:
                     # Has running VM - MUST adopt to preserve production workload
                     profile = self._get_profile_for_type_id(pci_id, type_id)
                     if profile:
                         logs.workers.info(
-                            f"[{self.id_hyp_rethink}] Adopting mdev {uuid} with running VM '{vm_name}' "
+                            f"[{self.id_hyp_rethink}] Adopting mdev {uuid} with running VM '{validated_vm_name}' "
                             f"(pci={pci_id}, type={type_id}, profile={profile})"
                         )
-                        self._adopt_mdev_to_db(uuid, pci_id, type_id, vm_name, profile)
+                        self._adopt_mdev_to_db(
+                            uuid, pci_id, type_id, validated_vm_name, profile
+                        )
                         adopted_count += 1
                     else:
                         logs.workers.warning(
                             f"[{self.id_hyp_rethink}] Cannot adopt mdev {uuid} - "
-                            f"no matching profile for type_id={type_id}. VM '{vm_name}' preserved but not tracked."
+                            f"no matching profile for type_id={type_id}. VM '{validated_vm_name}' preserved but not tracked."
                         )
                 else:
                     # No VM attached - check if we should adopt or remove
@@ -1561,11 +1602,19 @@ class hyp(object):
                         )
                         orphan_uuids.append(uuid)
 
-        # Mark non-running DB mdevs as not created
+        # Mark non-running DB mdevs as not created and clear domain_started
         for uuid, db_info in all_db_uuids.items():
             if uuid not in running_mdevs:
                 vgpu_id = "-".join([self.id_hyp_rethink, db_info["pci_id"]])
                 update_vgpu_created(vgpu_id, db_info["profile"], uuid, created=False)
+                # Clear any stale domain_started value
+                update_vgpu_uuid_started_in_domain(
+                    hyp_id=self.id_hyp_rethink,
+                    pci_id=db_info["pci_id"],
+                    profile=db_info["profile"],
+                    mdev_uuid=uuid,
+                    domain_id=False,
+                )
 
         # Remove orphan mdevs (no VM, no matching profile)
         if orphan_uuids:
