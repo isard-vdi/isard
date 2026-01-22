@@ -283,7 +283,12 @@ class ApiTargets:
                 "user_id": user_id,
                 "domains": [],
             }
-            target["http"] = {"enabled": False, "http_port": 80, "https_port": 443}
+            target["http"] = {
+                "enabled": False,
+                "http_port": 80,
+                "https_port": 443,
+                "proxy_protocol": False,
+            }
             target["ssh"] = {"enabled": False, "port": 22, "authorized_keys": []}
 
             with app.app_context():

@@ -71,7 +71,8 @@ const getDefaultState = () => {
       http: {
         enabled: false,
         http_port: 80,
-        https_port: 443
+        https_port: 443,
+        proxy_protocol: false
       },
       ssh: {
         enabled: false,

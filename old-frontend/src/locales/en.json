@@ -162,7 +162,9 @@
                     "https-port": "HTTPS port",
                     "domain-name": "Custom domain name (optional)",
                     "domain-names": "Custom domain names (optional)",
-                    "add-domain": "Add domain"
+                    "add-domain": "Add domain",
+                    "proxy-protocol": "Proxy Protocol v2",
+                    "proxy-protocol-tooltip": "Enable to forward real client IP to guest. Only enable if your guest web server supports Proxy Protocol v2."
                 },
                 "ssh": {
                     "checkbox": "SSH",

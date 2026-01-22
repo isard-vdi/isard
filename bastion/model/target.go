@@ -30,9 +30,10 @@ type Target struct {
 }
 
 type TargetHTTP struct {
-	Enabled   bool `rethinkdb:"enabled"`
-	HTTPPort  int  `rethinkdb:"http_port"`
-	HTTPSPort int  `rethinkdb:"https_port"`
+	Enabled       bool `rethinkdb:"enabled"`
+	HTTPPort      int  `rethinkdb:"http_port"`
+	HTTPSPort     int  `rethinkdb:"https_port"`
+	ProxyProtocol bool `rethinkdb:"proxy_protocol"`
 }
 
 type TargetSSH struct {
