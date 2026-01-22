@@ -6,22 +6,22 @@ import (
 	"fmt"
 	"sync"
 
+	"gitlab.com/isard/isardvdi/pkg/cfg"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/redis"
 	"gitlab.com/isard/isardvdi/sessions/sessions"
 
 	"github.com/rs/zerolog"
-	gRPC "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func NewSessionsServer(log *zerolog.Logger, wg *sync.WaitGroup, addr string, sessions sessions.Interface) *SessionsServer {
+func NewSessionsServer(log *zerolog.Logger, wg *sync.WaitGroup, cfg cfg.GRPC, sessions sessions.Interface) *SessionsServer {
 	return &SessionsServer{
 		sessions: sessions,
-		addr:     addr,
+		cfg:      cfg,
 
 		log: log,
 		wg:  wg,
@@ -32,7 +32,7 @@ func NewSessionsServer(log *zerolog.Logger, wg *sync.WaitGroup, addr string, ses
 
 type SessionsServer struct {
 	sessions sessions.Interface
-	addr     string
+	cfg      cfg.GRPC
 
 	log *zerolog.Logger
 	wg  *sync.WaitGroup
@@ -41,9 +41,15 @@ type SessionsServer struct {
 }
 
 func (s *SessionsServer) Serve(ctx context.Context) {
-	grpc.Serve(ctx, s.log, s.wg, func(srv *gRPC.Server) {
-		sessionsv1.RegisterSessionsServiceServer(srv, s)
-	}, s.addr)
+	grpc.Serve(ctx, s.log, s.wg, &sessionsv1.SessionsService_ServiceDesc, s, s.cfg)
+}
+
+func (s *SessionsServer) Check(ctx context.Context) error {
+	if err := s.sessions.Check(ctx); err != nil {
+		return fmt.Errorf("check sessions service: %w", err)
+	}
+
+	return nil
 }
 
 func (s *SessionsServer) New(ctx context.Context, req *sessionsv1.NewRequest) (*sessionsv1.NewResponse, error) {

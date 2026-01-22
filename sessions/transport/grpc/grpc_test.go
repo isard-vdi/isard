@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"gitlab.com/isard/isardvdi/pkg/cfg"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
 	"gitlab.com/isard/isardvdi/pkg/redis"
 	"gitlab.com/isard/isardvdi/sessions/model"
@@ -78,7 +79,7 @@ func TestNew(t *testing.T) {
 			sessionsMock := &sessions.MockSessions{}
 			tc.PrepareSessions(sessionsMock)
 
-			srv := grpc.NewSessionsServer(&log, nil, "", sessionsMock)
+			srv := grpc.NewSessionsServer(&log, nil, cfg.GRPC{}, sessionsMock)
 
 			rsp, err := srv.New(context.Background(), tc.Req)
 
@@ -172,7 +173,7 @@ func TestGet(t *testing.T) {
 
 			tc.PrepareSessions(sessionsMock)
 
-			srv := grpc.NewSessionsServer(&log, nil, "", sessionsMock)
+			srv := grpc.NewSessionsServer(&log, nil, cfg.GRPC{}, sessionsMock)
 
 			rsp, err := srv.Get(context.Background(), tc.Req)
 
@@ -264,7 +265,7 @@ func TestGetUserSession(t *testing.T) {
 
 			tc.PrepareSessions(sessionsMock)
 
-			srv := grpc.NewSessionsServer(&log, nil, "", sessionsMock)
+			srv := grpc.NewSessionsServer(&log, nil, cfg.GRPC{}, sessionsMock)
 
 			rsp, err := srv.GetUserSession(context.Background(), tc.Req)
 
@@ -366,7 +367,7 @@ func TestRenew(t *testing.T) {
 			sessionsMock := &sessions.MockSessions{}
 			tc.PrepareSessions(sessionsMock)
 
-			srv := grpc.NewSessionsServer(&log, nil, "", sessionsMock)
+			srv := grpc.NewSessionsServer(&log, nil, cfg.GRPC{}, sessionsMock)
 
 			rsp, err := srv.Renew(context.Background(), tc.Req)
 
@@ -432,7 +433,7 @@ func TestRevoke(t *testing.T) {
 			sessionsMock := &sessions.MockSessions{}
 			tc.PrepareSessions(sessionsMock)
 
-			srv := grpc.NewSessionsServer(&log, nil, "", sessionsMock)
+			srv := grpc.NewSessionsServer(&log, nil, cfg.GRPC{}, sessionsMock)
 
 			rsp, err := srv.Revoke(context.Background(), tc.Req)
 

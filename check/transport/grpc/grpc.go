@@ -6,18 +6,18 @@ import (
 	"sync"
 
 	"gitlab.com/isard/isardvdi/check/check"
+	"gitlab.com/isard/isardvdi/pkg/cfg"
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/sdk"
 
 	"github.com/rs/zerolog"
-	gRPC "google.golang.org/grpc"
 )
 
-func NewCheckServer(log *zerolog.Logger, wg *sync.WaitGroup, addr string, check check.Interface) *CheckServer {
+func NewCheckServer(log *zerolog.Logger, wg *sync.WaitGroup, cfg cfg.GRPC, check check.Interface) *CheckServer {
 	return &CheckServer{
 		check: check,
-		addr:  addr,
+		cfg:   cfg,
 
 		log: log,
 		wg:  wg,
@@ -26,7 +26,7 @@ func NewCheckServer(log *zerolog.Logger, wg *sync.WaitGroup, addr string, check 
 
 type CheckServer struct {
 	check check.Interface
-	addr  string
+	cfg   cfg.GRPC
 
 	log *zerolog.Logger
 	wg  *sync.WaitGroup
@@ -35,9 +35,11 @@ type CheckServer struct {
 }
 
 func (c *CheckServer) Serve(ctx context.Context) {
-	grpc.Serve(ctx, c.log, c.wg, func(s *gRPC.Server) {
-		checkv1.RegisterCheckServiceServer(s, c)
-	}, c.addr)
+	grpc.Serve(ctx, c.log, c.wg, &checkv1.CheckService_ServiceDesc, c, c.cfg)
+}
+
+func (c *CheckServer) Check(ctx context.Context) error {
+	return c.check.Check(ctx)
 }
 
 func (c *CheckServer) getAuth(req *checkv1.Auth) (check.AuthMethod, check.Auth, error) {

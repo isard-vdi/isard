@@ -25,6 +25,7 @@ var (
 )
 
 type Interface interface {
+	Check(ctx context.Context) error
 	New(ctx context.Context, userID string, remoteAddr string) (*model.Session, error)
 	Get(ctx context.Context, id string, remoteAddr string) (*model.Session, error)
 	GetUserSession(ctx context.Context, userID string) (*model.Session, error)
@@ -44,6 +45,14 @@ func Init(ctx context.Context, log *zerolog.Logger, cfg cfg.Sessions, redis redi
 		Cfg:   cfg,
 		redis: redis,
 	}
+}
+
+func (s *Sessions) Check(ctx context.Context) error {
+	if err := s.redis.Ping(ctx).Err(); err != nil {
+		return fmt.Errorf("check redis connection: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Sessions) New(ctx context.Context, userID string, remoteAddr string) (*model.Session, error) {
