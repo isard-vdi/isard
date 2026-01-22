@@ -1,0 +1,12 @@
+services:
+  isard-haproxy-bastion-sync:
+    container_name: isard-haproxy-bastion-sync
+    image: ${DOCKER_IMAGE_PREFIX}haproxy-bastion-sync:${DOCKER_IMAGE_TAG-latest}
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: haproxy-bastion-sync/build/package/Dockerfile
+      args:
+        GOLANG_BUILD_IMAGE: ${GOLANG_BUILD_IMAGE}
+        GOLANG_RUN_IMAGE: ${GOLANG_RUN_IMAGE}
+        DOCKER_IMAGE_PREFIX: ${DOCKER_IMAGE_PREFIX}
+        DOCKER_IMAGE_TAG: ${DOCKER_IMAGE_TAG}

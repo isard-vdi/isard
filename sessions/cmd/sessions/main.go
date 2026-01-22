@@ -29,7 +29,7 @@ func main() {
 
 	sessions := sessions.Init(ctx, log, cfg.Sessions, redis)
 
-	grpc := grpc.NewSessionsServer(log, &wg, cfg.GRPC.Addr(), sessions)
+	grpc := grpc.NewSessionsServer(log, &wg, cfg.GRPC, sessions)
 
 	go grpc.Serve(ctx)
 	wg.Add(1)

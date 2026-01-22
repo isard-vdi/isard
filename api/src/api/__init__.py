@@ -96,12 +96,15 @@ from isardvdi_common.grpc_client import (
     create_haproxy_bastion_client,
     create_operations_client,
     create_sessions_client,
+    watch_health_check,
 )
 
 # TODO: Get from env
 app.sessions_client = create_sessions_client("isard-sessions", 1312)
 app.operations_client = create_operations_client("isard-operations", 1312)
-app.haproxy_bastion_client = create_haproxy_bastion_client("isard-portal", 1313)
+app.haproxy_bastion_client, haproxy_bastion_channel = create_haproxy_bastion_client(
+    "isard-portal", 1312
+)
 
 print("Starting isard api...")
 
@@ -132,6 +135,12 @@ from api.libv2.api_targets import update_bastion_haproxy_map
 # Initialize bastion domains in HAProxy
 # Non-critical: API can start even if this fails
 try:
+    app.logger.info("Starting HAProxy service watch...")
+    watch_health_check(
+        haproxy_bastion_channel,
+        "haproxy.v1.HaproxyBastionService",
+        update_bastion_haproxy_map,
+    )
     app.logger.info("Syncing bastion domains to HAProxy...")
     update_bastion_haproxy_map()
     app.logger.info("Bastion domains synced successfully")

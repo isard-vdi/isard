@@ -42,8 +42,9 @@ func (r *Redis) Addr() string {
 }
 
 type GRPC struct {
-	Host string
-	Port int
+	Host                string
+	Port                int
+	HealthCheckInterval time.Duration `mapstructure:"healthcheck_interval"`
 }
 
 func (g *GRPC) Addr() string {
@@ -121,8 +122,9 @@ func SetRedisDefaults() {
 
 func SetGRPCDefaults() {
 	viper.SetDefault("grpc", map[string]interface{}{
-		"host": "",
-		"port": 1312,
+		"host":                 "",
+		"port":                 1312,
+		"healthcheck_interval": "30s",
 	})
 }
 

@@ -26,6 +26,8 @@ const (
 var ErrMaintenanceMode = errors.New("maintenance mode is activated")
 
 type Interface interface {
+	// Check ensures that the service itself is correctly running
+	Check(ctx context.Context) error
 	CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth Auth, host, templateID string, failSelfSigned, failMaintenance bool) (CheckResult, error)
 	CheckHypervisor(ctx context.Context, authMethod AuthMethod, auth Auth, host, hyperID, templateID string, failSelfSigned, failMaintenance bool) (CheckResult, error)
 }
@@ -50,6 +52,10 @@ type Check struct {
 
 func NewCheck(cfg cfg.Check, log *zerolog.Logger) *Check {
 	return &Check{log, cfg}
+}
+
+func (c *Check) Check(ctx context.Context) error {
+	return nil
 }
 
 func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth Auth, host, templateID string, failSelfSigned, failMaintenance bool) (CheckResult, error) {

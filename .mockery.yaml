@@ -13,6 +13,16 @@ packages:
   gitlab.com/isard/isardvdi/authentication/provider:
     interfaces:
       Provider: {}
+  gitlab.com/isard/isardvdi/haproxy-bastion-sync/haproxy:
+    interfaces:
+      Interface:
+        config:
+          mockname: "Mock{{ .PackageName | camelcase }}"
+  gitlab.com/isard/isardvdi/haproxy-bastion-sync/haproxy-bastion-sync:
+    interfaces:
+      Interface:
+        config:
+          mockname: "Mock{{ .PackageName | camelcase }}"
   gitlab.com/isard/isardvdi/sessions/sessions:
     interfaces:
       Interface:

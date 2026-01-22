@@ -279,7 +279,7 @@ docker-image:
           - hypervisor
           - notifier
           - openapi
-          - portal
+          - haproxy-bastion-sync
           - sessions
           - squid
           - static
@@ -291,11 +291,16 @@ docker-image:
       - DOCKER_COMPOSE: build
         IMAGE_DEPENDENCY: isard-rdpgw
         IMAGE: vpn
+      - DOCKER_COMPOSE: build
+        IMAGE_DEPENDENCY: isard-haproxy-bastion-sync
+        IMAGE: portal
       - DOCKER_COMPOSE: infrastructure.build
         IMAGE: orchestrator
       - DOCKER_COMPOSE: video-standalone.build
+        IMAGE_DEPENDENCY: isard-haproxy-bastion-sync
         IMAGE: video
       - DOCKER_COMPOSE: monitor.build
+        IMAGE_DEPENDENCY: isard-haproxy-bastion-sync
         IMAGE: monitor-proxy
       - DOCKER_COMPOSE: check.build
         IMAGE:
@@ -372,6 +377,7 @@ docker-tag:
           - check-client
           - vpn
           - orchestrator
+          - portal
           - video
           - monitor-proxy
   script:
@@ -401,5 +407,3 @@ container_scanning:
     matrix:
       - IMAGE: *containers
       - IMAGE: *containers_extra
-
-
