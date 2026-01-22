@@ -402,6 +402,11 @@ flavour(){
 	variants "$config_name" $parts
 }
 
+remove_part() {
+    local part="$1"
+    sed "s/\(^\|[[:blank:]]\)${part}\([[:blank:]]\|$\)/\1\2/g"
+}
+
 create_docker_compose_file(){
 	config_file="$1"
 	create_env "$config_file"
@@ -488,7 +493,7 @@ create_docker_compose_file(){
 	esac
 
 	if [ -n "$ENABLE_STATS" -a "$ENABLE_STATS" != "true" ]; then
-		parts="$(echo $parts | sed 's/monitor//' | sed 's/db-stats//' | sed 's/stats//')"
+                parts=$(echo $parts | remove_part "monitor" | remove_part  "db-stats" | remove_part "stats")
 	else
 		TARGET_DIR="/opt/isard/monitor/grafana/data"
 		REQUIRED_UID=472
@@ -533,17 +538,17 @@ create_docker_compose_file(){
 			echo "ERROR: flavour backupninja needs at least BACKUP_DB_ENABLED or BACKUP_DISKS_ENABLED in cfg"
 			exit 1
 		fi
-		parts="$(echo $parts | sed 's/backupninja//')"
+		parts="$(echo $parts | remove_part "backupninja")"
 	fi
 
 	if [ -z "$INFRASTRUCTURE_MANAGEMENT" ] || [ "$INFRASTRUCTURE_MANAGEMENT" != "true" ]
 	then
-		parts="$(echo $parts | sed 's/infrastructure//')"
+		parts="$(echo $parts | remove_part "infrastructure")"
 
 		# If the flavour is check, it doesn't require INFRASTRUCTURE_MANAGEMENT to be set
 		if [ "$FLAVOUR" != "check" ]
 		then
-			parts="$(echo $parts | sed 's/check//')"
+			parts="$(echo $parts | remove_part "check")"
 		fi
 	fi
 
@@ -551,7 +556,7 @@ create_docker_compose_file(){
 	then
 		# If BASTION_ENABLED is not true, remove the bastion part
 		echo "BASTION_ENABLED is not true, removing bastion part"
-		parts="$(echo $parts | sed 's/bastion//')"
+		parts="$(echo $parts | remove_part "bastion")"
 	else
 		# If BASTION_ENABLED is true, we need to ensure that the bastion-open-port part is included if BASTION_SSH_PORT is set
 		if [ -n "$BASTION_SSH_PORT" ]
