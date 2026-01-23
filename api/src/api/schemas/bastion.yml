@@ -28,6 +28,10 @@ http:
     https_port:
       type: integer
       required: true
+    proxy_protocol:
+      type: boolean
+      required: false
+      default: false
 ssh:
   type: dict
   required: true

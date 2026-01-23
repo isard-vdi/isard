@@ -391,8 +391,8 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 		}
 		proxyLog.Info().Str("local_addr_to_target", targetConn.LocalAddr().String()).Str("remote_addr_to_target", targetConn.RemoteAddr().String()).Msg("Connection to target established")
 
-		// Send PROXY Protocol v2 header to forward real client IP to guest
-		if remoteIP != "" && remotePort != "" {
+		// Conditionally send PROXY Protocol v2 header based on target configuration
+		if remoteIP != "" && remotePort != "" && currentTarget.HTTP.ProxyProtocol {
 			targetConn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 			if err := sendProxyProtocolV2(targetConn, remoteIP, remotePort, *currentDesktop.Viewer.GuestIP, targetPort); err != nil {
 				proxyLog.Error().Err(err).Msg("Failed to send PROXY protocol v2 header")

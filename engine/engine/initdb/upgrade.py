@@ -20,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 180
+release_version = 181
+# release 181: Add proxy_protocol field to bastion targets http configuration
 # release 180: Import LDAP configuration from AUTHENTICATION_AUTHENTICATION_LDAP_* environment variables
 # release 179: Remove old LDAP configuration
 # release 178: Bastion targets support multiple domains (array)
@@ -6656,6 +6657,15 @@ password:s:%s"""
 
             # Remove old domain field
             self.del_keys(table, ["domain"])
+
+        if version == 181:
+            # Add proxy_protocol field to http configuration, defaults to False
+            try:
+                r.table(table).update(
+                    lambda row: {"http": row["http"].merge({"proxy_protocol": False})}
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
 
         return True
 

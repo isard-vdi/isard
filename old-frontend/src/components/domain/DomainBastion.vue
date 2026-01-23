@@ -128,6 +128,28 @@
           </b-col>
         </b-row>
 
+        <b-row class="mt-2">
+          <b-col
+            cols="12"
+            xl="6"
+          >
+            <b-form-checkbox
+              id="checkbox-bastion-proxy-protocol"
+              v-model="proxyProtocol"
+              switch
+            >
+              {{ $t('forms.domain.bastion.http.proxy-protocol') }}
+              <b-icon
+                v-b-tooltip="{ title: $t('forms.domain.bastion.http.proxy-protocol-tooltip'),
+                               placement: 'top',
+                               customClass: 'isard-tooltip isard-tooltip-lg',
+                               trigger: 'hover' }"
+                icon="info-circle"
+              />
+            </b-form-checkbox>
+          </b-col>
+        </b-row>
+
         <b-row
           v-if="getConfig.canUseBastionIndividualDomains"
           class="mt-2"
@@ -409,6 +431,13 @@ export default {
         $store.commit('setBastion', bastionData.value)
       }
     })
+    const proxyProtocol = computed({
+      get: () => $store.getters.getBastion.http.proxy_protocol,
+      set: (value) => {
+        bastionData.value.http.proxy_protocol = value
+        $store.commit('setBastion', bastionData.value)
+      }
+    })
     const cnameTarget = computed(() => {
       return `${bastionId.value}.${config.value.bastionDomain}`
     })
@@ -520,6 +549,7 @@ export default {
       httpEnabled,
       httpPort,
       httpsPort,
+      proxyProtocol,
       cnameTarget,
       customDomainNames,
       addDomain,
