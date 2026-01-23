@@ -47,7 +47,7 @@ services:
       NOTIFY_EMAIL_USERNAME:
       NOTIFY_EMAIL_PASSWORD:
       # Transitional AUTHENTICATION_AUTHENTICATION_LDAP_* variables to import LDAP configuration
-      # to rethinkdb via migration 178
+      # to rethinkdb via migration 180
       AUTHENTICATION_AUTHENTICATION_LDAP_PROTOCOL:
       AUTHENTICATION_AUTHENTICATION_LDAP_HOST:
       AUTHENTICATION_AUTHENTICATION_LDAP_PORT:
