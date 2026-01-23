@@ -283,6 +283,12 @@ func (r *Rata) bestHyperToDestroy(hypersToHandle []*sdk.OrchestratorHypervisor) 
 	for _, h := range hypersToHandle {
 		// Check if we need to kill the hypervisor (because it's time to kill it or it has 0 desktops started)
 		if !h.DestroyTime.IsZero() && (h.DestroyTime.Before(time.Now()) || h.DesktopsStarted == 0) {
+			// Avoid killing hypervisors that aren't in only forced (are in use) due a mismanagement
+			if !h.OnlyForced {
+				r.log.Warn().Str("id", h.ID).Msg("avoided killing hypervisor due not being in only forced")
+				continue
+			}
+
 			return h
 		}
 	}
