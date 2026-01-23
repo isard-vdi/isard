@@ -597,16 +597,19 @@ func TestBestHyperToDestroy(t *testing.T) {
 		"should work correctly": {
 			Hypers: []*sdk.OrchestratorHypervisor{
 				{
-					ID: "not to destroy",
+					ID:         "not to destroy",
+					OnlyForced: true,
 				},
 				{
 					ID:              "to destroy",
+					OnlyForced:      true,
 					DesktopsStarted: 1000,
 					DestroyTime:     now.Add(-1 * time.Hour),
 				},
 			},
 			Expected: &sdk.OrchestratorHypervisor{
 				ID:              "to destroy",
+				OnlyForced:      true,
 				DesktopsStarted: 1000,
 				DestroyTime:     now.Add(-1 * time.Hour),
 			},
@@ -614,19 +617,33 @@ func TestBestHyperToDestroy(t *testing.T) {
 		"should remove a desktop with a destroy time and 0 desktops": {
 			Hypers: []*sdk.OrchestratorHypervisor{
 				{
-					ID: "not to destroy",
+					ID:         "not to destroy",
+					OnlyForced: true,
 				},
 				{
 					ID:              "to destroy",
+					OnlyForced:      true,
 					DesktopsStarted: 0,
 					DestroyTime:     now.Add(1 * time.Hour),
 				},
 			},
 			Expected: &sdk.OrchestratorHypervisor{
 				ID:              "to destroy",
+				OnlyForced:      true,
 				DesktopsStarted: 0,
 				DestroyTime:     now.Add(1 * time.Hour),
 			},
+		},
+		"should avoid killing hypervisors that aren't in only forced, due a mismanagement": {
+			Hypers: []*sdk.OrchestratorHypervisor{
+				{
+					ID:              "not to destroy",
+					OnlyForced:      false,
+					DesktopsStarted: 1000,
+					DestroyTime:     now.Add(-1 * time.Hour),
+				},
+			},
+			Expected: nil,
 		},
 	}
 	for name, tc := range cases {
