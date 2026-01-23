@@ -4,6 +4,9 @@ set -e
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting HAProxy container initialization..."
 
 # Set default variables
+if [ -n "$VIDEO_DOMAIN" ]; then
+        export DOMAIN="$VIDEO_DOMAIN"
+fi
 if [ ! -n "$HTTP_PORT" ]; then
         export HTTP_PORT=80
 fi
