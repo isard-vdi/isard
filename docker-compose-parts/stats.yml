@@ -5,17 +5,17 @@ services:
       - type: bind
         source: /opt/isard-local/conntrack
         target: /conntrack
-        bind: {create_host_path: true}
+        bind: { create_host_path: true }
       - type: bind
         source: /etc/timezone
         target: /etc/timezone
         read_only: true
-        bind: {create_host_path: true}
+        bind: { create_host_path: true }
       - type: bind
         source: /etc/localtime
         target: /etc/localtime
         read_only: true
-        bind: {create_host_path: true}
+        bind: { create_host_path: true }
     container_name: isard-stats-go
     logging:
       driver: "json-file"
@@ -78,7 +78,7 @@ services:
       - type: bind
         source: /opt/isard-local/stats/alloy
         target: /var/lib/alloy/data
-        bind: {create_host_path: true}
+        bind: { create_host_path: true }
       # Cadvisor and Node Exporter
       - /:/rootfs:ro,rslave
       # Cadvisor
@@ -88,7 +88,7 @@ services:
       - type: bind
         source: /opt/isard/stats/prometheus
         target: /var/lib/prometheus
-        bind: {create_host_path: true}
+        bind: { create_host_path: true }
       # This is also used for log extraction
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
@@ -105,6 +105,7 @@ services:
     restart: "unless-stopped"
     entrypoint: /usr/local/etc/alloy/run.sh
     environment:
+      - LOG_LEVEL=${LOG_LEVEL}
       - FLAVOUR=${FLAVOUR}
       - DOMAIN=${DOMAIN:-localhost}
       - PROMETHEUS_ADDRESS=${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}

@@ -30,7 +30,7 @@ prometheus.exporter.unix "exporter_node_exporter" {
 prometheus.scrape "metrics_node_exporter" {
 	targets = prometheus.exporter.unix.exporter_node_exporter.targets
 
-	forward_to      = [prometheus.relabel.add_domain.receiver]
+	forward_to      = [prometheus.relabel.process_metrics_containers.receiver]
 	job_name        = "node_exporter"
 	scrape_interval = "30s"
 }
@@ -57,31 +57,74 @@ prometheus.exporter.cadvisor "exporter_cadvisor" {
 prometheus.scrape "metrics_cadvisor" {
 	targets = prometheus.exporter.cadvisor.exporter_cadvisor.targets
 
-	forward_to      = [prometheus.relabel.add_domain.receiver]
+	forward_to      = [prometheus.relabel.process_metrics_containers.receiver]
 	job_name        = "cadvisor"
 	scrape_interval = "30s"
 }
 
-prometheus.scrape "metrics_containers" {
+discovery.relabel "containers_with_metrics" {
 	targets = discovery.docker.containers.targets
 
-	forward_to      = [prometheus.relabel.add_domain.receiver]
+	rule {
+		action        = "keep"
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/isard-(loki|pyroscope|tempo|stats-go|stats-rethinkdb|portal|video|monitor-proxy)"
+	}
+
+	rule {
+		action        = "replace"
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container_name"
+		replacement   = "${1}"
+	}
+
+	// Tempo
+	rule {
+		action        = "replace"
+		source_labels = ["__meta_docker_container_name", "__address__"]
+		regex         = "/isard-tempo;([^:]+):.*"
+		target_label  = "__address__"
+		replacement   = "${1}:3200"
+	}
+
+	// Stats Go
+	rule {
+		action        = "replace"
+		source_labels = ["__meta_docker_container_name", "__address__"]
+		regex         = "/isard-stats-go;([^:]+):.*"
+		target_label  = "__address__"
+		replacement   = "${1}:9091"
+	}
+
+	// Stats RethinkDB
+	rule {
+		action        = "replace"
+		source_labels = ["__meta_docker_container_name", "__address__"]
+		regex         = "/isard-stats-rethinkdb;([^:]+):.*"
+		target_label  = "__address__"
+		replacement   = "${1}:9055"
+	}
+
+	// HAProxy
+	rule {
+		action        = "replace"
+		source_labels = ["__meta_docker_container_name", "__address__"]
+		regex         = "/isard-(portal|video|monitor-proxy);([^:]+):.*"
+		target_label  = "__address__"
+		replacement   = "${2}:9090"
+	}
+}
+
+prometheus.scrape "metrics_containers" {
+	targets = discovery.relabel.containers_with_metrics.output
+
+	forward_to      = [prometheus.relabel.process_metrics_containers.receiver]
 	job_name        = "containers"
 	scrape_interval = "30s"
 }
 
-prometheus.scrape "metrics_stats_go" {
-	targets = [{
-		__address__ = "isard-stats-go:9091",
-		domain      = env("DOMAIN"),
-	}]
-
-	forward_to      = [prometheus.remote_write.monitor.receiver]
-	job_name        = "stats_go"
-	scrape_interval = "30s"
-}
-
-prometheus.relabel "add_domain" {
+prometheus.relabel "process_metrics_containers" {
 	forward_to = [prometheus.remote_write.monitor.receiver]
 
 	rule {
@@ -89,6 +132,23 @@ prometheus.relabel "add_domain" {
 		source_labels = ["__address__"]
 		target_label  = "domain"
 		replacement   = env("DOMAIN")
+	}
+
+	rule {
+		action        = "replace"
+		source_labels = ["container_name", "instance"]
+		regex         = "(.*);[^:]+:(.*)"
+		target_label  = "instance"
+		replacement   = "$1:$2"
+	}
+
+	// RethinkDB
+	rule {
+		action        = "replace"
+		source_labels = ["container_name", "__name__"]
+		regex         = "isard-stats-rethinkdb;(.*)"
+		target_label  = "__name__"
+		replacement   = "rethinkdb_$1"
 	}
 }
 
