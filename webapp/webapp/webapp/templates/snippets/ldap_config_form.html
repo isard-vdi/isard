@@ -311,6 +311,7 @@
             id="{{ id_prefix }}ldap_config_role_default"
             name="ldap_config_role_default"
             class="form-control"
+            {{ 'disabled' if disabled else '' }}
           >
             <option value="user">User</option>
             <option value="advanced">Advanced</option>
