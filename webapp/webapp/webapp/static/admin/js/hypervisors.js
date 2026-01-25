@@ -145,6 +145,21 @@ $(document).ready(function () {
     { "data": "cap_status.hypervisor" },
     { "data": "only_forced" },
     { "data": "gpu_only", "defaultContent": 0 },
+    {
+      "data": null,
+      "className": 'group-actions',
+      "orderable": false,
+      "visible": false,
+      "width": "180px",
+      "render": function (data, type, row) {
+        return '<div class="actions-buttons" data-pk="' + row.id + '">' +
+          '<button class="btn btn-xs btn-action-onlyforced" title="Only Forced"><i class="fa fa-rocket"></i> Forced</button> ' +
+          '<button class="btn btn-xs btn-action-gpu_only" title="GPU Only"><i class="fa fa-briefcase"></i> GPU</button> ' +
+          '<button class="btn btn-xs btn-action-orchestrator" title="Orchestrator"><i class="fa fa-magic"></i> Orch</button> ' +
+          '<button class="btn btn-xs btn-action-enable" title="Enable/Disable"><i class="fa fa-power-off"></i> On/Off</button>' +
+          '</div>';
+      }
+    },
     { "data": "id", "width": "100px" },
     { "data": "hostname", "width": "100px", "className": 'group-system', "visible": false },
     { "data": "info.memory_in_MB", "width": "600px", "defaultContent": 'NaN' },
@@ -176,7 +191,7 @@ $(document).ready(function () {
     { "data": "stats.positioned_items", "className": 'group-stats', "visible": false },
     ],
     "order": [
-      [7, 'asc']
+      [8, 'asc']
     ],
     "columnDefs": [{
       // Enabled
@@ -250,7 +265,7 @@ $(document).ready(function () {
     },
     {
       // RAM
-      "targets": 9,
+      "targets": 10,
       "render": function (data, type, full, meta) {
         if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
         if (!("min_free_mem_gb" in full)) { full.min_free_mem_gb = 0 }
@@ -261,7 +276,7 @@ $(document).ready(function () {
     },
     {
       // CPU
-      "targets": 10,
+      "targets": 11,
       "render": function (data, type, full, meta) {
         if (full.info) {
           if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
@@ -271,14 +286,14 @@ $(document).ready(function () {
     },
     {
       // Last Status Change
-      "targets": 11,
+      "targets": 12,
       "render": function (data, type, full, meta) {
         return moment.unix(full.status_time).fromNow();
       }
     },
     {
       // Desktops
-      "targets": 12,
+      "targets": 13,
       "render": function (data, type, full, meta) {
         if (full.status != "Online") {
           return "0"
@@ -288,7 +303,7 @@ $(document).ready(function () {
     },
     {
       // GPUs
-      "targets": 13,
+      "targets": 14,
       "render": function (data, type, full, meta) {
         if (full.physical_gpus == data) {
           return data
@@ -299,7 +314,7 @@ $(document).ready(function () {
     },
     {
       // Static
-      "targets": 14,
+      "targets": 15,
       "render": function (data, type, full, meta) {
         // Certificate expiration check disabled
         return data
@@ -316,7 +331,7 @@ $(document).ready(function () {
     },
     {
       // Proxy Video
-      "targets": 15,
+      "targets": 16,
       "render": function (data, type, full, meta) {
         // Certificate expiration check disabled
         return full.viewer.proxy_video + ' (' + full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')'
@@ -334,17 +349,17 @@ $(document).ready(function () {
 
     {
       // VPN
-      "targets": 16,
-      "render": renderBoolean
-    },
-    {
-      // Nested
       "targets": 17,
       "render": renderBoolean
     },
     {
-      // Virt
+      // Nested
       "targets": 18,
+      "render": renderBoolean
+    },
+    {
+      // Virt
+      "targets": 19,
       "render": function (data, type, full, meta) {
         if (!data) { return renderBoolean(data, type) }
         return data
@@ -353,7 +368,7 @@ $(document).ready(function () {
 
     {
       // Last Action
-      "targets": 21,
+      "targets": 22,
       "render": function (data, type, full, meta) {
         if (!("stats" in full)) {
           return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
@@ -379,7 +394,7 @@ $(document).ready(function () {
     },
     {
       // Action time
-      "targets": 22,
+      "targets": 23,
       "render": function (data, type, full, meta) {
         if (!("stats" in full)) {
           return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
@@ -404,7 +419,7 @@ $(document).ready(function () {
     },
     {
       // Action intervals
-      "targets": 23,
+      "targets": 24,
       "render": function (data, type, full, meta) {
         if (!("stats" in full)) {
           return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
@@ -431,7 +446,7 @@ $(document).ready(function () {
     },
     {
       // Queued actions
-      "targets": 24,
+      "targets": 25,
       "render": function (data, type, full, meta) {
         if (!("stats" in full)) {
           return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
@@ -474,6 +489,116 @@ $(document).ready(function () {
     }
   });
   showUserExportButtons(table, 'hypervisors-buttons-row');
+
+  // Event delegation for Actions column buttons
+  $('#hypervisors tbody').on('click', '.btn-action-enable', function (e) {
+    e.stopPropagation();
+    var pk = $(this).closest('.actions-buttons').attr('data-pk');
+    var data = table.row('#' + pk).data();
+    var change = data.enabled ? 'disable' : 'enable';
+    var text = data.enabled && data.orchestrator_managed
+      ? '<b>You are about to disable ' + pk + '!\nThis action will remove hypervisor from orchestrator managing\nAre you sure?</b>'
+      : '<b>You are about to ' + change + ' ' + pk + '!\nAre you sure?</b>';
+    new PNotify({
+      title: '<b>WARNING</b>',
+      type: 'error',
+      text: text,
+      hide: false,
+      opacity: 0.9,
+      confirm: { confirm: true },
+      buttons: { closer: false, sticker: false },
+      history: { history: false },
+      addclass: 'pnotify-center-large',
+      width: '550'
+    }).get().on('pnotify.confirm', function () {
+      $.ajax({
+        url: '/admin/table/update/hypervisors',
+        type: 'PUT',
+        data: JSON.stringify({ id: pk, enabled: !data.enabled }),
+        contentType: 'application/json',
+        success: function () {
+          if (data.enabled && data.orchestrator_managed) {
+            $.ajax({
+              url: '/api/v3/orchestrator/hypervisor/' + pk + '/manage',
+              type: 'DELETE',
+              contentType: 'application/json'
+            });
+          }
+        }
+      });
+    });
+  });
+
+  $('#hypervisors tbody').on('click', '.btn-action-onlyforced', function (e) {
+    e.stopPropagation();
+    var $btn = $(this);
+    var $icon = $btn.find('i');
+    var originalClass = $icon.attr('class');
+    $btn.prop('disabled', true);
+    $icon.attr('class', 'fa fa-spinner fa-spin');
+    var pk = $btn.closest('.actions-buttons').attr('data-pk');
+    var data = table.row('#' + pk).data();
+    $.ajax({
+      url: '/admin/table/update/hypervisors',
+      type: 'PUT',
+      data: JSON.stringify({ id: pk, only_forced: !data.only_forced }),
+      contentType: 'application/json',
+      complete: function () {
+        $btn.prop('disabled', false);
+        $icon.attr('class', originalClass);
+      },
+      error: function (data) {
+        new PNotify({ title: 'ERROR updating hypervisor', text: data.responseJSON.description, type: 'error', hide: true, icon: 'fa fa-warning', delay: 2000, opacity: 1 });
+      }
+    });
+  });
+
+  $('#hypervisors tbody').on('click', '.btn-action-gpu_only', function (e) {
+    e.stopPropagation();
+    var $btn = $(this);
+    var $icon = $btn.find('i');
+    var originalClass = $icon.attr('class');
+    $btn.prop('disabled', true);
+    $icon.attr('class', 'fa fa-spinner fa-spin');
+    var pk = $btn.closest('.actions-buttons').attr('data-pk');
+    var data = table.row('#' + pk).data();
+    $.ajax({
+      url: '/admin/table/update/hypervisors',
+      type: 'PUT',
+      data: JSON.stringify({ id: pk, gpu_only: !data.gpu_only }),
+      contentType: 'application/json',
+      complete: function () {
+        $btn.prop('disabled', false);
+        $icon.attr('class', originalClass);
+      },
+      error: function (data) {
+        new PNotify({ title: 'ERROR updating hypervisor', text: data.responseJSON.description, type: 'error', hide: true, icon: 'fa fa-warning', delay: 2000, opacity: 1 });
+      }
+    });
+  });
+
+  $('#hypervisors tbody').on('click', '.btn-action-orchestrator', function (e) {
+    e.stopPropagation();
+    var $btn = $(this);
+    var $icon = $btn.find('i');
+    var originalClass = $icon.attr('class');
+    $btn.prop('disabled', true);
+    $icon.attr('class', 'fa fa-spinner fa-spin');
+    var pk = $btn.closest('.actions-buttons').attr('data-pk');
+    var data = table.row('#' + pk).data();
+    $.ajax({
+      url: '/api/v3/orchestrator/hypervisor/' + pk + '/manage',
+      type: data.orchestrator_managed ? 'DELETE' : 'POST',
+      contentType: 'application/json',
+      complete: function () {
+        $btn.prop('disabled', false);
+        $icon.attr('class', originalClass);
+      },
+      error: function (data) {
+        new PNotify({ title: 'ERROR updating hypervisor', text: data.responseJSON.description, type: 'error', hide: true, icon: 'fa fa-warning', delay: 2000, opacity: 1 });
+      }
+    });
+  });
 
   $('#hypervisors').find('tbody').on('click', 'td.details-control', function () {
     var tr = $(this).closest('tr');
@@ -1159,10 +1284,25 @@ function renderEnabled(data) {
 }
 
 function renderStatus(data) {
-  icon = data.icon;
+  var icon = data.icon;
+  var statusText = data.status;
   switch (data.status) {
     case 'Online':
-      icon = '<i class="fa fa-power-off fa-2x" style="color:green"></i>';
+      // Check if cap_status has failures while capabilities are enabled
+      var diskFailing = data.capabilities && data.capabilities.disk_operations &&
+                        data.cap_status && data.cap_status.disk_operations === false;
+      var hypFailing = data.capabilities && data.capabilities.hypervisor &&
+                       data.cap_status && data.cap_status.hypervisor === false;
+      if (diskFailing || hypFailing) {
+        var failingReasons = [];
+        if (hypFailing) failingReasons.push('virtualization');
+        if (diskFailing) failingReasons.push('disk operations');
+        var tooltip = 'Discarded for ' + failingReasons.join(' and ') + ' until it recovers';
+        icon = '<i class="fa fa-exclamation-circle fa-2x" style="color:orange" title="' + tooltip + '"></i>';
+        statusText = 'Failing';
+      } else {
+        icon = '<i class="fa fa-power-off fa-2x" style="color:green"></i>';
+      }
       break;
     case 'Offline':
       icon = '<i class="fa fa-power-off fa-2x" style="color:black"></i>';
@@ -1197,7 +1337,7 @@ function renderStatus(data) {
   if ("orchestrator_managed" in data && data.orchestrator_managed == true) {
     icon = icon + '<i class="fa fa-magic fa-1x" style="color:rgb(166, 144, 238)"></i>';
   }
-  return icon + '<br>' + data.status;
+  return icon + '<br>' + statusText;
 }
 
 function renderProgress(perc, green, orange) {
@@ -1240,6 +1380,12 @@ function showUserExportButtons(table, buttonsRowClass) {
         text: 'Stats',
         extend: 'columnToggle',
         columns: '.group-stats'
+      },
+      {
+        titleAttr: 'Toggle Actions column',
+        text: 'Actions',
+        extend: 'columnToggle',
+        columns: '.group-actions'
       },
     ]
   }).container()
