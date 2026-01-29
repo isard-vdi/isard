@@ -1042,9 +1042,9 @@ def allowedTemplateId(payload, template_id):
         secondary_groups = get_document(
             "users", payload["user_id"], ["secondary_groups"]
         )
-        if secondary_groups is not None and secondary_groups.get("secondary_groups"):
+        if secondary_groups is not None and secondary_groups:
             for group in get_all_linked_groups(
-                [payload["group_id"]] + secondary_groups.get("secondary_groups", [])
+                [payload["group_id"]] + secondary_groups
             ):
                 if group in alloweds["groups"]:
                     return True
