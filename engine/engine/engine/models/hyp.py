@@ -1374,7 +1374,9 @@ class hyp(object):
         array_out_err = execute_commands(
             self.hostname, [cmd, cmd_mdevctl], port=self.port, timeout=30
         )
-        uuids_and_vms = array_out_err[0]["out"].splitlines()
+        uuids_and_vms = [
+            a for a in array_out_err[0]["out"].splitlines() if len(a.strip()) > 0
+        ]
         mdev_ctl_list = [
             a for a in array_out_err[1]["out"].splitlines() if len(a.strip()) > 0
         ]
@@ -1386,7 +1388,7 @@ class hyp(object):
 
         if len(uuids_and_vms) > 0:
             d_mdevs_domains = {
-                b[0].strip(): {"vm_name": b[1].strip()}
+                b[0].strip(): {"vm_name": b[1].strip() if len(b) > 1 else ""}
                 for b in [a.split("/") for a in uuids_and_vms]
             }
             d_mdevs = {
