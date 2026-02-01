@@ -524,10 +524,14 @@ def storage_update_pool(storage_id):
             # The actual storage is the most recent one
             storage.set_storage_pool(duplicated_storages[0]["storage_pool"])
             duplicated_storages.pop(0)
+            # Preserve "recycled" status - don't overwrite with "ready"
+            found_status = matching_storage["storage_data"]["status"]
+            if found_status == "ready" and storage.status == "recycled":
+                found_status = "recycled"
             storage_update(
                 **{
                     "id": storage_id,
-                    "status": matching_storage["storage_data"]["status"],
+                    "status": found_status,
                     "qemu-img-info": matching_storage["storage_data"]["qemu-img-info"],
                     "storages_with_uuid": [
                         {"status": "duplicated", "path": s["path"]}
@@ -556,10 +560,14 @@ def storage_update_pool(storage_id):
         if len(duplicated_storages):
             first_storage = duplicated_storages.pop(0)
             storage.set_storage_pool(first_storage["storage_pool"])
+            # Preserve "recycled" status - don't overwrite with "ready"
+            found_status = first_storage["storage_data"]["status"]
+            if found_status == "ready" and storage.status == "recycled":
+                found_status = "recycled"
             storage_update(
                 **{
                     "id": storage_id,
-                    "status": first_storage["storage_data"]["status"],
+                    "status": found_status,
                     "qemu-img-info": first_storage["storage_data"]["qemu-img-info"],
                     "storages_with_uuid": [
                         {"status": "duplicated", "path": s["path"]}

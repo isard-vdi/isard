@@ -616,6 +616,11 @@ class Storage(RethinkCustomBase):
                                 "job_kwargs": {
                                     "kwargs": {
                                         "statuses": {
+                                            JobStatus.FINISHED: {
+                                                final_status: {
+                                                    "storage": [self.id],
+                                                },
+                                            },
                                             JobStatus.CANCELED: {
                                                 original_status: {
                                                     "storage": [self.id],
@@ -679,6 +684,10 @@ class Storage(RethinkCustomBase):
         """
         origin_path = self.path
 
+        # Capture original status to preserve it after move
+        original_status = self.status
+        final_status = "recycled" if original_status == "recycled" else "ready"
+
         queue_mv = f"storage.{get_queue_from_storage_pools(self.pool, StoragePool.get_best_for_action('move', destination_path))}.{priority}"
 
         self.set_maintenance("move")
@@ -702,6 +711,7 @@ class Storage(RethinkCustomBase):
                     "job_kwargs": {
                         "kwargs": {
                             "id": self.id,
+                            "status": final_status,
                             "directory_path": destination_path,
                             "qemu-img-info": {
                                 "filename": f"{destination_path}/{self.id}.{self.type}"
@@ -715,14 +725,24 @@ class Storage(RethinkCustomBase):
                             "job_kwargs": {
                                 "kwargs": {
                                     "statuses": {
-                                        "_all": {
-                                            "ready": {
+                                        JobStatus.FINISHED: {
+                                            final_status: {
                                                 "storage": [self.id],
                                             },
                                             "Stopped": {
                                                 "domain": [
                                                     domain.id for domain in self.domains
                                                 ],
+                                            },
+                                        },
+                                        JobStatus.CANCELED: {
+                                            original_status: {
+                                                "storage": [self.id],
+                                            },
+                                        },
+                                        JobStatus.FAILED: {
+                                            original_status: {
+                                                "storage": [self.id],
                                             },
                                         },
                                     },
