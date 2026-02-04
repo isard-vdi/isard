@@ -13,6 +13,12 @@ fi
 if [ ! -n "$HTTPS_PORT" ]; then
         export HTTPS_PORT=443
 fi
+if [ -n "$VIEWER_SPICE" ]; then
+        export HTTP_PORT="$VIEWER_SPICE"
+fi
+if [ -n "$VIEWER_BROWSER" ]; then
+        export HTTPS_PORT="$VIEWER_BROWSER"
+fi
 if [ ! -n "$WEBAPP_HOST" ]; then
         export WEBAPP_HOST='isard-webapp'
 fi
