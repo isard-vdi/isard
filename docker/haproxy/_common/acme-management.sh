@@ -46,7 +46,7 @@ if [ -n "$ACME_DOMAIN" ] && [ -n "$ACME_EMAIL" ]; then
                 DEPLOY_HAPROXY_PEM_PATH=/certs \
                 acme.sh --deploy --deploy-hook haproxy -d "$ACME_DOMAIN"
 
-            if curl "https://$ACME_DOMAIN" &> /dev/null; then
+            if curl "https://$ACME_DOMAIN:$HTTPS_PORT" &> /dev/null; then
                 break
             fi
 

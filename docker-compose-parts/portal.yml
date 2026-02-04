@@ -13,10 +13,10 @@ services:
         ipv4_address: ${DOCKER_NET:-172.31.255}.18
     ports:
       - published: ${HTTP_PORT:-80}
-        target: 80
+        target: ${HTTP_PORT:-80}
         mode: host
       - published: ${HTTPS_PORT:-443}
-        target: 443
+        target: ${HTTPS_PORT:-443}
         mode: host
     volumes:
       - /opt/isard/certs/acme:/etc/acme:rw
