@@ -28,11 +28,12 @@ $(document).ready(function () {
                 if (enabled) {
                     $(`#${provider}-enabled`).css("color", "green");
                     $(`#${provider}_panel li a.btn span`).show();
-                    renderProviderDataTable(provider)
                 } else {
                     $(`#${provider}_panel li.collapse`).find('i').toggleClass('fa-chevron-up fa-chevron-down');
                     $(`#${provider}_panel table`).hide();
+                    $(`#${provider}_panel h4`).hide();
                 }
+                renderProviderDataTable(provider)
             });
         }
     })
@@ -49,25 +50,24 @@ $(document).ready(function () {
             type: "GET",
             url: `/api/v3/authentication/provider/${provider}`,
             success: function (data) {
-                if (provider == "ldap") {
-                  $(".ldap_config").show();
-                  $(".ldap_config :input").prop('disabled', false);
-                  $(".ldap_config :input:not(:checkbox)").each(
-                    function () {
-                      this.value = data.ldap_config[this.name.replace(/^ldap_config_/,"")]
-                    }
-                  );
-                  $('.ldap_config :checkbox').each(
-                    function () {
-                      if (data.ldap_config[this.name.replace(/^ldap_config_/,"")]) {
-                        $(this).iCheck('check').iCheck('update');
-                      }
-                    }
-                  );
-                } else {
-                  $(".ldap_config").hide();
-                  $(".ldap_config :input").prop('disabled', true);
-                }
+                ['ldap', 'saml'].forEach(providerType => {
+                    const enabled = provider === providerType;
+                    const $cfg = $(`.${providerType}_config`);
+                    const dataCfg = data?.[`${providerType}_config`] || {};
+
+                    $cfg.toggle(enabled).find(':input').prop('disabled', !enabled);
+
+                    if (!enabled) return;
+
+                    $cfg.find(':input:not(:checkbox)').each(function () {
+                        this.value = dataCfg[this.name.replace(`${providerType}_config_`, '')];
+                    });
+
+                    $cfg.find(':checkbox').each(function () {
+                        dataCfg[this.name.replace(`${providerType}_config_`, '')] &&
+                            $(this).iCheck('check').iCheck('update');
+                    });
+                });
 
                 $(`${modal} #import`).iCheck(data.migration.import ? 'check' : 'uncheck').iCheck('update');
                 $(`${modal} #export`).iCheck(data.migration.export ? 'check' : 'uncheck').iCheck('update');
@@ -187,24 +187,29 @@ $(document).ready(function () {
             data.migration.notification_bar.level = formData.level;
             data.migration.notification_bar.template = formData.template;
         }
-        if (formData.provider == "ldap") {
+
+        if (["ldap", "saml"].includes(formData.provider)) {
             for (const key in formData) {
-                if (key.startsWith("ldap_config_")) {
-                    name = key.replace(/^ldap_config_/,"")
-                    if (name == "port") {
+                if (key.startsWith(`${formData.provider}_config_`)) {
+                    name = key.replace(new RegExp(`^${formData.provider}_config_`),"")
+                    if (formData.provider == "ldap" && name == "port") {
                         formData[key] = parseInt(formData[key])
                     }
-                    (data.ldap_config ??={})[name] = formData[key]
+                    (data[`${formData.provider}_config`] ??={})[name] = formData[key]
                 }
             }
             checkboxes = [
                 "auto_register",
                 "guess_category",
-                "role_list_use_user_dn",
                 "save_email"
             ]
+            if(formData.provider == "ldap"){
+                checkboxes.push("role_list_use_user_dn");
+            }
             for (checkbox of checkboxes) {
-                (data.ldap_config ??={})[checkbox] = formData[`ldap_config_${checkbox}`] == "on"
+                (data[`${formData.provider}_config`] ??={})[checkbox] = (
+                  formData[`${formData.provider}_config_${checkbox}`] == "on"
+                )
             }
         }
         $.ajax({
@@ -389,14 +394,14 @@ function renderProviderDataTable(provider) {
             "url": `/api/v3/authentication/provider/${provider}`,
             "type": 'GET',
             "dataSrc": function (json) {
-                for (const key in (json.ldap_config ??={})) {
-                  if (typeof json.ldap_config[key] == 'boolean') {
-                    $(`#${provider} [name=ldap_config_${key}]`).iCheck(
-                      json.ldap_config[key] ? 'check' : 'uncheck'
-                    ).iCheck('update');
-                  } else {
-                    $(`#${provider} [name=ldap_config_${key}]`).val(json.ldap_config[key])
-                  }
+                for (const key in (json[`${provider}_config`] ??={})) {
+                    if (typeof json[`${provider}_config`][key] == 'boolean') {
+                        $(`#${provider} [name=${provider}_config_${key}]`).iCheck(
+                            json[`${provider}_config`][key] ? 'check' : 'uncheck'
+                        ).iCheck('update');
+                    } else {
+                        $(`#${provider} [name=${provider}_config_${key}]`).val(json[`${provider}_config`][key])
+                    }
                 }
                 return [json.migration];
             }

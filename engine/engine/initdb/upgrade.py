@@ -20,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 181
+release_version = 182
+# release 182: Import SAML configuration from AUTHENTICATION_AUTHENTICATION_SAML_* environment variables
 # release 181: Add proxy_protocol field to bastion targets http configuration
 # release 180: Import LDAP configuration from AUTHENTICATION_AUTHENTICATION_LDAP_* environment variables
 # release 179: Remove old LDAP configuration
@@ -1018,6 +1019,64 @@ password:s:%s"""
             )
 
             r.table(table).update({"auth": {"ldap": {"ldap_config": ldap_config}}}).run(
+                self.conn
+            )
+
+        if version == 182:
+            saml_config = {}
+            default_config = {
+                "metadata_url": "",
+                "metadata_file": "/keys/idp-metadata.xml",
+                "entity_id": "",
+                "signature_method": "",
+                "key_file": "/keys/isardvdi.key",
+                "cert_file": "/keys/isardvdi.cert",
+                "max_issue_delay": "90s",
+                "field_uid": "",
+                "regex_uid": ".*",
+                "field_username": "",
+                "regex_username": ".*",
+                "field_name": "",
+                "regex_name": ".*",
+                "field_email": "",
+                "regex_email": ".*",
+                "field_photo": "",
+                "regex_photo": ".*",
+                "auto_register_roles": "",
+                "field_category": "",
+                "regex_category": ".*",
+                "field_group": "",
+                "regex_group": ".*",
+                "group_default": "default",
+                "field_role": "",
+                "regex_role": ".*",
+                "role_admin_ids": "",
+                "role_manager_ids": "",
+                "role_advanced_ids": "",
+                "role_user_ids": "",
+                "role_default": "user",
+                "logout_redirect_url": "",
+            }
+            for config_key, config_value in default_config.items():
+                saml_config[config_key] = os.environ.get(
+                    f"AUTHENTICATION_AUTHENTICATION_SAML_{config_key.upper()}",
+                    config_value,
+                )
+            default_config = {
+                "auto_register": "false",
+                "guess_category": "false",
+                "save_email": "true",
+            }
+            for config_key, config_value in default_config.items():
+                saml_config[config_key] = bool(
+                    strtobool(
+                        os.environ.get(
+                            f"AUTHENTICATION_AUTHENTICATION_SAML_{config_key.upper()}",
+                            config_value,
+                        )
+                    )
+                )
+            r.table(table).update({"auth": {"saml": {"saml_config": saml_config}}}).run(
                 self.conn
             )
 
