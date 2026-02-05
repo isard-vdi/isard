@@ -564,7 +564,8 @@ create_docker_compose_file(){
 		parts="$(echo $parts | remove_part "bastion")"
 	else
 		# If BASTION_ENABLED is true, we need to ensure that the bastion-open-port part is included if BASTION_SSH_PORT is set
-		if [ -n "$BASTION_SSH_PORT" ]
+		# and is different from HTTPS_PORT (to avoid port conflict when both use 443)
+		if [ -n "$BASTION_SSH_PORT" ] && [ "$BASTION_SSH_PORT" != "${HTTPS_PORT:-443}" ]
 		then
 			parts="$parts bastion-open-port"
 		fi

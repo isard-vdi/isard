@@ -30,7 +30,7 @@ services:
       FLAVOUR: ${FLAVOUR:-all-in-one}
       FORBID_DOMAIN_IP: ${FORBID_DOMAIN_IP:-false}
       CORS: ${CORS:-*}
-      BASTION_DOMAIN: ${BASTION_DOMAIN:-${DOMAIN}}
-      BASTION_SSH_PROXIED: ${BASTION_SSH_PORT:-false}
+      BASTION_ENABLED: ${BASTION_ENABLED:-false}
+      BASTION_SSH_PORT: ${BASTION_SSH_PORT:-${HTTPS_PORT:-443}}
     env_file:
       - .env
