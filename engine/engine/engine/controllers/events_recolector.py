@@ -27,7 +27,6 @@ from engine.services.db import (
     get_domain_status,
     get_hyp_hostname_user_port_from_id,
     get_id_hyp_from_uri,
-    remove_domain_viewer_values,
     update_domain_status,
     update_uri_hyp,
     update_vgpu_info_if_stopped,
@@ -527,7 +526,6 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                 )
 
         if dict_event["event"] in ("Stopped"):
-            remove_domain_viewer_values(dom_id)
             if domain_status != "Stopped" and domain_status not in ["ForceDeleting"]:
                 logs.status.debug(
                     "event {} ({}) in hypervisor {} changes status to Stopped in domain {}".format(
