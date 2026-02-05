@@ -111,14 +111,14 @@ def stop_incomplete_starting_domains(
         results = (
             rtable.get_all(only_domain_id, index="id")
             .filter(lambda d: r.expr(status_to_stopped).contains(d["status"]))
-            .update({"status": "Stopped", "detail": detail})
+            .update({"status": "Stopped", "detail": detail, "hyp_started": False})
             .run(r_conn)
         )
     else:
         results = (
             rtable.get_all("Starting", index="status")
             .filter({"kind": kind})
-            .update({"status": "Stopped", "detail": detail})
+            .update({"status": "Stopped", "detail": detail, "hyp_started": False})
             .run(r_conn)
         )
     close_rethink_connection(r_conn)
