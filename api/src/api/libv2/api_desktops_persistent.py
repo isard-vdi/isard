@@ -31,6 +31,7 @@ quotas = Quotas()
 from cachetools import TTLCache, cached
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.domain import Domain
+from isardvdi_common.storage import Storage
 from rethinkdb import RethinkDB
 
 from api import app
@@ -209,7 +210,14 @@ class ApiDesktopsPersistent:
                 **template["create_dict"]["hardware"],
                 **parse_domain_insert(template["create_dict"])["hardware"],
             }
-        parent_disk = template["hardware"]["disks"][0]["file"]
+        storage_id = template["create_dict"]["hardware"]["disks"][0]["storage_id"]
+        if not Storage.exists(storage_id):
+            raise Error(
+                "not_found",
+                "Template storage not found",
+                description_code="storage_not_found",
+            )
+        parent_disk = Storage(storage_id).path
         create_dict = template["create_dict"]
         create_dict["hardware"]["disks"] = [
             {"extension": "qcow2", "parent": parent_disk}

@@ -20,7 +20,6 @@ import paramiko
 import xmltodict
 from engine.services.db import (
     gen_new_mac,
-    get_disks_all_domains,
     update_disk_backing_chain,
     update_domain_status,
 )
@@ -1004,54 +1003,6 @@ def size_format(b):
         return "%.1f" % float(b / pow(1024, 3)) + "GB"
     elif pow(1024, 4) <= b:
         return "%.1f" % float(b / pow(1024, 4)) + "TB"
-
-
-def check_all_backing_chains(hostname, path_to_write_json=None):
-    tuples_domain_disk = get_disks_all_domains()
-    # pprint(tuples_domain_disk)
-    cmds1 = list()
-    for domain_id, path_domain_disk in tuples_domain_disk:
-        path_domain_disk = shlex.quote(path_domain_disk)
-        cmds1.append({"title": domain_id, "cmd": backing_chain_cmd(path_domain_disk)})
-        cmds1.append(
-            {"title": domain_id, "cmd": 'stat -c %Y "{}"'.format(path_domain_disk)}
-        )
-
-    # pprint(cmds1)
-    array_out_err = execute_commands(hostname, cmds1, dict_mode=True)
-    return array_out_err
-
-    # pprint(array_out_err)
-    if path_to_write_json != None:
-        dict_stats = analize_backing_chains_outputs(
-            array_out_err=array_out_err, path_to_write_json=path_to_write_json
-        )
-        return dict_stats
-    else:
-        return array_out_err
-
-
-def cmd_check_os(path_disk):
-    return 'virt-inspector -a "{}"'.format(path_disk)
-
-
-def check_all_os(hostname, path_to_write_json=None):
-    tuples_domain_disk = get_disks_all_domains()
-    cmds1 = list()
-    for domain_id, path_domain_disk in tuples_domain_disk:
-        path_domain_disk = shlex.quote(path_domain_disk)
-        cmds1.append({"title": domain_id, "cmd": cmd_check_os(path_domain_disk)})
-
-    # pprint(cmds1)
-    array_out_err = execute_commands(hostname, cmds1, dict_mode=True)
-    # from pprint import pprint
-    # pprint(array_out_err)
-    if path_to_write_json != None:
-        f = open(path_to_write_json, "w")
-        json.dump(array_out_err, f)
-        f.close()
-
-    return array_out_err
 
 
 def analize_check_os_output(array_out_err):

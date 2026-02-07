@@ -602,28 +602,30 @@ def update_domain_dict_create_dict(id, create_dict):
 def update_domain_dict_hardware(
     domain_id, domain_dict, xml=False, hardware_from_xml=None
 ):
-    """Update domain hardware, xml, and optionally hardware_from_xml in a single DB call.
+    """Update domain xml and optionally hardware_from_xml.
+
+    NOTE: No longer writes hardware to root - field is deprecated.
+    The domain_dict parameter is kept for signature compatibility but ignored.
 
     Args:
         domain_id: The domain ID
-        domain_dict: Hardware dictionary to update
+        domain_dict: DEPRECATED - Hardware dictionary (ignored, kept for compatibility)
         xml: Optional XML string to update
-        hardware_from_xml: Optional hardware_from_xml dict to update (batches with other updates)
+        hardware_from_xml: Optional hardware_from_xml dict to update
     """
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
-    domain_dict["name"] = domain_id
 
-    update_dict = {"hardware": domain_dict}
+    update_dict = {}
     if xml is not False:
         update_dict["xml"] = xml
     if hardware_from_xml is not None:
         update_dict["hardware_from_xml"] = r.literal(hardware_from_xml)
 
-    results = rtable.get(domain_id).update(update_dict).run(r_conn)
-
-    # if results_zero(results):
-    #     logs.main.debug('id_domain {} does not exist in domain table'.format(id))
+    if update_dict:
+        results = rtable.get(domain_id).update(update_dict).run(r_conn)
+    else:
+        results = {}
 
     close_rethink_connection(r_conn)
     return results
@@ -767,9 +769,8 @@ def get_if_all_disk_template_created(id_domain):
 
 def create_disk_template_created_list_in_domain(id_domain):
     dict_domain = get_domain(id_domain)
-    created_disk_finalished_list = [
-        0 for a in range(len(dict_domain["hardware"]["disks"]))
-    ]
+    disks = dict_domain["create_dict"]["hardware"].get("disks", [])
+    created_disk_finalished_list = [0 for a in range(len(disks))]
 
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
@@ -822,20 +823,6 @@ def get_domain(id):
 
     # Log warnings for invalid hardware values (actual validation done at start time)
     if dict_domain:
-        # Check hardware dict
-        if "hardware" in dict_domain and isinstance(dict_domain["hardware"], dict):
-            hw = dict_domain["hardware"]
-            if "vcpus" in hw and (not isinstance(hw["vcpus"], int) or hw["vcpus"] < 1):
-                logs.main.warning(
-                    f"Domain {id} has invalid hardware vcpus={hw['vcpus']}"
-                )
-            if "memory" in hw and (
-                not isinstance(hw["memory"], (int, float)) or hw["memory"] < 0.025
-            ):
-                logs.main.warning(
-                    f"Domain {id} has invalid hardware memory={hw['memory']}GB (minimum 0.025GB)"
-                )
-
         # Check create_dict hardware
         if "create_dict" in dict_domain and isinstance(
             dict_domain["create_dict"], dict
@@ -910,22 +897,6 @@ def get_storage_ids_and_paths_from_domain(domain_id):
         return d_out
     except r.ReqlNonExistenceError:
         return {}
-
-
-def get_disks_all_domains():
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    domains_info_disks = list(
-        rtable.pluck("id", {"hardware": [{"disks": ["file"]}]}).run(r_conn)
-    )
-    close_rethink_connection(r_conn)
-    tuples_id_disk = [
-        (d["id"], d["hardware"]["disks"][0]["file"])
-        for d in domains_info_disks
-        if "hardware" in d.keys()
-    ]
-    return tuples_id_disk
 
 
 ## VGPUS

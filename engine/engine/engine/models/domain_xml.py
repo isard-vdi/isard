@@ -9,6 +9,7 @@
 
 # TODO: INFO TO DEVELOPER revisar si hacen falta todas estas librerías para este módulo
 
+import os
 import random
 import string
 import traceback
@@ -56,6 +57,7 @@ BUS_LETTER = {"ide": "h", "sata": "s", "virtio": "v"}
 # These avoid repeated DB queries for the same interface/QoS definitions
 _interface_cache = TTLCache(maxsize=200, ttl=30)
 _qos_net_cache = TTLCache(maxsize=100, ttl=30)
+_videos_cache = TTLCache(maxsize=10, ttl=30)
 
 
 @cached(cache=_interface_cache)
@@ -68,6 +70,12 @@ def get_interface_cached(interface_id):
 def get_qos_net_cached(qos_id):
     """Get QoS network config with TTL caching for batch operations."""
     return get_dict_from_item_in_table("qos_net", qos_id)
+
+
+@cached(cache=_videos_cache)
+def get_video_cached(video_id):
+    """Get video config with TTL caching."""
+    return get_dict_from_item_in_table("videos", video_id)
 
 
 XML_SNIPPET_NETWORK = """
@@ -1527,9 +1535,17 @@ def create_template_from_dict(dict_template_new):
 
 
 def update_xml_from_dict_domain(id_domain, xml=None):
+    """Update domain XML based on hardware specifications.
+
+    Args:
+        id_domain: Domain ID
+        xml: Optional XML string to use as base (if None, uses domain's stored XML)
+    """
     remove_fieds_when_stopped(id_domain)
     d = get_domain(id_domain)
-    hw = d["hardware"]
+
+    hw = resolve_hardware_from_create_dict(d)
+
     if xml is None:
         try:
             v = DomainXML(d["xml"], id_domain=id_domain)
@@ -1695,90 +1711,92 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     return xml_raw
 
 
-def populate_dict_hardware_from_create_dict(id_domain):
-    domain = get_domain(id_domain)
+def resolve_hardware_from_create_dict(domain):
+    """Resolve hardware specifications from create_dict without storing to database.
+
+    This function generates a fully resolved hardware dictionary on-demand from
+    the create_dict.hardware specifications. It resolves:
+    - Video ID to full video configuration
+    - Interface IDs to full interface configurations with QoS
+    - Media IDs (ISOs/floppies) to file paths
+    - Memory/CPU settings
+
+    Disks are NOT resolved here - they are resolved on-the-fly by insert_storage()
+    during XML generation.
+
+    Args:
+        domain: Domain dictionary containing 'create_dict' with hardware specifications
+
+    Returns:
+        dict: Fully resolved hardware dictionary ready for XML generation
+    """
     create_dict = domain["create_dict"]
-    new_hardware_dict = {}
-    # if 'origin' in create_dict.keys():
-    #     template_origin = create_dict['origin']
-    #     template = get_domain(template_origin)
-    #     new_hardware_dict = template['hardware'].copy()
-    #
-    # else:
-    #     # TODO domain from iso or new
-    #     pass
+    id_domain = domain["id"]
+    resolved_hardware = {}
 
-    if "disks" in create_dict["hardware"].keys():
-        new_hardware_dict["disks"] = create_dict["hardware"]["disks"].copy()
+    # DISKS - copy as-is, will be resolved by insert_storage() during XML generation
+    if "disks" in create_dict["hardware"]:
+        resolved_hardware["disks"] = create_dict["hardware"]["disks"].copy()
 
+    # ISOs and FLOPPIES - resolve media IDs to paths
     for media_type in ["isos", "floppies"]:
-        if media_type in create_dict["hardware"].keys():
-            new_hardware_dict[media_type] = []
-            for d in create_dict["hardware"][media_type]:
-                new_media_dict = {}
-                media = get_media(d["id"])
+        if media_type in create_dict["hardware"]:
+            resolved_hardware[media_type] = []
+            for media_item in create_dict["hardware"][media_type]:
+                media = get_media(media_item["id"])
+                if media is None:
+                    log.error(
+                        f"media with id {media_item['id']} not found in media table"
+                    )
+                    continue
                 path = media.get("path_downloaded")
                 if path is None:
                     log.error(
-                        f"media with id {d['id']} has not path_downloaded in media table. Setting to DownloadFailed"
+                        f"media with id {media_item['id']} has no path_downloaded in media table"
                     )
-                    update_table_field("media", d["id"], "status", "DownloadFailed")
                     continue
-                new_media_dict["path"] = path
-                new_hardware_dict[media_type].append(new_media_dict)
+                resolved_hardware[media_type].append({"path": path})
 
-    new_hardware_dict["name"] = id_domain
-    new_hardware_dict["uuid"] = None
+    resolved_hardware["name"] = id_domain
+    resolved_hardware["uuid"] = None
 
     # MEMORY and CPUS
-    new_hardware_dict["vcpus"] = create_dict["hardware"]["vcpus"]
-    new_hardware_dict["currentMemory"] = create_dict["hardware"].get(
+    resolved_hardware["vcpus"] = create_dict["hardware"]["vcpus"]
+    resolved_hardware["currentMemory"] = create_dict["hardware"].get(
         "currentMemory", int(create_dict["hardware"]["memory"] * DEFAULT_BALLOON)
     )
-    new_hardware_dict["memory"] = create_dict["hardware"]["memory"]
-    new_hardware_dict["currentMemory_unit"] = "KiB"
-    new_hardware_dict["memory_unit"] = "KiB"
+    resolved_hardware["memory"] = create_dict["hardware"]["memory"]
+    resolved_hardware["currentMemory_unit"] = "KiB"
+    resolved_hardware["memory_unit"] = "KiB"
 
-    # VIDEO
+    # VIDEO - resolve video ID to full configuration
     id_video = create_dict["hardware"]["videos"][0]
-    new_hardware_dict["video"] = create_dict_video_from_id(id_video)
+    resolved_hardware["video"] = create_dict_video_from_id(id_video)
 
-    # GRAPHICS
-    id_graphics = create_dict["hardware"]["graphics"][0]
-
-    pool_var = domain["hypervisors_pools"]
-    id_pool = pool_var if type(pool_var) is str else pool_var[0]
-    # ~ new_hardware_dict['graphics'] = create_dict_graphics_from_id(id_graphics, id_pool)
-
-    # INTERFACES
+    # INTERFACES - resolve interface IDs to full configurations
     list_interfaces_id = []
     list_interfaces_mac = []
     interfaces = create_dict["hardware"].get("interfaces", None)
     if interfaces:
         list_interfaces_id = [i["id"] for i in interfaces]
         list_interfaces_mac = [i["mac"] for i in interfaces]
-    new_hardware_dict["interfaces"] = create_list_interfaces_from_list_ids(
+    resolved_hardware["interfaces"] = create_list_interfaces_from_list_ids(
         list_interfaces_id, list_interfaces_mac
     )
 
     # BOOT MENU
-    if "hardware" in create_dict.keys():
-        if "boot_order" in create_dict["hardware"].keys():
-            new_hardware_dict["boot_order"] = create_dict["hardware"]["boot_order"]
-        if "boot_menu_enable" in create_dict["hardware"].keys():
-            new_hardware_dict["boot_menu_enable"] = create_dict["hardware"][
-                "boot_menu_enable"
-            ]
-    # import pprint
-    # pprint.pprint(new_hardware_dict)
-    # print('############### domain {}'.format(id_domain))
-    update_table_field(
-        "domains", id_domain, "hardware", new_hardware_dict, merge_dict=False
-    )
+    if "boot_order" in create_dict["hardware"]:
+        resolved_hardware["boot_order"] = create_dict["hardware"]["boot_order"]
+    if "boot_menu_enable" in create_dict["hardware"]:
+        resolved_hardware["boot_menu_enable"] = create_dict["hardware"][
+            "boot_menu_enable"
+        ]
+
+    return resolved_hardware
 
 
 def create_dict_video_from_id(id_video):
-    dict_video = get_dict_from_item_in_table("videos", id_video)
+    dict_video = get_video_cached(id_video)
     d = {
         "heads": dict_video["heads"],
         "ram": dict_video["ram"],
@@ -1863,17 +1881,6 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 
     # Validate hardware values before starting domain
     errors = []
-    if "hardware" in dict_domain and isinstance(dict_domain["hardware"], dict):
-        hw = dict_domain["hardware"]
-        if "vcpus" in hw:
-            if not isinstance(hw["vcpus"], int) or hw["vcpus"] < 1:
-                errors.append(f"Invalid vcpus={hw['vcpus']} (must be integer >= 1)")
-        if "memory" in hw:
-            if not isinstance(hw["memory"], (int, float)) or hw["memory"] < 0.025:
-                errors.append(
-                    f"Invalid memory={hw['memory']}GB (must be >= 0.025GB / 25MB)"
-                )
-
     if "create_dict" in dict_domain and isinstance(dict_domain["create_dict"], dict):
         if "hardware" in dict_domain["create_dict"] and isinstance(
             dict_domain["create_dict"]["hardware"], dict
