@@ -60,6 +60,9 @@ def cleanup_bad_files_logs():
         "non_valid_qcow_files.json",
         "files_with_no_domains.json",
         "recycled_storage.json",
+        "already_at_destination.json",
+        "file_not_found.json",
+        "path_verification_failed.json",
     ]
 
     for log_file in bad_files_logs:
@@ -171,6 +174,59 @@ def get_storage_statuses(storage_id):
     )
 
 
+def get_storage_details_for_logging(storage_id, file_path=None):
+    """Get comprehensive storage details for logging.
+
+    Returns:
+        dict: Storage details including id, size, pool, status, etc.
+    """
+    try:
+        statuses = get_storage_statuses(storage_id)
+
+        # Get file size
+        file_size = 0
+        file_path_to_check = file_path or statuses.get("path")
+        if file_path_to_check:
+            try:
+                file_size = Path(file_path_to_check).stat().st_size
+            except:
+                pass
+
+        # Extract pool from directory path
+        current_pool = "unknown"
+        directory_path = statuses.get("path", "").rsplit("/", 1)[0] if statuses.get("path") else ""
+        if directory_path:
+            # Extract pool name from path (e.g., /isard/fast/groups/... → fast)
+            parts = directory_path.split("/")
+            if len(parts) >= 3 and parts[1] == "isard":
+                current_pool = parts[2]
+
+        return {
+            "storage_id": storage_id,
+            "status": statuses.get("status", "unknown"),
+            "current_pool": current_pool,
+            "directory_path": directory_path,
+            "file_size_mb": file_size // (1024 * 1024),
+            "file_size_bytes": file_size,
+            "has_domains": len(statuses.get("domains", [])) > 0,
+            "domain_status": statuses["domains"][0]["status"] if statuses.get("domains") else None,
+        }
+    except Exception as e:
+        return {
+            "storage_id": storage_id,
+            "error": str(e),
+            "file_size_mb": 0,
+            "file_size_bytes": 0,
+        }
+
+
+def format_size_mb(size_bytes):
+    """Format bytes as MB for logging."""
+    if size_bytes == 0:
+        return "0 MB"
+    return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+
 def get_all_recycled_storage():
     """
     Get all recycled storage in ONE API call for optimization.
@@ -190,6 +246,141 @@ def get_all_recycled_storage():
         print(f"Warning: Could not fetch recycled storage list: {e}")
         print("Falling back to individual API calls per file")
         return {}
+
+
+def trigger_find_task(storage_id):
+    """Trigger find task to locate storage file.
+
+    Returns:
+        str: Task ID or None if failed
+    """
+    api = ApiRest()
+    try:
+        task_id = api.get(
+            f"/storage/{storage_id}/find",
+            timeout=30,
+        )
+        log(f"[FIND] Storage {storage_id} | Task ID: {task_id} | Task type: find")
+        return task_id
+    except Exception as e:
+        log(f"[FIND FAILED] Storage {storage_id} | Error: {e}")
+        return None
+
+
+def wait_for_task(task_id, timeout=300):
+    """Wait for a task to complete.
+
+    Args:
+        task_id (str): Task ID to monitor
+        timeout (int): Maximum seconds to wait
+
+    Returns:
+        dict: Task result or None if failed/timeout
+    """
+    api = ApiRest()
+    start_time = time.time()
+    last_log_time = start_time
+
+    while time.time() - start_time < timeout:
+        try:
+            task = api.get(f"/task/{task_id}", timeout=10)
+
+            # Log progress every 30 seconds
+            if time.time() - last_log_time >= 30:
+                elapsed = time.time() - start_time
+                log(f"[TASK WAIT] Task {task_id} | Status: {task.get('status')} | Progress: {task.get('progress', 0)*100:.0f}% | Elapsed: {elapsed:.0f}s")
+                last_log_time = time.time()
+
+            if not task.get("pending", True):
+                # Task completed
+                elapsed = time.time() - start_time
+                if task.get("status") == "finished":
+                    log(f"[TASK COMPLETE] Task {task_id} | Status: finished | Duration: {elapsed:.1f}s")
+                    return task.get("result")
+                else:
+                    log(f"[TASK FAILED] Task {task_id} | Status: {task.get('status')} | Duration: {elapsed:.1f}s")
+                    return None
+
+            time.sleep(2)
+        except Exception as e:
+            log(f"[TASK ERROR] Task {task_id} | Error: {e}")
+            return None
+
+    elapsed = time.time() - start_time
+    log(f"[TASK TIMEOUT] Task {task_id} | Timeout after {elapsed:.0f}s")
+    return None
+
+
+def verify_storage_path_and_find(storage_id, expected_path, destination_pool_path):
+    """Verify storage file exists at expected path, trigger find if not.
+
+    Args:
+        storage_id (str): Storage ID
+        expected_path (str): Expected file path
+        destination_pool_path (str): Destination pool mountpoint
+
+    Returns:
+        tuple: (should_proceed: bool, reason: str, actual_path: str or None)
+            - (True, "file_at_expected_path", path) - File exists, proceed with rsync
+            - (False, "file_at_destination", path) - File already at destination, skip
+            - (False, "file_not_found", None) - File not found anywhere
+            - (True, "file_found_elsewhere", path) - File found, needs rsync
+    """
+    from pathlib import Path
+
+    # Get storage details for logging
+    details = get_storage_details_for_logging(storage_id, expected_path)
+
+    # Check if file exists at expected path
+    if Path(expected_path).exists():
+        log(f"[PATH VERIFY] Storage {storage_id} | Status: file_exists | Path: {expected_path} | Size: {format_size_mb(details['file_size_bytes'])} | Current pool: {details['current_pool']}")
+        return (True, "file_at_expected_path", expected_path)
+
+    log(f"[PATH VERIFY] Storage {storage_id} | Status: file_missing | Expected: {expected_path} | Current pool: {details['current_pool']} | Triggering find task...")
+
+    # File missing - trigger find task
+    task_id = trigger_find_task(storage_id)
+    if not task_id:
+        return (False, "find_task_failed", None)
+
+    log(f"[FIND WAIT] Storage {storage_id} | Task ID: {task_id} | Waiting for completion...")
+
+    # Wait for find task to complete
+    result = wait_for_task(task_id, timeout=300)
+    if not result:
+        return (False, "find_task_timeout", None)
+
+    # Get updated storage info after find task
+    try:
+        statuses = get_storage_statuses(storage_id)
+        actual_path = statuses.get("path")
+        updated_details = get_storage_details_for_logging(storage_id, actual_path)
+
+        if not actual_path:
+            log(f"[FIND RESULT] Storage {storage_id} | Status: no_path_in_db | Task ID: {task_id}")
+            return (False, "file_not_found", None)
+
+        # Check if file was found
+        if not Path(actual_path).exists():
+            log(f"[FIND RESULT] Storage {storage_id} | Status: path_in_db_but_file_missing | Path: {actual_path} | Task ID: {task_id}")
+            return (False, "file_not_found", None)
+
+        # Get directory portion to check if already at destination
+        actual_dir = actual_path.rsplit("/", 1)[0]
+
+        # Extract destination pool name for logging
+        dest_pool_name = destination_pool_path.split("/")[-1] if "/" in destination_pool_path else destination_pool_path
+
+        if actual_dir.startswith(destination_pool_path):
+            log(f"[FIND RESULT] Storage {storage_id} | Status: already_at_destination | Path: {actual_path} | Size: {format_size_mb(updated_details['file_size_bytes'])} | Pool: {dest_pool_name} | Task ID: {task_id}")
+            return (False, "file_at_destination", actual_path)
+
+        log(f"[FIND RESULT] Storage {storage_id} | Status: found_elsewhere | Path: {actual_path} | Size: {format_size_mb(updated_details['file_size_bytes'])} | Current pool: {updated_details['current_pool']} → Destination: {dest_pool_name} | Task ID: {task_id}")
+        return (True, "file_found_elsewhere", actual_path)
+
+    except Exception as e:
+        log(f"[FIND ERROR] Storage {storage_id} | Error getting status after find: {e} | Task ID: {task_id}")
+        return (False, "error_after_find", None)
 
 
 def rsync_to_storage_pool(storage_id, storage_pool_id):
@@ -259,6 +450,8 @@ def wait_ready(storage_id, timeout_seconds, stop_requested=None):
         if not len(statuses["domains"]):
             # For storages without domains (including recycled), check status
             if ss == "ready":
+                return True
+            elif ss == "recycled":
                 return True
             elif ss == "maintenance":
                 # Storage actively being rsynced
@@ -632,17 +825,93 @@ def move_discs_api_with_stats(file_path, destination_pool_id, rsync_timeout=1000
                 stats['failed_db'][worker_type] += 1
             return False
 
-        # Allow moving recycled storages
-        if statuses.get("status") == "recycled":
-            log(f"Moving recycled storage {file_path}")
-
+        # Check for deleted status (skip)
         if statuses.get("status") == "deleted":
-            log(f"Skipping {file_path} - storage status is 'deleted'")
+            details = get_storage_details_for_logging(storage_id, file_path)
+            log(f"[SKIP] Storage {storage_id} | Reason: deleted_status | Size: {format_size_mb(details['file_size_bytes'])} | Pool: {details['current_pool']}")
             with lock:
                 stats['skipped_deleted'][worker_type] += 1
             return False
 
-        log(f"Moving {file_path} to pool")
+        # Allow both "ready" and "recycled" as valid starting states
+        current_status = statuses.get("status")
+        if current_status in ["ready", "recycled"]:
+            log(f"Storage {storage_id} is {current_status}, proceeding with move")
+        else:
+            log(f"Storage {storage_id} has unexpected status: {current_status}")
+            # Continue anyway - wait_ready() will validate
+
+        # Verify storage file path before proceeding
+        log(f"Verifying file path for {storage_id}...")
+
+        # Get destination pool info
+        destination_pool_path = None
+        try:
+            pools = get_storage_pools()
+            for pool in pools:
+                if pool["id"] == destination_pool_id:
+                    destination_pool_path = pool["mountpoint"]
+                    break
+        except Exception as e:
+            log(f"Error getting destination pool info: {e}")
+
+        if not destination_pool_path:
+            log(f"Cannot determine destination pool path for pool ID {destination_pool_id}")
+            with lock:
+                stats['failed_rsync'][worker_type] += 1
+            return False
+
+        # Get database path (what the API will use for rsync operation)
+        database_path = statuses.get("path")
+
+        # Log path comparison for debugging
+        if database_path != file_path:
+            log(f"[PATH MISMATCH] Storage {storage_id} | DB path: {database_path} | FS path: {file_path} | Will verify DB path")
+
+        # Verify DATABASE path exists (not filesystem path), trigger find if mismatch detected
+        should_proceed, reason, actual_path = verify_storage_path_and_find(
+            storage_id,
+            database_path,
+            destination_pool_path
+        )
+
+        # Get storage details for enhanced logging
+        details = get_storage_details_for_logging(storage_id, actual_path if 'actual_path' in locals() else file_path)
+
+        # Get destination pool name for logging
+        destination_pool_name = "unknown"
+        try:
+            pools = get_storage_pools()
+            for pool in pools:
+                if pool["id"] == destination_pool_id:
+                    destination_pool_name = pool.get("name", pool["id"])
+                    break
+        except:
+            pass
+
+        if not should_proceed:
+            if reason == "file_at_destination":
+                log(f"[SKIP] Storage {storage_id} | Reason: already_at_destination | Path: {actual_path} | Size: {format_size_mb(details['file_size_bytes'])} | Pool: {destination_pool_name}")
+                save_to_file("already_at_destination.json", f"{file_path}|{actual_path}")
+                with lock:
+                    stats['skipped_already_at_dest'][worker_type] += 1
+                return False
+            elif reason == "file_not_found":
+                log(f"[SKIP] Storage {storage_id} | Reason: file_not_found | Expected: {file_path} | Pool: {details.get('current_pool', 'unknown')}")
+                save_to_file("file_not_found.json", file_path)
+                with lock:
+                    stats['failed_file_not_found'][worker_type] += 1
+                return False
+            else:
+                log(f"[SKIP] Storage {storage_id} | Reason: path_verification_failed | Verification error: {reason} | Expected: {file_path}")
+                save_to_file("path_verification_failed.json", f"{file_path}|{reason}")
+                with lock:
+                    stats['failed_rsync'][worker_type] += 1
+                return False
+
+        log(f"[PRE-RSYNC] Storage {storage_id} | Status: {details['status']} | Size: {format_size_mb(details['file_size_bytes'])} | Current pool: {details['current_pool']} → Destination: {destination_pool_name} | Path: {actual_path}")
+
+        # Check storage is ready or recycled (both valid)
         status = wait_ready(storage_id, 0, stop_requested)
         if status is None:
             log(f"Storage {storage_id} does not exist in database when going to move")
@@ -651,22 +920,24 @@ def move_discs_api_with_stats(file_path, destination_pool_id, rsync_timeout=1000
                 stats['failed_db'][worker_type] += 1
             return False
         if status is False:
-            log(
-                f"Storage/Domain {storage_id} is not ready. Status: {statuses.get('status')}"
-            )
+            log(f"Storage/Domain {storage_id} is not ready. Status: {statuses.get('status')}")
             save_to_file("not_ready.json", file_path)
             with lock:
                 stats['failed_not_ready'][worker_type] += 1
             return False
         try:
-            log(f"Task ID: {rsync_to_storage_pool(storage_id, destination_pool_id).get('task_id', 'N/A')}")
+            rsync_response = rsync_to_storage_pool(storage_id, destination_pool_id)
+            rsync_task_id = rsync_response.get('task_id', 'N/A')
+            log(f"[RSYNC START] Storage {storage_id} | Task ID: {rsync_task_id} | Task type: rsync | Source pool: {details['current_pool']} → Destination: {destination_pool_name} | Size: {format_size_mb(details['file_size_bytes'])} | Bandwidth limit: {BWLIMIT} KB/s")
 
             # Track this rsync as active
             if active_rsyncs is not None:
                 with lock:
                     active_rsyncs[storage_id] = {
                         "file_path": file_path,
-                        "start_time": time.time()
+                        "start_time": time.time(),
+                        "task_id": rsync_task_id,
+                        "size_bytes": details['file_size_bytes']
                     }
 
             status = wait_ready(storage_id, rsync_timeout, stop_requested)
@@ -675,18 +946,19 @@ def move_discs_api_with_stats(file_path, destination_pool_id, rsync_timeout=1000
             if status is True and active_rsyncs is not None:
                 with lock:
                     if storage_id in active_rsyncs:
+                        rsync_duration = time.time() - active_rsyncs[storage_id]["start_time"]
+                        transfer_speed_mbps = (details['file_size_bytes'] / rsync_duration / (1024 * 1024)) if rsync_duration > 0 else 0
+                        log(f"[RSYNC COMPLETE] Storage {storage_id} | Task ID: {rsync_task_id} | Duration: {rsync_duration:.1f}s | Size: {format_size_mb(details['file_size_bytes'])} | Speed: {transfer_speed_mbps:.1f} MB/s | {details['current_pool']} → {destination_pool_name}")
                         del active_rsyncs[storage_id]
 
             if status is None:
-                log(f"WARNING!!! Storage {storage_id} does not exist after rsync")
+                log(f"[RSYNC FAILED] Storage {storage_id} | Task ID: {rsync_task_id} | Reason: storage_not_in_db_after_rsync | {details['current_pool']} → {destination_pool_name}")
                 save_to_file("non_existing_in_db_after_rsync.json", file_path)
                 with lock:
                     stats['failed_after_rsync'][worker_type] += 1
                 return False
             if status is False:
-                log(
-                    f"WARNING!!! Storage/Domain for storage {storage_id} is not ready after rsync"
-                )
+                log(f"[RSYNC FAILED] Storage {storage_id} | Task ID: {rsync_task_id} | Reason: storage_not_ready_after_rsync | Status: {statuses.get('status')} | {details['current_pool']} → {destination_pool_name}")
                 save_to_file("not_ready_after_rsync.json", file_path)
                 with lock:
                     stats['failed_after_rsync'][worker_type] += 1
@@ -1450,10 +1722,12 @@ def main():
         'skipped_recycled': {fast_to_slow_name: 0, slow_to_fast_name: 0},
         'skipped_deleted': {fast_to_slow_name: 0, slow_to_fast_name: 0},
         'skipped_invalid': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'skipped_already_at_dest': {fast_to_slow_name: 0, slow_to_fast_name: 0},
         'failed_db': {fast_to_slow_name: 0, slow_to_fast_name: 0},
         'failed_not_ready': {fast_to_slow_name: 0, slow_to_fast_name: 0},
         'failed_after_rsync': {fast_to_slow_name: 0, slow_to_fast_name: 0},
         'failed_rsync': {fast_to_slow_name: 0, slow_to_fast_name: 0},
+        'failed_file_not_found': {fast_to_slow_name: 0, slow_to_fast_name: 0},
     }
 
     # Store configuration metadata for final statistics
@@ -1692,10 +1966,12 @@ def main():
             stats['skipped_recycled'][direction] +
             stats['skipped_deleted'][direction] +
             stats['skipped_invalid'][direction] +
+            stats['skipped_already_at_dest'][direction] +
             stats['failed_db'][direction] +
             stats['failed_not_ready'][direction] +
             stats['failed_after_rsync'][direction] +
-            stats['failed_rsync'][direction]
+            stats['failed_rsync'][direction] +
+            stats['failed_file_not_found'][direction]
         )
 
         if failures > 0:
@@ -1708,6 +1984,8 @@ def main():
                 print(f"  - Deleted status: {stats['skipped_deleted'][direction]}")
             if stats['skipped_invalid'][direction] > 0:
                 print(f"  - Invalid qcow2: {stats['skipped_invalid'][direction]}")
+            if stats['skipped_already_at_dest'][direction] > 0:
+                print(f"  - Already at destination: {stats['skipped_already_at_dest'][direction]}")
             if stats['failed_db'][direction] > 0:
                 print(f"  - Database errors: {stats['failed_db'][direction]}")
             if stats['failed_not_ready'][direction] > 0:
@@ -1716,6 +1994,8 @@ def main():
                 print(f"  - Post-rsync failures: {stats['failed_after_rsync'][direction]}")
             if stats['failed_rsync'][direction] > 0:
                 print(f"  - Rsync failures: {stats['failed_rsync'][direction]}")
+            if stats['failed_file_not_found'][direction] > 0:
+                print(f"  - File not found: {stats['failed_file_not_found'][direction]}")
 
         print()
 
