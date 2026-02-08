@@ -1934,6 +1934,9 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         # error when parsing xml
         return False
 
+    x.set_name(id_domain)
+    x.tree.xpath("/domain/uuid")[0].text = id_domain
+
     ##### Resolve hardware from create_dict #####
     hw = resolve_hardware_from_create_dict(dict_domain)
 
@@ -1998,6 +2001,12 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     elif total_cdroms_in_xml > 0:
         for i in range(total_cdroms_in_xml):
             x.remove_cdrom()
+
+    # Custom floppy
+    if "custom" in dict_domain:
+        if type(dict_domain["custom"]) is dict:
+            if "path_custom_fd" in dict_domain["custom"]:
+                x.add_floppy(path_floppy=dict_domain["custom"]["path_custom_fd"])
 
     # Floppies
     total_floppies_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="floppy"]'))
@@ -2088,6 +2097,17 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     # (start_paused domains use different function, won't have this metadata)
     if x.mac2network_mappings:
         x.add_mac2network_metadata(x.mac2network_mappings)
+
+    # Shared folder
+    file_spice_options = (
+        dict_domain.get("guest_properties", {})
+        .get("viewers", {})
+        .get("file_spice", {})
+        .get("options", {})
+    )
+    if type(file_spice_options) is dict:
+        if file_spice_options.get("shared_folder") is True:
+            x.add_shared_folder()
 
     x.remove_selinux_options()
 
