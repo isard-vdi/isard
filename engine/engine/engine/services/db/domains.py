@@ -111,14 +111,36 @@ def stop_incomplete_starting_domains(
         results = (
             rtable.get_all(only_domain_id, index="id")
             .filter(lambda d: r.expr(status_to_stopped).contains(d["status"]))
-            .update({"status": "Stopped", "detail": detail})
+            .replace(
+                lambda domain: domain.without(
+                    "viewer", {"create_dict": "personal_vlans"}
+                ).merge(
+                    {
+                        "status": "Stopped",
+                        "detail": detail,
+                        "hyp_started": False,
+                        "create_dict": {"personal_vlans": False},
+                    }
+                )
+            )
             .run(r_conn)
         )
     else:
         results = (
             rtable.get_all("Starting", index="status")
             .filter({"kind": kind})
-            .update({"status": "Stopped", "detail": detail})
+            .replace(
+                lambda domain: domain.without(
+                    "viewer", {"create_dict": "personal_vlans"}
+                ).merge(
+                    {
+                        "status": "Stopped",
+                        "detail": detail,
+                        "hyp_started": False,
+                        "create_dict": {"personal_vlans": False},
+                    }
+                )
+            )
             .run(r_conn)
         )
     close_rethink_connection(r_conn)
@@ -255,16 +277,19 @@ def update_domain_parents(id_domain):
 
 def update_domains_in_deleted_hyper(hyp_id):
     r_conn = new_rethink_connection()
+    detail = json.dumps("Set to Stopped by engine as the hypervisor was deleted")
     try:
-        r.table("domains").get_all(hyp_id, index="hyp_started").update(
-            {
-                "status": "Stopped",
-                "hyp_started": False,
-                "detail": json.dumps(
-                    "Set to Stopped by engine as the hypervisor was deleted"
-                ),
-                "create_dict": {"personal_vlans": False},
-            },
+        r.table("domains").get_all(hyp_id, index="hyp_started").replace(
+            lambda domain: domain.without(
+                "viewer", {"create_dict": "personal_vlans"}
+            ).merge(
+                {
+                    "status": "Stopped",
+                    "hyp_started": False,
+                    "detail": detail,
+                    "create_dict": {"personal_vlans": False},
+                }
+            )
         ).run(r_conn)
     except:
         logs.main.error("Unable to set stopped status to domains in deleted hypervisor")
@@ -339,6 +364,29 @@ def update_domain_status(
                     .run(conn)["hyp_started"]
                 )
 
+        # Atomic handling for Stopped status: remove viewer and reset fields in one operation
+        if status == "Stopped":
+            with rethink_conn() as conn:
+                results = (
+                    r.table("domains")
+                    .get(id_domain)
+                    .replace(
+                        lambda domain: domain.without(
+                            "viewer", {"create_dict": "personal_vlans"}
+                        ).merge(
+                            {
+                                "status": status,
+                                "hyp_started": False,
+                                "detail": json.dumps(detail),
+                                "create_dict": {"personal_vlans": False},
+                            }
+                        ),
+                        return_changes=True,
+                    )
+                    .run(conn)
+                )
+            return results
+
         if hyp_id is None:
             with rethink_conn() as conn:
                 results = (
@@ -378,8 +426,6 @@ def update_domain_status(
                 logs.main.error("Exception in update_storage_deleted_domain")
                 logs.main.error("Traceback: \n .{}".format(traceback.format_exc()))
                 logs.main.error("Exception message: {}".format(e))
-        if status == "Stopped":
-            remove_fieds_when_stopped(id_domain)
 
         if status == "Failed":
             remove_fieds_when_stopped(id_domain)
