@@ -1551,11 +1551,11 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         data: 'qemu-img-info.virtual-size',
         defaultContent: '-',
         render: function (data, type, row, meta) {
-          if (data) {
-            return Math.round(data / 1024 / 1024 / 1024) + " GB";
-          } else {
-            '-';
+          if (!data) return '-';
+          if (type === 'display' || type === 'filter') {
+            return formatBytes(data);
           }
+          return data;
         }
       },
       {
@@ -1563,11 +1563,11 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         data: 'qemu-img-info.actual-size',
         defaultContent: '-',
         render: function (data, type, row, meta) {
-          if (data) {
-            return Math.round(data / 1024 / 1024 / 1024) + ' GB';
-          } else {
-            '-';
+          if (!data) return '-';
+          if (type === 'display' || type === 'filter') {
+            return formatBytes(data);
           }
+          return data;
         }
       },
       {
