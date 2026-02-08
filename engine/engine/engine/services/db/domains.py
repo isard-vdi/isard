@@ -212,25 +212,6 @@ def update_domain_progress(id_domain, percent):
     return results
 
 
-def update_domain_forced_hyp(id_domain, hyp_id=None):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    if hyp_id:
-        forced_hyp = [hyp_id]
-    else:
-        forced_hyp = False
-
-    results = (
-        rtable.get_all(id_domain, index="id")
-        .update({"forced_hyp": forced_hyp})
-        .run(r_conn)
-    )
-
-    close_rethink_connection(r_conn)
-    return results
-
-
 def update_domain_parents(id_domain):
     with rethink_conn() as conn:
         d = (
