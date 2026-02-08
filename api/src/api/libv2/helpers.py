@@ -298,7 +298,6 @@ def _is_frontend_desktop_status(status):
         "Failed",
         "Downloading",
         "DownloadStarting",
-        "Updating",
         "Maintenance",
         "Unknown",
     ]
@@ -585,7 +584,7 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
         if "xml" in new_data and new_data.get("xml") != domain.get("xml"):
             new_domain = {
                 **new_domain,
-                **{"status": "Updating", "xml": new_data["xml"]},
+                **{"xml": new_data["xml"]},
             }
 
     if "name" in new_data and new_data.get("name") != domain.get("name"):
@@ -667,7 +666,6 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
             new_domain = {
                 **new_domain,
                 **{
-                    "status": "Updating",
                     "create_dict": {
                         "hardware": new_data["hardware"],
                         "reservables": r.literal(

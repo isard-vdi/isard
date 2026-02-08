@@ -5,7 +5,6 @@
 
 import os
 import traceback
-from concurrent.futures import ThreadPoolExecutor
 
 # from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
@@ -72,8 +71,6 @@ Q_LONGOPERATIONS_PRIORITY_CREATE_TEMPLATE_DISK = 50
 Q_LONGOPERATIONS_PRIORITY_CREATE_DISK_FROM_TEMPLATE = 40
 Q_LONGOPERATIONS_PRIORITY_DOMAIN_FROM_TEMPLATE = 40
 
-updating_thread_pool = ThreadPoolExecutor(max_workers=1)
-
 # TTL cache for template lookups during batch domain creation
 # Avoids repeated DB queries when creating many domains from the same template
 _template_cache = TTLCache(maxsize=100, ttl=60)
@@ -113,7 +110,6 @@ class UiActions(object):
                 "favourite_hyp",
                 "hypervisors_pools",
                 "force_gpus",
-                "force_update",
             ],
         )
         if not domain:
@@ -181,9 +177,6 @@ class UiActions(object):
         cpu_host_model = self.manager.pools[pool_id].conf.get(
             "cpu_host_model", DEFAULT_HOST_MODE
         )
-
-        # Note: force_update is no longer needed - hardware is now resolved
-        # on-demand from create_dict at start time via resolve_hardware_from_create_dict()
 
         try:
             xml = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
@@ -1187,56 +1180,6 @@ class UiActions(object):
                         e
                     )
                 )
-
-    def update_hardware_dict_and_xml_from_create_dict(self, id_domain):
-        try:
-            xml_raw = update_xml_from_dict_domain(id_domain)
-            if xml_raw is False:
-                update_domain_status(
-                    status="Failed",
-                    id_domain=id_domain,
-                    detail="XML Parser Error, xml is not valid",
-                )
-                return False
-
-        except Exception as e:
-            logs.exception_id.debug("0017")
-            log.error(
-                "error when populate dict hardware from create dict in domain {}".format(
-                    id_domain
-                )
-            )
-            log.error("Traceback: \n .{}".format(traceback.format_exc()))
-            log.error("Exception message: {}".format(e))
-            update_domain_status(
-                "Failed",
-                id_domain,
-                detail="Updating aborted, failed when updating xml from hardware dictionary",
-            )
-            return False
-        return True
-
-    def updating_from_create_dict(self, id_domain, ssl=True):
-        try:
-            updating_thread_pool.submit(
-                self.updating_from_create_dict_th, id_domain, ssl
-            )
-        except Exception as e:
-            logs.exception_id.debug("0018")
-            log.error("Updating domain {} failed. Exception: {}".format(id_domain, e))
-
-    def updating_from_create_dict_th(self, id_domain, ssl=True):
-        """Hardware update is now a no-op - resolution happens at start time.
-
-        Hardware changes in create_dict are resolved on-demand when the domain
-        starts via resolve_hardware_from_create_dict() in recreate_xml_to_start().
-        """
-        update_domain_status(
-            "Stopped",
-            id_domain,
-            detail="Hardware settings will be applied at next start",
-        )
-        return True
 
     def creating_and_test_xml_start(
         self,

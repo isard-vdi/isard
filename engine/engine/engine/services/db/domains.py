@@ -75,7 +75,6 @@ def fail_incomplete_creating_domains(
     only_domain_id=None, detail="Failed by engine as it was incomplete", kind="desktop"
 ):
     status_to_failed = [
-        "Updating",
         "Deleting",
         "DiskDeleted",
         "CreatingDomain",
@@ -209,20 +208,6 @@ def update_domain_progress(id_domain, percent):
         .update({"progress": {"percent": percent, "when": int(time.time())}})
         .run(r_conn)
     )
-    close_rethink_connection(r_conn)
-    return results
-
-
-def update_domain_force_update(id_domain, true_or_false=False):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    results = (
-        rtable.get_all(id_domain, index="id")
-        .update({"force_update": true_or_false})
-        .run(r_conn)
-    )
-
     close_rethink_connection(r_conn)
     return results
 

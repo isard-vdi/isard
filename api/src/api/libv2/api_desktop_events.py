@@ -586,47 +586,14 @@ def templates_delete(template_id, agent_id):
 
 
 def desktop_updating(desktop_id):
+    """No-op kept for API compatibility.
+
+    Hardware resolution now happens on-demand at domain start time.
+    This function just returns the current status without modification.
+    """
     with app.app_context():
         domain = r.table("domains").get(desktop_id).pluck("status").run(db.conn)
-
-    status = domain["status"]
-
-    # Early return if already updating
-    if status == "Updating":
-        return "Updating"
-
-    # Only allow updating from Stopped or Failed status
-    if status not in ["Stopped", "Failed"]:
-        raise Error(
-            "precondition_required",
-            f"Desktop can't be updated from {status} status. Desktop must be stopped first.",
-            traceback.format_exc(),
-            description_code="unable_to_update_desktop_from",
-        )
-
-    # Atomic update - only if still Stopped
-    with app.app_context():
-        result = (
-            r.table("domains")
-            .get(desktop_id)
-            .update(
-                lambda row: r.branch(
-                    row["status"].match("Stopped|Failed"),
-                    {"status": "Updating"},
-                    {},
-                ),
-                return_changes=True,
-            )
-            .run(db.conn)
-        )
-
-    if not result.get("changes"):
-        # Status changed by another action - return current status
-        with app.app_context():
-            current = r.table("domains").get(desktop_id).pluck("status").run(db.conn)
-        return current["status"]
-
-    return "Updating"
+    return domain["status"]
 
 
 def desktops_force_failed(desktops_ids, batch_size=100):

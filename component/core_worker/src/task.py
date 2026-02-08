@@ -402,9 +402,6 @@ def domain_change_storage(domain_id, storage_id):
     c_dict = domain.create_dict
     c_dict["hardware"]["disks"][0]["storage_id"] = storage_id
     domain.create_dict = c_dict
-    domain.force_update = (
-        True  # Engine will recreate it's hardware dict before next start
-    )
 
 
 def storage_domains_force_update(storage_id):
@@ -418,9 +415,6 @@ def storage_domains_force_update(storage_id):
         return
     for domain in Storage(storage_id).domains:
         domain.status = "StartingPaused"
-        domain.force_update = (
-            True  # Engine will recreate hardware dict with updated storage paths
-        )
 
 
 def _valid_storage_pool(storage, new_path):

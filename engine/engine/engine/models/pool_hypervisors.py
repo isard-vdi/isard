@@ -20,7 +20,7 @@ status_to_delete = [
     "CreatingAndStarting",
     "CreatingDiskFromScratch",
 ]
-status_to_failed = ["Updating", "Deleting"]
+status_to_failed = ["Deleting"]
 status_to_stopped = ["Starting"]
 
 
