@@ -78,7 +78,10 @@ var deploymentsTableCols = [
     data: 'create_dict',
     title: 'Desktop name',
     render: function (create_dict) {
-      return create_dict.name
+      if (Array.isArray(create_dict)) {
+        return create_dict[0]?.name || '-'
+      }
+      return create_dict?.name || '-'
     }
   },
   {
