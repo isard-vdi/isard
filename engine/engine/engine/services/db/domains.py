@@ -304,23 +304,6 @@ def update_domain_status(
     # INFO TO DEVELOPER: OJO CON hyp_started a None... peligro si alguien lo chafa, por eso estos if/else
 
     try:
-        if status == "Stopped":
-            with rethink_conn() as conn:
-                last_hyp_id = (
-                    r.table("domains")
-                    .get(id_domain)
-                    .pluck("hyp_started")
-                    .run(conn)["hyp_started"]
-                )
-            if type(last_hyp_id) is str and len(last_hyp_id) > 0:
-                with rethink_conn() as conn:
-                    results = (
-                        r.table("domains")
-                        .get_all(id_domain, index="id")
-                        .update({"last_hyp_id": last_hyp_id})
-                        .run(conn)
-                    )
-
         if keep_hyp_id == True:
             with rethink_conn() as conn:
                 hyp_id = (
@@ -408,24 +391,6 @@ def update_domain_status(
         )
         logs.main.debug("function: {}".format(sys._getframe().f_code.co_name))
         return False
-
-
-def update_last_hyp_id(id_domain, last_hyp_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    try:
-        results = (
-            rtable.get_all(id_domain, index="id")
-            .update({"last_hyp_id": last_hyp_id})
-            .run(r_conn)
-        )
-        close_rethink_connection(r_conn)
-        return results
-    except Exception as e:
-        logs.main.debug(
-            f"error updating last_hyp_id in database with id_domain {id_domain} and last_hyp_id: {last_hyp_id}"
-        )
-    close_rethink_connection(r_conn)
 
 
 def update_domain_hyp_started(domain_id, hyp_id, detail="", status="Started"):

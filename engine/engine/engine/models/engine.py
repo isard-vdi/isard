@@ -55,6 +55,7 @@ from engine.services.lib.telegram import telegram_send_thread
 from engine.services.log import logs
 from engine.services.threads.download_thread import launch_thread_download_changes
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.domain import Domain
 from rethinkdb import r
 from tabulate import tabulate
 
@@ -745,15 +746,27 @@ class Engine(object):
                         "Shutting-down",
                         "Suspended",
                         "Stopping",
-                    ] and new_status in ["Stopped"]:
-                        ui.update_info_after_stopped_domain(domain_id=domain_id)
-
-                    # when download domain or updating, status previous to stopped is CreatingDomain
-                    # and we can update disk info
-                    if old_status in [
                         "CreatingDomain",
                     ] and new_status in ["Stopped"]:
-                        ui.update_info_after_stopped_domain(domain_id=domain_id)
+                        # Create storage find tasks to update qemu-img info
+                        if Domain.exists(domain_id):
+                            try:
+                                domain = Domain(domain_id)
+                                user_id = domain.user
+                                for storage in domain.storages:
+                                    if storage.status == "ready" and not getattr(
+                                        storage, "readonly", False
+                                    ):
+                                        try:
+                                            storage.find(user_id, blocking=False)
+                                        except Exception as e:
+                                            logs.main.debug(
+                                                f"Could not create find task for storage {storage.id}: {e}"
+                                            )
+                            except Exception as e:
+                                logs.main.debug(
+                                    f"Could not create storage find tasks for domain {domain_id}: {e}"
+                                )
 
                     if (
                         old_status == "Started" and new_status == "StoppingAndDeleting"
