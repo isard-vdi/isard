@@ -36,7 +36,7 @@ from engine.services.db import (
 from engine.services.db.downloads import get_media
 from engine.services.db.storage_pool import get_category_storage_pool
 from engine.services.lib.functions import pop_key_if_zero, randomMAC
-from engine.services.lib.storage import insert_storage
+from engine.services.lib.storage import _get_filename, insert_storage
 from engine.services.log import *
 from flatten_dict import flatten
 from lxml import etree
@@ -58,6 +58,7 @@ BUS_LETTER = {"ide": "h", "sata": "s", "virtio": "v"}
 _interface_cache = TTLCache(maxsize=200, ttl=30)
 _qos_net_cache = TTLCache(maxsize=100, ttl=30)
 _videos_cache = TTLCache(maxsize=10, ttl=30)
+_storage_cache = TTLCache(maxsize=200, ttl=30)
 
 
 @cached(cache=_interface_cache)
@@ -76,6 +77,12 @@ def get_qos_net_cached(qos_id):
 def get_video_cached(video_id):
     """Get video config with TTL caching."""
     return get_dict_from_item_in_table("videos", video_id)
+
+
+@cached(cache=_storage_cache)
+def get_storage_cached(storage_id):
+    """Get storage with TTL caching for batch operations."""
+    return get_dict_from_item_in_table("storage", storage_id)
 
 
 XML_SNIPPET_NETWORK = """
@@ -1716,13 +1723,11 @@ def resolve_hardware_from_create_dict(domain):
 
     This function generates a fully resolved hardware dictionary on-demand from
     the create_dict.hardware specifications. It resolves:
+    - Disk storage_id to full disk info (file path, parent, directory_path)
     - Video ID to full video configuration
     - Interface IDs to full interface configurations with QoS
     - Media IDs (ISOs/floppies) to file paths
     - Memory/CPU settings
-
-    Disks are NOT resolved here - they are resolved on-the-fly by insert_storage()
-    during XML generation.
 
     Args:
         domain: Domain dictionary containing 'create_dict' with hardware specifications
@@ -1734,9 +1739,27 @@ def resolve_hardware_from_create_dict(domain):
     id_domain = domain["id"]
     resolved_hardware = {}
 
-    # DISKS - copy as-is, will be resolved by insert_storage() during XML generation
+    # DISKS - resolve storage_id to full disk info
     if "disks" in create_dict["hardware"]:
-        resolved_hardware["disks"] = create_dict["hardware"]["disks"].copy()
+        resolved_hardware["disks"] = []
+        for disk in create_dict["hardware"]["disks"]:
+            storage_id = disk.get("storage_id")
+            resolved_disk = {"storage_id": storage_id, "bus": disk.get("bus")}
+            if storage_id:
+                storage = get_storage_cached(storage_id)
+                if storage:
+                    resolved_disk.update(
+                        {
+                            "file": _get_filename(storage),
+                            "parent": storage.get("parent"),
+                            "path_selected": storage.get("directory_path"),
+                        }
+                    )
+                else:
+                    log.error(
+                        f"disk storage_id {storage_id} in domain {id_domain} not found in storage table"
+                    )
+            resolved_hardware["disks"].append(resolved_disk)
 
     # ISOs and FLOPPIES - resolve media IDs to paths
     for media_type in ["isos", "floppies"]:
@@ -1913,6 +1936,87 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         # error when parsing xml
         return False
 
+    ##### Resolve hardware from create_dict #####
+    hw = resolve_hardware_from_create_dict(dict_domain)
+
+    # Memory
+    x.set_memory(
+        memory=hw["memory"],
+        unit=hw["memory_unit"],
+        current=int(hw.get("currentMemory", hw["memory"]) * DEFAULT_BALLOON),
+    )
+
+    # vCPUs
+    x.set_vcpu(hw["vcpus"])
+
+    # Video
+    x.set_video_type(hw["video"])
+
+    # Boot order
+    if "boot_order" in hw:
+        x.update_boot_order(hw["boot_order"], hw.get("boot_menu_enable", False))
+
+    # Disks - already resolved by resolve_hardware_from_create_dict()
+    total_disks_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="disk"]'))
+    if "disks" in hw:
+        num_remove_disks = total_disks_in_xml - len(hw["disks"])
+        if num_remove_disks > 0:
+            for i in range(num_remove_disks):
+                x.remove_disk()
+        for i, disk in enumerate(hw["disks"]):
+            if not disk.get("file"):
+                log.error(f"disk {i} in domain {id_domain} not resolved")
+                return False
+            s = disk["file"]
+            type_disk = (
+                "qcow2" if s[s.rfind(".") :].lower().find("qcow") == 1 else "raw"
+            )
+
+            if i >= total_disks_in_xml:
+                force_bus = disk.get("bus", "virtio")
+                x.add_disk(index=i, path_disk=s, type_disk=type_disk, bus=force_bus)
+            else:
+                force_bus = disk.get("bus", False)
+                if force_bus:
+                    x.set_vdisk(s, index=i, type_disk=type_disk, force_bus=force_bus)
+                else:
+                    x.set_vdisk(s, index=i, type_disk=type_disk)
+    elif total_disks_in_xml > 0:
+        for i in range(total_disks_in_xml):
+            x.remove_disk()
+
+    # ISOs
+    total_cdroms_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="cdrom"]'))
+    if "isos" in hw:
+        num_remove = total_cdroms_in_xml - len(hw["isos"])
+        if num_remove > 0:
+            for i in range(num_remove):
+                x.remove_cdrom()
+        for i in range(len(hw["isos"])):
+            if i >= total_cdroms_in_xml:
+                x.add_cdrom(path_cdrom=hw["isos"][i]["path"])
+            else:
+                x.set_cdrom(hw["isos"][i]["path"], index=i)
+    elif total_cdroms_in_xml > 0:
+        for i in range(total_cdroms_in_xml):
+            x.remove_cdrom()
+
+    # Floppies
+    total_floppies_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="floppy"]'))
+    if "floppies" in hw:
+        num_remove = total_floppies_in_xml - len(hw["floppies"])
+        if num_remove > 0:
+            for i in range(num_remove):
+                x.remove_floppy()
+        for i in range(len(hw["floppies"])):
+            if i >= total_floppies_in_xml:
+                x.add_floppy(path_floppy=hw["floppies"][i]["path"])
+            else:
+                x.set_floppy(hw["floppies"][i]["path"], index=i)
+    elif total_floppies_in_xml > 0:
+        for i in range(total_floppies_in_xml):
+            x.remove_floppy()
+
     ##### actions to customize xml
 
     # metadata
@@ -1999,8 +2103,10 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 
     x.dict_from_xml()
 
-    # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
-    update_domain_dict_hardware(id_domain, x.vm_dict, xml=xml)
+    # Note: Hardware resolution now happens on-demand from create_dict,
+    # so we no longer need to persist the generated XML to the database.
+    # The stored xml field is now a static base template.
+
     if "viewer_passwd" in x.__dict__.keys():
         # update password in database
         update_domain_viewer_passwd(id_domain, passwd=x.viewer_passwd)

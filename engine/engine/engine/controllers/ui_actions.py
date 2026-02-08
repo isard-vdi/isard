@@ -34,7 +34,6 @@ from engine.services.db import (
     remove_dict_new_template_from_domain,
     remove_disk_template_created_list_in_domain,
     update_domain_dict_hardware,
-    update_domain_force_update,
     update_domain_status,
     update_origin_and_parents_to_new_template,
     update_table_field,
@@ -183,11 +182,8 @@ class UiActions(object):
             "cpu_host_model", DEFAULT_HOST_MODE
         )
 
-        if domain.get("force_update"):
-            if self.update_hardware_dict_and_xml_from_create_dict(id_domain):
-                update_domain_force_update(id_domain, False)
-            else:
-                return False
+        # Note: force_update is no longer needed - hardware is now resolved
+        # on-demand from create_dict at start time via resolve_hardware_from_create_dict()
 
         try:
             xml = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
@@ -1230,76 +1226,17 @@ class UiActions(object):
             log.error("Updating domain {} failed. Exception: {}".format(id_domain, e))
 
     def updating_from_create_dict_th(self, id_domain, ssl=True):
-        sleep(0.1)
-        if self.update_hardware_dict_and_xml_from_create_dict(id_domain):
-            update_domain_status(
-                "Updating",
-                id_domain,
-                detail="xml and hardware dict going to be updated",
-            )
-            domain = get_table_fields(
-                "domains",
-                id_domain,
-                [
-                    "kind",
-                    "name",
-                    {"create_dict": {"hardware": "memory", "reservables": True}},
-                    "forced_hyp",
-                    "favourite_hyp",
-                    "hypervisors_pools",
-                ],
-            )
-            pool_id = domain.get("hypervisors_pools")
-            if not pool_id or len(pool_id) == 0:
-                update_domain_status(
-                    "Failed",
-                    id_domain,
-                    detail="Updating aborted, domain missing hypervisors pool",
-                )
-                return False
-            if len(pool_id):
-                pool_id = pool_id[0]
-            if domain.get("kind") == "desktop":
-                cpu_host_model = self.manager.pools[pool_id].conf.get(
-                    "cpu_host_model", DEFAULT_HOST_MODE
-                )
-                try:
-                    xml = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
-                except Exception as e:
-                    logs.exception_id.debug("0018")
-                    log.error("recreate_xml_to_start in domain {}".format(id_domain))
-                    log.error("Traceback: \n .{}".format(traceback.format_exc()))
-                    log.error("Exception message: {}".format(e))
-                    xml = False
-                if xml is False:
-                    update_domain_status(
-                        "Failed",
-                        id_domain,
-                        detail="DomainXML can not parse and modify xml to start",
-                    )
-                    return False
-                # Avoid starting domain when updating
-                # self.start_paused_domain_from_xml(
-                #     xml=xml,
-                #     id_domain=id_domain,
-                #     pool_id=pool_id,
-                #     forced_hyp=domain.get("forced_hyp"),
-                #     favourite_hyp=domain.get("favourite_hyp"),
-                #     reservables=domain.get("create_dict", {}).get("reservables", {}),
-                # )
-                update_domain_status(
-                    "Stopped",
-                    id_domain,
-                    detail="Updated hardware",
-                )
-            else:
-                update_domain_status(
-                    "Stopped",
-                    id_domain,
-                    detail="Updated hardware",
-                )
+        """Hardware update is now a no-op - resolution happens at start time.
 
-                return True
+        Hardware changes in create_dict are resolved on-demand when the domain
+        starts via resolve_hardware_from_create_dict() in recreate_xml_to_start().
+        """
+        update_domain_status(
+            "Stopped",
+            id_domain,
+            detail="Hardware settings will be applied at next start",
+        )
+        return True
 
     def creating_and_test_xml_start(
         self,
