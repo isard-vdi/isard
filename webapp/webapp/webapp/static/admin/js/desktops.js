@@ -1913,6 +1913,9 @@ function renderDisplay(data){
 }
 
 function renderStatus(data) {
+    if (data.status == "StartingPaused") {
+        return "Verifying";
+    }
     if (data.status != "Maintenance") {
         return data.status;
     } else {
