@@ -1710,10 +1710,8 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     except:
         pass
 
-    # Batch update hardware, xml, and hardware_from_xml in a single DB call
-    update_domain_dict_hardware(
-        id_domain, hw, xml=xml_raw, hardware_from_xml=hw_updated
-    )
+    # Batch update xml in a single DB call
+    update_domain_dict_hardware(id_domain, hw, xml=xml_raw)
 
     return xml_raw
 

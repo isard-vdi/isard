@@ -584,10 +584,8 @@ def update_domain_dict_create_dict(id, create_dict):
     return results
 
 
-def update_domain_dict_hardware(
-    domain_id, domain_dict, xml=False, hardware_from_xml=None
-):
-    """Update domain xml and optionally hardware_from_xml.
+def update_domain_dict_hardware(domain_id, domain_dict, xml=False):
+    """Update domain xml.
 
     NOTE: No longer writes hardware to root - field is deprecated.
     The domain_dict parameter is kept for signature compatibility but ignored.
@@ -596,7 +594,6 @@ def update_domain_dict_hardware(
         domain_id: The domain ID
         domain_dict: DEPRECATED - Hardware dictionary (ignored, kept for compatibility)
         xml: Optional XML string to update
-        hardware_from_xml: Optional hardware_from_xml dict to update
     """
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
@@ -604,8 +601,6 @@ def update_domain_dict_hardware(
     update_dict = {}
     if xml is not False:
         update_dict["xml"] = xml
-    if hardware_from_xml is not None:
-        update_dict["hardware_from_xml"] = r.literal(hardware_from_xml)
 
     if update_dict:
         results = rtable.get(domain_id).update(update_dict).run(r_conn)

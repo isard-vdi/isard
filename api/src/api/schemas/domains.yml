@@ -43,9 +43,6 @@ guest_properties:
 hardware:
   type: dict
   coerce: sanitize
-hardware_from_xml:
-  type: dict
-  coerce: sanitize
 history_domain:
   type: list
   schema:
