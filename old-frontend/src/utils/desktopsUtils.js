@@ -106,7 +106,7 @@ export class DesktopUtils {
   }
 
   static getState (state) {
-    return [desktopStates.downloading, desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down'], desktopStates.paused, desktopStates.maintenance, desktopStates.unknown].includes(state.toLowerCase()) ? state : desktopStates.working
+    return [desktopStates.downloading, desktopStates.started, desktopStates.stopped, desktopStates.failed, desktopStates.waitingip, desktopStates['shutting-down'], desktopStates.paused, desktopStates.maintenance, desktopStates.unknown, desktopStates.verifying].includes(state.toLowerCase()) ? state : desktopStates.working
   }
 
   static viewerNeedsIp (viewer) {

@@ -97,12 +97,12 @@
                   >
                     <!-- STATE DOT -->
                     <div
-                      v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading, desktopStates.maintenance].includes(getItemState(data.item))"
+                      v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading, desktopStates.maintenance, desktopStates.verifying].includes(getItemState(data.item))"
                       :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"
                     />
                     <!-- SPINNER -->
                     <b-spinner
-                      v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading, desktopStates.maintenance].includes(getItemState(data.item))"
+                      v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading, desktopStates.maintenance, desktopStates.verifying].includes(getItemState(data.item))"
                       small
                       class="align-self-center mr-2 spinner-loading"
                     />
@@ -113,7 +113,7 @@
                   </div>
                   <p
                     v-if="
-                      [desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.maintenance].includes(getItemState(data.item))
+                      [desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.maintenance, desktopStates.verifying].includes(getItemState(data.item))
                         && data.item.queue && ![0].includes(data.item.queue || 0)
                     "
                     class="mb-0 text-state-small font-weight-bold"

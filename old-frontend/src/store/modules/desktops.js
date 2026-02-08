@@ -271,7 +271,7 @@ export default {
           context.commit('update_desktop', desktop)
           // Clear pending operation when status update arrives
           // This provides faster feedback than setTimeout
-          if (['Started', 'Stopped', 'Failed'].includes(desktop.status)) {
+          if (['Started', 'Stopped', 'Failed', 'Verifying'].includes(desktop.status)) {
             context.commit('CLEAR_PENDING_OPERATION', desktop.id)
           }
         }

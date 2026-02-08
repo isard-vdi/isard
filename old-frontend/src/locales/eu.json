@@ -439,6 +439,10 @@
         "updating": {
           "text": "Prozesaketa",
           "action": "Prozesaketa"
+        },
+        "verifying": {
+          "text": "Egiaztatzen",
+          "action": "Egiaztatzen"
         }
       },
       "error": {

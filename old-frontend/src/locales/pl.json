@@ -699,6 +699,10 @@
                 "started": {
                     "text": "Rozpoczęty",
                     "action": "Zatrzymaj"
+                },
+                "verifying": {
+                    "text": "Verifying",
+                    "action": "Verifying"
                 }
             },
             "which-template": "Którego pulpitu chcesz używać?",

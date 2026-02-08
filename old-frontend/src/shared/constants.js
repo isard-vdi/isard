@@ -29,7 +29,8 @@ export const desktopStates = {
   updating: 'updating',
   maintenance: 'maintenance',
   creating: 'creating',
-  unknown: 'unknown'
+  unknown: 'unknown',
+  verifying: 'verifying'
 }
 
 export const status = {
@@ -89,6 +90,10 @@ export const status = {
     variant: 'warning'
   },
   unknown: {
+    action: '',
+    icon: ''
+  },
+  verifying: {
     action: '',
     icon: ''
   }

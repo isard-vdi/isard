@@ -869,6 +869,10 @@
           "text": "Procesando",
           "action": "Procesando"
         },
+        "verifying": {
+          "text": "Verificando",
+          "action": "Verificando"
+        },
         "maintenance": {
           "text": "En mantenimiento",
           "action": "Cancelar operación"

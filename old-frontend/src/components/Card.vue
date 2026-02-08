@@ -157,7 +157,7 @@
             class="ml-4 d-flex flex-row justify-left"
           >
             <b-spinner
-              v-if="[desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.maintenance, desktopStates.unknown].includes(desktopState.toLowerCase())"
+              v-if="[desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.maintenance, desktopStates.unknown, desktopStates.verifying].includes(desktopState.toLowerCase())"
               small
               variant="light"
               class="align-self-center mr-2 status-spinner"
