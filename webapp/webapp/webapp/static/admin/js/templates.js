@@ -75,7 +75,10 @@ columnDefs = [
         "targets": 6,
         "width": "100px",
         "render": function (data, type, full, meta) {
-            return (full.create_dict.hardware.memory / 1024 / 1024).toFixed(2) + "GB"
+            if (type === 'display' || type === 'filter') {
+                return (full.create_dict.hardware.memory / 1024 / 1024).toFixed(2) + " GB";
+            }
+            return full.create_dict.hardware.memory;
         }
     },{
         "targets": 11,

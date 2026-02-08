@@ -115,23 +115,23 @@ var storageTableCols = [
   {
     data: 'qemu-img-info',
     title: 'Size',
-    render: function (qemu_img_info) {
-      if (qemu_img_info) {
-        return Math.round(qemu_img_info["virtual-size"] / 1024 / 1024 / 1024) + " GB"
-      } else {
-        return '-'
+    render: function (qemu_img_info, type) {
+      if (!qemu_img_info || !qemu_img_info["virtual-size"]) return '-';
+      if (type === 'display' || type === 'filter') {
+        return formatBytes(qemu_img_info["virtual-size"]);
       }
+      return qemu_img_info["virtual-size"];
     }
   },
   {
     data: 'qemu-img-info',
     title: 'Used',
-    render: function (qemu_img_info) {
-      if (qemu_img_info) {
-        return Math.round(qemu_img_info["actual-size"] / 1024 / 1024 / 1024) + " GB"
-      } else {
-        return '-'
+    render: function (qemu_img_info, type) {
+      if (!qemu_img_info || !qemu_img_info["actual-size"]) return '-';
+      if (type === 'display' || type === 'filter') {
+        return formatBytes(qemu_img_info["actual-size"]);
       }
+      return qemu_img_info["actual-size"];
     }
   },
   {
