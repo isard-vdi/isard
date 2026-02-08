@@ -586,14 +586,27 @@ def templates_delete(template_id, agent_id):
 
 
 def desktop_updating(desktop_id):
-    """No-op kept for API compatibility.
+    """Retry a Failed desktop by validating it can start on a hypervisor.
 
-    Hardware resolution now happens on-demand at domain start time.
-    This function just returns the current status without modification.
+    Transitions Failed → StartingPaused, which triggers the engine to
+    resolve hardware from create_dict, test-boot the domain in paused
+    state, then set it to Stopped if successful.
     """
     with app.app_context():
-        domain = r.table("domains").get(desktop_id).pluck("status").run(db.conn)
-    return domain["status"]
+        result = (
+            r.table("domains")
+            .get(desktop_id)
+            .update(
+                lambda row: r.branch(
+                    row["status"].eq("Failed"),
+                    {"status": "StartingPaused"},
+                    {},
+                ),
+                return_changes="always",
+            )
+            .run(db.conn)
+        )
+    return result["changes"][0]["new_val"]["status"]
 
 
 def desktops_force_failed(desktops_ids, batch_size=100):
