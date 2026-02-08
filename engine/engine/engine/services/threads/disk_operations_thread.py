@@ -11,7 +11,6 @@ from engine.services.threads.threads import (
     TIMEOUT_QUEUES,
     launch_action_create_template_disk,
     launch_action_disk,
-    launch_action_update_size_storage_from_domain,
     launch_delete_disk_action,
 )
 
@@ -61,7 +60,6 @@ class DiskOperationsThread(threading.Thread):
             "create_template_disk_from_domain": LimitedThreadPoolExecutor(
                 max_workers=2
             ),
-            "update_storage_size": LimitedThreadPoolExecutor(max_workers=5),
         }
 
     def run(self):
@@ -141,10 +139,6 @@ class DiskOperationsThread(threading.Thread):
                 )
                 log.info(
                     f"create_template_disk_from_domain action for domain {action.get('id_domain')} processed."
-                )
-            elif action["type"] == "update_storage_size":
-                launch_action_update_size_storage_from_domain(
-                    action, self.hostname, self.user, self.port
                 )
         except Exception as e:
             log.error(f"Error processing action {action}: {e}")

@@ -784,6 +784,9 @@ class UiActions(object):
                 action["path_domain_disk"] = path_domain_disk
                 action["disk_index"] = disk_index_in_bus
                 action["storage_id"] = disk.get("storage_id")
+                action["domain_storage_id"] = dict_domain["create_dict"]["hardware"][
+                    "disks"
+                ][i]["storage_id"]
 
                 hyp_to_disk_create = get_host_disk_operations_from_path(
                     self.manager,

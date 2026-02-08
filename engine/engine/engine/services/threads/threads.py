@@ -3,20 +3,18 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
-import json
 import pprint
 import threading
 
 from engine.models.hyp import hyp
 from engine.services.db import (
+    get_domain,
     get_domains_started_in_hyp,
     update_all_domains_status,
-    update_disk_backing_chain,
     update_disk_template_created,
 )
 from engine.services.db.domains import (
     get_domain_status,
-    get_storage_ids_and_paths_from_domain,
     update_domain_parents,
     update_domain_status,
 )
@@ -40,8 +38,9 @@ from engine.services.lib.qcow import (
     verify_output_cmds2,
     verify_output_cmds3,
 )
-from engine.services.lib.storage import update_storage_qemu_info, update_storage_status
+from engine.services.lib.storage import update_storage_status
 from engine.services.log import *
+from isardvdi_common.storage import Storage
 
 TIMEOUT_QUEUES = float(CONFIG_DICT["TIMEOUTS"]["timeout_queues"])
 TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE = float(
@@ -188,9 +187,18 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
             if id_domain is not False:
                 if from_scratch is False:
                     update_domain_parents(id_domain)
-                update_disk_backing_chain(
-                    id_domain, index_disk, disk_path, list_backing_chain
-                )
+                # Create find task to update storage qemu-img-info
+                storage_id = action.get("storage_id")
+                if storage_id and Storage.exists(storage_id):
+                    try:
+                        domain_dict = get_domain(id_domain)
+                        user_id = domain_dict.get("user") if domain_dict else None
+                        if user_id:
+                            Storage(storage_id).find(user_id, blocking=False)
+                    except Exception as e:
+                        log.debug(
+                            f"Could not create find task for storage {storage_id}: {e}"
+                        )
             update_storage_status(action.get("storage_id"), "ready")
             ##INFO TO DEVELOPER
             # ahora ya se puede llamar a starting paused
@@ -275,37 +283,13 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
             update_storage_status(action.get("storage_id"), "deleted")
 
             if action.get("not_change_status", False) is False:
-                update_disk_backing_chain(id_domain, index_disk, "DISK_ERASED", [])
+                # No find task needed for deleted storage - status already updated to "deleted"
                 update_domain_status(
                     "DiskDeleted",
                     id_domain,
                     detail="delete disk operation run ok",
                     storage_id=action.get("storage_id"),
                 )
-
-
-def launch_action_update_size_storage_from_domain(action, hostname, user, port):
-    domain_id = action["domain_id"]
-    d_storage_id_paths = get_storage_ids_and_paths_from_domain(domain_id)
-
-    for storage_id, path_disk in d_storage_id_paths.items():
-        cmd_qemu_img_info = 'qemu-img info -U --output json "{}"'.format(path_disk)
-        cmds_done = execute_commands(
-            hostname,
-            ssh_commands=[cmd_qemu_img_info],
-            dict_mode=False,
-            user=user,
-            port=port,
-        )
-        try:
-            update_storage_qemu_info(
-                storage_id, json.loads(cmds_done[0]["out"]), hierarchy=False
-            )
-        except Exception as e:
-            logs.main.error(
-                f"Exception {e} \n extracting qemu-img info in json format for domain {domain_id}. Command: {cmd_qemu_img_info}"
-            )
-            logs.main.error("Output of command: \n" + pprint.pformat(cmds_done))
 
 
 def launch_action_create_template_disk(action, hostname, user, port):
@@ -366,19 +350,30 @@ def launch_action_create_template_disk(action, hostname, user, port):
 
                 update_storage_status(action.get("storage_id"), "ready")
                 update_disk_template_created(id_domain, disk_index)
-                update_disk_backing_chain(
-                    id_domain,
-                    disk_index,
-                    path_domain_disk,
-                    extract_list_backing_chain(backing_chain_domain),
-                    new_template=True,
-                    list_backing_chain_template=backing_chain_template,
-                )
-                # uuid_template = path_template_disk[: path_template_disk.rfind(".")].split("/")[-1]
-                # update_qemu_img_info({},disk_index,backing_chain_template,force_storage_id=uuid_template)
 
-                # disk created, update parents and status
-                # update_domain_parents(id_domain)
+                # Create find tasks for both domain storage and template storage
+                domain_dict = get_domain(id_domain)
+                user_id = domain_dict.get("user") if domain_dict else None
+                if user_id:
+                    # Find task for domain storage (parent disk that was rebased)
+                    domain_storage_id = action.get("domain_storage_id")
+                    if domain_storage_id and Storage.exists(domain_storage_id):
+                        try:
+                            Storage(domain_storage_id).find(user_id, blocking=False)
+                        except Exception as e:
+                            log.debug(
+                                f"Could not create find task for domain storage {domain_storage_id}: {e}"
+                            )
+                    # Find task for template storage (newly created template disk)
+                    template_storage_id = action.get("storage_id")
+                    if template_storage_id and Storage.exists(template_storage_id):
+                        try:
+                            Storage(template_storage_id).find(user_id, blocking=False)
+                        except Exception as e:
+                            log.debug(
+                                f"Could not create find task for template storage {template_storage_id}: {e}"
+                            )
+
                 update_domain_status(
                     status="TemplateDiskCreated",
                     id_domain=id_domain,

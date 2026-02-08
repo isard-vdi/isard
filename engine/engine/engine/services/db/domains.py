@@ -16,10 +16,7 @@ from engine.services.db import (
     rethink_conn,
 )
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
-from engine.services.lib.storage import (
-    update_domain_createdict_qemu_img_info,
-    update_storage_deleted_domain,
-)
+from engine.services.lib.storage import update_storage_deleted_domain
 from engine.services.log import logs
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
@@ -592,46 +589,6 @@ def remove_domain_viewer_values(domain_id):
         return False
     logs.main.info(f"Viewer values removed for domain {domain_id}")
     return True
-
-
-def update_disk_backing_chain(
-    id_domain,
-    index_disk,
-    path_disk,
-    list_backing_chain,
-    new_template=False,
-    list_backing_chain_template=[],
-):
-    with rethink_conn() as conn:
-        domain = r.table("domains").get(id_domain).run(conn)
-    # Domain could be deleted by api and webapp
-    # https://gitlab.com/isard/isardvdi/-/blob/main/api/src/api/libv2/ds.py#L60
-    # https://gitlab.com/isard/isardvdi/-/blob/main/webapp/webapp/webapp/lib/ds.py#L53
-    if domain:
-        if new_template == True:
-            domain["create_dict"]["template_dict"][
-                "disks_info"
-            ] = list_backing_chain_template
-            update_domain_createdict_qemu_img_info(
-                domain.get("create_dict", {})
-                .get("template_dict", {})
-                .get("create_dict", {}),
-                index_disk,
-                list_backing_chain_template,
-            )
-        domain["disks_info"] = list_backing_chain
-        update_domain_createdict_qemu_img_info(
-            domain.get("create_dict", {}), index_disk, list_backing_chain
-        )
-        with rethink_conn() as conn:
-            results = r.table("domains").replace(domain).run(conn)
-    else:
-        logs.main.error(
-            f"trying to update disk backing chain of non-existent domain {id_domain}"
-        )
-        results = None
-
-    return results
 
 
 def update_disk_template_created(id_domain, index_disk):
