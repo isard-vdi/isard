@@ -573,3 +573,25 @@ function showLoading(loading) {
     }
     return false;
 }
+
+/**
+ * Format bytes into human-readable size with proper units
+ * @param {number} bytes - Size in bytes
+ * @returns {string} Formatted size (e.g., "1.67 MB", "50.00 GB")
+ */
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const gb = bytes / 1024 / 1024 / 1024;
+  if (gb >= 1) {
+    return gb.toFixed(2) + ' GB';
+  }
+  const mb = bytes / 1024 / 1024;
+  if (mb >= 1) {
+    return mb.toFixed(2) + ' MB';
+  }
+  const kb = bytes / 1024;
+  if (kb >= 1) {
+    return kb.toFixed(2) + ' KB';
+  }
+  return bytes + ' B';
+}
