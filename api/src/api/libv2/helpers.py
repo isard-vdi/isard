@@ -290,10 +290,12 @@ def _is_frontend_desktop_status(status):
     frontend_desktop_status = [
         "Creating",
         "CreatingAndStarting",
+        "CreatingDomain",
         "Shutting-down",
         "Stopping",
         "Stopped",
         "Starting",
+        "StartingPaused",
         "Started",
         "Failed",
         "Downloading",
@@ -304,12 +306,29 @@ def _is_frontend_desktop_status(status):
     return True if status in frontend_desktop_status else False
 
 
+# Module-level set tracking desktop IDs in the verify (StartingPaused) flow.
+# Used to distinguish CreatingDomain in verify flow vs desktop creation flow.
+_verifying_desktop_ids = set()
+
+
 def parse_frontend_desktop_status(desktop):
     if (
         desktop["status"].startswith("Creating")
         and desktop["status"] != "CreatingAndStarting"
     ):
-        desktop["status"] = "Creating"
+        # CreatingDomain in verify flow → "Verifying", otherwise → "Creating"
+        if (
+            desktop["status"] == "CreatingDomain"
+            and desktop["id"] in _verifying_desktop_ids
+        ):
+            desktop["status"] = "Verifying"
+        else:
+            desktop["status"] = "Creating"
+    if desktop["status"] == "StartingPaused":
+        _verifying_desktop_ids.add(desktop["id"])
+        desktop["status"] = "Verifying"
+    elif desktop["status"] in ("Stopped", "Failed"):
+        _verifying_desktop_ids.discard(desktop["id"])
     if desktop["status"] == "Started" and not desktop.get("viewer", {}).get("passwd"):
         desktop["status"] = "Starting"
     return desktop
