@@ -323,6 +323,8 @@ AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME=30m
 ### Create your Google OAUTH credentials at https://console.developers.google.com/apis/credentials
 ### Authorized redirect URIs: https://domain.tld/authentication/callback
 #AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED=false
+## DEPRECATED variables after migration 183. Please configure it via
+## administration web interface.
 #AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID=id
 #AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET=secret
 

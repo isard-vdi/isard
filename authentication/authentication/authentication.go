@@ -94,7 +94,7 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Inter
 	}
 
 	if cfg.Authentication.Google.Enabled {
-		google := provider.InitGoogle(cfg.Authentication)
+		google := provider.InitGoogle(cfg.Authentication, db)
 		providers[google.String()] = google
 	}
 

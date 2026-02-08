@@ -11,27 +11,35 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	"gitlab.com/isard/isardvdi/pkg/db"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	gAPI "google.golang.org/api/oauth2/v2"
 	"google.golang.org/api/option"
+
+	"github.com/patrickmn/go-cache"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 var _ Provider = &Google{}
 
 type Google struct {
 	provider *oauth2Provider
+	rqe      r.QueryExecutor
 }
 
-func InitGoogle(cfg cfg.Authentication) *Google {
+type GoogleConfig struct {
+	ClientID     string `rethinkdb:"client_id"`
+	ClientSecret string `rethinkdb:"client_secret"`
+}
+
+func InitGoogle(cfg cfg.Authentication, rqe r.QueryExecutor) *Google {
 	return &Google{
 		&oauth2Provider{
 			types.ProviderGoogle,
 			cfg.Secret,
 			&oauth2.Config{
-				ClientID:     cfg.Google.ClientID,
-				ClientSecret: cfg.Google.ClientSecret,
 				Scopes: []string{
 					"https://www.googleapis.com/auth/userinfo.email",
 					"https://www.googleapis.com/auth/userinfo.profile",
@@ -40,13 +48,49 @@ func InitGoogle(cfg cfg.Authentication) *Google {
 				RedirectURL: fmt.Sprintf("https://%s/authentication/callback", cfg.Host),
 			},
 		},
+		rqe,
 	}
+}
+
+func (g *Google) GoogleConfig() error {
+	googleConfig := &GoogleConfig{}
+	if val, found := c.Get("google_config"); found {
+		googleConfig = val.(*GoogleConfig)
+	} else {
+		res, err := r.Table("config").Get(1).Field("auth").Field("google").Field("google_config").Run(g.rqe)
+		if err != nil {
+			return &db.Err{
+				Err: err,
+			}
+		}
+		if res.IsNil() {
+			return db.ErrNotFound
+		}
+		defer res.Close()
+		if err := res.One(googleConfig); err != nil {
+			return &db.Err{
+				Msg: "read db response",
+				Err: err,
+			}
+		}
+		c.Set("google_config", googleConfig, cache.DefaultExpiration)
+	}
+	g.provider.cfg.ClientID = googleConfig.ClientID
+	g.provider.cfg.ClientSecret = googleConfig.ClientSecret
+	return nil
 }
 
 func (g *Google) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
 	redirect := ""
 	if args.Redirect != nil {
 		redirect = *args.Redirect
+	}
+
+	if err := g.GoogleConfig(); err != nil {
+		return nil, nil, nil, "", "", &ProviderError{
+			User:   ErrInternal,
+			Detail: err,
+		}
 	}
 
 	redirect, err := g.provider.login(categoryID, redirect)
@@ -61,6 +105,12 @@ func (g *Google) Login(ctx context.Context, categoryID string, args LoginArgs) (
 }
 
 func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
+	if err := g.GoogleConfig(); err != nil {
+		return nil, nil, nil, "", "", &ProviderError{
+			User:   ErrInternal,
+			Detail: err,
+		}
+	}
 	oTkn, err := g.provider.callback(ctx, args)
 	if err != nil {
 		return nil, nil, nil, "", "", &ProviderError{

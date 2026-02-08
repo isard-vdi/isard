@@ -217,3 +217,12 @@ saml_config:
     save_email:
       empty: false
       type: boolean
+google_config:
+  type: dict
+  schema:
+    client_id:
+      empty: false
+      type: string
+    client_secret:
+      empty: false
+      type: string

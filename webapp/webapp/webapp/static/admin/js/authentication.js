@@ -50,7 +50,7 @@ $(document).ready(function () {
             type: "GET",
             url: `/api/v3/authentication/provider/${provider}`,
             success: function (data) {
-                ['ldap', 'saml'].forEach(providerType => {
+                ['ldap', 'saml', 'google'].forEach(providerType => {
                     const enabled = provider === providerType;
                     const $cfg = $(`.${providerType}_config`);
                     const dataCfg = data?.[`${providerType}_config`] || {};
@@ -188,7 +188,7 @@ $(document).ready(function () {
             data.migration.notification_bar.template = formData.template;
         }
 
-        if (["ldap", "saml"].includes(formData.provider)) {
+        if (["ldap", "saml", "google"].includes(formData.provider)) {
             for (const key in formData) {
                 if (key.startsWith(`${formData.provider}_config_`)) {
                     name = key.replace(new RegExp(`^${formData.provider}_config_`),"")
@@ -198,18 +198,20 @@ $(document).ready(function () {
                     (data[`${formData.provider}_config`] ??={})[name] = formData[key]
                 }
             }
-            checkboxes = [
-                "auto_register",
-                "guess_category",
-                "save_email"
-            ]
-            if(formData.provider == "ldap"){
-                checkboxes.push("role_list_use_user_dn");
-            }
-            for (checkbox of checkboxes) {
-                (data[`${formData.provider}_config`] ??={})[checkbox] = (
-                  formData[`${formData.provider}_config_${checkbox}`] == "on"
-                )
+            if(["ldap", "saml"].includes(formData.provider)) {
+                checkboxes = [
+                    "auto_register",
+                    "guess_category",
+                    "save_email"
+                ]
+                if(formData.provider == "ldap"){
+                    checkboxes.push("role_list_use_user_dn");
+                }
+                for (checkbox of checkboxes) {
+                    (data[`${formData.provider}_config`] ??={})[checkbox] = (
+                      formData[`${formData.provider}_config_${checkbox}`] == "on"
+                    )
+                }
             }
         }
         $.ajax({

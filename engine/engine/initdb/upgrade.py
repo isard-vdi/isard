@@ -20,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 182
+release_version = 183
+# release 183: Import Google OAuth2 configuration from AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_* environment variables
 # release 182: Import SAML configuration from AUTHENTICATION_AUTHENTICATION_SAML_* environment variables
 # release 181: Add proxy_protocol field to bastion targets http configuration
 # release 180: Import LDAP configuration from AUTHENTICATION_AUTHENTICATION_LDAP_* environment variables
@@ -1079,6 +1080,24 @@ password:s:%s"""
             r.table(table).update({"auth": {"saml": {"saml_config": saml_config}}}).run(
                 self.conn
             )
+
+        if version == 183:
+            r.table(table).update(
+                {
+                    "auth": {
+                        "google": {
+                            "google_config": {
+                                "client_id": os.environ.get(
+                                    "AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID"
+                                ),
+                                "client_secret": os.environ.get(
+                                    "AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET"
+                                ),
+                            }
+                        }
+                    }
+                }
+            ).run(self.conn)
 
         return True
 
