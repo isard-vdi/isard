@@ -269,7 +269,8 @@ function chart_html(id) {
     var style = ""
     switch (id) {
         case "Stopped":
-            options = `<option value="StartingPaused">Start-Pause</option>`
+            options = `<option value="StartingPaused">Start-Pause</option>
+                       <option value="FindDisk">Find disk</option>`
             break;
         case "Started":
             options = `<option value="Shutting-down">Soft shut down</option>
