@@ -207,6 +207,86 @@ def update_hyp_status(id, status, detail="", uri=""):
         return False
 
 
+def update_hyp_degraded_status(hyp_id, is_degraded, reason=None):
+    """Update hypervisor degraded state.
+
+    When degraded:
+        - Set cap_status = {hypervisor: False, disk_operations: False}
+        - Keep status = "Online" (still connected, just slow)
+        - Set degraded = {is_degraded: True, reason: "...", since: timestamp}
+
+    When recovered:
+        - Restore cap_status from capabilities
+        - Clear degraded field
+
+    Args:
+        hyp_id: Hypervisor ID
+        is_degraded: True to mark as degraded, False to recover
+        reason: Reason for degradation (e.g., "slow_response", "timeout")
+    """
+    with rethink_conn() as conn:
+        if is_degraded:
+            # Mark as degraded - exclude from balancer
+            update_data = {
+                "cap_status": {
+                    "hypervisor": False,
+                    "disk_operations": False,
+                },
+                "degraded": {
+                    "is_degraded": True,
+                    "reason": reason or "unknown",
+                    "since": int(time.time()),
+                },
+            }
+            logs.workers.warning(f"[{hyp_id}] Hypervisor marked as DEGRADED: {reason}")
+        else:
+            # Recover - restore cap_status from capabilities
+            hyp = r.table("hypervisors").get(hyp_id).pluck("capabilities").run(conn)
+            capabilities = hyp.get("capabilities", {})
+
+            update_data = {
+                "cap_status": {
+                    "hypervisor": capabilities.get("hypervisor", False),
+                    "disk_operations": capabilities.get("disk_operations", False),
+                },
+                "degraded": {
+                    "is_degraded": False,
+                    "reason": None,
+                    "since": None,
+                },
+            }
+            logs.workers.info(f"[{hyp_id}] Hypervisor recovered from degraded state")
+
+        r.table("hypervisors").get(hyp_id).update(update_data).run(conn)
+
+
+def update_hyp_libvirt_warning(hyp_id, slow_count=None, avg_ms=None, clear=False):
+    """Update hypervisor libvirt_warning field for webapp display.
+
+    This shows the warning state (slow but still usable) in the webapp.
+
+    Args:
+        hyp_id: Hypervisor ID
+        slow_count: Number of slow responses in detection window
+        avg_ms: Average response time in milliseconds
+        clear: If True, clear the warning field
+    """
+    with rethink_conn() as conn:
+        if clear:
+            update_data = {
+                "libvirt_warning": None,
+            }
+        else:
+            update_data = {
+                "libvirt_warning": {
+                    "slow_count": slow_count or 0,
+                    "avg_ms": avg_ms or 0,
+                    "last_slow": int(time.time()),
+                },
+            }
+        r.table("hypervisors").get(hyp_id).update(update_data).run(conn)
+
+
 def get_id_hyp_from_uri(uri):
     r_conn = new_rethink_connection()
     rtable = r.table("hypervisors")
@@ -469,6 +549,9 @@ def get_hypers_online(
             "mountpoints",
             "min_free_mem_gb",
             "min_free_gpu_mem_gb",
+            "libvirt_warning",  # Include warning state for balancer
+            "degraded",  # Include degraded state for webapp display
+            "cap_status",  # Include cap_status for balancer operation
         )
         .run(r_conn)
     )
@@ -521,7 +604,7 @@ def filter_available_hypers(
             and not h.get("gpu_only", False)
         ] + [h for h in hypers_online if int(h.get("min_free_gpu_mem_gb", 0)) != 0]
 
-    # check if forced_hyp is online
+    # check if forced_hyp is online - return it regardless of warning state
     if forced_hyp:
         forced_hyp_found = [h for h in hypers_online if h["id"] in forced_hyp]
         if len(forced_hyp_found):
@@ -538,6 +621,49 @@ def filter_available_hypers(
         favourite_hyp_found = [h for h in hypers_online if h["id"] in favourite_hyp]
         if len(favourite_hyp_found):
             return favourite_hyp_found
+
+    # Prefer hypervisors without libvirt_warning (healthy over warned)
+    # Fall back to warned hypervisors if no healthy ones available
+    hypers_online = filter_warned_hypers(hypers_online)
+
+    return hypers_online
+
+
+def filter_warned_hypers(hypers_online):
+    """Filter hypervisors to prefer healthy ones over warned ones.
+
+    Hypervisors with libvirt_warning are still usable but are experiencing
+    slow responses. We prefer healthy hypervisors but use warned ones if
+    no alternatives are available.
+
+    Args:
+        hypers_online: List of hypervisor dicts
+
+    Returns:
+        List of hypervisors, preferring healthy ones
+    """
+    if not hypers_online:
+        return []
+
+    # Separate healthy and warned hypervisors
+    healthy = [h for h in hypers_online if not h.get("libvirt_warning")]
+    warned = [h for h in hypers_online if h.get("libvirt_warning")]
+
+    # If healthy hypervisors available, use only those
+    if healthy:
+        if warned:
+            logs.workers.debug(
+                f"Preferring {len(healthy)} healthy hypervisors over "
+                f"{len(warned)} warned hypervisors"
+            )
+        return healthy
+
+    # No healthy hypervisors, fall back to warned
+    if warned:
+        logs.workers.warning(
+            f"No healthy hypervisors available, using {len(warned)} warned hypervisors"
+        )
+        return warned
 
     return hypers_online
 

@@ -1288,6 +1288,16 @@ function renderStatus(data) {
   var statusText = data.status;
   switch (data.status) {
     case 'Online':
+      // Check for degraded state (severe - hypervisor completely excluded)
+      if (data.degraded && data.degraded.is_degraded) {
+        var reason = data.degraded.reason || 'slow_response';
+        var since = data.degraded.since ? new Date(data.degraded.since * 1000).toLocaleString() : 'unknown';
+        var tooltip = 'Degraded: ' + reason + ' (since ' + since + '). Excluded from balancer until recovery.';
+        icon = '<i class="fa fa-exclamation-triangle fa-2x" style="color:orange" title="' + tooltip + '"></i>';
+        statusText = 'Degraded';
+        break;
+      }
+
       // Check if cap_status has failures while capabilities are enabled
       var diskFailing = data.capabilities && data.capabilities.disk_operations &&
                         data.cap_status && data.cap_status.disk_operations === false;
@@ -1302,6 +1312,15 @@ function renderStatus(data) {
         statusText = 'Failing';
       } else {
         icon = '<i class="fa fa-power-off fa-2x" style="color:green"></i>';
+
+        // Check for warning state (slow but still usable if forced or no alternatives)
+        if (data.libvirt_warning) {
+          var avgMs = data.libvirt_warning.avg_ms || 0;
+          var slowCount = data.libvirt_warning.slow_count || 0;
+          var warningTooltip = 'Slow responses detected: ' + avgMs + 'ms avg (' + slowCount + ' slow). Preferring other hypervisors.';
+          icon += ' <i class="fa fa-clock-o fa-1x" style="color:orange" title="' + warningTooltip + '"></i>';
+          statusText = 'Online (slow)';
+        }
       }
       break;
     case 'Offline':

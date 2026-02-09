@@ -211,6 +211,21 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 if action["type"] == "new_hyper_in_db":
                     pass
 
+                if action["type"] == "hyp_degraded":
+                    # Hypervisor is degraded (slow/overloaded) - migrate queued actions
+                    hyp_id = action["hyp_id"]
+                    reason = action.get("reason", "unknown")
+                    logs.main.warning(
+                        f"Hypervisor {hyp_id} marked as degraded: {reason}. "
+                        f"Migrating queued actions to other hypervisors."
+                    )
+                    move_actions_to_others_hypers(
+                        hyp_id,
+                        self.d_queues,
+                        remove_stopping=False,  # Keep stop actions in queue
+                        remove_if_no_more_hyps=False,  # Keep if no alternatives
+                    )
+
             except queue.Empty:
                 self.check_hyps_from_database()
                 for autostart_id in get_domains_flag_autostart_to_starting():
