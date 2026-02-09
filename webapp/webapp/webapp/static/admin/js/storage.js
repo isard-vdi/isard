@@ -864,7 +864,13 @@ $("#modalIncreaseStorage #send").on("click", function () {
   }
 });
 
-$(document).on("click", ".btn-search-storage", function () {
+// UUID validation helper for storage
+function isValidStorageUUID(str) {
+  var uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+function initStorageSearchModal() {
   var modal = "#modalSearchStorage";
   $(modal + " #storage-info").hide();
   $(modal + " #storage-actions").hide();
@@ -873,7 +879,7 @@ $(document).on("click", ".btn-search-storage", function () {
   $(modal + " #search-storage-btn")
     .off("click")
     .on("click", function () {
-      var storageId = $(modal + " #storage-id").val();
+      var storageId = $(modal + " #storage-id").val().trim();
       if (!storageId) {
         new PNotify({
           title: "Error",
@@ -886,6 +892,21 @@ $(document).on("click", ".btn-search-storage", function () {
         });
         return;
       }
+
+      // Validate UUID format
+      if (!isValidStorageUUID(storageId)) {
+        new PNotify({
+          title: "Invalid UUID",
+          text: "Please enter a valid UUID format (e.g., xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx).",
+          type: "error",
+          hide: true,
+          delay: 3000,
+          icon: "fa fa-warning",
+          opacity: 1,
+        });
+        return;
+      }
+
       $.ajax({
         url: "/api/v3/admin/storage/search-info/" + storageId,
         type: "GET",
@@ -958,10 +979,15 @@ $(document).on("click", ".btn-search-storage", function () {
           }
         })
         .fail(function (xhr) {
-          var msg =
-            xhr.responseJSON && xhr.responseJSON.description
-              ? xhr.responseJSON.description
-              : "ERROR: Something went wrong";
+          var storageId = $(modal + " #storage-id").val().trim();
+          var msg;
+          if (xhr.status === 404) {
+            msg = "Storage with UUID '" + storageId + "' not found.";
+          } else if (xhr.responseJSON && xhr.responseJSON.description) {
+            msg = xhr.responseJSON.description;
+          } else {
+            msg = "An error occurred while searching for the storage.";
+          }
           new PNotify({
             title: "Error",
             text: msg,
@@ -977,7 +1003,7 @@ $(document).on("click", ".btn-search-storage", function () {
     });
 
   $(modal).modal({ backdrop: "static", keyboard: false }).modal("show");
-});
+}
 
 $("#modalSearchStorage").off('click', '.btn-copy').on('click', '.btn-copy', function() {
   const text = $(this).data('copy-value') || '';
@@ -1123,11 +1149,23 @@ function triggerStorageAction(action, storageId) {
   tempBtn.remove();
 }
 
-// UUID search box - open modal with pre-filled ID
+// UUID search box handler
 $("#storage-uuid-search-btn").on("click", function() {
   var uuid = $("#storage-uuid-search").val().trim();
+  if (uuid && !isValidStorageUUID(uuid)) {
+    new PNotify({
+      title: "Invalid UUID",
+      text: "Please enter a valid UUID format.",
+      type: "error",
+      hide: true,
+      delay: 3000,
+      icon: "fa fa-warning",
+      opacity: 1,
+    });
+    return;
+  }
+  initStorageSearchModal();
   if (uuid) {
-    $(".btn-search-storage").click();
     setTimeout(function() {
       $("#modalSearchStorage #storage-id").val(uuid);
       $("#modalSearchStorage #search-storage-btn").click();
