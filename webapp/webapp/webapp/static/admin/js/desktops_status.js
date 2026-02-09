@@ -21,13 +21,14 @@
 
 interval = 5000;
 echart_objects = {};
+categoryStatusTimeoutId = null;
+categoryTableInitialized = false;
 
 $(document).ready(function () {
     // Trigger function each interval seconds
     $("#change-interval").val(interval);
     update();
     initialize_table();
-    renderCategoryCountTable();
 });
 
 
@@ -105,6 +106,26 @@ $('#show-datatable').on('ifChecked', function (event) {
 });
 $('#show-datatable').on('ifUnchecked', function (event) {
     $("#table-panel").hide();
+});
+
+$('#show-category-status').on('ifChecked', function (event) {
+    $("#table-category-count-panel").show();
+    $("#table-category-count-header").show();
+    if (!categoryTableInitialized) {
+        renderCategoryCountTable();
+        categoryTableInitialized = true;
+    } else {
+        reloadCategoryStatusTable();
+    }
+});
+
+$('#show-category-status').on('ifUnchecked', function (event) {
+    $("#table-category-count-panel").hide();
+    $("#table-category-count-header").hide();
+    if (categoryStatusTimeoutId) {
+        clearTimeout(categoryStatusTimeoutId);
+        categoryStatusTimeoutId = null;
+    }
 });
 
 
@@ -522,5 +543,5 @@ function reloadCategoryStatusTable() {
     query_seconds_cat = (end_ts_cat - start_ts_cat) / 1000;
     $('#time_category').html(query_seconds_cat);
     
-    setTimeout(reloadCategoryStatusTable, interval);
+    categoryStatusTimeoutId = setTimeout(reloadCategoryStatusTable, interval);
 }
