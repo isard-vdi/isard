@@ -368,6 +368,15 @@ function initialize_table(status) {
             "deferRender": true,
             columns: [
                 { "data": "id" },
+                {
+                    "className": 'info-control',
+                    "orderable": false,
+                    "data": "id",
+                    "render": function(data) {
+                        return '<button class="btn btn-xs btn-info" data-domain-info="' + data + '" title="View details">' +
+                               '<i class="fa fa-info-circle"></i></button>';
+                    }
+                },
                 { "data": "name" },
                 {
                     "orderable": false,
@@ -397,9 +406,9 @@ function initialize_table(status) {
                     stopDesktop(rowData.id, tr);
                 });
             },
-            order: [[2, "desc"]],
+            order: [[4, "desc"]],
             columnDefs: [{
-                "targets": 2,
+                "targets": 4,
                 "render": function (data, type, full, meta) {
                     if (type === 'display' || type === 'filter') {
                         return moment.unix(full.accessed).fromNow()
