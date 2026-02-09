@@ -9,7 +9,7 @@ var href = location.href;
 url=href.match(/([^\/]*)\/*$/)[1];
 $('#global_actions').css('display','block');
 // Sort by Last Access in Desktops table
-order=17
+order=18
 
 loading_events=[]
 deleted_events=[]
@@ -20,6 +20,15 @@ columns = [
         "orderable": false,
         "data": null,
         "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+    },
+    {
+        "className": 'info-control',
+        "orderable": false,
+        "data": "id",
+        "render": function(data) {
+            return '<button class="btn btn-xs btn-info" data-domain-info="' + data + '" title="View details">' +
+                   '<i class="fa fa-info-circle"></i></button>';
+        }
     },
     {
         "data": "icon", "render": function (data, type, full, meta) {
