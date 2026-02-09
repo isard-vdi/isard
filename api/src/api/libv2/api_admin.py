@@ -1169,15 +1169,28 @@ class ApiAdmin:
                 .run(db.conn)
             )
 
-    def get_storage_ids_by_domain_status(self, status):
+    def get_storage_ids_by_domain_status(self, status, payload=None):
         """Get all storage_ids from domains with the given status."""
         with app.app_context():
-            domains = list(
-                r.table("domains")
-                .get_all(["desktop", status], index="kind_status")
-                .pluck({"create_dict": {"hardware": {"disks": True}}})
-                .run(db.conn)
-            )
+            if payload and payload.get("role_id") == "manager":
+                # Filter by category for managers using existing index
+                domains = list(
+                    r.table("domains")
+                    .get_all(
+                        ["desktop", status, payload["category_id"]],
+                        index="kind_status_category",
+                    )
+                    .pluck({"create_dict": {"hardware": {"disks": True}}})
+                    .run(db.conn)
+                )
+            else:
+                # Admin sees all
+                domains = list(
+                    r.table("domains")
+                    .get_all(["desktop", status], index="kind_status")
+                    .pluck({"create_dict": {"hardware": {"disks": True}}})
+                    .run(db.conn)
+                )
 
         storage_ids = set()
         for domain in domains:

@@ -245,9 +245,9 @@ def api_v3_desktops_status(payload, current_status, target_status):
 
 
 @app.route("/api/v3/admin/domains/status/<status>/find_storages", methods=["PUT"])
-@is_admin
+@is_admin_or_manager
 def api_v3_admin_domains_find_storages(payload, status):
-    storage_ids = admins.get_storage_ids_by_domain_status(status)
+    storage_ids = admins.get_storage_ids_by_domain_status(status, payload)
     tasks_created = 0
 
     for storage_id in storage_ids:
