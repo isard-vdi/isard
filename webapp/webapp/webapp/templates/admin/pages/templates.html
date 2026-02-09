@@ -17,6 +17,19 @@
                         Search template</span>
                   </a>
                </li>
+               <li style="display: flex; align-items: center; margin-left: 15px;">
+                  <div class="input-group input-group-sm" style="width: 280px;">
+                     <input type="text" id="domain-uuid-search" class="form-control"
+                            placeholder="Domain UUID..."
+                            style="height: 30px; font-size: 12px;">
+                     <span class="input-group-btn">
+                        <button id="domain-uuid-search-btn" class="btn btn-info" type="button"
+                                style="height: 30px; padding: 0 10px;" title="Search domain by UUID">
+                           <i class="fa fa-search"></i>
+                        </button>
+                     </span>
+                  </div>
+               </li>
                <li>
                   <a class="btn-disabled" view="false" >
                      <span style="color: #5499c7; display: none;" id="view-disabled">
@@ -120,8 +133,35 @@
    <script src="/isard-admin/static/js/restful.js"></script>
    <script src="/isard-admin/static/js/viewer.js"></script>
    <script src="/isard-admin/static/js/snippets/render_table.js"></script>
-   <script src="/isard-admin/static/js/snippets/desktop_add.js"></script> 
+   <script src="/isard-admin/static/js/snippets/desktop_add.js"></script>
    <script src="/isard-admin/static/js/snippets/domain_search.js"></script>
    <script src="/isard-admin/static/admin/js/domain_info_modal.js"></script>
    <script src="/isard-admin/static/admin/js/templates.js"></script>
+   <script>
+   $(document).ready(function() {
+       // Domain UUID search handler
+       $('#domain-uuid-search-btn').on('click', function() {
+           var uuid = $('#domain-uuid-search').val().trim();
+           if (!uuid) {
+               new PNotify({
+                   title: 'Search Error',
+                   text: 'Please enter a domain UUID to search.',
+                   type: 'warning',
+                   hide: true,
+                   delay: 3000,
+                   opacity: 1
+               });
+               return;
+           }
+           showDomainInfo(uuid);
+       });
+
+       // Also search on Enter key
+       $('#domain-uuid-search').on('keypress', function(e) {
+           if (e.which === 13) {
+               $('#domain-uuid-search-btn').click();
+           }
+       });
+   });
+   </script>
 {% endblock %}
