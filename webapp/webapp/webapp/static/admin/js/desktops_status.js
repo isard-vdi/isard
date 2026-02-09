@@ -171,6 +171,53 @@ function stopDesktop(domain_id, tr) {
 
 
 function changeStatus(currentStatus, targetStatus, select) {
+    // Handle FindDisk as a special action
+    if (targetStatus === "FindDisk") {
+        new PNotify({
+            title: 'Are you sure?',
+            text: `Are you sure you want to find disks for all ${currentStatus} desktops?`,
+            hide: false,
+            type: 'warning',
+            confirm: {
+                confirm: true
+            }
+        }).get().on(
+            'pnotify.confirm',
+            function () {
+                $.ajax({
+                    url: `/api/v3/admin/domains/status/${currentStatus}/find_storages`,
+                    type: "PUT",
+                    contentType: 'application/json',
+                    success: function (data) {
+                        new PNotify({
+                            title: 'Find disk tasks created',
+                            text: `Created ${data.tasks_created} find tasks for ${currentStatus} desktops`,
+                            hide: true,
+                            delay: 3000,
+                            opacity: 1,
+                            type: 'success'
+                        })
+                        if (select) { select.val("placeholder"); }
+                    },
+                    error: function ({ responseJSON: { description } = {} }) {
+                        const msg = description ? description : 'Something went wrong';
+                        new PNotify({
+                            title: 'ERROR creating find tasks',
+                            text: msg,
+                            hide: true,
+                            delay: 2000,
+                            opacity: 1,
+                            type: 'error'
+                        })
+                    }
+                })
+            }
+        ).on('pnotify.cancel', function () {
+            if (select) { select.val("placeholder"); }
+        })
+        return;
+    }
+
     new PNotify({
         title: 'Are you sure?',
         text: `Are you sure you want to change all ${currentStatus} desktops to ${targetStatus}?`,
@@ -230,7 +277,8 @@ function chart_html(id) {
             // <option value="">Stop by desktop priority</option>
             break;
         case "Failed":
-            options = `<option value="StartingPaused">Start-Pause</option>`
+            options = `<option value="StartingPaused">Start-Pause</option>
+                       <option value="FindDisk">Find disk</option>`
             break;
         case "Downloading":
             options = `<option selected disabled>No actions available</option>`
