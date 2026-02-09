@@ -5,6 +5,7 @@
 
 import base64
 import queue
+import random
 import threading
 import time
 import traceback
@@ -33,6 +34,7 @@ from engine.services.lib.functions import (
     SSHTimeoutError,
     exec_remote_list_of_cmds_dict,
     get_tid,
+    is_libvirt_connection_error,
     update_status_db_from_running_domains,
 )
 from engine.services.lib.qmp import Notifier, PersonalUnit
@@ -504,6 +506,12 @@ class HypWorkerThread(threading.Thread):
                 logs.workers.debug(f"Hypervisor {self.hyp_id} stats updated")
             except Exception as e:
                 logs.workers.error(f"Failed to update hypervisor stats: {e}")
+                # Handle connection loss - trigger reconnection
+                if is_libvirt_connection_error(e) or not self.h.connected:
+                    logs.workers.warning(
+                        f"Connection lost to hypervisor {self.hyp_id}, attempting reconnect"
+                    )
+                    self._try_reconnect()
 
     def _check_connection(self, action_time, intervals):
         """Check if connection is alive"""
@@ -529,17 +537,36 @@ class HypWorkerThread(threading.Thread):
             self._try_reconnect()
 
     def _try_reconnect(self):
-        """Try to reconnect to the hypervisor"""
+        """Try to reconnect to the hypervisor using exponential backoff with jitter"""
         host = self.hostname
-        alive = False
 
-        # Try multiple reconnection attempts
-        for i in range(RETRIES_HYP_IS_ALIVE):
+        # If connection is marked as closed, skip stale socket checks and reconnect directly
+        if not self.h.connected:
             logs.workers.info(
-                f"Retry hypervisor connection {i+1}/{RETRIES_HYP_IS_ALIVE}"
+                f"Connection marked as closed, creating fresh connection to {host}"
+            )
+            self._handle_failed_reconnection()
+            return
+
+        alive = False
+        # Exponential backoff parameters
+        base_delay = TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE
+        max_delay = 30.0  # Maximum delay between retries
+
+        # Try multiple reconnection attempts with existing connection
+        for i in range(RETRIES_HYP_IS_ALIVE):
+            # Calculate delay with exponential backoff and jitter
+            # Formula: min(base * 2^attempt, max) * (0.5 + random())
+            exponential_delay = min(base_delay * (2**i), max_delay)
+            jitter = 0.5 + random.random()  # Random factor between 0.5 and 1.5
+            delay = exponential_delay * jitter
+
+            logs.workers.info(
+                f"Retry hypervisor connection {i+1}/{RETRIES_HYP_IS_ALIVE} "
+                f"(waiting {delay:.1f}s)"
             )
             try:
-                time.sleep(TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE)
+                time.sleep(delay)
                 self.h.conn.getLibVersion()
                 alive = True
                 logs.workers.info(f"Hypervisor {host} is alive")
@@ -554,6 +581,13 @@ class HypWorkerThread(threading.Thread):
     def _handle_failed_reconnection(self):
         """Handle case where reconnection fails"""
         try:
+            # Close stale connection before creating new one
+            try:
+                if self.h.conn:
+                    self.h.conn.close()
+            except Exception:
+                pass  # Ignore errors closing stale connection
+
             # Try one last full reconnection
             self.h.connect_to_hyp()
             self.h.conn.getLibVersion()
@@ -627,14 +661,18 @@ class HypWorkerThread(threading.Thread):
         if isinstance(e, libvirtError):
             error_msg = e.get_error_message()
 
-        if "internal error: client socket is closed" in error_msg:
+        if is_libvirt_connection_error(e):
             # Connection lost - mark hypervisor as failed
             update_hyp_status(self.hyp_id, "Error", detail=error_msg)
             self.stop = True
             update_domains_started_in_hyp_to_unknown(self.hyp_id)
             return
 
-        if e.get_error_code() == VIR_ERR_NO_DOMAIN and operation == "stop":
+        if (
+            isinstance(e, libvirtError)
+            and e.get_error_code() == VIR_ERR_NO_DOMAIN
+            and operation == "stop"
+        ):
             # Domain already undefined - this is OK for stop operations
             return False
 
