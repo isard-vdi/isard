@@ -581,6 +581,153 @@ class ApiAdmin:
             )
         return desktop_viewer
 
+    def DomainInfo(self, domain_id):
+        """Get domain info for the info modal: domain details, owner info, and bastion."""
+        with app.app_context():
+            domain = (
+                r.table("domains")
+                .get(domain_id)
+                .pluck(
+                    "id",
+                    "name",
+                    "kind",
+                    "status",
+                    "hyp_started",
+                    "description",
+                    "user",
+                    "tag",
+                    {"viewer": {"guest_ip": True}},
+                    {"create_dict": {"hardware": {"disks": True, "interfaces": True}}},
+                )
+                .run(db.conn)
+            )
+
+        if not domain:
+            return None
+
+        # Extract storage_id from first disk
+        storage_id = None
+        disks = domain.get("create_dict", {}).get("hardware", {}).get("disks", [])
+        if disks and len(disks) > 0:
+            storage_id = disks[0].get("storage_id")
+
+        # Extract interfaces with MAC addresses
+        interfaces = []
+        hw_interfaces = (
+            domain.get("create_dict", {}).get("hardware", {}).get("interfaces", [])
+        )
+        for iface in hw_interfaces:
+            interfaces.append(
+                {
+                    "id": iface.get("id"),
+                    "name": iface.get("id"),
+                    "mac": iface.get("mac"),
+                }
+            )
+
+        # Get deployment name if tagged
+        deployment_name = None
+        if domain.get("tag"):
+            with app.app_context():
+                deployment = (
+                    r.table("deployments")
+                    .get(domain["tag"])
+                    .pluck("name")
+                    .default(None)
+                    .run(db.conn)
+                )
+                if deployment:
+                    deployment_name = deployment.get("name")
+
+        # Get owner info
+        owner = {}
+        if domain.get("user"):
+            with app.app_context():
+                user = (
+                    r.table("users")
+                    .get(domain["user"])
+                    .pluck(
+                        "id",
+                        "uid",
+                        "username",
+                        "name",
+                        "email",
+                        "role",
+                        "category",
+                        "group",
+                    )
+                    .merge(
+                        lambda u: {
+                            "category_name": r.table("categories")
+                            .get(u["category"])["name"]
+                            .default(None),
+                            "group_name": r.table("groups")
+                            .get(u["group"])["name"]
+                            .default(None),
+                        }
+                    )
+                    .run(db.conn)
+                )
+                if user:
+                    owner = {
+                        "id": user.get("id"),
+                        "username": user.get("username") or user.get("uid"),
+                        "name": user.get("name"),
+                        "email": user.get("email"),
+                        "role_id": user.get("role"),
+                        "category_id": user.get("category"),
+                        "category_name": user.get("category_name"),
+                        "group_id": user.get("group"),
+                        "group_name": user.get("group_name"),
+                    }
+
+        # Get bastion info (wrapped in try/except, returns null if no target)
+        bastion = None
+        try:
+            with app.app_context():
+                target = (
+                    r.table("targets")
+                    .get_all(domain_id, index="desktop_id")
+                    .pluck("id", "domain", "ssh_port", "ssh", "http", "domains")
+                    .nth(0)
+                    .default(None)
+                    .run(db.conn)
+                )
+                if target:
+                    # Get bastion domain from config
+                    bastion_domain = None
+                    config = r.table("config").get(1).run(db.conn)
+                    if config and config.get("bastion"):
+                        bastion_domain = config["bastion"].get("domain")
+
+                    bastion = {
+                        "target_id": target.get("id"),
+                        "bastion_domain": bastion_domain or target.get("domain"),
+                        "ssh_port": target.get("ssh_port"),
+                        "ssh": target.get("ssh"),
+                        "http": target.get("http"),
+                        "domains": target.get("domains", []),
+                    }
+        except Exception:
+            bastion = None
+
+        return {
+            "domain": {
+                "id": domain.get("id"),
+                "name": domain.get("name"),
+                "kind": domain.get("kind"),
+                "status": domain.get("status"),
+                "hyp_started": domain.get("hyp_started"),
+                "guest_ip": domain.get("viewer", {}).get("guest_ip"),
+                "deployment_name": deployment_name,
+                "storage_id": storage_id,
+                "interfaces": interfaces,
+                "description": domain.get("description"),
+            },
+            "owner": owner,
+            "bastion": bastion,
+        }
+
     def DeploymentViewerData(self, deployment_id):
         with app.app_context():
             desktop_viewer = (
