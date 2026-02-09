@@ -11,6 +11,7 @@ import gevent
 from cachetools import TTLCache, cached
 from flask import request
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.storage import Storage
 
 #!flask/bin/python
 # coding=utf-8
@@ -25,6 +26,7 @@ from ..libv2.api_admin import (
 from ..libv2.api_desktop_events import templates_delete
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent, domain_template_tree
 from ..libv2.api_domains import ApiDomains
+from ..libv2.api_notify import notify_admin
 from ..libv2.api_storage import get_domains_delete_pending
 from ..libv2.caches import get_cached_user_with_names
 from ..libv2.datatables import LogsDesktopsQuery, LogsUsersQuery
@@ -208,6 +210,34 @@ def api_v3_desktops_status(payload, current_status, target_status):
 
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/domains/status/<status>/find_storages", methods=["PUT"])
+@is_admin
+def api_v3_admin_domains_find_storages(payload, status):
+    storage_ids = admins.get_storage_ids_by_domain_status(status)
+    tasks_created = 0
+
+    for storage_id in storage_ids:
+        try:
+            if not Storage.exists(storage_id):
+                continue
+            storage = Storage(storage_id)
+            storage.find(payload.get("user_id"))
+            tasks_created += 1
+        except Exception:
+            notify_admin(
+                payload["user_id"],
+                "Error finding storage",
+                f"There was an error creating a find task for {storage_id}",
+                type="error",
+            )
+
+    return (
+        json.dumps({"tasks_created": tasks_created}),
         200,
         {"Content-Type": "application/json"},
     )
