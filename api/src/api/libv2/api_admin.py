@@ -873,6 +873,25 @@ class ApiAdmin:
                 .run(db.conn)
             )
 
+    def get_storage_ids_by_domain_status(self, status):
+        """Get all storage_ids from domains with the given status."""
+        with app.app_context():
+            domains = list(
+                r.table("domains")
+                .get_all(["desktop", status], index="kind_status")
+                .pluck({"create_dict": {"hardware": {"disks": True}}})
+                .run(db.conn)
+            )
+
+        storage_ids = set()
+        for domain in domains:
+            disks = domain.get("create_dict", {}).get("hardware", {}).get("disks", [])
+            for disk in disks:
+                if disk.get("storage_id"):
+                    storage_ids.add(disk["storage_id"])
+
+        return list(storage_ids)
+
     # This is the function to be called
     def get_template_tree_list(self, template_id, user_id):
         levels = {}
