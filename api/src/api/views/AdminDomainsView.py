@@ -46,11 +46,26 @@ def api_v3_admin_domains(payload):
         categories = (
             json.loads(params.get("categories")) if params.get("categories") else None
         )
+
+        # Extract indexed filters from request
+        indexed_filters = {}
+        for field in ["status", "group", "user", "hyp_started", "server"]:
+            if params.get(field):
+                indexed_filters[field] = params.get(field)
+
         if payload["role_id"] == "manager":
             categories = [payload["category_id"]]
-        domains = admins.ListDesktops(
-            categories,
-        )
+
+        # Use filtered query if indexed filters are present, otherwise use original
+        if indexed_filters or categories:
+            domains = admins.ListDesktopsWithFilters(
+                categories=categories,
+                filters=indexed_filters,
+            )
+        else:
+            domains = admins.ListDesktops(
+                categories,
+            )
     else:
         domains = admins.ListTemplates(
             payload["category_id"] if payload.get("role_id") == "manager" else None
