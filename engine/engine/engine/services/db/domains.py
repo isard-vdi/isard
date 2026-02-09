@@ -72,6 +72,7 @@ def fail_incomplete_creating_domains(
     only_domain_id=None, detail="Failed by engine as it was incomplete", kind="desktop"
 ):
     status_to_failed = [
+        "Updating",
         "Deleting",
         "DiskDeleted",
         "CreatingDomain",

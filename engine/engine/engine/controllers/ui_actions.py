@@ -1293,5 +1293,5 @@ class UiActions(object):
                     update_domain_status(
                         "Stopped",
                         id_domain,
-                        detail="Updating finalished, ready to derivate desktops",
+                        detail="Template creation completed, ready to derive desktops",
                     )
