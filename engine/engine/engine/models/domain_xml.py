@@ -28,7 +28,6 @@ from engine.services.db import (
     get_interface,
     get_qos_disk_iotune,
     remove_fieds_when_stopped,
-    update_domain_dict_hardware,
     update_domain_status,
     update_domain_viewer_passwd,
     update_table_field,
@@ -38,7 +37,6 @@ from engine.services.db.storage_pool import get_category_storage_pool
 from engine.services.lib.functions import pop_key_if_zero, randomMAC
 from engine.services.lib.storage import _get_filename, insert_storage
 from engine.services.log import *
-from flatten_dict import flatten
 from lxml import etree
 from schema import And, Optional, Schema, SchemaError, Use
 from yattag import indent
@@ -1539,181 +1537,6 @@ def remove_recursive_tag(tag, parent):
 
 def create_template_from_dict(dict_template_new):
     pass
-
-
-def update_xml_from_dict_domain(id_domain, xml=None):
-    """Update domain XML based on hardware specifications.
-
-    Args:
-        id_domain: Domain ID
-        xml: Optional XML string to use as base (if None, uses domain's stored XML)
-    """
-    remove_fieds_when_stopped(id_domain)
-    d = get_domain(id_domain)
-
-    hw = resolve_hardware_from_create_dict(d)
-
-    if xml is None:
-        try:
-            v = DomainXML(d["xml"], id_domain=id_domain)
-        except:
-            log.error(
-                f"Error in update_xml_from_dict_domain with id_domain {id_domain}"
-            )
-            return False
-    else:
-        try:
-            v = DomainXML(xml, id_domain=id_domain)
-        except:
-            log.error(
-                f"Error in update_xml_from_dict_domain with id_domain {id_domain}"
-            )
-            return False
-
-    # v.set_memory(memory=hw['currentMemory'],unit=hw['currentMemory_unit'])
-    v.set_memory(
-        memory=hw["memory"],
-        unit=hw["memory_unit"],
-        current=int(hw.get("currentMemory", hw["memory"]) * DEFAULT_BALLOON),
-    )
-    total_disks_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="disk"]'))
-    total_cdroms_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="cdrom"]'))
-    total_floppies_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="floppy"]'))
-
-    if "boot_order" in hw.keys():
-        if "boot_menu_enable" in hw.keys():
-            v.update_boot_order(hw["boot_order"], hw["boot_menu_enable"])
-        else:
-            v.update_boot_order(hw["boot_order"])
-
-    if "disks" in hw.keys():
-        num_remove_disks = total_disks_in_xml - len(hw["disks"])
-        if num_remove_disks > 0:
-            for i in range(num_remove_disks):
-                v.remove_disk()
-        for i in range(len(hw["disks"])):
-            insert_storage(hw["disks"][i])
-            if not hw["disks"][i].get("file"):
-                log.error(f"disk {i} in domain {id_domain} not found in rethinkdb")
-                return False
-            s = hw["disks"][i]["file"]
-            if s[s.rfind(".") :].lower().find("qcow") == 1:
-                type_disk = "qcow2"
-            else:
-                type_disk = "raw"
-
-            if i >= total_disks_in_xml:
-                force_bus = hw["disks"][i].get("bus", False)
-                if force_bus is False:
-                    force_bus = "virtio"
-                v.add_disk(
-                    index=i,
-                    path_disk=hw["disks"][i]["file"],
-                    type_disk=type_disk,
-                    bus=force_bus,
-                )
-            else:
-                force_bus = hw["disks"][i].get("bus", False)
-                if force_bus is False:
-                    v.set_vdisk(hw["disks"][i]["file"], index=i, type_disk=type_disk)
-                else:
-                    v.set_vdisk(
-                        hw["disks"][i]["file"],
-                        index=i,
-                        type_disk=type_disk,
-                        force_bus=force_bus,
-                    )
-    elif total_disks_in_xml > 0:
-        for i in range(total_disks_in_xml):
-            v.remove_disk()
-
-    if "isos" in hw.keys():
-        num_remove_cdroms = total_cdroms_in_xml - len(hw["isos"])
-        if num_remove_cdroms > 0:
-            for i in range(num_remove_cdroms):
-                v.remove_cdrom()
-        for i in range(len(hw["isos"])):
-            if i >= total_cdroms_in_xml:
-                v.add_cdrom(path_cdrom=hw["isos"][i]["path"])
-            else:
-                v.set_cdrom(hw["isos"][i]["path"], index=i)
-    elif total_cdroms_in_xml > 0:
-        for i in range(total_cdroms_in_xml):
-            v.remove_cdrom()
-
-    if "custom" in d.keys():
-        if type(d["custom"]) is dict:
-            if "path_custom_fd" in d["custom"].keys():
-                path_custom_fd = d["custom"]["path_custom_fd"]
-                v.add_floppy(path_floppy=path_custom_fd)
-
-    if "floppies" in hw.keys():
-        num_remove_floppies = total_floppies_in_xml - len(hw["floppies"])
-        if num_remove_floppies > 0:
-            for i in range(num_remove_floppies):
-                v.remove_floppy()
-        for i in range(len(hw["floppies"])):
-            if i >= total_floppies_in_xml:
-                v.add_floppy(path_floppy=hw["floppies"][i]["path"])
-            else:
-                v.set_floppy(hw["floppies"][i]["path"], index=i)
-    elif total_floppies_in_xml > 0:
-        for i in range(total_floppies_in_xml):
-            v.remove_floppy()
-
-    v.set_name(id_domain)
-    # INFO TO DEVELOPER, deberíamos poder usar la funcion v.set_description(para poner algo)
-    # INFO TO DEVELOPER, estaría bien guardar la plantilla de la que deriva en algún campo de rethink,
-    # la puedo sacar a partir de hw['name'], hay que decidir como le llamamos al campo
-    # es importante para poder filtrar y saber cuantas máquinas han derivado,
-    # aunque la información que vale de verdad es la backing-chain del disco
-    # template_name = hw['name']
-
-    # Set up interfaces - uses TTL-cached lookups (get_interface_cached, get_qos_net_cached)
-    # to avoid redundant DB queries when called multiple times in batch operations
-    v.remove_interface()
-    recreate_xml_interfaces(d, v)
-
-    v.set_vcpu(hw["vcpus"])
-    v.set_video_type(hw["video"])
-    # INFO TO DEVELOPER, falta hacer un v.set_network_id (para ver contra que red hace bridge o se conecta
-    # INFO TO DEVELOPER, falta hacer un v.set_netowk_type (para seleccionar si quiere virtio o realtek por ejemplo)
-
-    file_spice_options = (
-        d.get("guest_properties", {})
-        .get("viewers", {})
-        .get("file_spice", {})
-        .get("options", {})
-    )
-    if type(file_spice_options) is dict:
-        if file_spice_options.get("shared_folder") is True:
-            v.add_shared_folder()
-
-    v.randomize_vm()
-    v.remove_selinux_options()
-    v.remove_boot_order_and_danger_options_from_disks()
-    # v.print_xml()
-    xml_raw = v.return_xml()
-    # VERIFING HARDWARE FROM XML
-    hw_updated = v.dict_from_xml()
-
-    # pprint diffs between hardware and hardware from xml
-    try:
-        flatten_hw = flatten(hw, enumerate_types=(list,))
-        flatten_hw_updated = flatten(hw_updated, enumerate_types=(list,))
-        set_flatten_hw = set((k, v) for k, v in flatten_hw.items())
-        set_flatten_hw_updated = set((k, v) for k, v in flatten_hw_updated.items())
-        diff_hw_TO_hw_updated = list(set_flatten_hw - set_flatten_hw_updated)
-        diff_hw_updated_TO_hw = list(set_flatten_hw_updated - set_flatten_hw)
-        pprint(sorted(diff_hw_TO_hw_updated))
-        pprint(sorted(diff_hw_updated_TO_hw))
-    except:
-        pass
-
-    # Batch update xml in a single DB call
-    update_domain_dict_hardware(id_domain, hw, xml=xml_raw)
-
-    return xml_raw
 
 
 def resolve_hardware_from_create_dict(domain):

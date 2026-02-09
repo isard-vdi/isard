@@ -15,7 +15,6 @@ from engine.models.domain_xml import (
     recreate_xml_if_gpu,
     recreate_xml_if_start_paused,
     recreate_xml_to_start,
-    update_xml_from_dict_domain,
 )
 from engine.services.db import (
     create_disk_template_created_list_in_domain,
@@ -848,17 +847,7 @@ class UiActions(object):
                     if k != "storage_id":
                         d_disk.pop(k)
         if insert_domain(template_dict)["inserted"] == 1:
-            xml_parsed = update_xml_from_dict_domain(
-                id_domain=template_id, xml=domain_dict["xml"]
-            )
-            if xml_parsed is False:
-                update_domain_status(
-                    status="Failed",
-                    id_domain=template_id,
-                    hyp_id=False,
-                    detail="XML Parser Error, xml is not valid",
-                )
-                return False
+            update_table_field("domains", template_id, "xml", domain_dict["xml"])
             remove_disk_template_created_list_in_domain(id_domain)
             remove_dict_new_template_from_domain(id_domain)
             if "parents" in domain_dict.keys():
@@ -1241,28 +1230,6 @@ class UiActions(object):
 
         update_table_field("domains", id_domain, "xml", xml_from)
 
-        try:
-            xml_raw = update_xml_from_dict_domain(id_domain)
-        except Exception as e:
-            logs.exception_id.debug("0020")
-            logs.main.info(f"Exception updating xml from dict_domain: {e}")
-            update_domain_status(
-                status="Failed",
-                id_domain=id_domain,
-                detail="XML Parser Error, xml is not valid",
-            )
-            logs.main.error(
-                "##### Traceback: \n .{} \n######".format(traceback.format_exc())
-            )
-            return False
-
-        if xml_raw is False:
-            update_domain_status(
-                status="Failed",
-                id_domain=id_domain,
-                detail="XML Parser Error, xml is not valid",
-            )
-            return False
         update_domain_status(
             "CreatingDomain",
             id_domain,
