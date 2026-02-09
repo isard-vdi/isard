@@ -73,6 +73,20 @@ def api_v3_admin_details_data(payload, domain_id):
     )
 
 
+@app.route("/api/v3/admin/domain/<domain_id>/info", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_domain_modal_info(payload, domain_id):
+    ownsDomainId(payload, domain_id)
+    result = admins.DomainInfo(domain_id)
+    if result is None:
+        raise Error("not_found", "Domain not found")
+    return (
+        json.dumps(result),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/admin/domain/<domain_id>/viewer_data", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_deployment_viewer_data(payload, domain_id):
