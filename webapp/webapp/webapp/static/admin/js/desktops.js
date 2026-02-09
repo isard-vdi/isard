@@ -288,9 +288,42 @@ $(document).ready(function() {
             modal_add_desktop_datatables();
         }
     });
-        
-    $('.btn-search-desktop').on('click', function () {
-        initDomainSearchModal();
+
+    // UUID validation helper
+    function isValidUUID(str) {
+        var uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(str);
+    }
+
+    // UUID search box handler
+    $("#domain-uuid-search-btn").on("click", function() {
+        var uuid = $("#domain-uuid-search").val().trim();
+        if (uuid && !isValidUUID(uuid)) {
+            new PNotify({
+                title: "Invalid UUID",
+                text: "Please enter a valid UUID format.",
+                type: "error",
+                hide: true,
+                delay: 3000,
+                icon: "fa fa-warning",
+                opacity: 1,
+            });
+            return;
+        }
+        initDomainSearchModal("desktop");
+        if (uuid) {
+            setTimeout(function() {
+                $("#modalSearchDomain #domain-id").val(uuid);
+                $("#modalSearchDomain #search-domain-btn").click();
+            }, 100);
+        }
+    });
+
+    // Allow Enter key to trigger search
+    $("#domain-uuid-search").on("keypress", function(e) {
+        if (e.which === 13) {
+            $("#domain-uuid-search-btn").click();
+        }
     });
 
     $("#modalSearchDomain").off('click', '.btn-copy').on('click', '.btn-copy', function() {
