@@ -867,6 +867,7 @@ $("#modalIncreaseStorage #send").on("click", function () {
 $(document).on("click", ".btn-search-storage", function () {
   var modal = "#modalSearchStorage";
   $(modal + " #storage-info").hide();
+  $(modal + " #storage-actions").hide();
   $(modal + "Form")[0].reset();
 
   $(modal + " #search-storage-btn")
@@ -937,6 +938,24 @@ $(document).on("click", ".btn-search-storage", function () {
             $(modal + " #storage-info-domains").html('-');
           }
           $(modal + " #storage-info").show();
+
+          // Show actions panel and populate button data-ids
+          $(modal + " #storage-actions").show();
+          $(modal + " #storage-action-buttons button").attr("data-id", data.id);
+
+          // Show admin-only actions if user is admin
+          if ($("#user_data").data("role") === "admin") {
+            $(modal + " .admin-only-actions").show();
+          } else {
+            $(modal + " .admin-only-actions").hide();
+          }
+
+          // Disable actions if storage status is not "ready"
+          if (data.status !== "ready") {
+            $(modal + " #storage-action-buttons button").not(".btn-modal-find, .btn-modal-delete").prop("disabled", true);
+          } else {
+            $(modal + " #storage-action-buttons button").prop("disabled", false);
+          }
         })
         .fail(function (xhr) {
           var msg =
@@ -953,6 +972,7 @@ $(document).on("click", ".btn-search-storage", function () {
             opacity: 1,
           });
           $(modal + " #storage-info").hide();
+          $(modal + " #storage-actions").hide();
         });
     });
 
@@ -968,6 +988,159 @@ $("#modalSearchStorage").off('click', '.btn-copy').on('click', '.btn-copy', func
   });
 });
 
+// Modal action buttons - trigger existing handlers
+$(document).on("click", ".btn-modal-move", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("move", storageId);
+});
+
+$(document).on("click", ".btn-modal-virt_win_reg", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("virt_win_reg", storageId);
+});
+
+$(document).on("click", ".btn-modal-increase", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("increase", storageId);
+});
+
+$(document).on("click", ".btn-modal-create", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("create", storageId);
+});
+
+$(document).on("click", ".btn-modal-sparsify", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("sparsify", storageId);
+});
+
+$(document).on("click", ".btn-modal-disconnect", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("disconnect", storageId);
+});
+
+$(document).on("click", ".btn-modal-find", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  // Find action is a direct API call
+  $.ajax({
+    type: 'GET',
+    url: '/api/v3/storage/' + storageId + '/find',
+    contentType: 'application/json',
+    success: function (result) {
+      new PNotify({
+        title: 'Find',
+        text: 'Storage found',
+        hide: true,
+        delay: 2000,
+        icon: '',
+        opacity: 1,
+        type: 'success'
+      });
+    },
+    error: function (xhr) {
+      new PNotify({
+        title: 'Error',
+        text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
+        hide: true,
+        delay: 3000,
+        icon: 'fa fa-warning',
+        opacity: 1,
+        type: 'error'
+      });
+    }
+  });
+});
+
+$(document).on("click", ".btn-modal-delete", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  // Delete action with confirmation dialog
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: "Are you sure you want to delete storage " + storageId + "?",
+    hide: false,
+    opacity: 0.9,
+    confirm: {
+      confirm: true
+    },
+    buttons: {
+      closer: false,
+      sticker: false
+    },
+    history: {
+      history: false
+    },
+    addclass: 'pnotify-center'
+  }).get().on('pnotify.confirm', function () {
+    $.ajax({
+      type: 'DELETE',
+      url: '/api/v3/storage/' + storageId,
+      contentType: 'application/json',
+      success: function (result) {
+        new PNotify({
+          title: 'Deleted',
+          text: 'Storage deleted',
+          hide: true,
+          delay: 2000,
+          icon: '',
+          opacity: 1,
+          type: 'success'
+        });
+        if (storage_ready) {
+          storage_ready.ajax.reload();
+        }
+        if (storagesOtherTable) {
+          storagesOtherTable.ajax.reload();
+        }
+      },
+      error: function (xhr) {
+        new PNotify({
+          title: 'ERROR deleting storage',
+          text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
+          hide: true,
+          delay: 3000,
+          icon: 'fa fa-warning',
+          opacity: 1,
+          type: 'error'
+        });
+      }
+    });
+  });
+});
+
+function triggerStorageAction(action, storageId) {
+  // Create a temporary element to trigger existing handlers
+  var tempBtn = $('<button class="btn-' + action + '" data-id="' + storageId + '"></button>');
+  $("body").append(tempBtn);
+  tempBtn.click();
+  tempBtn.remove();
+}
+
+// UUID search box - open modal with pre-filled ID
+$("#storage-uuid-search-btn").on("click", function() {
+  var uuid = $("#storage-uuid-search").val().trim();
+  if (uuid) {
+    $(".btn-search-storage").click();
+    setTimeout(function() {
+      $("#modalSearchStorage #storage-id").val(uuid);
+      $("#modalSearchStorage #search-storage-btn").click();
+    }, 100);
+  }
+});
+
+// Allow Enter key to trigger search
+$("#storage-uuid-search").on("keypress", function(e) {
+  if (e.which === 13) {
+    $("#storage-uuid-search-btn").click();
+  }
+});
 
 $(document).on('click', '.btn-add-storage', function () {
   var modal = "#modalCreateStorage";
