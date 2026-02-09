@@ -487,6 +487,12 @@ $(document).ready(function() {
     const filter_list = ['category', 'favourite_hyp', 'forced_hyp', 'group', 'hyp_started', 'memory', 'name', 'server', 'status', 'user', 'vcpus'];
     const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
     $('#filter-select').append(options.join(''));
+
+    // Indexed filters are sent to the API for server-side filtering
+    // 'category' is handled separately via the categories parameter
+    const indexed_filters = ['status', 'group', 'user', 'hyp_started', 'server'];
+    // Non-indexed filters remain client-side
+    const client_side_filters = ['favourite_hyp', 'forced_hyp', 'memory', 'name', 'vcpus'];
     var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
 
     let searchDomainId = getGroupParam()
@@ -504,17 +510,26 @@ $(document).ready(function() {
         data: function () {
             var categories = [];
             categories = $('#filter-category #category').val();
-            if ($('#filter-category').length) {
-                return JSON.stringify({
-                    'kind': "desktop",
-                    'categories': JSON.stringify(categories)
-                });
-            } else {
-                return JSON.stringify({
-                    'kind': "desktop",
-                    'categories': JSON.stringify([])
-                });
-            }
+            var requestData = {
+                'kind': "desktop",
+                'categories': JSON.stringify(categories || [])
+            };
+
+            // Add indexed filters to request for server-side filtering
+            indexed_filters.forEach(function(field) {
+                var filterBox = $('#filter-' + field + ' #' + field);
+                if (filterBox.length && filterBox.val() && filterBox.val().length) {
+                    // For single-value filters, send first value; for multi-select, send first value
+                    var val = filterBox.val();
+                    if (Array.isArray(val) && val.length > 0) {
+                        requestData[field] = val[0];
+                    } else if (val) {
+                        requestData[field] = val;
+                    }
+                }
+            });
+
+            return JSON.stringify(requestData);
         }
     },
       initComplete: function (settings, json) {
@@ -574,25 +589,64 @@ $(document).ready(function() {
 
     $("#btn-search").on("click", function () {
         var table = $("#domains").DataTable();
-        // do for each item filter box
+        var hasIndexedFilter = false;
+        var needsReload = false;
+
+        // Check if any indexed filter is present and has a value
+        indexed_filters.forEach(function(field) {
+            var filterBox = $('#filter-' + field + ' #' + field);
+            if (filterBox.length && filterBox.val() && filterBox.val().length) {
+                hasIndexedFilter = true;
+            }
+        });
+
+        // Check if category filter changed
+        if ($('#filter-category').length) {
+            var currentCategoryValues = $('#filter-category #category').val();
+            if (JSON.stringify(selectedCategories) !== JSON.stringify(currentCategoryValues)) {
+                selectedCategories = currentCategoryValues;
+                needsReload = true;
+            }
+        }
+
+        // Reload from API if indexed filters are present or category changed
+        if (hasIndexedFilter || needsReload) {
+            table.ajax.reload(function() {
+                // After reload, apply non-indexed (client-side) filters
+                applyClientSideFilters(table);
+            });
+        } else {
+            // No indexed filters, just apply client-side filtering
+            applyClientSideFilters(table);
+        }
+
+        if (!$("#filter-category").length && selectedCategories !== null) {
+            $('#category').empty();
+            selectedCategories = null;
+            table.ajax.reload();
+        }
+    });
+
+    // Function to apply non-indexed filters client-side
+    function applyClientSideFilters(table) {
         $("#filter-boxes .filter-item").each(function () {
             var operator = $(this).find(".operator-select").val();
             var title = $(this).find(".filter-box").attr("index");
-            if ($(this)
-            .find(".filter-box").val()==null) {
+
+            // Skip indexed filters (they are handled server-side) and category
+            if (indexed_filters.includes(title) || title === "category") {
+                return;
+            }
+
+            if ($(this).find(".filter-box").val() == null) {
                 var values = [""]
             } else {
-                var values = $(this).find(".filter-box").val().map(value => 
+                var values = $(this).find(".filter-box").val().map(value =>
                     value === "Maintenance" ? value : `^${value.trim()}$`
                 );
             }
             var searchParams = values.join("|");
-            if (title === "category") {
-                if (JSON.stringify(selectedCategories) !== JSON.stringify(values)) {
-                selectedCategories = $(".filter-item #" + title).val();
-                table.ajax.reload();
-            }
-            } else {
+
             // search in the loaded table content
             table.columns().every(function () {
                 header = $(this.header()).text().trim().toLowerCase();
@@ -611,15 +665,8 @@ $(document).ready(function() {
                     }
                 }
             });
-        }
-    });
-        if (!$("#filter-category").length && selectedCategories !== null) {
-            $('#category').empty();
-            selectedCategories = null;
-            table.ajax.reload();
-        }
-        
-    });
+        });
+    }
 
     $("#btn-reload").on("click", function () {
         reloadOtherFiltersContent(domains_table);
