@@ -1565,7 +1565,10 @@ def resolve_hardware_from_create_dict(domain):
         resolved_hardware["disks"] = []
         for disk in create_dict["hardware"]["disks"]:
             storage_id = disk.get("storage_id")
-            resolved_disk = {"storage_id": storage_id, "bus": disk.get("bus")}
+            resolved_disk = {
+                "storage_id": storage_id,
+                "bus": disk.get("bus") or "virtio",
+            }
             if storage_id:
                 storage = get_storage_cached(storage_id)
                 if storage:
@@ -1797,10 +1800,10 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
             )
 
             if i >= total_disks_in_xml:
-                force_bus = disk.get("bus", "virtio")
+                force_bus = disk.get("bus") or "virtio"
                 x.add_disk(index=i, path_disk=s, type_disk=type_disk, bus=force_bus)
             else:
-                force_bus = disk.get("bus", False)
+                force_bus = disk.get("bus") or False
                 if force_bus:
                     x.set_vdisk(s, index=i, type_disk=type_disk, force_bus=force_bus)
                 else:
@@ -1900,7 +1903,11 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 
     # spice video compression
     # x.add_spice_graphics_if_not_exist()
-    x.set_spice_video_options()
+    graphics_list = (
+        dict_domain.get("create_dict", {}).get("hardware", {}).get("graphics", [])
+    )
+    id_graphics = graphics_list[0] if graphics_list else "default"
+    x.set_spice_video_options(id_graphics)
 
     # spice password
     if ssl is True:

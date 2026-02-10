@@ -952,11 +952,10 @@ class UiActions(object):
                 d_update_domain["hardware"]["disks"][0]["size"] = dict_to_create[
                     "hardware"
                 ]["disks"][0]["size"]
-                if "bus" in dict_to_create["hardware"]["disks"][0].keys():
-                    if dict_to_create["hardware"]["disks"][0]["bus"] in BUS_TYPES:
-                        d_update_domain["hardware"]["disks"][0]["bus"] = dict_to_create[
-                            "hardware"
-                        ]["disks"][0]["bus"]
+                bus = dict_to_create["hardware"]["disks"][0].get("bus", "virtio")
+                if bus not in BUS_TYPES:
+                    bus = "virtio"
+                d_update_domain["hardware"]["disks"][0]["bus"] = bus
                 update_domain_dict_hardware(id_new, d_update_domain)
                 # update_domain_dict_create_dict(id_new, d_update_domain)
                 storage_id = create_storage(
