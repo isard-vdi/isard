@@ -187,10 +187,15 @@ class ThreadBroom(threading.Thread):
                                                 logs.broom.error(
                                                     f"EXCEPTION when try to destroy domain not in database {domain_id} in hypervisor {hyp_id} with exception: {e}"
                                                 )
+                                            continue
                                         if db_domain.get("status") not in [
                                             "Started",
                                             "Shutting-down",
                                             "Stopping",
+                                            "CreatingDomain",
+                                            "CreatingAndStarting",
+                                            "CreatingDiskFromScratch",
+                                            "StartingDomainDisposable",
                                         ]:
                                             logs.broom.warning(
                                                 f"broom find domain {domain_id} with status {db_domain.get('status')} started in hypervisor {hyp_id} and updated status and hyp_started in database"
@@ -254,6 +259,16 @@ class ThreadBroom(threading.Thread):
                                 if db_domain is None:
                                     logs.broom.error(
                                         "CRITICAL, if domain is not in database, must have been destroyed previously by broom, will do it next loop"
+                                    )
+                                    continue
+                                if db_domain.get("status") in [
+                                    "CreatingDomain",
+                                    "CreatingAndStarting",
+                                    "CreatingDiskFromScratch",
+                                    "StartingDomainDisposable",
+                                ]:
+                                    logs.broom.debug(
+                                        f"broom skipping domain {domain_id} in creation status {db_domain.get('status')} on hypervisor {hyp_id}"
                                     )
                                     continue
                                 if domain_status == "Started":
