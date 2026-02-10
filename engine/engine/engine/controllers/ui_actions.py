@@ -129,6 +129,13 @@ class UiActions(object):
         # Domain storage and storage pool
         if Domain.exists(id_domain):
             domain_obj = Domain(id_domain)
+        else:
+            update_domain_status(
+                "Failed",
+                id_domain,
+                detail="Domain storage not found in database",
+            )
+            return False
         if not domain_obj.storage_ready:
             if any([s.status == "non_existing" for s in domain_obj.storages]):
                 log.error(
@@ -233,6 +240,13 @@ class UiActions(object):
             # Domain storage and storage pool
             if Domain.exists(id_domain):
                 domain_obj = Domain(id_domain)
+            else:
+                update_domain_status(
+                    "Failed",
+                    id_domain,
+                    detail="Domain storage not found in database",
+                )
+                return False
             if not domain_obj.storage_ready:
                 update_domain_status(
                     "Stopped",
