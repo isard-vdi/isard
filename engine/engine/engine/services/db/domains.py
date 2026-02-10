@@ -101,7 +101,7 @@ def fail_incomplete_creating_domains(
 def stop_incomplete_starting_domains(
     only_domain_id=None, detail="Stopped by engine as it was incomplete", kind="desktop"
 ):
-    status_to_stopped = ["Starting"]
+    status_to_stopped = ["Starting", "StartingPaused"]
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     if only_domain_id:
@@ -124,7 +124,7 @@ def stop_incomplete_starting_domains(
         )
     else:
         results = (
-            rtable.get_all("Starting", index="status")
+            rtable.get_all(r.args(status_to_stopped), index="status")
             .filter({"kind": kind})
             .replace(
                 lambda domain: domain.without(

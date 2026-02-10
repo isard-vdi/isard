@@ -536,7 +536,10 @@ class Engine(object):
                     if self.manager.check_actions_domains_enabled() is False:
                         if c.get("new_val", None) != None:
                             if c.get("old_val", None) != None:
-                                if c["new_val"]["status"][-3:] == "ing":
+                                if (
+                                    c["new_val"]["status"][-3:] == "ing"
+                                    or c["new_val"]["status"] == "StartingPaused"
+                                ):
                                     update_domain_status(
                                         c["old_val"]["status"],
                                         c["old_val"]["id"],
