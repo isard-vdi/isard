@@ -92,6 +92,27 @@ class OvsWorker:
         self.last_stats_time = 0
         self.stats_interval = 60  # seconds
 
+        # Discover geneve port number (set up by setup.sh before we start)
+        domain = os.environ.get("DOMAIN", "")
+        try:
+            result = subprocess.run(
+                ["ovs-vsctl", "get", "Interface", domain, "ofport"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            self.geneve_port = result.stdout.strip()
+            log(
+                {
+                    "event": "geneve_port_discovered",
+                    "port": self.geneve_port,
+                    "interface": domain,
+                }
+            )
+        except Exception as e:
+            log({"event": "geneve_port_error", "error": str(e)})
+            self.geneve_port = None
+
     def start(self):
         """Initialize and start the worker"""
         self._connect_ovsdb()
@@ -1295,11 +1316,11 @@ class OvsWorker:
 
                 # ARP requests to infrastructure (10.2.0.0/28) - per-VM rate limited
                 flows.append(
-                    f"priority=206,arp,in_port={nport},dl_src={mac},arp_op=1,arp_tpa=10.2.0.0/28,actions=meter:{meter_arp},NORMAL"
+                    f"priority=206,arp,in_port={nport},dl_src={mac},arp_sha={mac},arp_op=1,arp_tpa=10.2.0.0/28,actions=meter:{meter_arp},NORMAL"
                 )
                 # ARP replies - per-VM rate limited
                 flows.append(
-                    f"priority=206,arp,in_port={nport},dl_src={mac},arp_op=2,actions=meter:{meter_arp},NORMAL"
+                    f"priority=206,arp,in_port={nport},dl_src={mac},arp_sha={mac},arp_op=2,actions=meter:{meter_arp},NORMAL"
                 )
 
                 # DHCP requests from guest - per-VM rate limited
@@ -1323,24 +1344,23 @@ class OvsWorker:
                 )
 
                 # ==== TRAFFIC RESTRICTION ====
-                # Allow IP traffic to infrastructure range (10.2.0.0/28)
+                # Allow all IP traffic from guest with correct MAC
+                # Destination access control is enforced by iptables FORWARD
+                # (default DROP + per-desktop ACCEPT) in isard-vpn container
                 flows.append(
-                    f"priority=204,ip,in_port={nport},dl_src={mac},nw_dst=10.2.0.0/28,actions=NORMAL"
-                )
-                # Allow IP traffic to user VPN range (10.0.0.0/16)
-                # User-to-desktop access control is handled by iptables in isard-vpn
-                flows.append(
-                    f"priority=204,ip,in_port={nport},dl_src={mac},nw_dst=10.0.0.0/16,actions=NORMAL"
-                )
-                # Block all other IP from guest (prevents access to other networks)
-                flows.append(
-                    f"priority=203,ip,in_port={nport},dl_src={mac},actions=drop"
+                    f"priority=204,ip,in_port={nport},dl_src={mac},actions=NORMAL"
                 )
 
                 # Deliver traffic from VPN to guest - strip VLAN tag before output
-                flows.append(
-                    f"priority=221,dl_dst={mac},dl_vlan=4095,actions=strip_vlan,output:{nport}"
-                )
+                # Only accept from geneve tunnel to prevent same-hypervisor VM bypass
+                if self.geneve_port:
+                    flows.append(
+                        f"priority=221,in_port={self.geneve_port},dl_dst={mac},dl_vlan=4095,actions=strip_vlan,output:{nport}"
+                    )
+                else:
+                    flows.append(
+                        f"priority=221,dl_dst={mac},dl_vlan=4095,actions=strip_vlan,output:{nport}"
+                    )
 
         # Create all meters in batch (single subprocess call)
         meters = self._create_meters_batch(meter_specs)
