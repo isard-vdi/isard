@@ -403,6 +403,11 @@ class DownloadThread(threading.Thread, object):
                 else:
                     update_to_status = "Downloaded"
 
+                    total_size = d_progress["total"]
+                    if total_size == "0" or not total_size:
+                        total_bytes = 0
+                    else:
+                        total_bytes = hf.parse_size(total_size + "iB")
                     update_table_dict(
                         self.table,
                         self.id,
@@ -412,9 +417,7 @@ class DownloadThread(threading.Thread, object):
                             "progress": {
                                 "received": d_progress["total"],
                                 "total_percent": 100,
-                                "total_bytes": hf.parse_size(
-                                    d_progress["total"] + "iB"
-                                ),
+                                "total_bytes": total_bytes,
                             },
                         },
                     )
