@@ -70,6 +70,22 @@
         '              </table>',
         '            </div>',
         '          </div>',
+        '          <div class="row" id="domain-actions-section" style="display:none; margin-top: 15px;">',
+        '            <div class="col-md-12">',
+        '              <h5><i class="fa fa-cogs"></i> Actions</h5>',
+        '              <div id="domain-action-buttons">',
+        '                <button class="btn btn-success btn-xs btn-domain-start" data-id="" type="button" title="Start desktop">',
+        '                  <i class="fa fa-play"></i> Start',
+        '                </button>',
+        '                <button class="btn btn-danger btn-xs btn-domain-stop" data-id="" type="button" title="Stop desktop">',
+        '                  <i class="fa fa-stop"></i> Stop',
+        '                </button>',
+        '                <button class="btn btn-danger btn-xs btn-domain-delete" data-id="" type="button" title="Delete desktop">',
+        '                  <i class="fa fa-trash"></i> Delete',
+        '                </button>',
+        '              </div>',
+        '            </div>',
+        '          </div>',
         '        </div>',
         '        <div id="domain-info-error" class="alert alert-danger" style="display:none;"></div>',
         '      </div>',
@@ -310,6 +326,29 @@
             bastionSection.hide();
         }
 
+        // Show actions section for desktops only
+        var actionsSection = $modal.find('#domain-actions-section');
+        if (domain.kind === 'desktop') {
+            actionsSection.show();
+            actionsSection.find('[data-id]').attr('data-id', domain.id);
+
+            var startBtn = actionsSection.find('.btn-domain-start');
+            var stopBtn = actionsSection.find('.btn-domain-stop');
+
+            if (domain.status === 'Started' || domain.status === 'Paused') {
+                startBtn.prop('disabled', true);
+                stopBtn.prop('disabled', false);
+            } else if (domain.status === 'Stopped' || domain.status === 'Failed') {
+                startBtn.prop('disabled', false);
+                stopBtn.prop('disabled', true);
+            } else {
+                startBtn.prop('disabled', true);
+                stopBtn.prop('disabled', true);
+            }
+        } else {
+            actionsSection.hide();
+        }
+
         $modal.find('#domain-info-content').show();
     }
 
@@ -351,6 +390,68 @@
         e.stopPropagation();
         var domainId = $(this).data('domain-info');
         showDomainInfo(domainId);
+    });
+
+    // Desktop action: Start
+    $(document).on('click', '.btn-domain-start', function(e) {
+        e.preventDefault();
+        var domainId = $(this).data('id');
+        $.ajax({
+            type: 'GET',
+            url: '/api/v3/desktop/start/' + domainId,
+            success: function() {
+                new PNotify({ title: 'Starting', text: 'Desktop is starting...', type: 'success', hide: true, delay: 2000 });
+                showDomainInfo(domainId);
+            },
+            error: function(xhr) {
+                new PNotify({ title: 'ERROR', text: xhr.responseJSON ? xhr.responseJSON.description : 'Failed to start', type: 'error', hide: true, delay: 3000 });
+            }
+        });
+    });
+
+    // Desktop action: Stop
+    $(document).on('click', '.btn-domain-stop', function(e) {
+        e.preventDefault();
+        var domainId = $(this).data('id');
+        $.ajax({
+            type: 'GET',
+            url: '/api/v3/desktop/stop/' + domainId,
+            success: function() {
+                new PNotify({ title: 'Stopping', text: 'Desktop is stopping...', type: 'success', hide: true, delay: 2000 });
+                showDomainInfo(domainId);
+            },
+            error: function(xhr) {
+                new PNotify({ title: 'ERROR', text: xhr.responseJSON ? xhr.responseJSON.description : 'Failed to stop', type: 'error', hide: true, delay: 3000 });
+            }
+        });
+    });
+
+    // Desktop action: Delete (with confirmation)
+    $(document).on('click', '.btn-domain-delete', function(e) {
+        e.preventDefault();
+        var domainId = $(this).data('id');
+        new PNotify({
+            title: 'Confirmation Needed',
+            text: "Are you sure you want to delete this desktop?",
+            hide: false,
+            opacity: 0.9,
+            confirm: { confirm: true },
+            buttons: { closer: false, sticker: false },
+            history: { history: false },
+            addclass: 'pnotify-center'
+        }).get().on('pnotify.confirm', function() {
+            $.ajax({
+                type: 'DELETE',
+                url: '/api/v3/desktop/' + domainId,
+                success: function() {
+                    new PNotify({ title: 'Deleted', text: 'Desktop deleted', type: 'success', hide: true, delay: 2000 });
+                    $('#' + MODAL_ID).modal('hide');
+                },
+                error: function(xhr) {
+                    new PNotify({ title: 'ERROR', text: xhr.responseJSON ? xhr.responseJSON.description : 'Failed to delete', type: 'error', hide: true, delay: 3000 });
+                }
+            });
+        });
     });
 
     // Export to global scope
