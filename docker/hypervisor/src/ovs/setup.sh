@@ -61,12 +61,6 @@ fi
 
 ovs-vsctl show
 
-# Allow ARP broadcasts from infrastructure services (priority > 210 multicast block)
-ovs-ofctl add-flow ovsbr0 "priority=212,arp,dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.1,actions=strip_vlan,output:all"  # gw
-ovs-ofctl add-flow ovsbr0 "priority=212,arp,dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.2,actions=strip_vlan,output:all"  # bastion
-ovs-ofctl add-flow ovsbr0 "priority=212,arp,dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.3,actions=strip_vlan,output:all"  # samba
-ovs-ofctl add-flow ovsbr0 "priority=212,arp,dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.4,actions=strip_vlan,output:all"  # guacamole
-
 # ============================================================================
 # SECURITY: Port Security Rules for VLAN 4095 (Infrastructure Network)
 # ============================================================================
@@ -76,6 +70,13 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Adding port security rules for VLA
 # Port name is the $DOMAIN variable (e.g., "10.100.1.214")
 GENEVE_PORT=$(ovs-vsctl get Interface "$DOMAIN" ofport)
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Geneve port to VPN: ${GENEVE_PORT} ($DOMAIN)"
+
+# Allow ARP broadcasts from infrastructure services (priority > 210 multicast block)
+# Restricted to geneve ingress to prevent VMs from spoofing infrastructure ARP
+ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.1,actions=strip_vlan,output:all"  # gw
+ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.2,actions=strip_vlan,output:all"  # bastion
+ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.3,actions=strip_vlan,output:all"  # samba
+ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.4,actions=strip_vlan,output:all"  # guacamole
 
 # Allow VLAN 4095 traffic FROM VPN (infrastructure + return traffic)
 # This must be higher priority than spoofing blocks below
@@ -110,7 +111,7 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Blocked VLAN 4095 access to Docker
 # SECURITY: Rogue DHCP Server Protection (VLAN 4095 only)
 # ============================================================================
 # Only allow DHCP server responses from legitimate gateway (10.2.0.1)
-ovs-ofctl add-flow ovsbr0 "priority=220,udp,dl_vlan=4095,tp_src=67,nw_src=10.2.0.1,actions=NORMAL"
+ovs-ofctl add-flow ovsbr0 "priority=220,udp,in_port=${GENEVE_PORT},dl_vlan=4095,tp_src=67,nw_src=10.2.0.1,actions=NORMAL"
 # Drop all other DHCP server traffic from VLAN 4095
 ovs-ofctl add-flow ovsbr0 "priority=219,udp,dl_vlan=4095,tp_src=67,actions=drop"
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Rogue DHCP protection enabled for VLAN 4095"
