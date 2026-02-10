@@ -17,11 +17,26 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import threading
 from abc import ABC
 
 from engine.services.db import new_rethink_connection
-from isardvdi_common.atexit_register import atexit_register
 from isardvdi_common.rethink_base import RethinkBase
+
+
+class _ThreadLocalConnection:
+    """Descriptor providing a per-thread RethinkDB connection with auto-reconnect."""
+
+    def __init__(self):
+        self._local = threading.local()
+
+    def _get_connection(self):
+        if not hasattr(self._local, "conn") or not self._local.conn.is_open():
+            self._local.conn = new_rethink_connection()
+        return self._local.conn
+
+    def __get__(self, obj, objtype=None):
+        return self._get_connection()
 
 
 class RethinkCustomBase(RethinkBase, ABC):
@@ -33,9 +48,4 @@ class RethinkCustomBase(RethinkBase, ABC):
     argument to create an object representing an existing Rethink Document.
     """
 
-    _rdb_connection = new_rethink_connection()
-
-    @classmethod
-    @atexit_register
-    def _rethink_disconnect(cls):
-        cls._rdb_connection.close()
+    _rdb_connection = _ThreadLocalConnection()
