@@ -1761,7 +1761,12 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         return False
 
     x.set_name(id_domain)
-    x.tree.xpath("/domain/uuid")[0].text = id_domain
+    try:
+        uuid.UUID(id_domain)
+        domain_uuid = id_domain
+    except ValueError:
+        domain_uuid = str(uuid.uuid5(uuid.NAMESPACE_OID, id_domain))
+    x.tree.xpath("/domain/uuid")[0].text = domain_uuid
 
     ##### Resolve hardware from create_dict #####
     hw = resolve_hardware_from_create_dict(dict_domain)
