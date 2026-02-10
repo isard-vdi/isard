@@ -369,7 +369,19 @@ $(document).ready(function() {
     // UUID search box handler
     $("#domain-uuid-search-btn").on("click", function() {
         var uuid = $("#domain-uuid-search").val().trim();
-        if (uuid && !isValidUUID(uuid)) {
+        if (!uuid) {
+            new PNotify({
+                title: "Error",
+                text: "Please enter a template ID to search for.",
+                type: "error",
+                hide: true,
+                delay: 3000,
+                icon: "fa fa-warning",
+                opacity: 1,
+            });
+            return;
+        }
+        if (!isValidUUID(uuid)) {
             new PNotify({
                 title: "Invalid UUID",
                 text: "Please enter a valid UUID format.",
@@ -381,13 +393,7 @@ $(document).ready(function() {
             });
             return;
         }
-        initDomainSearchModal("template");
-        if (uuid) {
-            setTimeout(function() {
-                $("#modalSearchDomain #domain-id").val(uuid);
-                $("#modalSearchDomain #search-domain-btn").click();
-            }, 100);
-        }
+        showDomainInfo(uuid);
     });
 
     // Allow Enter key to trigger search
@@ -395,24 +401,6 @@ $(document).ready(function() {
         if (e.which === 13) {
             $("#domain-uuid-search-btn").click();
         }
-    });
-
-    $("#modalSearchDomain").off('click', '.btn-copy').on('click', '.btn-copy', function() {
-        const text = $(this).data('copy-value') || '';
-        navigator.clipboard.writeText(text).then(() => {
-            new PNotify({ title: 'Copied to Clipboard', text: `"${text}" has been copied to clipboard.`, type: 'success', delay: 2000 });
-        }).catch(() => {
-            new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
-        });
-    });
-
-    $("#modalSearchTemplate").off('click', '.btn-copy').on('click', '.btn-copy', function() {
-        const text = $(this).data('copy-value') || '';
-        navigator.clipboard.writeText(text).then(() => {
-            new PNotify({ title: 'Copied to Clipboard', text: `"${text}" has been copied to clipboard.`, type: 'success', delay: 2000 });
-        }).catch(() => {
-            new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
-        });
     });
 
     $('.btn-disabled').on('click', function(e) {
