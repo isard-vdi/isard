@@ -308,14 +308,15 @@ def _logs_domain_stop_engine(start_logs_id, new_status=""):
                 )
                 .run(db.conn)
             )
-        if not desktop:
+        new_val = desktop.get("changes", [{}])[0].get("new_val") if desktop else None
+        if not new_val:
             log.warning(
-                "Unable to update stopped time at desktop: "
-                + str(desktop_id)
-                + " as it does not exist anymore"
+                "Unable to update stopped time for start_logs_id: "
+                + str(start_logs_id)
+                + " as the log entry does not exist anymore"
             )
             return
-        desktop_id = desktop["changes"][0]["new_val"]["desktop_id"]
+        desktop_id = new_val["desktop_id"]
     except:
         log.warning("Unable to update stopped time for desktop")
         log.debug(traceback.format_exc())
