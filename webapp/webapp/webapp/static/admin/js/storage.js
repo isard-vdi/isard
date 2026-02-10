@@ -50,6 +50,10 @@ $(document).ready(function () {
       case 'btn-details':
         showRowDetails(storage_ready, tr, row);
         break;
+      case 'btn-info':
+        var storageId = $(this).data('id');
+        openStorageSearchModal(storageId);
+        break;
     }
   })
 
@@ -99,6 +103,10 @@ $(document).ready(function () {
       switch ($(this).attr('id')) {
         case 'btn-details':
           showRowDetails(storagesOtherTable, tr, row);
+          break;
+        case 'btn-info':
+          var storageId = $(this).data('id');
+          openStorageSearchModal(storageId);
           break;
       }
     })
@@ -914,7 +922,9 @@ function initStorageSearchModal() {
       })
         .done(function (data) {
           function copyBtn(text) {
-            return (text && text !== '-') ? ` <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${text}" type="button" title="Copy to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button>` : '';
+            if (!text || text === '-') return '';
+            var escaped = $('<div>').text(text).html();
+            return ' <span class="copy-btn" data-copy="' + escaped + '" title="Copy to clipboard"><i class="fa fa-copy"></i></span>';
           }
           const storageFields = [
             { label: 'ID', value: data.id || '-', selector: '#storage-info-id' },
@@ -945,13 +955,16 @@ function initStorageSearchModal() {
           if (data.domains.length > 0) {
             let domainsHtml = '';
             data.domains.forEach(function (domain, id) {
+              var escapedId = $('<div>').text(domain.id).html();
+              var escapedName = $('<div>').text(domain.name).html();
+              var escapedKind = $('<div>').text(domain.kind).html();
               domainsHtml += `<div style="margin-bottom:6px;">
-                <b>ID:</b> <span class="domain-id">${domain.id}</span>
-                <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${domain.id}" type="button" title="Copy ID to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button><br>
-                <b>Name:</b> <span class="domain-name">${domain.name}</span>
-                <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${domain.name}" type="button" title="Copy Name to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button><br>
-                <b>Kind:</b> <span class="domain-kind">${domain.kind}</span>
-                <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${domain.kind}" type="button" title="Copy Kind to clipboard" style="margin-left:3px;"><i class="fa fa-clipboard"></i></button>
+                <b>ID:</b> <span class="domain-id">${escapedId}</span>
+                <span class="copy-btn" data-copy="${escapedId}" title="Copy ID to clipboard"><i class="fa fa-copy"></i></span><br>
+                <b>Name:</b> <span class="domain-name">${escapedName}</span>
+                <span class="copy-btn" data-copy="${escapedName}" title="Copy Name to clipboard"><i class="fa fa-copy"></i></span><br>
+                <b>Kind:</b> <span class="domain-kind">${escapedKind}</span>
+                <span class="copy-btn" data-copy="${escapedKind}" title="Copy Kind to clipboard"><i class="fa fa-copy"></i></span>
               </div>`;
             });
             $(modal + " #storage-info-domains").html(domainsHtml);
@@ -1005,13 +1018,27 @@ function initStorageSearchModal() {
   $(modal).modal({ backdrop: "static", keyboard: false }).modal("show");
 }
 
-$("#modalSearchStorage").off('click', '.btn-copy').on('click', '.btn-copy', function() {
-  const text = $(this).data('copy-value') || '';
-  navigator.clipboard.writeText(text).then(() => {
-    new PNotify({ title: 'Copied to Clipboard', text: `"${text}" has been copied to clipboard.`, type: 'success', delay: 2000 });
-  }).catch(() => {
-    new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
-  });
+function openStorageSearchModal(storageId) {
+  initStorageSearchModal();
+  if (storageId) {
+    setTimeout(function() {
+      $("#modalSearchStorage #storage-id").val(storageId);
+      $("#modalSearchStorage #search-storage-btn").click();
+    }, 100);
+  }
+}
+
+$("#modalSearchStorage").off('click', '.copy-btn').on('click', '.copy-btn', function() {
+    var text = $(this).data('copy');
+    navigator.clipboard.writeText(text).then(() => {
+        var icon = $(this).find('i');
+        icon.removeClass('fa-copy').addClass('fa-check');
+        setTimeout(function() {
+            icon.removeClass('fa-check').addClass('fa-copy');
+        }, 1500);
+    }).catch(() => {
+        new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
+    });
 });
 
 // Modal action buttons - trigger existing handlers
@@ -1739,6 +1766,15 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         orderable: false,
         data: null,
         defaultContent: '<button id="btn-details" class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>',
+      },
+      {
+        className: "info-control",
+        orderable: false,
+        data: null,
+        width: '30px',
+        render: function(data, type, row) {
+          return '<button id="btn-info" class="btn btn-xs btn-info" type="button" data-id="' + row.id + '" title="Show storage info"><i class="fa fa-info-circle"></i></button>';
+        }
       },
       {
         title: 'Status',
