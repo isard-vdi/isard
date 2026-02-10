@@ -342,6 +342,7 @@ def formatDomains(data, user_id):
             {"id": interface, "mac": gen_new_mac()} for interface in interfaces
         ]
         d["create_dict"]["hardware"]["qos_disk_id"] = False
+        d["create_dict"]["reservables"] = {"vgpus": None}
         d["tag"] = False
         d["persistent"] = True
         if d.get("options"):
@@ -360,8 +361,18 @@ def get_domain_if_already_downloaded(data, user_id):
             .run(db.conn)
         )
     if not len(dbb):
-        return data
-    return dbb[0]
+        d = data
+    else:
+        d = dbb[0]
+    for key in [
+        "hardware",
+        "xml_to_start",
+        "hardware_from_xml",
+        "force_update",
+        "last_hyp_id",
+    ]:
+        d.pop(key, None)
+    return d
 
 
 def formatMedias(data, user_id):

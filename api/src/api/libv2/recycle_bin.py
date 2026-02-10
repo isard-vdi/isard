@@ -1356,7 +1356,13 @@ class RecycleBin(object):
             docs = self.desktops + self.templates
             r.table("domains").insert(
                 r.expr(docs).map(
-                    lambda d: d.merge(
+                    lambda d: d.without(
+                        "hardware",
+                        "xml_to_start",
+                        "hardware_from_xml",
+                        "force_update",
+                        "last_hyp_id",
+                    ).merge(
                         r.branch(
                             d.has_fields("parents")
                             & r.type_of(d["parents"]).eq("ARRAY"),
