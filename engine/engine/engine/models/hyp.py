@@ -376,10 +376,9 @@ class hyp(object):
                         # OJO INFO TO DEVELOPER
                         # self.startEvent()
 
-                        # este setKeepAlive no tengo claro que haga algo, pero bueno...
-                        # y al ponerlo da error lo dejo comentado, pero en futuro hay que quitar
-                        # esta línea si no sabemos bien que hace...
-                        # self.conn.setKeepAlive(5, 3)
+                        # Enable keepalive: connection closed after interval*(count+1) seconds
+                        # of no response (5*4=20 seconds with these settings)
+                        self.conn.setKeepAlive(5, 3)
                         log.debug("connected to hypervisor: %s" % self.hostname)
                         self.set_status(HYP_STATUS_CONNECTED)
                         self.fail_connected_reason = ""
@@ -1153,6 +1152,10 @@ class hyp(object):
                     self.id_hyp_rethink
                 )
             )
+            # Signal connection failure for socket-related errors so worker can reconnect
+            if "client socket is closed" in str(e):
+                self.connected = False
+                raise
 
     def get_nvidia_available_instances_of_type(self, vgpu_id):
         self.get_nvidia_capabilities(only_get_availables=True)
@@ -1998,15 +2001,27 @@ class hyp(object):
                 raw_stats["cpu"] = self.conn.getCPUStats(
                     libvirt.VIR_NODE_CPU_STATS_ALL_CPUS
                 )
-            except:
-                log.error("getCPUStats fail in hypervisor {}".format(self.hostname))
+            except libvirt.libvirtError as e:
+                log.error(
+                    f"getCPUStats fail in hypervisor {self.hostname}: "
+                    f"code={e.get_error_code()}, msg={e.get_error_message()}"
+                )
+                return False
+            except Exception as e:
+                log.error(f"getCPUStats fail in hypervisor {self.hostname}: {e}")
                 return False
 
             # get Memory Stats
             try:
                 raw_stats["memory"] = self.conn.getMemoryStats(-1, 0)
-            except:
-                log.error("getMemoryStats fail in hypervisor {}".format(self.hostname))
+            except libvirt.libvirtError as e:
+                log.error(
+                    f"getMemoryStats fail in hypervisor {self.hostname}: "
+                    f"code={e.get_error_code()}, msg={e.get_error_message()}"
+                )
+                return False
+            except Exception as e:
+                log.error(f"getMemoryStats fail in hypervisor {self.hostname}: {e}")
                 return False
 
             # get All Domain Stats
@@ -2021,10 +2036,14 @@ class hyp(object):
 
                 raw_stats["time_utc"] = int(time.time())
 
-            except:
+            except libvirt.libvirtError as e:
                 log.error(
-                    "getAllDomainStats fail in hypervisor {}".format(self.hostname)
+                    f"getAllDomainStats fail in hypervisor {self.hostname}: "
+                    f"code={e.get_error_code()}, msg={e.get_error_message()}"
                 )
+                return False
+            except Exception as e:
+                log.error(f"getAllDomainStats fail in hypervisor {self.hostname}: {e}")
                 return False
 
             return raw_stats

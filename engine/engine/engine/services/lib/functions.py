@@ -174,9 +174,67 @@ def test_hypervisor_conn(uri):
         logs.main.debug(f"TRY TO CONNECT URI: {uri}")
         handle = libvirt.open(uri)
         return handle
-    except:
-        log.error(sys.exc_info()[1])
+    except libvirt.libvirtError as e:
+        error_code = e.get_error_code()
+        error_message = e.get_error_message()
+        log.error(
+            f"libvirt connection failed: code={error_code}, message={error_message}"
+        )
         return False
+    except Exception as e:
+        log.error(f"Unexpected error connecting to hypervisor: {e}")
+        return False
+
+
+def is_libvirt_connection_error(e):
+    """
+    Check if a libvirt exception indicates a connection error.
+
+    Uses libvirt error codes instead of string matching for robustness.
+    Connection errors include: RPC failures, system errors, internal errors
+    that indicate the connection to the hypervisor was lost.
+
+    Args:
+        e: Exception to check (should be libvirt.libvirtError)
+
+    Returns:
+        bool: True if the error indicates a connection problem
+    """
+    if not isinstance(e, libvirt.libvirtError):
+        return False
+
+    error_code = e.get_error_code()
+    error_domain = e.get_error_domain()
+
+    # Error codes that indicate connection issues
+    # VIR_ERR_SYSTEM_ERROR = 38 - System call error
+    # VIR_ERR_RPC = 66 - RPC error
+    # VIR_ERR_INTERNAL_ERROR = 1 - Internal error (often connection-related)
+    CONNECTION_ERROR_CODES = {1, 38, 66}
+
+    # Error domains that indicate RPC/connection issues
+    # VIR_FROM_RPC = 22 - Error from RPC subsystem
+    # VIR_FROM_REMOTE = 16 - Error from remote driver
+    CONNECTION_ERROR_DOMAINS = {16, 22}
+
+    if error_code in CONNECTION_ERROR_CODES:
+        return True
+
+    if error_domain in CONNECTION_ERROR_DOMAINS:
+        return True
+
+    # Fallback: check for common connection error messages
+    # This provides backwards compatibility and catches edge cases
+    error_message = str(e).lower()
+    connection_indicators = [
+        "client socket is closed",
+        "connection reset",
+        "connection refused",
+        "broken pipe",
+        "end of file",
+        "server closed connection",
+    ]
+    return any(indicator in error_message for indicator in connection_indicators)
 
 
 def calcule_cpu_hyp_stats(start, end, round_digits=3):

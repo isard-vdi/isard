@@ -5,6 +5,7 @@
 
 import base64
 import queue
+import random
 import threading
 import time
 import traceback
@@ -28,12 +29,24 @@ from engine.services.db import (
     update_vgpu_info_if_stopped,
     update_vgpu_uuid_domain_action,
 )
-from engine.services.db.hypervisors import update_hyp_thread_status
+from engine.services.db.hypervisors import (
+    update_hyp_degraded_status,
+    update_hyp_libvirt_warning,
+    update_hyp_thread_status,
+)
 from engine.services.lib.functions import (
     SSHTimeoutError,
     exec_remote_list_of_cmds_dict,
     get_tid,
+    is_libvirt_connection_error,
     update_status_db_from_running_domains,
+)
+from engine.services.lib.libvirt_timeout import (
+    LIBVIRT_OPERATION_TIMEOUT,
+    LIBVIRT_OPERATION_WARNING,
+    LibvirtOperationStats,
+    LibvirtTimeoutError,
+    execute_with_timeout,
 )
 from engine.services.lib.qmp import Notifier, PersonalUnit
 from engine.services.log import logs
@@ -132,6 +145,11 @@ class HypWorkerThread(threading.Thread):
         self.last_api_call_time = time.time()
         self.hostname = None
         self.current_action = {}
+
+        # Degraded state tracking for slow/overloaded hypervisor detection
+        self.degraded = False
+        self.degraded_since = None
+        self.libvirt_stats = LibvirtOperationStats(hyp_id=hyp_id)
 
     def run(self):
         """Main thread execution method"""
@@ -477,7 +495,10 @@ class HypWorkerThread(threading.Thread):
     def _update_stats_if_needed(
         self, action, action_time, intervals, last_stats_update
     ):
-        """Update hypervisor stats if needed"""
+        """Update hypervisor stats if needed.
+
+        Tracks slow responses to detect overloaded hypervisors.
+        """
         current_time = time.time()
         if (
             action.get("type") in ["start_domain", "stop_domain"]
@@ -486,7 +507,18 @@ class HypWorkerThread(threading.Thread):
             try:
                 t = time.time()
                 self.h.get_system_stats()
-                intervals.append({"get_system_stats": round(time.time() - t, 3)})
+                duration = time.time() - t
+                duration_ms = duration * 1000
+                intervals.append({"get_system_stats": round(duration, 3)})
+
+                # Record slow responses for degradation tracking
+                # (get_system_stats calls libvirt internally)
+                if duration > LIBVIRT_OPERATION_WARNING:
+                    logs.workers.warning(
+                        f"[{self.hyp_id}] get_system_stats slow: {duration_ms:.0f}ms"
+                    )
+                    self.libvirt_stats.record_response(duration_ms, is_timeout=False)
+                    self._update_warning_state(duration_ms)
 
                 stats = self.h.stats
                 if action.get("type") in ["start_domain", "stop_domain"]:
@@ -504,15 +536,25 @@ class HypWorkerThread(threading.Thread):
                 logs.workers.debug(f"Hypervisor {self.hyp_id} stats updated")
             except Exception as e:
                 logs.workers.error(f"Failed to update hypervisor stats: {e}")
+                # Handle connection loss - trigger reconnection
+                if is_libvirt_connection_error(e) or not self.h.connected:
+                    logs.workers.warning(
+                        f"Connection lost to hypervisor {self.hyp_id}, attempting reconnect"
+                    )
+                    self._try_reconnect()
 
     def _check_connection(self, action_time, intervals):
-        """Check if connection is alive"""
+        """Check if connection is alive with timeout tracking"""
         try:
             t = time.time()
-            self.h.conn.isAlive()
-            intervals.append({"libvirt isAlive": round(time.time() - t, 3)})
+            self._execute_libvirt_with_timeout(
+                self.h.conn.isAlive,
+                operation_name="conn.isAlive",
+                intervals=intervals,
+            )
 
-            if time.time() - t > 1:
+            elapsed = time.time() - t
+            if elapsed > 1:
                 log_action(
                     self.hyp_id,
                     None,
@@ -522,6 +564,12 @@ class HypWorkerThread(threading.Thread):
                     "Finished, but took too long",
                     "warning",
                 )
+        except LibvirtTimeoutError as e:
+            logs.workers.warning(
+                f"[{self.hyp_id}] isAlive check timed out, hypervisor may be overloaded"
+            )
+            # Don't reconnect on timeout - hypervisor is just slow
+            # The degradation logic will handle excluding it from balancer
         except Exception:
             logs.workers.info(
                 f"Connection test failed for hypervisor {self.hostname}, attempting to reconnect"
@@ -529,17 +577,36 @@ class HypWorkerThread(threading.Thread):
             self._try_reconnect()
 
     def _try_reconnect(self):
-        """Try to reconnect to the hypervisor"""
+        """Try to reconnect to the hypervisor using exponential backoff with jitter"""
         host = self.hostname
-        alive = False
 
-        # Try multiple reconnection attempts
-        for i in range(RETRIES_HYP_IS_ALIVE):
+        # If connection is marked as closed, skip stale socket checks and reconnect directly
+        if not self.h.connected:
             logs.workers.info(
-                f"Retry hypervisor connection {i+1}/{RETRIES_HYP_IS_ALIVE}"
+                f"Connection marked as closed, creating fresh connection to {host}"
+            )
+            self._handle_failed_reconnection()
+            return
+
+        alive = False
+        # Exponential backoff parameters
+        base_delay = TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE
+        max_delay = 30.0  # Maximum delay between retries
+
+        # Try multiple reconnection attempts with existing connection
+        for i in range(RETRIES_HYP_IS_ALIVE):
+            # Calculate delay with exponential backoff and jitter
+            # Formula: min(base * 2^attempt, max) * (0.5 + random())
+            exponential_delay = min(base_delay * (2**i), max_delay)
+            jitter = 0.5 + random.random()  # Random factor between 0.5 and 1.5
+            delay = exponential_delay * jitter
+
+            logs.workers.info(
+                f"Retry hypervisor connection {i+1}/{RETRIES_HYP_IS_ALIVE} "
+                f"(waiting {delay:.1f}s)"
             )
             try:
-                time.sleep(TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE)
+                time.sleep(delay)
                 self.h.conn.getLibVersion()
                 alive = True
                 logs.workers.info(f"Hypervisor {host} is alive")
@@ -554,6 +621,13 @@ class HypWorkerThread(threading.Thread):
     def _handle_failed_reconnection(self):
         """Handle case where reconnection fails"""
         try:
+            # Close stale connection before creating new one
+            try:
+                if self.h.conn:
+                    self.h.conn.close()
+            except Exception:
+                pass  # Ignore errors closing stale connection
+
             # Try one last full reconnection
             self.h.connect_to_hyp()
             self.h.conn.getLibVersion()
@@ -577,6 +651,178 @@ class HypWorkerThread(threading.Thread):
             )
             self.error = True
             self.stop = True
+
+    # =========================================================================
+    # Degraded State Management for Slow/Overloaded Hypervisors
+    # =========================================================================
+
+    def _execute_libvirt_with_timeout(
+        self, func, args=(), kwargs=None, operation_name="unknown", intervals=None
+    ):
+        """Execute a libvirt operation with timeout tracking.
+
+        Wraps libvirt calls to detect slow/overloaded hypervisors.
+        Records response times and updates degraded state as needed.
+
+        Args:
+            func: The libvirt function to call
+            args: Positional arguments for func
+            kwargs: Keyword arguments for func
+            operation_name: Name for logging/errors
+            intervals: List to append timing info (optional)
+
+        Returns:
+            The result of the libvirt call
+
+        Raises:
+            LibvirtTimeoutError: If the operation times out
+            Other exceptions: Passed through from libvirt
+        """
+        if kwargs is None:
+            kwargs = {}
+
+        start_time = time.time()
+        try:
+            result = execute_with_timeout(
+                func,
+                args=args,
+                kwargs=kwargs,
+                timeout=LIBVIRT_OPERATION_TIMEOUT,
+                operation_name=operation_name,
+                hyp_id=self.hyp_id,
+            )
+
+            # Record successful response
+            duration_ms = (time.time() - start_time) * 1000
+            self.libvirt_stats.record_response(duration_ms, is_timeout=False)
+
+            # Update warning state in database if response was slow
+            if duration_ms > LIBVIRT_OPERATION_WARNING * 1000:
+                self._update_warning_state(duration_ms)
+            else:
+                # Clear warning if we're getting normal responses
+                self._check_clear_warning()
+
+            # Check for recovery if we're degraded
+            if self.degraded:
+                self._check_recovery()
+
+            if intervals is not None:
+                intervals.append({operation_name: round(duration_ms / 1000, 3)})
+
+            return result
+
+        except LibvirtTimeoutError as e:
+            # Record timeout
+            duration_ms = (time.time() - start_time) * 1000
+            self.libvirt_stats.record_response(duration_ms, is_timeout=True)
+
+            if intervals is not None:
+                intervals.append({operation_name: "TIMEOUT"})
+
+            # Check if we should degrade
+            if not self.degraded and self.libvirt_stats.should_degrade():
+                self._mark_degraded(f"timeout during {operation_name}")
+
+            raise
+
+    def _update_warning_state(self, duration_ms):
+        """Update the libvirt_warning field in database for webapp display.
+
+        Args:
+            duration_ms: The slow response time in milliseconds
+        """
+        try:
+            update_hyp_libvirt_warning(
+                self.hyp_id,
+                slow_count=self.libvirt_stats.slow_response_count,
+                avg_ms=int(self.libvirt_stats.get_average_ms()),
+            )
+
+            # Check if we should degrade due to slow responses
+            if not self.degraded and self.libvirt_stats.should_degrade():
+                self._mark_degraded("slow_response")
+
+        except Exception as e:
+            logs.workers.error(f"[{self.hyp_id}] Failed to update libvirt_warning: {e}")
+
+    def _check_clear_warning(self):
+        """Clear libvirt_warning if we have enough normal responses."""
+        if self.libvirt_stats.normal_response_count >= 3:
+            try:
+                update_hyp_libvirt_warning(self.hyp_id, clear=True)
+            except Exception as e:
+                logs.workers.debug(
+                    f"[{self.hyp_id}] Failed to clear libvirt_warning: {e}"
+                )
+
+    def _mark_degraded(self, reason):
+        """Mark hypervisor as degraded due to slow responses or timeouts.
+
+        Sets cap_status to false to exclude from balancer, notifies
+        orchestrator to migrate queued actions.
+
+        Args:
+            reason: Human-readable reason for degradation
+        """
+        if self.degraded:
+            return  # Already degraded
+
+        logs.workers.warning(
+            f"[{self.hyp_id}] Marking hypervisor as DEGRADED: {reason}"
+        )
+
+        self.degraded = True
+        self.degraded_since = time.time()
+
+        try:
+            # Update database to exclude from balancer and show in webapp
+            update_hyp_degraded_status(self.hyp_id, is_degraded=True, reason=reason)
+
+            # Notify orchestrator to migrate queued actions
+            self.queue_master.put(
+                {
+                    "type": "hyp_degraded",
+                    "hyp_id": self.hyp_id,
+                    "reason": reason,
+                }
+            )
+
+        except Exception as e:
+            logs.workers.error(f"[{self.hyp_id}] Failed to update degraded status: {e}")
+
+    def _check_recovery(self):
+        """Check if hypervisor should recover from degraded state.
+
+        Called after each successful libvirt operation. Requires
+        minimum time in degraded state and enough consecutive
+        normal responses.
+        """
+        if not self.degraded:
+            return
+
+        if not self.libvirt_stats.should_recover(self.degraded_since):
+            return
+
+        logs.workers.info(f"[{self.hyp_id}] Hypervisor recovering from degraded state")
+
+        self.degraded = False
+        self.degraded_since = None
+        self.libvirt_stats.reset()
+
+        try:
+            # Restore cap_status and clear degraded field
+            update_hyp_degraded_status(self.hyp_id, is_degraded=False)
+
+            # Clear any warning state too
+            update_hyp_libvirt_warning(self.hyp_id, clear=True)
+
+            logs.workers.info(
+                f"[{self.hyp_id}] Hypervisor recovered from degraded state"
+            )
+
+        except Exception as e:
+            logs.workers.error(f"[{self.hyp_id}] Failed to clear degraded status: {e}")
 
     def _cleanup(self):
         """Clean up resources before thread termination"""
@@ -608,33 +854,61 @@ class HypWorkerThread(threading.Thread):
             logs.workers.error(f"Error in cleanup for hypervisor {self.hyp_id}: {e}")
 
     def _lookup_domain(self, action, intervals, action_name="lookup"):
-        """Common method to look up a domain by name"""
+        """Common method to look up a domain by name with timeout tracking"""
         try:
-            lt = time.time()
-            domain = self.h.conn.lookupByName(action["id_domain"])
-            intervals.append(
-                {f"conn.lookupByName for {action_name}": round(time.time() - lt, 3)}
+            domain = self._execute_libvirt_with_timeout(
+                self.h.conn.lookupByName,
+                args=(action["id_domain"],),
+                operation_name=f"conn.lookupByName for {action_name}",
+                intervals=intervals,
             )
             return domain, None
+        except LibvirtTimeoutError as e:
+            return None, e
         except libvirtError as e:
             return None, e
         except Exception as e:
             return None, e
 
     def _handle_libvirt_error(self, action, e, action_time, intervals, operation):
-        """Handle common libvirt errors"""
+        """Handle common libvirt errors including timeouts"""
         error_msg = str(e)
         if isinstance(e, libvirtError):
             error_msg = e.get_error_message()
 
-        if "internal error: client socket is closed" in error_msg:
+        # Handle timeout - hypervisor is overloaded, not disconnected
+        if isinstance(e, LibvirtTimeoutError):
+            update_domain_status(
+                "Failed",
+                action["id_domain"],
+                hyp_id=self.hyp_id,
+                detail=f"Timeout during {operation}: hypervisor overloaded",
+            )
+            logs.workers.warning(
+                f"Timeout in {operation} for domain {action['id_domain']}: {e}"
+            )
+            log_action(
+                self.hyp_id,
+                action["id_domain"],
+                action["type"],
+                intervals,
+                time.time() - action_time,
+                "Failed",
+            )
+            return True
+
+        if is_libvirt_connection_error(e):
             # Connection lost - mark hypervisor as failed
             update_hyp_status(self.hyp_id, "Error", detail=error_msg)
             self.stop = True
             update_domains_started_in_hyp_to_unknown(self.hyp_id)
             return
 
-        if e.get_error_code() == VIR_ERR_NO_DOMAIN and operation == "stop":
+        if (
+            isinstance(e, libvirtError)
+            and e.get_error_code() == VIR_ERR_NO_DOMAIN
+            and operation == "stop"
+        ):
             # Domain already undefined - this is OK for stop operations
             return False
 
@@ -664,17 +938,22 @@ class HypWorkerThread(threading.Thread):
         logs.workers.debug(f"XML to start paused domain: {action['xml'][30:100]}")
 
         try:
-            # Create domain in paused state
-            lt = time.time()
-            self.h.conn.createXML(action["xml"], flags=VIR_DOMAIN_START_PAUSED)
-            intervals.append({"libvirt createXML paused": round(time.time() - lt, 3)})
+            # Create domain in paused state with timeout tracking
+            self._execute_libvirt_with_timeout(
+                self.h.conn.createXML,
+                args=(action["xml"],),
+                kwargs={"flags": VIR_DOMAIN_START_PAUSED},
+                operation_name="libvirt createXML paused",
+                intervals=intervals,
+            )
 
             # Check for paused domains
             FLAG_LIST_DOMAINS_PAUSED = 32
-            lt = time.time()
-            list_all_domains = self.h.conn.listAllDomains(FLAG_LIST_DOMAINS_PAUSED)
-            intervals.append(
-                {"libvirt listAllDomains(paused)": round(time.time() - lt, 3)}
+            list_all_domains = self._execute_libvirt_with_timeout(
+                self.h.conn.listAllDomains,
+                args=(FLAG_LIST_DOMAINS_PAUSED,),
+                operation_name="libvirt listAllDomains(paused)",
+                intervals=intervals,
             )
 
             list_names_domains = [d.name() for d in list_all_domains]
@@ -686,6 +965,10 @@ class HypWorkerThread(threading.Thread):
             else:
                 self._handle_domain_not_found_in_pause(action, action_time, intervals)
 
+        except LibvirtTimeoutError as e:
+            self._handle_libvirt_error_in_start_paused(
+                e, action, action_time, intervals
+            )
         except libvirtError as e:
             self._handle_libvirt_error_in_start_paused(
                 e, action, action_time, intervals
@@ -699,20 +982,24 @@ class HypWorkerThread(threading.Thread):
         """Handle testing of paused domain"""
         domain_active = True
         try:
-            # Test domain is active then destroy it
-            lt = time.time()
-            domain.isActive()
-            intervals.append({"libvirt domain.isActive()": round(time.time() - lt, 3)})
+            # Test domain is active then destroy it with timeout tracking
+            self._execute_libvirt_with_timeout(
+                domain.isActive,
+                operation_name="libvirt domain.isActive()",
+                intervals=intervals,
+            )
 
-            lt = time.time()
-            domain.destroy()
-            intervals.append({"libvirt domain.destroy()": round(time.time() - lt, 3)})
+            self._execute_libvirt_with_timeout(
+                domain.destroy,
+                operation_name="libvirt domain.destroy()",
+                intervals=intervals,
+            )
 
             try:
-                lt = time.time()
-                domain.isActive()
-                intervals.append(
-                    {"libvirt domain.isActive()": round(time.time() - lt, 3)}
+                self._execute_libvirt_with_timeout(
+                    domain.isActive,
+                    operation_name="libvirt domain.isActive()",
+                    intervals=intervals,
                 )
             except Exception:
                 logs.exception_id.debug("0060")
@@ -722,7 +1009,7 @@ class HypWorkerThread(threading.Thread):
 
             update_last_hyp_id(action["id_domain"], last_hyp_id=self.hyp_id)
             domain_active = False
-        except libvirtError as e:
+        except (LibvirtTimeoutError, libvirtError) as e:
             error_msg = pformat(e.get_error_message())
             update_domain_status(
                 "Failed",
@@ -803,13 +1090,20 @@ class HypWorkerThread(threading.Thread):
         )
 
     def _handle_libvirt_error_in_start_paused(self, e, action, action_time, intervals):
-        """Handle libvirt errors in start_paused_domain"""
-        error_msg = pformat(e.get_error_message())
+        """Handle libvirt errors in start_paused_domain including timeouts"""
+        # Handle timeout separately
+        if isinstance(e, LibvirtTimeoutError):
+            error_msg = str(e)
+            detail = "Timeout starting domain in pause mode: hypervisor overloaded"
+        else:
+            error_msg = pformat(e.get_error_message())
+            detail = "Domain failed to start in pause mode"
+
         update_domain_status(
             "Failed",
             action["id_domain"],
             hyp_id=self.hyp_id,
-            detail=f"Domain failed to start in pause mode",
+            detail=detail,
         )
         logs.workers.error(
             f"Exception in libvirt starting paused XML for domain {action['id_domain']} "
@@ -944,19 +1238,28 @@ class HypWorkerThread(threading.Thread):
         logs.workers.debug(f"XML to start domain: {xml[30:100]}")
 
         try:
-            # Create the domain
-            lt = time.time()
-            dom = self.h.conn.createXML(xml)
-            intervals.append({"libvirt createXML": round(time.time() - lt, 3)})
+            # Create the domain with timeout tracking
+            dom = self._execute_libvirt_with_timeout(
+                self.h.conn.createXML,
+                args=(xml,),
+                operation_name="libvirt createXML",
+                intervals=intervals,
+            )
 
-            # Get XML description
-            lt = time.time()
-            xml_started = dom.XMLDesc()
-            intervals.append({"libvirt XMLDesc": round(time.time() - lt, 3)})
+            # Get XML description with timeout tracking
+            xml_started = self._execute_libvirt_with_timeout(
+                dom.XMLDesc,
+                operation_name="libvirt XMLDesc",
+                intervals=intervals,
+            )
 
             # Process domain startup
             self._process_domain_startup(xml_started, action, action_time, intervals)
 
+        except LibvirtTimeoutError as e:
+            self._handle_libvirt_error_in_start_domain(
+                e, action, action_time, intervals
+            )
         except libvirtError as e:
             self._handle_libvirt_error_in_start_domain(
                 e, action, action_time, intervals
@@ -1049,8 +1352,28 @@ class HypWorkerThread(threading.Thread):
             )
 
     def _handle_libvirt_error_in_start_domain(self, e, action, action_time, intervals):
-        """Handle libvirt errors in start_domain"""
+        """Handle libvirt errors in start_domain including timeouts"""
         error_str = str(e)
+
+        # Handle timeout - hypervisor is overloaded
+        if isinstance(e, LibvirtTimeoutError):
+            update_domain_status(
+                "Failed",
+                action["id_domain"],
+                hyp_id=self.hyp_id,
+                detail=f"Timeout starting domain: hypervisor overloaded",
+            )
+            logs.workers.warning(f"Timeout in start_domain action: {e}")
+            log_action(
+                self.hyp_id,
+                action["id_domain"],
+                action["type"],
+                intervals,
+                time.time() - action_time,
+                "Failed",
+            )
+            return
+
         if "already exists with uuid" in error_str:
             logs.workers.error(
                 f"Domain {action['id_domain']} already active! Fixed to Started in database"
@@ -1144,10 +1467,13 @@ class HypWorkerThread(threading.Thread):
             return
 
         try:
-            # Send ACPI shutdown signal
-            lt = time.time()
-            domain.shutdownFlags(VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN)
-            intervals.append({"domain.shutdownFlags": round(time.time() - lt, 3)})
+            # Send ACPI shutdown signal with timeout tracking
+            self._execute_libvirt_with_timeout(
+                domain.shutdownFlags,
+                args=(VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN,),
+                operation_name="domain.shutdownFlags",
+                intervals=intervals,
+            )
 
             # Update status and log
             logs.workers.debug(f"SHUTTING-DOWN domain {action['id_domain']}")
@@ -1164,6 +1490,10 @@ class HypWorkerThread(threading.Thread):
                 intervals,
                 time.time() - action_time,
                 "Shutting-down",
+            )
+        except LibvirtTimeoutError as e:
+            self._handle_domain_action_error(
+                action, e, action_time, intervals, "shutdown"
             )
         except libvirtError as e:
             # Handle case where domain disappeared between lookup and shutdown
@@ -1188,7 +1518,7 @@ class HypWorkerThread(threading.Thread):
         domain, error = self._lookup_domain(action, intervals, "stop")
         if error:
 
-            ## Hande libvirtNotfound
+            ## Handle libvirtNotfound
 
             if (
                 isinstance(error, libvirtError)
@@ -1204,14 +1534,18 @@ class HypWorkerThread(threading.Thread):
             return
 
         try:
-            # Destroy the domain
-            lt = time.time()
-            domain.destroy()
-            intervals.append({"domain.destroy": round(time.time() - lt, 3)})
+            # Destroy the domain with timeout tracking
+            self._execute_libvirt_with_timeout(
+                domain.destroy,
+                operation_name="domain.destroy",
+                intervals=intervals,
+            )
 
             # Finalize the stop operation
             self._finalize_domain_stop(action, action_time, intervals)
 
+        except LibvirtTimeoutError as e:
+            self._handle_domain_action_error(action, e, action_time, intervals, "stop")
         except libvirtError as e:
             # Check if domain not found during destroy - this is OK for stop operation
             if e.get_error_code() == VIR_ERR_NO_DOMAIN:
@@ -1287,10 +1621,12 @@ class HypWorkerThread(threading.Thread):
             return
 
         try:
-            # Reset the domain
-            lt = time.time()
-            domain.reset()
-            intervals.append({"domain.reset": round(time.time() - lt, 3)})
+            # Reset the domain with timeout tracking
+            self._execute_libvirt_with_timeout(
+                domain.reset,
+                operation_name="domain.reset",
+                intervals=intervals,
+            )
 
             # Update status and log
             update_domain_status(
@@ -1308,6 +1644,8 @@ class HypWorkerThread(threading.Thread):
                 time.time() - action_time,
                 "Started",
             )
+        except LibvirtTimeoutError as e:
+            self._handle_domain_action_error(action, e, action_time, intervals, "reset")
         except Exception as e:
             self._handle_domain_action_error(action, e, action_time, intervals, "reset")
 
@@ -1494,9 +1832,12 @@ class HypWorkerThread(threading.Thread):
     def _handle_notify(self, action, action_time, intervals):
         """Handle notify action"""
         try:
-            t = time.time()
-            domain = self.h.conn.lookupByName(action["desktop_id"])
-            intervals.append({"conn.lookupByName": round(time.time() - t, 3)})
+            domain = self._execute_libvirt_with_timeout(
+                self.h.conn.lookupByName,
+                args=(action["desktop_id"],),
+                operation_name="conn.lookupByName for notify",
+                intervals=intervals,
+            )
 
             notify_thread_pool.submit(
                 notify_desktop_in_thread, domain, action["message"]
@@ -1531,9 +1872,12 @@ class HypWorkerThread(threading.Thread):
             return
 
         try:
-            t = time.time()
-            domain = self.h.conn.lookupByName(action["desktop_id"])
-            intervals.append({"conn.lookupByName": round(time.time() - t, 3)})
+            domain = self._execute_libvirt_with_timeout(
+                self.h.conn.lookupByName,
+                args=(action["desktop_id"],),
+                operation_name="conn.lookupByName for personal_unit",
+                intervals=intervals,
+            )
 
             personal_unit_thread_pool.submit(personal_unit_in_thread, domain)
 

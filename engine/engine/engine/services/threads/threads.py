@@ -464,12 +464,23 @@ def hyp_from_hyp_id(hyp_id):
 def set_domains_coherence(dict_hyps_ready):
     for hyp_id, hostname in dict_hyps_ready.items():
         hyp_obj = hyp_from_hyp_id(hyp_id)
+        if not hyp_obj:
+            log.error(f"Failed to create hypervisor connection for {hyp_id}")
+            update_hyp_status(hyp_id, "Error")
+            continue
+
         try:
             hyp_obj.get_domains()
-        except:
-            log.error("hypervisor {} can not get domains".format(hyp_id))
+        except Exception as e:
+            log.error(f"hypervisor {hyp_id} can not get domains: {e}")
             update_hyp_status(hyp_id, "Error")
-            break
+            # Disconnect to prevent connection leak
+            try:
+                hyp_obj.disconnect()
+            except Exception:
+                pass
+            continue
+
         # update domain_status
         update_all_domains_status(reset_status="Stopped", from_status=["Starting"])
         update_all_domains_status(reset_status="Started", from_status=["Stopping"])
@@ -501,6 +512,12 @@ def set_domains_coherence(dict_hyps_ready):
         # a parte de dejarlo en unknown
 
         update_hyp_status(hyp_id, "ReadyToStart")
+
+        # Disconnect after use to prevent connection leak
+        try:
+            hyp_obj.disconnect()
+        except Exception as e:
+            log.warning(f"Error disconnecting from hypervisor {hyp_id}: {e}")
 
 
 # IMPORT Thread Classes HERE
