@@ -62,6 +62,11 @@ done
 ovs-vsctl set Bridge ovsbr0 rstp_enable=true
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] RSTP enabled for loop protection"
 
+# Table 2: source IP pinning for VM traffic (populated by dnsmasq hook)
+# Default: drop unpinned source IPs
+ovs-ofctl add-flow ovsbr0 "table=2,priority=0,actions=drop"
+echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Table 2 default drop for unpinned VM IPs"
+
 # Bastion port (geneve tunnel to bastion container)
 ovs-vsctl add-port ovsbr0 bastion -- set interface bastion type=geneve options:remote_ip=172.31.255.117 >> /var/log/ovs 2>&1
 

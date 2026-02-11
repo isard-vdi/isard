@@ -331,15 +331,37 @@ class Wg(object):
                         .split(" ")[-1]
                     )
                     # SECURITY: Allow only VM MACs (52:54:00:xx:xx:xx) from hypervisors
-                    # This blocks spoofed traffic with non-QEMU/KVM MAC addresses
+                    # Split into ARP/DHCP (allow directly) and IP (check source pinning table)
+                    vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
+                    # Allow ARP from VMs (needed for DHCP discovery and gateway)
                     subprocess.run(
                         [
                             "ovs-ofctl",
                             "add-flow",
                             "ovsbr0",
-                            "priority=450,in_port="
-                            + str(port)
-                            + ",dl_vlan=4095,dl_src=52:54:00:00:00:00/ff:ff:ff:00:00:00,actions=NORMAL",
+                            f"priority=451,arp,in_port={port}"
+                            f",dl_vlan=4095,dl_src={vm_mac_match},actions=NORMAL",
+                        ]
+                    )
+                    # Allow DHCP requests from VMs (needed before IP is assigned)
+                    subprocess.run(
+                        [
+                            "ovs-ofctl",
+                            "add-flow",
+                            "ovsbr0",
+                            f"priority=451,udp,in_port={port}"
+                            f",dl_vlan=4095,dl_src={vm_mac_match}"
+                            f",tp_src=68,tp_dst=67,actions=NORMAL",
+                        ]
+                    )
+                    # IP traffic from VMs: check source IP pinning in table 2
+                    subprocess.run(
+                        [
+                            "ovs-ofctl",
+                            "add-flow",
+                            "ovsbr0",
+                            f"priority=450,ip,in_port={port}"
+                            f",dl_vlan=4095,dl_src={vm_mac_match},actions=resubmit(,2)",
                         ]
                     )
                     # Drop non-VM MACs from this hypervisor on VLAN 4095

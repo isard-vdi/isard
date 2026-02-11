@@ -16,8 +16,12 @@ export API_HYPERVISORS_SECRET=$API_HYPERVISORS_SECRET
 case "$ACTION" in
     add|old)
         arp -s "$IP" "$MAC" dev vlan-wg 2>/dev/null || true
+        # Source IP pinning: only allow this MAC with this IP on VLAN 4095
+        ovs-ofctl add-flow ovsbr0 "table=2,priority=100,ip,dl_src=$MAC,nw_src=$IP,actions=NORMAL"
         ;;
     del)
         arp -d "$IP" dev vlan-wg 2>/dev/null || true
+        # Remove source IP pinning
+        ovs-ofctl del-flows --strict ovsbr0 "table=2,priority=100,ip,dl_src=$MAC,nw_src=$IP"
         ;;
 esac
