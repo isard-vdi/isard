@@ -14,18 +14,24 @@
       <ul class="nav navbar-right panel_toolbox">
         {% if current_user.role == 'admin' %}
         <li>
-           <a class="btn-search-storage">
-            <span style="color: #5499c7; ">
-              <i class="fa fa-search"></i>
-              Search storage</span>
-          </a>
-        </li>
-        <li>
           <a class="btn-add-storage">
             <span style="color: #5499c7; ">
               <i class="fa fa-plus"></i>
               Create storage</span>
           </a>
+        </li>
+        <li style="display: flex; align-items: center; margin-left: 15px;">
+          <div class="input-group input-group-sm" style="width: 280px;">
+            <input type="text" id="storage-uuid-search" class="form-control"
+                   placeholder="Storage UUID..."
+                   style="height: 30px; font-size: 12px;">
+            <span class="input-group-btn">
+              <button id="storage-uuid-search-btn" class="btn btn-info" type="button"
+                      style="height: 30px; padding: 0 10px;" title="Search storage by UUID">
+                <i class="fa fa-search"></i>
+              </button>
+            </span>
+          </div>
         </li>
         {% endif %}
       </ul>

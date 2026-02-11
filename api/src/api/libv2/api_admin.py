@@ -557,7 +557,156 @@ def change_item_owner(table, item_id, new_user_id="admin"):
         r.table(table).get(item_id).update(get_user_data(new_user_id)).run(db.conn)
 
 
+# Indexed filter fields for smart index selection
+INDEXED_FILTERS = {"status", "category", "group", "user", "hyp_started", "server"}
+
+
 class ApiAdmin:
+    def ListDesktopsWithFilters(self, categories=None, filters=None, bastion=True):
+        """
+        Smart index selection based on provided filters.
+
+        Index priority (composite indexes preferred):
+        1. status + category → kind_status_category
+        2. status + user → kind_status_user
+        3. status + group → kind_status_group
+        4. status alone → kind_status
+        5. category alone → category
+        6. group alone → group
+        7. user alone → user
+        8. hyp_started alone → hyp_started
+        9. server alone → server
+        10. fallback → kind
+        """
+        filters = filters or {}
+        query = r.table("domains")
+        used_filters = set()
+
+        status = filters.get("status")
+        category = categories[0] if categories and len(categories) == 1 else None
+        user_filter = filters.get("user")
+        group_filter = filters.get("group")
+
+        # Select best index based on available filters
+        if status and category:
+            query = query.get_all(
+                ["desktop", status, category], index="kind_status_category"
+            )
+            used_filters.update(["status", "category"])
+        elif status and user_filter:
+            query = query.get_all(
+                ["desktop", status, user_filter], index="kind_status_user"
+            )
+            used_filters.update(["status", "user"])
+        elif status and group_filter:
+            query = query.get_all(
+                ["desktop", status, group_filter], index="kind_status_group"
+            )
+            used_filters.update(["status", "group"])
+        elif status:
+            query = query.get_all(["desktop", status], index="kind_status")
+            used_filters.add("status")
+        elif category:
+            query = query.get_all(category, index="category")
+            query = query.filter(lambda d: d["kind"] == "desktop")
+            used_filters.add("category")
+        elif group_filter:
+            query = query.get_all(group_filter, index="group")
+            query = query.filter(lambda d: d["kind"] == "desktop")
+            used_filters.add("group")
+        elif user_filter:
+            query = query.get_all(user_filter, index="user")
+            query = query.filter(lambda d: d["kind"] == "desktop")
+            used_filters.add("user")
+        elif filters.get("hyp_started"):
+            query = query.get_all(filters["hyp_started"], index="hyp_started")
+            query = query.filter(lambda d: d["kind"] == "desktop")
+            used_filters.add("hyp_started")
+        elif filters.get("server") is not None:
+            query = query.get_all(filters["server"], index="server")
+            query = query.filter(lambda d: d["kind"] == "desktop")
+            used_filters.add("server")
+        else:
+            query = query.get_all("desktop", index="kind")
+
+        # Apply remaining indexed filters not used in primary index
+        if categories and len(categories) > 1 and "category" not in used_filters:
+            query = query.filter(lambda d: r.expr(categories).contains(d["category"]))
+        if "hyp_started" in filters and "hyp_started" not in used_filters:
+            query = query.filter(lambda d: d["hyp_started"] == filters["hyp_started"])
+        if "server" in filters and "server" not in used_filters:
+            query = query.filter(lambda d: d["server"] == filters["server"])
+        if "user" in filters and "user" not in used_filters:
+            query = query.filter(lambda d: d["user"] == filters["user"])
+        if "group" in filters and "group" not in used_filters:
+            query = query.filter(lambda d: d["group"] == filters["group"])
+
+        # Joins for group_name, category_name, user_name, role (same as ListDesktops)
+        query = query.eq_join("group", r.table("groups")).map(
+            lambda doc: doc["left"].merge(
+                {
+                    "group_name": doc["right"]["name"],
+                    "category_id": doc["right"]["parent_category"],
+                }
+            )
+        )
+        query = query.eq_join("category_id", r.table("categories")).map(
+            lambda doc: doc["left"].merge({"category_name": doc["right"]["name"]})
+        )
+        query = query.eq_join("user", r.table("users")).map(
+            lambda doc: doc["left"].merge(
+                {"user_name": doc["right"]["name"], "role": doc["right"]["role"]}
+            )
+        )
+
+        query = query.pluck(
+            [
+                "id",
+                {
+                    "create_dict": {
+                        "reservables": True,
+                        "hardware": {"vcpus": True, "memory": True},
+                    }
+                },
+                {"image": {"url": True}},
+                "kind",
+                "server",
+                "hyp_started",
+                "name",
+                "status",
+                "user_name",
+                "accessed",
+                "forced_hyp",
+                "favourite_hyp",
+                "booking_id",
+                "role",
+                "persistent",
+                "current_action",
+                "server_autostart",
+                "group_name",
+                "category_name",
+            ]
+        )
+
+        if bastion:
+            query = query.merge(
+                lambda doc: {
+                    "bastion": r.branch(
+                        r.table("targets")
+                        .get_all(doc["id"], index="desktop_id")
+                        .is_empty(),
+                        None,
+                        r.table("targets")
+                        .get_all(doc["id"], index="desktop_id")
+                        .pluck("id", "domain", "http", "ssh")
+                        .nth(0),
+                    ),
+                }
+            )
+
+        with app.app_context():
+            return list(query.run(db.conn))
+
     def DesktopViewerData(self, desktop_id):
         with app.app_context():
             desktop_viewer = (
@@ -580,6 +729,153 @@ class ApiAdmin:
                 .run(db.conn)
             )
         return desktop_viewer
+
+    def DomainInfo(self, domain_id):
+        """Get domain info for the info modal: domain details, owner info, and bastion."""
+        with app.app_context():
+            domain = (
+                r.table("domains")
+                .get(domain_id)
+                .pluck(
+                    "id",
+                    "name",
+                    "kind",
+                    "status",
+                    "hyp_started",
+                    "description",
+                    "user",
+                    "tag",
+                    {"viewer": {"guest_ip": True}},
+                    {"create_dict": {"hardware": {"disks": True, "interfaces": True}}},
+                )
+                .run(db.conn)
+            )
+
+        if not domain:
+            return None
+
+        # Extract storage_id from first disk
+        storage_id = None
+        disks = domain.get("create_dict", {}).get("hardware", {}).get("disks", [])
+        if disks and len(disks) > 0:
+            storage_id = disks[0].get("storage_id")
+
+        # Extract interfaces with MAC addresses
+        interfaces = []
+        hw_interfaces = (
+            domain.get("create_dict", {}).get("hardware", {}).get("interfaces", [])
+        )
+        for iface in hw_interfaces:
+            interfaces.append(
+                {
+                    "id": iface.get("id"),
+                    "name": iface.get("id"),
+                    "mac": iface.get("mac"),
+                }
+            )
+
+        # Get deployment name if tagged
+        deployment_name = None
+        if domain.get("tag"):
+            with app.app_context():
+                deployment = (
+                    r.table("deployments")
+                    .get(domain["tag"])
+                    .pluck("name")
+                    .default(None)
+                    .run(db.conn)
+                )
+                if deployment:
+                    deployment_name = deployment.get("name")
+
+        # Get owner info
+        owner = {}
+        if domain.get("user"):
+            with app.app_context():
+                user = (
+                    r.table("users")
+                    .get(domain["user"])
+                    .pluck(
+                        "id",
+                        "uid",
+                        "username",
+                        "name",
+                        "email",
+                        "role",
+                        "category",
+                        "group",
+                    )
+                    .merge(
+                        lambda u: {
+                            "category_name": r.table("categories")
+                            .get(u["category"])["name"]
+                            .default(None),
+                            "group_name": r.table("groups")
+                            .get(u["group"])["name"]
+                            .default(None),
+                        }
+                    )
+                    .run(db.conn)
+                )
+                if user:
+                    owner = {
+                        "id": user.get("id"),
+                        "username": user.get("username") or user.get("uid"),
+                        "name": user.get("name"),
+                        "email": user.get("email"),
+                        "role_id": user.get("role"),
+                        "category_id": user.get("category"),
+                        "category_name": user.get("category_name"),
+                        "group_id": user.get("group"),
+                        "group_name": user.get("group_name"),
+                    }
+
+        # Get bastion info (wrapped in try/except, returns null if no target)
+        bastion = None
+        try:
+            with app.app_context():
+                target = (
+                    r.table("targets")
+                    .get_all(domain_id, index="desktop_id")
+                    .pluck("id", "domain", "ssh_port", "ssh", "http", "domains")
+                    .nth(0)
+                    .default(None)
+                    .run(db.conn)
+                )
+                if target:
+                    # Get bastion domain from config
+                    bastion_domain = None
+                    config = r.table("config").get(1).run(db.conn)
+                    if config and config.get("bastion"):
+                        bastion_domain = config["bastion"].get("domain")
+
+                    bastion = {
+                        "target_id": target.get("id"),
+                        "bastion_domain": bastion_domain or target.get("domain"),
+                        "ssh_port": target.get("ssh_port"),
+                        "ssh": target.get("ssh"),
+                        "http": target.get("http"),
+                        "domains": target.get("domains", []),
+                    }
+        except Exception:
+            bastion = None
+
+        return {
+            "domain": {
+                "id": domain.get("id"),
+                "name": domain.get("name"),
+                "kind": domain.get("kind"),
+                "status": domain.get("status"),
+                "hyp_started": domain.get("hyp_started"),
+                "guest_ip": domain.get("viewer", {}).get("guest_ip"),
+                "deployment_name": deployment_name,
+                "storage_id": storage_id,
+                "interfaces": interfaces,
+                "description": domain.get("description"),
+            },
+            "owner": owner,
+            "bastion": bastion,
+        }
 
     def DeploymentViewerData(self, deployment_id):
         with app.app_context():
@@ -872,6 +1168,38 @@ class ApiAdmin:
                 )
                 .run(db.conn)
             )
+
+    def get_storage_ids_by_domain_status(self, status, payload=None):
+        """Get all storage_ids from domains with the given status."""
+        with app.app_context():
+            if payload and payload.get("role_id") == "manager":
+                # Filter by category for managers using existing index
+                domains = list(
+                    r.table("domains")
+                    .get_all(
+                        ["desktop", status, payload["category_id"]],
+                        index="kind_status_category",
+                    )
+                    .pluck({"create_dict": {"hardware": {"disks": True}}})
+                    .run(db.conn)
+                )
+            else:
+                # Admin sees all
+                domains = list(
+                    r.table("domains")
+                    .get_all(["desktop", status], index="kind_status")
+                    .pluck({"create_dict": {"hardware": {"disks": True}}})
+                    .run(db.conn)
+                )
+
+        storage_ids = set()
+        for domain in domains:
+            disks = domain.get("create_dict", {}).get("hardware", {}).get("disks", [])
+            for disk in disks:
+                if disk.get("storage_id"):
+                    storage_ids.add(disk["storage_id"])
+
+        return list(storage_ids)
 
     # This is the function to be called
     def get_template_tree_list(self, template_id, user_id):

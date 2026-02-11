@@ -21,13 +21,14 @@
 
 interval = 5000;
 echart_objects = {};
+categoryStatusTimeoutId = null;
+categoryTableInitialized = false;
 
 $(document).ready(function () {
     // Trigger function each interval seconds
     $("#change-interval").val(interval);
     update();
     initialize_table();
-    renderCategoryCountTable();
 });
 
 
@@ -107,6 +108,26 @@ $('#show-datatable').on('ifUnchecked', function (event) {
     $("#table-panel").hide();
 });
 
+$('#show-category-status').on('ifChecked', function (event) {
+    $("#table-category-count-panel").show();
+    $("#table-category-count-header").show();
+    if (!categoryTableInitialized) {
+        renderCategoryCountTable();
+        categoryTableInitialized = true;
+    } else {
+        reloadCategoryStatusTable();
+    }
+});
+
+$('#show-category-status').on('ifUnchecked', function (event) {
+    $("#table-category-count-panel").hide();
+    $("#table-category-count-header").hide();
+    if (categoryStatusTimeoutId) {
+        clearTimeout(categoryStatusTimeoutId);
+        categoryStatusTimeoutId = null;
+    }
+});
+
 
 $("#change-interval").on('change', function () {
     interval = parseInt($("#change-interval").val());
@@ -150,6 +171,53 @@ function stopDesktop(domain_id, tr) {
 
 
 function changeStatus(currentStatus, targetStatus, select) {
+    // Handle FindDisk as a special action
+    if (targetStatus === "FindDisk") {
+        new PNotify({
+            title: 'Are you sure?',
+            text: `Are you sure you want to find disks for all ${currentStatus} desktops?`,
+            hide: false,
+            type: 'warning',
+            confirm: {
+                confirm: true
+            }
+        }).get().on(
+            'pnotify.confirm',
+            function () {
+                $.ajax({
+                    url: `/api/v3/admin/domains/status/${currentStatus}/find_storages`,
+                    type: "PUT",
+                    contentType: 'application/json',
+                    success: function (data) {
+                        new PNotify({
+                            title: 'Find disk tasks created',
+                            text: `Created ${data.tasks_created} find tasks for ${currentStatus} desktops`,
+                            hide: true,
+                            delay: 3000,
+                            opacity: 1,
+                            type: 'success'
+                        })
+                        if (select) { select.val("placeholder"); }
+                    },
+                    error: function ({ responseJSON: { description } = {} }) {
+                        const msg = description ? description : 'Something went wrong';
+                        new PNotify({
+                            title: 'ERROR creating find tasks',
+                            text: msg,
+                            hide: true,
+                            delay: 2000,
+                            opacity: 1,
+                            type: 'error'
+                        })
+                    }
+                })
+            }
+        ).on('pnotify.cancel', function () {
+            if (select) { select.val("placeholder"); }
+        })
+        return;
+    }
+
     new PNotify({
         title: 'Are you sure?',
         text: `Are you sure you want to change all ${currentStatus} desktops to ${targetStatus}?`,
@@ -201,7 +269,8 @@ function chart_html(id) {
     var style = ""
     switch (id) {
         case "Stopped":
-            options = `<option value="StartingPaused">Start-Pause</option>`
+            options = `<option value="StartingPaused">Start-Pause</option>
+                       <option value="FindDisk">Find disk</option>`
             break;
         case "Started":
             options = `<option value="Shutting-down">Soft shut down</option>
@@ -209,7 +278,8 @@ function chart_html(id) {
             // <option value="">Stop by desktop priority</option>
             break;
         case "Failed":
-            options = `<option value="StartingPaused">Start-Pause</option>`
+            options = `<option value="StartingPaused">Start-Pause</option>
+                       <option value="FindDisk">Find disk</option>`
             break;
         case "Downloading":
             options = `<option selected disabled>No actions available</option>`
@@ -298,6 +368,15 @@ function initialize_table(status) {
             "deferRender": true,
             columns: [
                 { "data": "id" },
+                {
+                    "className": 'info-control',
+                    "orderable": false,
+                    "data": "id",
+                    "render": function(data) {
+                        return '<button class="btn btn-xs btn-info" data-domain-info="' + data + '" title="View details">' +
+                               '<i class="fa fa-info-circle"></i></button>';
+                    }
+                },
                 { "data": "name" },
                 {
                     "orderable": false,
@@ -327,9 +406,9 @@ function initialize_table(status) {
                     stopDesktop(rowData.id, tr);
                 });
             },
-            order: [[2, "desc"]],
+            order: [[4, "desc"]],
             columnDefs: [{
-                "targets": 2,
+                "targets": 4,
                 "render": function (data, type, full, meta) {
                     if (type === 'display' || type === 'filter') {
                         return moment.unix(full.accessed).fromNow()
@@ -522,5 +601,5 @@ function reloadCategoryStatusTable() {
     query_seconds_cat = (end_ts_cat - start_ts_cat) / 1000;
     $('#time_category').html(query_seconds_cat);
     
-    setTimeout(reloadCategoryStatusTable, interval);
+    categoryStatusTimeoutId = setTimeout(reloadCategoryStatusTable, interval);
 }

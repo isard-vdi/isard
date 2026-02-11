@@ -3,6 +3,9 @@
         margin-bottom: 0px;
     }
 
+    .copy-btn { cursor: pointer; opacity: 0.6; margin-left: 5px; }
+    .copy-btn:hover { opacity: 1; }
+
     #modalIncreaseStorage .parsley-errors-list {
         position: fixed;
     }
@@ -371,6 +374,39 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div id="storage-actions" class="x_panel" style="display: none; margin-top: 15px;">
+                        <h5><i class="fa fa-cogs"></i> Actions</h5>
+                        <div id="storage-action-buttons">
+                            <!-- Common actions (manager + admin) -->
+                            <button class="btn btn-success btn-xs btn-modal-move" data-id="" type="button" title="Move to another path">
+                                <i class="fa fa-truck m-right-xs"></i> Move
+                            </button>
+                            <button class="btn btn-primary btn-xs btn-modal-virt_win_reg" data-id="" type="button" title="Apply Windows registry">
+                                <i class="fa fa-edit m-right-xs"></i> Windows Registry
+                            </button>
+                            <button class="btn btn-info btn-xs btn-modal-increase" data-id="" type="button" title="Increase disk size">
+                                <i class="fa fa-external-link-square m-right-xs"></i> Increase
+                            </button>
+                            <!-- Admin-only actions -->
+                            <span class="admin-only-actions" style="display: none;">
+                                <button class="btn btn-info btn-xs btn-modal-create" data-id="" type="button" title="Create derived disk">
+                                    <i class="fa fa-plus m-right-xs"></i> Add Disk
+                                </button>
+                                <button class="btn btn-info btn-xs btn-modal-sparsify" data-id="" type="button" title="Sparsify disk">
+                                    <i class="fa fa-compress m-right-xs"></i> Sparsify
+                                </button>
+                                <button class="btn btn-info btn-xs btn-modal-disconnect" data-id="" type="button" title="Disconnect from backing chain">
+                                    <i class="fa fa-plug m-right-xs"></i> Disconnect
+                                </button>
+                                <button class="btn btn-warning btn-xs btn-modal-find" data-id="" type="button" title="Find & update disk">
+                                    <i class="fa fa-search m-right-xs"></i> Find
+                                </button>
+                                <button class="btn btn-danger btn-xs btn-modal-delete" data-id="" type="button" title="Delete storage">
+                                    <i class="fa fa-trash m-right-xs"></i> Delete
+                                </button>
+                            </span>
+                        </div>
                     </div>
                 </form>
             </div>

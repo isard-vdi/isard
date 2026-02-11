@@ -15,7 +15,7 @@ if (url!="Desktops") {
 }
 
 // Sort by Last Access in Desktops table
-order=15
+order=16
 
 columns= [
     {
@@ -23,6 +23,15 @@ columns= [
         "orderable": false,
         "data": null,
         "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+    },
+    {
+        "className": 'info-control',
+        "orderable": false,
+        "data": "id",
+        "render": function(data) {
+            return '<button class="btn btn-xs btn-info" data-domain-info="' + data + '" title="View details">' +
+                   '<i class="fa fa-info-circle"></i></button>';
+        }
     },
     { "data": "icon" },
     { "data": "name"},
@@ -50,7 +59,7 @@ columns= [
 
 columnDefs = [
     {
-        "targets": 1,
+        "targets": 2,
         "render": function ( data, type, full, meta ) {
             img_url = location.protocol+'//' + document.domain + ':' + location.port + full.image.url
             if( ! "booking_id" in full ){
@@ -61,18 +70,18 @@ columnDefs = [
             return  renderFailed(full.status, full.create_dict.reservables) + renderBooking(full.create_dict.reservables, booking_id) + "<img src='"+img_url+"' width='50px'>"
         }
     },{
-        "targets": 4,
+        "targets": 5,
         "render": function (data, type, full, meta) {
             return renderStatus(full)
         }
     },{
-        "targets": 5,
+        "targets": 6,
         "width": "100px",
         "render": function (data, type, full, meta) {
             return renderAction(full) + renderDisplay(full)
         }
     },{
-        "targets": 6,
+        "targets": 7,
         "width": "100px",
         "render": function (data, type, full, meta) {
             if (type === 'display' || type === 'filter') {
@@ -81,7 +90,7 @@ columnDefs = [
             return full.create_dict.hardware.memory;
         }
     },{
-        "targets": 11,
+        "targets": 12,
         "render": function (data, type, full, meta) {
             if('server' in full){
                 if(full["server"] == true){
@@ -94,7 +103,7 @@ columnDefs = [
             }
         }
     },{
-        "targets": 12,
+        "targets": 13,
         "render": function (data, type, full, meta) {
             if('hyp_started' in full && full.hyp_started != ''){
                 return full.hyp_started;
@@ -103,16 +112,16 @@ columnDefs = [
             }
         }
     },{
-        "targets": 13,
+        "targets": 14,
         "render": function (data, type, full, meta) {
-            if('favourite_hyp' in full && full.favourite_hyp != ''){ 
+            if('favourite_hyp' in full && full.favourite_hyp != ''){
                 return full.favourite_hyp;
             } else {
                 return '-'
             }
         }
     },{
-        "targets": 14,
+        "targets": 15,
         "render": function (data, type, full, meta) {
             if('forced_hyp' in full && full.forced_hyp != ''){
                 return full.forced_hyp;
@@ -121,7 +130,7 @@ columnDefs = [
             }
         }
     },{
-        "targets": 15,
+        "targets": 16,
         "render": function (data, type, full, meta) {
             if ( type === 'display' || type === 'filter' ) {
                 return moment.unix(full.accessed).fromNow()
@@ -133,16 +142,16 @@ columnDefs = [
 
 // Templates table render
     // Remove Select column (used for bulk actions)
-    columns.splice(16, 1)
+    columns.splice(17, 1)
     // Remove Server column
-    columns.splice(11, 1)
+    columns.splice(12, 1)
     // Remove Started Hyper column
-    columns.splice(11, 1)
+    columns.splice(12, 1)
     // Remove Status, Action, Memory(GB) and VCPUs columns
-    columns.splice(4, 4)
+    columns.splice(5, 4)
     // Add Enabled, Derivates and Shared columns
     columns.splice(
-        9,
+        10,
         0,
         {
             "data": 'enabled',
@@ -156,12 +165,12 @@ columnDefs = [
     // Remove custom rendering of Status, Action, Memory(GB), Server and Started Hyper columns
     columnDefs.splice(1, 5)
     // Change custom render target of Favourite Hyper, Forced Hyper and Last Access columns
-    columnDefs[1]["targets"]=7
-    columnDefs[2]["targets"]=8
-    columnDefs[3]["targets"]=12
-    // Add rendering of Enabled column 
+    columnDefs[1]["targets"]=8
+    columnDefs[2]["targets"]=9
+    columnDefs[3]["targets"]=13
+    // Add rendering of Enabled column
     columnDefs.push({
-        "targets": 9,
+        "targets": 10,
         "render": function ( data, type, full, meta ) {
             if( full.enabled ){
                 return '<input id="chk-enabled" type="checkbox" class="form-check-input" checked></input><span style="display: none;">' + data + '</span>'
@@ -171,7 +180,7 @@ columnDefs = [
         }
     })
     // Sort by Last Access in Templates table
-    order = 12;
+    order = 13;
 
     $.fn.dataTable.ext.search.push(function (settings, searchData, index, rowData, counter ) {
             search_val = $('.panel_toolbox .btn-disabled').attr('view')
@@ -179,7 +188,7 @@ columnDefs = [
                 return true;
             }
             else if (
-               searchData[9] == search_val
+               searchData[10] == search_val
             ) {
                 return true;
             }
@@ -351,26 +360,47 @@ $(document).ready(function() {
         domains_table.search(searchDomainId).draw()
     }
 
-    $('.btn-search-template').on('click', function () {
-        initDomainSearchModal();
+    // UUID validation helper
+    function isValidUUID(str) {
+        var uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(str);
+    }
+
+    // UUID search box handler
+    $("#domain-uuid-search-btn").on("click", function() {
+        var uuid = $("#domain-uuid-search").val().trim();
+        if (!uuid) {
+            new PNotify({
+                title: "Error",
+                text: "Please enter a template ID to search for.",
+                type: "error",
+                hide: true,
+                delay: 3000,
+                icon: "fa fa-warning",
+                opacity: 1,
+            });
+            return;
+        }
+        if (!isValidUUID(uuid)) {
+            new PNotify({
+                title: "Invalid UUID",
+                text: "Please enter a valid UUID format.",
+                type: "error",
+                hide: true,
+                delay: 3000,
+                icon: "fa fa-warning",
+                opacity: 1,
+            });
+            return;
+        }
+        showDomainInfo(uuid);
     });
 
-    $("#modalSearchDomain").off('click', '.btn-copy').on('click', '.btn-copy', function() {
-        const text = $(this).data('copy-value') || '';
-        navigator.clipboard.writeText(text).then(() => {
-            new PNotify({ title: 'Copied to Clipboard', text: `"${text}" has been copied to clipboard.`, type: 'success', delay: 2000 });
-        }).catch(() => {
-            new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
-        });
-    });
-
-    $("#modalSearchTemplate").off('click', '.btn-copy').on('click', '.btn-copy', function() {
-        const text = $(this).data('copy-value') || '';
-        navigator.clipboard.writeText(text).then(() => {
-            new PNotify({ title: 'Copied to Clipboard', text: `"${text}" has been copied to clipboard.`, type: 'success', delay: 2000 });
-        }).catch(() => {
-            new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
-        });
+    // Allow Enter key to trigger search
+    $("#domain-uuid-search").on("keypress", function(e) {
+        if (e.which === 13) {
+            $("#domain-uuid-search-btn").click();
+        }
     });
 
     $('.btn-disabled').on('click', function(e) {

@@ -50,6 +50,10 @@ $(document).ready(function () {
       case 'btn-details':
         showRowDetails(storage_ready, tr, row);
         break;
+      case 'btn-info':
+        var storageId = $(this).data('id');
+        openStorageSearchModal(storageId);
+        break;
     }
   })
 
@@ -99,6 +103,10 @@ $(document).ready(function () {
       switch ($(this).attr('id')) {
         case 'btn-details':
           showRowDetails(storagesOtherTable, tr, row);
+          break;
+        case 'btn-info':
+          var storageId = $(this).data('id');
+          openStorageSearchModal(storageId);
           break;
       }
     })
@@ -864,15 +872,22 @@ $("#modalIncreaseStorage #send").on("click", function () {
   }
 });
 
-$(document).on("click", ".btn-search-storage", function () {
+// UUID validation helper for storage
+function isValidStorageUUID(str) {
+  var uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+function initStorageSearchModal() {
   var modal = "#modalSearchStorage";
   $(modal + " #storage-info").hide();
+  $(modal + " #storage-actions").hide();
   $(modal + "Form")[0].reset();
 
   $(modal + " #search-storage-btn")
     .off("click")
     .on("click", function () {
-      var storageId = $(modal + " #storage-id").val();
+      var storageId = $(modal + " #storage-id").val().trim();
       if (!storageId) {
         new PNotify({
           title: "Error",
@@ -885,6 +900,21 @@ $(document).on("click", ".btn-search-storage", function () {
         });
         return;
       }
+
+      // Validate UUID format
+      if (!isValidStorageUUID(storageId)) {
+        new PNotify({
+          title: "Invalid UUID",
+          text: "Please enter a valid UUID format (e.g., xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx).",
+          type: "error",
+          hide: true,
+          delay: 3000,
+          icon: "fa fa-warning",
+          opacity: 1,
+        });
+        return;
+      }
+
       $.ajax({
         url: "/api/v3/admin/storage/search-info/" + storageId,
         type: "GET",
@@ -892,7 +922,9 @@ $(document).on("click", ".btn-search-storage", function () {
       })
         .done(function (data) {
           function copyBtn(text) {
-            return (text && text !== '-') ? ` <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${text}" type="button" title="Copy to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button>` : '';
+            if (!text || text === '-') return '';
+            var escaped = $('<div>').text(text).html();
+            return ' <span class="copy-btn" data-copy="' + escaped + '" title="Copy to clipboard"><i class="fa fa-copy"></i></span>';
           }
           const storageFields = [
             { label: 'ID', value: data.id || '-', selector: '#storage-info-id' },
@@ -923,13 +955,16 @@ $(document).on("click", ".btn-search-storage", function () {
           if (data.domains.length > 0) {
             let domainsHtml = '';
             data.domains.forEach(function (domain, id) {
+              var escapedId = $('<div>').text(domain.id).html();
+              var escapedName = $('<div>').text(domain.name).html();
+              var escapedKind = $('<div>').text(domain.kind).html();
               domainsHtml += `<div style="margin-bottom:6px;">
-                <b>ID:</b> <span class="domain-id">${domain.id}</span>
-                <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${domain.id}" type="button" title="Copy ID to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button><br>
-                <b>Name:</b> <span class="domain-name">${domain.name}</span>
-                <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${domain.name}" type="button" title="Copy Name to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button><br>
-                <b>Kind:</b> <span class="domain-kind">${domain.kind}</span>
-                <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${domain.kind}" type="button" title="Copy Kind to clipboard" style="margin-left:3px;"><i class="fa fa-clipboard"></i></button>
+                <b>ID:</b> <span class="domain-id">${escapedId}</span>
+                <span class="copy-btn" data-copy="${escapedId}" title="Copy ID to clipboard"><i class="fa fa-copy"></i></span><br>
+                <b>Name:</b> <span class="domain-name">${escapedName}</span>
+                <span class="copy-btn" data-copy="${escapedName}" title="Copy Name to clipboard"><i class="fa fa-copy"></i></span><br>
+                <b>Kind:</b> <span class="domain-kind">${escapedKind}</span>
+                <span class="copy-btn" data-copy="${escapedKind}" title="Copy Kind to clipboard"><i class="fa fa-copy"></i></span>
               </div>`;
             });
             $(modal + " #storage-info-domains").html(domainsHtml);
@@ -937,12 +972,35 @@ $(document).on("click", ".btn-search-storage", function () {
             $(modal + " #storage-info-domains").html('-');
           }
           $(modal + " #storage-info").show();
+
+          // Show actions panel and populate button data-ids
+          $(modal + " #storage-actions").show();
+          $(modal + " #storage-action-buttons button").attr("data-id", data.id);
+
+          // Show admin-only actions if user is admin
+          if ($("#user_data").data("role") === "admin") {
+            $(modal + " .admin-only-actions").show();
+          } else {
+            $(modal + " .admin-only-actions").hide();
+          }
+
+          // Disable actions if storage status is not "ready"
+          if (data.status !== "ready") {
+            $(modal + " #storage-action-buttons button").not(".btn-modal-find, .btn-modal-delete").prop("disabled", true);
+          } else {
+            $(modal + " #storage-action-buttons button").prop("disabled", false);
+          }
         })
         .fail(function (xhr) {
-          var msg =
-            xhr.responseJSON && xhr.responseJSON.description
-              ? xhr.responseJSON.description
-              : "ERROR: Something went wrong";
+          var storageId = $(modal + " #storage-id").val().trim();
+          var msg;
+          if (xhr.status === 404) {
+            msg = "Storage with UUID '" + storageId + "' not found.";
+          } else if (xhr.responseJSON && xhr.responseJSON.description) {
+            msg = xhr.responseJSON.description;
+          } else {
+            msg = "An error occurred while searching for the storage.";
+          }
           new PNotify({
             title: "Error",
             text: msg,
@@ -953,21 +1011,201 @@ $(document).on("click", ".btn-search-storage", function () {
             opacity: 1,
           });
           $(modal + " #storage-info").hide();
+          $(modal + " #storage-actions").hide();
         });
     });
 
   $(modal).modal({ backdrop: "static", keyboard: false }).modal("show");
+}
+
+function openStorageSearchModal(storageId) {
+  initStorageSearchModal();
+  if (storageId) {
+    setTimeout(function() {
+      $("#modalSearchStorage #storage-id").val(storageId);
+      $("#modalSearchStorage #search-storage-btn").click();
+    }, 100);
+  }
+}
+
+$("#modalSearchStorage").off('click', '.copy-btn').on('click', '.copy-btn', function() {
+    var text = $(this).data('copy');
+    navigator.clipboard.writeText(text).then(() => {
+        var icon = $(this).find('i');
+        icon.removeClass('fa-copy').addClass('fa-check');
+        setTimeout(function() {
+            icon.removeClass('fa-check').addClass('fa-copy');
+        }, 1500);
+    }).catch(() => {
+        new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
+    });
 });
 
-$("#modalSearchStorage").off('click', '.btn-copy').on('click', '.btn-copy', function() {
-  const text = $(this).data('copy-value') || '';
-  navigator.clipboard.writeText(text).then(() => {
-    new PNotify({ title: 'Copied to Clipboard', text: `"${text}" has been copied to clipboard.`, type: 'success', delay: 2000 });
-  }).catch(() => {
-    new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
+// Modal action buttons - trigger existing handlers
+$(document).on("click", ".btn-modal-move", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("move", storageId);
+});
+
+$(document).on("click", ".btn-modal-virt_win_reg", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("virt_win_reg", storageId);
+});
+
+$(document).on("click", ".btn-modal-increase", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("increase", storageId);
+});
+
+$(document).on("click", ".btn-modal-create", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("create", storageId);
+});
+
+$(document).on("click", ".btn-modal-sparsify", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("sparsify", storageId);
+});
+
+$(document).on("click", ".btn-modal-disconnect", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  triggerStorageAction("disconnect", storageId);
+});
+
+$(document).on("click", ".btn-modal-find", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  // Find action is a direct API call
+  $.ajax({
+    type: 'GET',
+    url: '/api/v3/storage/' + storageId + '/find',
+    contentType: 'application/json',
+    success: function (result) {
+      new PNotify({
+        title: 'Find',
+        text: 'Storage found',
+        hide: true,
+        delay: 2000,
+        icon: '',
+        opacity: 1,
+        type: 'success'
+      });
+    },
+    error: function (xhr) {
+      new PNotify({
+        title: 'Error',
+        text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
+        hide: true,
+        delay: 3000,
+        icon: 'fa fa-warning',
+        opacity: 1,
+        type: 'error'
+      });
+    }
   });
 });
 
+$(document).on("click", ".btn-modal-delete", function() {
+  var storageId = $(this).data("id");
+  $("#modalSearchStorage").modal("hide");
+  // Delete action with confirmation dialog
+  new PNotify({
+    title: 'Confirmation Needed',
+    text: "Are you sure you want to delete storage " + storageId + "?",
+    hide: false,
+    opacity: 0.9,
+    confirm: {
+      confirm: true
+    },
+    buttons: {
+      closer: false,
+      sticker: false
+    },
+    history: {
+      history: false
+    },
+    addclass: 'pnotify-center'
+  }).get().on('pnotify.confirm', function () {
+    $.ajax({
+      type: 'DELETE',
+      url: '/api/v3/storage/' + storageId,
+      contentType: 'application/json',
+      success: function (result) {
+        new PNotify({
+          title: 'Deleted',
+          text: 'Storage deleted',
+          hide: true,
+          delay: 2000,
+          icon: '',
+          opacity: 1,
+          type: 'success'
+        });
+        if (storage_ready) {
+          storage_ready.ajax.reload();
+        }
+        if (storagesOtherTable) {
+          storagesOtherTable.ajax.reload();
+        }
+      },
+      error: function (xhr) {
+        new PNotify({
+          title: 'ERROR deleting storage',
+          text: xhr.responseJSON ? xhr.responseJSON.description : 'Something went wrong',
+          hide: true,
+          delay: 3000,
+          icon: 'fa fa-warning',
+          opacity: 1,
+          type: 'error'
+        });
+      }
+    });
+  });
+});
+
+function triggerStorageAction(action, storageId) {
+  // Create a temporary element to trigger existing handlers
+  var tempBtn = $('<button class="btn-' + action + '" data-id="' + storageId + '"></button>');
+  $("body").append(tempBtn);
+  tempBtn.click();
+  tempBtn.remove();
+}
+
+// UUID search box handler
+$("#storage-uuid-search-btn").on("click", function() {
+  var uuid = $("#storage-uuid-search").val().trim();
+  if (uuid && !isValidStorageUUID(uuid)) {
+    new PNotify({
+      title: "Invalid UUID",
+      text: "Please enter a valid UUID format.",
+      type: "error",
+      hide: true,
+      delay: 3000,
+      icon: "fa fa-warning",
+      opacity: 1,
+    });
+    return;
+  }
+  initStorageSearchModal();
+  if (uuid) {
+    setTimeout(function() {
+      $("#modalSearchStorage #storage-id").val(uuid);
+      $("#modalSearchStorage #search-storage-btn").click();
+    }, 100);
+  }
+});
+
+// Allow Enter key to trigger search
+$("#storage-uuid-search").on("keypress", function(e) {
+  if (e.which === 13) {
+    $("#storage-uuid-search-btn").click();
+  }
+});
 
 $(document).on('click', '.btn-add-storage', function () {
   var modal = "#modalCreateStorage";
@@ -1528,6 +1766,15 @@ function createDatatable(tableId, status, initCompleteFn = null) {
         orderable: false,
         data: null,
         defaultContent: '<button id="btn-details" class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>',
+      },
+      {
+        className: "info-control",
+        orderable: false,
+        data: null,
+        width: '30px',
+        render: function(data, type, row) {
+          return '<button id="btn-info" class="btn btn-xs btn-info" type="button" data-id="' + row.id + '" title="Show storage info"><i class="fa fa-info-circle"></i></button>';
+        }
       },
       {
         title: 'Status',

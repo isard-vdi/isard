@@ -99,6 +99,15 @@ table {
             </div>
             Show desktops
         </label>
+        <label for="show-category-status" class="show-category-status-checkbox" style="padding:1%">
+            <div class="icheckbox_flat-green" style="position: relative;">
+                <input type="checkbox" id="show-category-status"
+                    title="Show desktops status by category"
+                    style="position: absolute; opacity: 0;">
+                <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px none; opacity: 0;"></ins>
+            </div>
+            Show desktops status by category
+        </label>
 
          <div class="x_content">
             <div class="x_panel" id="table-panel" style="display:none;">
@@ -107,16 +116,18 @@ table {
                   <thead>
                       <tr>
                           <th>Id</th>
+                          <th>Info</th>
                           <th>Name</th>
                           <th>Action</th>
                           <th>Accessed</th>
                       </tr>
                   </thead>
-                  <tbody>      
+                  <tbody>
                   </tbody>
                   <tfoot>
                       <tr>
                           <th>Id</th>
+                          <th>Info</th>
                           <th>Name</th>
                           <th>Action</th>
                           <th>Accessed</th>
@@ -127,7 +138,7 @@ table {
              </div>
          </div>
          
-        <div class="row">
+        <div class="row" id="table-category-count-header" style="display:none;">
             <div class="col-md-12 col-sm-12 col-xs-12">
                 <div class="x_panel">
                     <div class="x_title">
@@ -151,7 +162,7 @@ table {
         </div>
         
         <div class="x_content">
-            <div class="x_panel" id="table-category-count-panel">
+            <div class="x_panel" id="table-category-count-panel" style="display:none;">
                 <div class="row">
                     <table id="category-count" class="table">
                         <thead>
@@ -196,5 +207,6 @@ table {
 {% block pagescript %}
    <script src="/isard-admin/vendors/echarts/dist/echarts.min.js"></script>
    <script src="/isard-admin/static/admin/js/echarts.js"></script>
+   <script src="/isard-admin/static/admin/js/domain_info_modal.js"></script>
    <script src="/isard-admin/static/admin/js/desktops_status.js"></script>
 {% endblock %}

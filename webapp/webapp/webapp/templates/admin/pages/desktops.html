@@ -36,12 +36,18 @@
                      </div>
                   </div>
                </li>
-               <li>
-                  <a class="btn-search-desktop">
-                     <span style="color: #5499c7; ">
-                        <i class="fa fa-search"></i>
-                        Search desktop</span>
-                  </a>
+               <li style="display: flex; align-items: center; margin-left: 15px;">
+                  <div class="input-group input-group-sm" style="width: 280px;">
+                     <input type="text" id="domain-uuid-search" class="form-control"
+                            placeholder="Domain UUID..."
+                            style="height: 30px; font-size: 12px;">
+                     <span class="input-group-btn">
+                        <button id="domain-uuid-search-btn" class="btn btn-info" type="button"
+                                style="height: 30px; padding: 0 10px;" title="Search domain by UUID">
+                           <i class="fa fa-search"></i>
+                        </button>
+                     </span>
+                  </div>
                </li>
                <li>
                   <a class="btn-bulk-edit-desktops">
@@ -91,6 +97,7 @@
                <table id="domains" class="table">
                   <thead>
                      <tr><th rowspan="2"></th>
+                     <th rowspan="2">Info</th>
                      <th rowspan="2">Icon</th>
                      <th rowspan="2">Name</th>
                      <th rowspan="2">Status</th>
@@ -125,6 +132,7 @@
                      <tfoot>
                         <tr>
                            <th></th>
+                           <th>Info</th>
                            <th>Icon</th>
                         <th>Name</th>
                            <th>Status</th>
@@ -162,9 +170,10 @@
 
 {% block pagescript %}
    <script src="/isard-admin/static/js/restful.js"></script>
-   <script src="/isard-admin/static/js/viewer.js"></script> 
+   <script src="/isard-admin/static/js/viewer.js"></script>
    <script src="/isard-admin/static/js/snippets/render_table.js"></script>
-   <script src="/isard-admin/static/js/snippets/desktop_add.js"></script> 
-   <script src="/isard-admin/static/js/snippets/domain_search.js"></script> 
+   <script src="/isard-admin/static/js/snippets/desktop_add.js"></script>
+   <script src="/isard-admin/static/js/snippets/domain_search.js"></script>
+   <script src="/isard-admin/static/admin/js/domain_info_modal.js"></script>
    <script src="/isard-admin/static/admin/js/desktops.js"></script>
 {% endblock %}

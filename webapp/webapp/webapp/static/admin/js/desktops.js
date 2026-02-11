@@ -9,7 +9,7 @@ var href = location.href;
 url=href.match(/([^\/]*)\/*$/)[1];
 $('#global_actions').css('display','block');
 // Sort by Last Access in Desktops table
-order=17
+order=18
 
 loading_events=[]
 deleted_events=[]
@@ -20,6 +20,15 @@ columns = [
         "orderable": false,
         "data": null,
         "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+    },
+    {
+        "className": 'info-control',
+        "orderable": false,
+        "data": "id",
+        "render": function(data) {
+            return '<button class="btn btn-xs btn-info" data-domain-info="' + data + '" title="View details">' +
+                   '<i class="fa fa-info-circle"></i></button>';
+        }
     },
     {
         "data": "icon", "render": function (data, type, full, meta) {
@@ -279,18 +288,48 @@ $(document).ready(function() {
             modal_add_desktop_datatables();
         }
     });
-        
-    $('.btn-search-desktop').on('click', function () {
-        initDomainSearchModal();
+
+    // UUID validation helper
+    function isValidUUID(str) {
+        var uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(str);
+    }
+
+    // UUID search box handler
+    $("#domain-uuid-search-btn").on("click", function() {
+        var uuid = $("#domain-uuid-search").val().trim();
+        if (!uuid) {
+            new PNotify({
+                title: "Error",
+                text: "Please enter a desktop ID to search for.",
+                type: "error",
+                hide: true,
+                delay: 3000,
+                icon: "fa fa-warning",
+                opacity: 1,
+            });
+            return;
+        }
+        if (!isValidUUID(uuid)) {
+            new PNotify({
+                title: "Invalid UUID",
+                text: "Please enter a valid UUID format.",
+                type: "error",
+                hide: true,
+                delay: 3000,
+                icon: "fa fa-warning",
+                opacity: 1,
+            });
+            return;
+        }
+        showDomainInfo(uuid);
     });
 
-    $("#modalSearchDomain").off('click', '.btn-copy').on('click', '.btn-copy', function() {
-        const text = $(this).data('copy-value') || '';
-        navigator.clipboard.writeText(text).then(() => {
-            new PNotify({ title: 'Copied to Clipboard', text: `"${text}" has been copied to clipboard.`, type: 'success', delay: 2000 });
-        }).catch(() => {
-            new PNotify({ title: 'ERROR', text: 'Failed to copy to clipboard.', type: 'error', delay: 2000 });
-        });
+    // Allow Enter key to trigger search
+    $("#domain-uuid-search").on("keypress", function(e) {
+        if (e.which === 13) {
+            $("#domain-uuid-search-btn").click();
+        }
     });
 
 
@@ -478,6 +517,12 @@ $(document).ready(function() {
     const filter_list = ['category', 'favourite_hyp', 'forced_hyp', 'group', 'hyp_started', 'memory', 'name', 'server', 'status', 'user', 'vcpus'];
     const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
     $('#filter-select').append(options.join(''));
+
+    // Indexed filters are sent to the API for server-side filtering
+    // 'category' is handled separately via the categories parameter
+    const indexed_filters = ['status', 'group', 'user', 'hyp_started', 'server'];
+    // Non-indexed filters remain client-side
+    const client_side_filters = ['favourite_hyp', 'forced_hyp', 'memory', 'name', 'vcpus'];
     var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
 
     let searchDomainId = getGroupParam()
@@ -495,17 +540,26 @@ $(document).ready(function() {
         data: function () {
             var categories = [];
             categories = $('#filter-category #category').val();
-            if ($('#filter-category').length) {
-                return JSON.stringify({
-                    'kind': "desktop",
-                    'categories': JSON.stringify(categories)
-                });
-            } else {
-                return JSON.stringify({
-                    'kind': "desktop",
-                    'categories': JSON.stringify([])
-                });
-            }
+            var requestData = {
+                'kind': "desktop",
+                'categories': JSON.stringify(categories || [])
+            };
+
+            // Add indexed filters to request for server-side filtering
+            indexed_filters.forEach(function(field) {
+                var filterBox = $('#filter-' + field + ' #' + field);
+                if (filterBox.length && filterBox.val() && filterBox.val().length) {
+                    // For single-value filters, send first value; for multi-select, send first value
+                    var val = filterBox.val();
+                    if (Array.isArray(val) && val.length > 0) {
+                        requestData[field] = val[0];
+                    } else if (val) {
+                        requestData[field] = val;
+                    }
+                }
+            });
+
+            return JSON.stringify(requestData);
         }
     },
       initComplete: function (settings, json) {
@@ -565,25 +619,64 @@ $(document).ready(function() {
 
     $("#btn-search").on("click", function () {
         var table = $("#domains").DataTable();
-        // do for each item filter box
+        var hasIndexedFilter = false;
+        var needsReload = false;
+
+        // Check if any indexed filter is present and has a value
+        indexed_filters.forEach(function(field) {
+            var filterBox = $('#filter-' + field + ' #' + field);
+            if (filterBox.length && filterBox.val() && filterBox.val().length) {
+                hasIndexedFilter = true;
+            }
+        });
+
+        // Check if category filter changed
+        if ($('#filter-category').length) {
+            var currentCategoryValues = $('#filter-category #category').val();
+            if (JSON.stringify(selectedCategories) !== JSON.stringify(currentCategoryValues)) {
+                selectedCategories = currentCategoryValues;
+                needsReload = true;
+            }
+        }
+
+        // Reload from API if indexed filters are present or category changed
+        if (hasIndexedFilter || needsReload) {
+            table.ajax.reload(function() {
+                // After reload, apply non-indexed (client-side) filters
+                applyClientSideFilters(table);
+            });
+        } else {
+            // No indexed filters, just apply client-side filtering
+            applyClientSideFilters(table);
+        }
+
+        if (!$("#filter-category").length && selectedCategories !== null) {
+            $('#category').empty();
+            selectedCategories = null;
+            table.ajax.reload();
+        }
+    });
+
+    // Function to apply non-indexed filters client-side
+    function applyClientSideFilters(table) {
         $("#filter-boxes .filter-item").each(function () {
             var operator = $(this).find(".operator-select").val();
             var title = $(this).find(".filter-box").attr("index");
-            if ($(this)
-            .find(".filter-box").val()==null) {
+
+            // Skip indexed filters (they are handled server-side) and category
+            if (indexed_filters.includes(title) || title === "category") {
+                return;
+            }
+
+            if ($(this).find(".filter-box").val() == null) {
                 var values = [""]
             } else {
-                var values = $(this).find(".filter-box").val().map(value => 
+                var values = $(this).find(".filter-box").val().map(value =>
                     value === "Maintenance" ? value : `^${value.trim()}$`
                 );
             }
             var searchParams = values.join("|");
-            if (title === "category") {
-                if (JSON.stringify(selectedCategories) !== JSON.stringify(values)) {
-                selectedCategories = $(".filter-item #" + title).val();
-                table.ajax.reload();
-            }
-            } else {
+
             // search in the loaded table content
             table.columns().every(function () {
                 header = $(this.header()).text().trim().toLowerCase();
@@ -602,15 +695,8 @@ $(document).ready(function() {
                     }
                 }
             });
-        }
-    });
-        if (!$("#filter-category").length && selectedCategories !== null) {
-            $('#category').empty();
-            selectedCategories = null;
-            table.ajax.reload();
-        }
-        
-    });
+        });
+    }
 
     $("#btn-reload").on("click", function () {
         reloadOtherFiltersContent(domains_table);
