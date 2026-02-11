@@ -32,72 +32,78 @@ class BookingsThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("bookings").changes(include_initial=False).run(db.conn)
-                    ):
-                        if self.stop == True:
-                            break
-                        if c["new_val"] == None:
-                            event = "delete"
-                            user = c["old_val"]["user_id"]
-                            booking = c["old_val"]
-                        else:
-                            if c["old_val"] == None:
-                                event = "add"
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("bookings").changes(include_initial=False).run(conn)
+                        ):
+                            if self.stop == True:
+                                break
+                            if c["new_val"] == None:
+                                event = "delete"
+                                user = c["old_val"]["user_id"]
+                                booking = c["old_val"]
                             else:
-                                event = "update"
-                            user = c["new_val"]["user_id"]
-                            # TODO: Check the added booking is editable or not
-                            c["new_val"]["editable"] = True
-                            booking = c["new_val"]
-                        booking["event_type"] = "event"
-                        # Format the date fields as strings
-                        booking["start"] = booking["start"].strftime("%Y-%m-%dT%H:%M%z")
-                        booking["end"] = booking["end"].strftime("%Y-%m-%dT%H:%M%z")
-                        # Emit event to user room
-                        socketio.emit(
-                            "booking_" + event,
-                            json.dumps(booking),
-                            namespace="/userspace",
-                            room=user,
-                        )
-                        # Emit event to item room
-                        app.logger.error("SENDING: bookingitem_" + event)
-                        app.logger.error("TO: " + user)
-                        socketio.emit(
-                            "bookingitem_" + event,
-                            json.dumps(booking),
-                            namespace="/userspace",
-                            room=user,
-                        )
-                        if booking.get("item_type") == "deployment":
-                            deployment = get(booking["item_id"], True)
+                                if c["old_val"] == None:
+                                    event = "add"
+                                else:
+                                    event = "update"
+                                user = c["new_val"]["user_id"]
+                                # TODO: Check the added booking is editable or not
+                                c["new_val"]["editable"] = True
+                                booking = c["new_val"]
+                            booking["event_type"] = "event"
+                            # Format the date fields as strings
+                            booking["start"] = booking["start"].strftime(
+                                "%Y-%m-%dT%H:%M%z"
+                            )
+                            booking["end"] = booking["end"].strftime("%Y-%m-%dT%H:%M%z")
+                            # Emit event to user room
                             socketio.emit(
-                                "deployment_update",
-                                json.dumps(deployment),
+                                "booking_" + event,
+                                json.dumps(booking),
                                 namespace="/userspace",
                                 room=user,
                             )
-                            for desktop in deployment["desktops"]:
+                            # Emit event to item room
+                            app.logger.error("SENDING: bookingitem_" + event)
+                            app.logger.error("TO: " + user)
+                            socketio.emit(
+                                "bookingitem_" + event,
+                                json.dumps(booking),
+                                namespace="/userspace",
+                                room=user,
+                            )
+                            if booking.get("item_type") == "deployment":
+                                deployment = get(booking["item_id"], True)
+                                socketio.emit(
+                                    "deployment_update",
+                                    json.dumps(deployment),
+                                    namespace="/userspace",
+                                    room=user,
+                                )
+                                for desktop in deployment["desktops"]:
+                                    socketio.emit(
+                                        "desktop_update",
+                                        json.dumps(desktop),
+                                        namespace="/userspace",
+                                        room=desktop["user"],
+                                    )
+                            elif booking.get("item_type") == "desktop":
                                 socketio.emit(
                                     "desktop_update",
-                                    json.dumps(desktop),
+                                    json.dumps(
+                                        _parse_desktop(
+                                            r.table("domains")
+                                            .get(booking.get("item_id"))
+                                            .run(conn)
+                                        )
+                                    ),
                                     namespace="/userspace",
-                                    room=desktop["user"],
+                                    room=booking.get("user_id"),
                                 )
-                        elif booking.get("item_type") == "desktop":
-                            socketio.emit(
-                                "desktop_update",
-                                json.dumps(
-                                    _parse_desktop(
-                                        r.table("domains")
-                                        .get(booking.get("item_id"))
-                                        .run(db.conn)
-                                    )
-                                ),
-                                namespace="/userspace",
-                                room=booking.get("user_id"),
-                            )
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("BookingsThread: Rethink db connection lost!")
                 app.logger.error("BookingsThread: Rethink db connection lost!")

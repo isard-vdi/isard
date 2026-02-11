@@ -48,31 +48,35 @@ class TargetsThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("targets").changes(include_initial=False).run(db.conn)
-                    ):
-                        if self.stop is True:
-                            break
-                        if c["new_val"] is None:
-                            event = "delete"
-                            user = c["old_val"]["user_id"]
-                            deployment = {"id": c["old_val"]["id"]}
-                        elif c["old_val"] is None:
-                            event = "add"
-                            user = c["new_val"]["user_id"]
-                            deployment = c["new_val"]
-                        else:
-                            event = "update"
-                            user = c["new_val"]["user_id"]
-                            deployment = c["new_val"]
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("targets").changes(include_initial=False).run(conn)
+                        ):
+                            if self.stop is True:
+                                break
+                            if c["new_val"] is None:
+                                event = "delete"
+                                user = c["old_val"]["user_id"]
+                                deployment = {"id": c["old_val"]["id"]}
+                            elif c["old_val"] is None:
+                                event = "add"
+                                user = c["new_val"]["user_id"]
+                                deployment = c["new_val"]
+                            else:
+                                event = "update"
+                                user = c["new_val"]["user_id"]
+                                deployment = c["new_val"]
 
-                        socketio.emit(
-                            "targets_" + event,
-                            json.dumps(deployment),
-                            namespace="/userspace",
-                            room=user,
-                        )
+                            socketio.emit(
+                                "targets_" + event,
+                                json.dumps(deployment),
+                                namespace="/userspace",
+                                room=user,
+                            )
 
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("TargetsThread: Rethink db connection lost!")
                 app.logger.error("TargetsThread: Rethink db connection lost!")

@@ -8,6 +8,7 @@ import os
 import time
 import traceback
 
+from api.libv2.flask_rethink import init_pool
 from rethinkdb import RethinkDB
 
 from api import app
@@ -83,4 +84,16 @@ class loadConfig:
             return False
         print("Initial configuration loaded...")
         self.check_db()
+
+        # Initialize connection pool
+        pool_size = int(os.environ.get("RETHINKDB_POOL_SIZE", "32"))
+        conn_ttl = int(os.environ.get("RETHINKDB_CONN_TTL", "3600"))
+        init_pool(
+            host=app.config["RETHINKDB_HOST"],
+            port=app.config["RETHINKDB_PORT"],
+            db=app.config["RETHINKDB_DB"],
+            auth_key=app.config["RETHINKDB_AUTH"],
+            pool_size=pool_size,
+            conn_ttl=conn_ttl,
+        )
         return True

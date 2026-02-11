@@ -59,163 +59,182 @@ class DomainsThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("domains")
-                        .pluck(
-                            "id",
-                            {
-                                "create_dict": {
-                                    "reservables": True,
-                                    "hardware": {"vcpus": True, "memory": True},
-                                }
-                            },
-                            "kind",
-                            "server",
-                            "hyp_started",
-                            "name",
-                            "status",
-                            "username",
-                            "accessed",
-                            "forced_hyp",
-                            "favourite_hyp",
-                            "booking_id",
-                            "tag",
-                            "start_logs_id",
-                            "user",
-                            "category",
-                            {"viewer": {"guest_ip": True}},
-                            "image",
-                            "description",
-                            "progress",
-                            "server_autostart",
-                            "persistent",
-                        )
-                        .changes(include_initial=False, squash=0.5)
-                        .run(db.conn)
-                    ):
-                        if self.stop == True:
-                            break
-                        if c["new_val"] == None:
-                            data = c["old_val"]
-                            event = (
-                                "desktop_delete"
-                                if data["kind"] == "desktop"
-                                else "template_delete"
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("domains")
+                            .pluck(
+                                "id",
+                                {
+                                    "create_dict": {
+                                        "reservables": True,
+                                        "hardware": {"vcpus": True, "memory": True},
+                                    }
+                                },
+                                "kind",
+                                "server",
+                                "hyp_started",
+                                "name",
+                                "status",
+                                "username",
+                                "accessed",
+                                "forced_hyp",
+                                "favourite_hyp",
+                                "booking_id",
+                                "tag",
+                                "start_logs_id",
+                                "user",
+                                "category",
+                                {"viewer": {"guest_ip": True}},
+                                "image",
+                                "description",
+                                "progress",
+                                "server_autostart",
+                                "persistent",
                             )
-                            if event == "desktop_delete" and data.get("tag"):
-                                if (
-                                    not r.table("domains")
-                                    .get_all(data["tag"], index="tag")
-                                    .count()
-                                    .run(db.conn)
-                                ):
-                                    deployment = (
-                                        r.table("deployments")
-                                        .get(data["tag"])
-                                        .run(db.conn)
-                                    )
-                                    if (
-                                        deployment
-                                        and deployment.get("status", "") == "deleting"
-                                    ):
-                                        r.table("deployments").get(
-                                            data["tag"]
-                                        ).delete().run(db.conn)
-                            user = data.pop("user")
-                            category = data.pop("category")
-                            data = {"id": data["id"], "name": data["name"]}
-                        else:
-                            data = c["new_val"]
-                            if (
-                                c["old_val"]
-                                and c["old_val"].get("progress")
-                                and c["new_val"].get("progress")
-                            ):
-                                if c["old_val"]["progress"] == c["new_val"]["progress"]:
-                                    data.pop("progress")
-                            if c["old_val"] == None:
-                                user = get_cached_user_with_names(
-                                    data["user"], with_secondary_groups_names=False
+                            .changes(include_initial=False, squash=0.5)
+                            .run(conn)
+                        ):
+                            if self.stop == True:
+                                break
+                            if c["new_val"] == None:
+                                data = c["old_val"]
+                                event = (
+                                    "desktop_delete"
+                                    if data["kind"] == "desktop"
+                                    else "template_delete"
                                 )
-                                if user:
-                                    data.update(
-                                        {
-                                            "role": user["role"],
-                                            "group": user["group"],
-                                            "category": user["category"],
-                                            "group_name": user["group_name"],
-                                            "category_name": user["category_name"],
-                                            "user_name": user["user_name"],
-                                        }
-                                    )
-                            if data["kind"] == "desktop":
-                                event = "desktop_data"
-                                start_logs_id = data.pop("start_logs_id", None)
-                                if start_logs_id:
-                                    if c["new_val"].get("status") == "Started" and c[
-                                        "old_val"
-                                    ].get("status") != c["new_val"].get("status"):
-                                        logs_domain_start_engine(
-                                            start_logs_id,
-                                            data.get("id"),
-                                            data.get("hyp_started"),
-                                        )
-                                    if c["new_val"].get("status") in [
-                                        "Stopped",
-                                        "Failed",
-                                    ] and c["old_val"].get("status") != c[
-                                        "new_val"
-                                    ].get(
-                                        "status"
+                                if event == "desktop_delete" and data.get("tag"):
+                                    if (
+                                        not r.table("domains")
+                                        .get_all(data["tag"], index="tag")
+                                        .count()
+                                        .run(conn)
                                     ):
-                                        logs_domain_stop_engine(
-                                            start_logs_id,
-                                            c["new_val"].get("status"),
+                                        deployment = (
+                                            r.table("deployments")
+                                            .get(data["tag"])
+                                            .run(conn)
                                         )
-                                        api_scheduler.remove_desktop_timeouts(
-                                            data.get("id")
+                                        if (
+                                            deployment
+                                            and deployment.get("status", "")
+                                            == "deleting"
+                                        ):
+                                            r.table("deployments").get(
+                                                data["tag"]
+                                            ).delete().run(conn)
+                                user = data.pop("user")
+                                category = data.pop("category")
+                                data = {"id": data["id"], "name": data["name"]}
+                            else:
+                                data = c["new_val"]
+                                if (
+                                    c["old_val"]
+                                    and c["old_val"].get("progress")
+                                    and c["new_val"].get("progress")
+                                ):
+                                    if (
+                                        c["old_val"]["progress"]
+                                        == c["new_val"]["progress"]
+                                    ):
+                                        data.pop("progress")
+                                if c["old_val"] == None:
+                                    user = get_cached_user_with_names(
+                                        data["user"], with_secondary_groups_names=False
+                                    )
+                                    if user:
+                                        data.update(
+                                            {
+                                                "role": user["role"],
+                                                "group": user["group"],
+                                                "category": user["category"],
+                                                "group_name": user["group_name"],
+                                                "category_name": user["category_name"],
+                                                "user_name": user["user_name"],
+                                            }
                                         )
-                                        if data["persistent"] == False:
-                                            api_scheduler.add_nonpersistent_desktop_delete_timeout(
+                                if data["kind"] == "desktop":
+                                    event = "desktop_data"
+                                    start_logs_id = data.pop("start_logs_id", None)
+                                    if start_logs_id:
+                                        if c["new_val"].get(
+                                            "status"
+                                        ) == "Started" and c["old_val"].get(
+                                            "status"
+                                        ) != c[
+                                            "new_val"
+                                        ].get(
+                                            "status"
+                                        ):
+                                            logs_domain_start_engine(
+                                                start_logs_id,
+                                                data.get("id"),
+                                                data.get("hyp_started"),
+                                            )
+                                        if c["new_val"].get("status") in [
+                                            "Stopped",
+                                            "Failed",
+                                        ] and c["old_val"].get("status") != c[
+                                            "new_val"
+                                        ].get(
+                                            "status"
+                                        ):
+                                            logs_domain_stop_engine(
+                                                start_logs_id,
+                                                c["new_val"].get("status"),
+                                            )
+                                            api_scheduler.remove_desktop_timeouts(
                                                 data.get("id")
                                             )
+                                            if data["persistent"] == False:
+                                                api_scheduler.add_nonpersistent_desktop_delete_timeout(
+                                                    data.get("id")
+                                                )
+                                    else:
+                                        if c["new_val"].get(
+                                            "status"
+                                        ) == "Started" and c["old_val"].get(
+                                            "status"
+                                        ) != c[
+                                            "new_val"
+                                        ].get(
+                                            "status"
+                                        ):
+                                            logs_domain_start_engine(
+                                                start_logs_id,
+                                                data.get("id"),
+                                                data.get("hyp_started"),
+                                            )
+                                    # if data['status'] == 'Started' and 'viewer' in data.keys() and 'guest_ip' in data['viewer'].keys():
+                                    #    if 'viewer' not in c['old_val'] or 'guest_ip' not in c['old_val']:
+                                    #        event='desktop_guestip'
                                 else:
-                                    if c["new_val"].get("status") == "Started" and c[
-                                        "old_val"
-                                    ].get("status") != c["new_val"].get("status"):
-                                        logs_domain_start_engine(
-                                            start_logs_id,
-                                            data.get("id"),
-                                            data.get("hyp_started"),
-                                        )
-                                # if data['status'] == 'Started' and 'viewer' in data.keys() and 'guest_ip' in data['viewer'].keys():
-                                #    if 'viewer' not in c['old_val'] or 'guest_ip' not in c['old_val']:
-                                #        event='desktop_guestip'
-                            else:
-                                event = "template_data"
-                            user = data.pop("user")
-                            category = data["category"]
-                        socketio.emit(
-                            event,
-                            json.dumps(data),
-                            namespace="/administrators",
-                            room=user,
-                        )
-                        ## Manager update
-                        socketio.emit(
-                            event,
-                            json.dumps(data),
-                            namespace="/administrators",
-                            room=category,
-                        )
-                        # All admins
-                        socketio.emit(
-                            event,
-                            json.dumps(data),
-                            namespace="/administrators",
-                            room="admins",
-                        )
-
+                                    event = "template_data"
+                                user = data.pop("user")
+                                category = data["category"]
+                            socketio.emit(
+                                event,
+                                json.dumps(data),
+                                namespace="/administrators",
+                                room=user,
+                            )
+                            ## Manager update
+                            socketio.emit(
+                                event,
+                                json.dumps(data),
+                                namespace="/administrators",
+                                room=category,
+                            )
+                            # All admins
+                            socketio.emit(
+                                event,
+                                json.dumps(data),
+                                namespace="/administrators",
+                                room="admins",
+                            )
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("DomainsThread: Rethink db connection lost!")
                 app.logger.error("DomainsThread: Rethink db connection lost!")
@@ -252,63 +271,67 @@ class ResourcesThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("graphics")
-                        .merge({"table": "graphics"})
-                        .changes(include_initial=False)
-                        .union(
-                            r.table("videos")
-                            .merge({"table": "videos"})
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("graphics")
+                            .merge({"table": "graphics"})
                             .changes(include_initial=False)
                             .union(
-                                r.table("interfaces")
-                                .merge({"table": "interfaces"})
+                                r.table("videos")
+                                .merge({"table": "videos"})
                                 .changes(include_initial=False)
                                 .union(
-                                    r.table("qos_net")
-                                    .merge({"table": "qos_net"})
+                                    r.table("interfaces")
+                                    .merge({"table": "interfaces"})
                                     .changes(include_initial=False)
                                     .union(
-                                        r.table("qos_disk")
-                                        .merge({"table": "qos_disk"})
+                                        r.table("qos_net")
+                                        .merge({"table": "qos_net"})
                                         .changes(include_initial=False)
                                         .union(
-                                            r.table("remotevpn")
-                                            .merge({"table": "remotevpn"})
+                                            r.table("qos_disk")
+                                            .merge({"table": "qos_disk"})
                                             .changes(include_initial=False)
                                             .union(
-                                                r.table("boots")
-                                                .merge({"table": "boots"})
+                                                r.table("remotevpn")
+                                                .merge({"table": "remotevpn"})
                                                 .changes(include_initial=False)
+                                                .union(
+                                                    r.table("boots")
+                                                    .merge({"table": "boots"})
+                                                    .changes(include_initial=False)
+                                                )
                                             )
                                         )
                                     )
                                 )
                             )
-                        )
-                        .run(db.conn)
-                    ):
-                        if self.stop == True:
-                            break
-                        if c["new_val"] == None:
-                            data = {
-                                "table": c["old_val"]["table"],
-                                "data": c["old_val"],
-                            }
-                            event = "delete"
-                        else:
-                            data = {
-                                "table": c["new_val"]["table"],
-                                "data": c["new_val"],
-                            }
-                            event = "data"
-                        ## Admins should receive all updates on /isard-admin/admin namespace
-                        socketio.emit(
-                            event,
-                            json.dumps(data),  # app.isardapi.f.flatten_dict(data)),
-                            namespace="/administrators",
-                            room="admins",
-                        )
+                            .run(conn)
+                        ):
+                            if self.stop == True:
+                                break
+                            if c["new_val"] == None:
+                                data = {
+                                    "table": c["old_val"]["table"],
+                                    "data": c["old_val"],
+                                }
+                                event = "delete"
+                            else:
+                                data = {
+                                    "table": c["new_val"]["table"],
+                                    "data": c["new_val"],
+                                }
+                                event = "data"
+                            ## Admins should receive all updates on /isard-admin/admin namespace
+                            socketio.emit(
+                                event,
+                                json.dumps(data),  # app.isardapi.f.flatten_dict(data)),
+                                namespace="/administrators",
+                                room="admins",
+                            )
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("ResourcesThread: Rethink db connection lost!")
                 app.logger.error("ResourcesThread: Rethink db connection lost!")
@@ -342,98 +365,101 @@ class UsersThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("users")
-                        .merge({"table": "users"})
-                        .without(
-                            "password",
-                            {"vpn": {"wireguard": "keys"}},
-                            "photo",
-                        )
-                        .changes(include_initial=False, squash=0.5)
-                        .union(
-                            r.table("categories")
-                            .merge({"table": "categories"})
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("users")
+                            .merge({"table": "users"})
+                            .without(
+                                "password",
+                                {"vpn": {"wireguard": "keys"}},
+                                "photo",
+                            )
                             .changes(include_initial=False, squash=0.5)
                             .union(
-                                r.table("groups")
-                                .merge({"table": "groups"})
+                                r.table("categories")
+                                .merge({"table": "categories"})
                                 .changes(include_initial=False, squash=0.5)
-                            )
-                        )
-                        .run(db.conn)
-                    ):
-                        if self.stop == True:
-                            break
-                        if c["new_val"] == None:
-                            data = c["old_val"]
-                            table = c["old_val"]["table"]
-                            event = table + "_delete"
-                        else:
-                            data = c["new_val"]
-                            table = c["new_val"]["table"]
-                            event = table + "_data"
-
-                            if table == "users":
-                                data["role_name"] = (
-                                    r.table("roles")
-                                    .get(data["role"])
-                                    .run(db.conn)["name"]
-                                )
-                                data["secondary_groups_data"] = (
+                                .union(
                                     r.table("groups")
-                                    .get_all(r.args(data["secondary_groups"]))
-                                    .pluck("id", "name")
-                                    .coerce_to("array")
-                                    .run(db.conn)
+                                    .merge({"table": "groups"})
+                                    .changes(include_initial=False, squash=0.5)
                                 )
-                                # Add new user
-                                if c["old_val"]:
-                                    data["category_name"] = (
-                                        r.table("categories")
-                                        .get(data["category"])
-                                        .run(db.conn)["name"]
-                                    )
-                                    data["group_name"] = (
-                                        r.table("groups")
-                                        .get(data["group"])
-                                        .run(db.conn)["name"]
-                                    )
-                        socketio.emit(
-                            event,
-                            json.dumps(data),
-                            namespace="/userspace",
-                            room=data["id"],
-                        )
-                        # Admins receive all events
-                        socketio.emit(
-                            event,
-                            json.dumps(data),
-                            namespace="/administrators",
-                            room="admins",
-                        )
-
-                        # Managers only get it's own category events
-                        ## Get the table category
-                        if table == "users":
-                            category = data["category"]
-                        elif table == "categories":
-                            category = data["id"]
-                        else:
-                            category = (
-                                data["parent_category"]
-                                if "parent_category" in data.keys()
-                                else False
                             )
+                            .run(conn)
+                        ):
+                            if self.stop == True:
+                                break
+                            if c["new_val"] == None:
+                                data = c["old_val"]
+                                table = c["old_val"]["table"]
+                                event = table + "_delete"
+                            else:
+                                data = c["new_val"]
+                                table = c["new_val"]["table"]
+                                event = table + "_data"
 
-                        if category:
+                                if table == "users":
+                                    data["role_name"] = (
+                                        r.table("roles")
+                                        .get(data["role"])
+                                        .run(conn)["name"]
+                                    )
+                                    data["secondary_groups_data"] = (
+                                        r.table("groups")
+                                        .get_all(r.args(data["secondary_groups"]))
+                                        .pluck("id", "name")
+                                        .coerce_to("array")
+                                        .run(conn)
+                                    )
+                                    # Add new user
+                                    if c["old_val"]:
+                                        data["category_name"] = (
+                                            r.table("categories")
+                                            .get(data["category"])
+                                            .run(conn)["name"]
+                                        )
+                                        data["group_name"] = (
+                                            r.table("groups")
+                                            .get(data["group"])
+                                            .run(conn)["name"]
+                                        )
+                            socketio.emit(
+                                event,
+                                json.dumps(data),
+                                namespace="/userspace",
+                                room=data["id"],
+                            )
+                            # Admins receive all events
                             socketio.emit(
                                 event,
                                 json.dumps(data),
                                 namespace="/administrators",
-                                room=category,
+                                room="admins",
                             )
 
+                            # Managers only get it's own category events
+                            ## Get the table category
+                            if table == "users":
+                                category = data["category"]
+                            elif table == "categories":
+                                category = data["id"]
+                            else:
+                                category = (
+                                    data["parent_category"]
+                                    if "parent_category" in data.keys()
+                                    else False
+                                )
+
+                            if category:
+                                socketio.emit(
+                                    event,
+                                    json.dumps(data),
+                                    namespace="/administrators",
+                                    room=category,
+                                )
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("UsersThread: Rethink db connection lost!")
                 app.logger.error("UsersThread: Rethink db connection lost!")
@@ -467,108 +493,119 @@ class HypervisorsThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("hypervisors")
-                        .pluck(
-                            [
-                                "enabled",
-                                "id",
-                                "only_forced",
-                                "stats",
-                                "cap_status",
-                                "capabilities",
-                                "viewer_status",
-                                "status",
-                                "status_time",
-                                {
-                                    "stats": {
-                                        "mem_stats": {"total": True, "available": True},
-                                        "cpu_1min": {"used": True},
-                                        "last_action": True,
-                                        "positioned_items": True,
-                                    }
-                                },
-                                {"vpn": {"wireguard": {"connected": True}}},
-                                "min_free_mem_gb",
-                                "min_free_gpu_mem_gb",
-                                "gpu_only",
-                                "orchestrator_managed",
-                                "destroy_time",
-                            ]
-                        )
-                        .changes(include_initial=False)
-                        .run(db.conn)
-                    ):
-                        if self.stop == True:
-                            break
-                        if c["new_val"] == None:
-                            socketio.emit(
-                                "hyper_deleted",
-                                json.dumps(c["old_val"]),
-                                namespace="/administrators",
-                                room="admins",
-                            )
-                        else:
-                            if c["old_val"] == None or c["old_val"].get("status") != c[
-                                "new_val"
-                            ].get("status"):
-                                try:
-                                    data = (
-                                        r.table("hypervisors")
-                                        .get(c["new_val"]["id"])
-                                        .merge(
-                                            lambda hyper: {
-                                                "gpus": r.table("vgpus")
-                                                .filter({"hyp_id": hyper["id"]})["id"]
-                                                .coerce_to("array"),
-                                                "physical_gpus": r.table("gpus")
-                                                .filter(
-                                                    lambda gpu: gpu[
-                                                        "physical_device"
-                                                    ].ne(None)
-                                                )["physical_device"]
-                                                .coerce_to("array"),
-                                                "desktops_started": r.table("domains")
-                                                .get_all(
-                                                    hyper["id"], index="hyp_started"
-                                                )
-                                                .count(),
-                                            }
-                                        )
-                                        .run(db.conn)
-                                    )
-                                    socketio.emit(
-                                        "hyper_data",
-                                        json.dumps(data),
-                                        namespace="/administrators",
-                                        room="admins",
-                                    )
-                                except Exception as e:
-                                    app.logger.warning(
-                                        f"Hypervisor {c['new_val']['id']} already deleted in system. Skip sending socketio event"
-                                    )
-                                continue
-                            if c["new_val"]["status"] != "Online":
-                                data = c["new_val"]
-                                data["desktops_started"] = 0
-                            else:
-                                data = {
-                                    **c["new_val"],
-                                    **{
-                                        "desktops_started": r.table("domains")
-                                        .get_all(
-                                            c["new_val"]["id"], index="hyp_started"
-                                        )
-                                        .count()
-                                        .run(db.conn),
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("hypervisors")
+                            .pluck(
+                                [
+                                    "enabled",
+                                    "id",
+                                    "only_forced",
+                                    "stats",
+                                    "cap_status",
+                                    "capabilities",
+                                    "viewer_status",
+                                    "status",
+                                    "status_time",
+                                    {
+                                        "stats": {
+                                            "mem_stats": {
+                                                "total": True,
+                                                "available": True,
+                                            },
+                                            "cpu_1min": {"used": True},
+                                            "last_action": True,
+                                            "positioned_items": True,
+                                        }
                                     },
-                                }
-                            socketio.emit(
-                                "hyper_data",
-                                json.dumps(data),
-                                namespace="/administrators",
-                                room="admins",
+                                    {"vpn": {"wireguard": {"connected": True}}},
+                                    "min_free_mem_gb",
+                                    "min_free_gpu_mem_gb",
+                                    "gpu_only",
+                                    "orchestrator_managed",
+                                    "destroy_time",
+                                ]
                             )
+                            .changes(include_initial=False)
+                            .run(conn)
+                        ):
+                            if self.stop == True:
+                                break
+                            if c["new_val"] == None:
+                                socketio.emit(
+                                    "hyper_deleted",
+                                    json.dumps(c["old_val"]),
+                                    namespace="/administrators",
+                                    room="admins",
+                                )
+                            else:
+                                if c["old_val"] == None or c["old_val"].get(
+                                    "status"
+                                ) != c["new_val"].get("status"):
+                                    try:
+                                        data = (
+                                            r.table("hypervisors")
+                                            .get(c["new_val"]["id"])
+                                            .merge(
+                                                lambda hyper: {
+                                                    "gpus": r.table("vgpus")
+                                                    .filter({"hyp_id": hyper["id"]})[
+                                                        "id"
+                                                    ]
+                                                    .coerce_to("array"),
+                                                    "physical_gpus": r.table("gpus")
+                                                    .filter(
+                                                        lambda gpu: gpu[
+                                                            "physical_device"
+                                                        ].ne(None)
+                                                    )["physical_device"]
+                                                    .coerce_to("array"),
+                                                    "desktops_started": r.table(
+                                                        "domains"
+                                                    )
+                                                    .get_all(
+                                                        hyper["id"], index="hyp_started"
+                                                    )
+                                                    .count(),
+                                                }
+                                            )
+                                            .run(conn)
+                                        )
+                                        socketio.emit(
+                                            "hyper_data",
+                                            json.dumps(data),
+                                            namespace="/administrators",
+                                            room="admins",
+                                        )
+                                    except Exception as e:
+                                        app.logger.warning(
+                                            f"Hypervisor {c['new_val']['id']} already deleted in system. Skip sending socketio event"
+                                        )
+                                    continue
+                                if c["new_val"]["status"] != "Online":
+                                    data = c["new_val"]
+                                    data["desktops_started"] = 0
+                                else:
+                                    data = {
+                                        **c["new_val"],
+                                        **{
+                                            "desktops_started": r.table("domains")
+                                            .get_all(
+                                                c["new_val"]["id"], index="hyp_started"
+                                            )
+                                            .count()
+                                            .run(conn),
+                                        },
+                                    }
+                                socketio.emit(
+                                    "hyper_data",
+                                    json.dumps(data),
+                                    namespace="/administrators",
+                                    room="admins",
+                                )
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("HypervisorsThread: Rethink db connection lost!")
                 app.logger.error("HypervisorsThread: Rethink db connection lost!")
@@ -602,37 +639,41 @@ class ConfigThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("scheduler_jobs")
-                        .has_fields("name")
-                        .without("job_state")
-                        .merge(
-                            {
-                                "table": "scheduler_jobs",
-                                "date": r.row["date"].to_iso8601(),
-                            }
-                        )
-                        .changes(include_initial=False)
-                        .run(db.conn)
-                    ):
-                        if self.stop == True:
-                            break
-                        if c["new_val"] == None:
-                            event = "_deleted"
-                            socketio.emit(
-                                c["old_val"]["table"] + event,
-                                json.dumps({"id": c["old_val"]["id"]}),
-                                namespace="/administrators",
-                                room="admins",
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("scheduler_jobs")
+                            .has_fields("name")
+                            .without("job_state")
+                            .merge(
+                                {
+                                    "table": "scheduler_jobs",
+                                    "date": r.row["date"].to_iso8601(),
+                                }
                             )
-                        else:
-                            event = "_data"
-                            socketio.emit(
-                                c["new_val"]["table"] + event,
-                                json.dumps(c["new_val"]),
-                                namespace="/administrators",
-                                room="admins",
-                            )
+                            .changes(include_initial=False)
+                            .run(conn)
+                        ):
+                            if self.stop == True:
+                                break
+                            if c["new_val"] == None:
+                                event = "_deleted"
+                                socketio.emit(
+                                    c["old_val"]["table"] + event,
+                                    json.dumps({"id": c["old_val"]["id"]}),
+                                    namespace="/administrators",
+                                    room="admins",
+                                )
+                            else:
+                                event = "_data"
+                                socketio.emit(
+                                    c["new_val"]["table"] + event,
+                                    json.dumps(c["new_val"]),
+                                    namespace="/administrators",
+                                    room="admins",
+                                )
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("ConfigThread: Rethink db connection lost!")
                 app.logger.error("ConfigThread: Rethink db connection lost!")

@@ -66,233 +66,232 @@ class DomainsThread(threading.Thread):
         while True:
             try:
                 with app.app_context():
-                    for c in (
-                        r.table("domains")
-                        .pluck(
-                            [
-                                "id",
-                                "name",
-                                "icon",
-                                "image",
-                                "user",
-                                "group",
-                                "category",
-                                "status",
-                                "description",
-                                "parents",
-                                "persistent",
-                                "os",
-                                "tag_visible",
-                                "viewer",
-                                "guest_properties",
-                                {
-                                    "create_dict": {
-                                        "hardware": [
-                                            "interfaces",
-                                            "videos",
-                                            "disks",
-                                        ],
-                                        "reservables": True,
+                    conn = db.connect()
+                    try:
+                        for c in (
+                            r.table("domains")
+                            .pluck(
+                                [
+                                    "id",
+                                    "name",
+                                    "icon",
+                                    "image",
+                                    "user",
+                                    "group",
+                                    "category",
+                                    "status",
+                                    "description",
+                                    "parents",
+                                    "persistent",
+                                    "os",
+                                    "tag_visible",
+                                    "viewer",
+                                    "guest_properties",
+                                    {
+                                        "create_dict": {
+                                            "hardware": [
+                                                "interfaces",
+                                                "videos",
+                                                "disks",
+                                            ],
+                                            "reservables": True,
+                                        },
                                     },
-                                },
-                                "kind",
-                                "tag",
-                                "progress",
-                                "jumperurl",
-                                "booking_id",
-                                "scheduled",
-                                "server",
-                                "accessed",
-                            ]
-                        )
-                        .changes(include_initial=False)
-                        .run(db.conn)
-                    ):
-                        if self.stop == True:
-                            break
+                                    "kind",
+                                    "tag",
+                                    "progress",
+                                    "jumperurl",
+                                    "booking_id",
+                                    "scheduled",
+                                    "server",
+                                    "accessed",
+                                ]
+                            )
+                            .changes(include_initial=False)
+                            .run(conn)
+                        ):
+                            if self.stop == True:
+                                break
 
-                        if c["new_val"] == None:
-                            event = "delete"
-                            try:
-                                if c["old_val"]["image"]["type"] == "user":
-                                    api_cards.delete_card(c["old_val"]["image"]["id"])
-                            except:
-                                log.warning(
-                                    "Unable to delete card "
-                                    + c["old_val"]["image"]["id"]
-                                )
-                            if c["old_val"]["kind"] != "desktop":
-                                item = "template"
+                            if c["new_val"] == None:
+                                event = "delete"
+                                try:
+                                    if c["old_val"]["image"]["type"] == "user":
+                                        api_cards.delete_card(
+                                            c["old_val"]["image"]["id"]
+                                        )
+                                except:
+                                    log.warning(
+                                        "Unable to delete card "
+                                        + c["old_val"]["image"]["id"]
+                                    )
+                                if c["old_val"]["kind"] != "desktop":
+                                    item = "template"
+                                else:
+                                    item = "desktop"
+                                data = c["old_val"]
                             else:
-                                item = "desktop"
-                            data = c["old_val"]
-                        else:
-                            if not _is_frontend_desktop_status(c["new_val"]["status"]):
-                                continue
-                            if c["new_val"]["kind"] != "desktop":
-                                item = "template"
-                            else:
-                                item = "desktop"
+                                if not _is_frontend_desktop_status(
+                                    c["new_val"]["status"]
+                                ):
+                                    continue
+                                if c["new_val"]["kind"] != "desktop":
+                                    item = "template"
+                                else:
+                                    item = "desktop"
 
-                            if c["old_val"] == None:
-                                # New
-                                event = "add"
-                            else:
-                                if not c["old_val"].get("tag_visible") and c[
-                                    "new_val"
-                                ].get("tag_visible"):
+                                if c["old_val"] == None:
+                                    # New
                                     event = "add"
                                 else:
-                                    # Update
-                                    event = "update"
-                                    if c["old_val"]["status"] in [
-                                        "Stopping",
-                                        "Shutting-down",
-                                        "Started",
-                                    ] and c["new_val"]["status"] in [
-                                        "Stopped",
-                                        "Failed",
-                                    ]:
-                                        scheduler.remove_desktop_timeouts(
-                                            c["new_val"]["id"]
-                                        )
-                                    if c["old_val"]["user"] != c["new_val"]["user"]:
-                                        socketio.emit(
-                                            item + "_delete",
-                                            json.dumps({"id": c["old_val"]["id"]}),
-                                            namespace="/userspace",
-                                            room=c["old_val"]["user"],
-                                        )
-                                    if (
-                                        c["old_val"]["status"]
-                                        in ["Starting", "StartingDomainDisposable"]
-                                        and c["new_val"]["status"] == "Started"
-                                    ):
-                                        set_cached_domain_wg_mac(
-                                            c["new_val"]["id"],
-                                            c["new_val"]
-                                            .get("create_dict", {})
-                                            .get("hardware", {})
-                                            .get("interfaces", [{}]),
-                                        )
-                                    elif c["new_val"]["status"] == "Stopped":
-                                        invalidate_cached_domain_wg_mac(
-                                            c["new_val"]["id"]
-                                        )
-                            data = c["new_val"]
+                                    if not c["old_val"].get("tag_visible") and c[
+                                        "new_val"
+                                    ].get("tag_visible"):
+                                        event = "add"
+                                    else:
+                                        # Update
+                                        event = "update"
+                                        if c["old_val"]["status"] in [
+                                            "Stopping",
+                                            "Shutting-down",
+                                            "Started",
+                                        ] and c["new_val"]["status"] in [
+                                            "Stopped",
+                                            "Failed",
+                                        ]:
+                                            scheduler.remove_desktop_timeouts(
+                                                c["new_val"]["id"]
+                                            )
+                                        if c["old_val"]["user"] != c["new_val"]["user"]:
+                                            socketio.emit(
+                                                item + "_delete",
+                                                json.dumps({"id": c["old_val"]["id"]}),
+                                                namespace="/userspace",
+                                                room=c["old_val"]["user"],
+                                            )
+                                        if (
+                                            c["old_val"]["status"]
+                                            in ["Starting", "StartingDomainDisposable"]
+                                            and c["new_val"]["status"] == "Started"
+                                        ):
+                                            set_cached_domain_wg_mac(
+                                                c["new_val"]["id"],
+                                                c["new_val"]
+                                                .get("create_dict", {})
+                                                .get("hardware", {})
+                                                .get("interfaces", [{}]),
+                                            )
+                                        elif c["new_val"]["status"] == "Stopped":
+                                            invalidate_cached_domain_wg_mac(
+                                                c["new_val"]["id"]
+                                            )
+                                data = c["new_val"]
 
-                        socketio.emit(
-                            item + "_" + event,
-                            json.dumps(
-                                data if item != "desktop" else _parse_desktop(data)
-                            ),
-                            namespace="/userspace",
-                            room=data["user"],
-                        )
-                        if (
-                            event == "update"
-                            and item == "desktop"
-                            and data.get("jumperurl")
-                            and (
-                                not data.get("tag", False)
-                                or (
-                                    data.get("tag", False)
-                                    and data.get("tag_visible", False)
-                                )
+                            socketio.emit(
+                                item + "_" + event,
+                                json.dumps(
+                                    data if item != "desktop" else _parse_desktop(data)
+                                ),
+                                namespace="/userspace",
+                                room=data["user"],
                             )
-                            and c.get("new_val", {}).get("status") == "Started"
-                            and c.get("new_val", {}).get("viewer", {}).get("passwd")
-                            and c.get("old_val", {}).get("viewer", {}).get("guest_ip")
-                            != c.get("new_val", {}).get("viewer", {}).get("guest_ip")
-                        ):
-                            try:
-                                viewers = common.DesktopViewerFromToken(
-                                    data.get("jumperurl"),
-                                    start_desktop=False,
+                            if (
+                                event == "update"
+                                and item == "desktop"
+                                and data.get("jumperurl")
+                                and (
+                                    not data.get("tag", False)
+                                    or (
+                                        data.get("tag", False)
+                                        and data.get("tag_visible", False)
+                                    )
                                 )
-                            except Exception as e:
-                                app.logger.error(
-                                    {
-                                        "error": "desktop_viewer_from_token",
-                                        "msg": str(e),
+                                and c.get("new_val", {}).get("status") == "Started"
+                                and c.get("new_val", {}).get("viewer", {}).get("passwd")
+                                and c.get("old_val", {})
+                                .get("viewer", {})
+                                .get("guest_ip")
+                                != c.get("new_val", {})
+                                .get("viewer", {})
+                                .get("guest_ip")
+                            ):
+                                try:
+                                    viewers = common.DesktopViewerFromToken(
+                                        data.get("jumperurl"),
+                                        start_desktop=False,
+                                    )
+                                except Exception as e:
+                                    app.logger.error(
+                                        {
+                                            "error": "desktop_viewer_from_token",
+                                            "msg": str(e),
+                                        }
+                                    )
+                                    continue
+                                if viewers is not None:
+                                    viewer_data = {
+                                        "desktopId": viewers.pop("desktopId", None),
+                                        "jwt": viewers.pop("jwt", None),
+                                        "vmName": viewers.pop("vmName", None),
+                                        "vmDescription": viewers.pop(
+                                            "vmDescription", None
+                                        ),
+                                        "vmState": viewers.pop("vmState"),
+                                        "scheduled": viewers.pop("scheduled", None),
+                                        "viewers": viewers,
+                                        "needs_booking": viewers.pop(
+                                            "needs_booking", False
+                                        ),
+                                        "next_booking_start": viewers.pop(
+                                            "next_booking_start", None
+                                        ),
+                                        "next_booking_end": viewers.pop(
+                                            "next_booking_end", None
+                                        ),
                                     }
-                                )
-                                continue
-                            if viewers is not None:
-                                viewer_data = {
-                                    "desktopId": viewers.pop("desktopId", None),
-                                    "jwt": viewers.pop("jwt", None),
-                                    "vmName": viewers.pop("vmName", None),
-                                    "vmDescription": viewers.pop("vmDescription", None),
-                                    "vmState": viewers.pop("vmState"),
-                                    "scheduled": viewers.pop("scheduled", None),
-                                    "viewers": viewers,
-                                    "needs_booking": viewers.pop(
-                                        "needs_booking", False
-                                    ),
-                                    "next_booking_start": viewers.pop(
-                                        "next_booking_start", None
-                                    ),
-                                    "next_booking_end": viewers.pop(
-                                        "next_booking_end", None
-                                    ),
-                                }
-                                socketio.emit(
-                                    "directviewer_update",
-                                    json.dumps(viewer_data),
-                                    namespace="/userspace",
-                                    room=data["id"],
-                                )
-                        # Event delete for users when tag becomes hidden
-                        if data.get("tag", False) and not data.get("tag_visible", True):
-                            if c["old_val"] is None or c["old_val"].get("tag_visible"):
-                                socketio.emit(
-                                    "desktop_delete",
-                                    json.dumps({"id": data["id"]}),
-                                    namespace="/userspace",
-                                    room=data["user"],
-                                )
-
-                        ## Tagged desktops update/add new data
-                        if data.get("tag", False):
-                            try:
-                                deployment = get(data.get("tag"), False)
-                                if c is None:
-                                    raise Error("RethinkDB cursor is None")
-                            except:
-                                continue
-
-                            if event == "delete":
-                                socketio.emit(
-                                    "deploymentdesktop_delete",
-                                    json.dumps(data),
-                                    namespace="/userspace",
-                                    room=(
-                                        lambda x: (x.append(deployment["user"]), x)[1]
-                                    )(deployment["co_owners"]),
-                                )
-                            elif event == "add":
-                                socketio.emit(
-                                    "deploymentdesktop_add",
-                                    json.dumps(_parse_deployment_desktop(data)),
-                                    namespace="/userspace",
-                                    room=(
-                                        lambda x: (x.append(deployment["user"]), x)[1]
-                                    )(deployment["co_owners"]),
-                                )
-
-                            try:
-                                if event == "update" or (
-                                    c is not None
-                                    and c.get("old_val") is not None
-                                    and c.get("new_val") is not None
-                                    and c["old_val"].get("tag_visible") is not None
-                                    and c["new_val"].get("tag_visible") is not None
-                                    and c["old_val"].get("tag_visible")
-                                    != c["new_val"].get("tag_visible")
+                                    socketio.emit(
+                                        "directviewer_update",
+                                        json.dumps(viewer_data),
+                                        namespace="/userspace",
+                                        room=data["id"],
+                                    )
+                            # Event delete for users when tag becomes hidden
+                            if data.get("tag", False) and not data.get(
+                                "tag_visible", True
+                            ):
+                                if c["old_val"] is None or c["old_val"].get(
+                                    "tag_visible"
                                 ):
                                     socketio.emit(
-                                        "deploymentdesktop_update",
+                                        "desktop_delete",
+                                        json.dumps({"id": data["id"]}),
+                                        namespace="/userspace",
+                                        room=data["user"],
+                                    )
+
+                            ## Tagged desktops update/add new data
+                            if data.get("tag", False):
+                                try:
+                                    deployment = get(data.get("tag"), False)
+                                    if c is None:
+                                        raise Error("RethinkDB cursor is None")
+                                except:
+                                    continue
+
+                                if event == "delete":
+                                    socketio.emit(
+                                        "deploymentdesktop_delete",
+                                        json.dumps(data),
+                                        namespace="/userspace",
+                                        room=(
+                                            lambda x: (x.append(deployment["user"]), x)[
+                                                1
+                                            ]
+                                        )(deployment["co_owners"]),
+                                    )
+                                elif event == "add":
+                                    socketio.emit(
+                                        "deploymentdesktop_add",
                                         json.dumps(_parse_deployment_desktop(data)),
                                         namespace="/userspace",
                                         room=(
@@ -301,19 +300,43 @@ class DomainsThread(threading.Thread):
                                             ]
                                         )(deployment["co_owners"]),
                                     )
-                            except:
-                                pass
 
-                            # Event to deployment view (list of desktops)
-                            socketio.emit(
-                                "deployments_update",
-                                json.dumps(deployment),
-                                namespace="/userspace",
-                                room=(lambda x: (x.append(deployment["user"]), x)[1])(
-                                    deployment["co_owners"]
-                                ),
-                            )
+                                try:
+                                    if event == "update" or (
+                                        c is not None
+                                        and c.get("old_val") is not None
+                                        and c.get("new_val") is not None
+                                        and c["old_val"].get("tag_visible") is not None
+                                        and c["new_val"].get("tag_visible") is not None
+                                        and c["old_val"].get("tag_visible")
+                                        != c["new_val"].get("tag_visible")
+                                    ):
+                                        socketio.emit(
+                                            "deploymentdesktop_update",
+                                            json.dumps(_parse_deployment_desktop(data)),
+                                            namespace="/userspace",
+                                            room=(
+                                                lambda x: (
+                                                    x.append(deployment["user"]),
+                                                    x,
+                                                )[1]
+                                            )(deployment["co_owners"]),
+                                        )
+                                except:
+                                    pass
 
+                                # Event to deployment view (list of desktops)
+                                socketio.emit(
+                                    "deployments_update",
+                                    json.dumps(deployment),
+                                    namespace="/userspace",
+                                    room=(
+                                        lambda x: (x.append(deployment["user"]), x)[1]
+                                    )(deployment["co_owners"]),
+                                )
+
+                    finally:
+                        conn.close()
             except ReqlDriverError:
                 print("DomainsThread: Rethink db connection lost!")
                 log.error("DomainsThread: Rethink db connection lost!")
