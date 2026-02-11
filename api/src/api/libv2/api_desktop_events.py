@@ -586,47 +586,27 @@ def templates_delete(template_id, agent_id):
 
 
 def desktop_updating(desktop_id):
-    with app.app_context():
-        domain = r.table("domains").get(desktop_id).pluck("status").run(db.conn)
+    """Retry a Failed desktop by validating it can start on a hypervisor.
 
-    status = domain["status"]
-
-    # Early return if already updating
-    if status == "Updating":
-        return "Updating"
-
-    # Only allow updating from Stopped or Failed status
-    if status not in ["Stopped", "Failed"]:
-        raise Error(
-            "precondition_required",
-            f"Desktop can't be updated from {status} status. Desktop must be stopped first.",
-            traceback.format_exc(),
-            description_code="unable_to_update_desktop_from",
-        )
-
-    # Atomic update - only if still Stopped
+    Transitions Failed → StartingPaused, which triggers the engine to
+    resolve hardware from create_dict, test-boot the domain in paused
+    state, then set it to Stopped if successful.
+    """
     with app.app_context():
         result = (
             r.table("domains")
             .get(desktop_id)
             .update(
                 lambda row: r.branch(
-                    row["status"].match("Stopped|Failed"),
-                    {"status": "Updating"},
+                    row["status"].eq("Failed"),
+                    {"status": "StartingPaused"},
                     {},
                 ),
-                return_changes=True,
+                return_changes="always",
             )
             .run(db.conn)
         )
-
-    if not result.get("changes"):
-        # Status changed by another action - return current status
-        with app.app_context():
-            current = r.table("domains").get(desktop_id).pluck("status").run(db.conn)
-        return current["status"]
-
-    return "Updating"
+    return result["changes"][0]["new_val"]["status"]
 
 
 def desktops_force_failed(desktops_ids, batch_size=100):

@@ -24,7 +24,6 @@ from engine.services.db import (
     update_domain_viewer_started_values,
     update_domains_started_in_hyp_to_unknown,
     update_hyp_status,
-    update_last_hyp_id,
     update_table_field,
     update_vgpu_info_if_stopped,
     update_vgpu_uuid_domain_action,
@@ -1007,7 +1006,6 @@ class HypWorkerThread(threading.Thread):
                     f"Verified domain {action['id_domain']} is destroyed"
                 )
 
-            update_last_hyp_id(action["id_domain"], last_hyp_id=self.hyp_id)
             domain_active = False
         except (LibvirtTimeoutError, libvirtError) as e:
             error_msg = pformat(e.get_error_message())

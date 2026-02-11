@@ -547,7 +547,6 @@ def edit_deployment(payload, deployment_id, data):
             with app.app_context():
                 r.table("domains").get(domain).update(
                     {
-                        "status": "Updating",
                         "create_dict": {
                             "hardware": domain_update["create_dict"]["hardware"],
                             "reservables": r.literal(data.get("reservables")),
@@ -567,7 +566,6 @@ def edit_deployment(payload, deployment_id, data):
         with app.app_context():
             r.table("domains").get_all(deployment_id, index="tag").update(
                 {
-                    "status": "Updating",
                     "create_dict": {
                         "hardware": data["hardware"],
                         "reservables": r.literal(data.get("reservables")),

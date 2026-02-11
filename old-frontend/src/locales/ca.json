@@ -586,6 +586,10 @@
           "text": "Processant",
           "action": "Processant"
         },
+        "verifying": {
+          "text": "Verificant",
+          "action": "Verificant"
+        },
         "maintenance": {
           "text": "En manteniment",
           "action": "Cancel·lar operació"

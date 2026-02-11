@@ -22,11 +22,7 @@ from engine.services.db import (
     update_table_field,
     update_vgpu_info_if_stopped,
 )
-from engine.services.lib.functions import (
-    dict_domain_libvirt_state_to_isard_state,
-    get_tid,
-    state_and_cause_to_str,
-)
+from engine.services.lib.functions import get_tid
 from engine.services.log import logs
 from tabulate import tabulate
 
@@ -100,6 +96,8 @@ class ThreadBroom(threading.Thread):
 
                 t_broom_inner = time()
                 for db_domain in DB_DOMAINS_WITHOUT_HYP:
+                    if db_domain["status"] == "Stopping":
+                        continue
                     logs.broom.error(
                         "DOMAIN {} WITH STATUS {} without HYPERVISOR".format(
                             db_domain["id"], db_domain["status"]
@@ -148,7 +146,16 @@ class ThreadBroom(threading.Thread):
                             )
                         else:
                             h = hyp(hyp_id, hostname, user=user, port=port)
-                            if h.connected:
+                            if not h.connected:
+                                logs.broom.error(
+                                    f"HYPERVISOR {hyp_id} libvirt connection failed"
+                                )
+                                logs.broom.error(
+                                    "Traceback: {}".format(traceback.format_exc())
+                                )
+                                continue
+
+                            try:
                                 # Update the current hypervisor storage usage in the DB
                                 if disk_interval == 1:
                                     update_table_dict(
@@ -158,15 +165,13 @@ class ThreadBroom(threading.Thread):
                                         soft=True,
                                     )
 
-                                hyps_domain_started[hyp_id] = {}
-                                hyps_domain_started[hyp_id]["hyp"] = h
                                 d_domains_status_from_hyp = h.get_domains()
                                 if d_domains_status_from_hyp is None:
                                     d_domains_status_from_hyp = {}
 
                                 # check if domain running in hypervisor is not defined in database
                                 domains_destroyed = []
-                                domains_debugging = []
+                                domains_handled = []
                                 for (
                                     domain_id,
                                     status_and_detail,
@@ -187,10 +192,15 @@ class ThreadBroom(threading.Thread):
                                                 logs.broom.error(
                                                     f"EXCEPTION when try to destroy domain not in database {domain_id} in hypervisor {hyp_id} with exception: {e}"
                                                 )
+                                            continue
                                         if db_domain.get("status") not in [
                                             "Started",
                                             "Shutting-down",
                                             "Stopping",
+                                            "CreatingDomain",
+                                            "CreatingAndStarting",
+                                            "CreatingDiskFromScratch",
+                                            "StartingDomainDisposable",
                                         ]:
                                             logs.broom.warning(
                                                 f"broom find domain {domain_id} with status {db_domain.get('status')} started in hypervisor {hyp_id} and updated status and hyp_started in database"
@@ -201,33 +211,19 @@ class ThreadBroom(threading.Thread):
                                                 "hyp_started updated by broom",
                                                 "Started",
                                             )
+                                        domains_handled.append(domain_id)
 
-                                # remove domains destroyed by broom
-                                [
-                                    d_domains_status_from_hyp.pop(k)
-                                    for k in domains_destroyed
-                                ]
-                                # remove domains debugging by broom
-                                [
-                                    d_domains_status_from_hyp.pop(k)
-                                    for k in domains_debugging
-                                ]
+                                # remove domains destroyed and already handled by broom
+                                for k in domains_destroyed:
+                                    d_domains_status_from_hyp.pop(k, None)
+                                for k in domains_handled:
+                                    d_domains_status_from_hyp.pop(k, None)
 
-                                hyps_domain_started[hyp_id][
-                                    "active_domains"
-                                ] = d_domains_status_from_hyp
-
-                            else:
-                                hyps_domain_started[hyp_id] = {}
-                                logs.broom.error(
-                                    "HYPERVISOR {} libvirt connection failed"
-                                )
-                                logs.broom.error(
-                                    "Traceback: {}".format(traceback.format_exc())
-                                )
-                                continue
-
-                            h.disconnect()
+                                hyps_domain_started[hyp_id] = {
+                                    "active_domains": d_domains_status_from_hyp
+                                }
+                            finally:
+                                h.disconnect()
 
                     except Exception as e:
                         logs.exception_id.debug("0003")
@@ -254,6 +250,16 @@ class ThreadBroom(threading.Thread):
                                 if db_domain is None:
                                     logs.broom.error(
                                         "CRITICAL, if domain is not in database, must have been destroyed previously by broom, will do it next loop"
+                                    )
+                                    continue
+                                if db_domain.get("status") in [
+                                    "CreatingDomain",
+                                    "CreatingAndStarting",
+                                    "CreatingDiskFromScratch",
+                                    "StartingDomainDisposable",
+                                ]:
+                                    logs.broom.debug(
+                                        f"broom skipping domain {domain_id} in creation status {db_domain.get('status')} on hypervisor {hyp_id}"
                                     )
                                     continue
                                 if domain_status == "Started":
@@ -363,20 +369,12 @@ class ThreadBroom(threading.Thread):
                                             domain_id, hyp_started
                                         )
                                     )
-                                    state_libvirt = (
-                                        hyps_domain_started[hyp_started]["hyp"]
-                                        .domains[domain_id]
-                                        .state()
-                                    )
-                                    state_str, cause = state_and_cause_to_str(
-                                        state_libvirt[0], state_libvirt[1]
-                                    )
-                                    status = dict_domain_libvirt_state_to_isard_state[
-                                        state_str
-                                    ]
+                                    active_status = hyps_domain_started[hyp_started][
+                                        "active_domains"
+                                    ][domain_id]["status"]
                                     logs.broom.debug(
                                         "DOMAIN: {} ACTIVE IN HYPERVISOR: {} WITH STATUS: {}".format(
-                                            domain_id, hyp_started, status
+                                            domain_id, hyp_started, active_status
                                         )
                                     )
                                     update_domain_hyp_started(domain_id, hyp_started)

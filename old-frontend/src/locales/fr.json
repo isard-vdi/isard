@@ -130,6 +130,10 @@
         },
         "downloading": {
           "text": "Téléchargement"
+        },
+        "verifying": {
+          "text": "Vérification",
+          "action": "Vérification"
         }
       },
       "remove": "Retirer",

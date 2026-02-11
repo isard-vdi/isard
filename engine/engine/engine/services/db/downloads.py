@@ -1,11 +1,21 @@
+from cachetools import TTLCache, cached
 from engine.services.db import rethink_conn
 from engine.services.log import *
 from rethinkdb import r
 
+_media_cache = TTLCache(maxsize=50, ttl=30)
 
-def get_media(id_media):
+
+@cached(cache=_media_cache)
+def get_media_cached(id_media):
+    """Get media with TTL caching."""
     with rethink_conn() as conn:
         return r.table("media").get(id_media).run(conn)
+
+
+def get_media(id_media):
+    """Get media - uses cache."""
+    return get_media_cached(id_media)
 
 
 def update_status_table(table, status, id_table, detail=""):

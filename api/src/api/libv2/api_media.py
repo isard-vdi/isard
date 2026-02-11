@@ -282,65 +282,6 @@ class ApiMedia:
             return r.table("media").get_all(user_id, index="user").count().run(db.conn)
 
 
-def domain_from_disk(user, name, description, icon, create_dict, hyper_pools):
-    with app.app_context():
-        userObj = (
-            r.table("users")
-            .get(user)
-            .pluck("id", "category", "group", "provider", "username", "uid")
-            .run(db.conn)
-        )
-
-    parsed_name = name
-    media_id = create_dict.pop("media")
-    with app.app_context():
-        media = r.table("media").get(media_id).run(db.conn)
-    create_dict["hardware"]["disks"] = [
-        {"file": media["path"], "size": media["progress"]["total"]}
-    ]  # 15G as a format
-    image = api_cards.generate_default_card("_" + user + "-" + parsed_name, name)
-    new_domain = {
-        "id": "_" + user + "-" + parsed_name,
-        "name": name,
-        "description": description,
-        "kind": "desktop",
-        "user": userObj["id"],
-        "username": userObj["username"],
-        "status": "CreatingDiskFromScratch",
-        "detail": None,
-        "category": userObj["category"],
-        "group": userObj["group"],
-        "xml": None,
-        "icon": icon,
-        "image": (
-            image
-            if image
-            else {
-                "id": "_" + user + "-" + parsed_name,
-                "url": "/assets/img/desktops/stock/1.jpg",
-                "type": "stock",
-            }
-        ),
-        "server": False,
-        "os": create_dict["create_from_virt_install_xml"],  #### Or name
-        "options": {"viewers": {"spice": {"fullscreen": False}}},
-        "create_dict": create_dict,
-        "hypervisors_pools": hyper_pools,
-        "allowed": {
-            "roles": False,
-            "categories": False,
-            "groups": False,
-            "users": False,
-        },
-    }
-    with app.app_context():
-        if _check(r.table("domains").insert(new_domain).run(db.conn), "inserted"):
-            return _check(
-                r.table("media").get(media_id).delete().run(db.conn), "deleted"
-            )
-    return False
-
-
 def parseHardwareFromIso(create_dict, payload):
     create_dict["hardware"]["virtualization_nested"] = False
     if "boot_order" not in create_dict["hardware"].keys():

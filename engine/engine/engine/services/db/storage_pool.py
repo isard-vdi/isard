@@ -26,7 +26,7 @@ from .db import rethink
 
 @rethink
 @cached(
-    cache=TTLCache(maxsize=1, ttl=10),
+    cache=TTLCache(maxsize=10, ttl=30),
     key=lambda connection: "storage_pools",
 )
 def get_all_storage_pools(connection):
@@ -40,7 +40,7 @@ def get_all_storage_pools(connection):
 
 @rethink
 @cached(
-    cache=TTLCache(maxsize=1, ttl=10),
+    cache=TTLCache(maxsize=10, ttl=30),
     key=lambda connection: "storage_pools",
 )
 def get_storage_pools(connection):

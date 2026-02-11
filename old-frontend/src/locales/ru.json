@@ -101,6 +101,10 @@
                 },
                 "downloading": {
                     "text": "Загрузка"
+                },
+                "verifying": {
+                    "text": "Verifying",
+                    "action": "Verifying"
                 }
             },
             "remove": "Удалить",

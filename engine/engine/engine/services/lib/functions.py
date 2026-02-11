@@ -18,12 +18,7 @@ from time import sleep
 import libvirt
 import paramiko
 import xmltodict
-from engine.services.db import (
-    gen_new_mac,
-    get_disks_all_domains,
-    update_disk_backing_chain,
-    update_domain_status,
-)
+from engine.services.db import gen_new_mac, update_domain_status
 from engine.services.db.config import table_config_created_and_populated
 from engine.services.db.domains import (
     delete_incomplete_creating_domains,
@@ -1064,54 +1059,6 @@ def size_format(b):
         return "%.1f" % float(b / pow(1024, 4)) + "TB"
 
 
-def check_all_backing_chains(hostname, path_to_write_json=None):
-    tuples_domain_disk = get_disks_all_domains()
-    # pprint(tuples_domain_disk)
-    cmds1 = list()
-    for domain_id, path_domain_disk in tuples_domain_disk:
-        path_domain_disk = shlex.quote(path_domain_disk)
-        cmds1.append({"title": domain_id, "cmd": backing_chain_cmd(path_domain_disk)})
-        cmds1.append(
-            {"title": domain_id, "cmd": 'stat -c %Y "{}"'.format(path_domain_disk)}
-        )
-
-    # pprint(cmds1)
-    array_out_err = execute_commands(hostname, cmds1, dict_mode=True)
-    return array_out_err
-
-    # pprint(array_out_err)
-    if path_to_write_json != None:
-        dict_stats = analize_backing_chains_outputs(
-            array_out_err=array_out_err, path_to_write_json=path_to_write_json
-        )
-        return dict_stats
-    else:
-        return array_out_err
-
-
-def cmd_check_os(path_disk):
-    return 'virt-inspector -a "{}"'.format(path_disk)
-
-
-def check_all_os(hostname, path_to_write_json=None):
-    tuples_domain_disk = get_disks_all_domains()
-    cmds1 = list()
-    for domain_id, path_domain_disk in tuples_domain_disk:
-        path_domain_disk = shlex.quote(path_domain_disk)
-        cmds1.append({"title": domain_id, "cmd": cmd_check_os(path_domain_disk)})
-
-    # pprint(cmds1)
-    array_out_err = execute_commands(hostname, cmds1, dict_mode=True)
-    # from pprint import pprint
-    # pprint(array_out_err)
-    if path_to_write_json != None:
-        f = open(path_to_write_json, "w")
-        json.dump(array_out_err, f)
-        f.close()
-
-    return array_out_err
-
-
 def analize_check_os_output(array_out_err):
     for d in array_out_err:
         domains_ok = 0
@@ -1129,44 +1076,6 @@ def analize_check_os_output(array_out_err):
                         id, d["operatingsystems"]["operatingsystem"]["product_name"]
                     )
                 )
-
-
-def analize_backing_chains_outputs(
-    array_out_err=[], path_to_write_json=None, path_to_read_json=None
-):
-    if path_to_write_json != None:
-        f = open(path_to_write_json, "w")
-        json.dump(array_out_err, f)
-        f.close()
-
-    if path_to_read_json != None:
-        f = open(path_to_read_json, "r")
-        array_out_err = json.load(f)
-        log.debug(len(array_out_err))
-        f.close()
-
-    domains_ok = 0
-    domains_err = 0
-    for d in array_out_err:
-        id = d["title"]
-        if len(d["err"]) > 0:
-            domains_err += 1
-            log.info(d["err"])
-            update_domain_status("Failed", id, detail=d["err"])
-        else:
-            log.debug(id)
-            domains_ok += 1
-            if type(d["out"]) is not str:
-                out = out.decode("utf-8")
-            else:
-                out = d["out"]
-            l = json.loads(out)
-
-            # from pprint import pprint
-            # pprint(l)
-            update_disk_backing_chain(id, 0, l[0]["filename"], l)
-
-    return {"ok": domains_ok, "err": domains_err}
 
 
 def engine_restart():

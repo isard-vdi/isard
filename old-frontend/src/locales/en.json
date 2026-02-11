@@ -872,6 +872,10 @@
                     "text": "Processing",
                     "action": "Processing"
                 },
+                "verifying": {
+                    "text": "Verifying",
+                    "action": "Verifying"
+                },
                 "maintenance": {
                     "text": "In maintenance",
                     "action": "Cancel operation"

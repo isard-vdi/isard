@@ -360,7 +360,7 @@ class DownloadThread(threading.Thread, object):
             if self.table == "domains":
                 update_domain_status("Downloaded", self.id, detail="downloaded disk")
                 update_storage_status(self.storage_id, "ready")
-                update_domain_status("Updating", self.id, detail="downloaded disk")
+                update_domain_status("Stopped", self.id, detail="downloaded disk")
             else:
                 # test if downloaded is an iso
                 ssh_command = [

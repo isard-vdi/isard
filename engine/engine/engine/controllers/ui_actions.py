@@ -3,8 +3,8 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
+import os
 import traceback
-from concurrent.futures import ThreadPoolExecutor
 
 # from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
@@ -12,11 +12,9 @@ from time import sleep
 from cachetools import TTLCache, cached
 from engine.models.domain_xml import (
     BUS_TYPES,
-    populate_dict_hardware_from_create_dict,
     recreate_xml_if_gpu,
     recreate_xml_if_start_paused,
     recreate_xml_to_start,
-    update_xml_from_dict_domain,
 )
 from engine.services.db import (
     create_disk_template_created_list_in_domain,
@@ -34,7 +32,6 @@ from engine.services.db import (
     remove_dict_new_template_from_domain,
     remove_disk_template_created_list_in_domain,
     update_domain_dict_hardware,
-    update_domain_force_update,
     update_domain_status,
     update_origin_and_parents_to_new_template,
     update_table_field,
@@ -72,8 +69,6 @@ Q_PRIORITY_PERSONAL_UNIT = 130  # Mount personal unit inside a desktop
 Q_LONGOPERATIONS_PRIORITY_CREATE_TEMPLATE_DISK = 50
 Q_LONGOPERATIONS_PRIORITY_CREATE_DISK_FROM_TEMPLATE = 40
 Q_LONGOPERATIONS_PRIORITY_DOMAIN_FROM_TEMPLATE = 40
-
-updating_thread_pool = ThreadPoolExecutor(max_workers=1)
 
 # TTL cache for template lookups during batch domain creation
 # Avoids repeated DB queries when creating many domains from the same template
@@ -114,7 +109,6 @@ class UiActions(object):
                 "favourite_hyp",
                 "hypervisors_pools",
                 "force_gpus",
-                "force_update",
             ],
         )
         if not domain:
@@ -135,6 +129,13 @@ class UiActions(object):
         # Domain storage and storage pool
         if Domain.exists(id_domain):
             domain_obj = Domain(id_domain)
+        else:
+            update_domain_status(
+                "Failed",
+                id_domain,
+                detail="Domain storage not found in database",
+            )
+            return False
         if not domain_obj.storage_ready:
             if any([s.status == "non_existing" for s in domain_obj.storages]):
                 log.error(
@@ -182,12 +183,6 @@ class UiActions(object):
         cpu_host_model = self.manager.pools[pool_id].conf.get(
             "cpu_host_model", DEFAULT_HOST_MODE
         )
-
-        if domain.get("force_update"):
-            if self.update_hardware_dict_and_xml_from_create_dict(id_domain):
-                update_domain_force_update(id_domain, False)
-            else:
-                return False
 
         try:
             xml = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
@@ -245,6 +240,13 @@ class UiActions(object):
             # Domain storage and storage pool
             if Domain.exists(id_domain):
                 domain_obj = Domain(id_domain)
+            else:
+                update_domain_status(
+                    "Failed",
+                    id_domain,
+                    detail="Domain storage not found in database",
+                )
+                return False
             if not domain_obj.storage_ready:
                 update_domain_status(
                     "Stopped",
@@ -332,7 +334,6 @@ class UiActions(object):
                         f"%%%% DOMAIN: {id_domain} -- XML TO START IN HYPERVISOR: {next_hyp} %%%%"
                     )
                     print(xml)
-                    update_table_field("domains", id_domain, "xml_to_start", xml)
                     print(
                         "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
                     )
@@ -530,164 +531,160 @@ class UiActions(object):
                 )
 
             wait_for_disks_to_be_deleted = False
-            if dict_domain.get("hardware"):
-                if len(dict_domain["hardware"]["disks"]) > 0:
-                    index_disk = 0
+            disks = dict_domain["create_dict"]["hardware"].get("disks", [])
 
-                    for d in dict_domain["hardware"]["disks"]:
-                        storage_id = d.get("storage_id")
-                        if not storage_id:
-                            # Old disks in domain
-                            disk_path = d.get("file")
-                            if not disk_path:
-                                log.error(
-                                    "DELETE_DOMAIN_DISKS: Domain {} disk in old format and not found the file key in db entry. Unable to delete disk entry: \n {}".format(
-                                        id_domain, d
-                                    )
+            if len(disks) > 0:
+                index_disk = 0
+
+                for d in disks:
+                    storage_id = d.get("storage_id")
+                    if not storage_id:
+                        # Old disks in domain
+                        disk_path = d.get("file")
+                        if not disk_path:
+                            log.error(
+                                "DELETE_DOMAIN_DISKS: Domain {} disk in old format and not found the file key in db entry. Unable to delete disk entry: \n {}".format(
+                                    id_domain, d
                                 )
-                                index_disk += 1
-                                continue
-                            # Check for duplicates
-                            if len(domains_with_attached_disk(disk_path)) > 1:
-                                log.debug(
-                                    "DELETE_DOMAIN_DISKS: Others than this domain {} have this old format disk {} attached. Skipping deleting disk.".format(
-                                        id_domain, disk_path
-                                    )
+                            )
+                            index_disk += 1
+                            continue
+                        # Check for duplicates
+                        if len(domains_with_attached_disk(disk_path)) > 1:
+                            log.debug(
+                                "DELETE_DOMAIN_DISKS: Others than this domain {} have this old format disk {} attached. Skipping deleting disk.".format(
+                                    id_domain, disk_path
                                 )
-                                index_disk += 1
-                                continue
+                            )
+                            index_disk += 1
+                            continue
+                    else:
+                        # New disks in storage
+                        disk_path = get_storage_id_filename(storage_id)
+                        if not disk_path:
+                            log.error(
+                                "DELETE_DOMAIN_DISKS: Domain {} storage_id {} missing disk path or not in storage table. This should not happen.".format(
+                                    id_domain, storage_id
+                                )
+                            )
+                            index_disk += 1
+                            continue
+                        # Check for duplicates
+                        if len(domains_with_attached_storage_id(d["storage_id"])) > 1:
+                            log.debug(
+                                "DELETE_DOMAIN_DISKS: Others than this domain {} have this storage_id {} attached. Skipping deleting disk.".format(
+                                    id_domain, storage_id
+                                )
+                            )
+                            index_disk += 1
+                            continue
+
+                    pool_id = dict_domain["hypervisors_pools"][0]
+                    if pool_id not in self.manager.pools.keys():
+                        log.error(
+                            "DELETE_DOMAIN_DISKS: Hypervisor pool {} not available in manager. Unable to delete domain {} disk {} in pool.".format(
+                                pool_id, id_domain, disk_path
+                            )
+                        )
+                        return False
+
+                    # Which hypervisors are online in this pool?
+                    (
+                        hyps_to_start,
+                        hyps_only_forced,
+                        hyps_all,
+                    ) = get_hypers_in_pool(pool_id, only_online=True)
+                    if not len(hyps_all):
+                        log.error(
+                            "DELETE_DOMAIN_DISKS: No hypervisors online in pool {} to delete disk {}".format(
+                                pool_id, disk_path
+                            )
+                        )
+                        return False
+
+                    # Choose a hypervisor to delete the disk
+                    forced_hyp, favourite_hyp = get_domain_forced_hyp(id_domain)
+                    if forced_hyp in hyps_all:
+                        next_hyp = forced_hyp
+                    elif favourite_hyp in hyps_all:
+                        next_hyp = favourite_hyp
+                    else:
+                        next_hyp = hyps_all[0]
+
+                    if type(next_hyp) is tuple:
+                        h = next_hyp[0]
+                        next_hyp = h
+                    log.debug(
+                        "DELETE_DOMAIN_DISKS: Preparing disk {} to be enqueued in hypervisor {}...".format(
+                            disk_path, next_hyp
+                        )
+                    )
+                    mv_to_extension_deleted = self.manager.pools[pool_id].conf.get(
+                        "mv_to_extension_deleted", False
+                    )
+                    cmds = create_cmds_delete_disk(
+                        disk_path, mv_to_extension_deleted=mv_to_extension_deleted
+                    )
+
+                    action = dict()
+                    action["id_domain"] = id_domain
+                    action["not_change_status"] = not_change_status
+                    action["type"] = "delete_disk"
+                    action["disk_path"] = disk_path
+                    action["domain"] = id_domain
+                    action["ssh_commands"] = cmds
+                    action["index_disk"] = index_disk
+                    action["storage_id"] = (
+                        dict(
+                            enumerate(
+                                dict_domain.get("create_dict", {})
+                                .get("hardware", {})
+                                .get("disks", [])
+                            )
+                        )
+                        .get(index_disk, {})
+                        .get("storage_id")
+                    )
+
+                    try:
+                        if not_change_status is False:
+                            update_domain_status(
+                                status="DeletingDomainDisk",
+                                id_domain=id_domain,
+                                hyp_id=next_hyp,
+                                detail="Domain disk {} queued in hypervisor {} to be deleted".format(
+                                    disk_path, next_hyp
+                                ),
+                            )
                         else:
-                            # New disks in storage
-                            disk_path = get_storage_id_filename(storage_id)
-                            if not disk_path:
-                                log.error(
-                                    "DELETE_DOMAIN_DISKS: Domain {} storage_id {} missing disk path or not in storage table. This should not happen.".format(
-                                        id_domain, storage_id
-                                    )
-                                )
-                                index_disk += 1
-                                continue
-                            # Check for duplicates
-                            if (
-                                len(domains_with_attached_storage_id(d["storage_id"]))
-                                > 1
-                            ):
-                                log.debug(
-                                    "DELETE_DOMAIN_DISKS: Others than this domain {} have this storage_id {} attached. Skipping deleting disk.".format(
-                                        id_domain, storage_id
-                                    )
-                                )
-                                index_disk += 1
-                                continue
-
-                        pool_id = dict_domain["hypervisors_pools"][0]
-                        if pool_id not in self.manager.pools.keys():
-                            log.error(
-                                "DELETE_DOMAIN_DISKS: Hypervisor pool {} not available in manager. Unable to delete domain {} disk {} in pool.".format(
-                                    pool_id, id_domain, disk_path
-                                )
+                            update_storage_deleted_domain(
+                                action["storage_id"], dict_domain
                             )
-                            return False
-
-                        # Which hypervisors are online in this pool?
-                        (
-                            hyps_to_start,
-                            hyps_only_forced,
-                            hyps_all,
-                        ) = get_hypers_in_pool(pool_id, only_online=True)
-                        if not len(hyps_all):
-                            log.error(
-                                "DELETE_DOMAIN_DISKS: No hypervisors online in pool {} to delete disk {}".format(
-                                    pool_id, disk_path
-                                )
-                            )
-                            return False
-
-                        # Choose a hypervisor to delete the disk
-                        forced_hyp, favourite_hyp = get_domain_forced_hyp(id_domain)
-                        if forced_hyp in hyps_all:
-                            next_hyp = forced_hyp
-                        elif favourite_hyp in hyps_all:
-                            next_hyp = favourite_hyp
-                        else:
-                            next_hyp = hyps_all[0]
-
-                        if type(next_hyp) is tuple:
-                            h = next_hyp[0]
-                            next_hyp = h
-                        log.debug(
-                            "DELETE_DOMAIN_DISKS: Preparing disk {} to be enqueued in hypervisor {}...".format(
-                                disk_path, next_hyp
+                        log.info(
+                            "DELETE_DOMAIN_DISKS: Domain {} disk {} queued in hypervisor {} to be deleted".format(
+                                id_domain, disk_path, next_hyp
                             )
                         )
-                        mv_to_extension_deleted = self.manager.pools[pool_id].conf.get(
-                            "mv_to_extension_deleted", False
+                        self.manager.q.workers[next_hyp].put(action, Q_PRIORITY_DELETE)
+                        wait_for_disks_to_be_deleted = True
+                    except Exception as e:
+                        logs.exception_id.debug("0011")
+                        if not_change_status is False:
+                            update_domain_status(
+                                status="Stopped",
+                                id_domain=id_domain,
+                                hyp_id=False,
+                                detail="Domain disk {} failed to be queued in hypervisor {} to be deleted".format(
+                                    disk_path, next_hyp
+                                ),
+                            )
+                        log.error(
+                            "DELETE_DOMAIN_DISKS: Unable to enqueue disk {} to be deleted in hypervisor {}. Exception: {}".format(
+                                disk_path, next_hyp, e
+                            )
                         )
-                        cmds = create_cmds_delete_disk(
-                            disk_path, mv_to_extension_deleted=mv_to_extension_deleted
-                        )
-
-                        action = dict()
-                        action["id_domain"] = id_domain
-                        action["not_change_status"] = not_change_status
-                        action["type"] = "delete_disk"
-                        action["disk_path"] = disk_path
-                        action["domain"] = id_domain
-                        action["ssh_commands"] = cmds
-                        action["index_disk"] = index_disk
-                        action["storage_id"] = (
-                            dict(
-                                enumerate(
-                                    dict_domain.get("create_dict", {})
-                                    .get("hardware", {})
-                                    .get("disks", [])
-                                )
-                            )
-                            .get(index_disk, {})
-                            .get("storage_id")
-                        )
-
-                        try:
-                            if not_change_status is False:
-                                update_domain_status(
-                                    status="DeletingDomainDisk",
-                                    id_domain=id_domain,
-                                    hyp_id=next_hyp,
-                                    detail="Domain disk {} queued in hypervisor {} to be deleted".format(
-                                        disk_path, next_hyp
-                                    ),
-                                )
-                            else:
-                                update_storage_deleted_domain(
-                                    action["storage_id"], dict_domain
-                                )
-                            log.info(
-                                "DELETE_DOMAIN_DISKS: Domain {} disk {} queued in hypervisor {} to be deleted".format(
-                                    id_domain, disk_path, next_hyp
-                                )
-                            )
-                            self.manager.q.workers[next_hyp].put(
-                                action, Q_PRIORITY_DELETE
-                            )
-                            wait_for_disks_to_be_deleted = True
-                        except Exception as e:
-                            logs.exception_id.debug("0011")
-                            if not_change_status is False:
-                                update_domain_status(
-                                    status="Stopped",
-                                    id_domain=id_domain,
-                                    hyp_id=False,
-                                    detail="Domain disk {} failed to be queued in hypervisor {} to be deleted".format(
-                                        disk_path, next_hyp
-                                    ),
-                                )
-                            log.error(
-                                "DELETE_DOMAIN_DISKS: Unable to enqueue disk {} to be deleted in hypervisor {}. Exception: {}".format(
-                                    disk_path, next_hyp, e
-                                )
-                            )
-                            return False
-                        index_disk += 1
+                        return False
+                    index_disk += 1
                 else:
                     log.debug(
                         "DELETE_DOMAIN_DISKS: No disks to delete in domain {}".format(
@@ -713,12 +710,6 @@ class UiActions(object):
             log.error("Traceback: \n .{}".format(traceback.format_exc()))
             log.error("Exception message: {}".format(e))
             return False
-
-    def update_info_after_stopped_domain(self, domain_id):
-        hyp_to_disk_info = get_table_field("domains", domain_id, "last_hyp_id")
-        action = {"domain_id": domain_id, "type": "update_storage_size"}
-        if hyp_to_disk_info in self.manager.q_disk_operations.keys():
-            self.manager.q_disk_operations[hyp_to_disk_info].put(action)
 
     def create_template_disks_from_domain(self, id_domain):
         dict_domain = get_domain(id_domain)
@@ -765,7 +756,8 @@ class UiActions(object):
             return False
 
         disk_index_in_bus = 0
-        if "disks" in dict_domain["hardware"] and len(dict_domain["hardware"]["disks"]):
+        create_hw = dict_domain.get("create_dict", {}).get("hardware", {})
+        if "disks" in create_hw and len(create_hw["disks"]):
             create_disk_template_created_list_in_domain(id_domain)
             for i in range(1):
                 path_domain_disk = get_storage_id_filename(
@@ -805,6 +797,9 @@ class UiActions(object):
                 action["path_domain_disk"] = path_domain_disk
                 action["disk_index"] = disk_index_in_bus
                 action["storage_id"] = disk.get("storage_id")
+                action["domain_storage_id"] = dict_domain["create_dict"]["hardware"][
+                    "disks"
+                ][i]["storage_id"]
 
                 hyp_to_disk_create = get_host_disk_operations_from_path(
                     self.manager,
@@ -866,25 +861,7 @@ class UiActions(object):
                     if k != "storage_id":
                         d_disk.pop(k)
         if insert_domain(template_dict)["inserted"] == 1:
-            hw_dict = domain_dict["hardware"].copy()
-            for i in range(len(hw_dict["disks"])):
-                hw_dict["disks"][i] = template_dict["create_dict"]["hardware"]["disks"][
-                    i
-                ]
-            update_table_field(
-                "domains", template_id, "hardware", hw_dict, merge_dict=False
-            )
-            xml_parsed = update_xml_from_dict_domain(
-                id_domain=template_id, xml=domain_dict["xml"]
-            )
-            if xml_parsed is False:
-                update_domain_status(
-                    status="Failed",
-                    id_domain=template_id,
-                    hyp_id=False,
-                    detail="XML Parser Error, xml is not valid",
-                )
-                return False
+            update_table_field("domains", template_id, "xml", domain_dict["xml"])
             remove_disk_template_created_list_in_domain(id_domain)
             remove_dict_new_template_from_domain(id_domain)
             if "parents" in domain_dict.keys():
@@ -989,11 +966,10 @@ class UiActions(object):
                 d_update_domain["hardware"]["disks"][0]["size"] = dict_to_create[
                     "hardware"
                 ]["disks"][0]["size"]
-                if "bus" in dict_to_create["hardware"]["disks"][0].keys():
-                    if dict_to_create["hardware"]["disks"][0]["bus"] in BUS_TYPES:
-                        d_update_domain["hardware"]["disks"][0]["bus"] = dict_to_create[
-                            "hardware"
-                        ]["disks"][0]["bus"]
+                bus = dict_to_create["hardware"]["disks"][0].get("bus", "virtio")
+                if bus not in BUS_TYPES:
+                    bus = "virtio"
+                d_update_domain["hardware"]["disks"][0]["bus"] = bus
                 update_domain_dict_hardware(id_new, d_update_domain)
                 # update_domain_dict_create_dict(id_new, d_update_domain)
                 storage_id = create_storage(
@@ -1203,133 +1179,6 @@ class UiActions(object):
                     )
                 )
 
-    def update_hardware_dict_and_xml_from_create_dict(self, id_domain):
-        try:
-            populate_dict_hardware_from_create_dict(id_domain)
-        except Exception as e:
-            logs.exception_id.debug("0016")
-            log.error(
-                "error when populate dict hardware from create dict in domain {}".format(
-                    id_domain
-                )
-            )
-            log.error("Traceback: \n .{}".format(traceback.format_exc()))
-            log.error("Exception message: {}".format(e))
-            update_domain_status(
-                "Failed",
-                id_domain,
-                detail="Updating aborted, failed when populate hardware dictionary",
-            )
-            return False
-
-        try:
-            xml_raw = update_xml_from_dict_domain(id_domain)
-            if xml_raw is False:
-                update_domain_status(
-                    status="Failed",
-                    id_domain=id_domain,
-                    detail="XML Parser Error, xml is not valid",
-                )
-                return False
-
-        except Exception as e:
-            logs.exception_id.debug("0017")
-            log.error(
-                "error when populate dict hardware from create dict in domain {}".format(
-                    id_domain
-                )
-            )
-            log.error("Traceback: \n .{}".format(traceback.format_exc()))
-            log.error("Exception message: {}".format(e))
-            update_domain_status(
-                "Failed",
-                id_domain,
-                detail="Updating aborted, failed when updating xml from hardware dictionary",
-            )
-            return False
-        return True
-
-    def updating_from_create_dict(self, id_domain, ssl=True):
-        try:
-            updating_thread_pool.submit(
-                self.updating_from_create_dict_th, id_domain, ssl
-            )
-        except Exception as e:
-            logs.exception_id.debug("0018")
-            log.error("Updating domain {} failed. Exception: {}".format(id_domain, e))
-
-    def updating_from_create_dict_th(self, id_domain, ssl=True):
-        sleep(0.1)
-        if self.update_hardware_dict_and_xml_from_create_dict(id_domain):
-            update_domain_status(
-                "Updating",
-                id_domain,
-                detail="xml and hardware dict going to be updated",
-            )
-            domain = get_table_fields(
-                "domains",
-                id_domain,
-                [
-                    "kind",
-                    "name",
-                    {"create_dict": {"hardware": "memory", "reservables": True}},
-                    "forced_hyp",
-                    "favourite_hyp",
-                    "hypervisors_pools",
-                ],
-            )
-            pool_id = domain.get("hypervisors_pools")
-            if not pool_id or len(pool_id) == 0:
-                update_domain_status(
-                    "Failed",
-                    id_domain,
-                    detail="Updating aborted, domain missing hypervisors pool",
-                )
-                return False
-            if len(pool_id):
-                pool_id = pool_id[0]
-            if domain.get("kind") == "desktop":
-                cpu_host_model = self.manager.pools[pool_id].conf.get(
-                    "cpu_host_model", DEFAULT_HOST_MODE
-                )
-                try:
-                    xml = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
-                except Exception as e:
-                    logs.exception_id.debug("0018")
-                    log.error("recreate_xml_to_start in domain {}".format(id_domain))
-                    log.error("Traceback: \n .{}".format(traceback.format_exc()))
-                    log.error("Exception message: {}".format(e))
-                    xml = False
-                if xml is False:
-                    update_domain_status(
-                        "Failed",
-                        id_domain,
-                        detail="DomainXML can not parse and modify xml to start",
-                    )
-                    return False
-                # Avoid starting domain when updating
-                # self.start_paused_domain_from_xml(
-                #     xml=xml,
-                #     id_domain=id_domain,
-                #     pool_id=pool_id,
-                #     forced_hyp=domain.get("forced_hyp"),
-                #     favourite_hyp=domain.get("favourite_hyp"),
-                #     reservables=domain.get("create_dict", {}).get("reservables", {}),
-                # )
-                update_domain_status(
-                    "Stopped",
-                    id_domain,
-                    detail="Updated hardware",
-                )
-            else:
-                update_domain_status(
-                    "Stopped",
-                    id_domain,
-                    detail="Updated hardware",
-                )
-
-                return True
-
     def creating_and_test_xml_start(
         self,
         id_domain,
@@ -1339,20 +1188,6 @@ class UiActions(object):
         ssl=True,
         start_paused=True,
     ):
-        if creating_from_create_dict is True:
-            try:
-                populate_dict_hardware_from_create_dict(id_domain)
-            except Exception as e:
-                logs.exception_id.debug("0019")
-                log.error(
-                    "error when populate dict hardware from create dict in domain {}".format(
-                        id_domain
-                    )
-                )
-                log.error("Traceback: \n .{}".format(traceback.format_exc()))
-                log.error("Exception message: {}".format(e))
-                return False
-
         domain = get_domain(id_domain)
         if domain is None:
             log.error(
@@ -1408,28 +1243,6 @@ class UiActions(object):
 
         update_table_field("domains", id_domain, "xml", xml_from)
 
-        try:
-            xml_raw = update_xml_from_dict_domain(id_domain)
-        except Exception as e:
-            logs.exception_id.debug("0020")
-            logs.main.info(f"Exception updating xml from dict_domain: {e}")
-            update_domain_status(
-                status="Failed",
-                id_domain=id_domain,
-                detail="XML Parser Error, xml is not valid",
-            )
-            logs.main.error(
-                "##### Traceback: \n .{} \n######".format(traceback.format_exc())
-            )
-            return False
-
-        if xml_raw is False:
-            update_domain_status(
-                status="Failed",
-                id_domain=id_domain,
-                detail="XML Parser Error, xml is not valid",
-            )
-            return False
         update_domain_status(
             "CreatingDomain",
             id_domain,
@@ -1493,5 +1306,5 @@ class UiActions(object):
                     update_domain_status(
                         "Stopped",
                         id_domain,
-                        detail="Updating finalished, ready to derivate desktops",
+                        detail="Template creation completed, ready to derive desktops",
                     )

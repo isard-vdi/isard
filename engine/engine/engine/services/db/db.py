@@ -52,6 +52,7 @@ class RethinkDBConnectionPool:
         self._pool_size = pool_size
         self._pool = queue.Queue(maxsize=pool_size)
         self._lock = threading.Lock()
+        self._in_use = 0
 
         # Pre-create connections to fill the pool
         for _ in range(pool_size):
@@ -66,13 +67,18 @@ class RethinkDBConnectionPool:
                 db=RETHINK_DB,
             )
         except r.errors.ReqlDriverError as e:
-            print(f"RethinkDB connection failed: {e}")
+            logs.main.error(f"RethinkDB connection failed: {e}")
             raise
 
     def get_connection(self):
         """Retrieve a connection from the pool."""
         try:
-            return self._pool.get(timeout=60)  # Wait up to 60 seconds for a connection
+            conn = self._pool.get(timeout=60)
+            self._in_use += 1
+            logs.main.debug(
+                f"rethinkdb connection acquired (in_use={self._in_use}, idle={self._pool.qsize()}, pool_size={self._pool_size})"
+            )
+            return conn
         except queue.Empty:
             raise RuntimeError("No available connections in the pool.")
 
@@ -80,6 +86,16 @@ class RethinkDBConnectionPool:
         """Return a connection to the pool."""
         if conn and conn.is_open():
             self._pool.put(conn)
+        else:
+            try:
+                self._pool.put(self._create_connection())
+                logs.main.warning("Replaced dead RethinkDB connection in pool")
+            except Exception as e:
+                logs.main.error(f"Failed to replace dead connection in pool: {e}")
+        self._in_use = max(0, self._in_use - 1)
+        logs.main.debug(
+            f"rethinkdb connection released (in_use={self._in_use}, idle={self._pool.qsize()}, pool_size={self._pool_size})"
+        )
 
     def close_all_connections(self):
         """Close all connections in the pool."""
@@ -103,7 +119,10 @@ class PooledConnection:
         self.pool.release_connection(self.connection)
 
 
-connection_pool = RethinkDBConnectionPool(pool_size=10)
+import os
+
+_pool_size = int(os.environ.get("RETHINKDB_POOL_SIZE", "10"))
+connection_pool = RethinkDBConnectionPool(pool_size=_pool_size)
 
 
 @contextmanager

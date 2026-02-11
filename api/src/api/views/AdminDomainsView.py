@@ -158,7 +158,6 @@ def api_v3_admin_desktop_storage(payload, domain_id):
 def api_v3_admin_domains_xml(payload, domain_id):
     if request.method == "POST":
         data = request.get_json(force=True)
-        data["status"] = "Updating"
         data["id"] = domain_id
         admin_table_update("domains", data)
     return (

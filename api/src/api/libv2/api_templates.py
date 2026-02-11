@@ -9,6 +9,7 @@ import time
 import traceback
 
 from isardvdi_common.domain import Domain
+from isardvdi_common.storage import Storage
 from rethinkdb import RethinkDB
 
 from api import app
@@ -88,7 +89,14 @@ class ApiTemplates:
                 description_code="desktop_storage_not_ready",
             )
 
-        parent_disk = desktop["hardware"]["disks"][0]["file"]
+        storage_id = desktop["create_dict"]["hardware"]["disks"][0]["storage_id"]
+        if not Storage.exists(storage_id):
+            raise Error(
+                "not_found",
+                "Desktop storage not found",
+                description_code="storage_not_found",
+            )
+        parent_disk = Storage(storage_id).path
 
         hardware = desktop["create_dict"]["hardware"]
         hardware["disks"] = [{"extension": "qcow2", "parent": parent_disk}]

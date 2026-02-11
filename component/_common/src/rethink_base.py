@@ -17,12 +17,15 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
 from abc import ABC, abstractmethod
 from time import time
 
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from rethinkdb import r
+
+log = logging.getLogger(__name__)
 
 _cache = TTLCache(maxsize=10, ttl=5)
 
@@ -130,7 +133,15 @@ class RethinkBase(ABC):
                     .get(document_id)["id"]
                     .run(cls._rdb_connection)
                 )
-            except:
+            except r.ReqlNonExistenceError:
+                return False
+            except Exception:
+                log.warning(
+                    "%s.exists(%s) failed",
+                    cls.__name__,
+                    document_id,
+                    exc_info=True,
+                )
                 return False
 
     @classmethod

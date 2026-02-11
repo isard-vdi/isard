@@ -16,10 +16,7 @@ from engine.services.db import (
     rethink_conn,
 )
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
-from engine.services.lib.storage import (
-    update_domain_createdict_qemu_img_info,
-    update_storage_deleted_domain,
-)
+from engine.services.lib.storage import update_storage_deleted_domain
 from engine.services.log import logs
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
@@ -104,7 +101,7 @@ def fail_incomplete_creating_domains(
 def stop_incomplete_starting_domains(
     only_domain_id=None, detail="Stopped by engine as it was incomplete", kind="desktop"
 ):
-    status_to_stopped = ["Starting"]
+    status_to_stopped = ["Starting", "StartingPaused"]
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     if only_domain_id:
@@ -127,7 +124,7 @@ def stop_incomplete_starting_domains(
         )
     else:
         results = (
-            rtable.get_all("Starting", index="status")
+            rtable.get_all(r.args(status_to_stopped), index="status")
             .filter({"kind": kind})
             .replace(
                 lambda domain: domain.without(
@@ -209,39 +206,6 @@ def update_domain_progress(id_domain, percent):
         .update({"progress": {"percent": percent, "when": int(time.time())}})
         .run(r_conn)
     )
-    close_rethink_connection(r_conn)
-    return results
-
-
-def update_domain_force_update(id_domain, true_or_false=False):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    results = (
-        rtable.get_all(id_domain, index="id")
-        .update({"force_update": true_or_false})
-        .run(r_conn)
-    )
-
-    close_rethink_connection(r_conn)
-    return results
-
-
-def update_domain_forced_hyp(id_domain, hyp_id=None):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    if hyp_id:
-        forced_hyp = [hyp_id]
-    else:
-        forced_hyp = False
-
-    results = (
-        rtable.get_all(id_domain, index="id")
-        .update({"forced_hyp": forced_hyp})
-        .run(r_conn)
-    )
-
     close_rethink_connection(r_conn)
     return results
 
@@ -338,23 +302,6 @@ def update_domain_status(
     # INFO TO DEVELOPER: OJO CON hyp_started a None... peligro si alguien lo chafa, por eso estos if/else
 
     try:
-        if status == "Stopped":
-            with rethink_conn() as conn:
-                last_hyp_id = (
-                    r.table("domains")
-                    .get(id_domain)
-                    .pluck("hyp_started")
-                    .run(conn)["hyp_started"]
-                )
-            if type(last_hyp_id) is str and len(last_hyp_id) > 0:
-                with rethink_conn() as conn:
-                    results = (
-                        r.table("domains")
-                        .get_all(id_domain, index="id")
-                        .update({"last_hyp_id": last_hyp_id})
-                        .run(conn)
-                    )
-
         if keep_hyp_id == True:
             with rethink_conn() as conn:
                 hyp_id = (
@@ -442,24 +389,6 @@ def update_domain_status(
         )
         logs.main.debug("function: {}".format(sys._getframe().f_code.co_name))
         return False
-
-
-def update_last_hyp_id(id_domain, last_hyp_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    try:
-        results = (
-            rtable.get_all(id_domain, index="id")
-            .update({"last_hyp_id": last_hyp_id})
-            .run(r_conn)
-        )
-        close_rethink_connection(r_conn)
-        return results
-    except Exception as e:
-        logs.main.debug(
-            f"error updating last_hyp_id in database with id_domain {id_domain} and last_hyp_id: {last_hyp_id}"
-        )
-    close_rethink_connection(r_conn)
 
 
 def update_domain_hyp_started(domain_id, hyp_id, detail="", status="Started"):
@@ -599,31 +528,28 @@ def update_domain_dict_create_dict(id, create_dict):
     return results
 
 
-def update_domain_dict_hardware(
-    domain_id, domain_dict, xml=False, hardware_from_xml=None
-):
-    """Update domain hardware, xml, and optionally hardware_from_xml in a single DB call.
+def update_domain_dict_hardware(domain_id, domain_dict, xml=False):
+    """Update domain xml.
+
+    NOTE: No longer writes hardware to root - field is deprecated.
+    The domain_dict parameter is kept for signature compatibility but ignored.
 
     Args:
         domain_id: The domain ID
-        domain_dict: Hardware dictionary to update
+        domain_dict: DEPRECATED - Hardware dictionary (ignored, kept for compatibility)
         xml: Optional XML string to update
-        hardware_from_xml: Optional hardware_from_xml dict to update (batches with other updates)
     """
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
-    domain_dict["name"] = domain_id
 
-    update_dict = {"hardware": domain_dict}
+    update_dict = {}
     if xml is not False:
         update_dict["xml"] = xml
-    if hardware_from_xml is not None:
-        update_dict["hardware_from_xml"] = r.literal(hardware_from_xml)
 
-    results = rtable.get(domain_id).update(update_dict).run(r_conn)
-
-    # if results_zero(results):
-    #     logs.main.debug('id_domain {} does not exist in domain table'.format(id))
+    if update_dict:
+        results = rtable.get(domain_id).update(update_dict).run(r_conn)
+    else:
+        results = {}
 
     close_rethink_connection(r_conn)
     return results
@@ -664,46 +590,6 @@ def remove_domain_viewer_values(domain_id):
         return False
     logs.main.info(f"Viewer values removed for domain {domain_id}")
     return True
-
-
-def update_disk_backing_chain(
-    id_domain,
-    index_disk,
-    path_disk,
-    list_backing_chain,
-    new_template=False,
-    list_backing_chain_template=[],
-):
-    with rethink_conn() as conn:
-        domain = r.table("domains").get(id_domain).run(conn)
-    # Domain could be deleted by api and webapp
-    # https://gitlab.com/isard/isardvdi/-/blob/main/api/src/api/libv2/ds.py#L60
-    # https://gitlab.com/isard/isardvdi/-/blob/main/webapp/webapp/webapp/lib/ds.py#L53
-    if domain:
-        if new_template == True:
-            domain["create_dict"]["template_dict"][
-                "disks_info"
-            ] = list_backing_chain_template
-            update_domain_createdict_qemu_img_info(
-                domain.get("create_dict", {})
-                .get("template_dict", {})
-                .get("create_dict", {}),
-                index_disk,
-                list_backing_chain_template,
-            )
-        domain["disks_info"] = list_backing_chain
-        update_domain_createdict_qemu_img_info(
-            domain.get("create_dict", {}), index_disk, list_backing_chain
-        )
-        with rethink_conn() as conn:
-            results = r.table("domains").replace(domain).run(conn)
-    else:
-        logs.main.error(
-            f"trying to update disk backing chain of non-existent domain {id_domain}"
-        )
-        results = None
-
-    return results
 
 
 def update_disk_template_created(id_domain, index_disk):
@@ -767,9 +653,8 @@ def get_if_all_disk_template_created(id_domain):
 
 def create_disk_template_created_list_in_domain(id_domain):
     dict_domain = get_domain(id_domain)
-    created_disk_finalished_list = [
-        0 for a in range(len(dict_domain["hardware"]["disks"]))
-    ]
+    disks = dict_domain["create_dict"]["hardware"].get("disks", [])
+    created_disk_finalished_list = [0 for a in range(len(disks))]
 
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
@@ -822,20 +707,6 @@ def get_domain(id):
 
     # Log warnings for invalid hardware values (actual validation done at start time)
     if dict_domain:
-        # Check hardware dict
-        if "hardware" in dict_domain and isinstance(dict_domain["hardware"], dict):
-            hw = dict_domain["hardware"]
-            if "vcpus" in hw and (not isinstance(hw["vcpus"], int) or hw["vcpus"] < 1):
-                logs.main.warning(
-                    f"Domain {id} has invalid hardware vcpus={hw['vcpus']}"
-                )
-            if "memory" in hw and (
-                not isinstance(hw["memory"], (int, float)) or hw["memory"] < 0.025
-            ):
-                logs.main.warning(
-                    f"Domain {id} has invalid hardware memory={hw['memory']}GB (minimum 0.025GB)"
-                )
-
         # Check create_dict hardware
         if "create_dict" in dict_domain and isinstance(
             dict_domain["create_dict"], dict
@@ -910,22 +781,6 @@ def get_storage_ids_and_paths_from_domain(domain_id):
         return d_out
     except r.ReqlNonExistenceError:
         return {}
-
-
-def get_disks_all_domains():
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    domains_info_disks = list(
-        rtable.pluck("id", {"hardware": [{"disks": ["file"]}]}).run(r_conn)
-    )
-    close_rethink_connection(r_conn)
-    tuples_id_disk = [
-        (d["id"], d["hardware"]["disks"][0]["file"])
-        for d in domains_info_disks
-        if "hardware" in d.keys()
-    ]
-    return tuples_id_disk
 
 
 ## VGPUS

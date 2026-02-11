@@ -9,6 +9,7 @@
 
 # TODO: INFO TO DEVELOPER revisar si hacen falta todas estas librerías para este módulo
 
+import os
 import random
 import string
 import traceback
@@ -27,7 +28,6 @@ from engine.services.db import (
     get_interface,
     get_qos_disk_iotune,
     remove_fieds_when_stopped,
-    update_domain_dict_hardware,
     update_domain_status,
     update_domain_viewer_passwd,
     update_table_field,
@@ -35,9 +35,8 @@ from engine.services.db import (
 from engine.services.db.downloads import get_media
 from engine.services.db.storage_pool import get_category_storage_pool
 from engine.services.lib.functions import pop_key_if_zero, randomMAC
-from engine.services.lib.storage import insert_storage
+from engine.services.lib.storage import _get_filename, insert_storage
 from engine.services.log import *
-from flatten_dict import flatten
 from lxml import etree
 from schema import And, Optional, Schema, SchemaError, Use
 from yattag import indent
@@ -56,6 +55,8 @@ BUS_LETTER = {"ide": "h", "sata": "s", "virtio": "v"}
 # These avoid repeated DB queries for the same interface/QoS definitions
 _interface_cache = TTLCache(maxsize=200, ttl=30)
 _qos_net_cache = TTLCache(maxsize=100, ttl=30)
+_videos_cache = TTLCache(maxsize=10, ttl=30)
+_storage_cache = TTLCache(maxsize=200, ttl=30)
 
 
 @cached(cache=_interface_cache)
@@ -68,6 +69,18 @@ def get_interface_cached(interface_id):
 def get_qos_net_cached(qos_id):
     """Get QoS network config with TTL caching for batch operations."""
     return get_dict_from_item_in_table("qos_net", qos_id)
+
+
+@cached(cache=_videos_cache)
+def get_video_cached(video_id):
+    """Get video config with TTL caching."""
+    return get_dict_from_item_in_table("videos", video_id)
+
+
+@cached(cache=_storage_cache)
+def get_storage_cached(storage_id):
+    """Get storage with TTL caching for batch operations."""
+    return get_dict_from_item_in_table("storage", storage_id)
 
 
 XML_SNIPPET_NETWORK = """
@@ -1526,259 +1539,111 @@ def create_template_from_dict(dict_template_new):
     pass
 
 
-def update_xml_from_dict_domain(id_domain, xml=None):
-    remove_fieds_when_stopped(id_domain)
-    d = get_domain(id_domain)
-    hw = d["hardware"]
-    if xml is None:
-        try:
-            v = DomainXML(d["xml"], id_domain=id_domain)
-        except:
-            log.error(
-                f"Error in update_xml_from_dict_domain with id_domain {id_domain}"
-            )
-            return False
-    else:
-        try:
-            v = DomainXML(xml, id_domain=id_domain)
-        except:
-            log.error(
-                f"Error in update_xml_from_dict_domain with id_domain {id_domain}"
-            )
-            return False
+def resolve_hardware_from_create_dict(domain):
+    """Resolve hardware specifications from create_dict without storing to database.
 
-    # v.set_memory(memory=hw['currentMemory'],unit=hw['currentMemory_unit'])
-    v.set_memory(
-        memory=hw["memory"],
-        unit=hw["memory_unit"],
-        current=int(hw.get("currentMemory", hw["memory"]) * DEFAULT_BALLOON),
-    )
-    total_disks_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="disk"]'))
-    total_cdroms_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="cdrom"]'))
-    total_floppies_in_xml = len(v.tree.xpath('/domain/devices/disk[@device="floppy"]'))
+    This function generates a fully resolved hardware dictionary on-demand from
+    the create_dict.hardware specifications. It resolves:
+    - Disk storage_id to full disk info (file path, parent, directory_path)
+    - Video ID to full video configuration
+    - Interface IDs to full interface configurations with QoS
+    - Media IDs (ISOs/floppies) to file paths
+    - Memory/CPU settings
 
-    if "boot_order" in hw.keys():
-        if "boot_menu_enable" in hw.keys():
-            v.update_boot_order(hw["boot_order"], hw["boot_menu_enable"])
-        else:
-            v.update_boot_order(hw["boot_order"])
+    Args:
+        domain: Domain dictionary containing 'create_dict' with hardware specifications
 
-    if "disks" in hw.keys():
-        num_remove_disks = total_disks_in_xml - len(hw["disks"])
-        if num_remove_disks > 0:
-            for i in range(num_remove_disks):
-                v.remove_disk()
-        for i in range(len(hw["disks"])):
-            insert_storage(hw["disks"][i])
-            if not hw["disks"][i].get("file"):
-                log.error(f"disk {i} in domain {id_domain} not found in rethinkdb")
-                return False
-            s = hw["disks"][i]["file"]
-            if s[s.rfind(".") :].lower().find("qcow") == 1:
-                type_disk = "qcow2"
-            else:
-                type_disk = "raw"
-
-            if i >= total_disks_in_xml:
-                force_bus = hw["disks"][i].get("bus", False)
-                if force_bus is False:
-                    force_bus = "virtio"
-                v.add_disk(
-                    index=i,
-                    path_disk=hw["disks"][i]["file"],
-                    type_disk=type_disk,
-                    bus=force_bus,
-                )
-            else:
-                force_bus = hw["disks"][i].get("bus", False)
-                if force_bus is False:
-                    v.set_vdisk(hw["disks"][i]["file"], index=i, type_disk=type_disk)
-                else:
-                    v.set_vdisk(
-                        hw["disks"][i]["file"],
-                        index=i,
-                        type_disk=type_disk,
-                        force_bus=force_bus,
-                    )
-    elif total_disks_in_xml > 0:
-        for i in range(total_disks_in_xml):
-            v.remove_disk()
-
-    if "isos" in hw.keys():
-        num_remove_cdroms = total_cdroms_in_xml - len(hw["isos"])
-        if num_remove_cdroms > 0:
-            for i in range(num_remove_cdroms):
-                v.remove_cdrom()
-        for i in range(len(hw["isos"])):
-            if i >= total_cdroms_in_xml:
-                v.add_cdrom(path_cdrom=hw["isos"][i]["path"])
-            else:
-                v.set_cdrom(hw["isos"][i]["path"], index=i)
-    elif total_cdroms_in_xml > 0:
-        for i in range(total_cdroms_in_xml):
-            v.remove_cdrom()
-
-    if "custom" in d.keys():
-        if type(d["custom"]) is dict:
-            if "path_custom_fd" in d["custom"].keys():
-                path_custom_fd = d["custom"]["path_custom_fd"]
-                v.add_floppy(path_floppy=path_custom_fd)
-
-    if "floppies" in hw.keys():
-        num_remove_floppies = total_floppies_in_xml - len(hw["floppies"])
-        if num_remove_floppies > 0:
-            for i in range(num_remove_floppies):
-                v.remove_floppy()
-        for i in range(len(hw["floppies"])):
-            if i >= total_floppies_in_xml:
-                v.add_floppy(path_floppy=hw["floppies"][i]["path"])
-            else:
-                v.set_floppy(hw["floppies"][i]["path"], index=i)
-    elif total_floppies_in_xml > 0:
-        for i in range(total_floppies_in_xml):
-            v.remove_floppy()
-
-    v.set_name(id_domain)
-    # INFO TO DEVELOPER, deberíamos poder usar la funcion v.set_description(para poner algo)
-    # INFO TO DEVELOPER, estaría bien guardar la plantilla de la que deriva en algún campo de rethink,
-    # la puedo sacar a partir de hw['name'], hay que decidir como le llamamos al campo
-    # es importante para poder filtrar y saber cuantas máquinas han derivado,
-    # aunque la información que vale de verdad es la backing-chain del disco
-    # template_name = hw['name']
-
-    # Set up interfaces - uses TTL-cached lookups (get_interface_cached, get_qos_net_cached)
-    # to avoid redundant DB queries when called multiple times in batch operations
-    v.remove_interface()
-    recreate_xml_interfaces(d, v)
-
-    v.set_vcpu(hw["vcpus"])
-    v.set_video_type(hw["video"])
-    # INFO TO DEVELOPER, falta hacer un v.set_network_id (para ver contra que red hace bridge o se conecta
-    # INFO TO DEVELOPER, falta hacer un v.set_netowk_type (para seleccionar si quiere virtio o realtek por ejemplo)
-
-    file_spice_options = (
-        d.get("guest_properties", {})
-        .get("viewers", {})
-        .get("file_spice", {})
-        .get("options", {})
-    )
-    if type(file_spice_options) is dict:
-        if file_spice_options.get("shared_folder") is True:
-            v.add_shared_folder()
-
-    v.randomize_vm()
-    v.remove_selinux_options()
-    v.remove_boot_order_and_danger_options_from_disks()
-    # v.print_xml()
-    xml_raw = v.return_xml()
-    # VERIFING HARDWARE FROM XML
-    hw_updated = v.dict_from_xml()
-
-    # pprint diffs between hardware and hardware from xml
-    try:
-        flatten_hw = flatten(hw, enumerate_types=(list,))
-        flatten_hw_updated = flatten(hw_updated, enumerate_types=(list,))
-        set_flatten_hw = set((k, v) for k, v in flatten_hw.items())
-        set_flatten_hw_updated = set((k, v) for k, v in flatten_hw_updated.items())
-        diff_hw_TO_hw_updated = list(set_flatten_hw - set_flatten_hw_updated)
-        diff_hw_updated_TO_hw = list(set_flatten_hw_updated - set_flatten_hw)
-        pprint(sorted(diff_hw_TO_hw_updated))
-        pprint(sorted(diff_hw_updated_TO_hw))
-    except:
-        pass
-
-    # Batch update hardware, xml, and hardware_from_xml in a single DB call
-    update_domain_dict_hardware(
-        id_domain, hw, xml=xml_raw, hardware_from_xml=hw_updated
-    )
-
-    return xml_raw
-
-
-def populate_dict_hardware_from_create_dict(id_domain):
-    domain = get_domain(id_domain)
+    Returns:
+        dict: Fully resolved hardware dictionary ready for XML generation
+    """
     create_dict = domain["create_dict"]
-    new_hardware_dict = {}
-    # if 'origin' in create_dict.keys():
-    #     template_origin = create_dict['origin']
-    #     template = get_domain(template_origin)
-    #     new_hardware_dict = template['hardware'].copy()
-    #
-    # else:
-    #     # TODO domain from iso or new
-    #     pass
+    id_domain = domain["id"]
+    resolved_hardware = {}
 
-    if "disks" in create_dict["hardware"].keys():
-        new_hardware_dict["disks"] = create_dict["hardware"]["disks"].copy()
+    # DISKS - resolve storage_id to full disk info
+    if "disks" in create_dict["hardware"]:
+        resolved_hardware["disks"] = []
+        for disk in create_dict["hardware"]["disks"]:
+            storage_id = disk.get("storage_id")
+            resolved_disk = {
+                "storage_id": storage_id,
+                "bus": disk.get("bus") or "virtio",
+            }
+            if storage_id:
+                storage = get_storage_cached(storage_id)
+                if storage:
+                    resolved_disk.update(
+                        {
+                            "file": _get_filename(storage),
+                            "parent": storage.get("parent"),
+                            "path_selected": storage.get("directory_path"),
+                        }
+                    )
+                else:
+                    log.error(
+                        f"disk storage_id {storage_id} in domain {id_domain} not found in storage table"
+                    )
+            resolved_hardware["disks"].append(resolved_disk)
 
+    # ISOs and FLOPPIES - resolve media IDs to paths
     for media_type in ["isos", "floppies"]:
-        if media_type in create_dict["hardware"].keys():
-            new_hardware_dict[media_type] = []
-            for d in create_dict["hardware"][media_type]:
-                new_media_dict = {}
-                media = get_media(d["id"])
+        if media_type in create_dict["hardware"]:
+            resolved_hardware[media_type] = []
+            for media_item in create_dict["hardware"][media_type]:
+                media = get_media(media_item["id"])
+                if media is None:
+                    log.error(
+                        f"media with id {media_item['id']} not found in media table"
+                    )
+                    continue
                 path = media.get("path_downloaded")
                 if path is None:
                     log.error(
-                        f"media with id {d['id']} has not path_downloaded in media table. Setting to DownloadFailed"
+                        f"media with id {media_item['id']} has no path_downloaded in media table"
                     )
-                    update_table_field("media", d["id"], "status", "DownloadFailed")
                     continue
-                new_media_dict["path"] = path
-                new_hardware_dict[media_type].append(new_media_dict)
+                resolved_hardware[media_type].append({"path": path})
 
-    new_hardware_dict["name"] = id_domain
-    new_hardware_dict["uuid"] = None
+    resolved_hardware["name"] = id_domain
+    resolved_hardware["uuid"] = None
 
     # MEMORY and CPUS
-    new_hardware_dict["vcpus"] = create_dict["hardware"]["vcpus"]
-    new_hardware_dict["currentMemory"] = create_dict["hardware"].get(
+    resolved_hardware["vcpus"] = create_dict["hardware"]["vcpus"]
+    resolved_hardware["currentMemory"] = create_dict["hardware"].get(
         "currentMemory", int(create_dict["hardware"]["memory"] * DEFAULT_BALLOON)
     )
-    new_hardware_dict["memory"] = create_dict["hardware"]["memory"]
-    new_hardware_dict["currentMemory_unit"] = "KiB"
-    new_hardware_dict["memory_unit"] = "KiB"
+    resolved_hardware["memory"] = create_dict["hardware"]["memory"]
+    resolved_hardware["currentMemory_unit"] = "KiB"
+    resolved_hardware["memory_unit"] = "KiB"
 
-    # VIDEO
+    # VIDEO - resolve video ID to full configuration
     id_video = create_dict["hardware"]["videos"][0]
-    new_hardware_dict["video"] = create_dict_video_from_id(id_video)
+    resolved_hardware["video"] = create_dict_video_from_id(id_video)
 
-    # GRAPHICS
-    id_graphics = create_dict["hardware"]["graphics"][0]
-
-    pool_var = domain["hypervisors_pools"]
-    id_pool = pool_var if type(pool_var) is str else pool_var[0]
-    # ~ new_hardware_dict['graphics'] = create_dict_graphics_from_id(id_graphics, id_pool)
-
-    # INTERFACES
+    # INTERFACES - resolve interface IDs to full configurations
     list_interfaces_id = []
     list_interfaces_mac = []
     interfaces = create_dict["hardware"].get("interfaces", None)
     if interfaces:
         list_interfaces_id = [i["id"] for i in interfaces]
         list_interfaces_mac = [i["mac"] for i in interfaces]
-    new_hardware_dict["interfaces"] = create_list_interfaces_from_list_ids(
+    resolved_hardware["interfaces"] = create_list_interfaces_from_list_ids(
         list_interfaces_id, list_interfaces_mac
     )
 
     # BOOT MENU
-    if "hardware" in create_dict.keys():
-        if "boot_order" in create_dict["hardware"].keys():
-            new_hardware_dict["boot_order"] = create_dict["hardware"]["boot_order"]
-        if "boot_menu_enable" in create_dict["hardware"].keys():
-            new_hardware_dict["boot_menu_enable"] = create_dict["hardware"][
-                "boot_menu_enable"
-            ]
-    # import pprint
-    # pprint.pprint(new_hardware_dict)
-    # print('############### domain {}'.format(id_domain))
-    update_table_field(
-        "domains", id_domain, "hardware", new_hardware_dict, merge_dict=False
-    )
+    if "boot_order" in create_dict["hardware"]:
+        resolved_hardware["boot_order"] = create_dict["hardware"]["boot_order"]
+    if "boot_menu_enable" in create_dict["hardware"]:
+        resolved_hardware["boot_menu_enable"] = create_dict["hardware"][
+            "boot_menu_enable"
+        ]
+
+    return resolved_hardware
 
 
 def create_dict_video_from_id(id_video):
-    dict_video = get_dict_from_item_in_table("videos", id_video)
+    dict_video = get_video_cached(id_video)
     d = {
         "heads": dict_video["heads"],
         "ram": dict_video["ram"],
@@ -1863,17 +1728,6 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 
     # Validate hardware values before starting domain
     errors = []
-    if "hardware" in dict_domain and isinstance(dict_domain["hardware"], dict):
-        hw = dict_domain["hardware"]
-        if "vcpus" in hw:
-            if not isinstance(hw["vcpus"], int) or hw["vcpus"] < 1:
-                errors.append(f"Invalid vcpus={hw['vcpus']} (must be integer >= 1)")
-        if "memory" in hw:
-            if not isinstance(hw["memory"], (int, float)) or hw["memory"] < 0.025:
-                errors.append(
-                    f"Invalid memory={hw['memory']}GB (must be >= 0.025GB / 25MB)"
-                )
-
     if "create_dict" in dict_domain and isinstance(dict_domain["create_dict"], dict):
         if "hardware" in dict_domain["create_dict"] and isinstance(
             dict_domain["create_dict"]["hardware"], dict
@@ -1905,6 +1759,101 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     if x.parser is False:
         # error when parsing xml
         return False
+
+    x.set_name(id_domain)
+    try:
+        uuid.UUID(id_domain)
+        domain_uuid = id_domain
+    except ValueError:
+        domain_uuid = str(uuid.uuid5(uuid.NAMESPACE_OID, id_domain))
+    x.tree.xpath("/domain/uuid")[0].text = domain_uuid
+
+    ##### Resolve hardware from create_dict #####
+    hw = resolve_hardware_from_create_dict(dict_domain)
+
+    # Memory
+    x.set_memory(
+        memory=hw["memory"],
+        unit=hw["memory_unit"],
+        current=int(hw.get("currentMemory", hw["memory"]) * DEFAULT_BALLOON),
+    )
+
+    # vCPUs
+    x.set_vcpu(hw["vcpus"])
+
+    # Video
+    x.set_video_type(hw["video"])
+
+    # Boot order
+    if "boot_order" in hw:
+        x.update_boot_order(hw["boot_order"], hw.get("boot_menu_enable", False))
+
+    # Disks - already resolved by resolve_hardware_from_create_dict()
+    total_disks_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="disk"]'))
+    if "disks" in hw:
+        num_remove_disks = total_disks_in_xml - len(hw["disks"])
+        if num_remove_disks > 0:
+            for i in range(num_remove_disks):
+                x.remove_disk()
+        for i, disk in enumerate(hw["disks"]):
+            if not disk.get("file"):
+                log.error(f"disk {i} in domain {id_domain} not resolved")
+                return False
+            s = disk["file"]
+            type_disk = (
+                "qcow2" if s[s.rfind(".") :].lower().find("qcow") == 1 else "raw"
+            )
+
+            if i >= total_disks_in_xml:
+                force_bus = disk.get("bus") or "virtio"
+                x.add_disk(index=i, path_disk=s, type_disk=type_disk, bus=force_bus)
+            else:
+                force_bus = disk.get("bus") or False
+                if force_bus:
+                    x.set_vdisk(s, index=i, type_disk=type_disk, force_bus=force_bus)
+                else:
+                    x.set_vdisk(s, index=i, type_disk=type_disk)
+    elif total_disks_in_xml > 0:
+        for i in range(total_disks_in_xml):
+            x.remove_disk()
+
+    # ISOs
+    total_cdroms_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="cdrom"]'))
+    if "isos" in hw:
+        num_remove = total_cdroms_in_xml - len(hw["isos"])
+        if num_remove > 0:
+            for i in range(num_remove):
+                x.remove_cdrom()
+        for i in range(len(hw["isos"])):
+            if i >= total_cdroms_in_xml:
+                x.add_cdrom(path_cdrom=hw["isos"][i]["path"])
+            else:
+                x.set_cdrom(hw["isos"][i]["path"], index=i)
+    elif total_cdroms_in_xml > 0:
+        for i in range(total_cdroms_in_xml):
+            x.remove_cdrom()
+
+    # Custom floppy
+    if "custom" in dict_domain:
+        if type(dict_domain["custom"]) is dict:
+            if "path_custom_fd" in dict_domain["custom"]:
+                x.add_floppy(path_floppy=dict_domain["custom"]["path_custom_fd"])
+
+    # Floppies
+    total_floppies_in_xml = len(x.tree.xpath('/domain/devices/disk[@device="floppy"]'))
+    if "floppies" in hw:
+        num_remove = total_floppies_in_xml - len(hw["floppies"])
+        if num_remove > 0:
+            for i in range(num_remove):
+                x.remove_floppy()
+        for i in range(len(hw["floppies"])):
+            if i >= total_floppies_in_xml:
+                x.add_floppy(path_floppy=hw["floppies"][i]["path"])
+            else:
+                x.set_floppy(hw["floppies"][i]["path"], index=i)
+    elif total_floppies_in_xml > 0:
+        for i in range(total_floppies_in_xml):
+            x.remove_floppy()
 
     ##### actions to customize xml
 
@@ -1959,7 +1908,11 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 
     # spice video compression
     # x.add_spice_graphics_if_not_exist()
-    x.set_spice_video_options()
+    graphics_list = (
+        dict_domain.get("create_dict", {}).get("hardware", {}).get("graphics", [])
+    )
+    id_graphics = graphics_list[0] if graphics_list else "default"
+    x.set_spice_video_options(id_graphics)
 
     # spice password
     if ssl is True:
@@ -1980,6 +1933,17 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     if x.mac2network_mappings:
         x.add_mac2network_metadata(x.mac2network_mappings)
 
+    # Shared folder
+    file_spice_options = (
+        dict_domain.get("guest_properties", {})
+        .get("viewers", {})
+        .get("file_spice", {})
+        .get("options", {})
+    )
+    if type(file_spice_options) is dict:
+        if file_spice_options.get("shared_folder") is True:
+            x.add_shared_folder()
+
     x.remove_selinux_options()
 
     x.set_domain_type_and_emulator()
@@ -1992,8 +1956,10 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 
     x.dict_from_xml()
 
-    # INFO TO DEVELOPER, OJO, PORQUE AQUI SE PIERDE EL BACKING CHAIN??
-    update_domain_dict_hardware(id_domain, x.vm_dict, xml=xml)
+    # Note: Hardware resolution now happens on-demand from create_dict,
+    # so we no longer need to persist the generated XML to the database.
+    # The stored xml field is now a static base template.
+
     if "viewer_passwd" in x.__dict__.keys():
         # update password in database
         update_domain_viewer_passwd(id_domain, passwd=x.viewer_passwd)
