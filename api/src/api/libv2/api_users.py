@@ -222,19 +222,22 @@ def get_user_last_started_desktop_log(user_id):
 
     :param user_id: The user id.
     :type user_id: str
-    :return: The users last started desktop id.
-    :rtype: str
+    :return: The users last started desktop log, or None if no desktop has been started.
+    :rtype: dict or None
     """
     with app.app_context():
-        return (
-            r.table("logs_desktops")
-            .get_all(user_id, index="owner_user_id")
-            .filter({"starting_by": "desktop-owner"})
-            .order_by(r.desc("starting_time"))
-            .limit(1)
-            .nth(0)
-            .run(db.conn)
-        )
+        try:
+            return (
+                r.table("logs_desktops")
+                .get_all(user_id, index="owner_user_id")
+                .filter({"starting_by": "desktop-owner"})
+                .order_by(r.desc("starting_time"))
+                .limit(1)
+                .nth(0)
+                .run(db.conn)
+            )
+        except ReqlNonExistenceError:
+            return None
 
 
 def get_user_second_to_last_started_desktop_log(user_id):

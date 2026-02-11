@@ -44,63 +44,66 @@ def get_bastion_notification(payload, notification, lang):
     if bastion_allowed:
         # Get the last started desktop by the user
         last_desktop_log = get_user_last_started_desktop_log(payload["user_id"])
-        if last_desktop_log:
-            try:
-                bastion = api_targets.get_domain_target(last_desktop_log["desktop_id"])
-                if (bastion.get("http") and bastion["http"].get("enabled") is True) or (
-                    bastion.get("ssh") and bastion["ssh"].get("enabled") is True
-                ):
-                    # Get the notification template in the user language
-                    notification_template_user = get_notification_template_by_kind(
-                        "bastion_enabled_disclaimer"
-                    )
-                    notification_template_user_lang = notification_template_user[
-                        "lang"
-                    ].get(
-                        lang,
-                        notification_template_user["lang"][
-                            notification_template_user["default"]
-                        ],
-                    )
-                    notification_data = get_user_notifications_data(
-                        payload["user_id"], "notified", notification["id"]
-                    )
-                    # If the user has not been notified yet, we need to create the notification data
-                    if not notification_data:
-                        notification_data = {
-                            "accepted_at": None,
-                            "created_at": datetime.now().astimezone(pytz.UTC),
-                            "item_id": last_desktop_log["desktop_id"],
-                            "item_type": "desktop",
-                            "notification_id": notification["id"],
-                            "notified_at": datetime.now().astimezone(pytz.UTC),
-                            "status": "notified",
-                            "user_id": payload["user_id"],
-                            "vars": {
-                                "desktop_name": last_desktop_log["desktop_name"],
-                            },
-                            "ignore_after": notification["ignore_after"],
-                        }
-                        add_notification_data(notification_data)
-                    # Otherwise, we need to update the notification data
-                    else:
-                        notification_data = notification_data[0]
-                        update_notification_data(
-                            {
-                                "id": notification_data["id"],
-                                "notified_at": datetime.now().astimezone(pytz.UTC),
-                            }
-                        )
-                    return {
-                        "id": "0000-000",
-                        "title": notification_template_user_lang["title"],
-                        "body": notification_template_user_lang["body"].format(
-                            **notification_data["vars"]
-                        ),
-                        "footer": notification_template_user_lang["footer"],
+
+        if not last_desktop_log:
+            return {}
+
+        try:
+            bastion = api_targets.get_domain_target(last_desktop_log["desktop_id"])
+            if (bastion.get("http") and bastion["http"].get("enabled") is True) or (
+                bastion.get("ssh") and bastion["ssh"].get("enabled") is True
+            ):
+                # Get the notification template in the user language
+                notification_template_user = get_notification_template_by_kind(
+                    "bastion_enabled_disclaimer"
+                )
+                notification_template_user_lang = notification_template_user[
+                    "lang"
+                ].get(
+                    lang,
+                    notification_template_user["lang"][
+                        notification_template_user["default"]
+                    ],
+                )
+                notification_data = get_user_notifications_data(
+                    payload["user_id"], "notified", notification["id"]
+                )
+                # If the user has not been notified yet, we need to create the notification data
+                if not notification_data:
+                    notification_data = {
+                        "accepted_at": None,
+                        "created_at": datetime.now().astimezone(pytz.UTC),
+                        "item_id": last_desktop_log["desktop_id"],
+                        "item_type": "desktop",
+                        "notification_id": notification["id"],
+                        "notified_at": datetime.now().astimezone(pytz.UTC),
+                        "status": "notified",
+                        "user_id": payload["user_id"],
+                        "vars": {
+                            "desktop_name": last_desktop_log["desktop_name"],
+                        },
+                        "ignore_after": notification["ignore_after"],
                     }
-            except:
-                return {}
+                    add_notification_data(notification_data)
+                # Otherwise, we need to update the notification data
+                else:
+                    notification_data = notification_data[0]
+                    update_notification_data(
+                        {
+                            "id": notification_data["id"],
+                            "notified_at": datetime.now().astimezone(pytz.UTC),
+                        }
+                    )
+                return {
+                    "id": "0000-000",
+                    "title": notification_template_user_lang["title"],
+                    "body": notification_template_user_lang["body"].format(
+                        **notification_data["vars"]
+                    ),
+                    "footer": notification_template_user_lang["footer"],
+                }
+        except:
+            return {}
     return {}
 
 
