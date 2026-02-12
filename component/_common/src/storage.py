@@ -442,8 +442,19 @@ class Storage(RethinkCustomBase):
                     "dependents": [
                         {
                             "queue": "core",
-                            "task": "storage_domains_force_update",
-                            "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                            "task": "storage_update_parent",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "storage_id": self.id,
+                                }
+                            },
+                            "dependents": [
+                                {
+                                    "queue": "core",
+                                    "task": "storage_domains_force_update",
+                                    "job_kwargs": {"kwargs": {"storage_id": self.id}},
+                                }
+                            ],
                         }
                     ],
                 }

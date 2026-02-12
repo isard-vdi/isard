@@ -217,13 +217,6 @@ def storage_update_parent(storage_id):
                 storage.parent = Storage.create_from_path(backing_file).id
         else:
             storage.parent = None
-        storage.status = "ready"
-
-        send_storage_status_socket(
-            storage_id,
-            storage.status,
-            storage.user_id,
-        )
 
 
 def storage_update(**storage_dict):
