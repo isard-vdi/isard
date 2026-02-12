@@ -315,6 +315,10 @@ export default {
       })
     },
     changeDesktopStatus (context, data) {
+      const isFromDeployment = data.deployment || false
+      if (isFromDeployment) {
+        delete data.deployment
+      }
       // Check for pending operation (500ms debounce)
       const pending = context.state.pendingOperations[data.desktopId]
       if (pending && Date.now() - pending.timestamp < 500) {
@@ -332,7 +336,7 @@ export default {
         context.commit('update_desktop', { id: data.desktopId, state: DesktopUtils.parseState({ state: response.data.status }) })
         // Once the request is successful, we can clear the pending state
         context.commit('CLEAR_PENDING_OPERATION', data.desktopId)
-        if (data.action === 'start') {
+        if (data.action === 'start' && !isFromDeployment) {
           context.dispatch('fetchNotifications', { trigger: 'start_desktop', display: 'modal' })
         }
         return response

@@ -142,7 +142,7 @@
           :spinner-active="isPendingOperation(data.item.id)"
           :butt-text="$t(`views.select-template.status.${getItemState(data.item)}.action`)"
           :icon-name="data.item.buttonIconName"
-          @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
+          @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id, deployment: true })"
         />
       </template>
       <template #cell(options)="data">
