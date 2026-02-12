@@ -2,6 +2,7 @@ import base64
 import json
 
 from cachetools import TTLCache, cached
+from engine.models.pool_hypervisors import PoolDiskoperations
 from engine.services.db import (
     get_domains_started_in_vgpu,
     get_hyp_hostname_user_port_from_id,
@@ -84,13 +85,12 @@ def engine_status(payload):
             "diskoperations_pools: {}".format(app.m.diskoperations_pools.keys())
         )
         for esp in enabled_storage_pools:
-            if not esp["id"] in app.m.diskoperations_pools.keys():
+            if esp["id"] not in app.m.diskoperations_pools.keys():
+                app.m.diskoperations_pools[esp["id"]] = PoolDiskoperations(esp["id"])
+            if not app.m.diskoperations_pools[
+                esp["id"]
+            ].balancer.get_next_diskoperations():
                 failed_storage_pools += esp["id"] + ", "
-            else:
-                if not app.m.diskoperations_pools[
-                    esp["id"]
-                ].balancer.get_next_diskoperations():
-                    failed_storage_pools += esp["id"] + ", "
         if len(failed_storage_pools):
             return (
                 "No disk operations hypervisors available for storage pools: {}".format(
