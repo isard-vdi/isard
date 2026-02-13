@@ -586,9 +586,12 @@ class ApiDesktopsPersistent:
         ]
 
         if data["hardware"].get("disk_size"):
+            disk_bus = data["hardware"]["disk_bus"]
+            if disk_bus == "default":
+                disk_bus = "virtio"
             disks = [
                 {
-                    "bus": data["hardware"]["disk_bus"],
+                    "bus": disk_bus,
                     "extension": "qcow2",
                     "size": str(data["hardware"]["disk_size"]) + "G",
                 }
