@@ -1567,7 +1567,9 @@ def resolve_hardware_from_create_dict(domain):
             storage_id = disk.get("storage_id")
             bus = disk.get("bus")
             if not bus or bus == "default":
-                bus = "virtio"
+                bus = create_dict["hardware"].get("disk_bus", "virtio")
+                if bus == "default":
+                    bus = "virtio"
             resolved_disk = {
                 "storage_id": storage_id,
                 "bus": bus,
