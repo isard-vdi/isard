@@ -35,10 +35,10 @@ from engine.services.db import (
 from engine.services.db.downloads import get_media
 from engine.services.db.storage_pool import get_category_storage_pool
 from engine.services.lib.functions import pop_key_if_zero, randomMAC
-from engine.services.lib.storage import _get_filename, insert_storage
+from engine.services.lib.storage import _get_filename
 from engine.services.log import *
 from lxml import etree
-from schema import And, Optional, Schema, SchemaError, Use
+from schema import And, Optional, Schema, Use
 from yattag import indent
 
 DEFAULT_SPICE_VIDEO_COMPRESSION = "auto_glz"
@@ -1625,17 +1625,6 @@ def resolve_hardware_from_create_dict(domain):
     id_video = create_dict["hardware"]["videos"][0]
     resolved_hardware["video"] = create_dict_video_from_id(id_video)
 
-    # INTERFACES - resolve interface IDs to full configurations
-    list_interfaces_id = []
-    list_interfaces_mac = []
-    interfaces = create_dict["hardware"].get("interfaces", None)
-    if interfaces:
-        list_interfaces_id = [i["id"] for i in interfaces]
-        list_interfaces_mac = [i["mac"] for i in interfaces]
-    resolved_hardware["interfaces"] = create_list_interfaces_from_list_ids(
-        list_interfaces_id, list_interfaces_mac
-    )
-
     # BOOT MENU
     if "boot_order" in create_dict["hardware"]:
         resolved_hardware["boot_order"] = create_dict["hardware"]["boot_order"]
@@ -1657,74 +1646,6 @@ def create_dict_video_from_id(id_video):
     }
 
     return d
-
-
-def create_list_interfaces_from_list_ids(list_ids_networks, list_mac_networks):
-    l = []
-    for i, id_net in enumerate(list_ids_networks):
-        mac_address = list_mac_networks[i]
-        l.append(create_dict_interface_hardware_from_id(id_net, mac_address))
-    return l
-
-
-def create_dict_interface_hardware_from_id(id_net, mac_address):
-    dict_net = get_dict_from_item_in_table("interfaces", id_net)
-    qos_id = dict_net.get("qos_id", False)
-    if qos_id:
-        try:
-            dict_qos = get_dict_from_item_in_table("qos_net", qos_id)
-            try:
-                # validate and convert str to int
-                dict_bandwidth = BANDWIDTH_SCHEMA.validate(dict_qos["bandwidth"])
-                # remove elements with zero
-                dict_bandwidth = pop_key_if_zero(dict_bandwidth)
-                return {
-                    "type": dict_net["kind"],
-                    "id": dict_net["id"],
-                    "name": dict_net["name"],
-                    "model": dict_net["model"],
-                    "net": dict_net["net"],
-                    "mac": mac_address,
-                    "qos": dict_bandwidth,
-                }
-            except SchemaError as error:
-                log.error("error validating schema of qos: {}".format(error))
-        except:
-            log.error(f"net qos with id {qos_id} not defined in dict_qos table")
-    return {
-        "type": dict_net["kind"],
-        "id": dict_net["id"],
-        "name": dict_net["name"],
-        "model": dict_net["model"],
-        "net": dict_net["net"],
-        "mac": mac_address,
-        "qos": False,
-    }
-
-
-# ~ def create_dict_graphics_from_id(id, pool_id):
-# ~ dict_graph = get_dict_from_item_in_table('graphics', id)
-# ~ if dict_graph is None:
-# ~ log.error('{} not defined as id in graphics table, value default is used'.format(id))
-# ~ dict_graph = get_dict_from_item_in_table('graphics', 'default')
-
-# ~ # deprectaed
-# ~ #type = dict_graph['type']
-# ~ d = {}
-# ~ #d['type'] = type
-# ~ pool = get_dict_from_item_in_table('hypervisors_pools', pool_id)
-
-# ~ if pool['viewer']['defaultMode'] == 'Insecure':
-# ~ d['defaultMode'] = 'Insecure'
-# ~ d['certificate'] = ''
-# ~ d['domain'] = ''
-
-# ~ if pool['viewer']['defaultMode'] == 'Secure':
-# ~ d['defaultMode'] = 'Secure'
-# ~ d['certificate'] = pool['viewer']['certificate']
-# ~ d['domain'] = pool['viewer']['defaultMode']
-
-# ~ return d
 
 
 def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
