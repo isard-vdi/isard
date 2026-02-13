@@ -1565,9 +1565,12 @@ def resolve_hardware_from_create_dict(domain):
         resolved_hardware["disks"] = []
         for disk in create_dict["hardware"]["disks"]:
             storage_id = disk.get("storage_id")
+            bus = disk.get("bus")
+            if not bus or bus == "default":
+                bus = "virtio"
             resolved_disk = {
                 "storage_id": storage_id,
-                "bus": disk.get("bus") or "virtio",
+                "bus": bus,
             }
             if storage_id:
                 storage = get_storage_cached(storage_id)
