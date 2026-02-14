@@ -2471,7 +2471,7 @@ class ApiUsers:
 
     def get_users_by_category(self, category_id):
         with app.app_context():
-            return (
+            return list(
                 r.table("users")
                 .get_all(category_id, index="category")
                 .pluck("id")["id"]
