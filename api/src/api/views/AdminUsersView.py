@@ -485,7 +485,7 @@ def api_v3_admin_users_delete(payload):
         try:
             for user in data["user"]:
                 revoke_user_session(user)
-                users.Delete(user, payload["user_id"], data["delete_user"])
+                users.Delete(user, payload["user_id"], data.get("delete_user", True))
             notify_admins(
                 "user_action",
                 {"action": "delete", "count": len(data["user"]), "status": "completed"},
