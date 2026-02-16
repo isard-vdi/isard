@@ -119,14 +119,16 @@ class ResourceItemsGpus:
                 {"active_profile": None, "changing_to_profile": None},
                 r.table("vgpus")
                 .get(gpu["physical_device"])
-                .pluck("vgpu_profile", "changing_to_profile")
+                .default({})
                 .do(
                     lambda vgpu: {
-                        "active_profile": vgpu["vgpu_profile"],
-                        "changing_to_profile": vgpu["changing_to_profile"],
+                        "active_profile": vgpu["vgpu_profile"].default(None),
+                        "changing_to_profile": vgpu["changing_to_profile"].default(
+                            None
+                        ),
                         "desktops_started": r.table("vgpus")
                         .filter(lambda row: row["id"] == gpu["physical_device"])
-                        .concat_map(lambda row: row["mdevs"].values())
+                        .concat_map(lambda row: row["mdevs"].default({}).values())
                         .concat_map(lambda mdev_group: mdev_group.values())
                         .filter(lambda mdev: mdev["domain_started"] != False)
                         .map(lambda mdev: mdev["domain_started"])

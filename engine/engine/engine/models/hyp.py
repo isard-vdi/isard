@@ -642,7 +642,27 @@ class hyp(object):
             return
         update_table_field("vgpus", gpu_id, "changing_to_profile", new_profile)
         pci_id = gpu_id.split("-")[-1]
-        old_profile = self.info_nvidia.get(pci_id, {}).get("vgpu_profile", None)
+
+        # Check if mdevs data exists for this PCI device and the new profile
+        pci_mdevs = self.mdevs.get(pci_id, {})
+        if not pci_mdevs.get(new_profile):
+            logs.main.error(
+                f"Cannot change to profile {new_profile} for {gpu_id}: "
+                f"mdevs data not found. GPU may need re-initialization."
+            )
+            update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+            return False
+
+        pci_info = self.info_nvidia.get(pci_id, {})
+        if not pci_info.get("path"):
+            logs.main.error(
+                f"Cannot change profile for {gpu_id}: no path info available. "
+                f"GPU may need re-initialization."
+            )
+            update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+            return False
+
+        old_profile = pci_info.get("vgpu_profile", None)
         if old_profile != new_profile:
             remove_uuids = get_all_mdev_uuids_from_profile(gpu_id, old_profile)
             # GET RUNNING MDEVS AND DOMAINS FROM HYPERVISOR
@@ -664,10 +684,16 @@ class hyp(object):
                                     logs.main.error(
                                         f"domain {domain_id} running can not be destroyed with exception: {e}"
                                     )
+                                    update_table_field(
+                                        "vgpus", gpu_id, "changing_to_profile", False
+                                    )
                                     return False
                             except Exception as e:
                                 logs.main.error(
                                     f"domain {domain_id} running can not be destroyed to change gpu profile with exception: {e}"
+                                )
+                                update_table_field(
+                                    "vgpus", gpu_id, "changing_to_profile", False
                                 )
                                 return False
 
@@ -683,6 +709,8 @@ class hyp(object):
                 if uuid_remove not in d_mdevs_running.keys()
             ]
 
+            old_profile_mdevs = pci_mdevs.get(old_profile, {})
+
             if len(cmds_remove_uuids) > 0:
                 array_out_err = execute_commands(
                     self.hostname, cmds_remove_uuids, port=self.port
@@ -695,7 +723,8 @@ class hyp(object):
                         update_vgpu_created(
                             gpu_id, old_profile, uuid_remove, created=False
                         )
-                        self.mdevs[pci_id][old_profile][uuid_remove]["created"] = False
+                        if uuid_remove in old_profile_mdevs:
+                            old_profile_mdevs[uuid_remove]["created"] = False
 
             for uuid_not_running in uuids_that_not_are_running:
                 logs.main.info(
@@ -704,16 +733,18 @@ class hyp(object):
                 update_vgpu_created(
                     gpu_id, old_profile, uuid_not_running, created=False
                 )
-                self.mdevs[pci_id][old_profile][uuid_not_running]["created"] = False
+                if uuid_not_running in old_profile_mdevs:
+                    old_profile_mdevs[uuid_not_running]["created"] = False
 
             # CREATE NEW UUIDS
             create_uuids = get_all_mdev_uuids_from_profile(gpu_id, new_profile)
 
-            base_path = self.info_nvidia[pci_id]["path"]
-            sub_paths = self.info_nvidia[pci_id].get("sub_paths", False)
+            base_path = pci_info["path"]
+            sub_paths = pci_info.get("sub_paths", False)
             cmds = []
             uuids_create = []
-            for uuid_create, d_uuid in self.mdevs[pci_id][new_profile].items():
+            new_profile_mdevs = pci_mdevs[new_profile]
+            for uuid_create, d_uuid in new_profile_mdevs.items():
                 type_id = d_uuid["type_id"]
                 if uuid_create not in d_mdevs_running.keys():
                     uuids_create.append(uuid_create)
@@ -730,7 +761,7 @@ class hyp(object):
                     cmds.append(f"echo {uuid_create} > {full_path}")
                 else:
                     update_vgpu_created(gpu_id, new_profile, uuid_create, created=True)
-                    self.mdevs[pci_id][new_profile][uuid_create]["created"] = True
+                    new_profile_mdevs[uuid_create]["created"] = True
 
             if len(cmds) > 0:
                 array_out_err = execute_commands(self.hostname, cmds, port=self.port)
@@ -742,7 +773,7 @@ class hyp(object):
                         update_vgpu_created(
                             gpu_id, new_profile, uuid_create, created=True
                         )
-                        self.mdevs[pci_id][new_profile][uuid_create]["created"] = True
+                        new_profile_mdevs[uuid_create]["created"] = True
 
             self.info_nvidia[pci_id]["vgpu_profile"] = new_profile
             update_table_field("vgpus", gpu_id, "changing_to_profile", False)
@@ -1790,6 +1821,12 @@ class hyp(object):
                 if sub_paths is False:
                     path = d_info_gpu["path"]
                 else:
+                    if i >= len(sub_paths):
+                        logs.main.warning(
+                            f"sub_paths has only {len(sub_paths)} elements but "
+                            f"total_available is {total_available}. Skipping remaining UUIDs."
+                        )
+                        break
                     path = sorted(sub_paths)[i]
                 uuid64 = str(uuid.uuid4())
                 d[uuid64] = {
