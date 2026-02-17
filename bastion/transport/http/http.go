@@ -78,6 +78,18 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, db r.Qu
 func (b *bastion) handleConn(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 
+	// Enable TCP keepalive on the client connection to detect dead peers
+	switch c := conn.(type) {
+	case *net.TCPConn:
+		c.SetKeepAlive(true)
+		c.SetKeepAlivePeriod(30 * time.Second)
+	case *proxyproto.Conn:
+		if tcpConn, ok := c.Raw().(*net.TCPConn); ok {
+			tcpConn.SetKeepAlive(true)
+			tcpConn.SetKeepAlivePeriod(30 * time.Second)
+		}
+	}
+
 	connLog := *b.log
 	var remoteIP string
 	var remotePort string
@@ -389,6 +401,13 @@ func (b *bastion) handleProxy(ctx context.Context, conn net.Conn, peeked *bytes.
 			}
 			continue
 		}
+
+		// Enable TCP keepalive on the target connection to detect dead peers
+		if tcpConn, ok := targetConn.(*net.TCPConn); ok {
+			tcpConn.SetKeepAlive(true)
+			tcpConn.SetKeepAlivePeriod(30 * time.Second)
+		}
+
 		proxyLog.Info().Str("local_addr_to_target", targetConn.LocalAddr().String()).Str("remote_addr_to_target", targetConn.RemoteAddr().String()).Msg("Connection to target established")
 
 		// Conditionally send PROXY Protocol v2 header based on target configuration
