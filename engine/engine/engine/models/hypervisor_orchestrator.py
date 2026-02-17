@@ -219,11 +219,31 @@ class HypervisorsOrchestratorThread(threading.Thread):
                         f"Hypervisor {hyp_id} marked as degraded: {reason}. "
                         f"Migrating queued actions to other hypervisors."
                     )
+                    pool_obj = self.manager.pools.get("default")
+                    pool_balancer = getattr(pool_obj, "balancer", None)
                     move_actions_to_others_hypers(
                         hyp_id,
                         self.d_queues,
                         remove_stopping=False,  # Keep stop actions in queue
                         remove_if_no_more_hyps=False,  # Keep if no alternatives
+                        balancer=pool_balancer,
+                    )
+
+                if action["type"] == "hyp_only_forced":
+                    hyp_id = action["hyp_id"]
+                    logs.main.info(
+                        f"Hypervisor {hyp_id} set to only_forced/gpu_only. "
+                        f"Moving non-GPU queued actions to other hypervisors."
+                    )
+                    pool_obj = self.manager.pools.get("default")
+                    pool_balancer = getattr(pool_obj, "balancer", None)
+                    move_actions_to_others_hypers(
+                        hyp_id,
+                        self.d_queues,
+                        remove_stopping=False,
+                        remove_if_no_more_hyps=False,
+                        keep_gpu_actions=True,
+                        balancer=pool_balancer,
                     )
 
             except queue.Empty:
@@ -246,11 +266,14 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 return False
 
     def set_hyp_thread_dead(self, hyp_id):
+        pool_obj = self.manager.pools.get("default")
+        pool_balancer = getattr(pool_obj, "balancer", None)
         move_actions_to_others_hypers(
             hyp_id,
             self.d_queues,
             remove_stopping=True,
             remove_if_no_more_hyps=True,
+            balancer=pool_balancer,
         )
 
         # POP FROM MANAGER DICTIONARIES
@@ -491,6 +514,8 @@ class HypervisorChangesThread(threading.Thread):
                 "status",
                 "thread_status",
                 "hypervisors_pools",
+                "only_forced",
+                "gpu_only",
             )
             .merge({"table": "hypervisors"})
             .changes()
@@ -576,6 +601,20 @@ class HypervisorChangesThread(threading.Thread):
                             "hypervisors_pools"
                         )
                         self.q_orchestrator.put(action)
+                    # Detect only_forced or gpu_only transition → move non-GPU queued actions
+                    old_only_forced = c["old_val"].get("only_forced", False)
+                    new_only_forced = c["new_val"].get("only_forced", False)
+                    old_gpu_only = c["old_val"].get("gpu_only", False)
+                    new_gpu_only = c["new_val"].get("gpu_only", False)
+
+                    if (not old_only_forced and new_only_forced) or (
+                        not old_gpu_only and new_gpu_only
+                    ):
+                        action = {}
+                        action["type"] = "hyp_only_forced"
+                        action["hyp_id"] = c["new_val"].get("id")
+                        self.q_orchestrator.put(action)
+
                     if (
                         c["old_val"]["enabled"] == False
                         and c["new_val"]["status"] == "Deleting"
