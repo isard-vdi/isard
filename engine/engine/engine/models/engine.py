@@ -868,7 +868,7 @@ class Engine(object):
             sleep(0.1)
         # except TypeError:
         #    pass
-        self.t_broom.stop = True
+        self.t_broom.stop_thread()
         # operations / status
         for k, v in self.t_disk_operations.items():
             v.stop = True

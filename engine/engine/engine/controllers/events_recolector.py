@@ -11,11 +11,13 @@
 # Start off by implementing a general purpose event loop for anyone's use
 ##############################################################################
 
+import atexit
 import queue
 import sys
 import threading
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 
 import libvirt
 from engine.controllers.ui_actions import Q_PRIORITY_PERSONAL_UNIT
@@ -38,6 +40,31 @@ from engine.services.log import *
 TIMEOUT_QUEUE_REGISTER_EVENTS = 1
 NUM_TRY_REGISTER_EVENTS = 5
 SLEEP_BETWEEN_TRY_REGISTER_EVENTS = 1.0
+
+# =============================================================================
+# Async Event Processing Configuration
+# =============================================================================
+
+# Maximum number of concurrent event processor threads
+EVENT_PROCESSOR_MAX_WORKERS = 50
+
+# Thread pool for processing domain events asynchronously
+# This prevents slow database operations from blocking the libvirt event loop
+_event_processor_pool = ThreadPoolExecutor(
+    max_workers=EVENT_PROCESSOR_MAX_WORKERS, thread_name_prefix="event_processor"
+)
+
+
+def _shutdown_event_processor_pool():
+    """Shutdown the event processor pool gracefully."""
+    try:
+        _event_processor_pool.shutdown(wait=False)
+    except Exception:
+        pass
+
+
+# Register shutdown handler for graceful cleanup
+atexit.register(_shutdown_event_processor_pool)
 
 # Reference: https://github.com/libvirt/libvirt-python/blob/master/examples/event-test.py
 import pprint
@@ -398,184 +425,213 @@ def myConnectionCloseCallback(conn, reason, opaque):
 ##########################################################################
 
 
-def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
-    now = int(time.time())
-    dom_id = dom.name()
-    hyp_id = get_id_hyp_from_uri(conn.getURI())
+def _process_domain_event_async(conn_uri, dom_name, event, detail, opaque, event_time):
+    """Process a domain event asynchronously.
 
-    dict_event = {
-        "domain": dom_id,
-        "hyp_id": hyp_id,
-        "event": domEventToString(event),
-        "detail": domDetailToString(event, detail),
-        "when": now,
-    }
+    This function contains the actual event processing logic, moved out of
+    the callback to allow non-blocking execution in a thread pool.
 
-    logs.status.info(
-        "EVENT: {domain} - {event} ({detail}) - {hyp}".format(
-            domain=dom_id,
-            event=dict_event["event"],
-            detail=dict_event["detail"],
-            hyp=hyp_id,
+    Args:
+        conn_uri: The libvirt connection URI
+        dom_name: The domain name
+        event: The event type (integer)
+        detail: The event detail (integer)
+        opaque: Opaque data passed to callback
+        event_time: Timestamp when event was received
+    """
+    try:
+        dom_id = dom_name
+        hyp_id = get_id_hyp_from_uri(conn_uri)
+
+        dict_event = {
+            "domain": dom_id,
+            "hyp_id": hyp_id,
+            "event": domEventToString(event),
+            "detail": domDetailToString(event, detail),
+            "when": event_time,
+        }
+
+        logs.status.info(
+            "EVENT: {domain} - {event} ({detail}) - {hyp}".format(
+                domain=dom_id,
+                event=dict_event["event"],
+                detail=dict_event["detail"],
+                hyp=hyp_id,
+            )
         )
-    )
 
-    results = get_domain_hyp_started_and_status_and_detail(dom_id)
-    if results == {}:
-        logs.status.debug("domain {} not in database, was deleted".format(dom_id))
-        return
-    domain_status = results.get("status", None)
-    # domain_detail = results.get("detail", None)
-    domain_hyp_started = results.get("hyp_started", None)
-
-    # Skip event if domain hyp_started and event hyp_id is not the same
-    if not (
-        domain_hyp_started is None
-        or domain_hyp_started == ""
-        or domain_hyp_started == False
-    ):
-        if hyp_id != domain_hyp_started:
-            logs.status.warning(
-                "Received event {} in hypervisor {}, but domain {} is started in hypervisor {}".format(
-                    dict_event["event"],
-                    hyp_id,
-                    dom_id,
-                    domain_hyp_started,
-                )
-            )
+        results = get_domain_hyp_started_and_status_and_detail(dom_id)
+        if results == {}:
+            logs.status.debug("domain {} not in database, was deleted".format(dom_id))
             return
+        domain_status = results.get("status", None)
+        domain_hyp_started = results.get("hyp_started", None)
 
-    if domain_status != None:
-        if hyp_id is None or hyp_id == "":
-            logs.status.debug(
-                "event in Hypervisor not in database with uri. Domain id:{}, uri:{}".format(
-                    dom_id, conn.getURI()
+        # Skip event if domain hyp_started and event hyp_id is not the same
+        if not (
+            domain_hyp_started is None
+            or domain_hyp_started == ""
+            or domain_hyp_started == False
+        ):
+            if hyp_id != domain_hyp_started:
+                logs.status.warning(
+                    "Received event {} in hypervisor {}, but domain {} is started in hypervisor {}".format(
+                        dict_event["event"],
+                        hyp_id,
+                        dom_id,
+                        domain_hyp_started,
+                    )
                 )
-            )
-        r_status = opaque
+                return
 
-        if dict_event["event"] in ("Started", "Resumed"):
-            if (
-                domain_status == "StartingDomainDisposable"
-                and dict_event["event"] == "Resumed"
-            ):
-                logs.status.info("Event Resumed Received but waiting for Started")
-
-            elif domain_status == "CreatingDomain" and dict_event["event"] == "Started":
-                logs.status.info("Event Started Received but waiting for Paused")
-
-            elif domain_status == "Stopped" and dict_event["event"] == "Resumed":
-                logs.status.info(
-                    "Event Resumed Received but waiting for Paused to update status in database"
-                )
-
-            elif domain_status == "Started" and dict_event["event"] == "Resumed":
-                logs.status.info(
-                    "Event Resumed Received but his state is started in database"
+        if domain_status != None:
+            if hyp_id is None or hyp_id == "":
+                logs.status.debug(
+                    "event in Hypervisor not in database with uri. Domain id:{}, uri:{}".format(
+                        dom_id, conn_uri
+                    )
                 )
 
-            elif domain_status == "Starting" and dict_event["event"] == "Resumed":
-                logs.status.info(
-                    "Event Resumed Received but his state is Starting in database, waiting for started"
-                )
+            if dict_event["event"] in ("Started", "Resumed"):
+                if (
+                    domain_status == "StartingDomainDisposable"
+                    and dict_event["event"] == "Resumed"
+                ):
+                    logs.status.info("Event Resumed Received but waiting for Started")
 
-            else:
-                try:
-                    # xml_started = dom.XMLDesc()
-                    # vm = DomainXML(xml_started)
-                    # spice, spice_tls, vnc, vnc_websocket = vm.get_graphics_port()
-                    # update_domain_viewer_started_values(dom_id, hyp_id=hyp_id,
-                    #                                     spice=spice, spice_tls=spice_tls,
-                    #                                     vnc = vnc,vnc_websocket=vnc_websocket)
-                    # logs.status.info(f'DOMAIN STARTED - {dom_id} in {hyp_id} (spice: {spice} / spicetls:{spice_tls} / vnc: {vnc} / vnc_websocket: {vnc_websocket})')
-                    detail_event = domDetailToString(event, detail)
-                    if detail_event == "Unpaused" and domain_status == "Paused":
-                        status_to_update = "Started"
-                    else:
-                        status_to_update = domEventToString(event)
-                        logs.status.info(
-                            f"DOMAIN STARTED - event received: {detail_event} - {dom_id} in {hyp_id}"
+                elif (
+                    domain_status == "CreatingDomain"
+                    and dict_event["event"] == "Started"
+                ):
+                    logs.status.info("Event Started Received but waiting for Paused")
+
+                elif domain_status == "Stopped" and dict_event["event"] == "Resumed":
+                    logs.status.info(
+                        "Event Resumed Received but waiting for Paused to update status in database"
+                    )
+
+                elif domain_status == "Started" and dict_event["event"] == "Resumed":
+                    logs.status.info(
+                        "Event Resumed Received but his state is started in database"
+                    )
+
+                elif domain_status == "Starting" and dict_event["event"] == "Resumed":
+                    logs.status.info(
+                        "Event Resumed Received but his state is Starting in database, waiting for started"
+                    )
+
+                else:
+                    try:
+                        detail_event = domDetailToString(event, detail)
+                        if detail_event == "Unpaused" and domain_status == "Paused":
+                            status_to_update = "Started"
+                        else:
+                            status_to_update = domEventToString(event)
+                            logs.status.info(
+                                f"DOMAIN STARTED - event received: {detail_event} - {dom_id} in {hyp_id}"
+                            )
+                        update_domain_status(
+                            id_domain=dom_id,
+                            status=status_to_update,
+                            hyp_id=hyp_id,
+                            detail="Event received: " + detail_event,
                         )
+                    except Exception as e:
+                        logs.exception_id.debug("0005")
+                        logs.status.error(
+                            "Domain {} has been destroyed while event started is processing, typical if try domain with starting paused and destroyed".format(
+                                dom_id
+                            )
+                        )
+                        logs.status.error("Exception: " + str(e))
+                        log.error("Traceback: {}".format(traceback.format_exc()))
+
+            if dict_event["event"] in ("Suspended"):
+                if (
+                    domain_status == "CreatingDomain"
+                    and dict_event["event"] == "Suspended"
+                ):
+                    logs.status.debug(
+                        "Event Paused Received but waiting for Stoped to update status"
+                    )
+                else:
                     update_domain_status(
                         id_domain=dom_id,
-                        status=status_to_update,
+                        status="Paused",
                         hyp_id=hyp_id,
-                        detail="Event received: " + detail_event,
+                        detail="Event received: " + domDetailToString(event, detail),
                     )
-                except Exception as e:
-                    logs.exception_id.debug("0005")
-                    logs.status.error(
-                        "Domain {} has been destroyed while event started is processing, typical if try domain with starting paused and destroyed".format(
-                            dom_id
+
+            if dict_event["event"] in ("Stopped"):
+                if domain_status != "Stopped" and domain_status not in [
+                    "ForceDeleting"
+                ]:
+                    logs.status.debug(
+                        "event {} ({}) in hypervisor {} changes status to Stopped in domain {}".format(
+                            dict_event["event"],
+                            dict_event["detail"],
+                            hyp_id,
+                            dict_event["domain"],
                         )
                     )
-                    logs.status.error("Exception: " + str(e))
-                    log.error("Traceback: {}".format(traceback.format_exc()))
 
-        if dict_event["event"] in ("Suspended"):
-            if domain_status == "CreatingDomain" and dict_event["event"] == "Suspended":
-                logs.status.debug(
-                    "Event Paused Received but waiting for Stoped to update status"
-                )
-            else:
-                update_domain_status(
-                    id_domain=dom_id,
-                    status="Paused",
-                    hyp_id=hyp_id,
-                    detail="Event received: " + domDetailToString(event, detail),
-                )
+                    update_domain_status(
+                        status="Stopped",
+                        id_domain=dict_event["domain"],
+                        hyp_id=False,
+                        detail="Ready to Start",
+                    )
+                if dict_event["detail"] in ("Shutdown"):
+                    update_vgpu_info_if_stopped(dom_id)
 
-        if dict_event["event"] in ("Stopped"):
-            if domain_status != "Stopped" and domain_status not in ["ForceDeleting"]:
-                logs.status.debug(
-                    "event {} ({}) in hypervisor {} changes status to Stopped in domain {}".format(
+            if dict_event["event"] in (
+                "Defined",
+                "Undefined",
+                "PMSuspended",
+                "Crashed",
+            ):
+                logs.status.error(
+                    "event strange, why?? event: {}, domain: {}, hyp_id: {}, detail: {}".format(
                         dict_event["event"],
-                        dict_event["detail"],
-                        hyp_id,
                         dict_event["domain"],
+                        hyp_id,
+                        dict_event["detail"],
                     )
                 )
 
-                update_domain_status(
-                    status="Stopped",
-                    id_domain=dict_event["domain"],
-                    hyp_id=False,
-                    detail="Ready to Start",
+        else:
+            logs.status.info(
+                "domain {} launch event in hyervisor {}, but id_domain is not in database".format(
+                    dom_id, hyp_id
                 )
-            if dict_event["detail"] in ("Shutdown"):
-                update_vgpu_info_if_stopped(dom_id)
-
-        if dict_event["event"] in (
-            "Defined",
-            "Undefined",
-            # "Started",
-            # "Suspended",
-            # "Resumed",
-            # "Stopped",
-            # "Shutdown",
-            "PMSuspended",
-            "Crashed",
-        ):
-            logs.status.error(
-                "event strange, why?? event: {}, domain: {}, hyp_id: {}, detail: {}".format(
-                    dict_event["event"],
-                    dict_event["domain"],
-                    hyp_id,
-                    dict_event["detail"],
+            )
+            logs.status.info(
+                "event: {}; detail: {}".format(
+                    domEventToString(event), domDetailToString(event, detail)
                 )
             )
 
-    else:
-        logs.status.info(
-            "domain {} launch event in hyervisor {}, but id_domain is not in database".format(
-                dom_id, hyp_id
-            )
-        )
-        logs.status.info(
-            "event: {}; detail: {}".format(
-                domEventToString(event), domDetailToString(event, detail)
-            )
-        )
+    except Exception as e:
+        logs.status.error(f"Error processing domain event async: {e}")
+        log.error("Traceback: {}".format(traceback.format_exc()))
+
+
+def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
+    """Non-blocking domain event callback.
+
+    This callback extracts minimal information quickly and queues the actual
+    processing work to a thread pool. This ensures the libvirt event loop
+    is not blocked by slow database operations.
+    """
+    # Extract info quickly - these are fast libvirt calls
+    now = int(time.time())
+    dom_name = dom.name()
+    conn_uri = conn.getURI()
+
+    # Queue the actual processing to the thread pool
+    _event_processor_pool.submit(
+        _process_domain_event_async, conn_uri, dom_name, event, detail, opaque, now
+    )
 
 
 last_timestamp_event_graphics = dict()
@@ -583,103 +639,145 @@ last_chain_event_graphics = dict()
 lock = threading.Lock()
 
 
+def _process_graphics_event_async(
+    domain_name,
+    hypervisor_hostname,
+    phase,
+    localAddr,
+    remoteAddr,
+    authScheme,
+    opaque,
+    event_time,
+):
+    """Process a graphics event asynchronously.
+
+    This function contains the actual event processing logic for graphics events,
+    moved out of the callback to allow non-blocking execution in a thread pool.
+
+    Args:
+        domain_name: The domain name
+        hypervisor_hostname: The hypervisor hostname
+        phase: The graphics event phase
+        localAddr: Local address dict with 'node' and 'service'
+        remoteAddr: Remote address dict with 'node' and 'service'
+        authScheme: Authentication scheme used
+        opaque: Opaque data passed to callback
+        event_time: Timestamp when event was received
+    """
+    global lock
+    global last_chain_event_graphics
+    global last_timestamp_event_graphics
+
+    try:
+        with lock:
+            key_domain_hyp_phase = domain_name + hypervisor_hostname + str(phase)
+
+            if key_domain_hyp_phase not in last_timestamp_event_graphics.keys():
+                last_timestamp_event_graphics[key_domain_hyp_phase] = 0.0
+            if key_domain_hyp_phase not in last_chain_event_graphics.keys():
+                last_chain_event_graphics[key_domain_hyp_phase] = ""
+
+            chain_event_graphics = (
+                "graphics_"
+                + hypervisor_hostname
+                + domain_name
+                + localAddr["node"]
+                + remoteAddr["node"]
+            )
+
+            diff_time = event_time - last_timestamp_event_graphics[key_domain_hyp_phase]
+
+            logs.status.debug(
+                "phase:{} - key:{} - diff:{} - now:{} - before:{}".format(
+                    phase,
+                    key_domain_hyp_phase,
+                    diff_time,
+                    event_time,
+                    last_timestamp_event_graphics[key_domain_hyp_phase],
+                )
+            )
+            logs.status.debug("chainnew: {}".format(chain_event_graphics))
+            logs.status.debug(
+                "chainold: {}".format(last_chain_event_graphics[key_domain_hyp_phase])
+            )
+
+            # if same event in less than 1 second, not log the event in table
+            if (
+                last_chain_event_graphics[key_domain_hyp_phase] == chain_event_graphics
+                and diff_time < 1
+            ):
+                logs.status.debug(
+                    "event repeated: diff_time {} - phase:{} - {}".format(
+                        diff_time, str(phase), chain_event_graphics
+                    )
+                )
+
+            else:
+                dict_event = {
+                    "domain": domain_name,
+                    "hyp_hostname": hypervisor_hostname,
+                    "event": "graphics_event",
+                    "phase": phase,
+                    "authScheme": authScheme,
+                    "localAddr": localAddr["node"],
+                    "localPort": localAddr["service"],
+                    "remoteAddr": remoteAddr["node"],
+                    "remotePort": remoteAddr["service"],
+                    "chainnew": chain_event_graphics,
+                    "chainold": last_chain_event_graphics[key_domain_hyp_phase],
+                    "last": last_timestamp_event_graphics[key_domain_hyp_phase],
+                    "diff": diff_time,
+                    "when": event_time,
+                }
+
+                logs.status.debug(
+                    "myDomainEventGraphicsCallback: Domain %s %s"
+                    % (domain_name, authScheme)
+                )
+                logs.status.debug(
+                    "localAddr: {},remoteAddr: {}, phase:{}".format(
+                        localAddr["node"], remoteAddr["node"], phase
+                    )
+                )
+
+            last_chain_event_graphics[key_domain_hyp_phase] = chain_event_graphics
+            last_timestamp_event_graphics[key_domain_hyp_phase] = event_time
+
+    except Exception as e:
+        logs.status.error(f"Error processing graphics event async: {e}")
+        log.error("Traceback: {}".format(traceback.format_exc()))
+
+
 def myDomainEventGraphicsCallbackRethink(
     conn, dom, phase, localAddr, remoteAddr, authScheme, subject, opaque
 ):
-    global lock
+    """Non-blocking graphics event callback.
 
-    with lock:
-        global last_chain_event_graphics
-        global last_timestamp_event_graphics
+    This callback extracts minimal information quickly and queues the actual
+    processing work to a thread pool. This ensures the libvirt event loop
+    is not blocked by slow operations.
+    """
+    # Extract info quickly - these are fast libvirt calls
+    now = int(time.time())
+    domain_name = dom.name()
+    hypervisor_hostname = conn.getHostname()
 
-        now = int(time.time())
-        domain_name = dom.name()
-        hypervisor_hostname = conn.getHostname()
-        key_domain_hyp_phase = domain_name + hypervisor_hostname + str(phase)
+    # Copy the address dicts since they may not be valid after callback returns
+    local_addr_copy = {"node": localAddr["node"], "service": localAddr["service"]}
+    remote_addr_copy = {"node": remoteAddr["node"], "service": remoteAddr["service"]}
 
-        if key_domain_hyp_phase not in last_timestamp_event_graphics.keys():
-            last_timestamp_event_graphics[key_domain_hyp_phase] = 0.0
-        if key_domain_hyp_phase not in last_chain_event_graphics.keys():
-            last_chain_event_graphics[key_domain_hyp_phase] = ""
-
-        # sometimes libvirt launhcs the same event more than one time:
-        # chain_event_graphics = 'graphics_' + hypervisor_hostname + domain_name + str(phase) + localAddr['node'] + remoteAddr['node']
-        chain_event_graphics = (
-            "graphics_"
-            + hypervisor_hostname
-            + domain_name
-            + localAddr["node"]
-            + remoteAddr["node"]
-        )
-
-        diff_time = now - last_timestamp_event_graphics[key_domain_hyp_phase]
-
-        logs.status.debug(
-            "phase:{} - key:{} - diff:{} - now:{} - before:{}".format(
-                phase,
-                key_domain_hyp_phase,
-                diff_time,
-                now,
-                last_timestamp_event_graphics[key_domain_hyp_phase],
-            )
-        )
-        logs.status.debug("chainnew: {}".format(chain_event_graphics))
-        logs.status.debug(
-            "chainold: {}".format(last_chain_event_graphics[key_domain_hyp_phase])
-        )
-
-        # if same event in less than 1 second, not log the event in table
-        if (
-            last_chain_event_graphics[key_domain_hyp_phase] == chain_event_graphics
-            and diff_time < 1
-        ):
-            logs.status.debug(
-                "event repeated: diff_time {} - phase:{} - {}".format(
-                    diff_time, str(phase), chain_event_graphics
-                )
-            )
-
-        else:
-            dict_event = {
-                "domain": domain_name,
-                "hyp_hostname": hypervisor_hostname,
-                "event": "graphics_event",
-                "phase": phase,
-                "authScheme": authScheme,
-                "localAddr": localAddr["node"],
-                "localPort": localAddr["service"],
-                "remoteAddr": remoteAddr["node"],
-                "remotePort": remoteAddr["service"],
-                "chainnew": chain_event_graphics,
-                "chainold": last_chain_event_graphics[key_domain_hyp_phase],
-                "last": last_timestamp_event_graphics[key_domain_hyp_phase],
-                "diff": diff_time,
-                "when": now,
-            }
-
-            r_status = opaque
-
-            # TODO: SEND STATUS TO INFLUXDB
-
-            # with new stats we can update this info can be updated from API call
-            # from stats. With ss we can extract info of remote ip from socket and update
-            # if there are client ip on or off. If we use only the event from libvirt
-            # r_status.update_viewer_client(
-            #     domain_name, phase, ip_client=remoteAddr["node"], when=now
-            # )
-
-            logs.status.debug(
-                "myDomainEventGraphicsCallback: Domain %s(%s) %s"
-                % (dom.name(), dom.ID(), authScheme)
-            )
-            logs.status.debug(
-                "localAddr: {},remoteAddr: {}, phase:{}".format(
-                    localAddr["node"], remoteAddr["node"], phase
-                )
-            )
-
-        last_chain_event_graphics[key_domain_hyp_phase] = chain_event_graphics
-        last_timestamp_event_graphics[key_domain_hyp_phase] = now
+    # Queue the actual processing to the thread pool
+    _event_processor_pool.submit(
+        _process_graphics_event_async,
+        domain_name,
+        hypervisor_hostname,
+        phase,
+        local_addr_copy,
+        remote_addr_copy,
+        authScheme,
+        opaque,
+        now,
+    )
 
 
 r_status = RethinkHypEvent()

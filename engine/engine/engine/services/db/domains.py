@@ -491,6 +491,7 @@ def get_domains_with_transitional_status(
         list_status = list(list_status)
         list_status.append("Started")
         list_status.append("Paused")
+        list_status.append("Resetting")
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     # ~ l = list(rtable.filter(lambda d: r.expr(list_status).
@@ -738,7 +739,7 @@ def get_domain_status(id):
     except ReqlNonExistenceError:
         return None
 
-    return domain_status["status"]
+    return domain_status.get("status")
 
 
 def get_storage_ids_and_paths_from_domain(domain_id):

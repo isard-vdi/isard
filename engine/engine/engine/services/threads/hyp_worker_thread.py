@@ -46,6 +46,8 @@ from engine.services.lib.libvirt_timeout import (
     LibvirtOperationStats,
     LibvirtTimeoutError,
     execute_with_timeout,
+    register_hypervisor_executor,
+    unregister_hypervisor_executor,
 )
 from engine.services.lib.qmp import Notifier, PersonalUnit
 from engine.services.log import logs
@@ -168,6 +170,9 @@ class HypWorkerThread(threading.Thread):
         """Initialize the worker thread and hypervisor connection"""
         self.tid = get_tid()
         logs.workers.info(f"Starting thread: {self.name} (TID {self.tid})")
+
+        # Register per-hypervisor timeout executor
+        register_hypervisor_executor(self.hyp_id)
 
         # Get hypervisor connection parameters
         host_info = get_hyp_hostname_from_id(self.hyp_id)
@@ -827,6 +832,9 @@ class HypWorkerThread(threading.Thread):
         """Clean up resources before thread termination"""
         try:
             update_hyp_thread_status("worker", self.hyp_id, "Stopping")
+
+            # Unregister per-hypervisor timeout executor
+            unregister_hypervisor_executor(self.hyp_id)
 
             # Disconnect from hypervisor
             if self.h:
