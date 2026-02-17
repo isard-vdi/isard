@@ -188,7 +188,7 @@ export default {
   height: calc(100vh);
   overflow-y: auto;
   background-color: #fbf7ed !important;
-  font-family: 'Montserrat', 'sans-serif';
+  font-family: 'Montserrat Variable', 'sans-serif';
 }
 
 #bottom-right-mountains {
