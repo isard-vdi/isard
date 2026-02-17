@@ -121,7 +121,7 @@ class PooledConnection:
 
 import os
 
-_pool_size = int(os.environ.get("RETHINKDB_POOL_SIZE", "10"))
+_pool_size = int(os.environ.get("RETHINKDB_POOL_SIZE", "50"))
 connection_pool = RethinkDBConnectionPool(pool_size=_pool_size)
 
 
