@@ -138,6 +138,7 @@ class HypervisorsOrchestratorThread(threading.Thread):
         t_events,
         t_disk_operations,
         q_disk_operations,
+        manager=None,
         polling_interval=10,
     ):
         threading.Thread.__init__(self)
@@ -147,6 +148,7 @@ class HypervisorsOrchestratorThread(threading.Thread):
         self.q_actions = PriorityQueueIsard()
         self.t_disk_operations = t_disk_operations
         self.q_disk_operations = q_disk_operations
+        self.manager = manager
         self.name = name
         self.stop = False
         self.r_conn = False
