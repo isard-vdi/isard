@@ -18,6 +18,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@fontsource-variable/montserrat": "^5.1.0",
     "@hey-api/client-fetch": "^0.3.1",
     "@tanstack/vue-query": "^5.52.2",
     "@vee-validate/zod": "^4.13.2",
