@@ -2,9 +2,13 @@
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
 import 'vue-select/dist/vue-select.css'
+// Material Icons
+import 'material-icons/iconfont/material-icons.css'
 // Custom css
 import '@/assets/global.css'
 import 'vue-snotify/styles/simple.css'
+// Fonts
+import '@fontsource-variable/montserrat'
 
 // Isard styles
 import './assets/styles.css'
