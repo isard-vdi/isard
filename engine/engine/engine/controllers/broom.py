@@ -370,7 +370,11 @@ class ThreadBroom(threading.Thread):
 
                 t_broom_inner = time()
                 for db_domain in DB_DOMAINS_WITHOUT_HYP:
-                    if db_domain["status"] == "Stopping":
+                    if db_domain["status"] in (
+                        "Stopping",
+                        "Starting",
+                        "StartingPaused",
+                    ):
                         continue
                     logs.broom.error(
                         "DOMAIN {} WITH STATUS {} without HYPERVISOR".format(
