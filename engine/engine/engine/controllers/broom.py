@@ -154,7 +154,7 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
                             domain_id,
                             hyp_id,
                             "hyp_started updated by broom",
-                            status_and_detail["status"],
+                            "Started",
                         )
                     result["domains_handled"].append(domain_id)
 
