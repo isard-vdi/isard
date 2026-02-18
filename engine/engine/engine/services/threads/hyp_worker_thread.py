@@ -204,6 +204,15 @@ class HypWorkerThread(threading.Thread):
         update_table_field("hypervisors", self.hyp_id, "stats", self.h.stats, soft=True)
         update_hyp_status(self.hyp_id, "Online")
 
+        # Clear any stale degraded/warning state from a previous session
+        try:
+            update_hyp_degraded_status(self.hyp_id, is_degraded=False)
+            update_hyp_libvirt_warning(self.hyp_id, clear=True)
+        except Exception as e:
+            logs.workers.warning(
+                f"[{self.hyp_id}] Failed to clear stale degraded state: {e}"
+            )
+
         # Certificate expiration check disabled - was causing startup delays
         # try:
         #     update_table_field(

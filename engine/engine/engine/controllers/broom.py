@@ -12,6 +12,7 @@ from time import sleep, time
 from engine.config import POLLING_INTERVAL_TRANSITIONAL_STATES
 from engine.models.hyp import hyp
 from engine.services.db import (
+    get_degraded_hyp_ids,
     get_domain_status,
     get_domains_with_transitional_status,
     get_hyp_hostname_from_id,
@@ -19,6 +20,7 @@ from engine.services.db import (
     update_domain_hyp_started,
     update_domain_status,
     update_hyp_degraded_status,
+    update_hyp_libvirt_warning,
     update_table_dict,
     update_table_field,
     update_vgpu_info_if_stopped,
@@ -279,6 +281,7 @@ class ThreadBroom(threading.Thread):
         for hyp_id in recovered:
             try:
                 update_hyp_degraded_status(hyp_id, is_degraded=False)
+                update_hyp_libvirt_warning(hyp_id, clear=True)
                 self._broom_degraded_hyps.discard(hyp_id)
                 logs.broom.info(
                     f"Hypervisor {hyp_id} recovered from broom-detected degraded state"
@@ -287,6 +290,25 @@ class ThreadBroom(threading.Thread):
                 logs.broom.error(
                     f"Failed to recover hypervisor {hyp_id} from degraded: {e}"
                 )
+
+        # Also recover hyps degraded by other components (e.g. worker thread
+        # from a previous session) that now pass the connectivity check
+        try:
+            db_degraded = get_degraded_hyp_ids()
+            stale_degraded = (db_degraded & succeeded_hyps) - self._broom_degraded_hyps
+            for hyp_id in stale_degraded:
+                try:
+                    update_hyp_degraded_status(hyp_id, is_degraded=False)
+                    update_hyp_libvirt_warning(hyp_id, clear=True)
+                    logs.broom.info(
+                        f"Hypervisor {hyp_id} recovered from stale degraded state"
+                    )
+                except Exception as e:
+                    logs.broom.error(
+                        f"Failed to recover hypervisor {hyp_id} from stale degraded: {e}"
+                    )
+        except Exception as e:
+            logs.broom.error(f"Failed to query degraded hypervisors: {e}")
 
         return hyps_domain_started
 
