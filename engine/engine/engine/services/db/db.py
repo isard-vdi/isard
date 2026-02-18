@@ -74,7 +74,8 @@ class RethinkDBConnectionPool:
         """Retrieve a connection from the pool."""
         try:
             conn = self._pool.get(timeout=60)
-            self._in_use += 1
+            with self._lock:
+                self._in_use += 1
             logs.main.debug(
                 f"rethinkdb connection acquired (in_use={self._in_use}, idle={self._pool.qsize()}, pool_size={self._pool_size})"
             )
@@ -92,7 +93,8 @@ class RethinkDBConnectionPool:
                 logs.main.warning("Replaced dead RethinkDB connection in pool")
             except Exception as e:
                 logs.main.error(f"Failed to replace dead connection in pool: {e}")
-        self._in_use = max(0, self._in_use - 1)
+        with self._lock:
+            self._in_use = max(0, self._in_use - 1)
         logs.main.debug(
             f"rethinkdb connection released (in_use={self._in_use}, idle={self._pool.qsize()}, pool_size={self._pool_size})"
         )
@@ -121,7 +123,7 @@ class PooledConnection:
 
 import os
 
-_pool_size = int(os.environ.get("RETHINKDB_POOL_SIZE", "10"))
+_pool_size = int(os.environ.get("RETHINKDB_POOL_SIZE", "50"))
 connection_pool = RethinkDBConnectionPool(pool_size=_pool_size)
 
 

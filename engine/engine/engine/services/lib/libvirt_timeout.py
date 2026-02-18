@@ -29,7 +29,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, Optional
 
 from engine.services.log import logs
 
@@ -211,23 +211,116 @@ class LibvirtOperationStats:
             self.last_issue_time = None
 
 
-# Thread pool for executing libvirt operations with timeout
-# Using a single worker to avoid overwhelming slow hypervisors
-_timeout_executor = ThreadPoolExecutor(
-    max_workers=1, thread_name_prefix="libvirt_timeout"
-)
+# =============================================================================
+# Per-Hypervisor Executor Registry
+# =============================================================================
 
 
-def _shutdown_timeout_executor():
-    """Shutdown the timeout executor gracefully."""
+class HypervisorExecutorRegistry:
+    """Registry of per-hypervisor ThreadPoolExecutors.
+
+    Each hypervisor gets its own single-threaded executor to prevent
+    one stuck hypervisor from blocking libvirt operations on other
+    hypervisors. This isolates cascade failures.
+    """
+
+    _instance = None
+    _lock = Lock()
+
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._executors: Dict[str, ThreadPoolExecutor] = {}
+                    cls._instance._executors_lock = Lock()
+        return cls._instance
+
+    def get_executor(self, hyp_id: str) -> ThreadPoolExecutor:
+        """Get or create a single-threaded executor for a hypervisor.
+
+        Args:
+            hyp_id: The hypervisor ID
+
+        Returns:
+            ThreadPoolExecutor dedicated to this hypervisor
+        """
+        with self._executors_lock:
+            if hyp_id not in self._executors:
+                self._executors[hyp_id] = ThreadPoolExecutor(
+                    max_workers=1, thread_name_prefix=f"libvirt_timeout_{hyp_id}"
+                )
+                logs.workers.debug(f"[{hyp_id}] Created timeout executor")
+            return self._executors[hyp_id]
+
+    def remove_executor(self, hyp_id: str) -> None:
+        """Remove and shutdown executor for a hypervisor.
+
+        Call this when a hypervisor goes offline to clean up resources.
+
+        Args:
+            hyp_id: The hypervisor ID
+        """
+        with self._executors_lock:
+            if hyp_id in self._executors:
+                try:
+                    self._executors[hyp_id].shutdown(wait=False)
+                    logs.workers.debug(f"[{hyp_id}] Shutdown timeout executor")
+                except Exception as e:
+                    logs.workers.warning(
+                        f"[{hyp_id}] Error shutting down timeout executor: {e}"
+                    )
+                del self._executors[hyp_id]
+
+    def shutdown_all(self) -> None:
+        """Shutdown all executors. Called during application exit."""
+        with self._executors_lock:
+            for hyp_id, executor in list(self._executors.items()):
+                try:
+                    executor.shutdown(wait=False)
+                except Exception:
+                    pass
+            self._executors.clear()
+
+
+# Singleton registry instance
+_executor_registry = HypervisorExecutorRegistry()
+
+
+def register_hypervisor_executor(hyp_id: str) -> None:
+    """Register a hypervisor executor (creates it if needed).
+
+    Call this when a hypervisor worker thread starts.
+
+    Args:
+        hyp_id: The hypervisor ID
+    """
+    _executor_registry.get_executor(hyp_id)
+    logs.workers.info(f"[{hyp_id}] Registered hypervisor timeout executor")
+
+
+def unregister_hypervisor_executor(hyp_id: str) -> None:
+    """Unregister and cleanup a hypervisor executor.
+
+    Call this when a hypervisor worker thread stops.
+
+    Args:
+        hyp_id: The hypervisor ID
+    """
+    _executor_registry.remove_executor(hyp_id)
+    logs.workers.info(f"[{hyp_id}] Unregistered hypervisor timeout executor")
+
+
+def _shutdown_all_executors():
+    """Shutdown all timeout executors gracefully."""
     try:
-        _timeout_executor.shutdown(wait=False)
+        _executor_registry.shutdown_all()
     except Exception:
         pass  # Ignore errors during shutdown
 
 
 # Register shutdown handler for graceful cleanup
-atexit.register(_shutdown_timeout_executor)
+atexit.register(_shutdown_all_executors)
 
 
 def execute_with_timeout(
@@ -238,10 +331,11 @@ def execute_with_timeout(
     operation_name: str = "unknown",
     hyp_id: str = "unknown",
 ) -> Any:
-    """Execute a function with a timeout.
+    """Execute a function with a timeout using per-hypervisor executors.
 
-    Uses ThreadPoolExecutor to run the function in a separate thread
-    and waits for the result with a timeout.
+    Uses a dedicated ThreadPoolExecutor per hypervisor to run the function
+    in a separate thread and waits for the result with a timeout. This
+    ensures one stuck hypervisor doesn't block operations on other hypervisors.
 
     Note: This does NOT kill the underlying libvirt call if it times out.
     The call will continue running in the background. The purpose is to
@@ -253,7 +347,7 @@ def execute_with_timeout(
         kwargs: Keyword arguments for func
         timeout: Maximum time to wait (seconds)
         operation_name: Name of operation for logging/errors
-        hyp_id: Hypervisor ID for logging/errors
+        hyp_id: Hypervisor ID for logging/errors and executor selection
 
     Returns:
         The result of func(*args, **kwargs)
@@ -265,7 +359,9 @@ def execute_with_timeout(
     if kwargs is None:
         kwargs = {}
 
-    future = _timeout_executor.submit(func, *args, **kwargs)
+    # Get the executor for this specific hypervisor
+    executor = _executor_registry.get_executor(hyp_id)
+    future = executor.submit(func, *args, **kwargs)
 
     try:
         result = future.result(timeout=timeout)

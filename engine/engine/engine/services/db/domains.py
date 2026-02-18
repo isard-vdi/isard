@@ -452,18 +452,16 @@ def update_custom_all_dict(id_domain, d_custom):
 
 
 def get_domain_hyp_started_and_status_and_detail(id_domain):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    try:
-        results = (
-            rtable.get(id_domain).pluck("hyp_started", "detail", "status").run(r_conn)
-        )
-    except:
-        # if results is None:
-        close_rethink_connection(r_conn)
-        return {}
-    close_rethink_connection(r_conn)
-    return results
+    with rethink_conn() as conn:
+        try:
+            return (
+                r.table("domains")
+                .get(id_domain)
+                .pluck("hyp_started", "detail", "status")
+                .run(conn)
+            )
+        except:
+            return {}
 
 
 def get_domains_with_status(status):
@@ -491,6 +489,7 @@ def get_domains_with_transitional_status(
         list_status = list(list_status)
         list_status.append("Started")
         list_status.append("Paused")
+        list_status.append("Resetting")
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     # ~ l = list(rtable.filter(lambda d: r.expr(list_status).
@@ -738,7 +737,7 @@ def get_domain_status(id):
     except ReqlNonExistenceError:
         return None
 
-    return domain_status["status"]
+    return domain_status.get("status")
 
 
 def get_storage_ids_and_paths_from_domain(domain_id):

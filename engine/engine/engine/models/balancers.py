@@ -1,3 +1,8 @@
+import copy
+import random
+import threading
+import time
+
 from engine.services.db import get_table_field
 from engine.services.db.hypervisors import (
     get_diskopts_online,
@@ -38,7 +43,7 @@ class Balancer_available_ram:
         logs.main.debug(
             f"BALANCER AVAILABLE RAM. MEMORY AVAILABLE: {[{h['id']: h['stats']['mem_stats']['available']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('available')]}"
         )
-        return sort_hypervisors_ram_absolute(hypers)[0]
+        return weighted_select(sort_hypervisors_ram_absolute(hypers))
 
 
 class Balancer_available_ram_percent:
@@ -48,7 +53,7 @@ class Balancer_available_ram_percent:
             f"BALANCER AVAILABLE RAM%. MEMORY AVAILABLE: {[{h['id']: h['stats']['mem_stats']['available']*100/h['stats']['mem_stats']['total']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('available')]}"
         )
 
-        return sort_hypervisors_ram_percentage(hypers)[0]
+        return weighted_select(sort_hypervisors_ram_percentage(hypers))
 
 
 class Balancer_less_cpu:
@@ -58,7 +63,7 @@ class Balancer_less_cpu:
             f"BALANCER LESS CPU. CPU IDLE: {[{h['id']: h['stats']['cpu_1min']['idle']} for h in hypers if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
         )
 
-        return sort_hypervisors_cpu_percentage(hypers)[0]
+        return weighted_select(sort_hypervisors_cpu_percentage(hypers))
 
 
 class Balancer_less_cpu_till_low_ram:
@@ -75,22 +80,29 @@ class Balancer_less_cpu_till_low_ram:
             f"BALANCER LESS CPU TILL LOW RAM. RAM PERCENTAGE: {[{h['id']: (h['stats']['mem_stats']['total']-h['stats']['mem_stats']['available'])/h['stats']['mem_stats']['total']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
         )
 
-        # If the hypervisor has enough free RAM, choose it!
-        for hyper in hypers_ordered_by_cpu:
-            if _get_used_ram_percentage(hyper) <= self.RAM_LIMIT:
-                logs.main.info(
-                    "BALANCER LESS CPU TILL LOW RAM. BEST CPU HYPER SELECTED: %s"
-                    % str(hyper["id"])
-                )
-                return hyper
+        # Collect all hypervisors with enough free RAM (sorted by CPU)
+        eligible = [
+            h
+            for h in hypers_ordered_by_cpu
+            if _get_used_ram_percentage(h) <= self.RAM_LIMIT
+        ]
 
-        # If none of the hypervisors has enough RAM, choose the one with more available
+        if eligible:
+            selected = weighted_select(eligible)
+            logs.main.info(
+                "BALANCER LESS CPU TILL LOW RAM. SELECTED: %s (from %d eligible)"
+                % (str(selected["id"]), len(eligible))
+            )
+            return selected
+
+        # If none of the hypervisors has enough RAM, distribute weighted by available RAM
         hypers_ordered_by_ram = sort_hypervisors_ram_absolute(hypers)
+        selected = weighted_select(hypers_ordered_by_ram)
         logs.main.info(
-            "BALANCER LESS CPU TILL LOW RAM. NO BEST CPU HYPER, SELECTED BY RAM: %s"
-            % str(hypers_ordered_by_ram[0]["id"])
+            "BALANCER LESS CPU TILL LOW RAM. NO ELIGIBLE, SELECTED BY RAM: %s"
+            % str(selected["id"])
         )
-        return hypers_ordered_by_ram[0]
+        return selected
 
 
 class Balancer_less_cpu_till_low_ram_percent:
@@ -107,23 +119,29 @@ class Balancer_less_cpu_till_low_ram_percent:
             f"BALANCER LESS CPU TILL LOW RAM. RAM PERCENTAGE: {[{h['id']: (h['stats']['mem_stats']['total']-h['stats']['mem_stats']['available'])/h['stats']['mem_stats']['total']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
         )
 
-        # If the hypervisor has enough free RAM, choose it!
-        for hyper in hypers_ordered_by_cpu:
-            if _get_used_ram_percentage(hyper) <= self.RAM_LIMIT:
-                logs.main.info(
-                    "BALANCER LESS CPU TILL LOW RAM. BEST CPU HYPER SELECTED: %s"
-                    % str(hyper["id"])
-                )
-                return hyper
+        # Collect all hypervisors with enough free RAM (sorted by CPU)
+        eligible = [
+            h
+            for h in hypers_ordered_by_cpu
+            if _get_used_ram_percentage(h) <= self.RAM_LIMIT
+        ]
 
-        # If none of the hypervisors has enough RAM, choose the one with more available
+        if eligible:
+            selected = weighted_select(eligible)
+            logs.main.info(
+                "BALANCER LESS CPU TILL LOW RAM PERCENTAGE. SELECTED: %s (from %d eligible)"
+                % (str(selected["id"]), len(eligible))
+            )
+            return selected
+
+        # If none of the hypervisors has enough RAM, distribute weighted by RAM percentage
         hypers_ordered_by_ram = sort_hypervisors_ram_percentage(hypers)
-
+        selected = weighted_select(hypers_ordered_by_ram)
         logs.main.info(
-            "BALANCER LESS CPU TILL LOW RAM PERCENTAGE. NO BEST CPU HYPER, SELECTED BY RAM PERCENT: %s"
-            % str(hypers_ordered_by_ram[0]["id"])
+            "BALANCER LESS CPU TILL LOW RAM PERCENTAGE. NO ELIGIBLE, SELECTED BY RAM PERCENT: %s"
+            % str(selected["id"])
         )
-        return hypers_ordered_by_ram[0]
+        return selected
 
 
 """
@@ -172,6 +190,41 @@ class BalancerInterface:
         if balancer_type == "less_cpu_till_low_ram_percent":
             self._balancer = Balancer_less_cpu_till_low_ram_percent()
 
+        self._lock = threading.Lock()
+        self._pending_ram = {}  # {hyp_id: [(ram_gb, timestamp), ...]}
+
+    _PENDING_EXPIRY_SECONDS = 30
+
+    def _record_pending(self, hyp_id, ram_gb):
+        """Record a pending domain start's RAM usage for a hypervisor."""
+        self._pending_ram.setdefault(hyp_id, []).append((ram_gb, time.time()))
+
+    def _cleanup_expired(self):
+        """Remove pending entries older than expiry threshold."""
+        cutoff = time.time() - self._PENDING_EXPIRY_SECONDS
+        for hyp_id in list(self._pending_ram):
+            self._pending_ram[hyp_id] = [
+                (ram, ts) for ram, ts in self._pending_ram[hyp_id] if ts > cutoff
+            ]
+            if not self._pending_ram[hyp_id]:
+                del self._pending_ram[hyp_id]
+
+    def _get_pending_ram_kb(self, hyp_id):
+        """Return total pending RAM in KB for a hypervisor."""
+        entries = self._pending_ram.get(hyp_id, [])
+        return sum(ram_gb for ram_gb, _ in entries) * 1048576  # GB to KB
+
+    def _adjust_for_pending(self, hypers):
+        """Return deep-copied hyper dicts with available RAM reduced by pending starts."""
+        adjusted = copy.deepcopy(hypers)
+        for h in adjusted:
+            pending_kb = self._get_pending_ram_kb(h["id"])
+            if pending_kb > 0:
+                mem_stats = h.get("stats", {}).get("mem_stats")
+                if mem_stats and "available" in mem_stats:
+                    mem_stats["available"] = max(0, mem_stats["available"] - pending_kb)
+        return adjusted
+
     def get_next_hypervisor(
         self,
         forced_hyp=None,
@@ -179,6 +232,7 @@ class BalancerInterface:
         reservables=None,
         force_gpus=None,
         storage_pool_id=None,
+        domain_memory_gb=1.0,
     ):
         if storage_pool_id is None:
             logs.hmlog.error("Storage pool id is None so can't get next hypervisor")
@@ -192,7 +246,7 @@ class BalancerInterface:
         ):
             return (
                 self._get_next_capabilities_virt(
-                    forced_hyp, favourite_hyp, storage_pool_id
+                    forced_hyp, favourite_hyp, storage_pool_id, domain_memory_gb
                 ),
                 {},
             )
@@ -214,6 +268,7 @@ class BalancerInterface:
             gpu_profile,
             forced_gpus_hypervisors,
             storage_pool_id,
+            domain_memory_gb,
         )
 
         # If no hypervisor with gpu available and online, return False
@@ -265,7 +320,11 @@ class BalancerInterface:
         return hyper_selected
 
     def _get_next_capabilities_virt(
-        self, forced_hyp=None, favourite_hyp=None, storage_pool_id=None
+        self,
+        forced_hyp=None,
+        favourite_hyp=None,
+        storage_pool_id=None,
+        domain_memory_gb=1.0,
     ):
         hypers = get_hypers_online(
             self.id_pool, forced_hyp, favourite_hyp, storage_pool_id=storage_pool_id
@@ -288,13 +347,22 @@ class BalancerInterface:
             logs.main.error("No hypervisors online to execute next virt action.")
             return False
         if len(hypers_w_threads) == 1:
+            hyper_selected = hypers_w_threads[0]["id"]
+            with self._lock:
+                self._record_pending(hyper_selected, domain_memory_gb)
             logs.main.debug("####################### BALANCER #######################")
             logs.main.debug(
                 "Executing next virt action in the only hypervisor available: %s"
-                % hypers_w_threads[0]["id"]
+                % hyper_selected
             )
-            return hypers_w_threads[0]["id"]
-        hyper_selected = self._balancer._balancer(hypers_w_threads)["id"]
+            return hyper_selected
+
+        with self._lock:
+            self._cleanup_expired()
+            adjusted_hypers = self._adjust_for_pending(hypers_w_threads)
+            hyper_selected = self._balancer._balancer(adjusted_hypers)["id"]
+            self._record_pending(hyper_selected, domain_memory_gb)
+
         logs.main.debug("####################### BALANCER #######################")
         logs.main.debug(
             "Executing next virt action in hypervisor: %s (current hypers avail: %s)"
@@ -309,6 +377,7 @@ class BalancerInterface:
         gpu_profile=None,
         forced_gpus_hypervisors=None,
         storage_pool_id=None,
+        domain_memory_gb=1.0,
     ):
         gpu_hypervisors_online = get_hypers_gpu_online(
             self.id_pool,
@@ -340,6 +409,8 @@ class BalancerInterface:
             )
             return False, {}
         if len(hypers_w_threads) == 1:
+            with self._lock:
+                self._record_pending(hypers_w_threads[0]["id"], domain_memory_gb)
             logs.main.debug("####################### BALANCER #######################")
             logs.main.debug(
                 "Executing next GPU virt action in the only hypervisor %s with profile %s available"
@@ -348,15 +419,21 @@ class BalancerInterface:
             return hypers_w_threads[0]["id"], _parse_extra_gpu_info(
                 hypers_w_threads[0]["gpu_selected"]
             )
-        hyper_selected = self._balancer._balancer(hypers_w_threads)
+
+        with self._lock:
+            self._cleanup_expired()
+            adjusted_hypers = self._adjust_for_pending(hypers_w_threads)
+            hyper_selected = self._balancer._balancer(adjusted_hypers)
+            self._record_pending(hyper_selected["id"], domain_memory_gb)
+
+        # Find the original (non-deep-copied) entry to get gpu_selected
+        original = next(h for h in hypers_w_threads if h["id"] == hyper_selected["id"])
         logs.main.debug("####################### BALANCER #######################")
         logs.main.debug(
             "Executing next GPU virt action in hypervisor %s with profile %s (current similar hypers avail: %s)"
-            % (hyper_selected, gpu_profile, [h["id"] for h in hypers_w_threads]),
+            % (original["id"], gpu_profile, [h["id"] for h in hypers_w_threads]),
         )
-        return hyper_selected["id"], _parse_extra_gpu_info(
-            hyper_selected["gpu_selected"]
-        )
+        return original["id"], _parse_extra_gpu_info(original["gpu_selected"])
 
 
 def _parse_extra_gpu_info(gpu_selected):
@@ -398,3 +475,15 @@ def sort_hypervisors_cpu_percentage(hypers):
         key=lambda h: h.get("stats", {}).get("cpu_1min", {}).get("idle", 0),
         reverse=True,
     )
+
+
+def weighted_select(sorted_hypers):
+    """Select from sorted hypers with probability weighted by rank.
+
+    Best-ranked hypervisor gets highest weight, distributing load
+    while still favoring better candidates.
+    With 3 hypers: weights are 3:2:1 (50%, 33%, 17%).
+    """
+    n = len(sorted_hypers)
+    weights = list(range(n, 0, -1))
+    return random.choices(sorted_hypers, weights=weights, k=1)[0]

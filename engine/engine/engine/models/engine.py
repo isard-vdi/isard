@@ -8,6 +8,7 @@ import pprint
 import queue
 import threading
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from time import sleep
 
@@ -375,6 +376,7 @@ class Engine(object):
                         t_disk_operations=self.manager.t_disk_operations,
                         q_disk_operations=self.manager.q_disk_operations,
                         queues_object=self.manager.q,
+                        manager=self.manager,
                     )
                     self.manager.t_orchestrator.daemon = True
                     self.manager.t_orchestrator.start()
@@ -459,6 +461,21 @@ class Engine(object):
             self.name = name
             self.stop = False
             self.r_conn = False
+            self.executor = ThreadPoolExecutor(
+                max_workers=5, thread_name_prefix="domain_action"
+            )
+
+        def _submit_action(self, fn, *args, **kwargs):
+            """Submit a ui action to the thread pool with error handling."""
+
+            def _wrapped():
+                try:
+                    fn(*args, **kwargs)
+                except Exception as e:
+                    logs.main.error(f"Error in domain action {fn.__name__}: {e}")
+                    logs.main.error(f"Traceback: {traceback.format_exc()}")
+
+            self.executor.submit(_wrapped)
 
         def run(self):
             self.tid = get_tid()
@@ -595,14 +612,18 @@ class Engine(object):
                             pass
 
                     if new_domain is True and new_status == "CreatingDiskFromScratch":
-                        ui.creating_disk_from_scratch(domain_id)
+                        self._submit_action(ui.creating_disk_from_scratch, domain_id)
 
                     if new_domain is True and new_status == "Creating":
-                        ui.creating_disks_from_template(domain_id)
+                        self._submit_action(ui.creating_disks_from_template, domain_id)
 
                     if new_domain is True and new_status == "CreatingAndStarting":
-                        update_domain_start_after_created(domain_id)
-                        ui.creating_disks_from_template(domain_id)
+
+                        def _creating_and_starting(domain_id):
+                            update_domain_start_after_created(domain_id)
+                            ui.creating_disks_from_template(domain_id)
+
+                        self._submit_action(_creating_and_starting, domain_id)
 
                         # INFO TO DEVELOPER
                         # recoger template de la que hay que derivar
@@ -624,7 +645,8 @@ class Engine(object):
                             new_status == "CreatingDomain"
                             or new_status == "CreatingDomainFromDisk"
                         ):
-                            ui.creating_and_test_xml_start(
+                            self._submit_action(
+                                ui.creating_and_test_xml_start,
                                 domain_id,
                                 creating_from_create_dict=True,
                                 ssl=True,
@@ -632,7 +654,9 @@ class Engine(object):
                             )
 
                     if old_status == "Stopped" and new_status == "CreatingTemplate":
-                        ui.create_template_disks_from_domain(domain_id)
+                        self._submit_action(
+                            ui.create_template_disks_from_domain, domain_id
+                        )
 
                     if (
                         old_status not in ["Started", "Shutting-down"]
@@ -641,88 +665,107 @@ class Engine(object):
                         # or \
                         #     old_status == 'Failed' and new_status == "Deleting" or \
                         #     old_status == 'Downloaded' and new_status == "Deleting":
-                        ui.deleting_disks_from_domain(domain_id)
+                        self._submit_action(ui.deleting_disks_from_domain, domain_id)
 
                     if (
                         old_status == "DeletingDomainDisk"
                         and new_status == "DiskDeleted"
                     ):
-                        logs.changes.debug(
-                            "disk deleted, mow remove domain form database"
-                        )
-                        remove_domain(domain_id)
-                        if get_domain(domain_id) is None:
-                            logs.changes.info(
-                                "domain {} deleted from database".format(domain_id)
+
+                        def _disk_deleted_action(domain_id):
+                            logs.changes.debug(
+                                "disk deleted, mow remove domain form database"
                             )
-                        else:
-                            update_domain_status(
-                                "Failed",
-                                domain_id,
-                                detail="domain {} can not be deleted from database".format(
-                                    domain_id
-                                ),
-                            )
+                            remove_domain(domain_id)
+                            if get_domain(domain_id) is None:
+                                logs.changes.info(
+                                    "domain {} deleted from database".format(domain_id)
+                                )
+                            else:
+                                update_domain_status(
+                                    "Failed",
+                                    domain_id,
+                                    detail="domain {} can not be deleted from database".format(
+                                        domain_id
+                                    ),
+                                )
+
+                        self._submit_action(_disk_deleted_action, domain_id)
 
                     if (
                         old_status == "CreatingTemplateDisk"
                         and new_status == "TemplateDiskCreated"
                     ):
-                        # create_template_from_dict(dict_new_template)
-                        if get_if_all_disk_template_created(domain_id):
-                            ui.create_template_in_db(domain_id)
-                        else:
-                            # INFO TO DEVELOPER, este else no se si tiene mucho sentido, hay que hacer pruebas con la
-                            # creación de una template con dos discos y ver si pasa por aquí
-                            # waiting to create other disks
-                            update_domain_status(
-                                status="CreatingTemplateDisk",
-                                id_domain=domain_id,
-                                hyp_id=False,
-                                detail="Waiting to create more disks for template",
-                            )
+
+                        def _template_disk_created_action(domain_id):
+                            # create_template_from_dict(dict_new_template)
+                            if get_if_all_disk_template_created(domain_id):
+                                ui.create_template_in_db(domain_id)
+                            else:
+                                # INFO TO DEVELOPER, este else no se si tiene mucho sentido, hay que hacer pruebas con la
+                                # creación de una template con dos discos y ver si pasa por aquí
+                                # waiting to create other disks
+                                update_domain_status(
+                                    status="CreatingTemplateDisk",
+                                    id_domain=domain_id,
+                                    hyp_id=False,
+                                    detail="Waiting to create more disks for template",
+                                )
+
+                        self._submit_action(_template_disk_created_action, domain_id)
 
                     if (old_status == "Stopped" and new_status == "StartingPaused") or (
                         old_status == "Failed" and new_status == "StartingPaused"
                     ):
-                        ui.start_domain_from_id(
-                            id_domain=domain_id, ssl=True, starting_paused=True
+                        self._submit_action(
+                            ui.start_domain_from_id,
+                            id_domain=domain_id,
+                            ssl=True,
+                            starting_paused=True,
                         )
 
                     if (old_status == "Stopped" and new_status == "Starting") or (
                         old_status == "Failed" and new_status == "Starting"
                     ):
-                        ui.start_domain_from_id(id_domain=domain_id, ssl=True)
+                        self._submit_action(
+                            ui.start_domain_from_id, id_domain=domain_id, ssl=True
+                        )
 
                     if old_status == "Started" and new_status == "Shutting-down":
-                        # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
-                        # ui.stop_domain_from_id(id=domain_id)
-                        hyp_started = get_domain_hyp_started(domain_id)
-                        if hyp_started:
-                            ui.shutdown_domain(id_domain=domain_id, hyp_id=hyp_started)
-                        else:
-                            logs.main.error(
-                                "domain without hyp_started can not be stopped: {}. ".format(
-                                    domain_id
+
+                        def _shutdown_action(domain_id):
+                            hyp_started = get_domain_hyp_started(domain_id)
+                            if hyp_started:
+                                ui.shutdown_domain(
+                                    id_domain=domain_id, hyp_id=hyp_started
                                 )
-                            )
+                            else:
+                                logs.main.error(
+                                    "domain without hyp_started can not be stopped: {}. ".format(
+                                        domain_id
+                                    )
+                                )
+
+                        self._submit_action(_shutdown_action, domain_id)
 
                     if (
                         (old_status == "Started" and new_status == "Stopping")
                         or (old_status == "Shutting-down" and new_status == "Stopping")
                         or (old_status == "Suspended" and new_status == "Stopping")
                     ):
-                        # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
-                        # ui.stop_domain_from_id(id=domain_id)
-                        hyp_started = get_domain_hyp_started(domain_id)
-                        if hyp_started:
-                            ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started)
-                        else:
-                            logs.main.error(
-                                "domain without hyp_started can not be stopped: {}. ".format(
-                                    domain_id
+
+                        def _stop_action(domain_id):
+                            hyp_started = get_domain_hyp_started(domain_id)
+                            if hyp_started:
+                                ui.stop_domain(id_domain=domain_id, hyp_id=hyp_started)
+                            else:
+                                logs.main.error(
+                                    "domain without hyp_started can not be stopped: {}. ".format(
+                                        domain_id
+                                    )
                                 )
-                            )
+
+                        self._submit_action(_stop_action, domain_id)
 
                     if (
                         old_status
@@ -734,15 +777,19 @@ class Engine(object):
                         ]
                         and new_status == "Resetting"
                     ):
-                        hyp_started = get_domain_hyp_started(domain_id)
-                        if hyp_started:
-                            ui.reset_domain(id_domain=domain_id, hyp_id=hyp_started)
-                        else:
-                            logs.main.error(
-                                "domain without hyp_started can not be reset: {}. ".format(
-                                    domain_id
+
+                        def _reset_action(domain_id):
+                            hyp_started = get_domain_hyp_started(domain_id)
+                            if hyp_started:
+                                ui.reset_domain(id_domain=domain_id, hyp_id=hyp_started)
+                            else:
+                                logs.main.error(
+                                    "domain without hyp_started can not be reset: {}. ".format(
+                                        domain_id
+                                    )
                                 )
-                            )
+
+                        self._submit_action(_reset_action, domain_id)
 
                     if old_status in [
                         "Started",
@@ -751,25 +798,29 @@ class Engine(object):
                         "Stopping",
                         "CreatingDomain",
                     ] and new_status in ["Stopped"]:
-                        # Create storage find tasks to update qemu-img info
-                        if Domain.exists(domain_id):
-                            try:
-                                domain = Domain(domain_id)
-                                user_id = domain.user
-                                for storage in domain.storages:
-                                    if storage.status == "ready" and not getattr(
-                                        storage, "readonly", False
-                                    ):
-                                        try:
-                                            storage.find(user_id, blocking=False)
-                                        except Exception as e:
-                                            logs.main.debug(
-                                                f"Could not create find task for storage {storage.id}: {e}"
-                                            )
-                            except Exception as e:
-                                logs.main.debug(
-                                    f"Could not create storage find tasks for domain {domain_id}: {e}"
-                                )
+
+                        def _stopped_storage_find(domain_id):
+                            # Create storage find tasks to update qemu-img info
+                            if Domain.exists(domain_id):
+                                try:
+                                    domain = Domain(domain_id)
+                                    user_id = domain.user
+                                    for storage in domain.storages:
+                                        if storage.status == "ready" and not getattr(
+                                            storage, "readonly", False
+                                        ):
+                                            try:
+                                                storage.find(user_id, blocking=False)
+                                            except Exception as e:
+                                                logs.main.debug(
+                                                    f"Could not create find task for storage {storage.id}: {e}"
+                                                )
+                                except Exception as e:
+                                    logs.main.debug(
+                                        f"Could not create storage find tasks for domain {domain_id}: {e}"
+                                    )
+
+                        self._submit_action(_stopped_storage_find, domain_id)
 
                     if (
                         old_status == "Started" and new_status == "StoppingAndDeleting"
@@ -777,18 +828,19 @@ class Engine(object):
                         old_status == "Suspended"
                         and new_status == "StoppingAndDeleting"
                     ):
-                        # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
-                        # ui.stop_domain_from_id(id=domain_id)
-                        hyp_started = get_domain_hyp_started(domain_id)
-                        print(hyp_started)
-                        ui.stop_domain(
-                            id_domain=domain_id,
-                            hyp_id=hyp_started,
-                            delete_after_stopped=True,
-                        )
+
+                        def _stopping_and_deleting_action(domain_id):
+                            hyp_started = get_domain_hyp_started(domain_id)
+                            ui.stop_domain(
+                                id_domain=domain_id,
+                                hyp_id=hyp_started,
+                                delete_after_stopped=True,
+                            )
+
+                        self._submit_action(_stopping_and_deleting_action, domain_id)
 
                     if new_domain is False and new_status == "ForceDeleting":
-                        ui.force_deleting(domain_id, old_status)
+                        self._submit_action(ui.force_deleting, domain_id, old_status)
 
                 except Exception as e:
                     logs.exception_id.debug("0072")
@@ -798,6 +850,7 @@ class Engine(object):
                         "Traceback: \n .{}".format(traceback.format_exc())
                     )
 
+            self.executor.shutdown(wait=False)
             logs.main.info("finalished thread domain changes")
 
     def check_actions_domains_enabled(self):
@@ -868,7 +921,7 @@ class Engine(object):
             sleep(0.1)
         # except TypeError:
         #    pass
-        self.t_broom.stop = True
+        self.t_broom.stop_thread()
         # operations / status
         for k, v in self.t_disk_operations.items():
             v.stop = True

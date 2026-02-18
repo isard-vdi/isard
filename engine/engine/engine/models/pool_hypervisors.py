@@ -7,6 +7,7 @@
 import os
 import pprint
 
+from engine.services.db import update_domain_status
 from engine.services.db.hypervisors import get_pool_hypers_conf
 from engine.services.lib.functions import clean_intermediate_status
 from engine.services.log import logs
@@ -25,10 +26,14 @@ status_to_stopped = ["Starting"]
 
 
 def move_actions_to_others_hypers(
-    hyp_id, d_queues, remove_stopping=False, remove_if_no_more_hyps=False
+    hyp_id,
+    d_queues,
+    remove_stopping=False,
+    remove_if_no_more_hyps=False,
+    balancer=None,
+    storage_pool_id=None,
+    keep_gpu_actions=False,
 ):
-    # balancer = Balancer_no_stats()
-
     for type_queue, d_q in d_queues.items():
         if hyp_id not in d_q:
             logs.main.info(
@@ -38,19 +43,6 @@ def move_actions_to_others_hypers(
         retain_actions_in_queue = []
         while d_q[hyp_id].empty() is False:
             action = d_q[hyp_id].get()
-
-            new_hyp = False
-            # get next hyp
-            # while True:
-            #     new_hyp = balancer.get_next()
-            #     if hyp_id in balancer.hyps and len(balancer.hyps == 1):
-            #         logs.workers.info(
-            #             f"can't move actions to other hyps, only {hyp_id} is online"
-            #         )
-            #         new_hyp = False
-            #         break
-            #     if new_hyp != hyp_id:
-            #         break
 
             if action["type"] == "stop_thread":
                 retain_actions_in_queue.append(action)
@@ -67,30 +59,48 @@ def move_actions_to_others_hypers(
                     )
 
             else:
-                if new_hyp is False or new_hyp not in d_q.keys():
-                    if new_hyp not in d_q.keys() and type(new_hyp) is str:
-                        logs.main.warn(
-                            f"can't move action {action['type']} to hypervisor {new_hyp} because queue {type_queue} don't exist"
+                # If keep_gpu_actions, retain GPU-bound actions in original queue
+                if keep_gpu_actions and action.get("nvidia_uid"):
+                    retain_actions_in_queue.append(action)
+                    continue
+
+                # Try to reassign to another hypervisor via balancer
+                new_hyp = False
+                if balancer and action["type"] in (
+                    "start_domain",
+                    "start_paused_domain",
+                ):
+                    try:
+                        candidate, _ = balancer.get_next_hypervisor(
+                            storage_pool_id=storage_pool_id or DEFAULT_STORAGE_POOL_ID,
                         )
-                    if remove_if_no_more_hyps is False:
-                        retain_actions_in_queue.append(action)
-                    else:
-                        if "id_domain" in action.keys():
-                            id_domain = action["id_domain"]
-                            clean_intermediate_status(
-                                reason="delete action from queue of hyper",
-                                only_domain_id=id_domain,
-                            )
-                            logs.main.info(
-                                f'action {action["type"]} deleted in hypervisor {hyp_id} in queue {type_queue}'
-                            )
-                            logs.main.debug(pprint.pformat(action))
-                else:
+                        if candidate and candidate != hyp_id:
+                            new_hyp = candidate
+                    except Exception as e:
+                        logs.main.error(
+                            f"Failed to get alternative hypervisor for {action.get('id_domain')}: {e}"
+                        )
+
+                if new_hyp and new_hyp in d_q.keys():
                     d_q[new_hyp].put(action)
                     logs.main.info(
                         f'action {action["type"]} moved from {hyp_id} to {new_hyp} in queue {type_queue}'
                     )
                     logs.main.debug(pprint.pformat(action))
+                elif remove_if_no_more_hyps:
+                    if "id_domain" in action.keys():
+                        id_domain = action["id_domain"]
+                        update_domain_status(
+                            "Failed",
+                            id_domain,
+                            detail=f"Hypervisor {hyp_id} unavailable, no alternatives found",
+                        )
+                        logs.main.info(
+                            f'action {action["type"]} for {id_domain} failed in hypervisor {hyp_id} in queue {type_queue}, no alternatives'
+                        )
+                        logs.main.debug(pprint.pformat(action))
+                else:
+                    retain_actions_in_queue.append(action)
 
         for action in retain_actions_in_queue:
             d_q[hyp_id].put(action)

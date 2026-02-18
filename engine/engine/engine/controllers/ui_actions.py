@@ -201,6 +201,10 @@ class UiActions(object):
             )
             return False
         else:
+            domain_memory_kb = (
+                domain.get("create_dict", {}).get("hardware", {}).get("memory", 1048576)
+            )
+            domain_memory_gb = domain_memory_kb / 1048576
             if starting_paused is True:
                 hyp = self.start_paused_domain_from_xml(
                     xml,
@@ -211,6 +215,7 @@ class UiActions(object):
                     force_gpus=domain.get("force_gpus"),
                     reservables=domain.get("create_dict", {}).get("reservables", {}),
                     storage_pool_id=domain_storage_pool_id,
+                    domain_memory_gb=domain_memory_gb,
                 )
             else:
                 hyp = self.start_domain_from_xml(
@@ -222,6 +227,7 @@ class UiActions(object):
                     force_gpus=domain.get("force_gpus"),
                     reservables=domain.get("create_dict", {}).get("reservables", {}),
                     storage_pool_id=domain_storage_pool_id,
+                    domain_memory_gb=domain_memory_gb,
                 )
             return hyp
 
@@ -235,6 +241,7 @@ class UiActions(object):
         force_gpus=None,
         reservables=None,
         storage_pool_id=None,
+        domain_memory_gb=1.0,
     ):
         if storage_pool_id is None:
             # Domain storage and storage pool
@@ -286,6 +293,7 @@ class UiActions(object):
             force_gpus=None,
             reservables=None,
             storage_pool_id=domain_storage_pool_id,
+            domain_memory_gb=domain_memory_gb,
         )
 
     def start_domain_from_xml(
@@ -299,6 +307,7 @@ class UiActions(object):
         force_gpus=None,
         reservables=None,
         storage_pool_id=None,
+        domain_memory_gb=1.0,
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
@@ -310,6 +319,7 @@ class UiActions(object):
                 reservables=reservables,
                 force_gpus=force_gpus,
                 storage_pool_id=storage_pool_id,
+                domain_memory_gb=domain_memory_gb,
             )
             if next_hyp is not False:
                 if action == "start_paused_domain":

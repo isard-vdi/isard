@@ -46,6 +46,8 @@ from engine.services.lib.libvirt_timeout import (
     LibvirtOperationStats,
     LibvirtTimeoutError,
     execute_with_timeout,
+    register_hypervisor_executor,
+    unregister_hypervisor_executor,
 )
 from engine.services.lib.qmp import Notifier, PersonalUnit
 from engine.services.log import logs
@@ -169,6 +171,9 @@ class HypWorkerThread(threading.Thread):
         self.tid = get_tid()
         logs.workers.info(f"Starting thread: {self.name} (TID {self.tid})")
 
+        # Register per-hypervisor timeout executor
+        register_hypervisor_executor(self.hyp_id)
+
         # Get hypervisor connection parameters
         host_info = get_hyp_hostname_from_id(self.hyp_id)
         if not host_info or host_info[0] is False:
@@ -198,6 +203,15 @@ class HypWorkerThread(threading.Thread):
         # All initialization successful - set hypervisor online first
         update_table_field("hypervisors", self.hyp_id, "stats", self.h.stats, soft=True)
         update_hyp_status(self.hyp_id, "Online")
+
+        # Clear any stale degraded/warning state from a previous session
+        try:
+            update_hyp_degraded_status(self.hyp_id, is_degraded=False)
+            update_hyp_libvirt_warning(self.hyp_id, clear=True)
+        except Exception as e:
+            logs.workers.warning(
+                f"[{self.hyp_id}] Failed to clear stale degraded state: {e}"
+            )
 
         # Certificate expiration check disabled - was causing startup delays
         # try:
@@ -618,38 +632,56 @@ class HypWorkerThread(threading.Thread):
             self._handle_failed_reconnection()
 
     def _handle_failed_reconnection(self):
-        """Handle case where reconnection fails"""
-        try:
-            # Close stale connection before creating new one
-            try:
-                if self.h.conn:
-                    self.h.conn.close()
-            except Exception:
-                pass  # Ignore errors closing stale connection
+        """Handle case where reconnection fails — retry with backoff before giving up"""
+        base_delay = TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE
+        max_delay = 30.0
 
-            # Try one last full reconnection
-            self.h.connect_to_hyp()
-            self.h.conn.getLibVersion()
-            # Update domain status
-            self.h.update_domain_coherence_in_db()
-            update_hyp_status(self.hyp_id, "Online")
-        except Exception:
-            logs.workers.error(f"Failed to reconnect to hypervisor {self.hostname}")
+        for i in range(RETRIES_HYP_IS_ALIVE):
+            exponential_delay = min(base_delay * (2**i), max_delay)
+            jitter = 0.5 + random.random()
+            delay = exponential_delay * jitter
 
-            # Update hypervisor status
-            reason = getattr(self.h, "fail_connected_reason", "Connection failed")
-            status = get_hyp_status(self.hyp_id)
-            if status == "Online":
-                update_hyp_status(self.hyp_id, "Error", reason)
-
-            # Mark domains as unknown
-            update_domains_started_in_hyp_to_unknown(self.hyp_id)
-
-            logs.workers.error(
-                f"Worker thread for hypervisor {self.hyp_id} exiting due to error"
+            logs.workers.info(
+                f"Full reconnection attempt {i+1}/{RETRIES_HYP_IS_ALIVE} "
+                f"for {self.hostname} (waiting {delay:.1f}s)"
             )
-            self.error = True
-            self.stop = True
+            time.sleep(delay)
+
+            try:
+                try:
+                    if self.h.conn:
+                        self.h.conn.close()
+                except Exception:
+                    pass
+
+                self.h.connect_to_hyp()
+                self.h.conn.getLibVersion()
+                self.h.update_domain_coherence_in_db()
+                update_hyp_status(self.hyp_id, "Online")
+                logs.workers.info(
+                    f"Successfully reconnected to hypervisor {self.hostname}"
+                )
+                return
+            except Exception:
+                logs.workers.warning(
+                    f"Reconnection attempt {i+1}/{RETRIES_HYP_IS_ALIVE} "
+                    f"failed for {self.hostname}"
+                )
+
+        logs.workers.error(
+            f"Failed to reconnect to hypervisor {self.hostname} "
+            f"after {RETRIES_HYP_IS_ALIVE} attempts"
+        )
+        reason = getattr(self.h, "fail_connected_reason", "Connection failed")
+        status = get_hyp_status(self.hyp_id)
+        if status == "Online":
+            update_hyp_status(self.hyp_id, "Error", reason)
+        update_domains_started_in_hyp_to_unknown(self.hyp_id)
+        logs.workers.error(
+            f"Worker thread for hypervisor {self.hyp_id} exiting due to error"
+        )
+        self.error = True
+        self.stop = True
 
     # =========================================================================
     # Degraded State Management for Slow/Overloaded Hypervisors
@@ -827,6 +859,9 @@ class HypWorkerThread(threading.Thread):
         """Clean up resources before thread termination"""
         try:
             update_hyp_thread_status("worker", self.hyp_id, "Stopping")
+
+            # Unregister per-hypervisor timeout executor
+            unregister_hypervisor_executor(self.hyp_id)
 
             # Disconnect from hypervisor
             if self.h:

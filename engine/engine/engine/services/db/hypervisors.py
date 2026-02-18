@@ -260,6 +260,17 @@ def update_hyp_degraded_status(hyp_id, is_degraded, reason=None):
         r.table("hypervisors").get(hyp_id).update(update_data).run(conn)
 
 
+def get_degraded_hyp_ids():
+    """Return the set of hypervisor IDs currently marked as degraded in DB."""
+    with rethink_conn() as conn:
+        return set(
+            r.table("hypervisors")
+            .filter({"degraded": {"is_degraded": True}})
+            .get_field("id")
+            .run(conn)
+        )
+
+
 def update_hyp_libvirt_warning(hyp_id, slow_count=None, avg_ms=None, clear=False):
     """Update hypervisor libvirt_warning field for webapp display.
 
@@ -486,7 +497,14 @@ def update_all_hyps_status(reset_status="Offline", reset_thread_status="Stopped"
     }
     results = (
         r.table("hypervisors")
-        .update({"status": reset_status, "thread_status": d_reset_thread_status})
+        .update(
+            {
+                "status": reset_status,
+                "thread_status": d_reset_thread_status,
+                "degraded": {"is_degraded": False, "reason": None, "since": None},
+                "libvirt_warning": None,
+            }
+        )
         .run(r_conn)
     )
     close_rethink_connection(r_conn)
