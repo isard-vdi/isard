@@ -39,6 +39,9 @@ BROOM_HYP_TIMEOUT = 30
 # Maximum number of concurrent hypervisor checks
 BROOM_MAX_WORKERS = 20
 
+# Timeout in seconds before force-stopping a Shutting-down domain
+BROOM_SHUTDOWN_TIMEOUT = 90
+
 
 def format_broom_data(data):
     if data[-1]["time"] > 5:
@@ -589,15 +592,33 @@ class ThreadBroom(threading.Thread):
                                     domain_id, hyp_started
                                 )
                             )
-                            if int(time()) - int(d["accessed"]) > 5 * 60:
+                            if (
+                                domain_id
+                                not in hyps_domain_started[hyp_started][
+                                    "active_domains"
+                                ]
+                            ):
+                                update_domain_status(
+                                    "Stopped",
+                                    domain_id,
+                                    detail="Stopped by broom thread, domain no longer active in libvirt",
+                                )
+                                update_vgpu_info_if_stopped(domain_id)
+                                logs.broom.info(
+                                    f"domain {domain_id} set to Stopped (was Shutting-down but gone from {hyp_started})"
+                                )
+                            elif (
+                                int(time()) - int(d["accessed"])
+                                > BROOM_SHUTDOWN_TIMEOUT
+                            ):
                                 update_domain_status(
                                     "Stopping",
                                     domain_id,
                                     keep_hyp_id=True,
-                                    detail="Stopping by broom thread",
+                                    detail=f"Stopping by broom thread after {BROOM_SHUTDOWN_TIMEOUT}s in Shutting-down",
                                 )
                                 logs.broom.info(
-                                    f"domain {domain_id} updated to Stopping after 5 min in Shutting-down"
+                                    f"domain {domain_id} updated to Stopping after {BROOM_SHUTDOWN_TIMEOUT}s in Shutting-down"
                                 )
                         else:
                             logs.broom.info(
