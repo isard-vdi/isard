@@ -319,7 +319,7 @@ class ApiTemplates:
                         domains.append(item_result)
                     except:
                         pending = True
-                domains.append({})
+                        domains.append({})
 
         return {"deployments": deployments, "domains": domains, "pending": pending}
 
