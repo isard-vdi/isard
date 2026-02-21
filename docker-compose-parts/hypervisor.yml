@@ -52,5 +52,9 @@ services:
       WG_USERS_NET: ${WG_USERS_NET:-10.0.0.0/16}
       WG_HYPERS_NET: ${WG_HYPERS_NET:-10.1.0.0/24}
       WG_GUESTS_NETS: ${WG_GUESTS_NETS:-10.2.0.0/16}
+      # VPN hub domain - defaults to isard-vpn for local hypervisors
+      VPN_DOMAIN: ${VPN_DOMAIN:-isard-vpn}
+      WG_HYPERS_PORT: ${WG_HYPERS_PORT:-4443}
       # OVS Security Configuration (automatic based on API_DOMAIN)
+      INFRASTRUCTURE_MTU: ${INFRASTRUCTURE_MTU:-}
       API_DOMAIN: ${API_DOMAIN:-}
