@@ -59,7 +59,41 @@ ovs-vsctl add-br ovsbr0
 ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13
 ip link set ovsbr0 up
 
-ovs-vsctl add-port ovsbr0 $DOMAIN -- set interface $DOMAIN type=geneve options:remote_ip=10.1.0.1
+vpn_tunneling_mode=${HYPERVISOR_VPN_TUNNELING_MODE:-wireguard+geneve}
+
+if [ "$vpn_tunneling_mode" = "geneve" ]; then
+    echo "Configuring OVS for plain Geneve tunneling"
+    VPN_DOMAIN=${VPN_DOMAIN:-isard-vpn}
+    # OVS remote_ip requires an IP address, not hostname - resolve if needed
+    if echo "$VPN_DOMAIN" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+        VPN_REMOTE_IP="$VPN_DOMAIN"
+    else
+        VPN_REMOTE_IP=$(getent hosts "$VPN_DOMAIN" | awk '{print $1}' | head -1)
+        if [ -z "$VPN_REMOTE_IP" ]; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] Cannot resolve VPN_DOMAIN '$VPN_DOMAIN' to IP address"
+            exit 1
+        fi
+    fi
+    GENEVE_DST_PORT=${WG_HYPERS_PORT:-4443}
+    ovs-vsctl add-port ovsbr0 vpn-geneve -- set interface vpn-geneve \
+        type=geneve options:remote_ip=$VPN_REMOTE_IP \
+        options:dst_port=$GENEVE_DST_PORT
+    ovs-vsctl set Interface vpn-geneve bfd:enable=true bfd:min_tx=1000 bfd:min_rx=1000
+
+    # Wait for BFD tunnel to come up
+    echo "Waiting for GENEVE tunnel BFD..."
+    for i in $(seq 1 30); do
+        BFD_STATE=$(ovs-vsctl get Interface vpn-geneve bfd_status:state 2>/dev/null || echo "init")
+        if [ "$BFD_STATE" = '"up"' ]; then echo "BFD tunnel UP"; break; fi
+        sleep 2
+    done
+
+    GENEVE_PORT=$(ovs-vsctl get Interface vpn-geneve ofport)
+else
+    echo "Configuring OVS for WireGuard + Geneve tunneling"
+    ovs-vsctl add-port ovsbr0 $DOMAIN -- set interface $DOMAIN type=geneve options:remote_ip=10.1.0.1
+    GENEVE_PORT=$(ovs-vsctl get Interface "$DOMAIN" ofport)
+fi
 
 # ============================================================================
 # SECURITY: RSTP for Loop Protection
@@ -86,10 +120,8 @@ ovs-vsctl show
 # ============================================================================
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Adding port security rules for VLAN 4095"
 
-# Get geneve port number (VPN tunnel) - it's the $DOMAIN port added above
-# Port name is the $DOMAIN variable (e.g., "10.100.1.214")
-GENEVE_PORT=$(ovs-vsctl get Interface "$DOMAIN" ofport)
-echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Geneve port to VPN: ${GENEVE_PORT} ($DOMAIN)"
+# GENEVE_PORT already set above based on tunneling mode
+echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Geneve port to VPN: ${GENEVE_PORT}"
 
 # Allow ARP broadcasts from infrastructure services (priority > 210 multicast block)
 # Restricted to geneve ingress to prevent VMs from spoofing infrastructure ARP
