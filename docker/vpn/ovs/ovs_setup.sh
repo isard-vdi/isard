@@ -56,9 +56,18 @@ ovs-vsctl add-br ovsbr0 >> /var/log/ovs 2>&1
 ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13 >> /var/log/ovs 2>&1
 ip link set ovsbr0 up >> /var/log/ovs 2>&1
 
+# Configure OVS bridge MTU based on infrastructure type
+if [ "${GENEVE_ONLY_INFRA:-false}" = "true" ]; then
+    ip link set ovsbr0 mtu 9000
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [MTU] OVS bridge MTU set to 9000 for geneve-only infrastructure"
+fi
+
 echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: Adding OVS vlan-wg port to default bridge with tag 4095"
 ovs-vsctl add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=internal >> /var/log/ovs 2>&1
 ip a a ${GUESTS_GW}/${WG_GUESTS_NETS#*/} dev vlan-wg >> /var/log/ovs 2>&1
+if [ "${GENEVE_ONLY_INFRA:-false}" = "true" ]; then
+    ip link set vlan-wg mtu 9000
+fi
 ip link set vlan-wg up >> /var/log/ovs 2>&1
 
 # Monitor if vlan-wg is really up
@@ -188,7 +197,16 @@ dhcp-lease-max=100000
 #dhcp-hostsfile=/var/lib/misc/vlan-wg.static_leases
 dhcp-hostsdir=/var/lib/static_leases
 dhcp-option=121,${WG_MAIN_NET},${GUESTS_GW}
-dhcp-option=26,1366
+EOT
+
+# Configure DHCP MTU based on infrastructure type
+if [ "${GENEVE_ONLY_INFRA:-false}" = "true" ]; then
+    echo "dhcp-option=26,1500" >> /etc/dnsmasq.d/vlan-wg.conf
+else
+    echo "dhcp-option=26,1366" >> /etc/dnsmasq.d/vlan-wg.conf
+fi
+
+cat <<EOT >> /etc/dnsmasq.d/vlan-wg.conf
 #dhcp-option=vlan-wg,3,${GUESTS_GW}
 dhcp-script=/dnsmasq-hook/update-client-ips.sh
 dhcp-leasefile=/var/lib/misc/vlan-wg.leases
