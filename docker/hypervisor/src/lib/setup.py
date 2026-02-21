@@ -140,6 +140,12 @@ def SetupHypervisor():
     except:
         raise
 
+    ## Save VPN tunneling mode from API response for use by start.sh
+    vpn_tunneling_mode = data.get("vpn", {}).get("tunneling_mode", "wireguard+geneve")
+    print(f"VPN tunneling mode from API: {vpn_tunneling_mode}")
+    with open("/tmp/vpn_tunneling_mode", "w") as f:
+        f.write(vpn_tunneling_mode)
+
 
 def DeleteHypervisor():
     ok = False
