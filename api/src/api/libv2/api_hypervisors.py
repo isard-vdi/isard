@@ -417,6 +417,12 @@ class ApiHypervisors:
 
         data["certs"] = self.get_hypervisors_certs()
 
+        # Return the tunneling mode computed from GENEVE_ONLY_INFRA
+        geneve_only = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
+        data["vpn"] = {
+            "tunneling_mode": "geneve" if geneve_only else "wireguard+geneve"
+        }
+
         return {"status": True, "msg": "Hypervisor added", "data": data}
 
     def add_hyper(
@@ -450,6 +456,13 @@ class ApiHypervisors:
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
             return False
+
+        # Determine tunneling mode centrally based on GENEVE_ONLY_INFRA
+        vpn_tunneling_mode = (
+            "geneve"
+            if os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
+            else "wireguard+geneve"
+        )
 
         hypervisor = {
             "capabilities": {"disk_operations": cap_disk, "hypervisor": cap_hyper},
@@ -486,6 +499,7 @@ class ApiHypervisors:
             "virt_pools": virt_pools,
             "buffering_hyper": buffering_hyper,
             "gpu_only": gpu_only,
+            "vpn": {"tunneling_mode": vpn_tunneling_mode},
         }
 
         hypervisor = _validate_item("hypervisors", hypervisor)
@@ -948,6 +962,33 @@ class ApiHypervisors:
             )
 
     def get_hypervisor_vpn(self, hyper_id):
+        # Check if hypervisor uses geneve-only mode (no WireGuard VPN needed)
+        with app.app_context():
+            hyper = (
+                r.table("hypervisors")
+                .get(hyper_id)
+                .pluck("id", {"vpn": "tunneling_mode"})
+                .default(None)
+                .run(db.conn)
+            )
+
+        if hyper is None:
+            raise Error(
+                "not_found",
+                f"Hypervisor {hyper_id} not found",
+                description_code="hypervisor_not_found",
+            )
+
+        vpn_tunneling_mode = hyper.get("vpn", {}).get(
+            "tunneling_mode", "wireguard+geneve"
+        )
+
+        if vpn_tunneling_mode == "geneve":
+            return {
+                "vpn_required": False,
+                "tunneling_mode": "geneve",
+            }
+
         return isardVpn.vpn_data("hypers", "config", "", hyper_id)
 
     def get_vlans(self):
