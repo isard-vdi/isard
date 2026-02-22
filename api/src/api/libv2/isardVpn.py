@@ -71,8 +71,19 @@ class isardVpn:
                     )
             wgdata = hyper
             port = os.environ.get("WG_HYPERS_PORT", "4443")
-            mtu = os.environ.get("VPN_MTU", "1600")
-            postup = "iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu"
+            geneve_only = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
+            if geneve_only:
+                mtu = "9054"
+            else:
+                infra = os.environ.get("INFRASTRUCTURE_MTU")
+                vpn_mtu_legacy = os.environ.get("VPN_MTU")
+                if infra:
+                    mtu = str(int(infra) - 60)
+                elif vpn_mtu_legacy:
+                    mtu = vpn_mtu_legacy
+                else:
+                    mtu = "1440"  # 1500 - 60
+            postup = "iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu"
             endpoint = hyper.get("isard_hyper_vpn_host", "isard-vpn")
 
         if vpn == "remotevpn":
@@ -81,7 +92,14 @@ class isardVpn:
                     r.table("remotevpn").get(itemid).pluck("id", "vpn").run(db.conn)
                 )
             port = os.environ.get("WG_USERS_PORT", "443")
-            mtu = os.environ.get("VPN_MTU", "1600")
+            infra = os.environ.get("INFRASTRUCTURE_MTU")
+            vpn_mtu_legacy = os.environ.get("VPN_MTU")
+            if infra:
+                mtu = str(int(infra) - 60)
+            elif vpn_mtu_legacy:
+                mtu = vpn_mtu_legacy
+            else:
+                mtu = "1440"  # 1500 - 60
             # Wireguard Android client doesn't support PostUp
             # removing the line from the config works on Windows and GNU/Linux too
             postup = None
