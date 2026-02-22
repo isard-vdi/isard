@@ -56,18 +56,37 @@ ovs-vsctl add-br ovsbr0 >> /var/log/ovs 2>&1
 ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13 >> /var/log/ovs 2>&1
 ip link set ovsbr0 up >> /var/log/ovs 2>&1
 
-# Configure OVS bridge MTU based on infrastructure type
+# --- MTU derivation from INFRASTRUCTURE_MTU ---
+_geneve_oh=54  # 20 IP + 8 UDP + 8 geneve + 14 eth + 4 VLAN
+_wg_oh=60      # 20 IP + 8 UDP + 32 WG
+
 if [ "${GENEVE_ONLY_INFRA:-false}" = "true" ]; then
-    ip link set ovsbr0 mtu 9000
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [MTU] OVS bridge MTU set to 9000 for geneve-only infrastructure"
+    _infra_mtu=${INFRASTRUCTURE_MTU:-9000}
+    _ovs_mtu=$_infra_mtu
+    _guest_mtu=$(( _infra_mtu - _geneve_oh ))
+    [ $_guest_mtu -gt 1500 ] && _guest_mtu=1500
+else
+    _infra_mtu=${INFRASTRUCTURE_MTU:-1500}
+    # Backward compat: VPN_MTU was the WG interface MTU
+    if [ -z "${INFRASTRUCTURE_MTU:-}" ] && [ -n "${VPN_MTU:-}" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') WARNING: VPN_MTU is deprecated, use INFRASTRUCTURE_MTU"
+        _infra_mtu=$(( VPN_MTU + _wg_oh ))
+    fi
+    _wg_mtu=$(( _infra_mtu - _wg_oh ))
+    _ovs_mtu=$_wg_mtu
+    _guest_mtu=$(( _wg_mtu - _geneve_oh ))
+    [ $_guest_mtu -gt 1420 ] && _guest_mtu=1420  # user WG cap
 fi
+[ $_guest_mtu -lt 1280 ] && _guest_mtu=1280  # IPv6 minimum floor
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') [MTU] infra=$_infra_mtu ovs=$_ovs_mtu dhcp=$_guest_mtu"
+
+ovs-vsctl set interface ovsbr0 mtu_request=$_ovs_mtu
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: Adding OVS vlan-wg port to default bridge with tag 4095"
 ovs-vsctl add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=internal >> /var/log/ovs 2>&1
 ip a a ${GUESTS_GW}/${WG_GUESTS_NETS#*/} dev vlan-wg >> /var/log/ovs 2>&1
-if [ "${GENEVE_ONLY_INFRA:-false}" = "true" ]; then
-    ip link set vlan-wg mtu 9000
-fi
+ovs-vsctl set interface vlan-wg mtu_request=$_ovs_mtu
 ip link set vlan-wg up >> /var/log/ovs 2>&1
 
 # Monitor if vlan-wg is really up
@@ -199,12 +218,7 @@ dhcp-hostsdir=/var/lib/static_leases
 dhcp-option=121,${WG_MAIN_NET},${GUESTS_GW}
 EOT
 
-# Configure DHCP MTU based on infrastructure type
-if [ "${GENEVE_ONLY_INFRA:-false}" = "true" ]; then
-    echo "dhcp-option=26,1500" >> /etc/dnsmasq.d/vlan-wg.conf
-else
-    echo "dhcp-option=26,1366" >> /etc/dnsmasq.d/vlan-wg.conf
-fi
+echo "dhcp-option=26,$_guest_mtu" >> /etc/dnsmasq.d/vlan-wg.conf
 
 cat <<EOT >> /etc/dnsmasq.d/vlan-wg.conf
 #dhcp-option=vlan-wg,3,${GUESTS_GW}
