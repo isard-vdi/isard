@@ -417,10 +417,17 @@ class ApiHypervisors:
 
         data["certs"] = self.get_hypervisors_certs()
 
-        # Return the tunneling mode computed from GENEVE_ONLY_INFRA
+        # Return the tunneling mode and infrastructure MTU for hypervisor OVS setup
         geneve_only = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
+        vpn_tunneling_mode = "geneve" if geneve_only else "wireguard+geneve"
         data["vpn"] = {
-            "tunneling_mode": "geneve" if geneve_only else "wireguard+geneve"
+            "tunneling_mode": vpn_tunneling_mode,
+            "infrastructure_mtu": int(
+                os.environ.get(
+                    "INFRASTRUCTURE_MTU",
+                    "9000" if vpn_tunneling_mode == "geneve" else "1500",
+                )
+            ),
         }
 
         return {"status": True, "msg": "Hypervisor added", "data": data}

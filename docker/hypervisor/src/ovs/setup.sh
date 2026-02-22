@@ -59,17 +59,19 @@ ovs-vsctl add-br ovsbr0
 ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13
 ip link set ovsbr0 up
 
-# Set OVS bridge MTU based on tunneling mode
+# Set OVS bridge MTU from central infrastructure config (not local env)
 vpn_tunneling_mode=${HYPERVISOR_VPN_TUNNELING_MODE:-wireguard+geneve}
 
 if [ "$vpn_tunneling_mode" = "geneve" ]; then
-    _ovs_mtu=${INFRASTRUCTURE_MTU:-9000}
-else
-    _infra=${INFRASTRUCTURE_MTU:-1500}
-    if [ -z "${INFRASTRUCTURE_MTU:-}" ] && [ -n "${VPN_MTU:-}" ]; then
-        _infra=$(( VPN_MTU + 60 ))
+    # geneve-only: read INFRASTRUCTURE_MTU saved during API registration
+    if [ -f /tmp/infrastructure_mtu ]; then
+        _ovs_mtu=$(cat /tmp/infrastructure_mtu)
+    else
+        _ovs_mtu=9000
     fi
-    _ovs_mtu=$(( _infra - 60 ))
+else
+    # wg+geneve: OVS MTU = WG interface MTU (set by central API config)
+    _ovs_mtu=$(ip link show wg0 2>/dev/null | grep -oP 'mtu \K[0-9]+' || echo 1440)
 fi
 ovs-vsctl set interface ovsbr0 mtu_request=$_ovs_mtu
 echo "$(date '+%Y-%m-%d %H:%M:%S') [MTU] OVS bridge MTU set to $_ovs_mtu"
