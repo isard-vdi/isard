@@ -20,6 +20,18 @@ from simple_iptools import UserIpTools
 # from user_iptools import UserIpTools
 
 
+def _get_infra_mtu():
+    """Get infrastructure MTU with VPN_MTU backward compat."""
+    val = os.environ.get("INFRASTRUCTURE_MTU")
+    if val:
+        return int(val)
+    vpn_mtu = os.environ.get("VPN_MTU")
+    if vpn_mtu:
+        log.warning("VPN_MTU is deprecated, use INFRASTRUCTURE_MTU instead")
+        return int(vpn_mtu) + 60
+    return 1500  # default for wg+geneve
+
+
 class Keys(object):
     def __init__(self, interface="wg0"):
         self.interface = interface
@@ -143,15 +155,17 @@ class Wg(object):
         except:
             log.info("Wireguard interface " + self.interface + " already exists")
         if self.table == "hypervisors":
-            geneve_only_infra = os.environ.get("GENEVE_ONLY_INFRA", "false").lower()
-            if geneve_only_infra == "true":
-                mtu = os.environ.get("VPN_MTU", "9054")
-                postup = ""  # No MSS clamping for datacenter jumbo frames
+            geneve_only = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
+            if geneve_only:
+                # No WG for hypers in geneve-only mode (wgadmin skips this)
+                mtu = "9054"
+                postup = ""
             else:
-                mtu = os.environ.get("VPN_MTU", "1600")
-                postup = "iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu"
+                infra_mtu = _get_infra_mtu()
+                mtu = str(infra_mtu - 60)
+                postup = "iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu"
         else:
-            mtu = "1420"
+            mtu = str(_get_infra_mtu() - 60)
             postup = ""
         self.config = self.server_config(mtu, postup)
         # for k,v in self.peers.items():
