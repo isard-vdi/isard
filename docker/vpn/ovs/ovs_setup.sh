@@ -120,8 +120,13 @@ fi
 # Allow DHCP requests from guests (UDP 68→67, broadcast) before blocking other broadcasts
 ovs-ofctl add-flow ovsbr0 "priority=401,udp,dl_vlan=4095,tp_src=68,tp_dst=67,dl_dst=ff:ff:ff:ff:ff:ff,actions=NORMAL"
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Allowed DHCP requests on VLAN 4095"
+# Allow ARP request broadcasts from guests to resolve infrastructure IPs (10.2.0.0/28)
+# Without this, guests get IP via DHCP but can never ARP for the gateway or other services
+# Deliver only to infrastructure ports to prevent flooding guest ARPs to hypervisor geneve tunnels
+ovs-ofctl add-flow ovsbr0 "priority=401,arp,dl_vlan=4095,dl_dst=ff:ff:ff:ff:ff:ff,arp_op=1,arp_tpa=10.2.0.0/28,actions=strip_vlan,output:${VLAN_WG_PORT},output:${BASTION_PORT},output:${SAMBA_PORT}"
+echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Allowed ARP requests to infrastructure on VLAN 4095 (ports: ${VLAN_WG_PORT},${BASTION_PORT},${SAMBA_PORT})"
 ovs-ofctl add-flow ovsbr0 "priority=400,dl_vlan=4095,dl_dst=ff:ff:ff:ff:ff:ff,actions=drop"
-echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Blocked broadcasts on VLAN 4095 (except VPN gateway and DHCP)"
+echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Blocked broadcasts on VLAN 4095 (except VPN gateway, DHCP and infra ARP)"
 
 # ============================================================================
 # SECURITY: ARP Spoofing Protection for VLAN 4095 (defense-in-depth)
