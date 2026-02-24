@@ -17,6 +17,7 @@
 #   --dry-run              Preview operations without making changes
 #   --resume               Resume from previous interrupted run
 #   --no-backup            Skip creating backup before sparsification
+#   --no-repair            Disable auto-repair on filesystem errors
 #   --verbose              Enable verbose output
 #   --quiet                Suppress non-essential output
 #   --log-format FORMAT    Log format: text|csv|json (default: text)
@@ -43,6 +44,7 @@ CREATE_BACKUP=true
 VERBOSE=false
 QUIET=false
 LOG_FORMAT="text"
+REPAIR_ON_FAIL=true
 EXCLUDE_PATTERNS=()
 
 #-------------------------------------------------------------------------------
@@ -356,6 +358,139 @@ cleanup() {
 }
 
 #-------------------------------------------------------------------------------
+# Function: is_repairable_error
+# Description: Check if an error log contains errors that may be fixed by
+#              repairing guest filesystems
+# Arguments: $1 - error log file path
+# Returns: 0 if repairable, 1 if not
+#-------------------------------------------------------------------------------
+is_repairable_error() {
+    local error_log="$1"
+    [ -f "$error_log" ] || return 1
+    grep -qiE "fstrim|FITRIM|Bad message|corrupt|Superblock|bad magic" "$error_log"
+}
+
+#-------------------------------------------------------------------------------
+# Function: attempt_sparsify
+# Description: Run virt-sparsify on a file, with optional auto-repair and retry.
+#              Sets caller variables: sparsify_success, retried, last_error_reason
+# Arguments: $1 - file path
+#-------------------------------------------------------------------------------
+attempt_sparsify() {
+    local file="$1"
+
+    # Protect critical sparsification operation from signals
+    trap '' SIGINT SIGTERM
+
+    local error_log="/tmp/virt_sparsify_error_$$_${RANDOM}.log"
+    local virt_result=0
+
+    if [ "$VERBOSE" = true ]; then
+        virt-sparsify --in-place "$file" 2>&1 | tee "$error_log" || virt_result=$?
+    else
+        virt-sparsify --in-place "$file" 2>"$error_log" || virt_result=$?
+    fi
+
+    if [ $virt_result -eq 0 ]; then
+        rm -f "$error_log"
+        sparsify_success=true
+        # Restore signal handling
+        trap cleanup SIGINT SIGTERM
+        return 0
+    fi
+
+    # Failure - extract error reason
+    last_error_reason="unknown error"
+    if [ -f "$error_log" ]; then
+        if grep -q "guestfs_launch failed" "$error_log"; then
+            last_error_reason="libguestfs launch failed (KVM unavailable or file corrupted)"
+        elif grep -q "No space left" "$error_log"; then
+            last_error_reason="no space left on device"
+        elif grep -qi "permission denied" "$error_log"; then
+            last_error_reason="permission denied"
+        elif grep -q "file is already" "$error_log"; then
+            last_error_reason="file already sparse"
+        else
+            last_error_reason=$(grep "error:" "$error_log" | head -1 | sed 's/^.*error: //' | cut -c1-100)
+        fi
+        [ -z "$last_error_reason" ] && last_error_reason="unknown error"
+    fi
+
+    log_message ERROR "Sparsification failed: $last_error_reason - $file"
+
+    # Check if we should attempt auto-repair
+    if [ "$REPAIR_ON_FAIL" = true ] && [ "$retried" != true ] && is_repairable_error "$error_log"; then
+        log_message WARN "Filesystem error detected, attempting auto-repair: $file"
+
+        # Save error log before repair attempt
+        cat "$error_log" >> "$LOG_FAILURE"
+        rm -f "$error_log"
+
+        # Build repair command flags
+        local repair_flags=""
+        [ "$VERBOSE" = true ] && repair_flags="--verbose"
+
+        # Run repair script (located alongside this script)
+        local script_dir
+        script_dir=$(dirname "$(readlink -f "$0")")
+        local repair_script="${script_dir}/repair-qcow2"
+
+        if [ ! -x "$repair_script" ]; then
+            log_message ERROR "Repair script not found or not executable: $repair_script"
+            # Restore signal handling
+            trap cleanup SIGINT SIGTERM
+            return 1
+        fi
+
+        if "$repair_script" $repair_flags "$file"; then
+            log_message SUCCESS "Auto-repair succeeded, retrying sparsification: $file"
+            retried=true
+
+            # Retry sparsification once
+            error_log="/tmp/virt_sparsify_error_$$_${RANDOM}.log"
+            virt_result=0
+
+            if [ "$VERBOSE" = true ]; then
+                virt-sparsify --in-place "$file" 2>&1 | tee "$error_log" || virt_result=$?
+            else
+                virt-sparsify --in-place "$file" 2>"$error_log" || virt_result=$?
+            fi
+
+            if [ $virt_result -eq 0 ]; then
+                rm -f "$error_log"
+                sparsify_success=true
+                # Restore signal handling
+                trap cleanup SIGINT SIGTERM
+                return 0
+            fi
+
+            # Retry also failed
+            last_error_reason="retry after repair also failed"
+            if [ -f "$error_log" ]; then
+                last_error_reason=$(grep "error:" "$error_log" | head -1 | sed 's/^.*error: //' | cut -c1-100)
+                [ -z "$last_error_reason" ] && last_error_reason="retry after repair also failed"
+                cat "$error_log" >> "$LOG_FAILURE"
+                rm -f "$error_log"
+            fi
+            log_message ERROR "Sparsification failed after repair: $last_error_reason - $file"
+        else
+            log_message ERROR "Auto-repair failed: $file"
+            last_error_reason="auto-repair failed, original error: $last_error_reason"
+        fi
+    else
+        # Not repairable or repair disabled - save error log
+        if [ -f "$error_log" ]; then
+            cat "$error_log" >> "$LOG_FAILURE"
+            rm -f "$error_log"
+        fi
+    fi
+
+    # Restore signal handling
+    trap cleanup SIGINT SIGTERM
+    return 1
+}
+
+#-------------------------------------------------------------------------------
 # Function: process_file
 # Description: Process a single qcow2 file
 # Arguments: $1 - file path
@@ -364,8 +499,6 @@ process_file() {
     local file="$1"
     local result="success"
     local message=""
-    local before_size=0
-    local after_size=0
     local saved=0
 
     # Check for interrupt flag before starting
@@ -435,11 +568,11 @@ process_file() {
         return
     fi
 
-    # Check minimum size
-    before_size=$(stat --format="%s" "$file" 2>/dev/null)
-    if [ -z "$before_size" ] || [ "$before_size" -lt "$MIN_SIZE" ]; then
-        if [ -n "$before_size" ]; then
-            log_message INFO "Below minimum size ($(format_bytes $before_size) < $(format_bytes $MIN_SIZE)), skipping: $file"
+    # Check minimum size (apparent size, for threshold comparison)
+    file_apparent_size=$(stat --format="%s" "$file" 2>/dev/null)
+    if [ -z "$file_apparent_size" ] || [ "$file_apparent_size" -lt "$MIN_SIZE" ]; then
+        if [ -n "$file_apparent_size" ]; then
+            log_message INFO "Below minimum size ($(format_bytes $file_apparent_size) < $(format_bytes $MIN_SIZE)), skipping: $file"
         else
             log_message WARN "Cannot determine file size, skipping: $file"
         fi
@@ -447,7 +580,13 @@ process_file() {
         return
     fi
 
-    log_message INFO "Processing: $file ($(format_bytes $before_size))"
+    # Measure actual disk usage before sparsification
+    before_disk=$(( $(du -s "$file" 2>/dev/null | cut -f1) * 1024 ))
+    if [ -z "$before_disk" ] || [ "$before_disk" -eq 0 ]; then
+        before_disk=$file_apparent_size
+    fi
+
+    log_message INFO "Processing: $file (apparent: $(format_bytes $file_apparent_size), disk: $(format_bytes $before_disk))"
 
     # Dry run mode
     if [ "$DRY_RUN" = true ]; then
@@ -467,46 +606,42 @@ process_file() {
         fi
     fi
 
-    # Protect critical sparsification operation from signals
-    trap '' SIGINT SIGTERM
+    # Attempt sparsification (with optional repair + retry)
+    local sparsify_success=false
+    local retried=false
 
-    # Perform sparsification with error suppression
-    local error_log="/tmp/virt_sparsify_error_$$_${RANDOM}.log"
-    local virt_result=0
+    attempt_sparsify "$file" || true
 
-    if [ "$VERBOSE" = true ]; then
-        # Verbose mode: show all output
-        virt-sparsify --in-place "$file" 2>&1 || virt_result=$?
-    else
-        # Normal mode: suppress verbose errors, capture to log
-        virt-sparsify --in-place "$file" 2>"$error_log" || virt_result=$?
-    fi
-
-    if [ $virt_result -eq 0 ]; then
-        # Success
-        rm -f "$error_log"
-        after_size=$(stat --format="%s" "$file" 2>/dev/null)
-        saved=$((before_size - after_size))
+    if [ "$sparsify_success" = true ]; then
+        after_disk=$(( $(du -s "$file" 2>/dev/null | cut -f1) * 1024 ))
+        if [ -z "$after_disk" ] || [ "$after_disk" -eq 0 ]; then
+            after_disk=$before_disk
+        fi
+        saved=$((before_disk - after_disk))
 
         if [ "$saved" -gt 0 ]; then
-            message="Sparsified successfully: Saved $(format_bytes $saved)"
+            message="Sparsified successfully: Saved $(format_bytes $saved) disk usage"
+            [ "$retried" = true ] && message="$message (after auto-repair)"
             log_message SUCCESS "$message - $file"
+        elif [ "$saved" -lt 0 ]; then
+            message="Sparsified: Disk usage increased by $(format_bytes $((-saved))) (may be due to small cluster_size)"
+            log_message WARN "$message - $file"
+            saved=0
         else
             message="Sparsified: No space saved (file may already be sparse)"
             log_message INFO "$message - $file"
-            saved=0
         fi
 
         # Log success based on format
         case "$LOG_FORMAT" in
             csv)
-                echo "\"$file\",\"$before_size\",\"$after_size\",\"$saved\",\"success\"" >> "$LOG_SUCCESS"
+                echo "\"$file\",\"$before_disk\",\"$after_disk\",\"$saved\",\"success\"" >> "$LOG_SUCCESS"
                 ;;
             json)
-                echo "{\"file\":\"$file\",\"before\":$before_size,\"after\":$after_size,\"saved\":$saved,\"status\":\"success\"}" >> "$LOG_SUCCESS"
+                echo "{\"file\":\"$file\",\"before_disk\":$before_disk,\"after_disk\":$after_disk,\"saved\":$saved,\"status\":\"success\"}" >> "$LOG_SUCCESS"
                 ;;
             *)
-                echo "SUCCESS: $file | Before: $(format_bytes $before_size) | After: $(format_bytes $after_size) | Saved: $(format_bytes $saved)" >> "$LOG_SUCCESS"
+                echo "SUCCESS: $file | Before: $(format_bytes $before_disk) | After: $(format_bytes $after_disk) | Saved: $(format_bytes $saved)" >> "$LOG_SUCCESS"
                 ;;
         esac
 
@@ -515,42 +650,20 @@ process_file() {
             rm -f "${file}.sparsify-backup"
         fi
     else
-        # Failure - extract useful error info
+        # Failure
         result="failure"
-        local error_reason="unknown error"
-
-        if [ -f "$error_log" ]; then
-            if grep -q "guestfs_launch failed" "$error_log"; then
-                error_reason="libguestfs launch failed (KVM unavailable or file corrupted)"
-            elif grep -q "No space left" "$error_log"; then
-                error_reason="no space left on device"
-            elif grep -q "permission denied" "$error_log" -i; then
-                error_reason="permission denied"
-            elif grep -q "file is already" "$error_log"; then
-                error_reason="file already sparse"
-            else
-                error_reason=$(grep "error:" "$error_log" | head -1 | sed 's/^.*error: //' | cut -c1-100)
-            fi
-
-            # Save full error log for debugging
-            cat "$error_log" >> "$LOG_FAILURE"
-            rm -f "$error_log"
-        fi
-
-        message="Sparsification failed: $error_reason"
-        log_message ERROR "$message - $file"
         saved=0
 
         # Log failure based on format
         case "$LOG_FORMAT" in
             csv)
-                echo "\"$file\",\"$before_size\",\"0\",\"0\",\"failure: $error_reason\"" >> "$LOG_FAILURE"
+                echo "\"$file\",\"$before_disk\",\"0\",\"0\",\"failure: $last_error_reason\"" >> "$LOG_FAILURE"
                 ;;
             json)
-                echo "{\"file\":\"$file\",\"before\":$before_size,\"status\":\"failure\",\"error\":\"$error_reason\"}" >> "$LOG_FAILURE"
+                echo "{\"file\":\"$file\",\"before\":$before_disk,\"status\":\"failure\",\"error\":\"$last_error_reason\"}" >> "$LOG_FAILURE"
                 ;;
             *)
-                echo "FAILURE: $file | Size: $(format_bytes $before_size) | Reason: $error_reason" >> "$LOG_FAILURE"
+                echo "FAILURE: $file | Size: $(format_bytes $before_disk) | Reason: $last_error_reason" >> "$LOG_FAILURE"
                 ;;
         esac
 
@@ -560,9 +673,6 @@ process_file() {
             log_message INFO "Restored from backup: $file"
         fi
     fi
-
-    # Restore signal handling
-    trap cleanup SIGINT SIGTERM
 
     # Update statistics
     update_stats "$saved" -1 1
@@ -608,6 +718,10 @@ parse_arguments() {
                 ;;
             --no-backup)
                 CREATE_BACKUP=false
+                shift
+                ;;
+            --no-repair)
+                REPAIR_ON_FAIL=false
                 shift
                 ;;
             --verbose)
@@ -698,6 +812,7 @@ main() {
     echo "  Dry run: $DRY_RUN"
     echo "  Resume mode: $RESUME"
     echo "  Create backup: $CREATE_BACKUP"
+    echo "  Auto-repair on fail: $REPAIR_ON_FAIL"
     echo "  Log format: $LOG_FORMAT"
     [ ${#EXCLUDE_PATTERNS[@]} -gt 0 ] && echo "  Exclude patterns: ${EXCLUDE_PATTERNS[*]}"
     echo "========================================="
@@ -739,6 +854,8 @@ main() {
 
     # Export necessary functions and variables for parallel jobs
     export -f process_file
+    export -f attempt_sparsify
+    export -f is_repairable_error
     export -f log_message
     export -f update_stats
     export -f get_stats
@@ -752,6 +869,7 @@ main() {
     export DRY_RUN
     export RESUME
     export CREATE_BACKUP
+    export REPAIR_ON_FAIL
     export VERBOSE
     export QUIET
     export LOG_FORMAT

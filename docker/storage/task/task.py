@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
 import shutil
 import tempfile
 from json import loads
@@ -26,6 +27,8 @@ from pathlib import Path
 from re import search
 from subprocess import PIPE, CalledProcessError, Popen, check_output, run
 from time import sleep
+
+log = logging.getLogger(__name__)
 
 from isardvdi_common.task import Task
 from rq import Queue, get_current_job
@@ -548,73 +551,106 @@ def touch(path):
         Path(path).touch()
 
 
+def _get_disk_usage(path):
+    """Return disk usage in 1K-blocks (int) using du -s."""
+    result = run(
+        ["du", "-s", path],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return int(result.stdout.strip().split("\t")[0])
+
+
+def _format_size(kb):
+    """Format size in 1K-blocks to human-readable string."""
+    if kb < 1024:
+        return f"{kb} KB"
+    elif kb < 1024 * 1024:
+        return f"{kb / 1024:.1f} MB"
+    else:
+        return f"{kb / (1024 * 1024):.2f} GB"
+
+
 def sparsify(storage_path):
     """
     Sparsify disk
     `du` is used to get the actual disk usage of the file instead of the apparent size.
 
     :param storage_path: Path to disk
-    :type storage_id: str
+    :type storage_path: str
     :return: Exit code of virt-sparsify command and saved space
     :rtype: dict
     """
     try:
-        # Get the current size of the disk
-        old_size = run(
-            [
-                "du",
-                "-s",
-                storage_path,
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-        old_size = old_size.split("\t")[0]  # Extract the size from the output
-    except:
+        old_size = _get_disk_usage(storage_path)
+    except Exception as e:
+        log.warning(
+            "Failed to get disk usage before sparsify for %s: %s", storage_path, e
+        )
         old_size = 0
 
-    try:
-        # Sparsify the disk
-        result = run(
-            [
-                "virt-sparsify",
-                "--in-place",
-                storage_path,
-            ],
-            capture_output=True,  # Capture stdout and stderr
-            text=True,  # Decode output as text
-            check=True,  # Raise CalledProcessError on failure
-        )
-    except CalledProcessError as cpe:
-        # Return error details, including captured stderr
-        return (
-            f"Error: Command failed with return code {cpe.returncode}. "
-            f"stderr: {cpe.stderr.strip() or 'No error message provided.'}"
-        )
-    except Exception as e:
-        # Handle other exceptions
-        return f"Error: {str(e)}"
+    log.info(
+        "Starting sparsify: %s (disk usage: %s)",
+        storage_path,
+        _format_size(old_size),
+    )
 
     try:
-        # Get the new size of the disk
-        new_size = run(
-            [
-                "du",
-                "-s",
-                storage_path,
-            ],
+        result = run(
+            ["virt-sparsify", "--in-place", storage_path],
             capture_output=True,
             text=True,
             check=True,
-        ).stdout.strip()
-        new_size = new_size.split("\t")[0]  # Extract the size from the output
-    except:
+        )
+        if result.stderr:
+            log.info(
+                "virt-sparsify stderr for %s: %s", storage_path, result.stderr.strip()
+            )
+    except CalledProcessError as cpe:
+        log.error(
+            "virt-sparsify failed for %s (exit %d): %s",
+            storage_path,
+            cpe.returncode,
+            cpe.stderr.strip() if cpe.stderr else "No error message",
+        )
+        return {
+            "exit_code": cpe.returncode,
+            "saved_space": 0,
+            "old_size": old_size,
+            "new_size": old_size,
+            "error": cpe.stderr.strip() if cpe.stderr else "No error message provided.",
+        }
+    except Exception as e:
+        log.error("Unexpected error during sparsify of %s: %s", storage_path, e)
+        return {
+            "exit_code": -1,
+            "saved_space": 0,
+            "old_size": old_size,
+            "new_size": old_size,
+            "error": str(e),
+        }
+
+    try:
+        new_size = _get_disk_usage(storage_path)
+    except Exception as e:
+        log.warning(
+            "Failed to get disk usage after sparsify for %s: %s", storage_path, e
+        )
         new_size = 0
+
+    saved = int(old_size) - int(new_size)
+    log.info(
+        "Sparsify complete: %s | before: %s | after: %s | saved: %s",
+        storage_path,
+        _format_size(old_size),
+        _format_size(new_size),
+        _format_size(saved) if saved >= 0 else f"-{_format_size(-saved)}",
+    )
 
     return {
         "exit_code": result.returncode,
-        "saved_space": int(old_size) - int(new_size),
+        "saved_space": saved,
         "old_size": old_size,
         "new_size": new_size,
     }
