@@ -296,7 +296,11 @@ func (s *SAML) SAMLConfig() error {
 		s.ReRole = re
 	}
 
-	s.AutoRegisterRoles = strings.Split(s.cfg.AutoRegisterRoles, ",")
+	if s.cfg.AutoRegisterRoles != "" {
+		s.AutoRegisterRoles = strings.Split(s.cfg.AutoRegisterRoles, ",")
+	} else {
+		s.AutoRegisterRoles = []string{}
+	}
 
 	s.RoleAdminIDs = strings.Split(s.cfg.RoleAdminIDs, ",")
 	s.RoleManagerIDs = strings.Split(s.cfg.RoleManagerIDs, ",")

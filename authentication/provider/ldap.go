@@ -174,7 +174,11 @@ func (l *LDAP) LDAPConfig() error {
 		l.ReRole = re
 	}
 
-	l.AutoRegisterRoles = strings.Split(l.cfg.AutoRegisterRoles, ",")
+	if l.cfg.AutoRegisterRoles != "" {
+		l.AutoRegisterRoles = strings.Split(l.cfg.AutoRegisterRoles, ",")
+	} else {
+		l.AutoRegisterRoles = []string{}
+	}
 
 	l.RoleAdminIDs = strings.Split(l.cfg.RoleAdminIDs, ",")
 	l.RoleManagerIDs = strings.Split(l.cfg.RoleManagerIDs, ",")
