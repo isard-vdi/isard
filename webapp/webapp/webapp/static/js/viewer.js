@@ -57,6 +57,9 @@ function setViewerButtons(desktop_id){
 }
 function setViewerButtonData(desktop_id,data){
     offer=[]
+    // Check if desktop has guest_ip (required for RDP viewers)
+    const hasGuestIp = 'viewer' in data && 'guest_ip' in data['viewer'];
+
     if ("file_spice" in data["guest_properties"]["viewers"]){
         offer.push({
             'text': 'SPICE',
@@ -76,31 +79,37 @@ function setViewerButtonData(desktop_id,data){
         })
     }
     if ("file_rdpgw" in data["guest_properties"]["viewers"]){
-        offer.push({
-            'text': 'RDP',
-            'type': 'rdpgw',
-            'client': 'app',
-            'secure': true,
-            'preferred': false
-        })
+        if (hasGuestIp) {  // Only add if IP available
+            offer.push({
+                'text': 'RDP',
+                'type': 'rdpgw',
+                'client': 'app',
+                'secure': true,
+                'preferred': false
+            })
+        }
     }
     if ("file_rdpvpn" in data["guest_properties"]["viewers"]){
-        offer.push({
-            'text': 'RDP VPN',
-            'type': 'rdpvpn',
-            'client': 'app',
-            'secure': true,
-            'preferred': false
-        })
+        if (hasGuestIp) {  // Only add if IP available
+            offer.push({
+                'text': 'RDP VPN',
+                'type': 'rdpvpn',
+                'client': 'app',
+                'secure': true,
+                'preferred': false
+            })
+        }
     }
     if ("browser_rdp" in data["guest_properties"]["viewers"]){
-        offer.push({
-            'text': 'RDP browser',
-            'type': 'rdp',
-            'client': 'websocket',
-            'secure': true,
-            'preferred': false
-        })
+        if (hasGuestIp) {  // Only add if IP available
+            offer.push({
+                'text': 'RDP browser',
+                'type': 'rdp',
+                'client': 'websocket',
+                'secure': true,
+                'preferred': false
+            })
+        }
     }
 
     html=""
@@ -137,11 +146,6 @@ function setViewerButtonData(desktop_id,data){
         }
     }
     $('#viewer-buttons').html(html);
-    if (data.create_dict.hardware.interfaces.includes("wireguard")) {
-        if(!('viewer' in data && 'guest_ip' in data['viewer'])){
-            $('#viewer-buttons button[data-type^="rdp"]').prop("disabled", true).append(loading);
-        }
-    }
     $('#viewer-buttons .btn-viewers').on('click', function () {
         if($('#chk-viewers').iCheck('update')[0].checked){
             preferred=true
@@ -178,10 +182,8 @@ function setViewerButtonData(desktop_id,data){
 }
 
 function viewerButtonsIP(id,ip){
-    $('#vpn-ip-'+id).html('<i class="fa fa-lock"></i> <i class="fa fa-link"></i> Desktop IP (via vpn): '+ip)
-    $('#vpn-ip-'+id+' i.fa-spinner').remove()
-    $('#viewer-buttons button[data-type^="rdp"]').prop("disabled", false)
-    $('#viewer-buttons button[data-type^="rdp"] i.fa-spinner').remove()
+    // Re-fetch viewer data and re-render buttons now that IP is available
+    setViewerButtons(id);
 }
 
 function setCookie(name,value,days) {
