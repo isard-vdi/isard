@@ -153,7 +153,6 @@ def desktop_start(desktop_id, wait_seconds=0, paused=False):
                     row["status"].match("Stopped|Failed"),
                     {
                         "status": target_status,
-                        "viewer": {},
                         "accessed": int(time.time()),
                         "create_dict": {"hardware": {"qos_disk_id": qos_disk_id}},
                     },
@@ -219,7 +218,6 @@ def desktops_start(desktops_ids, paused=False, batch_size=15, wait_seconds=3):
                 r.table("domains").get(desktop["id"]).update(
                     {
                         "status": new_status,
-                        "viewer": {},
                         "accessed": int(time.time()),
                         "create_dict": {"hardware": {"qos_disk_id": qos_disk_id}},
                     }
