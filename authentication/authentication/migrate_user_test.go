@@ -2,10 +2,12 @@ package authentication_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
+	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	apiJWT "gitlab.com/isard/isardvdi/pkg/jwt"
 	"gitlab.com/isard/isardvdi/pkg/log"
@@ -13,6 +15,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 func TestMigrateUser(t *testing.T) {
@@ -83,12 +86,17 @@ func TestMigrateUser(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx := context.Background()
+			var wg sync.WaitGroup
+			defer wg.Wait()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
+			dbMock := r.NewMock()
+			dbMock.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 
-			a := authentication.Init(cfg, log, nil, nil, nil, nil)
+			a := authentication.Init(ctx, &wg, cfg, log, dbMock, nil, nil, nil)
 
 			tkn, err := a.MigrateUser(ctx, tc.PrepareToken(), tc.UserID)
 

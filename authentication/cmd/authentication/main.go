@@ -46,7 +46,7 @@ func main() {
 	}
 	defer sessionsConn.Close()
 
-	authentication := authentication.Init(cfg, log, db, apiCli, notifierCli, sessionsCli)
+	authentication := authentication.Init(ctx, &wg, cfg, log, db, apiCli, notifierCli, sessionsCli)
 
 	go http.Serve(ctx, &wg, log, cfg.HTTP.Addr(), authentication)
 	wg.Add(1)

@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -12,17 +13,15 @@ import (
 	"path"
 	"regexp"
 	"slices"
-	"strings"
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
-	"gitlab.com/isard/isardvdi/pkg/db"
+	httpErr "gitlab.com/isard/isardvdi/authentication/transport/http/error"
 
 	"github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
-	"github.com/patrickmn/go-cache"
 	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
@@ -33,188 +32,153 @@ const (
 	SLORoute      = "/saml/slo"
 )
 
-var _ Provider = &SAML{}
+var _ ConfigurableProvider[model.SAMLConfig] = &SAML{}
 
 type SAMLConfig struct {
-	MetadataURL     string `rethinkdb:"metadata_url"`
-	MetadataFile    string `rethinkdb:"metadata_file"`
-	EntityID        string `rethinkdb:"entity_id"`
-	SignatureMethod string `rethinkdb:"signature_method"`
-	KeyFile         string `rethinkdb:"key_file"`
-	CertFile        string `rethinkdb:"cert_file"`
-	MaxIssueDelay   string `rethinkdb:"max_issue_delay"`
-
-	FieldUID      string `rethinkdb:"field_uid"`
-	RegexUID      string `rethinkdb:"regex_uid"`
-	FieldUsername string `rethinkdb:"field_username"`
-	RegexUsername string `rethinkdb:"regex_username"`
-	FieldName     string `rethinkdb:"field_name"`
-	RegexName     string `rethinkdb:"regex_name"`
-	FieldEmail    string `rethinkdb:"field_email"`
-	RegexEmail    string `rethinkdb:"regex_email"`
-	FieldPhoto    string `rethinkdb:"field_photo"`
-	RegexPhoto    string `rethinkdb:"regex_photo"`
-
-	AutoRegister      bool   `rethinkdb:"auto_register"`
-	AutoRegisterRoles string `rethinkdb:"auto_register_roles"`
-
-	GuessCategory bool   `rethinkdb:"guess_category"`
-	FieldCategory string `rethinkdb:"field_category"`
-	RegexCategory string `rethinkdb:"regex_category"`
-
-	FieldGroup   string `rethinkdb:"field_group"`
-	RegexGroup   string `rethinkdb:"regex_group"`
-	GroupDefault string `rethinkdb:"group_default"`
-
-	FieldRole       string     `rethinkdb:"field_role"`
-	RegexRole       string     `rethinkdb:"regex_role"`
-	RoleAdminIDs    string     `rethinkdb:"role_admin_ids"`
-	RoleManagerIDs  string     `rethinkdb:"role_manager_ids"`
-	RoleAdvancedIDs string     `rethinkdb:"role_advanced_ids"`
-	RoleUserIDs     string     `rethinkdb:"role_user_ids"`
-	RoleDefault     model.Role `rethinkdb:"role_default"`
-
-	LogoutRedirectURL string `rethinkdb:"logout_redirect_url"`
-	SaveEmail         bool   `rethinkdb:"save_email"`
-}
-
-type SAML struct {
-	cfg        *SAMLConfig
-	secret     string
-	host       string
-	log        *zerolog.Logger
-	db         r.QueryExecutor
 	Middleware *samlsp.Middleware
 
-	MaxIssueDelay time.Duration
+	FieldUID      string
+	ReUID         *regexp.Regexp
+	FieldUsername string
+	ReUsername    *regexp.Regexp
+	FieldName     string
+	ReName        *regexp.Regexp
+	FieldEmail    string
+	ReEmail       *regexp.Regexp
+	FieldPhoto    string
+	RePhoto       *regexp.Regexp
 
-	ReUID      *regexp.Regexp
-	ReUsername *regexp.Regexp
-	ReName     *regexp.Regexp
-	ReEmail    *regexp.Regexp
-	RePhoto    *regexp.Regexp
-	ReCategory *regexp.Regexp
-	ReGroup    *regexp.Regexp
-	ReRole     *regexp.Regexp
-
+	AutoRegister      bool
 	AutoRegisterRoles []string
+
+	GuessCategory bool
+	FieldCategory string
+	ReCategory    *regexp.Regexp
+
+	FieldGroup   string
+	ReGroup      *regexp.Regexp
+	GroupDefault string
+
+	FieldRole string
+	ReRole    *regexp.Regexp
 
 	RoleAdminIDs    []string
 	RoleManagerIDs  []string
 	RoleAdvancedIDs []string
 	RoleUserIDs     []string
+	RoleDefault     model.Role
+
+	LogoutRedirectURL string
+
+	SaveEmail bool
+}
+
+type SAML struct {
+	cfg *cfgManager[SAMLConfig]
+
+	secret string
+	host   string
+	log    *zerolog.Logger
+	db     r.QueryExecutor
 }
 
 func InitSAML(secret string, host string, log *zerolog.Logger, db r.QueryExecutor) *SAML {
 	s := &SAML{
+		cfg:    &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 		secret: secret,
 		host:   host,
 		log:    log,
 		db:     db,
 	}
-	s.SAMLConfig()
 	return s
 }
 
-func (s *SAML) SAMLConfig() error {
+func samlOnError(log *zerolog.Logger) func(http.ResponseWriter, *http.Request, error) {
+	return func(w http.ResponseWriter, r *http.Request, err error) {
+		if parsedErr, ok := err.(*saml.InvalidResponseError); ok {
+			log.Warn().Err(parsedErr.PrivateErr).Str("rsp", parsedErr.Response).Time("now", parsedErr.Now).Msg("received invalid SAML response")
+		} else {
+			log.Error().Err(err).Msg("unexpected SAML error")
+		}
+
+		httpErr.LoginRedirect(w, r, httpErr.LoginUnknown)
+	}
+}
+
+func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
+	prvCfg := s.cfg.Cfg()
+
 	var metadata *saml.EntityDescriptor
 	var err error
-	var maxIssueDelay time.Duration
 
-	s.cfg = &SAMLConfig{}
-	if val, found := c.Get("saml_config"); found {
-		s.cfg = val.(*SAMLConfig)
-	} else {
-		res, err := r.Table("config").Get(1).Field("auth").Field("saml").Field("saml_config").Run(s.db)
-		if err != nil {
-			return &db.Err{
-				Err: err,
-			}
-		}
-		if res.IsNil() {
-			return db.ErrNotFound
-		}
-		defer res.Close()
-		if err := res.One(s.cfg); err != nil {
-			return &db.Err{
-				Msg: "read db response",
-				Err: err,
-			}
-		}
-		c.Set("saml_config", s.cfg, cache.DefaultExpiration)
-	}
-
-	maxIssueDelay, err = time.ParseDuration(s.cfg.MaxIssueDelay)
-	if err != nil {
-		s.log.Fatal().Err(err).Msg("invalid max issue delay")
-	}
-	s.MaxIssueDelay = maxIssueDelay
+	//
+	// Middleware setup
+	//
 
 	// Try to load metadata from local file first (if configured)
-	if s.cfg.MetadataFile != "" {
-		s.log.Info().Str("file", s.cfg.MetadataFile).Msg("attempting to load IdP metadata from local file")
+	if cfg.MetadataFile != "" {
+		s.log.Info().Str("file", cfg.MetadataFile).Msg("attempting to load IdP metadata from local file")
 
-		data, readErr := os.ReadFile(s.cfg.MetadataFile)
+		data, readErr := os.ReadFile(cfg.MetadataFile)
 		if readErr == nil {
 			metadata, err = samlsp.ParseMetadata(data)
 			if err == nil {
-				s.log.Info().Str("file", s.cfg.MetadataFile).Msg("successfully loaded IdP metadata from local file")
+				s.log.Info().Str("file", cfg.MetadataFile).Msg("successfully loaded IdP metadata from local file")
 			} else {
-				s.log.Warn().Err(err).Str("file", s.cfg.MetadataFile).Msg("failed to parse local metadata file, falling back to URL")
+				s.log.Warn().Err(err).Str("file", cfg.MetadataFile).Msg("failed to parse local metadata file, falling back to URL")
 			}
 		} else {
-			s.log.Info().Err(readErr).Str("file", s.cfg.MetadataFile).Msg("local metadata file not found, falling back to URL")
+			s.log.Info().Err(readErr).Str("file", cfg.MetadataFile).Msg("local metadata file not found, falling back to URL")
 		}
 	}
 
 	// Fall back to URL fetch if local file didn't work or wasn't configured
 	if metadata == nil {
-		if s.cfg.MetadataURL == "" {
-			s.log.Fatal().Msg("neither metadata file nor metadata URL is configured")
+		if cfg.MetadataURL == "" {
+			return errors.New("neither metadata file nor metadata URL is configured")
 		}
 
-		if err := validateMetadataURL(s.cfg.MetadataURL); err != nil {
-			s.log.Error().Err(err).Str("url", s.cfg.MetadataURL).Msg("invalid metadata URL")
+		if err := validateMetadataURL(cfg.MetadataURL); err != nil {
+			s.log.Error().Err(err).Str("url", cfg.MetadataURL).Msg("invalid metadata URL")
 			return fmt.Errorf("invalid metadata URL: %w", err)
 		}
 
-		remoteMetadataURL, err := url.Parse(s.cfg.MetadataURL)
+		remoteMetadataURL, err := url.Parse(cfg.MetadataURL)
 		if err != nil {
-			s.log.Error().Err(err).Msg("parse metadata URL")
 			return fmt.Errorf("parse metadata URL: %w", err)
 		}
 
 		httpClient := &http.Client{Timeout: 30 * time.Second}
-		s.log.Info().Str("url", s.cfg.MetadataURL).Msg("fetching IdP metadata from URL")
-		metadata, err = samlsp.FetchMetadata(context.Background(), httpClient, *remoteMetadataURL)
+		s.log.Info().Str("url", cfg.MetadataURL).Msg("fetching IdP metadata from URL")
+		metadata, err = samlsp.FetchMetadata(ctx, httpClient, *remoteMetadataURL)
 		if err != nil {
-			s.log.Error().Err(err).Msg("fetch metadata from URL failed")
-			return fmt.Errorf("fetch metadata from URL: %w", err)
+			return fmt.Errorf("fetch metadata from URL failed: %w", err)
 		}
-		s.log.Info().Str("url", s.cfg.MetadataURL).Msg("successfully fetched IdP metadata from URL")
+
+		s.log.Info().Str("url", cfg.MetadataURL).Msg("successfully fetched IdP metadata from URL")
 	}
 
-	k, err := tls.LoadX509KeyPair(s.cfg.CertFile, s.cfg.KeyFile)
+	k, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
 	if err != nil {
-		s.log.Fatal().Err(err).Msg("load key pair")
+		return fmt.Errorf("load key pair: %w", err)
 	}
 
 	k.Leaf, err = x509.ParseCertificate(k.Certificate[0])
 	if err != nil {
-		s.log.Fatal().Err(err).Msg("parse certificate")
+		return fmt.Errorf("parse certificate: %w", err)
 	}
 
 	baseURL, err := url.Parse(fmt.Sprintf("https://%s/authentication", s.host))
 	if err != nil {
-		s.log.Fatal().Err(err).Msg("parse root URL")
+		return fmt.Errorf("parse root URL: %w", err)
 	}
 
 	url := *baseURL
 	url.Path = path.Join(baseURL.Path, "/callback")
 
-	// Set the maximum time between the initial s.login request and the
+	// Set the maximum time between the initial login request and the
 	// response
-	saml.MaxIssueDelay = s.MaxIssueDelay
+	saml.MaxIssueDelay = time.Duration(cfg.MaxIssueDelay)
 
 	middleware, _ := samlsp.New(samlsp.Options{
 		URL:                url,
@@ -239,81 +203,105 @@ func (s *SAML) SAMLConfig() error {
 	middleware.ServiceProvider.SloURL = sloURL
 
 	// Set custom Entity ID if configured, otherwise it defaults to MetadataURL
-	if s.cfg.EntityID != "" {
-		middleware.ServiceProvider.EntityID = s.cfg.EntityID
-		s.log.Info().Str("entity_id", s.cfg.EntityID).Msg("using custom SAML Entity ID")
+	if cfg.EntityID != "" {
+		middleware.ServiceProvider.EntityID = cfg.EntityID
+		s.log.Info().Str("entity_id", cfg.EntityID).Msg("using custom SAML Entity ID")
 	}
 
 	// Enable SAML AuthnRequest signing if configured
-	if s.cfg.SignatureMethod != "" {
-		middleware.ServiceProvider.SignatureMethod = s.cfg.SignatureMethod
-		s.log.Info().Str("signature_method", s.cfg.SignatureMethod).Msg("SAML request signing enabled")
+	if cfg.SignatureMethod != "" {
+		middleware.ServiceProvider.SignatureMethod = cfg.SignatureMethod
+		s.log.Info().Str("signature_method", cfg.SignatureMethod).Msg("SAML request signing enabled")
 	}
 
-	s.Middleware = middleware
+	prvCfg.Middleware = middleware
 
-	re, err := regexp.Compile(s.cfg.RegexUID)
+	//
+	// Rest of the configuration
+	//
+	prvCfg.FieldUID = cfg.FieldUID
+	re, err := regexp.Compile(cfg.RegexUID)
 	if err != nil {
-		s.log.Fatal().Err(err).Msg("invalid UID regex")
+		return fmt.Errorf("invalid UID regex: %w", err)
 	}
-	s.ReUID = re
+	prvCfg.ReUID = re
 
-	re, err = regexp.Compile(s.cfg.RegexUsername)
+	prvCfg.FieldUsername = cfg.FieldUsername
+	re, err = regexp.Compile(cfg.RegexUsername)
 	if err != nil {
-		s.log.Fatal().Err(err).Msg("invalid username regex")
+		return fmt.Errorf("invalid username regex: %w", err)
 	}
-	s.ReUsername = re
+	prvCfg.ReUsername = re
 
-	re, err = regexp.Compile(s.cfg.RegexName)
+	prvCfg.FieldName = cfg.FieldName
+	re, err = regexp.Compile(cfg.RegexName)
 	if err != nil {
-		s.log.Fatal().Err(err).Msg("invalid name regex")
+		return fmt.Errorf("invalid name regex: %w", err)
 	}
-	s.ReName = re
+	prvCfg.ReName = re
 
-	re, err = regexp.Compile(s.cfg.RegexEmail)
+	prvCfg.FieldEmail = cfg.FieldEmail
+	re, err = regexp.Compile(cfg.RegexEmail)
 	if err != nil {
-		s.log.Fatal().Err(err).Msg("invalid email regex")
+		return fmt.Errorf("invalid email regex: %w", err)
 	}
-	s.ReEmail = re
+	prvCfg.ReEmail = re
 
-	re, err = regexp.Compile(s.cfg.RegexPhoto)
+	prvCfg.FieldPhoto = cfg.FieldPhoto
+	re, err = regexp.Compile(cfg.RegexPhoto)
 	if err != nil {
-		s.log.Fatal().Err(err).Msg("invalid photo regex")
+		return fmt.Errorf("invalid photo regex: %w", err)
 	}
-	s.RePhoto = re
+	prvCfg.RePhoto = re
 
-	if s.cfg.GuessCategory {
-		re, err = regexp.Compile(s.cfg.RegexCategory)
+	prvCfg.AutoRegister = cfg.AutoRegister
+	prvCfg.AutoRegisterRoles = cfg.AutoRegisterRoles
+
+	prvCfg.GuessCategory = cfg.GuessCategory
+	prvCfg.FieldCategory = cfg.FieldCategory
+	if cfg.GuessCategory {
+		re, err = regexp.Compile(cfg.RegexCategory)
 		if err != nil {
-			s.log.Fatal().Err(err).Msg("invalid category regex")
+			return fmt.Errorf("invalid category regex: %w", err)
 		}
-		s.ReCategory = re
-	}
-
-	if s.cfg.AutoRegister {
-		re, err = regexp.Compile(s.cfg.RegexGroup)
-		if err != nil {
-			s.log.Fatal().Err(err).Msg("invalid category regex")
-		}
-		s.ReGroup = re
-
-		re, err = regexp.Compile(s.cfg.RegexRole)
-		if err != nil {
-			s.log.Fatal().Err(err).Msg("invalid role regex")
-		}
-		s.ReRole = re
-	}
-
-	if s.cfg.AutoRegisterRoles != "" {
-		s.AutoRegisterRoles = strings.Split(s.cfg.AutoRegisterRoles, ",")
+		prvCfg.ReCategory = re
 	} else {
-		s.AutoRegisterRoles = []string{}
+		prvCfg.ReCategory = nil
 	}
 
-	s.RoleAdminIDs = strings.Split(s.cfg.RoleAdminIDs, ",")
-	s.RoleManagerIDs = strings.Split(s.cfg.RoleManagerIDs, ",")
-	s.RoleAdvancedIDs = strings.Split(s.cfg.RoleAdvancedIDs, ",")
-	s.RoleUserIDs = strings.Split(s.cfg.RoleUserIDs, ",")
+	prvCfg.FieldGroup = cfg.FieldGroup
+	prvCfg.GroupDefault = cfg.GroupDefault
+
+	prvCfg.FieldRole = cfg.FieldRole
+	if cfg.AutoRegister {
+		re, err = regexp.Compile(cfg.RegexGroup)
+		if err != nil {
+			return fmt.Errorf("invalid group regex: %w", err)
+		}
+		prvCfg.ReGroup = re
+
+		re, err = regexp.Compile(cfg.RegexRole)
+		if err != nil {
+			return fmt.Errorf("invalid role regex: %w", err)
+		}
+		prvCfg.ReRole = re
+
+	} else {
+		prvCfg.ReGroup = nil
+		prvCfg.ReRole = nil
+	}
+
+	prvCfg.RoleAdminIDs = cfg.RoleAdminIDs
+	prvCfg.RoleManagerIDs = cfg.RoleManagerIDs
+	prvCfg.RoleAdvancedIDs = cfg.RoleAdvancedIDs
+	prvCfg.RoleUserIDs = cfg.RoleUserIDs
+	prvCfg.RoleDefault = cfg.RoleDefault
+
+	prvCfg.LogoutRedirectURL = cfg.LogoutRedirectURL
+
+	prvCfg.SaveEmail = cfg.SaveEmail
+
+	s.cfg.LoadCfg(prvCfg)
 
 	return nil
 }
@@ -327,18 +315,6 @@ func validateMetadataURL(rawURL string) error {
 		return fmt.Errorf("metadata URL must use https scheme, got %q", u.Scheme)
 	}
 	return nil
-}
-
-func samlOnError(log *zerolog.Logger) func(http.ResponseWriter, *http.Request, error) {
-	return func(w http.ResponseWriter, r *http.Request, err error) {
-		if parsedErr, ok := err.(*saml.InvalidResponseError); ok {
-			log.Warn().Err(parsedErr.PrivateErr).Str("rsp", parsedErr.Response).Time("now", parsedErr.Now).Msg("received invalid SAML response")
-		} else {
-			log.Error().Err(err).Msg("unexpected SAML error")
-		}
-
-		http.Redirect(w, r, "/login?error=unknown", http.StatusFound)
-	}
 }
 
 func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
@@ -365,15 +341,11 @@ func (s *SAML) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 }
 
 func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args CallbackArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
-	if err := s.SAMLConfig(); err != nil {
-		return nil, nil, nil, "", "", &ProviderError{
-			User:   ErrInternal,
-			Detail: err,
-		}
-	}
+	cfg := s.cfg.Cfg()
+
 	r := ctx.Value(HTTPRequest).(*http.Request)
 
-	sess, err := s.Middleware.Session.GetSession(r)
+	sess, err := cfg.Middleware.Session.GetSession(r)
 	if err != nil {
 		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
@@ -386,15 +358,15 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 	var logAttrs any = attrs
 	s.log.Debug().Any("attributes", logAttrs).Msg("recieved attributes from SAML server")
 
-	username := matchRegex(s.ReUsername, attrs.Get(s.cfg.FieldUsername))
-	name := matchRegex(s.ReName, attrs.Get(s.cfg.FieldName))
-	email := matchRegex(s.ReEmail, attrs.Get(s.cfg.FieldEmail))
-	photo := matchRegex(s.RePhoto, attrs.Get(s.cfg.FieldPhoto))
+	username := matchRegex(cfg.ReUsername, attrs.Get(cfg.FieldUsername))
+	name := matchRegex(cfg.ReName, attrs.Get(cfg.FieldName))
+	email := matchRegex(cfg.ReEmail, attrs.Get(cfg.FieldEmail))
+	photo := matchRegex(cfg.RePhoto, attrs.Get(cfg.FieldPhoto))
 
 	u := &types.ProviderUserData{
 		Provider: claims.Provider,
 		Category: claims.CategoryID,
-		UID:      matchRegex(s.ReUID, attrs.Get(s.cfg.FieldUID)),
+		UID:      matchRegex(cfg.ReUID, attrs.Get(cfg.FieldUID)),
 
 		Username: &username,
 		Name:     &name,
@@ -402,12 +374,12 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 		Photo:    &photo,
 	}
 
-	if s.cfg.GuessCategory {
-		attrCategories := attrs[s.cfg.FieldCategory]
+	if cfg.GuessCategory {
+		attrCategories := attrs[cfg.FieldCategory]
 		if attrCategories == nil {
 			return nil, nil, nil, "", "", &ProviderError{
 				User:   ErrInternal,
-				Detail: fmt.Errorf("missing category attribute: '%s'", s.cfg.FieldCategory),
+				Detail: fmt.Errorf("missing category attribute: '%s'", cfg.FieldCategory),
 			}
 		}
 
@@ -415,14 +387,14 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 			attrGroups *[]string
 			attrRole   *[]string
 		)
-		if s.cfg.AutoRegister {
-			g := attrs[s.cfg.FieldGroup]
+		if cfg.AutoRegister {
+			g := attrs[cfg.FieldGroup]
 			attrGroups = &g
-			r := attrs[s.cfg.FieldRole]
+			r := attrs[cfg.FieldRole]
 			attrRole = &r
 		}
 
-		tkn, err := guessCategory(ctx, s.log, s.db, s.secret, s.ReCategory, attrCategories, attrGroups, attrRole, u)
+		tkn, err := guessCategory(ctx, s.log, s.db, s.secret, cfg.ReCategory, attrCategories, attrGroups, attrRole, u)
 		if err != nil {
 			return nil, nil, nil, "", "", err
 		}
@@ -434,11 +406,11 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 
 	var g *model.Group
 	secondary := []*model.Group{}
-	if s.cfg.AutoRegister {
+	if cfg.AutoRegister {
 		//
 		// Guess group
 		//
-		attrGroups := attrs[s.cfg.FieldGroup]
+		attrGroups := attrs[cfg.FieldGroup]
 		if attrGroups == nil {
 			s.log.Debug().Msg("missing groups attribute, will fallback to the default if defined")
 			attrGroups = []string{}
@@ -453,7 +425,7 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 		//
 		// Guess role
 		//
-		attrRole := attrs[s.cfg.FieldRole]
+		attrRole := attrs[cfg.FieldRole]
 		if attrRole == nil {
 			s.log.Debug().Msg("missing role attribute, will fallback to the default if defined")
 			attrRole = []string{}
@@ -471,18 +443,18 @@ func (s *SAML) Callback(ctx context.Context, claims *token.CallbackClaims, args 
 }
 
 func (s *SAML) AutoRegister(u *model.User) bool {
-	if err := s.SAMLConfig(); err != nil {
-		return false
-	}
-	if s.cfg.AutoRegister {
-		if len(s.AutoRegisterRoles) != 0 {
+	cfg := s.cfg.Cfg()
+
+	if cfg.AutoRegister {
+		if len(cfg.AutoRegisterRoles) != 0 {
 			// If the user role is in the autoregister roles list, auto register
-			allowed := slices.Contains(s.AutoRegisterRoles, string(u.Role))
+			allowed := slices.Contains(cfg.AutoRegisterRoles, string(u.Role))
 			if allowed {
-				s.log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Strs("allowed_roles", s.AutoRegisterRoles).Msg("auto-registration allowed: user role matches allowed roles list")
+				s.log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Strs("allowed_roles", cfg.AutoRegisterRoles).Msg("auto-registration allowed: user role matches allowed roles list")
 			} else {
-				s.log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Strs("allowed_roles", s.AutoRegisterRoles).Msg("auto-registration denied: user role not in allowed roles list")
+				s.log.Info().Str("usr", u.UID).Str("role", string(u.Role)).Strs("allowed_roles", cfg.AutoRegisterRoles).Msg("auto-registration denied: user role not in allowed roles list")
 			}
+
 			return allowed
 		}
 
@@ -499,19 +471,18 @@ func (SAML) String() string {
 }
 
 func (s *SAML) Healthcheck() error {
-	if err := s.SAMLConfig(); err != nil {
-		return err
-	}
+	cfg := s.cfg.Cfg()
+
 	var binding, bindingLocation string
-	if s.Middleware.Binding != "" {
-		binding = s.Middleware.Binding
-		bindingLocation = s.Middleware.ServiceProvider.GetSSOBindingLocation(binding)
+	if cfg.Middleware.Binding != "" {
+		binding = cfg.Middleware.Binding
+		bindingLocation = cfg.Middleware.ServiceProvider.GetSSOBindingLocation(binding)
 	} else {
 		binding = saml.HTTPRedirectBinding
-		bindingLocation = s.Middleware.ServiceProvider.GetSSOBindingLocation(binding)
+		bindingLocation = cfg.Middleware.ServiceProvider.GetSSOBindingLocation(binding)
 		if bindingLocation == "" {
 			binding = saml.HTTPPostBinding
-			bindingLocation = s.Middleware.ServiceProvider.GetSSOBindingLocation(binding)
+			bindingLocation = cfg.Middleware.ServiceProvider.GetSSOBindingLocation(binding)
 		}
 	}
 
@@ -525,34 +496,36 @@ func (s *SAML) Healthcheck() error {
 }
 
 func (s SAML) Logout(context.Context, string) (string, error) {
-	if err := s.SAMLConfig(); err != nil {
-		return "", err
-	}
-	return s.cfg.LogoutRedirectURL, nil
+	return s.cfg.Cfg().LogoutRedirectURL, nil
 }
 
 func (s *SAML) SaveEmail() bool {
-	if err := s.SAMLConfig(); err != nil {
-		return true
-	}
-	return s.cfg.SaveEmail
+	return s.cfg.Cfg().SaveEmail
 }
 
 func (s *SAML) GuessGroups(ctx context.Context, u *types.ProviderUserData, rawGroups []string) (*model.Group, []*model.Group, *ProviderError) {
+	cfg := s.cfg.Cfg()
+
 	return guessGroup(ctx, s.db, guessGroupOpts{
 		Provider:     s,
-		ReGroup:      s.ReGroup,
-		DefaultGroup: s.cfg.GroupDefault,
+		ReGroup:      cfg.ReGroup,
+		DefaultGroup: cfg.GroupDefault,
 	}, u, rawGroups)
 }
 
 func (s *SAML) GuessRole(ctx context.Context, u *types.ProviderUserData, rawRoles []string) (*model.Role, *ProviderError) {
+	cfg := s.cfg.Cfg()
+
 	return guessRole(guessRoleOpts{
-		ReRole:          s.ReRole,
-		RoleAdminIDs:    s.RoleAdminIDs,
-		RoleManagerIDs:  s.RoleManagerIDs,
-		RoleAdvancedIDs: s.RoleAdvancedIDs,
-		RoleUserIDs:     s.RoleUserIDs,
-		RoleDefault:     s.cfg.RoleDefault,
+		ReRole:          cfg.ReRole,
+		RoleAdminIDs:    cfg.RoleAdminIDs,
+		RoleManagerIDs:  cfg.RoleManagerIDs,
+		RoleAdvancedIDs: cfg.RoleAdvancedIDs,
+		RoleUserIDs:     cfg.RoleUserIDs,
+		RoleDefault:     cfg.RoleDefault,
 	}, rawRoles)
+}
+
+func (s *SAML) Middleware() *samlsp.Middleware {
+	return s.cfg.Cfg().Middleware
 }

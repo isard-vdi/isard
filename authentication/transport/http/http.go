@@ -16,6 +16,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	httpErr "gitlab.com/isard/isardvdi/authentication/transport/http/error"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"
 
@@ -84,8 +85,8 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 
 	// SAML authentication
 	m.Handle("/authentication/saml/login", requestMetadataHandler(http.HandlerFunc(a.loginSAML)))
-	m.Handle("/authentication/saml/metadata", requestMetadataHandler(http.HandlerFunc(a.Authentication.SAML().ServeMetadata)))
-	m.Handle("/authentication/saml/acs", requestMetadataHandler(http.HandlerFunc(a.Authentication.SAML().ServeACS)))
+	m.Handle("/authentication/saml/metadata", requestMetadataHandler(http.HandlerFunc(a.metadataSAML)))
+	m.Handle("/authentication/saml/acs", requestMetadataHandler(http.HandlerFunc(a.acsSAML)))
 	m.Handle("/authentication/saml/slo", requestMetadataHandler(http.HandlerFunc(a.logoutSAML)))
 
 	// The OpenAPI specification server
@@ -169,7 +170,14 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Ensure the user has logged in through SAML
-	a.Authentication.SAML().RequireAccount(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	middleware := a.Authentication.SAML()
+	if middleware == nil {
+		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
+		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
+		return
+	}
+
+	middleware.RequireAccount(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Call the login function with the correct parameters
 		rsp, err := a.Login(r.Context(), oasAuthentication.OptLoginRequestMultipart{}, oasAuthentication.LoginParams{
 			Provider:   provider,
@@ -213,8 +221,39 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 	})).ServeHTTP(w, r)
 }
 
+func (a *AuthenticationServer) metadataSAML(w http.ResponseWriter, r *http.Request) {
+	middleware := a.Authentication.SAML()
+	if middleware == nil {
+		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
+
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("internal server error"))
+		return
+	}
+
+	middleware.ServeMetadata(w, r)
+}
+
+func (a *AuthenticationServer) acsSAML(w http.ResponseWriter, r *http.Request) {
+	middleware := a.Authentication.SAML()
+	if middleware == nil {
+		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
+		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
+		return
+	}
+
+	middleware.ServeACS(w, r)
+}
+
 func (a *AuthenticationServer) logoutSAML(w http.ResponseWriter, r *http.Request) {
-	if err := a.Authentication.SAML().Session.DeleteSession(w, r); err != nil {
+	middleware := a.Authentication.SAML()
+	if middleware == nil {
+		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
+		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
+		return
+	}
+
+	if err := middleware.Session.DeleteSession(w, r); err != nil {
 		a.Log.Error().Err(err).Msg("delete SAML session")
 
 		w.WriteHeader(http.StatusInternalServerError)
@@ -256,6 +295,13 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 
 	p := a.Authentication.Provider(string(params.Provider))
 	if p.String() == types.ProviderSAML {
+		middleware := a.Authentication.SAML()
+		if middleware == nil {
+			log.Error().Msg("requested SAML middleware, but it's not initialized")
+
+			return nil, provider.ErrInternal
+		}
+
 		c := &http.Cookie{
 			Name:  "token",
 			Value: params.Token.Value,
@@ -266,7 +312,7 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 			},
 		}
 
-		if _, err := a.Authentication.SAML().Session.GetSession(r); err != nil {
+		if _, err := middleware.Session.GetSession(r); err != nil {
 			if !errors.Is(err, samlsp.ErrNoSession) {
 				log.Error().Err(err).Msg("unknown error")
 
@@ -404,13 +450,13 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 	if err != nil {
 		if errors.Is(err, provider.ErrUserDisabled) {
 			return &oasAuthentication.CallbackFound{
-				Location: "/login?error=user_disabled",
+				Location: "/login?error=" + string(httpErr.LoginUserDisabled),
 			}, nil
 		}
 
 		if errors.Is(err, provider.ErrUserDisallowed) {
 			return &oasAuthentication.CallbackFound{
-				Location: "/login?error=user_disallowed",
+				Location: "/login?error=" + string(httpErr.LoginUserDisallowed),
 			}, nil
 		}
 

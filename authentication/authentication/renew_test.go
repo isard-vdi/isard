@@ -2,6 +2,7 @@ package authentication_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.nhat.io/grpcmock"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 func TestRenew(t *testing.T) {
@@ -28,6 +30,7 @@ func TestRenew(t *testing.T) {
 	now := time.Now()
 
 	cases := map[string]struct {
+		PrepareDB       func(*r.Mock)
 		PrepareSessions func(*grpcmock.Server)
 		PrepareToken    func() string
 		CheckToken      func(string)
@@ -35,6 +38,9 @@ func TestRenew(t *testing.T) {
 		ExpectedErr     string
 	}{
 		"should work as expected": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/Renew").WithPayload(&sessionsv1.RenewRequest{
 					Id:         "ThoJuroQueEsUnID",
@@ -99,11 +105,19 @@ func TestRenew(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx := context.Background()
+			var wg sync.WaitGroup
+			defer wg.Wait()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
 			apiMock := sdk.NewMockSdk(t)
+			dbMock := r.NewMock()
+
+			if tc.PrepareDB != nil {
+				tc.PrepareDB(dbMock)
+			}
 
 			if tc.PrepareSessions == nil {
 				tc.PrepareSessions = func(s *grpcmock.Server) {}
@@ -120,7 +134,7 @@ func TestRenew(t *testing.T) {
 			require.NoError(err)
 			defer sessionsConn.Close()
 
-			a := authentication.Init(cfg, log, nil, nil, nil, sessionsCli)
+			a := authentication.Init(ctx, &wg, cfg, log, dbMock, nil, nil, sessionsCli)
 
 			tkn, err := a.Renew(context.Background(), tc.PrepareToken(), tc.RemoteAddr)
 

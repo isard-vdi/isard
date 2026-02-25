@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"sync"
 
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/provider"
-	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
@@ -58,13 +58,12 @@ type Authentication struct {
 	Notifier notifier.Invoker
 	Sessions sessionsv1.SessionsServiceClient
 
-	providers map[string]provider.Provider
-	saml      *samlsp.Middleware
-
 	Cfg cfg.Authentication
+
+	prvManager *ProviderManager
 }
 
-func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Interface, notifierCli notifier.Invoker, sessionsCli sessionsv1.SessionsServiceClient) *Authentication {
+func Init(ctx context.Context, wg *sync.WaitGroup, cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Interface, notifierCli notifier.Invoker, sessionsCli sessionsv1.SessionsServiceClient) *Authentication {
 	a := &Authentication{
 		Log:    log,
 		Secret: cfg.Authentication.Secret,
@@ -74,62 +73,23 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Inter
 			Host:   cfg.Authentication.Host,
 		},
 
-		DB:       db,
-		API:      apiCli,
-		Notifier: notifierCli,
-		Sessions: sessionsCli,
-		Cfg:      cfg.Authentication,
+		DB:         db,
+		API:        apiCli,
+		Notifier:   notifierCli,
+		Sessions:   sessionsCli,
+		Cfg:        cfg.Authentication,
+		prvManager: InitProviderManager(ctx, wg, cfg.Authentication, log, db),
 	}
-
-	providers := map[string]provider.Provider{
-		types.ProviderUnknown:  &provider.Unknown{},
-		types.ProviderForm:     provider.InitForm(cfg.Authentication, log, db),
-		types.ProviderExternal: &provider.External{},
-	}
-
-	if cfg.Authentication.SAML.Enabled {
-		saml := provider.InitSAML(cfg.Authentication.Secret, cfg.Authentication.Host, log, db)
-		a.saml = saml.Middleware
-		providers[saml.String()] = saml
-	}
-
-	if cfg.Authentication.Google.Enabled {
-		google := provider.InitGoogle(cfg.Authentication, db)
-		providers[google.String()] = google
-	}
-
-	a.providers = providers
 
 	return a
 }
 
 func (a *Authentication) Providers() []string {
-	providers := []string{}
-	for k, v := range a.providers {
-		if k == types.ProviderUnknown || k == types.ProviderExternal {
-			continue
-		}
-
-		if k == types.ProviderForm {
-			providers = append(providers, v.(*provider.Form).Providers()...)
-		}
-
-		providers = append(providers, k)
-	}
-
-	return providers
+	return a.prvManager.Providers()
 }
 
 func (a *Authentication) Provider(p string) provider.Provider {
-	if prv := a.providers[p]; prv != nil {
-		return prv
-	}
-	if f, ok := a.providers[types.ProviderForm].(*provider.Form); ok {
-		if prv := f.Provider(p); prv != nil {
-			return prv
-		}
-	}
-	return a.providers[types.ProviderUnknown]
+	return a.prvManager.Provider(p)
 }
 
 func (a *Authentication) check(ctx context.Context, ss, remoteAddr string) (*token.LoginClaims, error) {
@@ -154,17 +114,9 @@ func (a *Authentication) Check(ctx context.Context, ss, remoteAddr string) error
 }
 
 func (a *Authentication) SAML() *samlsp.Middleware {
-	return a.saml
+	return a.prvManager.SAML()
 }
 
 func (a *Authentication) Healthcheck() error {
-	for _, p := range a.providers {
-		if err := p.Healthcheck(); err != nil {
-			a.Log.Warn().Err(err).Str("provider", p.String()).Msg("service unhealthy")
-
-			return err
-		}
-	}
-
-	return nil
+	return a.prvManager.Healthcheck()
 }

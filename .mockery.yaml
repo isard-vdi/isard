@@ -13,6 +13,7 @@ packages:
   gitlab.com/isard/isardvdi/authentication/provider:
     interfaces:
       Provider: {}
+      ConfigurableProvider: {}
   gitlab.com/isard/isardvdi/haproxy-bastion-sync/haproxy:
     interfaces:
       Interface:

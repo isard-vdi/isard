@@ -14,6 +14,8 @@ import (
 )
 
 func TestLogin(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 	now := float64(time.Now().Unix())
 
@@ -172,6 +174,8 @@ func TestLogin(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
 
 			dbMock := r.NewMock()
@@ -201,39 +205,88 @@ func TestLogin(t *testing.T) {
 		})
 	}
 }
+
 func TestCallback(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
-	p := provider.InitLocal(nil)
-	group, secondary, user, redirect, token, err := p.Callback(context.Background(), nil, provider.CallbackArgs{})
+	cases := map[string]struct {
+		ExpectedErr string
+	}{
+		"should return an error because the local provider doesn't support callback": {
+			ExpectedErr: "invalid identity provider for this operation: the local provider doesn't support the callback operation",
+		},
+	}
 
-	assert.Nil(group)
-	assert.Nil(secondary)
-	assert.Nil(user)
-	assert.Empty(redirect)
-	assert.Empty(token)
-	assert.EqualError(err, "invalid identity provider for this operation: the local provider doesn't support the callback operation")
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			p := provider.InitLocal(nil)
+			group, secondary, user, redirect, token, err := p.Callback(context.Background(), nil, provider.CallbackArgs{})
+
+			assert.Nil(group)
+			assert.Nil(secondary)
+			assert.Nil(user)
+			assert.Empty(redirect)
+			assert.Empty(token)
+			assert.EqualError(err, tc.ExpectedErr)
+		})
+	}
 }
 
 func TestAutoRegister(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
-	p := provider.InitLocal(nil)
-	result := p.AutoRegister(nil)
+	cases := map[string]struct {
+		Expected bool
+	}{
+		"should return false for local provider": {
+			Expected: false,
+		},
+	}
 
-	assert.False(result)
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			p := provider.InitLocal(nil)
+
+			assert.Equal(tc.Expected, p.AutoRegister(nil))
+		})
+	}
 }
 
 func TestString(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
-	p := provider.InitLocal(nil)
-	result := p.String()
+	cases := map[string]struct {
+		Expected string
+	}{
+		"should return the local provider type": {
+			Expected: types.ProviderLocal,
+		},
+	}
 
-	assert.Equal(result, types.ProviderLocal)
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			p := provider.InitLocal(nil)
+
+			assert.Equal(tc.Expected, p.String())
+		})
+	}
 }
 
 func TestHealthcheck(t *testing.T) {
+	t.Parallel()
+
 	assert := assert.New(t)
 
 	cases := map[string]struct {
@@ -257,6 +310,7 @@ func TestHealthcheck(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
 			dbMock := r.NewMock()
 			tc.PrepareDB(dbMock)

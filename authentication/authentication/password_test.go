@@ -3,6 +3,7 @@ package authentication_test
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,6 +37,7 @@ func TestForgotPassword(t *testing.T) {
 	}{
 		"should work as expected": {
 			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("category"), "default"),
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
@@ -66,6 +68,7 @@ func TestForgotPassword(t *testing.T) {
 		},
 		"should return an error if the user isn't found": {
 			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("category"), "default"),
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
@@ -80,6 +83,11 @@ func TestForgotPassword(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			var wg sync.WaitGroup
+			defer wg.Wait()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
 			mock := r.NewMock()
@@ -89,7 +97,7 @@ func TestForgotPassword(t *testing.T) {
 				tc.PrepareDB(mock)
 			}
 
-			a := authentication.Init(cfg, log, mock, nil, nil, nil)
+			a := authentication.Init(ctx, &wg, cfg, log, mock, nil, nil, nil)
 
 			if tc.PrepareNotifier != nil {
 				tc.PrepareNotifier(notifier)
@@ -127,6 +135,7 @@ func TestResetPassword(t *testing.T) {
 				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "f0kt3Rf").Return(nil)
 			},
 			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
 					"password_reset_token": "",
 				})).Return(r.WriteResponse{
@@ -169,6 +178,7 @@ func TestResetPassword(t *testing.T) {
 				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "f0kt3Rf").Return(nil)
 			},
 			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("id"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
 					r.Eq(r.Row.Field("password_reset_token"), r.MockAnything()),
@@ -200,6 +210,7 @@ func TestResetPassword(t *testing.T) {
 				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "weak password :3").Return(&err)
 			},
 			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("id"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
 					r.Eq(r.Row.Field("password_reset_token"), r.MockAnything()),
@@ -220,7 +231,10 @@ func TestResetPassword(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx := context.Background()
+			var wg sync.WaitGroup
+			defer wg.Wait()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
@@ -250,7 +264,7 @@ func TestResetPassword(t *testing.T) {
 			require.NoError(err)
 			defer sessionsConn.Close()
 
-			a := authentication.Init(cfg, log, dbMock, nil, nil, sessionsCli)
+			a := authentication.Init(ctx, &wg, cfg, log, dbMock, nil, nil, sessionsCli)
 			a.API = apiMock
 
 			err = a.ResetPassword(context.Background(), tc.PrepareToken(), tc.Password, tc.RemoteAddr)
