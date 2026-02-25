@@ -9,6 +9,7 @@ from subprocess import check_output
 
 from flask import Flask
 from initdb.populate import Populate
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 check_output(("/isard/generate_certs.sh"), text=True).strip()
 try:
@@ -45,6 +46,7 @@ from engine.services import db
 
 if __name__ == "__main__":
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     app.m = Engine(with_status_threads=False)
     app.db = db

@@ -21,11 +21,13 @@
 import logging as log
 import os
 
-from flask import Flask, render_template, send_from_directory
+from flask import Flask, render_template, request, send_from_directory
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 print("Starting isard scheduler...")
 
 app = Flask(__name__, static_url_path="")
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.url_map.strict_slashes = False
 
 from scheduler.lib.load_config import loadConfig
@@ -52,6 +54,20 @@ from .lib.scheduler import Scheduler
 
 log.info("Starting scheduler")
 app.scheduler = Scheduler()
+
+"""
+Request logging middleware
+"""
+
+
+@app.before_request
+def log_admin_requests():
+    if request.endpoint and request.endpoint.startswith("scheduler"):
+        client_ip = request.remote_addr
+        log.info(
+            f"Scheduler admin request to {request.endpoint} from client IP: {client_ip}"
+        )
+
 
 """'
 Import all views
