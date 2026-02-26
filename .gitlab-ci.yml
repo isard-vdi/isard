@@ -247,7 +247,7 @@ unit-test-go:
     - export PATH=$PATH:~/go/bin
     - gotestsum --junitfile report.xml --format testname -- -race ./... -coverprofile coverage.out -covermode atomic
     - go tool cover -func coverage.out
-    - gocover-cobertura < coverage.out > coverage.xml
+    - gocover-cobertura -ignore-gen-files < coverage.out > coverage.xml
   artifacts:
     when: always
     reports:
