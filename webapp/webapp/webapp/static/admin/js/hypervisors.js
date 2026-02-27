@@ -434,7 +434,8 @@ $(document).ready(function () {
           full.stats.last_action.intervals.forEach(function (obj) {
             table += '<tr>'
             table += '<td>' + Object.keys(obj)[0] + '</td>'
-            table += '<td>' + obj[Object.keys(obj)[0]].toFixed(3) + '</td>'
+            var value = obj[Object.keys(obj)[0]];
+            table += '<td>' + (typeof value === 'number' ? value.toFixed(3) : value) + '</td>'
             table += '</tr>'
           })
           table += '</tbody>'
