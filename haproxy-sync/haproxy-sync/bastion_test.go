@@ -1,4 +1,4 @@
-package haproxybastionsync_test
+package haproxysync_test
 
 import (
 	"context"
@@ -6,64 +6,22 @@ import (
 	"os"
 	"testing"
 
-	"gitlab.com/isard/isardvdi/haproxy-bastion-sync/cfg"
-	"gitlab.com/isard/isardvdi/haproxy-bastion-sync/haproxy"
-	haproxybastionsync "gitlab.com/isard/isardvdi/haproxy-bastion-sync/haproxy-bastion-sync"
+	"gitlab.com/isard/isardvdi/haproxy-sync/cfg"
+	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy"
+	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy-sync"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestCheck(t *testing.T) {
+func TestBastionSyncMaps(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
 		PrepareHAProxy func(*haproxy.MockHaproxy)
-		ExpectedErr    string
-	}{
-		"should work as expected": {
-			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
-				m.On("ShowVersion").Return("3.0.0", nil)
-			},
-		},
-		"should return an error if HAProxy returns an error": {
-			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
-				m.On("ShowVersion").Return("", errors.New("connection refused"))
-			},
-			ExpectedErr: "get HAProxy version: connection refused",
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
-			haproxyMock := &haproxy.MockHaproxy{}
-			tc.PrepareHAProxy(haproxyMock)
-
-			svc := haproxybastionsync.Init(&log, cfg.Cfg{}, haproxyMock)
-
-			err := svc.Check(context.Background())
-
-			if tc.ExpectedErr != "" {
-				assert.EqualError(err, tc.ExpectedErr)
-			} else {
-				assert.NoError(err)
-			}
-
-			haproxyMock.AssertExpectations(t)
-		})
-	}
-}
-
-func TestSyncMaps(t *testing.T) {
-	assert := assert.New(t)
-
-	cases := map[string]struct {
-		PrepareHAProxy func(*haproxy.MockHaproxy)
-		Maps           haproxybastionsync.SyncMaps
-		ExpectedResult haproxybastionsync.SyncMapsResult
+		Maps           haproxysync.BastionSyncMaps
+		ExpectedResult haproxysync.BastionSyncMapsResult
 		ExpectedErr    string
 	}{
 		"should work as expected with empty maps": {
@@ -71,11 +29,11 @@ func TestSyncMaps(t *testing.T) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 			},
-			Maps: haproxybastionsync.SyncMaps{
+			Maps: haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
-			ExpectedResult: haproxybastionsync.SyncMapsResult{
+			ExpectedResult: haproxysync.BastionSyncMapsResult{
 				SubdomainsAdded:          0,
 				SubdomainsRemoved:        0,
 				IndividualDomainsAdded:   0,
@@ -89,11 +47,11 @@ func TestSyncMaps(t *testing.T) {
 				m.On("AddMap", "virt@subdomains", ".test").Return(nil)
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 			},
-			Maps: haproxybastionsync.SyncMaps{
+			Maps: haproxysync.BastionSyncMaps{
 				Subdomains:        []string{"example", "test"},
 				IndividualDomains: []string{},
 			},
-			ExpectedResult: haproxybastionsync.SyncMapsResult{
+			ExpectedResult: haproxysync.BastionSyncMapsResult{
 				SubdomainsAdded:          2,
 				SubdomainsRemoved:        0,
 				IndividualDomainsAdded:   0,
@@ -106,11 +64,11 @@ func TestSyncMaps(t *testing.T) {
 				m.On("DelMap", "virt@subdomains", ".old").Return(nil)
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 			},
-			Maps: haproxybastionsync.SyncMaps{
+			Maps: haproxysync.BastionSyncMaps{
 				Subdomains:        []string{"example", "test"},
 				IndividualDomains: []string{},
 			},
-			ExpectedResult: haproxybastionsync.SyncMapsResult{
+			ExpectedResult: haproxysync.BastionSyncMapsResult{
 				SubdomainsAdded:          0,
 				SubdomainsRemoved:        1,
 				IndividualDomainsAdded:   0,
@@ -124,11 +82,11 @@ func TestSyncMaps(t *testing.T) {
 				m.On("AddMap", "virt@individual", "example.com").Return(nil)
 				m.On("AddMap", "virt@individual", "test.org").Return(nil)
 			},
-			Maps: haproxybastionsync.SyncMaps{
+			Maps: haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{"example.com", "test.org"},
 			},
-			ExpectedResult: haproxybastionsync.SyncMapsResult{
+			ExpectedResult: haproxysync.BastionSyncMapsResult{
 				SubdomainsAdded:          0,
 				SubdomainsRemoved:        0,
 				IndividualDomainsAdded:   2,
@@ -141,11 +99,11 @@ func TestSyncMaps(t *testing.T) {
 				m.On("ShowMap", "virt@individual").Return([]string{"example.com", "old.com"}, nil)
 				m.On("DelMap", "virt@individual", "old.com").Return(nil)
 			},
-			Maps: haproxybastionsync.SyncMaps{
+			Maps: haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{"example.com"},
 			},
-			ExpectedResult: haproxybastionsync.SyncMapsResult{
+			ExpectedResult: haproxysync.BastionSyncMapsResult{
 				SubdomainsAdded:          0,
 				SubdomainsRemoved:        0,
 				IndividualDomainsAdded:   0,
@@ -161,11 +119,11 @@ func TestSyncMaps(t *testing.T) {
 				m.On("AddMap", "virt@individual", "new.com").Return(nil)
 				m.On("DelMap", "virt@individual", "old.com").Return(nil)
 			},
-			Maps: haproxybastionsync.SyncMaps{
+			Maps: haproxysync.BastionSyncMaps{
 				Subdomains:        []string{"existing", "new"},
 				IndividualDomains: []string{"existing.com", "new.com"},
 			},
-			ExpectedResult: haproxybastionsync.SyncMapsResult{
+			ExpectedResult: haproxysync.BastionSyncMapsResult{
 				SubdomainsAdded:          1,
 				SubdomainsRemoved:        1,
 				IndividualDomainsAdded:   1,
@@ -176,7 +134,7 @@ func TestSyncMaps(t *testing.T) {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{}, errors.New("socket error"))
 			},
-			Maps: haproxybastionsync.SyncMaps{
+			Maps: haproxysync.BastionSyncMaps{
 				Subdomains:        []string{"example"},
 				IndividualDomains: []string{},
 			},
@@ -187,7 +145,7 @@ func TestSyncMaps(t *testing.T) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
 				m.On("AddMap", "virt@subdomains", ".example").Return(errors.New("add failed"))
 			},
-			Maps: haproxybastionsync.SyncMaps{
+			Maps: haproxysync.BastionSyncMaps{
 				Subdomains:        []string{"example"},
 				IndividualDomains: []string{},
 			},
@@ -198,7 +156,7 @@ func TestSyncMaps(t *testing.T) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{".old"}, nil)
 				m.On("DelMap", "virt@subdomains", ".old").Return(errors.New("delete failed"))
 			},
-			Maps: haproxybastionsync.SyncMaps{
+			Maps: haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
@@ -209,7 +167,7 @@ func TestSyncMaps(t *testing.T) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
 				m.On("ShowMap", "virt@individual").Return([]string{}, errors.New("socket error"))
 			},
-			Maps: haproxybastionsync.SyncMaps{
+			Maps: haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{"example.com"},
 			},
@@ -221,7 +179,7 @@ func TestSyncMaps(t *testing.T) {
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 				m.On("AddMap", "virt@individual", "example.com").Return(errors.New("add failed"))
 			},
-			Maps: haproxybastionsync.SyncMaps{
+			Maps: haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{"example.com"},
 			},
@@ -233,7 +191,7 @@ func TestSyncMaps(t *testing.T) {
 				m.On("ShowMap", "virt@individual").Return([]string{"old.com"}, nil)
 				m.On("DelMap", "virt@individual", "old.com").Return(errors.New("delete failed"))
 			},
-			Maps: haproxybastionsync.SyncMaps{
+			Maps: haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
@@ -248,16 +206,16 @@ func TestSyncMaps(t *testing.T) {
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
-			cfg := cfg.Cfg{
-				Haproxy: cfg.Haproxy{
+			cfg := cfg.HAProxy{
+				Bastion: cfg.HAProxyBastion{
 					SubdomainsMap:        "virt@subdomains",
 					IndividualDomainsMap: "virt@individual",
 				},
 			}
 
-			svc := haproxybastionsync.Init(&log, cfg, haproxyMock)
+			svc := haproxysync.Init(&log, cfg, haproxyMock)
 
-			result, err := svc.SyncMaps(context.Background(), tc.Maps)
+			result, err := svc.BastionSyncMaps(context.Background(), tc.Maps)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
@@ -272,18 +230,18 @@ func TestSyncMaps(t *testing.T) {
 	}
 }
 
-func TestGetCurrentMaps(t *testing.T) {
+func TestBastionGetCurrentMaps(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
 	cases := map[string]struct {
 		PrepareHAProxy func(*haproxy.MockHaproxy)
-		SyncFirst      *haproxybastionsync.SyncMaps
-		ExpectedResult haproxybastionsync.CurrentMaps
+		SyncFirst      *haproxysync.BastionSyncMaps
+		ExpectedResult haproxysync.BastionCurrentMaps
 	}{
 		"should return empty maps when no sync has been done": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy) {},
-			ExpectedResult: haproxybastionsync.CurrentMaps{
+			ExpectedResult: haproxysync.BastionCurrentMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
@@ -295,11 +253,11 @@ func TestGetCurrentMaps(t *testing.T) {
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 				m.On("AddMap", "virt@individual", "test.com").Return(nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{"example"},
 				IndividualDomains: []string{"test.com"},
 			},
-			ExpectedResult: haproxybastionsync.CurrentMaps{
+			ExpectedResult: haproxysync.BastionCurrentMaps{
 				Subdomains:        []string{"example"},
 				IndividualDomains: []string{"test.com"},
 			},
@@ -313,21 +271,21 @@ func TestGetCurrentMaps(t *testing.T) {
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
-			cfg := cfg.Cfg{
-				Haproxy: cfg.Haproxy{
+			cfg := cfg.HAProxy{
+				Bastion: cfg.HAProxyBastion{
 					SubdomainsMap:        "virt@subdomains",
 					IndividualDomainsMap: "virt@individual",
 				},
 			}
 
-			svc := haproxybastionsync.Init(&log, cfg, haproxyMock)
+			svc := haproxysync.Init(&log, cfg, haproxyMock)
 
 			if tc.SyncFirst != nil {
-				_, err := svc.SyncMaps(context.Background(), *tc.SyncFirst)
+				_, err := svc.BastionSyncMaps(context.Background(), *tc.SyncFirst)
 				require.NoError(err)
 			}
 
-			result, err := svc.GetCurrentMaps(context.Background())
+			result, err := svc.BastionGetCurrentMaps(context.Background())
 
 			assert.NoError(err)
 			assert.ElementsMatch(tc.ExpectedResult.Subdomains, result.Subdomains)
@@ -344,7 +302,7 @@ func TestAddSubdomain(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareHAProxy func(*haproxy.MockHaproxy)
-		SyncFirst      *haproxybastionsync.SyncMaps
+		SyncFirst      *haproxysync.BastionSyncMaps
 		Subdomain      string
 		ExpectedErr    string
 	}{
@@ -354,7 +312,7 @@ func TestAddSubdomain(t *testing.T) {
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 				m.On("AddMap", "virt@subdomains", ".newsubdomain").Return(nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
@@ -365,19 +323,19 @@ func TestAddSubdomain(t *testing.T) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
 			Subdomain:   "",
-			ExpectedErr: haproxybastionsync.ErrMissingSubdomain.Error(),
+			ExpectedErr: haproxysync.ErrMissingSubdomain.Error(),
 		},
 		"should skip if subdomain already exists": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{".existing"}, nil)
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{"existing"},
 				IndividualDomains: []string{},
 			},
@@ -389,7 +347,7 @@ func TestAddSubdomain(t *testing.T) {
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 				m.On("AddMap", "virt@subdomains", ".fail").Return(errors.New("socket error"))
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
@@ -405,21 +363,21 @@ func TestAddSubdomain(t *testing.T) {
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
-			cfg := cfg.Cfg{
-				Haproxy: cfg.Haproxy{
+			cfg := cfg.HAProxy{
+				Bastion: cfg.HAProxyBastion{
 					SubdomainsMap:        "virt@subdomains",
 					IndividualDomainsMap: "virt@individual",
 				},
 			}
 
-			svc := haproxybastionsync.Init(&log, cfg, haproxyMock)
+			svc := haproxysync.Init(&log, cfg, haproxyMock)
 
 			if tc.SyncFirst != nil {
-				_, err := svc.SyncMaps(context.Background(), *tc.SyncFirst)
+				_, err := svc.BastionSyncMaps(context.Background(), *tc.SyncFirst)
 				require.NoError(err)
 			}
 
-			err := svc.AddSubdomain(context.Background(), tc.Subdomain)
+			err := svc.BastionAddSubdomain(context.Background(), tc.Subdomain)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
@@ -438,7 +396,7 @@ func TestDeleteSubdomain(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareHAProxy func(*haproxy.MockHaproxy)
-		SyncFirst      *haproxybastionsync.SyncMaps
+		SyncFirst      *haproxysync.BastionSyncMaps
 		Subdomain      string
 		ExpectedErr    string
 	}{
@@ -448,7 +406,7 @@ func TestDeleteSubdomain(t *testing.T) {
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 				m.On("DelMap", "virt@subdomains", ".existing").Return(nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{"existing"},
 				IndividualDomains: []string{},
 			},
@@ -459,19 +417,19 @@ func TestDeleteSubdomain(t *testing.T) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
 			Subdomain:   "",
-			ExpectedErr: haproxybastionsync.ErrMissingSubdomain.Error(),
+			ExpectedErr: haproxysync.ErrMissingSubdomain.Error(),
 		},
 		"should skip if subdomain does not exist": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
@@ -483,7 +441,7 @@ func TestDeleteSubdomain(t *testing.T) {
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 				m.On("DelMap", "virt@subdomains", ".fail").Return(errors.New("socket error"))
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{"fail"},
 				IndividualDomains: []string{},
 			},
@@ -499,21 +457,21 @@ func TestDeleteSubdomain(t *testing.T) {
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
-			cfg := cfg.Cfg{
-				Haproxy: cfg.Haproxy{
+			cfg := cfg.HAProxy{
+				Bastion: cfg.HAProxyBastion{
 					SubdomainsMap:        "virt@subdomains",
 					IndividualDomainsMap: "virt@individual",
 				},
 			}
 
-			svc := haproxybastionsync.Init(&log, cfg, haproxyMock)
+			svc := haproxysync.Init(&log, cfg, haproxyMock)
 
 			if tc.SyncFirst != nil {
-				_, err := svc.SyncMaps(context.Background(), *tc.SyncFirst)
+				_, err := svc.BastionSyncMaps(context.Background(), *tc.SyncFirst)
 				require.NoError(err)
 			}
 
-			err := svc.DeleteSubdomain(context.Background(), tc.Subdomain)
+			err := svc.BastionDeleteSubdomain(context.Background(), tc.Subdomain)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
@@ -532,7 +490,7 @@ func TestAddIndividualDomain(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareHAProxy func(*haproxy.MockHaproxy)
-		SyncFirst      *haproxybastionsync.SyncMaps
+		SyncFirst      *haproxysync.BastionSyncMaps
 		Domain         string
 		ExpectedErr    string
 	}{
@@ -542,7 +500,7 @@ func TestAddIndividualDomain(t *testing.T) {
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 				m.On("AddMap", "virt@individual", "newdomain.com").Return(nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
@@ -553,19 +511,19 @@ func TestAddIndividualDomain(t *testing.T) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
 			Domain:      "",
-			ExpectedErr: haproxybastionsync.ErrMissingDomain.Error(),
+			ExpectedErr: haproxysync.ErrMissingDomain.Error(),
 		},
 		"should skip if domain already exists": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
 				m.On("ShowMap", "virt@individual").Return([]string{"existing.com"}, nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{"existing.com"},
 			},
@@ -577,7 +535,7 @@ func TestAddIndividualDomain(t *testing.T) {
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 				m.On("AddMap", "virt@individual", "fail.com").Return(errors.New("socket error"))
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
@@ -593,21 +551,21 @@ func TestAddIndividualDomain(t *testing.T) {
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
-			cfg := cfg.Cfg{
-				Haproxy: cfg.Haproxy{
+			cfg := cfg.HAProxy{
+				Bastion: cfg.HAProxyBastion{
 					SubdomainsMap:        "virt@subdomains",
 					IndividualDomainsMap: "virt@individual",
 				},
 			}
 
-			svc := haproxybastionsync.Init(&log, cfg, haproxyMock)
+			svc := haproxysync.Init(&log, cfg, haproxyMock)
 
 			if tc.SyncFirst != nil {
-				_, err := svc.SyncMaps(context.Background(), *tc.SyncFirst)
+				_, err := svc.BastionSyncMaps(context.Background(), *tc.SyncFirst)
 				require.NoError(err)
 			}
 
-			err := svc.AddIndividualDomain(context.Background(), tc.Domain)
+			err := svc.BastionAddIndividualDomain(context.Background(), tc.Domain)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
@@ -620,13 +578,13 @@ func TestAddIndividualDomain(t *testing.T) {
 	}
 }
 
-func TestDeleteIndividualDomain(t *testing.T) {
+func TestBastionDeleteIndividualDomain(t *testing.T) {
 	require := require.New(t)
 	assert := assert.New(t)
 
 	cases := map[string]struct {
 		PrepareHAProxy func(*haproxy.MockHaproxy)
-		SyncFirst      *haproxybastionsync.SyncMaps
+		SyncFirst      *haproxysync.BastionSyncMaps
 		Domain         string
 		ExpectedErr    string
 	}{
@@ -636,7 +594,7 @@ func TestDeleteIndividualDomain(t *testing.T) {
 				m.On("ShowMap", "virt@individual").Return([]string{"existing.com"}, nil)
 				m.On("DelMap", "virt@individual", "existing.com").Return(nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{"existing.com"},
 			},
@@ -647,19 +605,19 @@ func TestDeleteIndividualDomain(t *testing.T) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
 			Domain:      "",
-			ExpectedErr: haproxybastionsync.ErrMissingDomain.Error(),
+			ExpectedErr: haproxysync.ErrMissingDomain.Error(),
 		},
 		"should skip if domain does not exist": {
 			PrepareHAProxy: func(m *haproxy.MockHaproxy) {
 				m.On("ShowMap", "virt@subdomains").Return([]string{}, nil)
 				m.On("ShowMap", "virt@individual").Return([]string{}, nil)
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{},
 			},
@@ -671,7 +629,7 @@ func TestDeleteIndividualDomain(t *testing.T) {
 				m.On("ShowMap", "virt@individual").Return([]string{"fail.com"}, nil)
 				m.On("DelMap", "virt@individual", "fail.com").Return(errors.New("socket error"))
 			},
-			SyncFirst: &haproxybastionsync.SyncMaps{
+			SyncFirst: &haproxysync.BastionSyncMaps{
 				Subdomains:        []string{},
 				IndividualDomains: []string{"fail.com"},
 			},
@@ -687,21 +645,21 @@ func TestDeleteIndividualDomain(t *testing.T) {
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
-			cfg := cfg.Cfg{
-				Haproxy: cfg.Haproxy{
+			cfg := cfg.HAProxy{
+				Bastion: cfg.HAProxyBastion{
 					SubdomainsMap:        "virt@subdomains",
 					IndividualDomainsMap: "virt@individual",
 				},
 			}
 
-			svc := haproxybastionsync.Init(&log, cfg, haproxyMock)
+			svc := haproxysync.Init(&log, cfg, haproxyMock)
 
 			if tc.SyncFirst != nil {
-				_, err := svc.SyncMaps(context.Background(), *tc.SyncFirst)
+				_, err := svc.BastionSyncMaps(context.Background(), *tc.SyncFirst)
 				require.NoError(err)
 			}
 
-			err := svc.DeleteIndividualDomain(context.Background(), tc.Domain)
+			err := svc.BastionDeleteIndividualDomain(context.Background(), tc.Domain)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

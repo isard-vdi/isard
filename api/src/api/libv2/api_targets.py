@@ -6,7 +6,7 @@ from typing import Literal
 
 import dns.resolver
 import grpc
-from haproxy.v1 import haproxy_pb2
+from haproxy_sync.v1 import haproxy_sync_pb2
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -60,11 +60,11 @@ def update_bastion_config(
         ).get("domain")
     if old_domain != domain:
         if old_domain:
-            app.haproxy_bastion_client.DeleteSubdomain(
-                haproxy_pb2.DeleteSubdomainRequest(domain=old_domain)
+            app.haproxy_sync_client.BastionDeleteSubdomain(
+                haproxy_sync_pb2.BastionDeleteSubdomainRequest(domain=old_domain)
             )
-        app.haproxy_bastion_client.AddSubdomain(
-            haproxy_pb2.AddSubdomainRequest(domain=domain)
+        app.haproxy_sync_client.BastionAddSubdomain(
+            haproxy_sync_pb2.BastionAddSubdomainRequest(domain=domain)
         )
 
     with app.app_context():
@@ -102,11 +102,11 @@ def update_category_bastion_domain(category_id, domain):
     invalidate_cache("categories", category_id)
 
     if old_domain:
-        app.haproxy_bastion_client.DeleteSubdomain(
-            haproxy_pb2.DeleteSubdomainRequest(domain=old_domain)
+        app.haproxy_sync_client.BastionDeleteSubdomain(
+            haproxy_sync_pb2.BastionDeleteSubdomainRequest(domain=old_domain)
         )
-    app.haproxy_bastion_client.AddSubdomain(
-        haproxy_pb2.AddSubdomainRequest(domain=domain)
+    app.haproxy_sync_client.BastionAddSubdomain(
+        haproxy_sync_pb2.BastionAddSubdomainRequest(domain=domain)
     )
 
 
@@ -177,8 +177,8 @@ def update_bastion_haproxy_map():
             individual_domains = [d for d in individual_domains if d]
 
         _call_grpc_with_infinite_retry(
-            app.haproxy_bastion_client.SyncMaps,
-            haproxy_pb2.SyncMapsRequest(
+            app.haproxy_sync_client.BastionSyncMaps,
+            haproxy_sync_pb2.BastionSyncMapsRequest(
                 subdomains=subdomains,
                 individual_domains=individual_domains,
             ),
@@ -336,13 +336,13 @@ class ApiTargets:
 
             # Update HAProxy
             for domain in domains_to_remove:
-                app.haproxy_bastion_client.DeleteIndividualDomain(
-                    haproxy_pb2.DeleteIndividualDomainRequest(domain=domain)
+                app.haproxy_sync_client.BastionDeleteIndividualDomain(
+                    haproxy_sync_pb2.BastionDeleteIndividualDomainRequest(domain=domain)
                 )
 
             for domain in domains_to_add:
-                app.haproxy_bastion_client.AddIndividualDomain(
-                    haproxy_pb2.AddIndividualDomainRequest(domain=domain)
+                app.haproxy_sync_client.BastionAddIndividualDomain(
+                    haproxy_sync_pb2.BastionAddIndividualDomainRequest(domain=domain)
                 )
 
             target["domains"] = new_domains

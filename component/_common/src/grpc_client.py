@@ -1,7 +1,7 @@
 import grpc
 import grpc.experimental.gevent as grpc_gevent
 from grpc_health.v1 import health_pb2, health_pb2_grpc
-from haproxy.v1 import haproxy_pb2_grpc
+from haproxy_sync.v1 import haproxy_sync_pb2_grpc
 from operations.v1 import operations_pb2_grpc
 from sessions.v1 import sessions_pb2_grpc
 
@@ -33,9 +33,9 @@ def create_operations_client(host, port):
     return _create_grpc_client(operations_pb2_grpc.OperationsServiceStub, host, port)
 
 
-def create_haproxy_bastion_client(host, port):
+def create_haproxy_sync_client(host, port):
     chan = _create_grpc_channel(host, port)
-    return haproxy_pb2_grpc.HaproxyBastionServiceStub(chan), chan
+    return haproxy_sync_pb2_grpc.HaproxySyncServiceStub(chan), chan
 
 
 def watch_health_check(chan, service_name, on_reconnect):
@@ -45,7 +45,7 @@ def watch_health_check(chan, service_name, on_reconnect):
 
     Args:
         chan: The gRPC channel to use
-        service_name: The name of the service to watch (e.g., "haproxy.v1.HaproxyBastionService")
+        service_name: The name of the service to watch (e.g., "haproxy_sync.v1.HaproxySyncService")
         on_reconnect: Callback function called when service reconnects (transitions to SERVING)
     """
     import gevent

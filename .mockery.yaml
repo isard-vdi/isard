@@ -14,12 +14,12 @@ packages:
     interfaces:
       Provider: {}
       ConfigurableProvider: {}
-  gitlab.com/isard/isardvdi/haproxy-bastion-sync/haproxy:
+  gitlab.com/isard/isardvdi/haproxy-sync/haproxy:
     interfaces:
       Interface:
         config:
           mockname: "Mock{{ .PackageName | camelcase }}"
-  gitlab.com/isard/isardvdi/haproxy-bastion-sync/haproxy-bastion-sync:
+  gitlab.com/isard/isardvdi/haproxy-sync/haproxy-sync:
     interfaces:
       Interface:
         config:

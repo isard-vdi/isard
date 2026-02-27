@@ -122,13 +122,13 @@ fi
 
 for part in $FLAVOUR; do
   if [ "$part" = "web" ]; then
-    # Start haproxy-bastion-sync AFTER haproxy starts (in background)
+    # Start haproxy-sync AFTER haproxy starts (in background)
     # This ensures the stats socket exists before the microservice tries to connect
     (
         # Wait a moment for HAProxy to start and create the socket
         sleep 2
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting haproxy-bastion-sync microservice..."
-        haproxy-bastion-sync
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting haproxy-sync microservice..."
+        haproxy-sync
     ) &
   fi
 done
