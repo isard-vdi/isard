@@ -5,6 +5,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 import datetime
+import glob
 import ipaddress
 import os
 import time
@@ -619,6 +620,13 @@ class ApiHypervisors:
         except:
             log.error("Could not remove ssh key for [" + hostname + "]" + str(port))
             return False
+
+        # Clean up backup files left behind by ssh-keygen -R
+        for backup in glob.glob(path + ".*"):
+            try:
+                os.remove(backup)
+            except OSError:
+                pass
 
         try:
             new_fingerprint = check_output(
