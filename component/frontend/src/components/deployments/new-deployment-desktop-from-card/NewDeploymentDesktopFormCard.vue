@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { isInvalid, validateOnBlur } from '@/lib/utils'
+import { isInvalid, validateOnBlur, isInvalidOrUntouched } from '@/lib/utils'
 
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { InputField } from '@/components/input-field'
@@ -193,7 +193,7 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
                 :key="`${formPrefix}.name`"
                 :name="`${formPrefix}.name`"
               >
-                <Field :data-invalid="isInvalid(field)">
+                <Field :data-invalid="isInvalidOrUntouched(field)">
                   <FieldLabel :for="field.name">{{
                     t('components.deployments.form-desktop-card.sections.preview.fields.name.label')
                   }}</FieldLabel>
@@ -207,15 +207,18 @@ const formPrefix = computed(() => `desktops[${props.index}]`)
                         'components.deployments.form-desktop-card.sections.preview.fields.name.placeholder'
                       )
                     "
-                    :aria-invalid="isInvalid(field)"
-                    :destructive="isInvalid(field)"
+                    :aria-invalid="isInvalidOrUntouched(field)"
+                    :destructive="isInvalidOrUntouched(field)"
                     autocomplete="off"
                     type="text"
                     maxlength="50"
                     @blur="validateOnBlur(field)"
                     @input="field.handleChange($event.target.value)"
                   />
-                  <FieldError v-if="isInvalid(field)" :errors="field.state.meta.errors" />
+                  <FieldError
+                    v-if="isInvalidOrUntouched(field)"
+                    :errors="field.state.meta.errors.flat()"
+                  />
                 </Field>
               </props.form.Field>
 

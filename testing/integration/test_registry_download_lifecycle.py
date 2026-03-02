@@ -40,7 +40,7 @@ from isardvdi_apiv4_client.models.admin_list_domains_data import AdminListDomain
 from isardvdi_apiv4_client.models.admin_list_domains_data_kind import (
     AdminListDomainsDataKind,
 )
-from isardvdi_apiv4_client.models.allowed_base import AllowedBase
+from isardvdi_apiv4_client.models.allowed_base_input import AllowedBaseInput
 from isardvdi_apiv4_client.models.create_desktop_request import CreateDesktopRequest
 from isardvdi_apiv4_client.models.desktop_edit_request import DesktopEditRequest
 from isardvdi_apiv4_client.models.download_item import DownloadItem
@@ -221,7 +221,7 @@ def test_registry_download_full_lifecycle(
                 desktop_id=tetros_id,
                 name=template_name,
                 description="",
-                allowed=AllowedBase(users=False, groups=False),
+                allowed=AllowedBaseInput(users=False, groups=False),
                 enabled=True,
             ),
         )

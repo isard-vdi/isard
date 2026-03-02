@@ -106,6 +106,7 @@ const handleSubmit = () => {
         <DomainConfigurationSection
           ref="configurationRef"
           always-open
+          show-summary
           context="deployment-desktop"
           kind="deployment"
           :defaults="defaults"

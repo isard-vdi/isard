@@ -85,6 +85,10 @@
       "new": {
         "title": "New Deployment",
         "subtitle": "Create a new deployment by selecting the desktops you want to include in it"
+      },
+      "edit": {
+        "title": "Edit Deployment",
+        "subtitle": "Edit a deployment modifying its information and desktops"
       }
     },
     "deployment": {
@@ -1067,6 +1071,11 @@
       "success": {
         "message": "Password changed successfully.",
         "redirecting": "Redirecting to login in {seconds} second(s)."
+      }
+    },
+    "edit-deployment": {
+      "header": {
+        "save": "Save Changes"
       }
     },
     "deployment-visibility": {
@@ -2686,11 +2695,15 @@
         "alloweds": {
           "title": "Allowed Groups and Users",
           "subtitle": "This deployment will be shared with {groups} and {users}.",
+          "subtitle-groups": "This deployment will be shared with {groups}.",
+          "subtitle-users": "This deployment will be shared with {users}.",
+          "subtitle-nobody": "This deployment is not shared with anyone yet.",
           "fields": {
             "alloweds": {
               "button": "Manage users and groups"
             }
-          }
+          },
+          "required": "A deployment must be shared with at least one group or user."
         },
         "other-options": {
           "title": "Other options",
@@ -2745,6 +2758,10 @@
             "button": "Edit hardware and access configuration"
           }
         }
+      },
+      "missing-fields": {
+        "title": "Missing required fields",
+        "desktop": "Desktop {index}: {field}"
       },
       "form-delete-desktop-modal": {
         "title": "Delete desktop '{desktop-name}' from deployment",
@@ -3281,6 +3298,34 @@
         "reservable_item_not_found": "The reservable item was not found",
         "no_available_profile": "No available profile for this item",
         "not_found": "Plan not found"
+      }
+    },
+    "edit-deployment": {
+      "errors": {
+        "generic": {
+          "title": "Error updating deployment",
+          "description": "There was an error while updating your deployment, please try again."
+        },
+        "deployment_stop": {
+          "title": "The deployment's desktops must be stopped",
+          "description": "The deployment cannot be edited while any of its desktops is running. Stop them and try again."
+        },
+        "new_desktop_name_exists": {
+          "title": "One or more users have a desktop with this name",
+          "description": "The following users already have a desktop with the name {desktop_name}. Please choose a different name."
+        },
+        "duplicated_name": {
+          "title": "Deployment name already exists",
+          "description": "A deployment with the name {deployment_name} already exists. Please choose a different name."
+        },
+        "deployment_reservables_not_equal": {
+          "title": "Desktop reservables are not equal",
+          "description": "All desktops with reservables in a deployment must have the same reservables assigned. Please make sure all desktops with reservables have the same reservables assigned and try again."
+        },
+        "vgpu_profiles_different_models": {
+          "title": "vGPU profiles must be of the same model",
+          "description": "All desktops with vGPU profiles in a deployment must have the same model. Please make sure all desktops with vGPU profiles have the same model and try again."
+        }
       }
     }
   },

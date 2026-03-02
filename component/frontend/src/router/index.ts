@@ -284,6 +284,22 @@ const router = createRouter({
               component: () => import('../views/ViewDeploymentView.vue')
             },
             {
+              path: 'edit',
+              name: 'edit-deployment-root',
+              meta: {
+                title: 'router.deployments.edit.title',
+                subtitle: 'router.deployments.edit.subtitle'
+              },
+              redirect: { name: 'deployments' },
+              children: [
+                {
+                  path: ':deploymentId',
+                  name: 'edit-deployment',
+                  component: () => import('../views/EditDeploymentView.vue')
+                }
+              ]
+            },
+            {
               path: ':deploymentId/visibility',
               name: 'deployment-visibility',
               component: () => import('../views/deployments/DeploymentVisibilityView.vue'),

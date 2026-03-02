@@ -77,6 +77,10 @@
       "new": {
         "title": "Nou Desplegament",
         "subtitle": "Crea un nou desplegament seleccionant els escriptoris que vols incloure-hi"
+      },
+      "edit": {
+        "title": "Editar Desplegament",
+        "subtitle": "Edita un desplegament modificant la seva informació i escriptoris"
       }
     },
     "deployment": {
@@ -1067,6 +1071,11 @@
       "success": {
         "message": "Contrasenya canviada amb èxit.",
         "redirecting": "Redirigint a l'inici de sessió en {seconds} segon(s)."
+      }
+    },
+    "edit-deployment": {
+      "header": {
+        "save": "Desa els canvis"
       }
     },
     "deployment-visibility": {
@@ -2595,11 +2604,15 @@
         "alloweds": {
           "title": "Grups i Usuaris permesos",
           "subtitle": "Aquest desplegament es compartirà amb {groups} i {users}.",
+          "subtitle-groups": "Aquest desplegament es compartirà amb {groups}.",
+          "subtitle-users": "Aquest desplegament es compartirà amb {users}.",
+          "subtitle-nobody": "Aquest desplegament encara no es comparteix amb ningú.",
           "fields": {
             "alloweds": {
               "button": "Gestiona usuaris i grups"
             }
-          }
+          },
+          "required": "Un desplegament s'ha de compartir com a mínim amb un grup o un usuari."
         },
         "other-options": {
           "title": "Altres opcions del desplegament",
@@ -2654,6 +2667,10 @@
             "button": "Edita la configuració del maquinari i accés"
           }
         }
+      },
+      "missing-fields": {
+        "title": "Falten camps obligatoris",
+        "desktop": "Escriptori {index}: {field}"
       },
       "form-delete-desktop-modal": {
         "title": "Esborra l'escriptori '{desktop-name}' del desplegament",
@@ -3281,6 +3298,34 @@
         "generic": "No s'ha pogut comprovar la recreació del desplegament. Torna-ho a provar.",
         "not_found": "No s'ha trobat el desplegament.",
         "deployment_recreate_booking_not_enough_units": "La reserva futura del desplegament no té prou unitats per als escriptoris que crearia la recreació."
+      }
+    },
+    "edit-deployment": {
+      "errors": {
+        "generic": {
+          "title": "Error en editar el desplegament",
+          "description": "Hi ha hagut un error en editar el desplegament. Si us plau, torna-ho a provar mes tard."
+        },
+        "deployment_stop": {
+          "title": "Els escriptoris del desplegament han d'estar aturats",
+          "description": "El desplegament no es pot editar mentre algun dels seus escriptoris estigui en marxa. Atura'ls i torna-ho a provar."
+        },
+        "new_desktop_name_exists": {
+          "title": "Un o més usuaris tenen un escriptori amb aquest nom",
+          "description": "Els següents usuaris ja tenen un escriptori amb el nom {desktop_name}. Si us plau, tria un nom diferent."
+        },
+        "duplicated_name": {
+          "title": "El nom del desplegament ja existeix",
+          "description": "Ja existeix un desplegament amb el nom {deployment_name}. Si us plau, tria un nom diferent."
+        },
+        "deployment_reservables_not_equal": {
+          "title": "Els reservables dels escriptoris no son iguals",
+          "description": "Tots els escriptoris amb reservables en un desplegament han de tenir els mateixos reservables assignats. Si us plau, assegura't que tots els escriptoris amb reservables tinguin els mateixos reservables assignats i torna-ho a provar."
+        },
+        "vgpu_profiles_different_models": {
+          "title": "Els perfils vGPU han de ser del mateix model",
+          "description": "Tots els escriptoris amb perfils vGPU en un desplegament han de tenir el mateix model. Si us plau, assegura't que tots els escriptoris amb perfils vGPU tinguin el mateix model i torna-ho a provar."
+        }
       }
     }
   },

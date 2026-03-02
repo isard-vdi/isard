@@ -272,7 +272,11 @@ const dropdownActions = computed(() => [
     key: 'edit',
     icon: 'edit-01',
     label: t('views.deployments.dropdown.buttons.edit'),
-    fn: handleNotImplemented
+    fn: (deployment?: { id?: string }) => ({
+      name: 'edit-deployment',
+      params: { deploymentId: deployment?.id || '' }
+    }),
+    routerLink: true
   },
   {
     key: 'download',
@@ -746,7 +750,9 @@ const DEPLOYMENT_SEARCH_INPUT_ID = 'deployment-search'
                 :key="action.key"
                 :class="{ 'hover:bg-error-50 focus:bg-error-50': action.destructive }"
                 :disabled="action.disabled"
-                @click="action.fn(deploymentEntry?.info)"
+                :as="action.routerLink ? RouterLink : undefined"
+                :to="action.routerLink ? action.fn(deploymentEntry?.info) : null"
+                @click="action.routerLink ? null : action.fn(deploymentEntry?.info)"
               >
                 <Button
                   size="sm"

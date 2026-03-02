@@ -77,6 +77,10 @@
       "new": {
         "title": "Nuevo Despliegue",
         "subtitle": "Crea un nuevo despliegue seleccionando los escritorios que quieres incluir en él"
+      },
+      "edit": {
+        "title": "Editar Despliegue",
+        "subtitle": "Edita un despliegue modificando su información y escritorios"
       }
     },
     "deployment": {
@@ -1067,6 +1071,11 @@
       "success": {
         "message": "Contraseña cambiada con éxito.",
         "redirecting": "Redirigiendo al inicio de sesión en {seconds} segundo(s)."
+      }
+    },
+    "edit-deployment": {
+      "header": {
+        "save": "Guardar Cambios"
       }
     },
     "deployment-visibility": {
@@ -2607,11 +2616,15 @@
         "alloweds": {
           "title": "Grupos y usuarios permitidos",
           "subtitle": "Este despliegue será compartido con {groups} y {users}.",
+          "subtitle-groups": "Este despliegue será compartido con {groups}.",
+          "subtitle-users": "Este despliegue será compartido con {users}.",
+          "subtitle-nobody": "Este despliegue todavía no está compartido con nadie.",
           "fields": {
             "alloweds": {
               "button": "Gestionar usuarios y grupos"
             }
-          }
+          },
+          "required": "Un despliegue debe compartirse como mínimo con un grupo o un usuario."
         },
         "other-options": {
           "title": "Otras opciones",
@@ -2666,6 +2679,10 @@
             "button": "Editar configuración de hardware y acceso"
           }
         }
+      },
+      "missing-fields": {
+        "title": "Faltan campos obligatorios",
+        "desktop": "Escritorio {index}: {field}"
       },
       "form-delete-desktop-modal": {
         "title": "Eliminar escritorio '{desktop-name}' del despliegue",
@@ -3281,6 +3298,34 @@
         "not_found": "Plan no encontrado",
         "reservable_item_not_found": "No se ha encontrado el elemento reservable",
         "unable_to_insert": "No se ha podido crear el plan"
+      }
+    },
+    "edit-deployment": {
+      "errors": {
+        "generic": {
+          "title": "Error al editar el despliegue",
+          "description": "Hubo un error al editar tu despliegue, por favor, inténtalo de nuevo más tarde."
+        },
+        "deployment_stop": {
+          "title": "Los escritorios del despliegue deben estar detenidos",
+          "description": "El despliegue no se puede editar mientras alguno de sus escritorios esté en marcha. Detenlos y vuelve a intentarlo."
+        },
+        "new_desktop_name_exists": {
+          "title": "Uno o más usuarios tienen un escritorio con este nombre",
+          "description": "Los siguientes usuarios ya tienen un escritorio con el nombre {desktop_name}. Por favor, elige un nombre diferente."
+        },
+        "duplicated_name": {
+          "title": "Nombre de despliegue ya existe",
+          "description": "Ya existe un despliegue con el nombre {deployment_name}. Por favor, elige un nombre diferente."
+        },
+        "deployment_reservables_not_equal": {
+          "title": "Los reservables de los escritorios no son iguales",
+          "description": "Todos los escritorios con reservables en un despliegue deben tener los mismos reservables asignados. Por favor, asegúrate de que todos los escritorios con reservables tengan los mismos reservables asignados y vuelve a intentarlo."
+        },
+        "vgpu_profiles_different_models": {
+          "title": "Los perfiles vGPU deben  ser del mismo modelo",
+          "description": "Todos los escritorios con perfiles vGPU en un despliegue deben tener el mismo modelo. Por favor, asegúrate de que todos los escritorios con perfiles vGPU tengan el mismo modelo y vuelve a intentarlo."
+        }
       }
     }
   },

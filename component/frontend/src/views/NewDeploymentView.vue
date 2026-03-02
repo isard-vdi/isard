@@ -25,9 +25,10 @@ import {
 } from '@/gen/oas/apiv4/@tanstack/vue-query.gen'
 
 import { Button } from '@/components/ui/button'
-import { NewDeploymentForm } from '@/components/deployments/new-deployment-form'
+import { missingFieldLabels, NewDeploymentForm } from '@/components/deployments/new-deployment-form'
+import { type AllowedSelection } from '@/components/modal/allowed'
 import { StepperForm, type StepperFormStep } from '@/components/stepper-form'
-import { FormHeader } from '@/components/form-header'
+import { FormHeader, type FormHeaderTooltip } from '@/components/form-header'
 import { EmptyState } from '@/components/page'
 import { DomainInfoModal } from '@/components/desktops'
 
@@ -260,6 +261,16 @@ const formSchema = z.object({
     }),
   coOwners: z.array(z.string()),
   createOwnerDesktop: z.boolean(),
+  alloweds: z
+    .object({
+      groups: z.union([z.boolean(), z.array(z.string())]).default(false),
+      users: z.union([z.boolean(), z.array(z.string())]).default(false)
+    })
+    .refine(
+      ({ groups, users }) =>
+        (Array.isArray(groups) && groups.length > 0) || (Array.isArray(users) && users.length > 0),
+      { message: t('components.deployments.form-sections.alloweds.required') }
+    ),
   permissions: z.object({
     recreate: z.boolean()
   }),
@@ -279,7 +290,8 @@ const step2Schema = formSchema.pick({
   image: true,
   createOwnerDesktop: true,
   coOwners: true,
-  permissions: true
+  permissions: true,
+  alloweds: true
 })
 const step4Schema = formSchema.pick({ desktops: true })
 
@@ -305,7 +317,8 @@ const form = useForm({
     permissions: {
       recreate: false
     },
-    coOwners: [] as string[]
+    coOwners: [] as string[],
+    alloweds: { users: false, groups: false } as AllowedSelection
   },
   validators: {
     onChange: formSchema
@@ -318,8 +331,17 @@ const form = useForm({
         image: value.image,
         visible: value.visible,
 
-        // desktops without the temporary id
-        desktops: value.desktops.map(({ _id, ...desktop }) => desktop),
+        desktops: value.desktops.map(({ _id, ...desktop }) => ({
+          ...desktop,
+          hardware: {
+            ...desktop.hardware,
+            interfaces: desktop.hardware?.interfaces?.map((iface: string | { id: string }) =>
+              typeof iface === 'string' ? iface : iface.id
+            ),
+            isos: toMediaResources(desktop.hardware?.isos),
+            floppies: toMediaResources(desktop.hardware?.floppies)
+          }
+        })),
 
         create_owner_desktop: true,
         co_owners: [],
@@ -327,8 +349,8 @@ const form = useForm({
         user_permissions: [...(value.permissions.recreate ? ['recreate'] : [])] as 'recreate'[],
 
         allowed: {
-          users: ['local-default-admin-admin'],
-          groups: false
+          users: value.alloweds.users,
+          groups: value.alloweds.groups
         },
 
         resources: []
@@ -390,7 +412,7 @@ watch([deploymentName, desktopNames], () => {
 })
 
 // Define which form fields belong to each step
-const step1Fields = ['name', 'description', 'visible']
+const step1Fields = ['name', 'description', 'visible', 'alloweds']
 const step2Fields = ['desktops']
 
 // Helper to check if any field in a list has errors (touched + invalid)
@@ -409,17 +431,21 @@ function hasFieldErrors(
   })
 }
 
-// Check if the current step's fields pass validation (independent of touch state)
-function isStepFieldsValid(step: number): boolean {
+// Validation issues of the current step's fields (independent of touch state)
+function stepIssues(step: number) {
   const values = formValues.value
   switch (step) {
     case 1:
-      return step2Schema.safeParse(values).success
+      return step2Schema.safeParse(values).error?.issues ?? []
     case 2:
-      return step4Schema.safeParse(values).success
+      return step4Schema.safeParse(values).error?.issues ?? []
     default:
-      return true
+      return []
   }
+}
+
+function isStepFieldsValid(step: number): boolean {
+  return stepIssues(step).length === 0
 }
 
 const steps = computed<StepperFormStep[]>(() => {
@@ -449,6 +475,40 @@ const goToNextStep = () => {
     currentStep.value += 1
   }
 }
+
+const formIsValid = form.useStore((state) => state.isValid)
+const formIsSubmitting = form.useStore((state) => state.isSubmitting)
+
+const isLastStep = computed(() => currentStep.value === steps.value.length)
+
+const nextButtonLabel = computed(() =>
+  isLastStep.value
+    ? t('views.new-deployment.header.create-deployment')
+    : t('views.new-deployment.header.next')
+)
+
+const isNextButtonDisabled = computed(() =>
+  isLastStep.value
+    ? !formIsValid.value ||
+      !formIsTouched.value ||
+      formIsSubmitting.value ||
+      createDeploymentIsPending.value
+    : !isStepFieldsValid(currentStep.value)
+)
+
+const nextButtonTooltip = computed<FormHeaderTooltip | undefined>(() => {
+  if (!isNextButtonDisabled.value) return undefined
+
+  const fields = missingFieldLabels(stepIssues(currentStep.value), t)
+  if (!fields.length) return undefined
+
+  return {
+    title: t('components.deployments.missing-fields.title'),
+    description: fields.join(', ')
+  }
+})
+
+const handleNext = () => (isLastStep.value ? form.handleSubmit() : goToNextStep())
 
 const toMediaResources = (media?: DomainInfoMedia[]) =>
   media?.map(({ id, name }) => ({ id, name: name ?? id }))
@@ -726,7 +786,12 @@ const updateHardware = (
       :cancel-to="{ name: 'deployments' }"
       :confirm-cancel="formIsTouched || currentStep > 1"
       :show-previous="currentStep > 1"
+      :next-label="nextButtonLabel"
+      :next-disabled="isNextButtonDisabled"
+      :next-pending="formIsSubmitting || createDeploymentIsPending"
+      :next-tooltip="nextButtonTooltip"
       @previous="goToPreviousStep"
+      @next="handleNext"
     >
       <template #stepper>
         <div class="shrink-0 _w-160 w-80">
@@ -736,28 +801,6 @@ const updateHardware = (
             :disable-future-steps="!isStepFieldsValid(currentStep)"
           />
         </div>
-      </template>
-
-      <template #next>
-        <form.Subscribe v-slot="{ isValid, isSubmitting, isTouched }">
-          <Button
-            v-if="currentStep === steps.length"
-            class="min-w-32"
-            type="submit"
-            :disabled="!isValid || !isTouched || isSubmitting || createDeploymentIsPending"
-            :icon="isSubmitting || createDeploymentIsPending ? 'loading-02' : ''"
-            icon-class="motion-safe:animate-[spin_2s_linear_infinite]"
-            @click="form.handleSubmit"
-            >{{ t('views.new-deployment.header.create-deployment') }}</Button
-          >
-          <Button
-            v-else
-            class="min-w-32"
-            :disabled="!isStepFieldsValid(currentStep)"
-            @click="goToNextStep"
-            >{{ t('views.new-deployment.header.next') }}</Button
-          >
-        </form.Subscribe>
       </template>
     </FormHeader>
     <main class="max-w-320 w-full mx-auto flex flex-1 flex-col gap-6">

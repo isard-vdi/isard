@@ -67,6 +67,7 @@ from api.schemas.deployments import (
     DeploymentStopRequest,
     DeploymentVideowallResponse,
     DeploymentVisibilityResponse,
+    FullDeploymentInfoResponse,
     OwnedDeploymentsResponse,
     SetDeploymentVisibilityRequest,
     SharedDeploymentsResponse,
@@ -212,8 +213,46 @@ async def get_deployment(
             ).model_dump(mode="json"),
             status_code=200,
         )
-    except Error:
-        raise
+    except Error as e:
+        raise e
+    except Exception as e:
+        raise await Error.create(
+            request,
+            "internal_server",
+            f"Failed to retrieve deployment",
+            traceback.format_exc(),
+        )
+
+
+@advanced_router.get(
+    "/item/deployment/{deployment_id}/get-info",
+    tags=[tag],
+    response_model=DeploymentInfoResponse,
+    summary="Get info of a deployment",
+    description="Returns a deployment and it's desktops info based on an ID.",
+    responses={
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+    },
+    dependencies=[Depends(owns_deployment_id())],
+)
+async def get_deployment_info(
+    deployment_id: str,
+    request: Request,
+):
+    try:
+        return JSONResponse(
+            content=DeploymentInfoResponse(
+                **await asyncio.to_thread(
+                    DeploymentService.get_deployment_info,
+                    deployment_id,
+                    request.token_payload,
+                )
+            ).model_dump(mode="json"),
+            status_code=200,
+        )
+    except Error as e:
+        raise e
     except Exception as e:
         raise await Error.create(
             request,
@@ -1204,7 +1243,7 @@ async def get_deployment_hardware(
 @advanced_router.get(
     "/item/deployment/{deployment_id}/info",
     tags=[tag],
-    response_model=DeploymentInfoResponse,
+    response_model=FullDeploymentInfoResponse,
     summary="Get deployment info with quota limits",
     description="Returns deployment info with hardware limited by user quota.",
     responses={
@@ -1212,17 +1251,20 @@ async def get_deployment_hardware(
         500: {"model": ErrorResponse},
     },
     dependencies=[Depends(owns_deployment_id())],
+    deprecated=True,
 )
-async def get_deployment_info(
+async def get_deployment_info_apiv3(
     deployment_id: str,
     request: Request,
 ):
     try:
         result = await asyncio.to_thread(
-            DeploymentService.get_deployment_info, deployment_id, request.token_payload
+            DeploymentService.get_deployment_info_apiv3,
+            deployment_id,
+            request.token_payload,
         )
         return JSONResponse(
-            content=DeploymentInfoResponse(**result).model_dump(mode="json"),
+            content=FullDeploymentInfoResponse(**result).model_dump(mode="json"),
             status_code=200,
         )
     except Error:
