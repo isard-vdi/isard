@@ -77,6 +77,14 @@ class LibvirtTimeoutError(Exception):
             f"Libvirt operation '{operation}' timed out after {timeout}s on hypervisor {hyp_id}"
         )
 
+    def get_error_message(self):
+        """Compatibility with libvirt.libvirtError interface."""
+        return str(self)
+
+    def get_error_code(self):
+        """Compatibility with libvirt.libvirtError interface."""
+        return -1
+
 
 @dataclass
 class LibvirtOperationStats:
