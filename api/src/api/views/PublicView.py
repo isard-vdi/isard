@@ -9,6 +9,8 @@ import json
 import os
 
 from cachetools import TTLCache, cached
+from cachetools.keys import hashkey
+from flask import request
 from isardvdi_common.api_exceptions import Error
 
 from api import app
@@ -39,11 +41,13 @@ def api_v3_test():
     )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=20))
+@cached(
+    cache=TTLCache(maxsize=10, ttl=20), key=lambda: hashkey(request.headers.get("Host"))
+)
 @app.route("/api/v3/categories", methods=["GET"])
 def api_v3_categories():
     return (
-        json.dumps(users.CategoriesFrontendGet()),
+        json.dumps(users.CategoriesFrontendGet(request.headers.get("Host"))),
         200,
         {"Content-Type": "application/json"},
     )

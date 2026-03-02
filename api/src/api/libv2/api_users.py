@@ -2001,15 +2001,24 @@ class ApiUsers:
                 .run(db.conn)
             )
 
-    def CategoriesFrontendGet(self):
+    def CategoriesFrontendGet(self, domain=None):
         with app.app_context():
-            return list(
+            query = (
                 r.table("categories")
-                .pluck({"id", "name", "frontend", "custom_url_name"})
+                .pluck(
+                    {
+                        "id": True,
+                        "name": True,
+                        "frontend": True,
+                        "custom_url_name": True,
+                        "portal": {"enabled", "domain"},
+                    }
+                )
                 .filter({"frontend": True})
-                .order_by("name")
-                .run(db.conn)
             )
+            if domain and domain != os.environ.get("DOMAIN"):
+                query = query.filter({"portal": {"enabled": True, "domain": domain}})
+            return list(query.order_by("name").without("portal").run(db.conn))
 
     def CategoryDelete(self, category_id, agent_id):
         change_category_items_owner("media", category_id)
