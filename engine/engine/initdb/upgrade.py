@@ -20,7 +20,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 185
+release_version = 186
+# release 186: Import authentication providers status from AUTHENTICATION_*_ENABLED variables
 # release 185: Repair storage records missing user_id, ensure perms and status_logs
 # release 184: Add recycle_bin indexes and pre-computed count fields for performance
 # release 183: Import Google OAuth2 configuration from AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_* environment variables
@@ -1100,6 +1101,28 @@ password:s:%s"""
                     }
                 }
             ).run(self.conn)
+
+        if version == 186:
+            default_config = {
+                "local": "true",
+                "ldap": "false",
+                "saml": "false",
+                "google": "false",
+            }
+            auth_config = {}
+            for config_key, config_value in default_config.items():
+                auth_config[config_key] = {
+                    "enabled": bool(
+                        strtobool(
+                            os.environ.get(
+                                f"AUTHENTICATION_AUTHENTICATION_{config_key.upper()}_ENABLED",
+                                config_value,
+                            )
+                        )
+                    )
+                }
+
+            r.table(table).update({"auth": auth_config}).run(self.conn)
 
         return True
 
