@@ -1043,7 +1043,7 @@ class HypWorkerThread(threading.Thread):
 
             domain_active = False
         except (LibvirtTimeoutError, libvirtError) as e:
-            error_msg = pformat(e.get_error_message())
+            error_msg = str(e) if isinstance(e, LibvirtTimeoutError) else pformat(e.get_error_message())
             update_domain_status(
                 "Failed",
                 action["id_domain"],

@@ -162,7 +162,7 @@ class HypervisorsOrchestratorThread(threading.Thread):
             "disk_operations": self.q_disk_operations,
             "workers": self.q.workers,
         }
-        self.socket_tries = 0
+        self.socket_tries = {}
 
         # Track when threads entered "Stopping" state for stuck detection
         self.stopping_timestamps = {}
@@ -433,20 +433,20 @@ class HypervisorsOrchestratorThread(threading.Thread):
         timeout = float(CONFIG_DICT["TIMEOUTS"]["ssh_paramiko_hyp_test_connection"])
         logs.main.debug(f"try socket {hostname}, {port}, {timeout}")
         if try_socket(hostname, port, timeout) is False:
-            # if self.socket_tries less than 3 try again and log error
-            if self.socket_tries < 5:
-                self.socket_tries += 1
+            tries = self.socket_tries.get(hyp_id, 0)
+            if tries < 5:
+                self.socket_tries[hyp_id] = tries + 1
                 logs.main.error(
-                    f"hypervisor {hyp_id} socket not reachable from hypervisor orchestrator thread. Try {self.socket_tries}/5 "
+                    f"hypervisor {hyp_id} socket not reachable from hypervisor orchestrator thread. Try {self.socket_tries[hyp_id]}/5 "
                 )
                 return True
             else:
                 logs.main.error(
-                    f"hypervisor {hyp_id} socket not reachable from hypervisor orchestrator thread. Last try {self.socket_tries}/5"
+                    f"hypervisor {hyp_id} socket not reachable from hypervisor orchestrator thread. Last try {tries}/5"
                 )
-                self.socket_tries = 0
+                self.socket_tries.pop(hyp_id, None)
                 return False
-        self.socket_tries = 0
+        self.socket_tries.pop(hyp_id, None)
         return True
 
     def start_hyper_threads(self, hyp_id, capabilities, status, thread_status):
