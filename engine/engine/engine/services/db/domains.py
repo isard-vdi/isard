@@ -421,7 +421,14 @@ def update_all_domains_status(reset_status="Stopped", from_status=ALL_STATUS_RUN
 def get_domain_hyp_started(id_domain):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
-    results = rtable.get(id_domain).pluck("hyp_started").run(r_conn)
+    try:
+        results = rtable.get(id_domain).pluck("hyp_started").run(r_conn)
+    except Exception as e:
+        logs.main.warning(
+            f"domain {id_domain} does not exist in db, cannot get hyp_started"
+        )
+        close_rethink_connection(r_conn)
+        return False
     close_rethink_connection(r_conn)
     if not results:
         return False
@@ -1129,20 +1136,22 @@ def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
 
-    # domain_fields = rtable.get(domain_id).pluck('status','history_domain','detail','hyp_started').run(r_conn)
     try:
-        domain_fields = (
-            rtable.get(domain_id).pluck("history_domain", "hyp_started").run(r_conn)
-        )
+        domain_fields = rtable.get(domain_id).run(r_conn)
     except Exception as e:
         logs.exception_id.debug("0041")
         logs.main.error(
-            f"domain {domain_id} does not exists in db and update_domain_history_from_id_domain is not posible"
+            f"domain {domain_id} update_domain_history_from_id_domain failed: {e}"
         )
-        logs.main.error(e)
         close_rethink_connection(r_conn)
         return False
     close_rethink_connection(r_conn)
+
+    if domain_fields is None:
+        logs.main.warning(
+            f"domain {domain_id} does not exist in db, skipping history update"
+        )
+        return False
 
     if "history_domain" in domain_fields:
         history_domain = domain_fields["history_domain"]
