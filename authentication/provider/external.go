@@ -18,6 +18,10 @@ type External struct {
 	db r.QueryExecutor
 }
 
+func InitExternal(db r.QueryExecutor) *External {
+	return &External{db: db}
+}
+
 func externalCheckRequiredArgs(args LoginArgs) error {
 	if args.Token == nil {
 		return errors.New("token not provided")

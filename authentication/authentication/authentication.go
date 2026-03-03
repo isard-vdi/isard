@@ -8,6 +8,7 @@ import (
 
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/provider"
+	"gitlab.com/isard/isardvdi/authentication/providermanager"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
 	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
@@ -60,10 +61,13 @@ type Authentication struct {
 
 	Cfg cfg.Authentication
 
-	prvManager *ProviderManager
+	prvManager providermanager.Interface
 }
 
 func Init(ctx context.Context, wg *sync.WaitGroup, cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor, apiCli sdk.Interface, notifierCli notifier.Invoker, sessionsCli sessionsv1.SessionsServiceClient) *Authentication {
+	prvManager := providermanager.InitProviderManager(cfg.Authentication, log, db)
+	prvManager.Manage(ctx, wg)
+
 	a := &Authentication{
 		Log:    log,
 		Secret: cfg.Authentication.Secret,
@@ -78,7 +82,7 @@ func Init(ctx context.Context, wg *sync.WaitGroup, cfg cfg.Cfg, log *zerolog.Log
 		Notifier:   notifierCli,
 		Sessions:   sessionsCli,
 		Cfg:        cfg.Authentication,
-		prvManager: InitProviderManager(ctx, wg, cfg.Authentication, log, db),
+		prvManager: prvManager,
 	}
 
 	return a

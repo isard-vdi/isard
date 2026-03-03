@@ -4,16 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
+	"net/url"
 	"testing"
 
-	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
+	"gitlab.com/isard/isardvdi/authentication/providermanager"
 	"gitlab.com/isard/isardvdi/authentication/token"
-	sessionsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/sessions/v1"
-	"gitlab.com/isard/isardvdi/pkg/grpc"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/google/uuid"
@@ -21,7 +19,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/isard/isardvdi/pkg/sdk"
-	"go.nhat.io/grpcmock"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -33,7 +30,6 @@ func TestStartLogin(t *testing.T) {
 		PrepareDB       func(*r.Mock)
 		PrepareAPI      func(*sdk.MockSdk)
 		PrepareProvider func(*provider.MockProvider)
-		PrepareSessions func(*grpcmock.Server)
 
 		RemoteAddr       string
 		Provider         string
@@ -48,7 +44,6 @@ func TestStartLogin(t *testing.T) {
 	}{
 		"should sign a register token if the user is missing and the provider doesn't support autoregistration": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
 					r.Eq(r.Row.Field("provider"), "local"),
@@ -67,8 +62,11 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI:      func(c *sdk.MockSdk) {},
-			PrepareSessions: func(s *grpcmock.Server) {},
+			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
+			},
 
 			Provider: "local",
 			ProviderUserData: func() *types.ProviderUserData {
@@ -104,7 +102,6 @@ func TestStartLogin(t *testing.T) {
 		},
 		"should autoregister both the groups and user correctly": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
 					r.Eq(r.Row.Field("provider"), "mock"),
@@ -156,9 +153,9 @@ func TestStartLogin(t *testing.T) {
 					UID: &genID,
 				}, nil)
 				c.On("AdminUserAutoRegister", mock.AnythingOfType("context.backgroundCtx"), mock.AnythingOfType("string"), "advanced", "uuid here!", []string{"imagine an UUID here", "uuid here!"}).Return("user ID", nil)
-				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("*context.cancelCtx"), "user ID").Return(false, nil)
-				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("*context.cancelCtx"), "user ID").Return(false, nil)
-				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("*context.cancelCtx"), "user ID").Return(true, nil)
+				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "user ID").Return(false, nil)
+				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "user ID").Return(false, nil)
+				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "user ID").Return(true, nil)
 			},
 			PrepareProvider: func(p *provider.MockProvider) {
 				p.On("SaveEmail").Return(true)
@@ -214,11 +211,9 @@ func TestStartLogin(t *testing.T) {
 		},
 		"should return an error if there is an error getting the category": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("categories").Get("default")).Return(nil, fmt.Errorf("Category error"))
 			},
-			PrepareAPI:      func(c *sdk.MockSdk) {},
-			PrepareSessions: func(s *grpcmock.Server) {},
+			PrepareAPI: func(c *sdk.MockSdk) {},
 
 			Provider: "local",
 			ProviderUserData: func() *types.ProviderUserData {
@@ -242,7 +237,6 @@ func TestStartLogin(t *testing.T) {
 		},
 		"should work as expected if the user doesn't have an email, but there's no allowed domains configured": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), uuid.Max.String()),
 					r.Eq(r.Row.Field("provider"), "local"),
@@ -261,8 +255,11 @@ func TestStartLogin(t *testing.T) {
 					},
 				}, nil)
 			},
-			PrepareAPI:      func(s *sdk.MockSdk) {},
-			PrepareSessions: func(s *grpcmock.Server) {},
+			PrepareAPI: func(s *sdk.MockSdk) {},
+			PrepareProvider: func(p *provider.MockProvider) {
+				p.On("SaveEmail").Return(true)
+				p.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
+			},
 
 			Provider: "local",
 			ProviderUserData: func() *types.ProviderUserData {
@@ -297,12 +294,8 @@ func TestStartLogin(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			var wg sync.WaitGroup
-			defer wg.Wait()
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := context.Background()
 
-			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
 
 			dbMock := r.NewMock()
@@ -318,24 +311,17 @@ func TestStartLogin(t *testing.T) {
 				tc.PrepareProvider(providerMock)
 			}
 
-			if tc.PrepareSessions == nil {
-				tc.PrepareSessions = func(s *grpcmock.Server) {}
+			prvManagerMock := providermanager.NewMockProvidermanager(t)
+			prvManagerMock.On("Provider", tc.Provider).Return(providerMock)
+
+			a := &Authentication{
+				Log:        log,
+				Secret:     "",
+				BaseURL:    &url.URL{Scheme: "https", Host: "localhost"},
+				DB:         dbMock,
+				API:        apiMock,
+				prvManager: prvManagerMock,
 			}
-			sessionsMockServer := grpcmock.NewServer(
-				grpcmock.RegisterService(sessionsv1.RegisterSessionsServiceServer),
-				tc.PrepareSessions,
-			)
-			t.Cleanup(func() {
-				sessionsMockServer.Close()
-			})
-
-			sessionsCli, sessionsConn, err := grpc.NewClient(ctx, sessionsv1.NewSessionsServiceClient, sessionsMockServer.Address())
-			require.NoError(err)
-			defer sessionsConn.Close()
-
-			a := Init(ctx, &wg, cfg, log, dbMock, nil, nil, sessionsCli)
-			a.API = apiMock
-			a.prvManager.providers["mock"] = providerMock
 
 			p := a.Provider(tc.Provider)
 
@@ -364,10 +350,9 @@ func TestFinishCategorySelect(t *testing.T) {
 	require := require.New(t)
 
 	cases := map[string]struct {
-		PrepareDB             func(*r.Mock)
-		PrepareAPI            func(*sdk.MockSdk)
-		PrepareSessions       func(*grpcmock.Server)
-		PrepareAuthentication func(*testing.T, *Authentication)
+		PrepareDB              func(*r.Mock)
+		PrepareAPI             func(*sdk.MockSdk)
+		PrepareProviderManager func(*testing.T, *providermanager.MockProvidermanager)
 
 		RemoteAddr   string
 		CategoryID   string
@@ -379,12 +364,9 @@ func TestFinishCategorySelect(t *testing.T) {
 		ExpectedErr      string
 	}{
 		"should handle the errors correctly": {
-			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
-			},
-			PrepareAPI:      func(c *sdk.MockSdk) {},
-			PrepareSessions: func(s *grpcmock.Server) {},
-			PrepareAuthentication: func(t *testing.T, a *Authentication) {
+			PrepareDB:  func(m *r.Mock) {},
+			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
 				uid := "90c658f3-0c9b-41b7-9710-44c98f74630f"
 				name := "Néfix Estrada Campañá"
 				empty := ""
@@ -413,7 +395,7 @@ func TestFinishCategorySelect(t *testing.T) {
 					Detail: errors.New("empty user role, no default"),
 				})
 
-				a.prvManager.providers["saml"] = samlMock
+				m.On("Provider", "saml").Return(samlMock)
 			},
 			RemoteAddr: "127.0.0.1",
 			CategoryID: "default",
@@ -460,12 +442,9 @@ func TestFinishCategorySelect(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			var wg sync.WaitGroup
-			defer wg.Wait()
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
 
 			dbMock := r.NewMock()
@@ -476,26 +455,18 @@ func TestFinishCategorySelect(t *testing.T) {
 				tc.PrepareAPI(apiMock)
 			}
 
-			if tc.PrepareSessions == nil {
-				tc.PrepareSessions = func(s *grpcmock.Server) {}
+			prvManagerMock := providermanager.NewMockProvidermanager(t)
+			if tc.PrepareProviderManager != nil {
+				tc.PrepareProviderManager(t, prvManagerMock)
 			}
-			sessionsMockServer := grpcmock.NewServer(
-				grpcmock.RegisterService(sessionsv1.RegisterSessionsServiceServer),
-				tc.PrepareSessions,
-			)
-			t.Cleanup(func() {
-				sessionsMockServer.Close()
-			})
 
-			sessionsCli, sessionsConn, err := grpc.NewClient(ctx, sessionsv1.NewSessionsServiceClient, sessionsMockServer.Address())
-			require.NoError(err)
-			defer sessionsConn.Close()
-
-			a := Init(ctx, &wg, cfg, log, dbMock, nil, nil, sessionsCli)
-			a.API = apiMock
-
-			if tc.PrepareAuthentication != nil {
-				tc.PrepareAuthentication(t, a)
+			a := &Authentication{
+				Log:        log,
+				Secret:     "",
+				BaseURL:    &url.URL{Scheme: "https", Host: "localhost"},
+				DB:         dbMock,
+				API:        apiMock,
+				prvManager: prvManagerMock,
 			}
 
 			tkn, redirect, err := a.finishCategorySelect(ctx, tc.RemoteAddr, tc.CategoryID, tc.PrepareToken(), tc.Redirect)

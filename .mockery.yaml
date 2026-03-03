@@ -14,6 +14,11 @@ packages:
     interfaces:
       Provider: {}
       ConfigurableProvider: {}
+  gitlab.com/isard/isardvdi/authentication/providermanager:
+    interfaces:
+      Interface:
+        config:
+          mockname: "Mock{{ .PackageName | camelcase }}"
   gitlab.com/isard/isardvdi/haproxy-sync/acme:
     interfaces:
       Interface:
