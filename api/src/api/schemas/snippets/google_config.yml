@@ -1,0 +1,6 @@
+client_id:
+  empty: false
+  type: string
+client_secret:
+  empty: false
+  type: string
