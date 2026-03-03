@@ -1,0 +1,26 @@
+domain:
+  type: string
+  maxlength: 255
+  empty: false
+  coerce: sanitize
+  regex: "^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?(\\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?)*$"
+enabled:
+  type: boolean
+  required: true
+  empty: false
+certificate_source:
+  type: string
+  required: true
+  allowed:
+    - acme
+    - custom
+  check_with: depends_if
+  meta:
+    depends_if:
+      values:
+        - custom
+      other_fields:
+        - certificate_data
+certificate_data:
+  type: string
+  empty: false

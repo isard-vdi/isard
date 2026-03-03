@@ -194,6 +194,7 @@ from .views import (
     UsersView,
     ViewersConfigView,
     VpnViews,
+    branding,
     maintenance,
     smtp,
     socketio_emit,

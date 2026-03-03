@@ -98,6 +98,17 @@ class IsardValidator(Validator):
     def _normalize_default_setter_gensecret(self, document):
         return b64encode(token_bytes(32)).decode()
 
+    def _check_with_depends_if(self, field, value):
+        condition = self.schema[field].get("meta", {}).get("depends_if")
+        if not condition or value not in condition["values"]:
+            return
+        missing = [f for f in condition["other_fields"] if f not in self.document]
+        if missing:
+            self._error(
+                field,
+                f"fields {missing} are required when field '{field}' is in {condition['values']}",
+            )
+
 
 def load_validators(purge_unknown=True):
     snippets_path = os.path.join(app.root_path, "schemas/snippets")
