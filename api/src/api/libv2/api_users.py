@@ -29,6 +29,7 @@ import gevent
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.category import Category
 from isardvdi_common.configuration import Configuration
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -466,11 +467,19 @@ class ApiUsers:
         )
         frontend_show_change_email = Configuration.smtp.get("enabled")
         if payload["provider"] in ["ldap", "saml"]:
-            frontend_show_change_email = (
-                not Configuration.auth.get(payload["provider"], {})
-                .get(f"{payload['provider']}_config", {})
-                .get("save_email")
-            )
+            category_provider = (
+                Category(payload["category_id"]).authentication or {}
+            ).get(payload["provider"], {})
+            if category_provider.get("config_source", "global") == "custom":
+                frontend_show_change_email = not category_provider.get(
+                    f"{payload['provider']}_config", {}
+                ).get("save_email", True)
+            else:
+                frontend_show_change_email = (
+                    not Configuration.auth.get(payload["provider"], {})
+                    .get(f"{payload['provider']}_config", {})
+                    .get("save_email", True)
+                )
 
         isard_user_storage_update_user_quota(payload["user_id"])
         if can_use_bastion(payload):
