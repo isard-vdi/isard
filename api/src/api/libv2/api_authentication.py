@@ -24,6 +24,7 @@ import os
 from cachetools import TTLCache, cached
 from html_sanitizer import Sanitizer
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.configuration import Configuration
 from rethinkdb import RethinkDB
 
 from api import app
@@ -148,18 +149,8 @@ def check_duplicate_policy(category, role, type):
 
 def get_providers():
     providers = {}
-    providers["local"] = not (
-        os.environ.get("AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED") == "false"
-    )
-    providers["google"] = (
-        os.environ.get("AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED") == "true"
-    )
-    providers["saml"] = (
-        os.environ.get("AUTHENTICATION_AUTHENTICATION_SAML_ENABLED") == "true"
-    )
-    providers["ldap"] = (
-        os.environ.get("AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED") == "true"
-    )
+    for provider, configuration in Configuration.auth.items():
+        providers[provider] = configuration.get("enabled")
     return providers
 
 
