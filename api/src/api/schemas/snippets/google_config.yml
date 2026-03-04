@@ -1,6 +1,8 @@
 client_id:
-  empty: false
   type: string
+  required: true
+  empty: false
 client_secret:
-  empty: false
   type: string
+  required: true
+  empty: false

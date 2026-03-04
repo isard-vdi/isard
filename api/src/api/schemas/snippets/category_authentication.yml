@@ -1,0 +1,161 @@
+local:
+  type: dict
+  schema:
+    disabled:
+      type: boolean
+      required: true
+      check_with: depends_if
+      meta:
+        depends_if:
+          values:
+            - false
+          other_fields:
+            - email_domains_restriction_enabled
+    email_domains_restriction_enabled:
+      type: boolean
+      check_with: depends_if
+      meta:
+        depends_if:
+          values:
+            - true
+          other_fields:
+            - email_domains_allowed
+    email_domains_allowed:
+      type: list
+      schema:
+        type: string
+        empty: false
+        nullable: false
+        coerce: sanitize
+google:
+  type: dict
+  schema:
+    disabled:
+      type: boolean
+      required: true
+      check_with: depends_if
+      meta:
+        depends_if:
+          values:
+            - false
+          other_fields:
+            - email_domains_restriction_enabled
+            - config_source
+    email_domains_restriction_enabled:
+      type: boolean
+      check_with: depends_if
+      meta:
+        depends_if:
+          values:
+            - true
+          other_fields:
+            - email_domains_allowed
+    email_domains_allowed:
+      type: list
+      schema:
+        type: string
+        nullable: false
+        coerce: sanitize
+    config_source:
+      type: string
+      allowed:
+        - global
+        - custom
+      check_with: depends_if
+      meta:
+        depends_if:
+          values:
+            - custom
+          other_fields:
+            - google_config
+    google_config:
+      type: dict
+      schema: google_config
+saml:
+  type: dict
+  schema:
+    disabled:
+      type: boolean
+      required: true
+      check_with: depends_if
+      meta:
+        depends_if:
+          values:
+            - false
+          other_fields:
+            - email_domains_restriction_enabled
+            - config_source
+    email_domains_restriction_enabled:
+      type: boolean
+      check_with: depends_if
+      meta:
+        depends_if:
+          values:
+            - true
+          other_fields:
+            - email_domains_allowed
+    email_domains_allowed:
+      type: list
+      schema:
+        type: string
+        nullable: false
+        coerce: sanitize
+    config_source:
+      type: string
+      allowed:
+        - global
+        - custom
+      check_with: depends_if
+      meta:
+        depends_if:
+          values:
+            - custom
+          other_fields:
+            - saml_config
+    saml_config:
+      type: dict
+      schema: saml_config
+ldap:
+  type: dict
+  schema:
+    disabled:
+      type: boolean
+      required: true
+      check_with: depends_if
+      meta:
+        depends_if:
+          values:
+            - false
+          other_fields:
+            - email_domains_restriction_enabled
+            - config_source
+    email_domains_restriction_enabled:
+      type: boolean
+      check_with: depends_if
+      meta:
+        depends_if:
+          values:
+            - true
+          other_fields:
+            - email_domains_allowed
+    email_domains_allowed:
+      type: list
+      schema:
+        type: string
+        nullable: false
+        coerce: sanitize
+    config_source:
+      type: string
+      allowed:
+        - global
+        - custom
+      check_with: depends_if
+      meta:
+        depends_if:
+          values:
+            - custom
+          other_fields:
+            - ldap_config
+    ldap_config:
+      type: dict
+      schema: ldap_config
