@@ -21,7 +21,8 @@ from .log import *
 Update to new database release version when new code version release
 """
 release_version = 186
-# release 186: Import authentication providers status from AUTHENTICATION_*_ENABLED variables
+# release 186: Split category authentication tri-state boolean into two explicit booleans
+#              Import authentication providers status from AUTHENTICATION_*_ENABLED variables
 # release 185: Repair storage records missing user_id, ensure perms and status_logs
 # release 184: Add recycle_bin indexes and pre-computed count fields for performance
 # release 183: Import Google OAuth2 configuration from AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_* environment variables
@@ -5975,6 +5976,34 @@ password:s:%s"""
                 r.table(table).index_create("bastion_domain").run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 186:
+            config_map = {
+                None: {
+                    "disabled": False,
+                    "email_domains_restriction_enabled": False,
+                },
+                False: {
+                    "disabled": True,
+                    "email_domains_restriction_enabled": False,
+                },
+                True: {
+                    "disabled": False,
+                    "email_domains_restriction_enabled": True,
+                },
+            }
+            categories = list(r.table(table).run(self.conn))
+            for category in categories:
+                for provider in category.get("authentication", {}).values():
+                    for key in ["email_domains_restriction_enabled", "disabled"]:
+                        provider[key] = config_map[provider.get("enabled", None)][key]
+
+                    provider["email_domains_allowed"] = provider.get(
+                        "allowed_domains", []
+                    )
+                    provider.pop("allowed_domains", None)
+                    provider.pop("enabled", None)
+            r.table(table).insert(categories, conflict="replace").run(self.conn)
 
         return True
 

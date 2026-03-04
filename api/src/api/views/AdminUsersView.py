@@ -727,12 +727,6 @@ def api_v3_admin_category_insert(payload):
     if data.get("storage_pool"):
         storage_pool = data.pop("storage_pool")
         add_category_to_storage_pool(storage_pool, category["id"])
-    category["authentication"] = {
-        "google": {"allowed_domains": [], "enabled": None},
-        "ldap": {"allowed_domains": [], "enabled": None},
-        "local": {"allowed_domains": [], "enabled": None},
-        "saml": {"allowed_domains": [], "enabled": None},
-    }
     admin_table_insert("categories", category)
     admin_table_insert("groups", group)
     return (
