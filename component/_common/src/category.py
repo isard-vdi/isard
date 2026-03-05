@@ -47,17 +47,19 @@ class Category(RethinkCustomBase):
         :raises ValueError: If the portal domain is already in use by another category.
         """
         if name == "portal" and value:
-            domain = value.get("domain")
-            if domain:
+            enabled = value.get("domain", {}).get("enabled")
+            domain_name = value.get("domain", {}).get("name")
+            if enabled and domain_name:
                 with self._rdb_context():
                     existing = list(
                         r.table("categories")
                         .filter(
-                            lambda cat: (cat["portal"]["domain"] == domain)
+                            lambda cat: (cat["portal"]["domain"]["name"] == domain_name)
+                            & (cat["portal"]["domain"]["enabled"] == True)
                             & (cat["id"] != self.id)
                         )
                         .run(self._rdb_connection)
                     )
                 if existing:
-                    raise ValueError(f"Portal domain {domain} is already in use")
+                    raise ValueError(f"Portal domain {domain_name} is already in use")
         super().__setattr__(name, value)
