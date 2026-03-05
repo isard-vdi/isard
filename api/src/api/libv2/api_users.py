@@ -2020,14 +2020,21 @@ class ApiUsers:
                         "name": True,
                         "frontend": True,
                         "custom_url_name": True,
-                        "portal": {"enabled", "domain"},
+                        "portal": {
+                            "domain": {"enabled", "name"},
+                            "logo": {"enabled", "data"},
+                        },
                     }
                 )
                 .filter({"frontend": True})
             )
             if domain and domain != os.environ.get("DOMAIN"):
-                query = query.filter({"portal": {"enabled": True, "domain": domain}})
-            return list(query.order_by("name").without("portal").run(db.conn))
+                query = query.filter(
+                    {"portal": {"domain": {"enabled": True, "name": domain}}}
+                )
+            else:
+                query = query.without("portal")
+            return list(query.order_by("name").run(db.conn))
 
     def CategoryDelete(self, category_id, agent_id):
         change_category_items_owner("media", category_id)
