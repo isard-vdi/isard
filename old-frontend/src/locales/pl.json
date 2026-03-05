@@ -592,6 +592,7 @@
         }
     },
     "message-modal": {
+        "extend-time": "Przedłuż o {minutes} min",
         "messages": {
             "desktop-time-limit": "Pulpit '{name}' zostanie zatrzymany dnia {date}.",
             "searching-resources": "Szukamy zasobów dla pulpitu. Zostanie on uruchomiony za kilka minut, prosimy czekać."

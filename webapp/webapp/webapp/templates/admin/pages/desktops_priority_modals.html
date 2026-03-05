@@ -61,6 +61,23 @@
                         </div>
                      </div>
                      <div class="row">
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="extend_enabled">Allow extend</label>
+                           <select id="extend_enabled" name="extend_enabled" class="form-control roundbox" style="width: 100%">
+                              <option value="false" selected>No</option>
+                              <option value="true">Yes</option>
+                           </select>
+                        </div>
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="extend_time">Extend time (min)</label>
+                           <input id="extend_time" class="form-control roundbox" name="extend_time" type="number" value="0" min="0" style="width:100%" disabled>
+                        </div>
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="max_extensions">Max extensions</label>
+                           <input id="max_extensions" class="form-control roundbox" name="max_extensions" type="number" value="0" min="0" style="width:100%" disabled>
+                        </div>
+                     </div>
+                     <div class="row">
                         <div id="alloweds-priority-add">
                            {% include '/snippets/alloweds_add.html' %}
                         </div>
@@ -140,6 +157,23 @@
                            <label class="control-label" for="danger_time">Danger (min)<span class="required">*</span>
                            </label>
                            <input id="danger_time" class="form-control roundbox" name="danger_time" type="number" style="width:100%" required="required">
+                        </div>
+                     </div>
+                     <div class="row">
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="extend_enabled">Allow extend</label>
+                           <select id="extend_enabled" name="extend_enabled" class="form-control roundbox" style="width: 100%">
+                              <option value="false" selected>No</option>
+                              <option value="true">Yes</option>
+                           </select>
+                        </div>
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="extend_time">Extend time (min)</label>
+                           <input id="extend_time" class="form-control roundbox" name="extend_time" type="number" value="0" min="0" style="width:100%" disabled>
+                        </div>
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="max_extensions">Max extensions</label>
+                           <input id="max_extensions" class="form-control roundbox" name="max_extensions" type="number" value="0" min="0" style="width:100%" disabled>
                         </div>
                      </div>
                   </div>

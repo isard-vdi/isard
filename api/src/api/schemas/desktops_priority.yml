@@ -46,3 +46,15 @@ shutdown:
       type: boolean
       required: false
       default: false
+    extend_enabled:
+      type: boolean
+      required: false
+      default: false
+    extend_time:
+      type: integer
+      required: false
+      default: 0
+    max_extensions:
+      type: integer
+      required: false
+      default: 0

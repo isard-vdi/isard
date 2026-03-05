@@ -1688,6 +1688,7 @@
   },
   "message-modal": {
     "title": "Informació important",
+    "extend-time": "Ampliar {minutes} min",
     "messages": {
       "desktop-time-limit": "L'escriptori '{name}' s'aturarà automàticament a les {date}.",
       "searching-resources": "Estem buscant recursos per l'escriptori. S'iniciarà en breus minuts, si us plau, esperi."

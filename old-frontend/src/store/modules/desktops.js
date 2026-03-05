@@ -626,6 +626,11 @@ export default {
     },
     socket_targetsDelete (context, data) {
       context.commit('removeBastionTarget', JSON.parse(data))
+    },
+    extendDesktopTimeout (context, desktopId) {
+      return axios.put(`${apiV3Segment}/desktop/${desktopId}/extend-timeout`).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
     }
   }
 }
