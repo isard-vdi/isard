@@ -23,6 +23,13 @@
   <div class="x_panel">
     <div class="x_content">
       {% with
+        name="enabled",
+        label="Enabled",
+        type="checkbox"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+      {% with
         name="saml_config_metadata_url",
         label="Metadata URL",
         placeholder="",

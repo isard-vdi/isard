@@ -1,3 +1,6 @@
+enabled:
+  type: boolean
+  required: true
 migration:
   type: dict
   schema:

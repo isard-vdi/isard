@@ -42,6 +42,17 @@
             <div class="modal-body">
                 <form id="modalProviderConfigForm" class="form-horizontal form-label-left">
                     <input hidden name="provider" id="provider" />
+                    <div class="x_panel local_config">
+                        <h4><i class="fa fa-id-badge"></i> Local Configuration</h4>
+                        {% with
+                          id_prefix="local-config-edit-",
+                          name="enabled",
+                          label="Enabled",
+                          type="checkbox"
+                        %}
+                          {% include '/snippets/form_field.html' %}
+                        {% endwith %}
+                    </div>
                     <div class="x_panel ldap_config">
                         <h4><i class="fa fa-id-badge"></i> LDAP Configuration</h4>
                         {% include '/snippets/ldap_config_form.html' %}

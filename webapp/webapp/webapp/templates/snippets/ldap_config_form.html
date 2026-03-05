@@ -23,6 +23,13 @@
   <div class="x_panel">
     <div class="x_content">
       {% with
+        name="enabled",
+        label="Enabled",
+        type="checkbox"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+      {% with
         name="ldap_config_protocol",
         label="Protocol",
         placeholder="ldap"

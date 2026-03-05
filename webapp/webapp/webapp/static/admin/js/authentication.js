@@ -20,23 +20,7 @@
 */
 
 $(document).ready(function () {
-    $.ajax({
-        type: "GET",
-        url: "/api/v3/admin/authentication/providers",
-        success: function (providers) {
-            $.each(providers, function (provider, enabled) {
-                if (enabled) {
-                    $(`#${provider}-enabled`).css("color", "green");
-                    $(`#${provider}_panel li a.btn span`).show();
-                } else {
-                    $(`#${provider}_panel li.collapse`).find('i').toggleClass('fa-chevron-up fa-chevron-down');
-                    $(`#${provider}_panel table`).hide();
-                    $(`#${provider}_panel h4`).hide();
-                }
-                renderProviderDataTable(provider)
-            });
-        }
-    })
+    ["local", "google", "saml", "ldap"].forEach((provider) => renderProviderDataTable(provider));
 
     $('.btn-edit-config').on('click', function () {
         var modal = '#modalProviderConfig';
@@ -50,12 +34,17 @@ $(document).ready(function () {
             type: "GET",
             url: `/api/v3/authentication/provider/${provider}`,
             success: function (data) {
-                ['ldap', 'saml', 'google'].forEach(providerType => {
+                $(`${modal} .${provider}_config [name=enabled]`).iCheck(
+                    data["enabled"] ? 'check' : 'uncheck'
+                ).iCheck('update');
+                ['local', 'ldap', 'saml', 'google'].forEach(providerType => {
                     const enabled = provider === providerType;
                     const $cfg = $(`.${providerType}_config`);
                     const dataCfg = data?.[`${providerType}_config`] || {};
 
-                    $cfg.toggle(enabled).find(':input').prop('disabled', !enabled);
+                    $cfg.toggle(enabled)
+                    $cfg.find(':input:not(:checkbox)').prop('disabled', !enabled)
+                    $cfg.find(':checkbox').iCheck(enabled ? 'enable' : 'disable')
 
                     if (!enabled) return;
 
@@ -188,6 +177,7 @@ $(document).ready(function () {
             data.migration.notification_bar.template = formData.template;
         }
 
+        data["enabled"] = formData["enabled"] == "on"
         if (["ldap", "saml", "google"].includes(formData.provider)) {
             for (const key in formData) {
                 if (key.startsWith(`${formData.provider}_config_`)) {
@@ -396,6 +386,14 @@ function renderProviderDataTable(provider) {
             "url": `/api/v3/authentication/provider/${provider}`,
             "type": 'GET',
             "dataSrc": function (json) {
+                $(`#${provider} [name=enabled]`).iCheck(
+                    json["enabled"] ? 'check' : 'uncheck'
+                ).iCheck('update');
+                $(`#${provider}-enabled`).css("color", json["enabled"] ? "green" : "darkgrey");
+                $(`#${provider} .x_content`).toggle(json["enabled"]);
+                $(`#${provider}_panel li.collapse`).find('i')
+                .toggleClass('fa-chevron-up', json["enabled"])
+                .toggleClass('fa-chevron-down', !json["enabled"]);
                 for (const key in (json[`${provider}_config`] ??={})) {
                     if (typeof json[`${provider}_config`][key] == 'boolean') {
                         $(`#${provider} [name=${provider}_config_${key}]`).iCheck(
