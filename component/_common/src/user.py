@@ -22,11 +22,11 @@ from .rethink_custom_base_factory import RethinkCustomBase
 
 class User(RethinkCustomBase):
     """
-    Manage Domain Objects
+    Manage User Objects
 
-    Use constructor with keyword arguments to create new Domain Objects or
+    Use constructor with keyword arguments to create new User Objects or
     update an existing one using id keyword. Use constructor with id as
-    first argument to create an object representing an existing Domain Object.
+    first argument to create an object representing an existing User Object.
     """
 
     _rdb_table = "users"
