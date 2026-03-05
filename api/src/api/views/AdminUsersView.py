@@ -620,7 +620,7 @@ def api_v3_admin_edit_category(payload, category_id):
 
 
 @app.route("/api/v3/admin/category/<category_id>/authentication", methods=["PUT"])
-@is_admin
+@is_admin_or_manager
 def api_v3_admin_category_authentication(payload, category_id):
     ownsCategoryId(payload, category_id)
     try:
