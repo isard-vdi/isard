@@ -49,26 +49,9 @@
             {% include '/snippets/form_field.html' %}
           {% endwith %}
         </form>
-      </div>
-      <div class="x_content">
-        <h4>Migration</h4>
-        <table id="local-table" class="table">
-          <thead>
-            <tr>
-              <th rowspan="2">Import</th>
-              <th rowspan="2">Export</th>
-              <th rowspan="2">On migration</th>
-              <th rowspan="2">Forced migration</th>
-              <th colspan="6">Notification bar</th>
-            </tr>
-            <tr>
-              <th>Enabled</th>
-              <th>Template</th>
-              <th>Level</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        {% with provider="local" %}
+          {% include '/snippets/migration_section.html' %}
+        {% endwith %}
       </div>
     </div>
   </div>
@@ -96,26 +79,9 @@
             {% include '/snippets/google_config_form.html' %}
           {% endwith %}
         </form>
-      </div>
-      <div class="x_content">
-        <h4>Migration</h4>
-        <table id="google-table" class="table">
-          <thead>
-            <tr>
-              <th rowspan="2">Import</th>
-              <th rowspan="2">Export</th>
-              <th rowspan="2">On migration</th>
-              <th rowspan="2">Forced migration</th>
-              <th colspan="6">Notification bar</th>
-            </tr>
-            <tr>
-              <th>Enabled</th>
-              <th>Template</th>
-              <th>Level</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        {% with provider="google" %}
+          {% include '/snippets/migration_section.html' %}
+        {% endwith %}
       </div>
     </div>
   </div>
@@ -144,26 +110,9 @@
             {% include '/snippets/saml_config_form.html' %}
           {% endwith %}
         </form>
-      </div>
-      <div class="x_content">
-        <h4>Migration</h4>
-        <table id="saml-table" class="table">
-          <thead>
-            <tr>
-              <th rowspan="2">Import</th>
-              <th rowspan="2">Export</th>
-              <th rowspan="2">On migration</th>
-              <th rowspan="2">Forced migration</th>
-              <th colspan="6">Notification bar</th>
-            </tr>
-            <tr>
-              <th>Enabled</th>
-              <th>Template</th>
-              <th>Level</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        {% with provider="saml" %}
+          {% include '/snippets/migration_section.html' %}
+        {% endwith %}
       </div>
     </div>
   </div>
@@ -190,26 +139,9 @@
             {% include '/snippets/ldap_config_form.html' %}
           {% endwith %}
         </form>
-      </div>
-      <div class="x_content">
-        <h4>Migration</h4>
-        <table id="ldap-table" class="table">
-          <thead>
-            <tr>
-              <th rowspan="2">Import</th>
-              <th rowspan="2">Export</th>
-              <th rowspan="2">On migration</th>
-              <th rowspan="2">Forced migration</th>
-              <th colspan="6">Notification bar</th>
-            </tr>
-            <tr>
-              <th>Enabled</th>
-              <th>Template</th>
-              <th>Level</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        {% with provider="ldap" %}
+          {% include '/snippets/migration_section.html' %}
+        {% endwith %}
       </div>
     </div>
   </div>

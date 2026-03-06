@@ -31,20 +31,22 @@
       %}
         {% include '/snippets/form_field.html' %}
       {% endwith %}
-      {% with
-        name="google_config_client_id",
-        label="Client ID"
-      %}
-        {% include '/snippets/form_field.html' %}
-      {% endwith %}
+      <div class="config-fields">
+        {% with
+          name="google_config[client_id]",
+          label="Client ID"
+        %}
+          {% include '/snippets/form_field.html' %}
+        {% endwith %}
 
-      {% with
-        name="google_config_client_secret",
-        label="Client Secret",
-        type="password"
-      %}
-        {% include '/snippets/form_field.html' %}
-      {% endwith %}
+        {% with
+          name="google_config[client_secret]",
+          label="Client Secret",
+          type="password"
+        %}
+          {% include '/snippets/form_field.html' %}
+        {% endwith %}
+      </div>
     </div>
   </div>
 {% endwith %}

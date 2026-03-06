@@ -374,13 +374,109 @@ function disableFirstOption (id) {
   )
 }
 
+/**
+ * Toggles the visibility of a form section and updates Parsley validation exclusion.
+ * When disabled, the section is hidden and its inputs are excluded from validation.
+ * When enabled, the section is shown and its inputs are included in validation.
+ *
+ * @param {jQuery} $container - The form section container to toggle.
+ * @param {boolean} enabled - Whether the section should be visible and validated.
+ */
+function toggleFormSection ($container, enabled) {
+  $container.toggle(enabled);
+  $container.find(':input').attr('data-parsley-excluded', !enabled);
+  $container.find(':checkbox').trigger('ifChanged');
+  var $form = $container.closest('form');
+  if ($form.length) $form.parsley().validate();
+}
+
+/**
+ * Populates form fields inside a container with values from a data object.
+ * Supports nested objects (via recursion), checkboxes (via iCheck), multi-value
+ * selects (arrays), and standard inputs. Field names use bracket notation
+ * to match nested keys (e.g. "ldap_config[host]").
+ *
+ * @param {jQuery} $container - The container element holding the form fields.
+ * @param {Object} data - Key-value pairs to fill into the form.
+ * @param {string} [prefix] - Optional bracket-notation prefix for nested keys
+ *                             (e.g. "ldap_config"). Used internally during recursion.
+ */
+function fillFormData ($container, data, prefix) {
+  $.each(data, function (key, value) {
+    var fullKey = prefix ? prefix + '[' + key + ']' : key;
+    // Recurse into nested objects to flatten them into bracket-notation keys
+    if ($.isPlainObject(value)) {
+      fillFormData($container, value, fullKey);
+      return;
+    }
+    var $field = $container.find("[name='" + fullKey + "']");
+    if (!$field.length) return;
+    if ($field.is(':checkbox')) {
+      $field.iCheck(value ? 'check' : 'uncheck').iCheck('update').trigger('ifChanged');
+    } else if ($.isArray(value)) {
+      // Populate multi-select fields by adding each array item as a selected option
+      $field.empty();
+      $.each(value, function (_, item) {
+        $field.append(new Option(item, item, true, true));
+      });
+      $field.trigger('change');
+    } else {
+      $field.val(value).trigger('change');
+    }
+  });
+}
+
+/**
+ * Collects form data from all inputs inside a container and returns it as a
+ * nested object. Inputs excluded from Parsley validation or without a name
+ * attribute are skipped. Field names in bracket notation (e.g. "ldap_config[host]")
+ * are parsed into nested object keys (e.g. { ldap_config: { host: "..." } }).
+ *
+ * Supported input types:
+ *  - Checkboxes: collected as booleans.
+ *  - Number inputs: parsed as integers.
+ *  - All others: collected via jQuery .val().
+ *
+ * @note Since jQuery 3.0, .val() returns arrays for multi-selects.
+ *
+ * @param {jQuery} $container - The container element holding the form fields.
+ * @returns {Object} A nested object representing the collected form data.
+ */
+function collectFormData ($container) {
+  var data = {};
+  $container.find(':input').each(function () {
+    var name = $(this).attr("name");
+    if (!name) return;
+    // Skip inputs excluded from validation (hidden form sections)
+    if ($(this).attr('data-parsley-excluded') === 'true') return;
+    // Parse bracket-notation name into an array of keys
+    // e.g. "ldap_config[host]" → ["ldap_config", "host"]
+    var keys = name.replace(/\]/g, '').split('[');
+    var value;
+    if ($(this).is(":checkbox")) {
+      value = $(this).is(":checked");
+    } else if ($(this).attr("type") === "number") {
+      value = parseInt($(this).val(), 10);
+    } else {
+      value = $(this).val();
+    }
+    // Build nested object structure by traversing intermediate keys
+    // e.g. keys ["ldap_config", "host"] → data.ldap_config.host = value
+    var target = data;
+    for (var i = 0; i < keys.length - 1; i++) {
+      if (!(keys[i] in target)) target[keys[i]] = {};
+      target = target[keys[i]];
+    }
+    target[keys[keys.length - 1]] = value;
+  });
+  return data;
+}
+
 function showAndHideByCheckbox (checkboxSelector, divSelector) {
-  divSelector.hide()
-  checkboxSelector.on('ifChecked', function (event) {
-    divSelector.show()
-  })
-  checkboxSelector.on('ifUnchecked', function (event) {
-    divSelector.hide()
+  toggleFormSection(divSelector, false);
+  checkboxSelector.on('ifChanged', function () {
+    var isExcluded = $(this).attr('data-parsley-excluded') === 'true';
+    toggleFormSection(divSelector, $(this).is(':checked') && !isExcluded);
   })
 }
 
