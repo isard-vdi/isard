@@ -280,28 +280,20 @@
       {% include '/snippets/form_field.html' %}
     {% endwith %}
 
-    <div class="item form-group">
-      <label
-        for="{{ id_prefix }}saml_config[role_default]"
-        class="control-label col-sm-3 col-xs-12"
-      >
-      Default Role
-      <span class="required">*</span>
-      </label>
-      <div class="col-sm-9 col-xs-12">
-        <select
-          id="{{ id_prefix }}saml_config[role_default]"
-          name="saml_config[role_default]"
-          class="form-control"
-          {{ 'disabled' if disabled else '' }}
-        >
-          <option value="user">User</option>
-          <option value="advanced">Advanced</option>
-          <option value="manager">Manager</option>
-          <option value="admin">Administrator</option>
-        </select>
-      </div>
-    </div>
+    {% with
+      name="saml_config[role_default]",
+      label="Default Role",
+      type="select",
+      required=True,
+      options={
+        "user": "User",
+        "advanced": "Advanced",
+        "manager": "Manager",
+        "admin": "Administrator"
+      }
+    %}
+      {% include '/snippets/form_field.html' %}
+    {% endwith %}
  
     {% with
       name="saml_config[logout_redirect_url]",

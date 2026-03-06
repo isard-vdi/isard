@@ -30,15 +30,26 @@
     {% endif %}
   </label>
   <div class="col-sm-9 col-xs-12">
-    <input
+    <{{ 'select' if type == 'select' else 'input' }}
       id="{{ id_prefix }}{{ name }}"
       name="{{ name }}"
-      type="{{ type if type else 'text' }}"
-      placeholder="{{ placeholder }}"
       class="form-control"
-      data-parsley-trigger="change"
+      {% if type != 'select' %}
+        type="{{ type if type else 'text' }}"
+        data-parsley-trigger="change"
+        placeholder="{{ placeholder }}"
+      {% endif %}
       {{ '' if required is false or type == 'checkbox' else 'required' }}
       {{ 'disabled' if disabled else '' }}
+      {{ 'multiple' if multiple else '' }}
+    {% if type == 'select' %}
+    >
+      {% for value, label in (options or {}).items() %}
+        <option value="{{ value }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+    {% else %}
     />
+    {% endif %}
   </div>
 </div>
