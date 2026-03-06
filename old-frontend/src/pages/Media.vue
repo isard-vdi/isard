@@ -257,46 +257,6 @@
               </b-progress>
             </div>
           </template>
-          <template #cell(actions)="data">
-            <div
-              v-if="!['Downloading', 'maintenance'].includes(data.item.status)"
-              class="d-flex align-items-center"
-            >
-              <b-button
-                v-if="!['DownloadFailed', 'DownloadFailedInvalidFormat'].includes(data.item.status) && data.item.kind === 'iso'"
-                class="rounded-circle px-2 mr-2 btn-green"
-                :title="$t('views.media.buttons.new-desktop.title')"
-                @click="onClickGoToNewFromMedia(data.item)"
-              >
-                <b-icon
-                  icon="tv"
-                  scale="0.75"
-                />
-              </b-button>
-              <b-button
-                v-if="data.item.status === 'DownloadFailed'"
-                class="rounded-circle px-2 mr-2 btn-blue"
-                :title="$t('views.media.buttons.download.title')"
-                @click="onClickDownloadMedia(data.item.id)"
-              >
-                <b-icon
-                  icon="download"
-                  scale="0.75"
-                />
-              </b-button>
-            </div>
-            <b-button
-              v-else-if="data.item.status !== 'maintenance'"
-              class="rounded-circle px-2 mr-2 btn-red"
-              :title="$t('views.media.buttons.stop-download.title')"
-              @click="onClickStopDownload(data.item.id)"
-            >
-              <b-icon
-                icon="stop"
-                scale="0.75"
-              />
-            </b-button>
-          </template>
         </IsardTable>
       </b-tab>
       <AllowedModal @updateAllowed="updateAllowed" />
@@ -416,11 +376,6 @@ export default {
         key: 'progressSize',
         label: i18n.t('views.media.table-header.progress-size'),
         thStyle: { width: '10%' }
-      },
-      {
-        key: 'actions',
-        label: i18n.t('views.media.table-header.actions'),
-        thStyle: { width: '5%' }
       }
     ]
 

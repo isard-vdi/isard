@@ -201,6 +201,7 @@ def api_v3_desktops_media_list(payload):
 @app.route("/api/v3/media/<action>/<id>", methods=["POST"])
 @is_not_user
 def api_v3_media_actions(payload, action, id):
+    ownsMediaId(payload, id)
     if action == "abort":
         data = {"id": id, "status": "DownloadAborting"}
     if action == "download":
