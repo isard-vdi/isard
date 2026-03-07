@@ -1495,7 +1495,8 @@ class HypWorkerThread(threading.Thread):
                 logs.workers.info(
                     f"Domain {action['id_domain']} not found during shutdown - already stopped"
                 )
-                # Don't set to Failed - domain is already in desired end state
+                update_domain_status("Stopped", action["id_domain"], hyp_id="")
+                update_vgpu_info_if_stopped(action["id_domain"])
                 return
 
             self._handle_domain_action_error(
@@ -1538,6 +1539,8 @@ class HypWorkerThread(threading.Thread):
                 logs.workers.info(
                     f"Domain {action['id_domain']} disappeared during shutdown - already stopped"
                 )
+                update_domain_status("Stopped", action["id_domain"], hyp_id="")
+                update_vgpu_info_if_stopped(action["id_domain"])
                 return
             else:
                 self._handle_domain_action_error(
@@ -1602,12 +1605,14 @@ class HypWorkerThread(threading.Thread):
         logs.workers.info(f"DESTROY OK domain {action['id_domain']}")
 
         try:
+            # Always clean up GPU allocation regardless of not_change_status
+            update_vgpu_info_if_stopped(action["id_domain"])
+
             # Handle post-stop actions
             check_if_delete = action.get("delete_after_stopped", False)
             if action.get("not_change_status", False) is False:
                 if check_if_delete:
                     update_domain_status("Stopped", action["id_domain"], hyp_id="")
-                    update_vgpu_info_if_stopped(action["id_domain"])
                     update_domain_status("Deleting", action["id_domain"], hyp_id="")
                     log_action(
                         self.hyp_id,
@@ -1619,7 +1624,6 @@ class HypWorkerThread(threading.Thread):
                     )
                 else:
                     update_domain_status("Stopped", action["id_domain"], hyp_id="")
-                    update_vgpu_info_if_stopped(action["id_domain"])
                     log_action(
                         self.hyp_id,
                         action["id_domain"],
