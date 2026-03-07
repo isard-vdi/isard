@@ -13,12 +13,6 @@ fi
 if [ ! -n "$HTTPS_PORT" ]; then
         export HTTPS_PORT=443
 fi
-if [ -n "$VIEWER_SPICE" ]; then
-        export HTTP_PORT="$VIEWER_SPICE"
-fi
-if [ -n "$VIEWER_BROWSER" ]; then
-        export HTTPS_PORT="$VIEWER_BROWSER"
-fi
 if [ ! -n "$WEBAPP_HOST" ]; then
         export WEBAPP_HOST='isard-webapp'
 fi
@@ -53,6 +47,27 @@ FLAVOUR="$(echo -n "$FLAVOUR" | tr '+' ' ')"
 if [ "$FLAVOUR" = "all-in-one" ]
 then
   FLAVOUR="web video monitor"
+fi
+
+# Only override HTTP_PORT/HTTPS_PORT with viewer ports for video-only containers.
+# In all-in-one or web+video flavours, HTTP_PORT/HTTPS_PORT should remain unchanged
+# because the Docker port mapping uses those values.
+has_video=false
+has_web=false
+for part in $FLAVOUR; do
+  case "$part" in
+    video|hypervisor|video-standalone) has_video=true ;;
+    web) has_web=true ;;
+  esac
+done
+
+if [ "$has_video" = true ] && [ "$has_web" = false ]; then
+  if [ -n "$VIEWER_SPICE" ]; then
+    export HTTP_PORT="$VIEWER_SPICE"
+  fi
+  if [ -n "$VIEWER_BROWSER" ]; then
+    export HTTPS_PORT="$VIEWER_BROWSER"
+  fi
 fi
 
 

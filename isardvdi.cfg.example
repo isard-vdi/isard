@@ -1,4 +1,4 @@
-# Isard main config v2.31.0
+# Isard main config v2.31.1
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -558,6 +558,10 @@ HAPROXY_LOGGING=.
 # ------ WEB PORTS -----------------------------------------------------------
 # Note: On web flavours, if you set this variables you may also change
 #       accordingly the VIEWER_SPICE and VIEWER_BROWSER ports
+# Note: In flavours that include web or monitor (all-in-one, web, web+video,
+#       monitor...) the opened port will always be HTTP_PORT/HTTPS_PORT,
+#       not VIEWER_SPICE/VIEWER_BROWSER. Only video-only flavours (video,
+#       video-standalone, hypervisor) open VIEWER_SPICE/VIEWER_BROWSER ports.
 #HTTP_PORT=8081
 #HTTPS_PORT=8443
 
@@ -582,8 +586,12 @@ HAPROXY_LOGGING=.
 #VIDEO_DOMAIN=$DOMAIN
 
 # ------ Video external NAT ports --------------------------------------------
-## Where the users browsers will connect to get the video stream for
-## their guests started in this hypervisor? (outside NAT ports)
+## The port that SPICE/RDP clients will use to connect to their desktops.
+## This is always used in all flavours to set the client connection port
+## (e.g. external router NAT port).
+## In video-only flavours (video, video-standalone, hypervisor) it also
+## sets the haproxy listening port. In flavours with web or monitor,
+## haproxy uses HTTP_PORT/HTTPS_PORT instead.
 #VIEWER_SPICE=80
 #VIEWER_RDP_GW=80
 #VIEWER_BROWSER=443
