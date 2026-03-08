@@ -91,9 +91,6 @@ def list_hypervisors():
                     "destroy_time": (
                         registered_hyper["destroy_time"] if registered_hyper else "-"
                     ),
-                    "only_forced": (
-                        registered_hyper["only_forced"] if registered_hyper else "-"
-                    ),
                     "gpu_only": (
                         registered_hyper["gpu_only"] if registered_hyper else "-"
                     ),
@@ -129,10 +126,14 @@ def list_hypervisors():
 @cached(cache=TTLCache(maxsize=20, ttl=10))
 def start_hypervisor(hypervisor_id):
     try:
-        response = app.operations_client.CreateHypervisor(
+        responses = app.operations_client.CreateHypervisor(
             operations_pb2.CreateHypervisorRequest(id=hypervisor_id)
         )
-        return response.state, response.msg
+        last_state, last_msg = None, None
+        for response in responses:
+            last_state = response.state
+            last_msg = response.msg
+        return last_state, last_msg
 
     except grpc.RpcError as rpc_error:
         if rpc_error.code() in [
@@ -147,10 +148,14 @@ def start_hypervisor(hypervisor_id):
 @cached(cache=TTLCache(maxsize=20, ttl=10))
 def stop_hypervisor(hypervisor_id):
     try:
-        response = app.operations_client.DestroyHypervisor(
+        responses = app.operations_client.DestroyHypervisor(
             operations_pb2.DestroyHypervisorRequest(id=hypervisor_id)
         )
-        return response.state, response.msg
+        last_state, last_msg = None, None
+        for response in responses:
+            last_state = response.state
+            last_msg = response.msg
+        return last_state, last_msg
 
     except grpc.RpcError as rpc_error:
         if rpc_error.code() in [
