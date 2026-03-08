@@ -581,8 +581,7 @@ def _process_domain_event_async(conn_uri, dom_name, event, detail, opaque, event
                         hyp_id=False,
                         detail="Ready to Start",
                     )
-                if dict_event["detail"] in ("Shutdown"):
-                    update_vgpu_info_if_stopped(dom_id)
+                update_vgpu_info_if_stopped(dom_id)
 
             if dict_event["event"] in (
                 "Defined",

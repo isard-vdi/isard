@@ -502,6 +502,7 @@ class ThreadBroom(threading.Thread):
                             domain_id,
                             detail="Stopped by broom thread because has not hypervisor",
                         )
+                        update_vgpu_info_if_stopped(domain_id)
                 t_broom_data.append(
                     {
                         "step": "update_domains_without_hypervisor",
