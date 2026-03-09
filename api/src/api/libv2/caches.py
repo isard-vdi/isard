@@ -292,6 +292,25 @@ def invalidate_cached_domain_wg_mac(wg_mac):
 def get_domain_id_from_wg_mac(wg_mac):
     if wg_mac in wg_mac_domain_cache:
         return wg_mac_domain_cache[wg_mac]
+    # DB fallback using existing wg_mac multi-index
+    with app.app_context():
+        results = list(
+            r.table("domains")
+            .get_all(wg_mac, index="wg_mac")
+            .filter(
+                lambda d: r.expr(
+                    ["Starting", "StartingDomainDisposable", "Started"]
+                ).contains(d["status"])
+            )
+            .pluck("id")
+            .limit(1)
+            .run(db.conn)
+        )
+    if results:
+        domain_id = results[0]["id"]
+        wg_mac_domain_cache[wg_mac] = domain_id
+        return domain_id
+
     return None
 
 
