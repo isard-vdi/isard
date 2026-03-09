@@ -1886,13 +1886,10 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     # so we no longer need to persist the generated XML to the database.
     # The stored xml field is now a static base template.
 
-    if "viewer_passwd" in x.__dict__.keys():
-        # update password in database
-        update_domain_viewer_passwd(id_domain, passwd=x.viewer_passwd)
-        log.debug(
-            "updated viewer password {} in domain {}".format(x.viewer_passwd, id_domain)
-        )
-    else:
+    # Password will be passed to worker thread via action payload
+    # No need to write to DB here (eliminates race condition)
+    viewer_passwd = x.viewer_passwd if "viewer_passwd" in x.__dict__.keys() else ""
+    if not viewer_passwd:
         log.error("viewer password not found in domain {}".format(id_domain))
 
     xml = x.return_xml()
@@ -1900,7 +1897,7 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     # log.debug(xml)
     # log.debug('#####################################################')
 
-    return xml
+    return xml, viewer_passwd
 
 
 def recreate_xml_interfaces(dict_domain, x):

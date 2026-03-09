@@ -171,6 +171,7 @@ def update_domain_viewer_started_values(
     spice_tls=False,
     vnc=False,
     vnc_websocket=False,
+    viewer_passwd="",
     status=None,
     detail=None,
 ):
@@ -178,6 +179,7 @@ def update_domain_viewer_started_values(
     try:
         update_dict = {
             "viewer": {
+                "passwd": viewer_passwd,
                 "static": hyp_viewer["static"],
                 "proxy_video": hyp_viewer["proxy_video"],
                 "html5_ext_port": hyp_viewer["html5_ext_port"],

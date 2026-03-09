@@ -1318,7 +1318,10 @@ class HypWorkerThread(threading.Thread):
             spice, spice_tls, vnc, vnc_websocket = vm.get_graphics_port()
             intervals.append({"get_graphics_port": round(time.time() - vt, 3)})
 
-            # Update domain viewer values
+            # Get viewer password from action payload (passed from API layer)
+            viewer_passwd = action.get("viewer_passwd", "")
+
+            # Update domain viewer values (single atomic update with password + ports)
             dom_id = action["id_domain"]
             update_domain_viewer_started_values(
                 dom_id,
@@ -1329,6 +1332,7 @@ class HypWorkerThread(threading.Thread):
                 spice_tls=spice_tls,
                 vnc=vnc,
                 vnc_websocket=vnc_websocket,
+                viewer_passwd=viewer_passwd,
                 status="Started",
                 detail="Domain started by worker",
             )

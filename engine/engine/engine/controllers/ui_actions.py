@@ -185,13 +185,14 @@ class UiActions(object):
         )
 
         try:
-            xml = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
+            xml, viewer_passwd = recreate_xml_to_start(id_domain, ssl, cpu_host_model)
         except Exception as e:
             logs.exception_id.debug("0010")
             log.error("recreate_xml_to_start in domain {}".format(id_domain))
             log.error("Traceback: \n .{}".format(traceback.format_exc()))
             log.error("Exception message: {}".format(e))
             xml = False
+            viewer_passwd = ""
 
         if xml is False:
             update_domain_status(
@@ -216,6 +217,7 @@ class UiActions(object):
                     reservables=domain.get("create_dict", {}).get("reservables", {}),
                     storage_pool_id=domain_storage_pool_id,
                     domain_memory_gb=domain_memory_gb,
+                    viewer_passwd=viewer_passwd,
                 )
             else:
                 hyp = self.start_domain_from_xml(
@@ -228,6 +230,7 @@ class UiActions(object):
                     reservables=domain.get("create_dict", {}).get("reservables", {}),
                     storage_pool_id=domain_storage_pool_id,
                     domain_memory_gb=domain_memory_gb,
+                    viewer_passwd=viewer_passwd,
                 )
             return hyp
 
@@ -242,6 +245,7 @@ class UiActions(object):
         reservables=None,
         storage_pool_id=None,
         domain_memory_gb=1.0,
+        viewer_passwd="",
     ):
         if storage_pool_id is None:
             # Domain storage and storage pool
@@ -308,6 +312,7 @@ class UiActions(object):
         reservables=None,
         storage_pool_id=None,
         domain_memory_gb=1.0,
+        viewer_passwd="",
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
@@ -352,6 +357,7 @@ class UiActions(object):
                     "type": action,
                     "xml": xml,
                     "id_domain": id_domain,
+                    "viewer_passwd": viewer_passwd,
                 }
 
                 if extra_info.get("nvidia", False) is True:
