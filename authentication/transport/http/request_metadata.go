@@ -37,7 +37,8 @@ func requestMetadataHandler(next http.Handler) http.Handler {
 func extractRemoteAddr(r *http.Request) string {
 	remoteAddr := r.RemoteAddr
 	if addr := r.Header.Get("X-Forwarded-For"); addr != "" {
-		remoteAddr = strings.TrimSpace(strings.Split(addr, ",")[0])
+		parts := strings.Split(addr, ",")
+		remoteAddr = strings.TrimSpace(parts[len(parts)-1])
 	}
 
 	return remoteAddr
