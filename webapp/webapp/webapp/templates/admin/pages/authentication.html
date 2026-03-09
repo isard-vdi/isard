@@ -76,7 +76,7 @@
         <h4>Configuration</h4>
         <form id="form-google-config-show" class="form-horizontal form-label-left">
           {% with disabled=True %}
-            {% include '/snippets/google_config_form.html' %}
+            {% include '/snippets/google_config_enable_form.html' %}
           {% endwith %}
         </form>
         {% with provider="google" %}
@@ -107,7 +107,7 @@
         <h4>Configuration</h4>
         <form id="form-saml-config-show" class="form-horizontal form-label-left">
           {% with disabled=True %}
-            {% include '/snippets/saml_config_form.html' %}
+            {% include '/snippets/saml_config_enable_form.html' %}
           {% endwith %}
         </form>
         {% with provider="saml" %}
@@ -136,7 +136,7 @@
         <h4>Configuration</h4>
         <form id="form-ldap-config-show" class="form-horizontal form-label-left">
           {% with disabled=True %}
-            {% include '/snippets/ldap_config_form.html' %}
+            {% include '/snippets/ldap_config_enable_form.html' %}
           {% endwith %}
         </form>
         {% with provider="ldap" %}

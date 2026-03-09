@@ -19,312 +19,301 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #}
-{% with id_prefix = 'ldap-config-show-' if disabled is true else 'ldap-config-edit-' %}
-  {% with
-    name="enabled",
-    label="Enabled",
-    type="checkbox"
-  %}
-    {% include '/snippets/form_field.html' %}
-  {% endwith %}
-  <div class="config-fields">
-    {% with
-      name="ldap_config[protocol]",
-      label="Protocol",
-      placeholder="ldap"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="protocol",
+  label="Protocol",
+  placeholder="ldap"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[host]",
-      label="Host",
-      placeholder="example.com"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="host",
+  label="Host",
+  placeholder="example.com"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[port]",
-      label="Port",
-      placeholder=389,
-      type="number"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="port",
+  label="Port",
+  placeholder=389,
+  type="number"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[bind_dn]",
-      label="Bind DN",
-      placeholder="dn=admin,dc=example,dc=com"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="bind_dn",
+  label="Bind DN",
+  placeholder="dn=admin,dc=example,dc=com"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[password]",
-      label="Password",
-      type="password"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="password",
+  label="Password",
+  type="password"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[base_search]",
-      label="Base Search",
-      placeholder="ou=people,dc=example,dc=com"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="base_search",
+  label="Base Search",
+  placeholder="ou=people,dc=example,dc=com"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[filter]",
-      label="Filter",
-      placeholder="(&(objectClass=person)(uid=%s))"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="filter",
+  label="Filter",
+  placeholder="(&(objectClass=person)(uid=%s))"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[field_uid]",
-      label="Field UID"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="field_uid",
+  label="Field UID"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[regex_uid]",
-      label="Regex UID",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="regex_uid",
+  label="Regex UID",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[field_username]",
-      label="Field Username"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="field_username",
+  label="Field Username"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[regex_username]",
-      label="Regex Username",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="regex_username",
+  label="Regex Username",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[field_name]",
-      label="Field Name",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="field_name",
+  label="Field Name",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[regex_name]",
-      label="Regex Name",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="regex_name",
+  label="Regex Name",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[field_email]",
-      label="Field Email",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="field_email",
+  label="Field Email",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[regex_email]",
-      label="Regex Email",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="regex_email",
+  label="Regex Email",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[field_photo]",
-      label="Field Photo",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="field_photo",
+  label="Field Photo",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[regex_photo]",
-      label="Regex Photo",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="regex_photo",
+  label="Regex Photo",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[auto_register]",
-      label="Auto Register",
-      type="checkbox"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="auto_register",
+  label="Auto Register",
+  type="checkbox"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[auto_register_roles]",
-      label="Auto Register Roles",
-      placeholder="Coma separated roles",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="auto_register_roles",
+  label="Auto Register Roles",
+  placeholder="Coma separated roles",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[guess_category]",
-      label="Guess Category",
-      type="checkbox"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="guess_category",
+  label="Guess Category",
+  type="checkbox"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[field_category]",
-      label="Field Category",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="field_category",
+  label="Field Category",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[regex_category]",
-      label="Regex Category",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="regex_category",
+  label="Regex Category",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[field_group]",
-      label="Field Group",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="field_group",
+  label="Field Group",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[regex_group]",
-      label="Regex Group",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="regex_group",
+  label="Regex Group",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[group_default]",
-      label="Default Group",
-      placeholder="default"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="group_default",
+  label="Default Group",
+  placeholder="default"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[role_list_search_base]",
-      label="Role List Search Base",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="role_list_search_base",
+  label="Role List Search Base",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[role_list_filter]",
-      label="Role List Filter",
-      placeholder="(&(objectClass=posixGroup)(memberUid=%s))"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="role_list_filter",
+  label="Role List Filter",
+  placeholder="(&(objectClass=posixGroup)(memberUid=%s))"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[role_list_use_user_dn]",
-      label="Role List Use User DN",
-      type="checkbox"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="role_list_use_user_dn",
+  label="Role List Use User DN",
+  type="checkbox"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[role_list_field]",
-      label="Role List Field",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="role_list_field",
+  label="Role List Field",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[role_list_regex]",
-      label="Role List Regex",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="role_list_regex",
+  label="Role List Regex",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[role_admin_ids]",
-      label="Role Admin IDs",
-      placeholder="Coma separated IDs",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="role_admin_ids",
+  label="Role Admin IDs",
+  placeholder="Coma separated IDs",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[role_manager_ids]",
-      label="Role Manager IDs",
-      placeholder="Coma separated IDs",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="role_manager_ids",
+  label="Role Manager IDs",
+  placeholder="Coma separated IDs",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[role_advanced_ids]",
-      label="Role Advanced IDs",
-      placeholder="Coma separated IDs",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="role_advanced_ids",
+  label="Role Advanced IDs",
+  placeholder="Coma separated IDs",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[role_user_ids]",
-      label="Role User IDs",
-      placeholder="Coma separated IDs",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="role_user_ids",
+  label="Role User IDs",
+  placeholder="Coma separated IDs",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[role_default]",
-      label="Default Role",
-      type="select",
-      required=True,
-      options={
-        "user": "User",
-        "advanced": "Advanced",
-        "manager": "Manager",
-        "admin": "Administrator"
-      }
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="role_default",
+  label="Default Role",
+  type="select",
+  required=True,
+  options={
+    "user": "User",
+    "advanced": "Advanced",
+    "manager": "Manager",
+    "admin": "Administrator"
+  }
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="ldap_config[save_email]",
-      label="Save Email",
-      type="checkbox"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
-  </div>
+{% with
+  name="save_email",
+  label="Save Email",
+  type="checkbox"
+%}
+  {% include '/snippets/form_field.html' %}
 {% endwith %}

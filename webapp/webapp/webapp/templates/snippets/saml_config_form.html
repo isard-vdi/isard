@@ -19,296 +19,285 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #}
-{% with id_prefix = 'saml-config-show-' if disabled is true else 'saml-config-edit-' %}
-  {% with
-    name="enabled",
-    label="Enabled",
-    type="checkbox"
-  %}
-    {% include '/snippets/form_field.html' %}
-  {% endwith %}
-  <div class="config-fields">
-    {% with
-      name="saml_config[metadata_url]",
-      label="Metadata URL",
-      placeholder="",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[metadata_file]",
-      label="Metadata File",
-      placeholder="/keys/idp-metadata.xml",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[entity_id]",
-      label="Entity ID",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[signature_method]",
-      label="Signature Method",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[key_file]",
-      label="Key File",
-      placeholder="/keys/isardvdi.key"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[cert_file]",
-      label="Cert File",
-      placeholder="/keys/isardvdi.cert"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[max_issue_delay]",
-      label="Max Issue Delay",
-      placeholder="90s"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[field_uid]",
-      label="Field UID"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[regex_uid]",
-      label="Regex UID",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[field_username]",
-      label="Field Username"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[regex_username]",
-      label="Regex Username",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[field_name]",
-      label="Field Name"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[regex_name]",
-      label="Regex Name",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[field_email]",
-      label="Field Email",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[regex_email]",
-      label="Regex Email",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[field_photo]",
-      label="Field Photo",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[regex_photo]",
-      label="Regex Photo",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[auto_register]",
-      label="Auto Register",
-      type="checkbox"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[auto_register_roles]",
-      label="Auto Register Roles",
-      placeholder="Coma separated roles",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[guess_category]",
-      label="Guess Category",
-      type="checkbox"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[field_category]",
-      label="Field Category",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[regex_category]",
-      label="Regex Category",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[field_group]",
-      label="Field Group",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[regex_group]",
-      label="Regex Group",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[group_default]",
-      label="Default Group",
-      placeholder="default"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[field_role]",
-      label="Field Role",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[regex_role]",
-      label="Regex Role",
-      placeholder=".*"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[role_admin_ids]",
-      label="Role Admin IDs",
-      placeholder="Coma separated IDs",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[role_manager_ids]",
-      label="Role Manager IDs",
-      placeholder="Coma separated IDs",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[role_advanced_ids]",
-      label="Role Advanced IDs",
-      placeholder="Coma separated IDs",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[role_user_ids]",
-      label="Role User IDs",
-      placeholder="Coma separated IDs",
-      required=False
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
+{% with
+  name="metadata_url",
+  label="Metadata URL",
+  placeholder="",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
 
-    {% with
-      name="saml_config[role_default]",
-      label="Default Role",
-      type="select",
-      required=True,
-      options={
-        "user": "User",
-        "advanced": "Advanced",
-        "manager": "Manager",
-        "admin": "Administrator"
-      }
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[logout_redirect_url]",
-      label="Logout Redirect URL",
-      required=false
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
- 
-    {% with
-      name="saml_config[save_email]",
-      label="Save Email",
-      type="checkbox"
-    %}
-      {% include '/snippets/form_field.html' %}
-    {% endwith %}
-  </div>
+{% with
+  name="metadata_file",
+  label="Metadata File",
+  placeholder="/keys/idp-metadata.xml",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="entity_id",
+  label="Entity ID",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="signature_method",
+  label="Signature Method",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="key_file",
+  label="Key File",
+  placeholder="/keys/isardvdi.key"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="cert_file",
+  label="Cert File",
+  placeholder="/keys/isardvdi.cert"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="max_issue_delay",
+  label="Max Issue Delay",
+  placeholder="90s"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="field_uid",
+  label="Field UID"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="regex_uid",
+  label="Regex UID",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="field_username",
+  label="Field Username"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="regex_username",
+  label="Regex Username",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="field_name",
+  label="Field Name"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="regex_name",
+  label="Regex Name",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="field_email",
+  label="Field Email",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="regex_email",
+  label="Regex Email",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="field_photo",
+  label="Field Photo",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="regex_photo",
+  label="Regex Photo",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="auto_register",
+  label="Auto Register",
+  type="checkbox"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="auto_register_roles",
+  label="Auto Register Roles",
+  placeholder="Coma separated roles",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="guess_category",
+  label="Guess Category",
+  type="checkbox"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="field_category",
+  label="Field Category",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="regex_category",
+  label="Regex Category",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="field_group",
+  label="Field Group",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="regex_group",
+  label="Regex Group",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="group_default",
+  label="Default Group",
+  placeholder="default"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="field_role",
+  label="Field Role",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="regex_role",
+  label="Regex Role",
+  placeholder=".*"
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="role_admin_ids",
+  label="Role Admin IDs",
+  placeholder="Coma separated IDs",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="role_manager_ids",
+  label="Role Manager IDs",
+  placeholder="Coma separated IDs",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="role_advanced_ids",
+  label="Role Advanced IDs",
+  placeholder="Coma separated IDs",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="role_user_ids",
+  label="Role User IDs",
+  placeholder="Coma separated IDs",
+  required=False
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="role_default",
+  label="Default Role",
+  type="select",
+  required=True,
+  options={
+    "user": "User",
+    "advanced": "Advanced",
+    "manager": "Manager",
+    "admin": "Administrator"
+  }
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="logout_redirect_url",
+  label="Logout Redirect URL",
+  required=false
+%}
+  {% include '/snippets/form_field.html' %}
+{% endwith %}
+
+{% with
+  name="save_email",
+  label="Save Email",
+  type="checkbox"
+%}
+  {% include '/snippets/form_field.html' %}
 {% endwith %}

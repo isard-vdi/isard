@@ -249,3 +249,7 @@ table.dataTable tr.shown td.details-control > button > i:before {
 .ajaxDisabled {
   cursor: wait !important;
 }
+
+.provider-config-form {
+  display: none;
+}

@@ -20,16 +20,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #}
 {% with
-  name="client_id",
-  label="Client ID"
-%}
-  {% include '/snippets/form_field.html' %}
-{% endwith %}
-
-{% with
-  name="client_secret",
-  label="Client Secret",
-  type="password"
+  name="enabled",
+  label="Enabled",
+  type="checkbox"
 %}
   {% include '/snippets/form_field.html' %}
 {% endwith %}

@@ -1,0 +1,86 @@
+{#
+#
+#   Copyright © 2026 Simó Albert i Beltran
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#}
+{% with
+  id_prefix="category-" ~ provider ~ "-",
+  name_prefix="authentication[" ~ provider ~ "]",
+  icon={"local": "user", "google": "google", "saml": "lock", "ldap": "sitemap"}[provider],
+  title={"local": "Local", "google": "Google", "saml": "SAML", "ldap": "LDAP"}[provider]
+%}
+  <div id="{{ provider }}-panel" class="x_panel">
+    <div class="x_title">
+      <h4><i class="fa fa-{{ icon }}"></i> {{ title }}</h4>
+      <div class="clearfix"></div>
+    </div>
+    <div class="x_content">
+      {% with
+        name="disabled",
+        label="Disabled",
+        type="checkbox"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      <div class="authentication-provider-settings">
+        {% with
+          id_prefix=id_prefix ~ "email_domain_restriction-",
+          name_prefix=name_prefix ~ "[email_domain_restriction]"
+        %}
+          {% with
+            name="enabled",
+            label="Email Domains Restriction Enabled",
+            type="checkbox"
+          %}
+            {% include '/snippets/form_field.html' %}
+          {% endwith %}
+
+          {% with
+            name="allowed",
+            label="Allowed Email Domains",
+            required=false,
+            type="select",
+            multiple=true
+          %}
+            {% include '/snippets/form_field.html' %}
+          {% endwith %}
+        {% endwith %}
+
+        {% if provider != "local" %}
+          {% with
+            name="config_source",
+            label="Config Source",
+            type="select",
+            options={"global": "Global", "custom": "Custom"}
+          %}
+            {% include '/snippets/form_field.html' %}
+          {% endwith %}
+
+          <div class="provider-config-form">
+            <h5>Provider Configuration</h5>
+            {% with name_prefix=name_prefix ~ "[" ~ provider ~ "_config]" %}
+              {% include '/snippets/' ~ provider ~ '_config_form.html' %}
+            {% endwith %}
+          </div>
+        {% endif %}
+      </div>
+    {% endwith %}
+  </div>
+</div>
