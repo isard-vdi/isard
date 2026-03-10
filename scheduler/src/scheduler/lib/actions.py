@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
+import string
 import time
 
 from rethinkdb import RethinkDB
@@ -49,6 +50,24 @@ engine_client = ApiClient("engine")
 scheduler_client = ApiClient("scheduler")
 
 
+class _SafeFormatter(string.Formatter):
+    """Formatter that only allows simple key substitution, rejecting
+    attribute access ({key.attr}) and item access ({key[0]}) to prevent
+    Server-Side Template Injection via str.format()."""
+
+    def get_field(self, field_name, args, kwargs):
+        if not field_name.isidentifier():
+            raise ValueError(f"Invalid format field: {field_name!r}")
+        return super().get_field(field_name, args, kwargs)
+
+
+_safe_formatter = _SafeFormatter()
+
+
+def safe_format(template, **kwargs):
+    return _safe_formatter.format(template, **kwargs)
+
+
 def format_lang(message_code, lang, kwargs):
     msg = (
         app.langs.get(lang, app.langs.get("en", {}))
@@ -59,7 +78,7 @@ def format_lang(message_code, lang, kwargs):
         log.error("Unknown lang " + str(lang) + " or msg code " + str(message_code))
         return "Desktop notification message with unknown code."
     try:
-        return msg.format(**kwargs)
+        return safe_format(msg, **kwargs)
     except:
         log.error(traceback.format_exc())
 
