@@ -309,14 +309,14 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 		// http tunnel uses the body to pass parameters
 		data, err := ioutil.ReadAll(request.Body)
 		if err != nil {
-			logrus.Errorf("Failed to read body ", err)
+			logrus.Errorf("Failed to read body: %v", err)
 			return nil, err
 		}
 		_ = request.Body.Close()
 		queryString := string(data)
 		query, err = url.ParseQuery(queryString)
 		if err != nil {
-			logrus.Errorf("Failed to parse body query ", err)
+			logrus.Errorf("Failed to parse body query: %v", err)
 			return nil, err
 		}
 		logrus.Debugln("body:", queryString, query)
@@ -326,8 +326,20 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 
 	config.Protocol = query.Get("scheme")
 	config.Parameters = map[string]string{}
+	dangerousParams := map[string]bool{
+		"port":             true,
+		"gateway-hostname": true,
+		"gateway-port":     true,
+		"gateway-username": true,
+		"gateway-password": true,
+		"gateway-domain":   true,
+		"private-key":      true,
+		"passphrase":       true,
+	}
 	for k, v := range query {
-		config.Parameters[k] = v[0]
+		if !dangerousParams[k] {
+			config.Parameters[k] = v[0]
+		}
 	}
 
 	var err error
@@ -356,7 +368,7 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
-		logrus.Errorf("error while connecting to guacd", err)
+		logrus.Errorf("error while connecting to guacd: %v", err)
 		return nil, err
 	}
 
