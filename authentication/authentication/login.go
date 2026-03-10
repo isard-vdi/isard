@@ -21,6 +21,9 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 	if args.Redirect == nil {
 		redirect := ""
 		args.Redirect = &redirect
+	} else {
+		validated := ValidateRedirect(*args.Redirect)
+		args.Redirect = &validated
 	}
 
 	// Check if the user sends a token

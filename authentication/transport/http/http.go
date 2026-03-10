@@ -177,8 +177,6 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 
 		switch t := rsp.(type) {
 		case *oasAuthentication.LoginFound:
-			w.Header().Add("Authorization", t.Authorization)
-
 			if t.SetCookie.Set {
 				w.Header().Set("Set-Cookie", t.SetCookie.Value)
 			}
@@ -340,11 +338,11 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	}
 	cookie := c.String()
 
+	redirect = authentication.ValidateRedirect(redirect)
 	if redirect != "" && redirect != "/notifications/login" {
 		return &oasAuthentication.LoginFound{
-			Location:      redirect,
-			Authorization: fmt.Sprintf("Bearer %s", tkn),
-			SetCookie:     oasAuthentication.NewOptString(cookie),
+			Location:  redirect,
+			SetCookie: oasAuthentication.NewOptString(cookie),
 		}, nil
 	}
 
@@ -428,11 +426,11 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 	}
 	cookie := c.String()
 
+	redirect = authentication.ValidateRedirect(redirect)
 	if redirect != "" {
 		return &oasAuthentication.CallbackFound{
-			Location:      redirect,
-			Authorization: fmt.Sprintf("Bearer %s", tkn),
-			SetCookie:     oasAuthentication.NewOptString(cookie),
+			Location:  redirect,
+			SetCookie: oasAuthentication.NewOptString(cookie),
 		}, nil
 	}
 
