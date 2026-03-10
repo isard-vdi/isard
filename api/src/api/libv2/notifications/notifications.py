@@ -21,6 +21,7 @@
 from datetime import datetime
 
 import pytz
+from api.libv2.helpers import safe_format
 from api.libv2.notifications import compute
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
@@ -348,9 +349,10 @@ def get_user_trigger_notifications(payload, trigger, display):
                             ].append(
                                 {
                                     "id": notification_data["id"],
-                                    "text": notification_template_user_lang[
-                                        "body"
-                                    ].format(**notification_data["vars"]),
+                                    "text": safe_format(
+                                        notification_template_user_lang["body"],
+                                        **notification_data["vars"],
+                                    ),
                                 }
                             )
                             # Update the notification data entry for the user

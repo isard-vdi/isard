@@ -27,6 +27,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2.api_users import ApiUsers
+from ..libv2.helpers import safe_format
 from .flask_rethink import RDB
 
 
@@ -201,8 +202,8 @@ def get_notification_event_template(event, user_id, args):
         else:
             data = template["system"]
 
-    data["body"] = data["body"].format(**args)
-    data["footer"] = data["footer"].format(**args)
+    data["body"] = safe_format(data["body"], **args)
+    data["footer"] = safe_format(data["footer"], **args)
 
     return data
 
