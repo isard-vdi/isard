@@ -31,6 +31,7 @@ db = RDB(app)
 db.init_app(app)
 
 from ..libv2.api_admin import admin_table_insert
+from ..libv2.url_validation import SSRFError, validate_url_not_internal
 from ..libv2.validators import _validate_item
 from .decorators import (
     checkDuplicate,
@@ -80,7 +81,15 @@ def api_v3_admin_media_insert(payload):
             "media_url_bad_format",
         )
     try:
-        response = urllib.request.urlopen(data["url"])
+        validate_url_not_internal(data["url"])
+    except SSRFError:
+        raise Error(
+            "bad_request",
+            "The url resolves to an internal address and is not allowed.",
+            description_code="media_url_not_valid",
+        )
+    try:
+        response = urllib.request.urlopen(data["url"], timeout=30)
     except urllib.error.HTTPError as e:
         if e.code == 404:
             raise Error(
@@ -97,7 +106,7 @@ def api_v3_admin_media_insert(payload):
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36"
             },
         )
-        response = urllib.request.urlopen(req)
+        response = urllib.request.urlopen(req, timeout=30)
     except:
         raise Error(
             "bad_request",
