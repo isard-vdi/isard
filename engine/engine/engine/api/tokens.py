@@ -64,19 +64,28 @@ def get_token_payload(token):
             options=dict(verify_aud=False, verify_sub=False, verify_exp=True),
         )
     except jwt.ExpiredSignatureError:
-        logs.main.info("Token expired")
+        client_ip = request.remote_addr
+        logs.main.info(f"Token expired from client IP: {client_ip}")
         raise Error("unauthorized", "Token is expired", traceback.format_stack())
     except (jwt.InvalidAudienceError, jwt.InvalidIssuerError):
+        client_ip = request.remote_addr
+        logs.main.info(f"Token with incorrect claims from client IP: {client_ip}")
         raise Error(
             "unauthorized",
             "Incorrect claims, please check the audience and issuer",
         )
     except jwt.InvalidTokenError:
+        client_ip = request.remote_addr
+        logs.main.info(f"Invalid token from client IP: {client_ip}")
         raise Error(
             "unauthorized",
             "Error when decoding token",
         )
     except Exception:
+        client_ip = request.remote_addr
+        logs.main.info(
+            f"Unable to parse authentication token from client IP: {client_ip}"
+        )
         raise Error(
             "unauthorized",
             "Unable to parse authentication token.",
@@ -94,6 +103,10 @@ def is_admin(f):
         if payload["role_id"] == "admin":
             kwargs["payload"] = payload
             return f(*args, **kwargs)
+        client_ip = request.remote_addr
+        logs.main.info(
+            f"Access denied - insufficient rights from client IP: {client_ip}"
+        )
         raise Error(
             "forbidden",
             "Not enough rights.",

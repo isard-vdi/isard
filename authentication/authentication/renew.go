@@ -25,6 +25,7 @@ func (a *Authentication) Renew(ctx context.Context, ss, remoteAddr string) (stri
 		RemoteAddr: remoteAddr,
 	})
 	if err != nil {
+		a.Log.Info().Str("session_id", claims.SessionID).Str("ip", remoteAddr).Err(err).Msg("token renewal failed")
 		return "", fmt.Errorf("renew token: %w", err)
 	}
 
@@ -41,6 +42,8 @@ func (a *Authentication) Renew(ctx context.Context, ss, remoteAddr string) (stri
 	if err != nil {
 		return "", fmt.Errorf("sign the login token: %w", err)
 	}
+
+	a.Log.Info().Str("usr", u.ID).Str("session_id", claims.SessionID).Str("ip", remoteAddr).Msg("token renewed")
 
 	return tkn, nil
 }

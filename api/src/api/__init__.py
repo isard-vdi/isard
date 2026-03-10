@@ -22,8 +22,10 @@ import os
 import shutil
 
 from flask import Flask, render_template, send_from_directory
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__, static_url_path="")
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 
 app.url_map.strict_slashes = False

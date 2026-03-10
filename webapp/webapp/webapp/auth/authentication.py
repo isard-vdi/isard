@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
+import logging
 
 import requests
 from flask import render_template, request
@@ -66,6 +67,11 @@ def get_authenticated_user():
     )
     if response.status_code == 200:
         return User(json.loads(response.text))
+
+    client_ip = request.remote_addr
+    logging.info(
+        f"Authentication failed for client IP: {client_ip} - Status: {response.status_code}"
+    )
     return None
 
 

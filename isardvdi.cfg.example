@@ -1,4 +1,4 @@
-# Isard main config v2.31.1
+# Isard main config v2.32.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -396,6 +396,13 @@ HAPROXY_LOGGING=.
 ## Comment/uncomment to deactivate/activate haproxy success response status
 ## (disabled by default)
 #HAPROXY_LOGGING_NORMAL=.
+
+## ------ PROXY PROTOCOL
+## Enable if IsardVDI runs behind a load balancer that sends PROXY protocol v2.
+## This allows HAProxy to receive the real client IP from the upstream proxy.
+## WARNING: Enabling this without a PROXY protocol-capable proxy in front will
+## break all connections.
+#PROXY_PROTOCOL=false
 
 # ------ QCOW2 images --------------------------------------------------------
 ## Cluster size used when creating qcow2 disk images

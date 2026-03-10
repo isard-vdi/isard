@@ -126,9 +126,11 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd, remoteAddr
 	if err := a.API.AdminUserResetPassword(ctx, userID, pwd); err != nil {
 		var apiErr *sdk.Err
 		if !errors.As(err, &apiErr) {
+			a.Log.Info().Str("user_id", userID).Str("ip", remoteAddr).Err(err).Msg("password reset failed")
 			return fmt.Errorf("unknown API error: %w", err)
 		}
 
+		a.Log.Info().Str("user_id", userID).Str("ip", remoteAddr).Err(err).Msg("password reset failed")
 		return err
 	}
 
@@ -140,7 +142,7 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd, remoteAddr
 		return fmt.Errorf("remove password reset token: %w", err)
 	}
 
-	a.Log.Info().Str("user_id", userID).Msg("reset password")
+	a.Log.Info().Str("user_id", userID).Str("ip", remoteAddr).Msg("password reset succeeded")
 
 	return nil
 }

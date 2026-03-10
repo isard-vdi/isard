@@ -51,7 +51,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 	// Log in
 	g, secondary, u, redirect, ss, lErr := p.Login(ctx, categoryID, args)
 	if lErr != nil {
-		a.Log.Info().Str("prv", p.String()).Err(lErr).Msg("login failed")
+		a.Log.Info().Str("prv", p.String()).Str("ip", remoteAddr).Err(lErr).Msg("login failed")
 
 		return "", "", fmt.Errorf("login: %w", lErr)
 	}
@@ -83,7 +83,7 @@ func (a *Authentication) Callback(ctx context.Context, ss string, args provider.
 	// Callback
 	g, secondary, u, redirect, ss, cErr := p.Callback(ctx, claims, args)
 	if cErr != nil {
-		a.Log.Info().Str("prv", p.String()).Err(cErr).Msg("callback failed")
+		a.Log.Info().Str("prv", p.String()).Str("ip", remoteAddr).Err(cErr).Msg("callback failed")
 
 		return "", "", fmt.Errorf("callback: %w", cErr)
 	}
@@ -327,7 +327,7 @@ func (a *Authentication) finishLogin(ctx context.Context, remoteAddr string, u *
 		}
 	}
 
-	a.Log.Info().Str("usr", u.ID).Str("redirect", redirect).Msg("login succeeded")
+	a.Log.Info().Str("usr", u.ID).Str("ip", remoteAddr).Str("redirect", redirect).Msg("login succeeded")
 
 	return ss, redirect, nil
 }
