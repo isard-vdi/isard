@@ -237,7 +237,7 @@ class DownloadThread(threading.Thread, object):
                 )
                 return False
 
-            curl_cmd = f"curl {insecure_option} -L -o '{self.path}' {headers} {quote(self.url)}"
+            curl_cmd = f"curl {insecure_option} -L --max-redirs 5 --connect-timeout 30 --no-netrc -o '{self.path}' {headers} {quote(self.url)}"
             ssh_command = [
                 "ssh",
                 "-oBatchMode=yes",

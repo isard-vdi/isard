@@ -1,5 +1,29 @@
+import ipaddress
+import socket
+from urllib.parse import urlparse
+
 import requests
 from engine.services.log import logs
+
+
+def validate_url_not_internal(url):
+    """Resolve hostname and block requests to private/internal IP addresses."""
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("URL has no hostname")
+
+    try:
+        results = socket.getaddrinfo(
+            hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM
+        )
+    except socket.gaierror as e:
+        raise ValueError(f"DNS resolution failed for {hostname}: {e}")
+    for family, socktype, proto, canonname, sockaddr in results:
+        ip_str = sockaddr[0]
+        ip = ipaddress.ip_address(ip_str)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            raise ValueError(f"URL resolves to blocked internal address: {ip_str}")
 
 
 def test_url_for_download(
@@ -7,6 +31,12 @@ def test_url_for_download(
 ):
     """Test if url is alive, previous to launch ssh curl in hypervisor
     to download media, domains..."""
+    try:
+        validate_url_not_internal(url)
+    except ValueError as e:
+        logs.exception_id.debug("0046")
+        return False, str(e)
+
     try:
         response = requests.head(
             url,
@@ -18,6 +48,13 @@ def test_url_for_download(
     except requests.exceptions.RequestException as e:
         logs.exception_id.debug("0046")
         return False, e
+
+    # Validate final URL after redirects
+    if response.url != url:
+        try:
+            validate_url_not_internal(response.url)
+        except ValueError as e:
+            return False, str(e)
 
     if response.status_code != 200:
         error = "status code {}".format(response.status_code)
