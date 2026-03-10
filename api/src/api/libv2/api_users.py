@@ -1705,18 +1705,88 @@ class ApiUsers:
             return True
         elif domains[0].get("tag"):
             with app.app_context():
-                deployment_user_owner = (
+                deployment = (
                     r.table("deployments")
                     .get(domains[0].get("tag"))
-                    .pluck("user")
+                    .pluck("user", "co_owners")
                     .run(db.conn)
-                ).get("user", None)
-            if deployment_user_owner == user_id:
+                )
+            if deployment.get("user") == user_id:
+                return True
+            if user_id in deployment.get("co_owners", []):
                 return True
 
         raise Error(
             "forbidden",
             f"Forbidden access to user {user_id} to desktop {domains[0]} viewer",
+            traceback.format_exc(),
+        )
+
+    @cached(TTLCache(maxsize=10, ttl=5))
+    def OwnsDesktopViewerDesktopId(
+        self, desktop_id, user_id, category_id, role_id, connection_ip=None
+    ):
+        try:
+            with app.app_context():
+                domain = r.table("domains").get(desktop_id).run(db.conn)
+        except:
+            raise Error(
+                "forbidden",
+                "Forbidden access to desktop viewer",
+                traceback.format_exc(),
+            )
+
+        if not domain:
+            raise Error(
+                "not_found",
+                f"Desktop {desktop_id} not found",
+                traceback.format_exc(),
+            )
+
+        if domain.get("status") not in ["Started", "Shutting-down"]:
+            raise Error(
+                "precondition_required",
+                f"Desktop {desktop_id} is not started",
+                traceback.format_exc(),
+            )
+
+        # Validate connection target matches desktop's actual viewer IP
+        if connection_ip and domain.get("viewer", {}).get("guest_ip") != connection_ip:
+            raise Error(
+                "forbidden",
+                "Connection target does not match desktop viewer",
+                traceback.format_exc(),
+            )
+
+        # Viewer tokens are scoped to a specific desktop_id and don't carry
+        # user_id. The token itself is proof of authorization (signed JWT
+        # generated after ownership was verified at viewer request time).
+        # Desktop existence, status, and IP validation above are sufficient.
+        if user_id is None:
+            return True
+
+        if role_id == "admin":
+            return True
+        elif role_id == "manager" and domain.get("category") == category_id:
+            return True
+        elif domain.get("user") == user_id:
+            return True
+        elif domain.get("tag"):
+            with app.app_context():
+                deployment = (
+                    r.table("deployments")
+                    .get(domain.get("tag"))
+                    .pluck("user", "co_owners")
+                    .run(db.conn)
+                )
+            if deployment.get("user") == user_id:
+                return True
+            if user_id in deployment.get("co_owners", []):
+                return True
+
+        raise Error(
+            "forbidden",
+            f"Forbidden access to user {user_id} to desktop {desktop_id} viewer",
             traceback.format_exc(),
         )
 
@@ -1774,13 +1844,15 @@ class ApiUsers:
             return True
         elif domains[0].get("tag"):
             with app.app_context():
-                deployment_user_owner = (
+                deployment = (
                     r.table("deployments")
                     .get(domains[0].get("tag"))
-                    .pluck("user")
+                    .pluck("user", "co_owners")
                     .run(db.conn)
-                ).get("user", None)
-            if deployment_user_owner == user_id:
+                )
+            if deployment.get("user") == user_id:
+                return True
+            if user_id in deployment.get("co_owners", []):
                 return True
 
         raise Error(
