@@ -261,6 +261,14 @@ def edit_provider_config_route(payload, provider):
     :type provider: str
     """
     data = request.get_json()
+
+    # Remove empty secret fields so existing DB values are preserved via merge
+    for key, value in list(data.items()):
+        if isinstance(value, dict):
+            for secret_key in ("password", "client_secret"):
+                if secret_key in value and not value[secret_key]:
+                    del value[secret_key]
+
     data = _validate_item("provider_config_update", data)
     logout_url = data.get("logout_redirect_url", "")
     if logout_url and urlparse(logout_url).scheme not in ("http", "https"):
