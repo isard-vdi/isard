@@ -32,6 +32,17 @@ from PIL import Image, ImageOps
 from .genimage import gen_img_from_name
 
 
+def _safe_card_path(base_dir, filename):
+    """Resolve filename within base_dir, raising Error if it escapes."""
+    resolved = os.path.realpath(os.path.join(base_dir, filename))
+    if not resolved.startswith(os.path.realpath(base_dir) + os.sep):
+        raise Error(
+            "bad_request",
+            "Invalid card filename",
+        )
+    return resolved
+
+
 def get_domain_stock_card(domain_id):
     total = 0
     for i in range(0, len(domain_id)):
@@ -90,7 +101,7 @@ class ApiCards:
                         .run(db.conn)["name"]
                     )
                 img = gen_img_from_name(domain_name)
-                img.save(os.path.join(app.USERS_CARDS, domain_id + ".jpg"))
+                img.save(_safe_card_path(app.USERS_CARDS, domain_id + ".jpg"))
         else:
             proposed_img = []
         return proposed_img + [
@@ -173,7 +184,7 @@ class ApiCards:
 
     def generate_default_card(self, domain_id, domain_name):
         img = gen_img_from_name(domain_name)
-        img.save(os.path.join(app.USERS_CARDS, domain_id + ".jpg"))
+        img.save(_safe_card_path(app.USERS_CARDS, domain_id + ".jpg"))
         return self.get_card(domain_id + ".jpg", "user")
 
     def delete_card(self, card_id):
@@ -187,7 +198,7 @@ class ApiCards:
                 # Card file still used by other domains. Keep it.
                 return
         try:
-            img = Path(app.USERS_CARDS + "/" + card_id)
+            img = Path(_safe_card_path(app.USERS_CARDS, card_id))
             img.unlink()
         except:
             raise Error("not_found", "Card file not found", traceback.format_exc())
