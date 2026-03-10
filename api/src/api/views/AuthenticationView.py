@@ -20,6 +20,7 @@
 
 
 import json
+from urllib.parse import urlparse
 
 from cachetools import TTLCache, cached
 from flask import request
@@ -261,6 +262,9 @@ def edit_provider_config_route(payload, provider):
     """
     data = request.get_json()
     data = _validate_item("provider_config_update", data)
+    logout_url = data.get("logout_redirect_url", "")
+    if logout_url and urlparse(logout_url).scheme not in ("http", "https"):
+        raise Error("bad_request", "Invalid logout redirect URL scheme")
     update_provider_config(provider, data)
     return (
         json.dumps({}),

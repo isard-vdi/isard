@@ -214,6 +214,7 @@ saml_config:
       type: string
     logout_redirect_url:
       type: string
+      regex: '^https?://'
     save_email:
       empty: false
       type: boolean
