@@ -336,6 +336,7 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		Value:    tkn,
 		Expires:  time.Now().Add(5 * time.Minute),
 		SameSite: http.SameSiteStrictMode,
+		Secure:   true,
 	}
 	cookie := c.String()
 
@@ -423,6 +424,7 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 		Value:    tkn,
 		Expires:  time.Now().Add(5 * time.Minute),
 		SameSite: http.SameSiteStrictMode,
+		Secure:   true,
 	}
 	cookie := c.String()
 
