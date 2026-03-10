@@ -20,6 +20,7 @@
 
 
 import json
+from urllib.parse import urlparse
 
 from flask import request
 from isardvdi_common.api_exceptions import Error
@@ -40,6 +41,16 @@ def api_v3_login_notification_update(payload):
         raise Error("bad_request")
 
     data = _validate_item("login_notification", data)
+
+    for key in ["cover", "form"]:
+        if isinstance(data.get(key), dict):
+            button_url = (
+                data[key].get("button", {}).get("url")
+                if isinstance(data[key].get("button"), dict)
+                else None
+            )
+            if button_url and urlparse(button_url).scheme not in ("http", "https"):
+                raise Error("bad_request", "Invalid URL scheme in button URL")
 
     update_login_notification(data)
     return (
