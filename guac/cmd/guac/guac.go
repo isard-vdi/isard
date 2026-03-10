@@ -20,6 +20,7 @@ import (
 var (
 	guacdAddr string
 	apiAddr   string
+	jwtSecret string
 )
 
 type LoginClaims struct {
@@ -64,11 +65,23 @@ func init() {
 	} else {
 		apiAddr = "https://" + apiAddr
 	}
+
+	jwtSecret = os.Getenv("API_ISARDVDI_SECRET")
+	if jwtSecret == "" {
+		logrus.Fatal("API_ISARDVDI_SECRET is required")
+	}
 }
 
 func isAuthenticated(handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logrus.Debugf("authenticating request: %s %s", r.Method, r.URL.String())
+
+		scheme := r.URL.Query().Get("scheme")
+		if scheme != "rdp" {
+			logrus.Errorf("rejected non-rdp scheme: %s", scheme)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
 		tkn := r.URL.Query().Get("session")
 		hostname := r.URL.Query().Get("hostname")
@@ -132,19 +145,26 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 }
 
 func verifyToken(tokenString string) (jwt.Claims, error) {
+	keyFunc := func(tkn *jwt.Token) (interface{}, error) {
+		if _, ok := tkn.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", tkn.Header["alg"])
+		}
+		return []byte(jwtSecret), nil
+	}
+
 	loginClaims := &LoginClaims{}
-	_, _, err := jwt.NewParser().ParseUnverified(tokenString, loginClaims)
-	if err == nil && loginClaims.SessionID != "" && loginClaims.Data.ID != "" {
+	tkn, err := jwt.ParseWithClaims(tokenString, loginClaims, keyFunc)
+	if err == nil && tkn.Valid && loginClaims.SessionID != "" && loginClaims.Data.ID != "" {
 		return loginClaims, nil
 	}
 
 	viewerClaims := &ViewerClaims{}
-	_, _, err = jwt.NewParser().ParseUnverified(tokenString, viewerClaims)
-	if err == nil && viewerClaims.Data.DesktopID != "" {
+	tkn, err = jwt.ParseWithClaims(tokenString, viewerClaims, keyFunc)
+	if err == nil && tkn.Valid && viewerClaims.Data.DesktopID != "" {
 		return viewerClaims, nil
 	}
 
-	return nil, fmt.Errorf("token does not match known claim types")
+	return nil, fmt.Errorf("token does not match known claim types or signature invalid")
 }
 
 func ownsDesktop(tkn string, hostname string) (bool, error) {
