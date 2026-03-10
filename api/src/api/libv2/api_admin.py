@@ -65,7 +65,12 @@ from .api_user_storage import (
     isard_user_storage_update_group,
     isard_user_storage_update_user,
 )
-from .helpers import _check, get_template_derivated_deployments, get_user_data
+from .helpers import (
+    USER_SENSITIVE_FIELDS,
+    _check,
+    get_template_derivated_deployments,
+    get_user_data,
+)
 from .load_validator_schemas import IsardValidator
 from .validators import _validate_item, _validate_table
 
@@ -94,7 +99,7 @@ def admin_table_list(
     ## Add merge data
 
     if table == "users":
-        query = query.without("password")
+        query = query.without(*USER_SENSITIVE_FIELDS)
 
     if table == "media":
         query = query.merge(parse_media_data_merge())
@@ -230,7 +235,7 @@ def manager_table_list(
     ## Add merge data
 
     if table == "users":
-        query = query.without("password")
+        query = query.without(*USER_SENSITIVE_FIELDS)
 
     if table == "media":
         query = query.merge(parse_media_data_merge())
@@ -416,7 +421,7 @@ def admin_table_get(table, id, pluck=None):
     _validate_table(table)
     query = r.table(table).get(id)
     if table == "users":
-        query = query.without("password")
+        query = query.without(*USER_SENSITIVE_FIELDS)
     if table == "media":
         query = query.merge(
             lambda media: {
@@ -437,7 +442,7 @@ def manager_table_get(table, category, id, pluck=None):
 
     query = r.table(table).get(id)
     if table == "users":
-        query = query.without("password")
+        query = query.without(*USER_SENSITIVE_FIELDS)
     if table == "media":
         query = query.merge(
             lambda media: {

@@ -12,6 +12,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from .caches import get_cached_user_with_names
+from .helpers import USER_SENSITIVE_FIELDS
 
 r = RethinkDB()
 import json
@@ -370,11 +371,7 @@ class UsersThread(threading.Thread):
                         for c in (
                             r.table("users")
                             .merge({"table": "users"})
-                            .without(
-                                "password",
-                                {"vpn": {"wireguard": "keys"}},
-                                "photo",
-                            )
+                            .without(*USER_SENSITIVE_FIELDS)
                             .changes(include_initial=False, squash=0.5)
                             .union(
                                 r.table("categories")
