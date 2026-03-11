@@ -443,6 +443,7 @@ def _parse_extra_gpu_info(gpu_selected):
         "gpu_id": gpu_selected["next_gpu_id"],
         "model": gpu_selected["gpu_profile"].split("-")[-2],
         "profile": gpu_selected["gpu_profile"].split("-")[-1],
+        "pci_bus_id": gpu_selected.get("pci_bus_id"),
     }
 
 

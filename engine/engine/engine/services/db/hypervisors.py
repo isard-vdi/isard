@@ -875,6 +875,7 @@ def get_hypers_gpu_online(
                             "next_available_uid": mdev_uuid,
                             "next_gpu_id": gpu_id,
                             "gpu_profile": gpu_brand_model_profile,
+                            "pci_bus_id": pci,
                         }
                     },
                 }

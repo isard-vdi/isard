@@ -36,6 +36,7 @@ from engine.services.db.hypervisors import (
 from engine.services.lib.functions import (
     SSHTimeoutError,
     exec_remote_list_of_cmds_dict,
+    execute_commands,
     get_tid,
     is_libvirt_connection_error,
     update_status_db_from_running_domains,
@@ -1244,6 +1245,36 @@ class HypWorkerThread(threading.Thread):
 
         return etree.tostring(root, encoding="unicode", pretty_print=True)
 
+    def _ensure_vfio_device(self, pci_bus_id):
+        """Ensure /dev/vfio/<group> exists for PCI passthrough.
+
+        The Docker bind mount /dev/vfio:/dev/vfio may not see device nodes
+        created by the kernel after container start. This creates the node
+        via mknod if missing.
+        """
+        # Convert pci_bus_id "pci_0000_41_00_0" to BDF "0000:41:00.0"
+        parts = pci_bus_id.replace("pci_", "").split("_")
+        bdf = f"{parts[0]}:{parts[1]}:{parts[2]}.{parts[3]}"
+        try:
+            cmds = [
+                f"IOMMU_GROUP=$(basename $(readlink /sys/bus/pci/devices/{bdf}/iommu_group)) && "
+                f"if [ ! -e /dev/vfio/$IOMMU_GROUP ]; then "
+                f"DEV=$(cat /sys/class/vfio/$IOMMU_GROUP/dev) && "
+                f"MAJOR=${{DEV%%:*}} && MINOR=${{DEV##*:}} && "
+                f"mknod /dev/vfio/$IOMMU_GROUP c $MAJOR $MINOR && "
+                f"chmod 0666 /dev/vfio/$IOMMU_GROUP && "
+                f'echo "Created /dev/vfio/$IOMMU_GROUP"; '
+                f"else "
+                f'echo "/dev/vfio/$IOMMU_GROUP already exists"; '
+                f"fi",
+            ]
+            result = execute_commands(self.hostname, cmds, port=self.h.port)
+            logs.workers.info(
+                f"VFIO device check for {bdf}: {result[0].get('out', '').strip()}"
+            )
+        except Exception as e:
+            logs.workers.warning(f"Could not ensure VFIO device for {bdf}: {e}")
+
     def _handle_start_domain(self, action, action_time, intervals):
         """Handle start_domain action"""
         xml = action["xml"]
@@ -1256,6 +1287,11 @@ class HypWorkerThread(threading.Thread):
             )
 
         logs.workers.debug(f"XML to start domain: {xml[30:100]}")
+
+        # For PCI passthrough desktops, ensure /dev/vfio/<group> exists
+        # inside the hypervisor container before libvirt tries to use it
+        if action.get("profile") == "passthrough" and action.get("pci_bus_id"):
+            self._ensure_vfio_device(action["pci_bus_id"])
 
         try:
             # Create the domain with timeout tracking
