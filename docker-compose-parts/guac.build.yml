@@ -6,17 +6,3 @@ services:
       args:
         - GOLANG_BUILD_IMAGE
         - GOLANG_RUN_IMAGE
-
-  isard-rdpgw:
-    container_name: isard-rdpgw
-    image: ${DOCKER_IMAGE_PREFIX}rdpgw:${DOCKER_IMAGE_TAG-latest}
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: rdpgw/build/package/Dockerfile
-      args:
-        - GOLANG_BUILD_IMAGE
-        - GOLANG_RUN_IMAGE
-    networks:
-      - isard-network
-    environment:
-      RDPGW_LOG_LEVEL: ${LOG_LEVEL:-INFO}
