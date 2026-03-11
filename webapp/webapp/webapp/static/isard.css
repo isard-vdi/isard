@@ -250,6 +250,18 @@ table.dataTable tr.shown td.details-control > button > i:before {
   cursor: wait !important;
 }
 
-.provider-config-form {
+/* File content fields (form_field.html type="file") */
+.file-content-download {
+  display: none;
+  margin-top: 5px;
+}
+
+.file-content-download:not([style*="display: none"]) {
+  display: inline-block;
+}
+/* Form sections hidden by default */
+.provider-config-form,
+.custom-certificate-form,
+.branding-domain-settings {
   display: none;
 }

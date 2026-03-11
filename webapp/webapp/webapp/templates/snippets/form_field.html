@@ -19,37 +19,58 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #}
-<div class="item form-group">
-  <label
-    for="{{ id_prefix }}{{ name }}"
-    class="control-label col-sm-3 col-xs-12"
-  >
-    {{ label }}
-    {% if required is not false %}
-      <span class="required">*</span>
-    {% endif %}
-  </label>
-  <div class="col-sm-9 col-xs-12">
-    <{{ 'select' if type == 'select' else 'input' }}
-      id="{{ id_prefix }}{{ name }}"
-      name="{% if name_prefix %}{{ name_prefix }}[{{ name }}]{% else %}{{ name }}{% endif %}"
-      class="form-control"
-      {% if type != 'select' %}
-        type="{{ type if type else 'text' }}"
-        data-parsley-trigger="change"
-        placeholder="{{ placeholder }}"
-      {% endif %}
-      {{ '' if required is false or type == 'checkbox' else 'required' }}
-      {{ 'disabled' if disabled else '' }}
-      {{ 'multiple' if multiple else '' }}
-    {% if type == 'select' %}
+{% with field_name = name_prefix ~ '[' ~ name ~ ']' if name_prefix else name %}
+  <div class="item form-group">
+    <label
+      for="{{ id_prefix }}{{ name }}"
+      class="control-label col-sm-3 col-xs-12"
     >
-      {% for value, label in (options or {}).items() %}
-        <option value="{{ value }}">{{ label }}</option>
-      {% endfor %}
-    </select>
-    {% else %}
-    />
-    {% endif %}
+      {{ label }}
+      {% if required is not false %}
+        <span class="required">*</span>
+      {% endif %}
+    </label>
+    <div class="col-sm-9 col-xs-12">
+      {% if type == 'file' %}
+        <input
+          type="hidden"
+          name="{{ field_name }}"
+          data-file-content
+        />
+        <input
+          id="{{ id_prefix }}{{ name }}"
+          class="form-control"
+          type="file"
+          data-file-content
+          {{ 'accept="' ~ accept ~ '"' if accept else '' }}
+        />
+        <a class="btn btn-default btn-sm file-content-download" download="{{ name }}.pem">
+          <i class="fa fa-download"></i> Download
+        </a>
+      {% else %}
+        <{{ 'select' if type == 'select' else 'input' }}
+          id="{{ id_prefix }}{{ name }}"
+          name="{{ field_name }}"
+          class="form-control"
+          {% if type != 'select' %}
+            type="{{ type if type else 'text' }}"
+            data-parsley-trigger="change"
+            placeholder="{{ placeholder }}"
+          {% endif %}
+          {{ '' if required is false or type == 'checkbox' else 'required' }}
+          {{ 'disabled' if disabled else '' }}
+          {{ 'multiple' if multiple else '' }}
+          {{ 'accept="' ~ accept ~ '"' if accept else '' }}
+        {% if type == 'select' %}
+        >
+          {% for value, label in (options or {}).items() %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        />
+        {% endif %}
+      {% endif %}
+    </div>
   </div>
-</div>
+{% endwith %}

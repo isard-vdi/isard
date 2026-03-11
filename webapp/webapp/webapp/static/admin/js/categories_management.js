@@ -457,6 +457,21 @@ $(document).ready(function () {
             })
         }
     });
+
+    $('#modal-branding #send').on('click', function (e) {
+        const modal = "#modal-branding";
+        const form = $(`${modal} form`);
+        if (!validateForm(form)) return;
+        ajaxPutWithNotice(
+            "/api/v3/admin/category/" + $(`${modal} #id`).val() + "/branding",
+            collectFormData(form).branding,
+            "branding domain",
+            function () {
+                $('form').each(function () { this.reset(); });
+                $('.modal').modal('hide');
+            }
+        );
+    });
 });
 
 function renderCategoriesDetailPannel(d) {
@@ -791,6 +806,47 @@ function actionsCategoryDetail() {
 
         $(modal + " #id").val(pk);
         $(modal).modal({
+            backdrop: "static",
+            keyboard: false,
+        }).modal("show");
+    });
+
+
+    $("#categories .btn-branding").off("click").on("click", function () {
+        var pk = $(this).closest("div").attr("data-pk");
+        var $modal = $("#modal-branding");
+        var $form = $modal.find("form");
+
+        // Reset the form when the modal is closed or cancelled
+        $modal.off("hidden.bs.modal").on("hidden.bs.modal", function () {
+            $form[0].reset();
+            $form.find(":checkbox").iCheck("uncheck").iCheck('update');
+        });
+
+        // Set up domain enabled checkbox toggle
+        $form.find("input[name='branding[domain][enabled]']").off("ifChanged").on("ifChanged", function () {
+            var settingsContainer = $(this).closest(".x_content").find(".branding-domain-settings");
+            toggleFormSection(settingsContainer, $(this).is(":checked"));
+        }).trigger("ifChanged");
+
+        // Set up certificate source select toggle for custom certificate form
+        $form.find("select[name='branding[domain][certificate_source]']").off("change").on("change", function () {
+            var customCertForm = $(this).closest(".branding-domain-settings").find(".custom-certificate-form");
+            toggleFormSection(customCertForm, $(this).val() === "custom");
+        }).trigger("change");
+
+        // Fetch branding data and populate form
+        $.ajax({
+            type: "GET",
+            url: "/api/v3/admin/category/" + pk + "/branding",
+            contentType: "application/json",
+            success: function (data) {
+                fillFormData($form, { branding: data });
+            }
+        });
+
+        $modal.find("#id").val(pk);
+        $modal.modal({
             backdrop: "static",
             keyboard: false,
         }).modal("show");

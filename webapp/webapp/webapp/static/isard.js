@@ -190,7 +190,37 @@ $(document).ready(function() {
     $('input').iCheck({
         checkboxClass: 'icheckbox_flat-green',
         radioClass: 'iradio_flat-green',
-    })
+    });
+
+    // Read file content on change and store in the companion hidden input
+    $(document).on('change', 'input[type="file"][data-file-content]', function () {
+        var $hidden = $(this).siblings('input[type="hidden"]');
+        var file = this.files[0];
+        if (file) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                $hidden.val(e.target.result).trigger('change');
+            };
+            reader.readAsText(file);
+        } else {
+            $hidden.val('').trigger('change');
+        }
+    });
+
+    // Toggle download link visibility when companion hidden input changes
+    $(document).on('change', 'input[type="hidden"][data-file-content]', function () {
+        $(this).siblings('.file-content-download').toggle(!!$(this).val());
+    });
+
+    // Download file content from companion hidden input on click
+    $(document).on('click', '.file-content-download', function () {
+        var content = $(this).siblings('input[type="hidden"]').val();
+        if (!content) return false;
+        var blob = new Blob([content], { type: 'application/octet-stream' });
+        var url = URL.createObjectURL(blob);
+        $(this).attr('href', url);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    });
 });
 
 JSON.unflatten = function(data) {
