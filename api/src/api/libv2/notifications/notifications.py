@@ -98,9 +98,12 @@ def get_user_trigger_notifications_displays(payload, trigger):
     # Check if the user has notifications for the trigger
     for notification in notifications:
         # Check if the notification must be ignored
-        if notification["ignore_after"] != datetime(
+        ignore_after = notification.get(
+            "ignore_after", datetime(1970, 1, 1, tzinfo=pytz.UTC)
+        )
+        if ignore_after != datetime(
             1970, 1, 1, tzinfo=pytz.UTC
-        ) and notification["ignore_after"] < datetime.now().astimezone(pytz.UTC):
+        ) and ignore_after < datetime.now().astimezone(pytz.UTC):
             continue
         if notification["action_id"] == "custom":
             notifications_data = get_user_notifications_data(
@@ -241,9 +244,12 @@ def get_user_trigger_notifications(payload, trigger, display):
         ordered_notifications[order] = {}
         for notification in notifications:
             # Check if the notification must be ignored
-            if notification["ignore_after"] != datetime(
+            ignore_after = notification.get(
+                "ignore_after", datetime(1970, 1, 1, tzinfo=pytz.UTC)
+            )
+            if ignore_after != datetime(
                 1970, 1, 1, tzinfo=pytz.UTC
-            ) and notification["ignore_after"] < datetime.now().astimezone(pytz.UTC):
+            ) and ignore_after < datetime.now().astimezone(pytz.UTC):
                 continue
             if notification["order"] == order:
                 if notification["item_type"] not in ordered_notifications[order]:
