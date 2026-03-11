@@ -57,7 +57,7 @@
         {% endwith %}
 
         <div class="custom-certificate-form">
-{% with
+          {% with
             name="certificate_data",
             label="Certificate File",
             type="file",
@@ -66,6 +66,40 @@
             {% include '/snippets/form_field.html' %}
           {% endwith %}
         </div>
+      </div>
+    </div>
+  </div>
+{% endwith %}
+
+{% with
+  id_prefix="category-branding-logo-",
+  name_prefix="branding[logo]"
+%}
+  <div id="branding-logo-panel" class="x_panel">
+    <div class="x_title">
+      <h4><i class="fa fa-image"></i> Logo</h4>
+      <div class="clearfix"></div>
+    </div>
+    <div class="x_content">
+      {% with
+        name="enabled",
+        label="Enabled",
+        type="checkbox"
+      %}
+        {% include '/snippets/form_field.html' %}
+      {% endwith %}
+
+      <div class="branding-logo-settings">
+        {% with
+          name="data",
+          label="Logo (SVG, PNG, WebP)",
+          type="file",
+          required=false,
+          accept="image/svg+xml,image/png,image/webp",
+          preview=true
+        %}
+          {% include '/snippets/form_field.html' %}
+        {% endwith %}
       </div>
     </div>
   </div>

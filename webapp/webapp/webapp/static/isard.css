@@ -259,10 +259,25 @@ table.dataTable tr.shown td.details-control > button > i:before {
 .file-content-download:not([style*="display: none"]) {
   display: inline-block;
 }
+.file-content-preview {
+  display: none;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  background: #f5f5f5;
+  max-width: 300px;
+}
+
+.file-content-preview img {
+  max-width: 100%;
+}
+
 /* Form sections hidden by default */
 .provider-config-form,
 .custom-certificate-form,
-.branding-domain-settings {
+.branding-domain-settings,
+.branding-logo-settings {
   display: none;
 }
 

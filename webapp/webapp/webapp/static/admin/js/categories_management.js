@@ -466,7 +466,7 @@ $(document).ready(function () {
         ajaxPutWithNotice(
             "/api/v3/admin/category/" + $(`${modal} #id`).val() + "/branding",
             collectFormData(form).branding,
-            "branding domain",
+            "branding",
             function () {
                 $('form').each(function () { this.reset(); });
                 $('.modal').modal('hide');
@@ -849,6 +849,7 @@ function actionsCategoryDetail() {
         $modal.off("hidden.bs.modal").on("hidden.bs.modal", function () {
             $form[0].reset();
             $form.find(":checkbox").iCheck("uncheck").iCheck('update');
+            $form.find("input[type='hidden'][data-file-content]").val('').trigger('change');
         });
 
         // Set up domain enabled checkbox toggle
@@ -862,6 +863,12 @@ function actionsCategoryDetail() {
             var customCertForm = $(this).closest(".branding-domain-settings").find(".custom-certificate-form");
             toggleFormSection(customCertForm, $(this).val() === "custom");
         }).trigger("change");
+
+        // Set up logo enabled checkbox toggle
+        $form.find("input[name='branding[logo][enabled]']").off("ifChanged").on("ifChanged", function () {
+            var settingsContainer = $(this).closest(".x_content").find(".branding-logo-settings");
+            toggleFormSection(settingsContainer, $(this).is(":checked"));
+        }).trigger("ifChanged");
 
         // Fetch branding data and populate form
         $.ajax({

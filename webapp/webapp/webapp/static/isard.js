@@ -197,19 +197,43 @@ $(document).ready(function() {
         var $hidden = $(this).siblings('input[type="hidden"]');
         var file = this.files[0];
         if (file) {
+            var accept = $(this).attr('accept');
+            if (accept && accept.indexOf(file.type) === -1) {
+                new PNotify({
+                    text: 'File type ' + file.type + ' not allowed.',
+                    type: 'error',
+                    delay: 3000
+                });
+                $(this).val('');
+                $hidden.val('').trigger('change');
+                return;
+            }
             var reader = new FileReader();
             reader.onload = function (e) {
                 $hidden.val(e.target.result).trigger('change');
             };
-            reader.readAsText(file);
+            if (file.type.startsWith('image/')) {
+                reader.readAsDataURL(file);
+            } else {
+                reader.readAsText(file);
+            }
         } else {
             $hidden.val('').trigger('change');
         }
     });
 
-    // Toggle download link visibility when companion hidden input changes
+    // Toggle download link and preview when companion hidden input changes
     $(document).on('change', 'input[type="hidden"][data-file-content]', function () {
-        $(this).siblings('.file-content-download').toggle(!!$(this).val());
+        var val = $(this).val();
+        $(this).siblings('.file-content-download').toggle(!!val);
+        var $preview = $(this).siblings('.file-content-preview');
+        if ($preview.length) {
+            if (val && val.indexOf('data:') === 0) {
+                $preview.html('<img src="' + val + '" />').show();
+            } else {
+                $preview.empty().hide();
+            }
+        }
     });
 
     // Download file content from companion hidden input on click

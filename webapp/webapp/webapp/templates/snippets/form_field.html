@@ -44,9 +44,14 @@
           data-file-content
           {{ 'accept="' ~ accept ~ '"' if accept else '' }}
         />
-        <a class="btn btn-default btn-sm file-content-download" download="{{ name }}.pem">
-          <i class="fa fa-download"></i> Download
-        </a>
+        {% if preview %}
+          <div class="file-content-preview">
+          </div>
+        {% else %}
+          <a class="btn btn-default btn-sm file-content-download" download="{{ name }}.pem">
+            <i class="fa fa-download"></i> Download
+          </a>
+        {% endif %}
       {% else %}
         <{{ 'select' if type == 'select' else 'input' }}
           id="{{ id_prefix }}{{ name }}"
