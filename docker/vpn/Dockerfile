@@ -1,8 +1,27 @@
-# Hack to be able to use an arg as a COPY --from
-# https://stackoverflow.com/a/63472135
-ARG DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
-ARG DOCKER_IMAGE_TAG
-FROM ${DOCKER_IMAGE_PREFIX}rdpgw:$DOCKER_IMAGE_TAG as rdpgw
+ARG GOLANG_BUILD_IMAGE
+
+# Build rdpgw binary
+FROM ${GOLANG_BUILD_IMAGE} as rdpgw-build
+
+WORKDIR /build
+
+RUN mkdir -p /build/pkg/sdk
+
+COPY go.mod /build
+COPY go.sum /build
+COPY pkg/sdk/go.mod /build/pkg/sdk
+COPY pkg/sdk/go.sum /build/pkg/sdk
+
+RUN go mod download
+
+WORKDIR /
+
+COPY pkg /build/pkg
+COPY rdpgw /build/rdpgw
+
+WORKDIR /build/rdpgw
+
+RUN CGO_ENABLED=0 go build -o bin/rdpgw cmd/rdpgw/main.go
 
 #
 # VPN
@@ -69,6 +88,6 @@ COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
 COPY docker/vpn/src /src
 COPY docker/vpn/run.sh /
 
-COPY --from=rdpgw /rdpgw /rdpgw
+COPY --from=rdpgw-build /build/rdpgw/bin/rdpgw /rdpgw
 
 CMD [ "sh", "run.sh"]
