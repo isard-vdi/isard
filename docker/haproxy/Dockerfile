@@ -1,11 +1,30 @@
 ARG HAPROXY_RUN_IMAGE
+ARG GOLANG_BUILD_IMAGE
 
-# Hack to be able to use an arg as a COPY --from
-# https://stackoverflow.com/a/63472135
-ARG DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
-ARG DOCKER_IMAGE_TAG
-FROM ${DOCKER_IMAGE_PREFIX}haproxy-bastion-sync:$DOCKER_IMAGE_TAG as haproxy-bastion-sync
+# Build haproxy-bastion-sync binary
+FROM ${GOLANG_BUILD_IMAGE} as haproxy-bastion-sync-build
 
+WORKDIR /build
+
+RUN mkdir -p /build/pkg/sdk
+
+COPY go.mod /build
+COPY go.sum /build
+COPY pkg/sdk/go.mod /build/pkg/sdk
+COPY pkg/sdk/go.sum /build/pkg/sdk
+
+RUN go mod download
+
+WORKDIR /
+
+COPY pkg /build/pkg
+COPY haproxy-bastion-sync /build/haproxy-bastion-sync
+
+WORKDIR /build/haproxy-bastion-sync
+
+RUN CGO_ENABLED=0 go build -o bin/haproxy-bastion-sync cmd/haproxy-bastion-sync/main.go
+
+# HAProxy production image
 FROM ${HAPROXY_RUN_IMAGE} as production
 
 USER root
@@ -14,7 +33,7 @@ RUN apk -U upgrade --no-cache
 RUN apk add --no-cache openssl acme.sh
 
 # Copy haproxy-bastion-sync binary
-COPY --from=haproxy-bastion-sync /haproxy-bastion-sync /usr/local/bin/haproxy-bastion-sync
+COPY --from=haproxy-bastion-sync-build /build/haproxy-bastion-sync/bin/haproxy-bastion-sync /usr/local/bin/haproxy-bastion-sync
 
 # Copy HAProxy scripts and configs
 COPY docker/haproxy/_common/prepare.sh /usr/local/sbin/

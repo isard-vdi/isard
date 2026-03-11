@@ -1,0 +1,3 @@
+services:
+  isard-haproxy:
+    image: ${DOCKER_IMAGE_PREFIX}haproxy:${DOCKER_IMAGE_TAG-latest}
