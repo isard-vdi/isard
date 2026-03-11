@@ -131,6 +131,23 @@ $(document).ready(function () {
     order: [[7, "desc"]]
   });
 
+  // Real-time updates for GPU profile changes
+  waitDefined("socket", function () {
+    socket.on('vgpu_data', function (raw) {
+      var data = JSON.parse(raw);
+      gpus_table.rows().every(function () {
+        var rowData = this.data();
+        if (rowData.physical_device === data.id) {
+          rowData.active_profile = data.vgpu_profile;
+          rowData.changing_to_profile = data.changing_to_profile;
+          rowData.desktops_started = data.desktops_started;
+          this.data(rowData).invalidate();
+          gpus_table.draw(false);
+        }
+      });
+    });
+  });
+
   // Add event listener for opening and closing first level childdetails
   $("#table-gpus tbody").on("click", "td.details-control", function () {
     var tr = $(this).closest("tr");
