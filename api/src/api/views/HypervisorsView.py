@@ -114,6 +114,11 @@ def api_v3_hypervisor(hyper_id=False):
             nvidia_enabled = (
                 True if request.form.get("nvidia_enabled") == "True" else False
             )
+            nvidia_gpus_raw = request.form.get("nvidia_gpus", "[]")
+            try:
+                nvidia_gpus = json.loads(nvidia_gpus_raw)
+            except (json.JSONDecodeError, TypeError):
+                nvidia_gpus = []
             # DEPRECATED: force_get_hyp_info is ignored - engine auto-detects GPU changes
             # Kept for backwards compatibility with API calls
             force_get_hyp_info = (
@@ -159,6 +164,7 @@ def api_v3_hypervisor(hyper_id=False):
             isard_proxy_hyper_url=isard_proxy_hyper_url,
             isard_hyper_vpn_host=isard_hyper_vpn_host,
             nvidia_enabled=nvidia_enabled,
+            nvidia_gpus=nvidia_gpus,
             force_get_hyp_info=force_get_hyp_info,
             description=description,
             user=user,

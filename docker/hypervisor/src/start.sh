@@ -95,6 +95,10 @@ do
   fi
 done
 
+echo "---> Discovering NVIDIA GPUs..."
+export LD_LIBRARY_PATH=/usr/lib:${LD_LIBRARY_PATH:-}
+python3 -c "from lib.gpu_discovery import discover_gpus; import json; gpus = discover_gpus(); print(json.dumps(gpus, indent=2)) if gpus else print('No NVIDIA GPUs found')"
+
 echo "---> Checking hypervisor by creating/destroying test domain..."
 virsh create /src/checks/domain.xml
 virsh destroy domain

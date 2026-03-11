@@ -8,6 +8,7 @@ from pprint import pprint
 from time import sleep
 
 from api_client import ApiClient
+from gpu_discovery import discover_gpus
 
 DEFAULT_STORAGE_POOL_ID = (
     SourceFileLoader("storage_pool", "/src/_common/default_storage_pool.py")
@@ -67,9 +68,8 @@ def SetupHypervisor():
         "isard_proxy_hyper_url": proxy_hyper_url,
         "isard_hyper_vpn_host": isard_hyper_vpn_host,
         "only_forced": json.loads(os.environ.get("ONLY_FORCED_HYP", "false").lower()),
-        "nvidia_enabled": (
-            True if os.environ.get("GPU_NVIDIA_SCAN") == "true" else False
-        ),
+        "nvidia_gpus": json.dumps(discover_gpus()),
+        "nvidia_enabled": False,  # Will be set below based on discovery
         # DEPRECATED: force_get_hyp_info is ignored - engine auto-detects GPU changes
         # Kept as False for backwards compatibility with older API versions
         "force_get_hyp_info": False,
@@ -87,6 +87,9 @@ def SetupHypervisor():
         ),
         "gpu_only": True if os.environ.get("GPU_ONLY") == "true" else False,
     }
+
+    gpu_list = json.loads(HYPERVISOR["nvidia_gpus"])
+    HYPERVISOR["nvidia_enabled"] = len(gpu_list) > 0
 
     ## Adding hyper. Received dict with certs and number
     ok = False

@@ -26,6 +26,11 @@ RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /et
 
 RUN apk -U upgrade --no-cache
 
+# glibc compatibility layer so host nvidia-smi (glibc-linked) runs on musl Alpine
+RUN apk add --no-cache gcompat && \
+    mkdir -p /lib64 && \
+    ln -sf /lib/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
+
 RUN apk add --no-cache \
     libvirt \
     libvirt-daemon \
