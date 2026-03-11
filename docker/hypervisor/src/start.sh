@@ -7,12 +7,23 @@ export VIEWER_SPICE
 export BLACKLIST_IPTABLES
 export WHITELIST_IPTABLES
 
+BOOT_TOTAL=9
+
+# Report boot progress step to API (fire-and-forget)
+report_step() {
+  python3 -c "
+import sys; sys.path.insert(0, '/src/lib')
+from progress import report_progress
+report_progress($1, $BOOT_TOTAL, '$2', $3)
+" 2>/dev/null || true
+}
+
 # Will remove hyper on docker shutdown
 remove_hyper()
 {
   python3 /src/lib/hypervisor.py delete
 }
-trap remove_hyper SIGTERM SIGINT SIGQUIT 
+trap remove_hyper SIGTERM SIGINT SIGQUIT
 
 echo "---> Cleaning old libvirt info dirs..."
 rm -rf /run/libvirt/*
@@ -33,8 +44,12 @@ python3 /src/lib/hypervisor.py setup
 chmod 440 /etc/pki/libvirt-spice/*
 chown qemu:root /etc/pki/libvirt-spice/*
 
+# Hypervisor record now exists in DB — start reporting progress
+report_step 1 "API registration" None
+
 echo "---> Setting up hypervisor wg VPNc from api..."
 python3 /src/lib/vpnc.py
+report_step 2 "VPN setup" None
 
 echo "---> Setting up OpenVswitch over wg..."
 sh -c "/src/ovs/setup.sh"
@@ -46,6 +61,7 @@ OVS_WORKER_PID=$!
 echo "OVS worker daemon started (PID: $OVS_WORKER_PID)"
 # Wait a moment for socket to be ready
 sleep 1
+report_step 3 "OVS setup" None
 
 env > /tmp/env # This is needed by the dnsmasq-hook to get the envvars
 # This is the route needed, should be added from above python script
@@ -63,6 +79,7 @@ while [ $? -ne 0 ]; do
   virsh list >/dev/null 2>&1
 done
 echo "Libvirt started!"
+report_step 4 "Libvirt startup" None
 
 #echo "---> Setting vlans..."
 #sh -c "/src/vlans/vlans-discover.sh"
@@ -94,14 +111,17 @@ do
     /usr/bin/virsh net-autostart $filename
   fi
 done
+report_step 5 "Network setup" None
 
 echo "---> Discovering NVIDIA GPUs..."
 export LD_LIBRARY_PATH=/usr/lib:${LD_LIBRARY_PATH:-}
 python3 -c "from lib.gpu_discovery import discover_gpus; import json; gpus = discover_gpus(); print(json.dumps(gpus, indent=2)) if gpus else print('No NVIDIA GPUs found')"
+report_step 6 "GPU discovery" None
 
 echo "---> Checking hypervisor by creating/destroying test domain..."
 virsh create /src/checks/domain.xml
 virsh destroy domain
+report_step 7 "Domain test" None
 
 echo "---> Applying custom BLACKLIST_IPTABLES rules"
 BLACKLIST_IPTABLES=$(echo $BLACKLIST_IPTABLES | tr "," " ")
@@ -127,6 +147,7 @@ do
    iptables -I FORWARD -s "$WHITELIST_IPTABLES" -o eth0 -j ACCEPT
    iptables -I FORWARD -d "$WHITELIST_IPTABLES" -o eth0 -j ACCEPT
 done
+report_step 8 "Firewall rules" None
 
 echo "---> Applying Video Traffic Prioritization..."
 /src/tc/tc_video.sh
@@ -137,6 +158,7 @@ if [ -z "$HYPER_ENABLED" ] || [ "$HYPER_ENABLED" == "true" ]
 then
   echo "---> Enabling hypervisor..."
   python3 /src/lib/hypervisor.py enable
+  report_step 9 "Ready" None
 else
   echo "---> NOT enabling hypervisor because HYPER_ENABLED envvar missing or not true."
 fi

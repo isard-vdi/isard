@@ -189,6 +189,7 @@ $(document).ready(function () {
     { "data": "stats.last_action.action_time", "className": 'group-stats', "visible": false },
     { "data": "stats.last_action.intervals", "className": '-group-stats', "visible": false },
     { "data": "stats.positioned_items", "className": 'group-stats', "visible": false },
+    { "data": "boot_progress", "defaultContent": null, "visible": false },
     ],
     "order": [
       [8, 'asc']
@@ -1325,7 +1326,18 @@ function renderStatus(data) {
       }
       break;
     case 'Offline':
-      icon = '<i class="fa fa-power-off fa-2x" style="color:black"></i>';
+      if (data.boot_progress && data.boot_progress.step) {
+        var bp = data.boot_progress;
+        if (bp.error) {
+          icon = '<i class="fa fa-exclamation-triangle fa-2x" style="color:red" title="' + bp.error + '"></i>';
+          statusText = bp.step + '/' + bp.total + ': ' + bp.label + ' (error)';
+        } else {
+          icon = '<i class="fa fa-spinner fa-pulse fa-2x" style="color:cornflowerblue"></i>';
+          statusText = bp.step + '/' + bp.total + ': ' + bp.label;
+        }
+      } else {
+        icon = '<i class="fa fa-power-off fa-2x" style="color:black"></i>';
+      }
       break;
     case 'Error':
       icon = '<i class="fa fa-exclamation-triangle fa-2x" style="color:lightred"></i>';

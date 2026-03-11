@@ -160,7 +160,6 @@ def api_v3_hypervisor(hyper_id=False):
             isard_hyper_vpn_host=isard_hyper_vpn_host,
             nvidia_enabled=nvidia_enabled,
             nvidia_gpus=nvidia_gpus,
-
             description=description,
             user=user,
             only_forced=only_forced,

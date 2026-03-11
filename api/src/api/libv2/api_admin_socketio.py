@@ -525,6 +525,7 @@ class HypervisorsThread(threading.Thread):
                                     "gpu_only",
                                     "orchestrator_managed",
                                     "destroy_time",
+                                    "boot_progress",
                                 ]
                             )
                             .changes(include_initial=False)
