@@ -20,7 +20,6 @@ import libvirt
 import paramiko
 import xmltodict
 from engine.config import *
-from engine.models.nvidia_models import NVIDIA_MODELS
 from engine.services.db import (
     get_hyp_info,
     get_id_hyp_from_uri,
@@ -81,34 +80,6 @@ HYP_STATUS_ERROR_WHEN_CLOSE_CONNEXION = -1
 HYP_STATUS_NOT_ALIVE = -10
 
 MAX_GET_KVM_RETRIES = 3
-
-devid_nvidia_ampere = {}
-# Ampere
-devid_nvidia_ampere[0x20B0] = "A100"
-devid_nvidia_ampere[0x20B2] = "A100DX"
-devid_nvidia_ampere[0x20F1] = "A100 PCIe"
-devid_nvidia_ampere[0x2230] = "RTX A6000"
-devid_nvidia_ampere[0x2231] = "RTX A5000"
-devid_nvidia_ampere[0x2235] = "A40"
-devid_nvidia_ampere[0x2236] = "A10"
-devid_nvidia_ampere[0x2237] = "A10G"
-devid_nvidia_ampere[0x20B5] = "A100 80GB PCIe"
-devid_nvidia_ampere[0x20B7] = "A30"
-devid_nvidia_ampere[0x25B6] = "A16"
-# same devid A16 and A2 subsystem:
-# ssid: 0x14A9 = "A16"
-# ssid: 0x159D = "A2"
-
-devid_nvidia_ampere[0x20B8] = "A100X"
-devid_nvidia_ampere[0x20B9] = "A30X"
-devid_nvidia_ampere[0x2233] = "RTX A5500"
-devid_nvidia_ampere[0x20F5] = "A800 80GB PCIe"
-devid_nvidia_ampere[0x20F3] = "A800-SXM4-80GB"
-# Hopper
-devid_nvidia_ampere[0x2331] = "H100 PCIe"
-devid_nvidia_ampere[0x26B5] = "L40"
-devid_nvidia_ampere[0x26B9] = "L40S"
-devid_nvidia_ampere[0x26BA] = "L20"
 
 
 class HypStats(object):
@@ -453,10 +424,11 @@ class hyp(object):
         """Quick scan to get list of NVIDIA PCI device IDs with model info.
 
         This is a fast operation that only lists device names and models,
-        not full capabilities. Used to detect hardware changes.
+        not full capabilities. Used to detect hardware changes in the legacy
+        fallback path (when nvidia_gpus is not available from hypervisor).
 
         Returns:
-            dict: Mapping of PCI bus ID to GPU model (e.g., {"pci_0000_41_00_0": "A40"})
+            dict: Mapping of PCI bus ID to GPU model (e.g., {"pci_0000_41_00_0": "NVIDIA A40"})
                   Returns empty dict on error.
         """
         try:
@@ -476,15 +448,10 @@ class hyp(object):
                 xml_dict = xmltodict.parse(dev.XMLDesc())
                 if xml_dict["device"].get("driver", {}).get("name") == "nvidia":
                     name = dev.name()
-                    # Get device PCI ID to determine model
-                    device_pci_id = int(
-                        xml_dict["device"]["capability"]["product"]["@id"], base=0
+                    product_name = xml_dict["device"]["capability"]["product"].get(
+                        "#text", "UNKNOWN"
                     )
-                    if device_pci_id in devid_nvidia_ampere.keys():
-                        model = devid_nvidia_ampere[device_pci_id]
-                    else:
-                        model = "UNKNOWN"
-                    nvidia_pci_info[name] = model
+                    nvidia_pci_info[name] = product_name
 
             return nvidia_pci_info
         except Exception as e:
@@ -493,22 +460,14 @@ class hyp(object):
             )
             return {}
 
-    def get_info_from_hypervisor(
-        self, nvidia_enabled=False, force_get_hyp_info=False, init_vgpu_profiles=False
-    ):
-        """Get hypervisor info, auto-detecting GPU hardware changes.
+    def get_info_from_hypervisor(self, nvidia_enabled=False, init_vgpu_profiles=False):
+        """Get hypervisor info, using hypervisor-discovered GPU data when available.
 
-        The force_get_hyp_info parameter is DEPRECATED and ignored.
-        GPU hardware changes are now auto-detected by comparing PCI IDs.
+        GPU detection uses nvidia_gpus data from the hypervisor record
+        (discovered via nvidia-smi at hypervisor startup).
+        Falls back to SSH-based libvirt scanning if nvidia_gpus is not present.
         """
         logs.workers.info(f"[{self.id_hyp_rethink}] Getting hypervisor info...")
-
-        # Warn if deprecated parameter is used
-        if force_get_hyp_info:
-            logs.workers.warning(
-                f"[{self.id_hyp_rethink}] DEPRECATED: force_get_hyp_info is set but ignored. "
-                f"GPU hardware changes are now auto-detected."
-            )
 
         # Step 1: Load cached info from database
         info = self.info = get_hyp_info(self.id_hyp_rethink)
@@ -521,45 +480,25 @@ class hyp(object):
                 f"[{self.id_hyp_rethink}] No cached info, will scan hypervisor"
             )
 
-        # Step 2: Check for GPU hardware changes (if nvidia enabled and has cache)
+        # Step 2: Check for GPU inventory from hypervisor (nvidia-smi based)
+        hyper_record = get_hypervisor(self.id_hyp_rethink)
+        nvidia_gpus = hyper_record.get("nvidia_gpus", []) if hyper_record else []
+        use_db_gpu_detection = len(nvidia_gpus) > 0
+
+        # Determine if rescan is needed
         needs_rescan = not has_cached_info
 
-        if has_cached_info and nvidia_enabled:
+        if has_cached_info and nvidia_enabled and not use_db_gpu_detection:
+            # Legacy path: check for GPU hardware changes via libvirt
             logs.workers.info(
-                f"[{self.id_hyp_rethink}] Checking for GPU hardware changes..."
+                f"[{self.id_hyp_rethink}] No nvidia_gpus in DB, checking via libvirt..."
             )
-
-            # Get cached GPU info: {pci_id: model}
             cached_gpu_info = info.get("nvidia", {})
-            # Get current GPU info from hypervisor
             current_gpu_info = self._get_nvidia_pci_ids()
 
-            logs.workers.debug(
-                f"[{self.id_hyp_rethink}] Cached GPU info: {cached_gpu_info}"
-            )
-            logs.workers.debug(
-                f"[{self.id_hyp_rethink}] Current GPU info: {current_gpu_info}"
-            )
-
-            # Compare both PCI IDs and models
             if cached_gpu_info != current_gpu_info:
-                cached_pci_ids = set(cached_gpu_info.keys())
-                current_pci_ids = set(current_gpu_info.keys())
-                added = current_pci_ids - cached_pci_ids
-                removed = cached_pci_ids - current_pci_ids
-
-                # Check for model changes in same slots
-                model_changes = []
-                for pci_id in cached_pci_ids & current_pci_ids:
-                    if cached_gpu_info.get(pci_id) != current_gpu_info.get(pci_id):
-                        model_changes.append(
-                            f"{pci_id}: {cached_gpu_info.get(pci_id)} -> {current_gpu_info.get(pci_id)}"
-                        )
-
                 logs.workers.info(
-                    f"[{self.id_hyp_rethink}] GPU hardware changed! "
-                    f"Added: {added or 'none'}, Removed: {removed or 'none'}, "
-                    f"Model changes: {model_changes or 'none'}"
+                    f"[{self.id_hyp_rethink}] GPU hardware changed (libvirt detection)"
                 )
                 needs_rescan = True
             else:
@@ -575,7 +514,19 @@ class hyp(object):
             )
             self.info = {}
             self.get_kvm_mod()
-            self.get_hyp_info(nvidia_enabled)
+
+            if use_db_gpu_detection:
+                # New path: use hypervisor-discovered GPU data
+                self.get_hyp_info(nvidia_enabled=False)  # Skip libvirt GPU scan
+                self.get_nvidia_capabilities_from_db(nvidia_gpus)
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] Using nvidia-smi GPU data from hypervisor: "
+                    f"{len(self.info_nvidia)} GPU cards with vGPU profiles"
+                )
+            else:
+                # Legacy path: SSH-based libvirt scanning
+                self.get_hyp_info(nvidia_enabled)
+
             logs.workers.info(
                 f"[{self.id_hyp_rethink}] Hypervisor scan complete: "
                 f"{self.info.get('cpu_model', 'unknown')} CPU, "
@@ -596,7 +547,6 @@ class hyp(object):
                     vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
                     d_uuids = self.create_uuids(d_vgpu)
                     update_vgpu_uuids(vgpu_id, d_uuids)
-                    # self.mdevs[pci_bus] = d_uuids
 
                     # init vgpu_profile to max gpu profile
                     vgpu_profile = self.info_nvidia[pci_bus]["type_max_gpus"]
@@ -615,10 +565,18 @@ class hyp(object):
                             i = index_vgpu_profile[model] % len(list_profiles_selected)
                             vgpu_profile = list_profiles_selected[i]
 
-                    # self.info_nvidia[pci_bus]["vgpu_profile"] = vgpu_profile
                     update_vgpu_profile(vgpu_id, vgpu_profile)
         else:
             logs.workers.info(f"[{self.id_hyp_rethink}] Using cached hypervisor info")
+
+        # Always set nvidia_enabled based on actual GPU state for new-style detection
+        if use_db_gpu_detection and has_cached_info and not needs_rescan:
+            # Even when using cache, update nvidia info from DB if available
+            self.get_nvidia_capabilities_from_db(nvidia_gpus)
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Updated nvidia info from DB: "
+                f"{len(self.info_nvidia)} GPU cards"
+            )
 
     def load_info_from_db(self):
         self.info = get_hyp_info(self.id_hyp_rethink)
@@ -1195,6 +1153,86 @@ class hyp(object):
             d_available[pci_id] = info_nvidia["types"][vgpu_id]["available"]
         return d_available
 
+    def get_nvidia_capabilities_from_db(self, nvidia_gpus):
+        """Build d_info_nvidia from hypervisor-discovered nvidia_gpus data.
+
+        This reads the GPU inventory that the hypervisor discovered via nvidia-smi
+        and sysfs, stored in the hypervisors table, and builds the same
+        d_info_nvidia dict format that the rest of the engine expects.
+
+        Args:
+            nvidia_gpus: list of GPU dicts from hypervisor discovery
+        """
+        d_info_nvidia = {}
+        for gpu in nvidia_gpus:
+            if not gpu.get("vgpu_profiles"):
+                continue
+
+            pci_bus_id = gpu["pci_bus_id"]
+            # Convert nvidia-smi PCI format to libvirt PCI name format
+            # e.g., "00000000:41:00.0" -> "pci_0000_41_00_0"
+            normalized = pci_bus_id.lower()
+            # Handle both "00000000:41:00.0" and "0000:41:00.0" formats
+            if len(normalized.split(":")[0]) > 4:
+                normalized = "0000:" + normalized.split(":", 1)[1]
+            pci_name = "pci_" + normalized.replace(":", "_").replace(".", "_")
+
+            info_nvidia = {}
+
+            # Build types dict from vgpu_profiles
+            d_types = {}
+            for profile in gpu["vgpu_profiles"]:
+                profile_name = profile["name"]  # e.g., "A40-4Q"
+                profile_suffix = profile_name.split("-")[-1]  # e.g., "4Q"
+
+                d_types[profile_suffix] = {
+                    "id": profile["type_id"],
+                    "available": profile["available_instances"],
+                    "memory": profile.get("framebuffer_mb", 0),
+                    "max": profile.get("max_instances", 0),
+                }
+
+            if not d_types:
+                continue
+
+            # Sort by numeric part of profile suffix to find smallest (most splits)
+            sorted_profiles = sorted(
+                d_types.keys(),
+                key=lambda k: int(k[:-1]) if k[:-1].isdigit() else 0,
+            )
+            type_max_gpus = sorted_profiles[0]  # smallest memory = most instances
+
+            # Extract model from profile name
+            first_profile_name = gpu["vgpu_profiles"][0]["name"]
+            model_gpu = first_profile_name.split("-")[0]  # e.g., "A40"
+
+            info_nvidia["types"] = d_types
+            info_nvidia["type_max_gpus"] = type_max_gpus
+            info_nvidia["device_name"] = gpu["name"]
+            info_nvidia["pci_id"] = pci_name
+            info_nvidia["model"] = model_gpu
+
+            # Construct path from PCI bus ID
+            sysfs_pci_id = normalized
+            info_nvidia["path"] = f"/sys/bus/pci/devices/{sysfs_pci_id}"
+
+            # Handle sub_paths and path_parent for multi-subdevice cards (e.g., A40)
+            if gpu.get("sub_paths"):
+                info_nvidia["sub_paths"] = set(gpu["sub_paths"])
+            if gpu.get("path_parent"):
+                info_nvidia["path_parent"] = gpu["path_parent"]
+
+            # max_gpus is the max of the most-split profile
+            info_nvidia["max_gpus"] = d_types[type_max_gpus]["max"]
+            info_nvidia["max_count"] = 0  # Not available from nvidia-smi
+
+            d_info_nvidia[pci_name] = info_nvidia
+
+        self.info["nvidia"] = {k: v["model"] for k, v in d_info_nvidia.items()}
+        self.info_nvidia = d_info_nvidia
+        if d_info_nvidia:
+            self.has_nvidia = True
+
     def get_nvidia_capabilities(self, only_get_availables=False):
         d_info_nvidia = {}
         libvirt_mdev_names = self.conn.listDevices("mdev_types")
@@ -1235,10 +1273,13 @@ class hyp(object):
                             d["device"]["capability"]["product"]["@id"], base=0
                         )
                         if only_get_availables is False:
-                            pci = LibPCI()
-                            if device_pci_id in devid_nvidia_ampere.keys():
-                                device_name = devid_nvidia_ampere[device_pci_id]
+                            product_text = d["device"]["capability"]["product"].get(
+                                "#text", ""
+                            )
+                            if product_text:
+                                device_name = product_text
                             else:
+                                pci = LibPCI()
                                 device_name = pci.lookup_device_name(
                                     vendor_pci_id, device_pci_id
                                 )
@@ -1252,14 +1293,14 @@ class hyp(object):
                     try:
                         sub_paths = False
                         path_parent = False
-                        if device_pci_id in devid_nvidia_ampere.keys():
-                            (
-                                l_types,
-                                sub_paths,
-                                path_parent,
-                            ) = self.get_types_from_ampere(d)
-                        else:
-                            # only C-Series or Q-Series Virtual GPU Types (Required license edition: vWS)
+                        # Try sysfs-based ampere detection first (works for all modern cards)
+                        (
+                            l_types,
+                            sub_paths,
+                            path_parent,
+                        ) = self.get_types_from_ampere(d)
+                        if l_types is False:
+                            # Fallback to libvirt capability XML for older cards
                             if (
                                 type(d["device"]["capability"]["capability"]) is list
                             ):  ## T4
@@ -1275,17 +1316,14 @@ class hyp(object):
                                 a["name"] = a["name"].replace("GRID ", "")
                         l_types.sort(key=lambda r: int(r["name"][:-1].split("-")[-1]))
                         type_max_gpus = l_types[0]["name"].split("-")[-1]
-                        model_gpu = l_types[0]["name"].split("-")[-2]
+                        model_gpu = l_types[0]["name"].split("-")[0]
 
                         d_types = {
                             a["name"].split("-")[-1]: {
                                 "id": a["@id"],
-                                "available": min(
-                                    int(a.get("availableInstances", 0)),
-                                    NVIDIA_MODELS.get(a["name"], {}).get("max", 0),
-                                ),
-                                "memory": NVIDIA_MODELS.get(a["name"], {}).get("mb", 0),
-                                "max": NVIDIA_MODELS.get(a["name"], {}).get("max", 0),
+                                "available": int(a.get("availableInstances", 0)),
+                                "memory": 0,
+                                "max": int(a.get("availableInstances", 0)),
                             }
                             for a in l_types
                         }
@@ -1849,7 +1887,7 @@ class hyp(object):
         cmds_create_delete = []
         d_id_mdev_type = {v["id"]: k for k, v in info_nvidia["types"].items()}
 
-        if info_nvidia["model"] == "A40":
+        if info_nvidia.get("sub_paths") or info_nvidia.get("path_parent"):
             path_parent = info_nvidia["path_parent"]
             uids_in_hyp_now = {}
             id_mdev_selected = info_nvidia["types"][selected_gpu_type]["id"]

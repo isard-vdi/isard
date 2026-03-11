@@ -94,7 +94,6 @@ def _check_single_hypervisor(hyp_id, disk_interval, DB_DOMAINS_ID_STARTED_WITH_H
             port,
             user,
             nvidia_enabled,
-            force_get_hyp_info,  # DEPRECATED: ignored
             init_vgpu_profiles,
         ) = hyp_info
 

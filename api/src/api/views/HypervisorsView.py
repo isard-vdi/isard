@@ -119,11 +119,6 @@ def api_v3_hypervisor(hyper_id=False):
                 nvidia_gpus = json.loads(nvidia_gpus_raw)
             except (json.JSONDecodeError, TypeError):
                 nvidia_gpus = []
-            # DEPRECATED: force_get_hyp_info is ignored - engine auto-detects GPU changes
-            # Kept for backwards compatibility with API calls
-            force_get_hyp_info = (
-                True if request.form.get("force_get_hyp_info") == "True" else False
-            )
             min_free_mem_gb = int(
                 request.form.get("min_free_mem_gb", default="0", type=str)
             )
@@ -165,7 +160,7 @@ def api_v3_hypervisor(hyper_id=False):
             isard_hyper_vpn_host=isard_hyper_vpn_host,
             nvidia_enabled=nvidia_enabled,
             nvidia_gpus=nvidia_gpus,
-            force_get_hyp_info=force_get_hyp_info,
+
             description=description,
             user=user,
             only_forced=only_forced,
@@ -205,6 +200,17 @@ def api_v3_hypervisor(hyper_id=False):
                 traceback.format_exc(),
             )
         return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/hypervisor/<hyper_id>/boot_progress", methods=["PUT"])
+@is_hyper
+def api_v3_hypervisor_boot_progress(hyper_id):
+    try:
+        boot_progress = json.loads(request.form.get("boot_progress", "{}"))
+    except (json.JSONDecodeError, TypeError):
+        raise Error("bad_request", "Invalid boot_progress JSON")
+    api_hypervisors.update_boot_progress(hyper_id, boot_progress)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/hypervisor/stop/<hyper_id>", methods=["PUT"])

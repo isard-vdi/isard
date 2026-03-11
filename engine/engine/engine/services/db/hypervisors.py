@@ -401,10 +401,7 @@ def get_hyp_hostname_from_id(id):
     """Get hypervisor connection info by ID.
 
     Returns:
-        Tuple of (hostname, port, user, nvidia_enabled, force_get_hyp_info, init_vgpu_profiles)
-
-    Note: force_get_hyp_info is DEPRECATED and ignored by the engine.
-    GPU hardware changes are now auto-detected. Kept for backwards compatibility.
+        Tuple of (hostname, port, user, nvidia_enabled, init_vgpu_profiles)
     """
     try:
         with rethink_conn() as conn:
@@ -416,14 +413,12 @@ def get_hyp_hostname_from_id(id):
                     "port",
                     "user",
                     "nvidia_enabled",
-                    # DEPRECATED: force_get_hyp_info is ignored - engine auto-detects GPU changes
-                    "force_get_hyp_info",
                     "init_vgpu_profiles",
                 )
                 .run(conn)
             )
     except ReqlNonExistenceError:
-        return False, False, False, False, False, False
+        return False, False, False, False, False
     if len(l) > 0:
         if l.__contains__("user") and l.__contains__("port"):
             return (
@@ -431,8 +426,6 @@ def get_hyp_hostname_from_id(id):
                 l["port"],
                 l["user"],
                 l.get("nvidia_enabled", False),
-                # DEPRECATED: Always returns value but it's ignored by caller
-                l.get("force_get_hyp_info", False),
                 l.get("init_vgpu_profiles", False),
             )
 
@@ -440,9 +433,9 @@ def get_hyp_hostname_from_id(id):
             log.error(
                 "hypervisor {} does not contain user or port in database".format(id)
             )
-            return False, False, False, False, False, False
+            return False, False, False, False, False
     else:
-        return False, False, False, False, False, False
+        return False, False, False, False, False
 
 
 def get_hypers_ids_with_status(status):

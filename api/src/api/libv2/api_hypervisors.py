@@ -301,7 +301,6 @@ class ApiHypervisors:
         isard_hyper_vpn_host="isard-vpn",
         nvidia_enabled=False,
         nvidia_gpus=None,
-        force_get_hyp_info=False,  # DEPRECATED: ignored, engine auto-detects GPU changes
         user="root",
         only_forced=False,
         min_free_mem_gb=0,
@@ -313,7 +312,6 @@ class ApiHypervisors:
         buffering_hyper=False,
         gpu_only=False,
     ):
-        # Note: force_get_hyp_info parameter is deprecated and ignored
         data = {}
 
         # Check if it is in database
@@ -373,7 +371,6 @@ class ApiHypervisors:
                 isard_hyper_vpn_host=isard_hyper_vpn_host,
                 nvidia_enabled=nvidia_enabled,
                 nvidia_gpus=nvidia_gpus,
-                force_get_hyp_info=force_get_hyp_info,
                 description=description,
                 user=user,
                 only_forced=only_forced,
@@ -434,7 +431,6 @@ class ApiHypervisors:
         isard_hyper_vpn_host="isard-vpn",
         nvidia_enabled=False,
         nvidia_gpus=None,
-        force_get_hyp_info=False,  # DEPRECATED: ignored, engine auto-detects GPU changes
         user="root",
         only_forced=False,
         min_free_mem_gb=0,
@@ -446,7 +442,6 @@ class ApiHypervisors:
         buffering_hyper=False,
         gpu_only=False,
     ):
-        # Note: force_get_hyp_info parameter is deprecated and ignored
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
             return False
@@ -480,9 +475,6 @@ class ApiHypervisors:
             "only_forced": only_forced,
             "nvidia_enabled": nvidia_enabled,
             "nvidia_gpus": nvidia_gpus if nvidia_gpus is not None else [],
-            # DEPRECATED: force_get_hyp_info is ignored - engine auto-detects GPU changes
-            # Always stored as False for backwards compatibility
-            "force_get_hyp_info": False,
             "min_free_mem_gb": min_free_mem_gb,
             "min_free_gpu_mem_gb": min_free_gpu_mem_gb,
             "storage_pools": storage_pools,
@@ -621,6 +613,12 @@ class ApiHypervisors:
             return {"status": True, "msg": "Hypervisor enabled", "data": {}}
         else:
             return {"status": True, "msg": "Hypervisor disabled", "data": {}}
+
+    def update_boot_progress(self, hyper_id, progress_data):
+        with app.app_context():
+            r.table("hypervisors").get(hyper_id).update(
+                {"boot_progress": progress_data}
+            ).run(db.conn)
 
     def remove_hyper(self, hyper_id, restart=True):
         try:
