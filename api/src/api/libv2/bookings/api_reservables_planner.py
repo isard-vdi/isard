@@ -188,7 +188,7 @@ class ReservablesPlanner:
         if subitem_join_before:
             joined_plan = join_existing_plan_after_new_plan_start(plan)
             if joined_plan:
-                print(
+                log.debug(
                     "Existing plan "
                     + joined_plan["id"]
                     + " moved start time to new plan "
@@ -201,7 +201,7 @@ class ReservablesPlanner:
         if subitem_join_after:
             joined_plan = join_existing_plan_before_new_plan_end(plan)
             if joined_plan:
-                print(
+                log.debug(
                     "Existing plan "
                     + joined_plan["id"]
                     + " moved end time to new plan "
