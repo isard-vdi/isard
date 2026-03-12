@@ -38,6 +38,8 @@ type AuthenticationServer struct {
 
 	healthcheckCache *ttlcache.Cache[string, error]
 
+	forgotPasswordLimits *limits.Limits
+
 	Log *zerolog.Logger
 	WG  *sync.WaitGroup
 }
@@ -52,8 +54,9 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 			// Disable the time extension when getting the values
 			ttlcache.WithDisableTouchOnHit[string, error](),
 		),
-		Log: log,
-		WG:  wg,
+		forgotPasswordLimits: limits.NewLimits(5, 1*time.Minute, 2, 15*time.Minute),
+		Log:                  log,
+		WG:                   wg,
 	}
 
 	// Start the cache eviction process
@@ -86,7 +89,13 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	m.Handle("/authentication/saml/slo", requestMetadataHandler(http.HandlerFunc(a.logoutSAML)))
 
 	// The OpenAPI specification server
-	m.Handle("/authentication/", http.StripPrefix("/authentication", oas))
+	noCacheHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/login" || r.URL.Path == "/renew" {
+			w.Header().Set("Cache-Control", "no-store")
+		}
+		oas.ServeHTTP(w, r)
+	})
+	m.Handle("/authentication/", http.StripPrefix("/authentication", noCacheHandler))
 
 	s := http.Server{
 		Addr:    a.Addr,
@@ -718,6 +727,14 @@ func (a *AuthenticationServer) VerifyEmail(ctx context.Context, req *oasAuthenti
 }
 
 func (a *AuthenticationServer) ForgotPassword(ctx context.Context, req *oasAuthentication.ForgotPasswordRequest) (oasAuthentication.ForgotPasswordRes, error) {
+	if err := a.forgotPasswordLimits.IsRateLimited(req.Email, req.CategoryID, "forgot-password"); err != nil {
+		var rateLimitErr *limits.RateLimitError
+		if errors.As(err, &rateLimitErr) {
+			// Return success to avoid leaking rate limit status (no 429 OAS type available)
+			return &oasAuthentication.ForgotPasswordResponse{}, nil
+		}
+	}
+
 	if err := a.Authentication.ForgotPassword(ctx, req.CategoryID, req.Email); err != nil {
 		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
 			return &oasAuthentication.ForgotPasswordForbidden{
@@ -727,10 +744,8 @@ func (a *AuthenticationServer) ForgotPassword(ctx context.Context, req *oasAuthe
 		}
 
 		if errors.Is(err, authentication.ErrUserNotFound) {
-			return &oasAuthentication.ForgotPasswordNotFound{
-				Error: oasAuthentication.ForgotPasswordErrorErrorUserNotFound,
-				Msg:   "user not found",
-			}, nil
+			a.forgotPasswordLimits.RecordFailedAttempt(req.Email, req.CategoryID, "forgot-password")
+			return &oasAuthentication.ForgotPasswordResponse{}, nil
 		}
 
 		var dbErr *db.Err
