@@ -1088,28 +1088,33 @@ def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
         d["brand"] = "NVIDIA"
         rtable.insert(d).run(r_conn)
 
-        gpus = list(
-            r.table("gpus")
-            .filter(
-                {
-                    "brand": d["brand"],
-                    "model": d["model"],
-                    "physical_device": None,
-                }
-            )
-            .pluck("id")
-            .run(r_conn)
+        # Check if a GPU card already has this physical_device assigned
+        already_assigned = list(
+            r.table("gpus").filter({"physical_device": vgpu_id}).pluck("id").run(r_conn)
         )
-        if len(gpus) == 0:
-            logs.workers.error(
-                "A new GPU has been added to Isard, but there are no GPUs defined to accomodate it! Manual PCI assignation required for "
-                + vgpu_id
+        if len(already_assigned) == 0:
+            # No card has this device yet — find an unassigned one
+            gpus = list(
+                r.table("gpus")
+                .filter(
+                    {
+                        "brand": d["brand"],
+                        "model": d["model"],
+                        "physical_device": None,
+                    }
+                )
+                .pluck("id")
+                .run(r_conn)
             )
-
-        else:
-            r.table("gpus").get(gpus[0]["id"]).update({"physical_device": vgpu_id}).run(
-                r_conn
-            )
+            if len(gpus) == 0:
+                logs.workers.error(
+                    "A new GPU has been added to Isard, but there are no GPUs defined to accomodate it! Manual PCI assignation required for "
+                    + vgpu_id
+                )
+            else:
+                r.table("gpus").get(gpus[0]["id"]).update(
+                    {"physical_device": vgpu_id}
+                ).run(r_conn)
 
     close_rethink_connection(r_conn)
     return True
