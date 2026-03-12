@@ -476,7 +476,9 @@ class ResourceItemsGpus:
                     lambda doc: {
                         "id": doc["id"],
                         "user": doc["user"],
-                        "username": r.table("users").get(doc["user"])["username"],
+                        "username": r.table("users")
+                        .get(doc["user"])["username"]
+                        .default("deleted-user"),
                         "tag_name": doc["tag_name"],
                     }
                 )
