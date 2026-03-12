@@ -596,6 +596,94 @@ class hyp(object):
 
         return True
 
+    def _execute_mig_transition(
+        self, gpu_id, pci_id, pci_info, old_profile, new_profile
+    ):
+        """Handle MIG mode transitions: vGPU/PT↔MIG and MIG↔MIG.
+
+        Uses nvidia-smi commands to enable/disable MIG mode and create/destroy
+        GPU instances and compute instances.
+        """
+        pci_bdf = pci_info["path"].split("/")[-1]
+        old_types = pci_info.get("types", {})
+        old_is_mig = (
+            old_types.get(old_profile, {}).get("mig", False) if old_profile else False
+        )
+        new_is_mig = old_types.get(new_profile, {}).get("mig", False)
+
+        if new_is_mig:
+            new_mig_profile_id = old_types[new_profile].get("mig_profile_id")
+        else:
+            new_mig_profile_id = None
+
+        cmds = []
+
+        if old_is_mig and new_is_mig:
+            # MIG → MIG: destroy old instances, create new ones
+            logs.main.info(
+                f"MIG→MIG transition on {pci_bdf}: {old_profile} → {new_profile}"
+            )
+            cmds = [
+                f"nvidia-smi mig -i {pci_bdf} -dci 2>/dev/null || true",
+                f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
+                f"nvidia-smi mig -i {pci_bdf} -cgi {new_mig_profile_id}",
+                f"nvidia-smi mig -i {pci_bdf} -cci",
+            ]
+        elif not old_is_mig and new_is_mig:
+            # vGPU/PT → MIG: remove mdevs, rebind nvidia if PT, enable MIG
+            logs.main.info(
+                f"vGPU/PT→MIG transition on {pci_bdf}: {old_profile} → {new_profile}"
+            )
+            if old_profile == "passthrough":
+                # Rebind to nvidia driver first
+                cmds.extend(
+                    [
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/vfio-pci/unbind 2>/dev/null || true",
+                        f"echo > /sys/bus/pci/devices/{pci_bdf}/driver_override",
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
+                        "sleep 2",
+                    ]
+                )
+            cmds.extend(
+                [
+                    f"nvidia-smi -i {pci_bdf} -mig 1",
+                    f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
+                    "sleep 2",
+                    f"nvidia-smi mig -i {pci_bdf} -cgi {new_mig_profile_id}",
+                    f"nvidia-smi mig -i {pci_bdf} -cci",
+                ]
+            )
+        elif old_is_mig and not new_is_mig:
+            # MIG → vGPU/PT: destroy instances, disable MIG, reset
+            logs.main.info(
+                f"MIG→vGPU/PT transition on {pci_bdf}: {old_profile} → {new_profile}"
+            )
+            cmds = [
+                f"nvidia-smi mig -i {pci_bdf} -dci 2>/dev/null || true",
+                f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
+                f"nvidia-smi -i {pci_bdf} -mig 0",
+                f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
+                "sleep 2",
+            ]
+        else:
+            # Should not happen — caller should not route here
+            logs.main.error(
+                f"_execute_mig_transition called with no MIG profile: "
+                f"old={old_profile} new={new_profile}"
+            )
+            return False
+
+        array_out_err = execute_commands(
+            self.hostname, cmds, port=self.port, timeout=120
+        )
+        for i, result in enumerate(array_out_err):
+            if result.get("err", "").strip():
+                logs.main.warning(
+                    f"MIG transition cmd {i} stderr: {result['err'].strip()}"
+                )
+
+        return True
+
     def change_vgpu_profile(self, gpu_id, new_profile):
         if not new_profile:
             return
@@ -787,6 +875,32 @@ class hyp(object):
                 )
                 if uuid_not_running in old_profile_mdevs:
                     old_profile_mdevs[uuid_not_running]["created"] = False
+
+            # Check if either profile is MIG — route to MIG transition handler
+            old_is_mig = (
+                pci_info.get("types", {}).get(old_profile, {}).get("mig", False)
+                if old_profile
+                else False
+            )
+            new_is_mig = (
+                pci_info.get("types", {}).get(new_profile, {}).get("mig", False)
+            )
+            if old_is_mig or new_is_mig:
+                result = self._execute_mig_transition(
+                    gpu_id, pci_id, pci_info, old_profile, new_profile
+                )
+                if not result:
+                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                    return False
+                # After MIG transition, update profile and mark MIG UUIDs as created
+                new_profile_mdevs = pci_mdevs.get(new_profile, {})
+                for uuid_create in new_profile_mdevs:
+                    update_vgpu_created(gpu_id, new_profile, uuid_create, created=True)
+                    new_profile_mdevs[uuid_create]["created"] = True
+                self.info_nvidia[pci_id]["vgpu_profile"] = new_profile
+                update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                update_table_field("vgpus", gpu_id, "vgpu_profile", new_profile)
+                return
 
             # DRIVER BINDING: swap between nvidia and vfio-pci for passthrough
             pci_bdf = pci_info["path"].split("/")[-1]
@@ -1475,6 +1589,22 @@ class hyp(object):
                 type_max_gpus = "passthrough"
                 model_gpu = gpu["name"].replace("NVIDIA ", "").replace(" ", "")
 
+            # Add MIG profiles into d_types (available on MIG-capable GPUs)
+            for mig_prof in gpu.get("mig_profiles", []):
+                suffix = mig_prof["name"]  # e.g. "1g.24gb", "2g.48gb_me"
+                d_types[suffix] = {
+                    "id": suffix,
+                    "mig": True,
+                    "mig_profile_id": mig_prof["profile_id"],
+                    "available": mig_prof["max_instances"],
+                    "memory": int(mig_prof["memory_gib"] * 1024),
+                    "max": mig_prof["max_instances"],
+                }
+                # Update type_max_gpus if this MIG profile has more instances
+                if d_types[suffix]["max"] > d_types[type_max_gpus]["max"]:
+                    type_max_gpus = suffix
+
+            info_nvidia["mig_mode"] = gpu.get("mig_mode", "[N/A]")
             info_nvidia["types"] = d_types
             info_nvidia["type_max_gpus"] = type_max_gpus
             info_nvidia["device_name"] = gpu["name"]
@@ -2204,31 +2334,45 @@ class hyp(object):
             if d_type.get("max") is None:
                 d_type["max"] = d_type.get("available", 1)
             total_available = max(d_type.get("max", 1), d_type.get("available", 1))
-            l_pci_mdev_id = []
-            d = {}
-            for i in range(total_available):
-                if sub_paths is False:
-                    path = d_info_gpu["path"]
-                else:
-                    if i >= len(sub_paths):
-                        logs.main.warning(
-                            f"sub_paths has only {len(sub_paths)} elements but "
-                            f"total_available is {total_available}. Skipping remaining UUIDs."
-                        )
-                        break
-                    path = sorted(sub_paths)[i]
-                uuid64 = str(uuid.uuid4())
-                d[uuid64] = {
-                    "pci_mdev_id": (
-                        l_pci_mdev_id[i]
-                        if len(l_pci_mdev_id) > 0
-                        else path.split("/")[-1]
-                    ),
-                    "type_id": d_type["id"],
-                    "created": False,
-                    "domain_started": False,
-                    "domain_reserved": False,
-                }
+
+            if d_type.get("mig"):
+                # MIG profiles: placeholder UUIDs, no mdev path needed
+                for i in range(total_available):
+                    uuid64 = str(uuid.uuid4())
+                    d[uuid64] = {
+                        "pci_mdev_id": d_info_gpu["path"].split("/")[-1],
+                        "type_id": d_type["id"],
+                        "mig": True,
+                        "mig_profile_id": d_type.get("mig_profile_id"),
+                        "created": False,
+                        "domain_started": False,
+                        "domain_reserved": False,
+                    }
+            else:
+                l_pci_mdev_id = []
+                for i in range(total_available):
+                    if sub_paths is False:
+                        path = d_info_gpu["path"]
+                    else:
+                        if i >= len(sub_paths):
+                            logs.main.warning(
+                                f"sub_paths has only {len(sub_paths)} elements but "
+                                f"total_available is {total_available}. Skipping remaining UUIDs."
+                            )
+                            break
+                        path = sorted(sub_paths)[i]
+                    uuid64 = str(uuid.uuid4())
+                    d[uuid64] = {
+                        "pci_mdev_id": (
+                            l_pci_mdev_id[i]
+                            if len(l_pci_mdev_id) > 0
+                            else path.split("/")[-1]
+                        ),
+                        "type_id": d_type["id"],
+                        "created": False,
+                        "domain_started": False,
+                        "domain_reserved": False,
+                    }
             d_uuids[name] = d
         return d_uuids
 
