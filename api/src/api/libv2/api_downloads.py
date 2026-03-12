@@ -40,12 +40,14 @@ db.init_app(app)
 
 from .api_cards import get_domain_stock_card
 from .helpers import gen_new_mac, get_user_data
+from .url_validation import validate_url_not_internal
 
 
 def is_registered(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         try:
+            validate_url_not_internal(get_cfg()[0])
             req = requests.get(get_cfg()[0], allow_redirects=False, timeout=10)
             if req.status_code == 200:
                 if not get_cfg()[1]:
