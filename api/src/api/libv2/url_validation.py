@@ -30,3 +30,27 @@ def validate_url_not_internal(url):
         ip = ipaddress.ip_address(ip_str)
         if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
             raise SSRFError(f"URL resolves to blocked internal address: {ip_str}")
+
+
+def validate_hostname_not_loopback_or_linklocal(hostname):
+    """Resolve hostname and block loopback and link-local addresses.
+
+    Unlike validate_url_not_internal, this does NOT block RFC 1918 private
+    ranges — only loopback (127.0.0.0/8, ::1) and link-local (169.254.0.0/16,
+    fe80::/10) addresses, which should never be valid hypervisor targets.
+    """
+    if not hostname:
+        raise SSRFError("Empty hostname")
+
+    try:
+        results = socket.getaddrinfo(
+            hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM
+        )
+    except socket.gaierror as e:
+        raise SSRFError(f"DNS resolution failed for {hostname}: {e}")
+
+    for family, socktype, proto, canonname, sockaddr in results:
+        ip_str = sockaddr[0]
+        ip = ipaddress.ip_address(ip_str)
+        if ip.is_loopback or ip.is_link_local:
+            raise SSRFError(f"Hostname resolves to blocked address: {ip_str}")
