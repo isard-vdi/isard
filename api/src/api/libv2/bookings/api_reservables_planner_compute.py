@@ -767,6 +767,9 @@ def get_overridable_bookings(
                 )
             )
 
+            if skip_booking_id:
+                query = query.filter(lambda booking: booking["id"] != skip_booking_id)
+
             with app.app_context():
                 bookings += list(query.run(db.conn))
             log.debug(
@@ -806,6 +809,9 @@ def get_nonoverridable_bookings(
                     lambda plan: plan["priority"] >= priority["priority"][subitem]
                 )
             )
+
+            if skip_booking_id:
+                query = query.filter(lambda booking: booking["id"] != skip_booking_id)
 
             with app.app_context():
                 bookings += list(query.run(db.conn))
