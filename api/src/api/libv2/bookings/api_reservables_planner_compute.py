@@ -460,7 +460,7 @@ def get_different_plans_for_booking(plans):
     }
 
     output = P.IntervalDict()
-    for interval in plan:
+    for interval in plans:
         i = P.closed(interval["start"], interval["end"])
         d = P.IntervalDict({i: {"units": interval["units"], "id": interval["id"]}})
         output = output.combine(d, how=join_plan_op)
