@@ -50,7 +50,8 @@ RUN apk add --no-cache \
     qemu-modules \
     qemu-system-x86_64 \
     libcrypto3@edge \
-    swtpm
+    swtpm \
+    virtiofsd@community
 
 RUN apk add --no-cache \
     libcap \
