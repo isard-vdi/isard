@@ -739,7 +739,7 @@ def most_restrictive_rule(subitem, new_priority, old_priority=None):
         "priority": {**old_priority["priority"], **{subitem: new_priority["priority"]}},
         "forbid_time": min(new_priority["forbid_time"], old_priority["forbid_time"]),
         "max_time": min(new_priority["max_time"], old_priority["max_time"]),
-        "max_items": min(new_priority["max_items"], new_priority["max_items"]),
+        "max_items": min(new_priority["max_items"], old_priority["max_items"]),
     }
 
 
