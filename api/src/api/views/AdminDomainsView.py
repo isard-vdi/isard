@@ -53,11 +53,19 @@ def api_v3_admin_domains(payload):
             if params.get(field):
                 indexed_filters[field] = params.get(field)
 
+        domain_ids = (
+            json.loads(params.get("domain_ids")) if params.get("domain_ids") else None
+        )
+
         if payload["role_id"] == "manager":
             categories = [payload["category_id"]]
 
         # Use filtered query if indexed filters are present, otherwise use original
-        if indexed_filters or categories:
+        if domain_ids:
+            domains = admins.ListDesktopsWithFilters(
+                filters={"domain_ids": domain_ids},
+            )
+        elif indexed_filters or categories:
             domains = admins.ListDesktopsWithFilters(
                 categories=categories,
                 filters=indexed_filters,

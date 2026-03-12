@@ -579,6 +579,13 @@ class ApiAdmin:
         10. fallback → kind
         """
         filters = filters or {}
+
+        # Fast path: fetch specific domain IDs
+        domain_ids = filters.get("domain_ids")
+        if domain_ids:
+            query = r.table("domains").get_all(r.args(domain_ids))
+            return self._apply_domain_joins_and_pluck(query, bastion)
+
         query = r.table("domains")
         used_filters = set()
 
@@ -641,7 +648,10 @@ class ApiAdmin:
         if "group" in filters and "group" not in used_filters:
             query = query.filter(lambda d: d["group"] == filters["group"])
 
-        # Joins for group_name, category_name, user_name, role (same as ListDesktops)
+        return self._apply_domain_joins_and_pluck(query, bastion)
+
+    def _apply_domain_joins_and_pluck(self, query, bastion=True):
+        """Apply standard joins, pluck, and bastion merge, then execute."""
         query = query.eq_join("group", r.table("groups")).map(
             lambda doc: doc["left"].merge(
                 {
