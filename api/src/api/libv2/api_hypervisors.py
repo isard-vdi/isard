@@ -518,7 +518,7 @@ class ApiHypervisors:
             # Derive model from vGPU profile names if available: "A40-4Q" → "A40"
             # Otherwise from GPU name: "NVIDIA A40" → "A40"
             if vgpu_profiles:
-                model = vgpu_profiles[0]["name"].rsplit("-", 1)[0]
+                model = vgpu_profiles[0]["name"].split("-")[0]
             else:
                 model = gpu["name"].replace("NVIDIA ", "").replace(" ", "")
 
@@ -543,7 +543,7 @@ class ApiHypervisors:
             # Add vGPU profiles (deduplicated across multiple physical cards)
             existing_suffixes = {p["profile"] for p in models[model]["profiles"]}
             for prof in vgpu_profiles:
-                suffix = prof["name"].rsplit("-", 1)[-1]  # "4Q"
+                suffix = prof["name"].split("-", 1)[1]  # "4Q"
                 if suffix not in existing_suffixes:
                     models[model]["profiles"].append(
                         {
@@ -554,6 +554,22 @@ class ApiHypervisors:
                             "units": prof.get("max_instances", 0)
                             or prof.get("available_instances", 0),
                             "description": "",
+                        }
+                    )
+                    existing_suffixes.add(suffix)
+
+            # Add MIG profiles (deduplicated across multiple physical cards)
+            for mig_prof in gpu.get("mig_profiles", []):
+                suffix = mig_prof["name"]  # "1g.24gb", "2g.48gb+gfx", "1g.24gb-me"
+                if suffix not in existing_suffixes:
+                    models[model]["profiles"].append(
+                        {
+                            "id": f"NVIDIA-{model}-{suffix}",
+                            "name": f"NVIDIA {model} MIG {suffix}",
+                            "profile": suffix,
+                            "memory": int(mig_prof["memory_gib"] * 1024),
+                            "units": mig_prof["max_instances"],
+                            "description": f"MIG GPU Instance ({mig_prof['max_instances']}x)",
                         }
                     )
                     existing_suffixes.add(suffix)
@@ -616,7 +632,7 @@ class ApiHypervisors:
         for gpu in nvidia_gpus:
             vgpu_profiles = gpu.get("vgpu_profiles", [])
             if vgpu_profiles:
-                model = vgpu_profiles[0]["name"].rsplit("-", 1)[0]
+                model = vgpu_profiles[0]["name"].split("-")[0]
             else:
                 model = gpu["name"].replace("NVIDIA ", "").replace(" ", "")
 
