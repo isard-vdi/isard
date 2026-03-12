@@ -22,6 +22,7 @@ from ..libv2.api_admin import (
     manager_table_get,
     manager_table_list,
 )
+from ..libv2.api_admin_notifications import sanitizer
 from ..libv2.api_desktops_persistent import (
     unassign_resource_from_desktops_and_deployments,
 )
@@ -90,6 +91,10 @@ def api_v3_admin_insert_table(payload, table):
         "desktops_priority",
     ]:
         checkDuplicate(table, data["name"])
+    if table in ("domains", "notification_tmpls", "config"):
+        for key, value in data.items():
+            if isinstance(value, str):
+                data[key] = sanitizer.sanitize(value)
     admin_table_insert(table, data)
     return (json.dumps({}), 200, {"Content-Type": "application/json"})
 
@@ -109,6 +114,10 @@ def api_v3_admin_update_table(payload, table):
         "desktops_priority",
     ]:
         checkDuplicate(table, data["name"], item_id=data["id"])
+    if table in ("domains", "notification_tmpls", "config"):
+        for key, value in data.items():
+            if isinstance(value, str):
+                data[key] = sanitizer.sanitize(value)
     admin_table_update(table, data)
     return (json.dumps({}), 200, {"Content-Type": "application/json"})
 
