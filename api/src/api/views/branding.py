@@ -19,7 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from api.libv2.validators import _validate_item
-from api.views.decorators import is_admin_or_manager, ownsCategoryId
+from api.views.decorators import check_permissions
 from flask import jsonify, request
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.category import Category
@@ -28,7 +28,7 @@ from api import app
 
 
 @app.route("/api/v3/admin/category/<category_id>/branding", methods=["GET"])
-@is_admin_or_manager
+@check_permissions("branding")
 def _api_category_branding_get(payload, category_id):
     """
     Endpoint to retrieve branding configuration for a category.
@@ -40,14 +40,11 @@ def _api_category_branding_get(payload, category_id):
     :return: Branding configuration as JSON
     :rtype: flask.Response
     """
-    if not Category.exists(category_id):
-        raise Error(error="not_found", description="Category not found")
-    ownsCategoryId(payload, category_id)
     return jsonify(Category(category_id).branding)
 
 
 @app.route("/api/v3/admin/category/<category_id>/branding", methods=["PUT"])
-@is_admin_or_manager
+@check_permissions("branding")
 def _api_category_branding_put(payload, category_id):
     """
     Endpoint to update branding configuration for a category.
@@ -59,9 +56,6 @@ def _api_category_branding_put(payload, category_id):
     :return: True as JSON
     :rtype: flask.Response
     """
-    if not Category.exists(category_id):
-        raise Error(error="not_found", description="Category not found")
-    ownsCategoryId(payload, category_id)
     try:
         Category(category_id).branding = _validate_item(
             "category_branding_update", request.get_json()

@@ -26,9 +26,10 @@ import traceback
 
 import gevent
 from api.libv2.api_notify import notify_admins
-from flask import request
+from flask import jsonify, request
 from flask_login import logout_user
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.category import Category
 
 from api import app, socketio
 
@@ -75,6 +76,7 @@ from cachetools import TTLCache, cached
 
 from .decorators import (
     CategoryNameGroupNameMatch,
+    check_permissions,
     checkDuplicate,
     checkDuplicateBastionDomain,
     checkDuplicateCustomURL,
@@ -619,10 +621,15 @@ def api_v3_admin_edit_category(payload, category_id):
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 
+@app.route("/api/v3/admin/category/<category_id>/authentication", methods=["GET"])
+@check_permissions("authentication")
+def api_v3_admin_category_authentication_get(payload, category_id):
+    return jsonify(Category(category_id).authentication)
+
+
 @app.route("/api/v3/admin/category/<category_id>/authentication", methods=["PUT"])
-@is_admin_or_manager
-def api_v3_admin_category_authentication(payload, category_id):
-    ownsCategoryId(payload, category_id)
+@check_permissions("authentication")
+def api_v3_admin_category_authentication_put(payload, category_id):
     try:
         data = request.get_json()
     except:

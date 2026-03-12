@@ -979,11 +979,6 @@
                     {% with provider="local" %}
                         {% include '/snippets/category_authentication_form.html' %}
                     {% endwith %}
-                    <div class="x_panel" id="default-category-alert" style="display:none;">
-                        <div class="alert alert-info">
-                            <i class="fa fas fa-info-circle"></i> The default category will always have the default admin enabled in local authentication.
-                        </div>
-                    </div>
                     {% with provider="google" %}
                         {% include '/snippets/category_authentication_form.html' %}
                     {% endwith %}
@@ -1719,6 +1714,9 @@
                             </select>
                         </div>
                     </div>
+                    {% with id_prefix = "category-permissions-create-" %}
+                        {% include '/snippets/category_permissions_form.html' %}
+                    {% endwith %}
                 </form>
             </div>
 
@@ -1759,7 +1757,7 @@
 
             <!-- Modal Body -->
             <div class="modal-body">
-                <form id="modalEditCategoryForm" class="form-inline form-label-left">
+                <form id="modalEditCategoryForm" class="form-horizontal">
                     <input hidden id="id" name="id" />
                     <div class="row">
                         <div class="x_panel">
@@ -1953,6 +1951,9 @@
                             </select>
                         </div>
                     </div>
+                    {% with id_prefix = "category-permissions-edit-" %}
+                        {% include '/snippets/category_permissions_form.html' %}
+                    {% endwith %}
                 </form>
             </div>
 

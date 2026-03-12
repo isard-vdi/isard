@@ -363,6 +363,7 @@ $(document).ready(function () {
             // if (!('auto-desktops-enabled' in data)) {
             //     delete data['auto-desktops'];
             // }
+            data = { ...data, ...collectFormData($("#category-permissions-create-panel")) };
             data = JSON.unflatten(data);
             var notice = new PNotify({
                 text: 'Creating...',
@@ -485,6 +486,13 @@ function renderCategoriesDetailPannel(d) {
         $('.template-detail-categories .btn-edit-limits').show()
     }
     if (d.id == "default") { $('.template-detail-categories .btn-delete').hide() }
+    if ($('#user_data').data('role') === 'manager') {
+        ["authentication", "branding"].forEach(function (perm) {
+            $('.template-detail-categories .btn-' + perm).toggle(
+                !!(d.manager_permissions && d.manager_permissions[perm])
+            );
+        });
+    }
     $newPanel = $template_category.clone();
     $newPanel.html(function (i, oldHtml) {
         return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
@@ -497,8 +505,8 @@ function actionsCategoryDetail() {
     $('.btn-edit-category').off('click').on('click', function () {
         var pk = $(this).closest("div").attr("data-pk");
         $("#modalEditCategoryForm")[0].reset();
+        $('#modalEditCategoryForm :checkbox').iCheck('uncheck').iCheck('update');
         $("#modalEditCategoryForm #recycle-bin-cutoff-time-data").hide();
-        $('#maxtime_panel #recycle-bin-cutoff-time-enabled').iCheck('uncheck').iCheck('update');
         $('#modalEditCategoryForm #id').val(pk);
         $('#modalEditCategory').modal({
             backdrop: 'static',
@@ -536,6 +544,7 @@ function actionsCategoryDetail() {
             // autoDesktopsShow('#modalEditCategoryForm', category)
             maxTimeEnabledShow('#modalEditCategoryForm')
             ephemeralDesktopsShow('#modalEditCategoryForm', category)
+            fillFormData($('#modalEditCategoryForm'), { manager_permissions: category.manager_permissions });
         });
 
         $("#modalEditCategory #send").off('click').on('click', function (e) {
@@ -569,6 +578,7 @@ function actionsCategoryDetail() {
                 //     delete data['auto-desktops'];
                 //     data['auto'] = false;
                 // }
+                data = { ...data, ...collectFormData($("#category-permissions-edit-panel")) };
                 data = JSON.unflatten(data);
                 var notice = new PNotify({
                     text: 'Updating category...',
@@ -689,27 +699,21 @@ function actionsCategoryDetail() {
           }),
           $.ajax({
             type: "GET",
-            url: "/api/v3/admin/category/" + pk,
+            url: `/api/v3/admin/category/${pk}/authentication`,
             contentType: "application/json",
           })
-        ).done(function (providersResult, categoryResult) {
+        ).done(function (providersResult, authenticationResult) {
           var providers = providersResult[0];
-          var category = categoryResult[0];
-
-          if (category.is_default) {
-              $(modal + " #default-category-alert").show();
-          } else {
-              $(modal + " #default-category-alert").hide();
-          }
+          var authentication = authenticationResult[0];
 
           // Fill form with current saved data
-          fillFormData($(modal + " form"), { authentication: category.authentication });
+          fillFormData($(modal + " form"), { authentication });
 
           // Apply provider-level constraints
           $.each(providers, function (provider, enabled) {
             var $panel = $(modal + " #" + provider + "-panel");
             var $configSource = $panel.find("select[name$='[config_source]']");
-            var configSourceValue = category?.authentication?.[provider]?.config_source
+            var configSourceValue = authentication?.[provider]?.config_source
             if ($configSource.length) {
               if (enabled) {
                 if (!configSourceValue) $configSource.val('global').trigger('change');

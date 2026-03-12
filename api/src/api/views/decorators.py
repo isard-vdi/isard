@@ -24,6 +24,7 @@ from functools import wraps
 
 from flask import request
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.category import Category
 from rethinkdb import RethinkDB
 
 from api import app
@@ -422,6 +423,32 @@ def ownsCategoryId(payload, category_id):
         "Not enough access rights for this category_id: " + str(category_id),
         traceback.format_exc(),
     )
+
+
+def check_permissions(permission):
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            payload = _validate_payload(["admin", "manager"])
+            kwargs["payload"] = payload
+            category_id = kwargs.get("category_id")
+            ownsCategoryId(payload, category_id)
+            if payload["role_id"] == "manager":
+                if Category.exists(category_id):
+                    manager_permissions = (
+                        Category(category_id).manager_permissions or {}
+                    )
+                else:
+                    raise Error("not_found", "Category not found")
+                if not manager_permissions.get(permission):
+                    raise Error(
+                        "forbidden", "Manager does not have permission: " + permission
+                    )
+            return f(*args, **kwargs)
+
+        return decorated
+
+    return decorator
 
 
 @cached(TTLCache(maxsize=100, ttl=10))

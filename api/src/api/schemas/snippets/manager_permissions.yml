@@ -1,0 +1,4 @@
+authentication:
+  type: boolean
+branding:
+  type: boolean

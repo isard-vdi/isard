@@ -265,3 +265,10 @@ table.dataTable tr.shown td.details-control > button > i:before {
 .branding-domain-settings {
   display: none;
 }
+
+/* Hide branding and authentication buttons for manager role.
+   These buttons are shown via JavaScript if the user has permissions for it. */
+.role-manager .btn-branding,
+.role-manager .btn-authentication {
+  display: none;
+}
