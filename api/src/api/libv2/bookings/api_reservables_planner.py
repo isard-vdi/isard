@@ -334,7 +334,7 @@ class ReservablesPlanner:
     def check_subitem_current_plan(self, subitem_id, item_id):
         plans = get_subitems_planning([subitem_id], item_id=item_id, now=True)
         if plans and any(
-            booking["start"] >= datetime.now(pytz.utc) >= booking["end"]
+            booking["start"] <= datetime.now(pytz.utc) <= booking["end"]
             for plan in plans
             for booking in self.get_plan_bookings(plan["id"])
         ):
