@@ -623,10 +623,6 @@ def bookings_max_units(bookings):
     if not len(bookings):
         return 0
     # We need to use portions library to get bookings intersections max units
-    portions = P.IntervalDict()
-    for interval in bookings:
-        portions[P.closed(interval["start"], interval["end"])] = interval
-
     join_plan_op = lambda x, y: {
         "units": x["units"] + y["units"],
         "id": x["id"] + "/" + y["id"],
