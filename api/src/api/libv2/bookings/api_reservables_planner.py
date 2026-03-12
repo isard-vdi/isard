@@ -275,7 +275,7 @@ class ReservablesPlanner:
                 ]
                 with app.app_context():
                     r.table("bookings").get_all(
-                        r.args[bookings2remove], index="id"
+                        r.args(bookings2remove), index="id"
                     ).delete().run(db.conn)
         with app.app_context():
             plan = r.table("resource_planner").get(plan_id).run(db.conn)
