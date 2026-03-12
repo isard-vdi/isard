@@ -236,6 +236,7 @@ class Bookings:
 
     def update(
         self,
+        payload,
         booking_id,
         title,
         start,
