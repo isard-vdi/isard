@@ -403,12 +403,16 @@ class ApiHypervisors:
             # Lets check if it's fingerprint is already here
             # self.update_fingerprint(hostname,hypervisor['port'])
 
-        # Auto-populate gpu_profiles from scanned GPU data
+        # Auto-populate gpu_profiles and gpu cards from scanned GPU data
         if nvidia_gpus:
             try:
                 self.ensure_gpu_profiles(nvidia_gpus)
             except Exception as e:
                 log.warning(f"Failed to auto-populate gpu_profiles: {e}")
+            try:
+                self.ensure_gpu_cards(hyper_id, nvidia_gpus)
+            except Exception as e:
+                log.warning(f"Failed to auto-create gpu cards: {e}")
 
         data["certs"] = self.get_hypervisors_certs()
 
@@ -600,6 +604,115 @@ class ApiHypervisors:
                 f"with {len(new_entry['profiles'])} profiles"
             )
 
+    def ensure_gpu_cards(self, hyper_id, nvidia_gpus):
+        """Auto-create GPU card entries in the 'gpus' table for discovered GPUs.
+
+        Each physical GPU gets a deterministic card ID so re-discovery is idempotent.
+        Only profiles_enabled (left empty) and physical_device are managed.
+        """
+        if not nvidia_gpus:
+            return
+
+        for gpu in nvidia_gpus:
+            vgpu_profiles = gpu.get("vgpu_profiles", [])
+            if vgpu_profiles:
+                model = vgpu_profiles[0]["name"].rsplit("-", 1)[0]
+            else:
+                model = gpu["name"].replace("NVIDIA ", "").replace(" ", "")
+
+            # Normalize PCI bus ID to libvirt pci_name format
+            pci_bus_id = gpu["pci_bus_id"]
+            normalized = pci_bus_id.lower()
+            if len(normalized.split(":")[0]) > 4:
+                normalized = "0000:" + normalized.split(":", 1)[1]
+            pci_name = "pci_" + normalized.replace(":", "_").replace(".", "_")
+
+            card_id = f"auto-{hyper_id}-{pci_name}"
+            vgpu_id = f"{hyper_id}-{pci_name}"
+            gpu_profile_id = f"NVIDIA-{model}"
+
+            # Check if any card already has this physical_device assigned
+            with app.app_context():
+                already_assigned = list(
+                    r.table("gpus")
+                    .filter({"physical_device": vgpu_id})
+                    .pluck("id")
+                    .run(db.conn)
+                )
+
+            if already_assigned:
+                log.info(
+                    f"GPU physical_device {vgpu_id} already assigned to "
+                    f"card '{already_assigned[0]['id']}', skipping"
+                )
+                continue
+
+            # Check if auto-created card exists for this slot
+            with app.app_context():
+                existing_card = r.table("gpus").get(card_id).run(db.conn)
+
+            if existing_card:
+                # Only update physical_device, preserve admin edits
+                with app.app_context():
+                    r.table("gpus").get(card_id).update(
+                        {"physical_device": vgpu_id}
+                    ).run(db.conn)
+                log.info(f"GPU card '{card_id}' updated physical_device -> {vgpu_id}")
+                continue
+
+            # Look for an existing unassigned card with matching brand/model
+            with app.app_context():
+                unassigned = list(
+                    r.table("gpus")
+                    .filter(
+                        {
+                            "brand": "NVIDIA",
+                            "model": model,
+                            "physical_device": None,
+                        }
+                    )
+                    .pluck("id")
+                    .run(db.conn)
+                )
+
+            if unassigned:
+                # Assign physical_device to the existing manually-created card
+                with app.app_context():
+                    r.table("gpus").get(unassigned[0]["id"]).update(
+                        {"physical_device": vgpu_id}
+                    ).run(db.conn)
+                log.info(
+                    f"GPU card '{unassigned[0]['id']}' assigned "
+                    f"physical_device -> {vgpu_id}"
+                )
+                continue
+
+            # No existing card found — create a new auto-discovered one
+            with app.app_context():
+                gpu_profile = r.table("gpu_profiles").get(gpu_profile_id).run(db.conn)
+
+            memory_gb = gpu["memory_total_mb"] // 1024
+            new_card = {
+                "id": card_id,
+                "name": f"NVIDIA {model} ({pci_name})",
+                "brand": "NVIDIA",
+                "model": model,
+                "memory": f"{memory_gb} GB",
+                "description": f"Auto-discovered from {gpu['name']}",
+                "architecture": (
+                    gpu_profile.get("architecture", "") if gpu_profile else ""
+                ),
+                "profiles_enabled": [],
+                "physical_device": vgpu_id,
+            }
+
+            with app.app_context():
+                r.table("gpus").insert(new_card).run(db.conn)
+            log.info(
+                f"GPU card '{card_id}' created for {gpu['name']} "
+                f"with physical_device={vgpu_id}"
+            )
+
     def enable_hyper(self, hyper_id, enable=True):
         with app.app_context():
             if not r.table("hypervisors").get(hyper_id).run(db.conn):
@@ -621,6 +734,16 @@ class ApiHypervisors:
             ).run(db.conn)
 
     def remove_hyper(self, hyper_id, restart=True):
+        # Clear physical_device on auto-created GPU cards for this hypervisor
+        try:
+            prefix = f"auto-{hyper_id}-"
+            with app.app_context():
+                r.table("gpus").filter(
+                    lambda gpu: gpu["id"].match(f"^{prefix}")
+                ).update({"physical_device": None}).run(db.conn)
+        except Exception as e:
+            log.warning(f"Failed to clear GPU cards for {hyper_id}: {e}")
+
         try:
             with app.app_context():
                 r.table("hypervisors").get(hyper_id).update({"forced_hyp": True}).run(
