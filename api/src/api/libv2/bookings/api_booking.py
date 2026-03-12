@@ -30,6 +30,7 @@ from ..helpers import _check, _get_reservables
 from .api_reservables import Reservables
 from .api_reservables_planner import ReservablesPlanner
 from .api_reservables_planner_compute import (
+    _sorted_atomic_items,
     compute_user_priority,
     min_profile_priority,
     payload_priority,
@@ -635,10 +636,7 @@ def bookings_max_units(bookings):
         output = output.combine(d, how=join_plan_op)
 
     # We could maybe just get the max from value["units"]??
-    items = []
-    for interval, value in output.items():
-        for atomic in interval:
-            items.append((atomic, value))
+    items = _sorted_atomic_items(output)
 
     # get max units for all items:
     return max([item[1]["units"] for item in items])
