@@ -31,7 +31,11 @@ from ..libv2.helpers import safe_format
 from .flask_rethink import RDB
 
 
-def no_sanitize_href(href):
+def sanitize_href(href):
+    if href:
+        scheme = href.strip().lower().split(":")[0] if ":" in href else ""
+        if scheme in ("javascript", "data", "vbscript"):
+            return None
     return href
 
 
@@ -59,7 +63,7 @@ sanitizer = Sanitizer(
             "hr",
             "img",
         },
-        "sanitize_href": no_sanitize_href,
+        "sanitize_href": sanitize_href,
         "empty": {"img"},
     }
 )

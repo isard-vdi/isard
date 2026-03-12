@@ -1,3 +1,8 @@
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
 $(document).ready(function () {
     $("#btnEditLoginNotification").on("click", function () {
         var modal = "#modalEditLoginNotification";
@@ -146,9 +151,9 @@ function createNotificationPreview (notification, position) {
     return `
         <div id="${position}_panel" class="x_panel col-md-6 col-sm-6 col-xs-12 ${notification?.enabled == false ? "disabled-preview" : ''}" style="${notification?.extra_styles}">
         <small>${notification?.icon ? `<i class="roundbox fa fa-${mapIconChange[notification.icon]}"></i>` : ""}</small>
-        <b id="preview_${position}_title">${notification?.title}</b>
-        <p class="notification-body" id="preview_${position}_description">${notification?.description}</p>
-        <a class="notification-body" href="${notification?.button?.url}" style="${notification?.button?.extra_styles}">${notification?.button?.text}</a>
+        <b id="preview_${position}_title">${escapeHtml(notification?.title)}</b>
+        <p class="notification-body" id="preview_${position}_description">${escapeHtml(notification?.description)}</p>
+        <a class="notification-body" href="${escapeHtml(notification?.button?.url)}" style="${notification?.button?.extra_styles}">${escapeHtml(notification?.button?.text)}</a>
         </div>
     `;
     } else {

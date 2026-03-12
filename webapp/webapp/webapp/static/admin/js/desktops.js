@@ -923,8 +923,8 @@ $(document).ready(function() {
                     type: "GET",
                     url:"/api/v3/admin/domain/" + domain_id+ "/details",
                     success: function (data) {
-                        $('#status-detail-'+domain_id).html(data.detail.replace(/\"/g,''));
-                        $('#description-'+domain_id).html(data.description);
+                        $('#status-detail-'+domain_id).text(data.detail.replace(/\"/g,''));
+                        $('#description-'+domain_id).text(data.description);
                     }
                 })
                 actionsDomainDetail();

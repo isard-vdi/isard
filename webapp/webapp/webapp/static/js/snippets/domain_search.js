@@ -4,6 +4,11 @@ function isValidUUID(str) {
     return uuidRegex.test(str);
 }
 
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
 function initDomainSearchModal(expectedKind) {
     var modal = "#modalSearchDomain";
     var itemName = expectedKind || "domain";
@@ -60,7 +65,7 @@ function initDomainSearchModal(expectedKind) {
             }
 
             function copyBtn(text) {
-                return (text && text !== '-') ? ` <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${text}" type="button" title="Copy to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button>` : '';
+                return (text && text !== '-') ? ` <button class="btn btn-xs btn-primary btn-copy" data-copy-value="${escapeHtml(text)}" type="button" title="Copy to clipboard" style="margin-left:3px;margin-right:8px;"><i class="fa fa-clipboard"></i></button>` : '';
             }
 
             const domainFields = [
@@ -71,7 +76,7 @@ function initDomainSearchModal(expectedKind) {
                 { label: 'Kind', value: (data.kind) || '-', selector: '#domain-info-kind' }
             ];
             domainFields.forEach(field => {
-                const html = `${field.value}${copyBtn(field.value)}`;
+                const html = `${escapeHtml(field.value)}${copyBtn(field.value)}`;
                 $(modal + ' ' + field.selector).html(html);
             });
 
@@ -82,7 +87,7 @@ function initDomainSearchModal(expectedKind) {
                     { selector: '#domain-info-category', name: data.owner_data.category_name || '-', id: data.owner_data.category || '-' }
                 ];
                 ownerFields.forEach(field => {
-                    let html = `<b>Name: </b>${field.name}${copyBtn(field.name)}<br><b>ID: </b>${field.id}${copyBtn(field.id)}`;
+                    let html = `<b>Name: </b>${escapeHtml(field.name)}${copyBtn(field.name)}<br><b>ID: </b>${escapeHtml(field.id)}${copyBtn(field.id)}`;
                     $(modal + ' ' + field.selector).html(html);
                 });
             } else {
