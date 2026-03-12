@@ -5,6 +5,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import re
 import traceback
 
 import gevent
@@ -98,7 +99,7 @@ class ApiAllowed:
             )
         with app.app_context():
             return list(
-                query.filter(lambda doc: doc[field].match("(?i)" + value))
+                query.filter(lambda doc: doc[field].match("(?i)" + re.escape(value)))
                 .pluck(pluck)
                 .run(db.conn)
             )

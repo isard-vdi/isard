@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import re
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 
@@ -206,9 +207,13 @@ class DatatablesQuery(ABC):
             custom_query = self.q
         for _, column in self.form_data["columns"].items():
             if column["data"] != "" and column["search"]["value"] != "":
-                # filter[column["data"]] = column["search"]["value"]
+                if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_.]*$", column["data"]):
+                    continue
+                escaped_value = re.escape(column["search"]["value"])
                 custom_query = custom_query.filter(
-                    lambda doc: doc[column["data"]].match(column["search"]["value"])
+                    lambda doc, col=column["data"], val=escaped_value: doc[col].match(
+                        val
+                    )
                 )
         return custom_query
 
