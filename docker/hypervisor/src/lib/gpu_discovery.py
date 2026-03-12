@@ -9,6 +9,12 @@ import os
 import re
 import subprocess
 
+# PCI device ID -> (human name, VRAM in MB) for NVIDIA GPUs that may not
+# appear in nvidia-smi (e.g. not bound to the nvidia driver).
+_NVIDIA_GPU_DB = {
+    0x2C34: ("NVIDIA RTX 4000 SFF Ada Generation", 20480),
+}
+
 
 def _run_nvidia_smi():
     """Run nvidia-smi and return parsed GPU info.
@@ -225,6 +231,79 @@ def _get_mig_profiles(gpu_index):
     return profiles
 
 
+def _scan_sysfs_nvidia_gpus(exclude_pci_ids):
+    """Scan sysfs for NVIDIA GPUs not already found by nvidia-smi.
+
+    Looks for PCI devices with vendor 0x10de (NVIDIA), class 0x0300xx (VGA
+    display controller), function .0 only.  Skips any PCI IDs listed in
+    *exclude_pci_ids*.
+
+    Returns:
+        list of GPU dicts (same shape as discover_gpus output items) for GPUs
+        found in sysfs but absent from nvidia-smi.
+    """
+    sysfs_base = "/sys/bus/pci/devices"
+    gpus = []
+    try:
+        entries = sorted(os.listdir(sysfs_base))
+    except OSError:
+        return gpus
+
+    for entry in entries:
+        # Only consider function 0
+        if not entry.endswith(".0"):
+            continue
+
+        dev_path = os.path.join(sysfs_base, entry)
+
+        # Check NVIDIA vendor
+        try:
+            with open(os.path.join(dev_path, "vendor")) as f:
+                vendor = f.read().strip()
+        except OSError:
+            continue
+        if vendor.lower() != "0x10de":
+            continue
+
+        # Check VGA display controller class (0x0300xx)
+        try:
+            with open(os.path.join(dev_path, "class")) as f:
+                dev_class = f.read().strip()
+        except OSError:
+            continue
+        if not dev_class.lower().startswith("0x0300"):
+            continue
+
+        # Normalise to the same format as nvidia-smi / rest of codebase
+        pci_id = entry.lower()
+        if pci_id in exclude_pci_ids:
+            continue
+
+        # Read PCI device ID to look up in _NVIDIA_GPU_DB
+        try:
+            with open(os.path.join(dev_path, "device")) as f:
+                device_id = int(f.read().strip(), 16)
+        except (OSError, ValueError):
+            device_id = 0
+
+        name, memory_mb = _NVIDIA_GPU_DB.get(
+            device_id, (f"NVIDIA Unknown GPU ({entry})", 0)
+        )
+
+        gpus.append(
+            {
+                "name": name,
+                "memory_total_mb": memory_mb,
+                "pci_bus_id": pci_id,
+                "driver_version": "N/A",
+                "vgpu_profiles": [],
+                "mig_mode": "[N/A]",
+            }
+        )
+
+    return gpus
+
+
 def _aggregate_subdevice_profiles(pci_bus_id):
     """For cards like A40 that expose multiple sub-devices, aggregate profiles.
 
@@ -287,8 +366,6 @@ def discover_gpus():
         list of GPU dicts. Empty list if no GPUs or nvidia-smi unavailable.
     """
     raw_gpus = _run_nvidia_smi()
-    if not raw_gpus:
-        return []
 
     gpus = []
     for gpu_index, gpu in enumerate(raw_gpus):
@@ -329,6 +406,12 @@ def discover_gpus():
             gpu_info["path_parent"] = path_parent
 
         gpus.append(gpu_info)
+
+    # Detect NVIDIA GPUs not bound to the nvidia driver (invisible to
+    # nvidia-smi).  These are passthrough-only since we cannot query vGPU
+    # profiles without the driver.
+    known_pci_ids = {_normalize_pci_bus_id(g["pci_bus_id"]).lower() for g in raw_gpus}
+    gpus.extend(_scan_sysfs_nvidia_gpus(known_pci_ids))
 
     return gpus
 
