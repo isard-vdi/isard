@@ -155,7 +155,7 @@ class ReservablesPlanner:
                 "user_id": payload["user_id"],
                 "event_type": "available",
             }
-        except:
+        except Exception:
             raise Error(
                 "bad_request",
                 "New plan body data incorrect",
