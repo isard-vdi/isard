@@ -244,6 +244,7 @@ def api_v3_user_desktops(payload):
 @app.route("/api/v3/user/desktop/<desktop_id>", methods=["GET"])
 @has_token
 def api_v3_user_desktop(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
     return (
         json.dumps(users.Desktop(desktop_id, payload["user_id"])),
         200,

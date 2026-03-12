@@ -42,8 +42,10 @@ def api_v3_booking_admin_events(payload):
 @has_token
 def api_v3_user_priority(payload, item_type, item_id):
     if item_type == "desktop":
+        ownsDomainId(payload, item_id)
         name = desktops.Get(item_id)["name"]
     else:
+        ownsDeploymentId(payload, item_id)
         name = get(item_id, False)["name"]
     return json.dumps(
         {

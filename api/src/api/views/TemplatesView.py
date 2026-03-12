@@ -278,6 +278,7 @@ def api_v3_user_templates_allowed(payload, kind):
 @app.route("/api/v3/template/tree/<template_id>", methods=["GET"])
 @is_not_user
 def api_v3_template_delete_tree(payload, template_id):
+    ownsDomainId(payload, template_id)
     template = templates.Get(template_id)
     tree = admin.get_template_tree_list(template["id"], payload["user_id"])[0]
 

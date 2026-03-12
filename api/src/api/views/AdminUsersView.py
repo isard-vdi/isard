@@ -1322,6 +1322,7 @@ def admin_user_by_email_and_category(payload, email, category):
 @app.route("/api/v3/admin/user/appliedquota/<user_id>", methods=["GET"])
 @is_admin_or_manager
 def admin_get_user_applied_quota(payload, user_id):
+    ownsUserId(payload, user_id)
     applied_quota = quotas.get_applied_quota(user_id)
 
     return json.dumps(applied_quota), 200, {"Content-Type": "application/json"}
@@ -1354,6 +1355,7 @@ def admin_user_auto_register(payload):
 @app.route("/api/v3/admin/user/reset-vpn/<user_id>", methods=["PUT"])
 @is_admin_or_manager
 def admin_user_reset_vpn(payload, user_id):
+    ownsUserId(payload, user_id)
     users.reset_vpn(user_id)
     return (
         json.dumps({}),

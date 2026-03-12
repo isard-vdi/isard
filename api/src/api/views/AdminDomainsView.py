@@ -170,6 +170,7 @@ def api_v3_admin_domains_xml(payload, domain_id):
 @app.route("/api/v3/admin/desktops/tree_list/<id>", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_desktops_tree_list(payload, id):
+    ownsDomainId(payload, id)
     user_id = payload["user_id"]
     return (
         json.dumps(admins.get_template_tree_list(id, user_id)),
