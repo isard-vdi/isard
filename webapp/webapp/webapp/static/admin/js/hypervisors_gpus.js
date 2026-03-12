@@ -221,6 +221,77 @@ $(document).ready(function () {
     }
   });
 
+  // Click handler for GPU desktops progress bar
+  $("#table-gpus tbody").on("click", ".gpu-desktops-click", function (e) {
+    e.stopPropagation();
+    var tr = $(this).closest("tr");
+    var data = gpus_table.row(tr).data();
+    if (!data || !data.desktops_started || data.desktops_started.length === 0) return;
+
+    $.ajax({
+      type: "POST",
+      url: "/admin/domains",
+      contentType: "application/json",
+      data: JSON.stringify({
+        kind: "desktop",
+        domain_ids: JSON.stringify(data.desktops_started),
+      }),
+      success: function (domains) {
+        if ($.fn.DataTable.isDataTable("#table-gpu-desktops")) {
+          $("#table-gpu-desktops").DataTable().destroy();
+          $("#table-gpu-desktops tbody").empty();
+        }
+        var gpuName = data.brand + " " + data.model + " - " + data.physical_device;
+        $("#modalGpuDesktopsLabel").text("Running desktops on " + gpuName);
+        $("#table-gpu-desktops").DataTable({
+          data: domains,
+          dom: "t",
+          pageLength: 50,
+          columns: [
+            {
+              data: "id",
+              orderable: false,
+              render: function (data) {
+                return '<button class="btn btn-xs btn-info" data-domain-info="' + data + '" title="View details"><i class="fa fa-info-circle"></i></button>';
+              },
+            },
+            { data: "name" },
+            {
+              data: "status",
+              render: function (data) {
+                var statusClass = "default";
+                if (data === "Started") statusClass = "success";
+                else if (data === "Stopped" || data === "Failed") statusClass = "danger";
+                else if (data === "Starting" || data === "Shutting-down") statusClass = "warning";
+                return '<span class="label label-' + statusClass + '">' + data + '</span>';
+              },
+            },
+            { data: "user_name" },
+            { data: "group_name" },
+            { data: "category_name" },
+            {
+              data: "accessed",
+              render: function (data) {
+                return data ? moment.unix(data).fromNow() : "Never";
+              },
+            },
+          ],
+        });
+        $("#modalGpuDesktops").modal("show");
+      },
+      error: function (data) {
+        new PNotify({
+          title: "ERROR loading desktops",
+          text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+          hide: true,
+          delay: 2000,
+          opacity: 1,
+          type: "error",
+        });
+      },
+    });
+  });
+
   $("#table-gpus")
     .find(" tbody")
     .on("click", "input", function () {
@@ -725,9 +796,9 @@ function deleteReservable(reservable_type, item_id, notify_user) {
 }
 
 function renderProgressGPU(progress, total) {
-  return ` ${progress}/${total}  <div class="progress"> 
-            <div class="progress-bar" role="progressbar" aria-valuenow="${progress}" 
+  return `<span class="gpu-desktops-click" style="cursor:pointer"> ${progress}/${total}  <div class="progress">
+            <div class="progress-bar" role="progressbar" aria-valuenow="${progress}"
               aria-valuemin="0" aria-valuemax="${total}" style="width:${(progress / total) * 100}%;">
-            </div> 
-          </div>`;
+            </div>
+          </div></span>`;
 }
