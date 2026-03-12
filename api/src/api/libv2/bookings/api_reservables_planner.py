@@ -235,44 +235,21 @@ class ReservablesPlanner:
                 .filter(
                     r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
                 )
-                .filter(
-                    r.row["start"]
-                    <= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-                )
-                .filter(
-                    r.row["end"]
-                    >= datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-                )
                 .run(db.conn)
             )
         if len(bookings_in_actual_plan):
-            with app.app_context():
-                bookings_failing_in_new_range = list(
-                    r.table("bookings")
-                    .filter(
-                        r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
-                    )
-                    .filter(
-                        r.row["start"]
-                        <= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(
-                            pytz.UTC
-                        )
-                    )
-                    .filter(
-                        r.row["end"]
-                        >= datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(
-                            pytz.UTC
-                        )
-                    )
-                    .run(db.conn)
-                )
-            if len(bookings_in_actual_plan) != len(bookings_failing_in_new_range):
-                # The difference will imply to remove those bookings
-                bookings2remove = [
-                    b["id"]
-                    for b in bookings_in_actual_plan
-                    if b not in bookings_failing_in_new_range
-                ]
+            new_start = datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(
+                pytz.UTC
+            )
+            new_end = datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+            bookings_failing_in_new_range = [
+                b
+                for b in bookings_in_actual_plan
+                if b["start"] < new_start or b["end"] > new_end
+            ]
+            if len(bookings_failing_in_new_range):
+                # Remove bookings that don't fit within the new plan range
+                bookings2remove = [b["id"] for b in bookings_failing_in_new_range]
                 with app.app_context():
                     r.table("bookings").get_all(
                         r.args(bookings2remove), index="id"
