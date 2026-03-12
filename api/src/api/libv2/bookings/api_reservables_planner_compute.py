@@ -286,14 +286,11 @@ def count_non_overridable_bookings(plan_id, subitem_id, priority, start, end):
         + str(end)
     )
 
-    max = 0
-    for item in items:
-        if item[1]["units_booked"] > max:
-            max = item[1]["units_booked"]
+    max_units = max(item[1]["units_booked"] for item in items) if items else 0
     log.debug(
-        "-----------> Found " + str(max) + " max units already booked in interval"
+        "-----------> Found " + str(max_units) + " max units already booked in interval"
     )
-    return max
+    return max_units
 
 
 def get_same_plans_for_booking(
