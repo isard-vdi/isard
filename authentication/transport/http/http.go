@@ -279,7 +279,8 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 
 	// Redirect the user after login
 	if params.Redirect.Set {
-		args.Redirect = &params.Redirect.Value
+		validated := authentication.ValidateRedirect(params.Redirect.Value)
+		args.Redirect = &validated
 	}
 
 	// Form parameters (username + password)
