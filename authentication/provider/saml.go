@@ -173,15 +173,23 @@ func (s *SAML) SAMLConfig() error {
 			s.log.Fatal().Msg("neither metadata file nor metadata URL is configured")
 		}
 
-		remoteMetadataURL, err := url.Parse(s.cfg.MetadataURL)
-		if err != nil {
-			s.log.Fatal().Err(err).Msg("parse metadata URL")
+		if err := validateMetadataURL(s.cfg.MetadataURL); err != nil {
+			s.log.Error().Err(err).Str("url", s.cfg.MetadataURL).Msg("invalid metadata URL")
+			return fmt.Errorf("invalid metadata URL: %w", err)
 		}
 
-		s.log.Info().Str("url", s.cfg.MetadataURL).Msg("fetching IdP metadata from URL")
-		metadata, err = samlsp.FetchMetadata(context.Background(), http.DefaultClient, *remoteMetadataURL)
+		remoteMetadataURL, err := url.Parse(s.cfg.MetadataURL)
 		if err != nil {
-			s.log.Fatal().Err(err).Msg("fetch metadata from URL failed")
+			s.log.Error().Err(err).Msg("parse metadata URL")
+			return fmt.Errorf("parse metadata URL: %w", err)
+		}
+
+		httpClient := &http.Client{Timeout: 30 * time.Second}
+		s.log.Info().Str("url", s.cfg.MetadataURL).Msg("fetching IdP metadata from URL")
+		metadata, err = samlsp.FetchMetadata(context.Background(), httpClient, *remoteMetadataURL)
+		if err != nil {
+			s.log.Error().Err(err).Msg("fetch metadata from URL failed")
+			return fmt.Errorf("fetch metadata from URL: %w", err)
 		}
 		s.log.Info().Str("url", s.cfg.MetadataURL).Msg("successfully fetched IdP metadata from URL")
 	}
@@ -307,6 +315,17 @@ func (s *SAML) SAMLConfig() error {
 	s.RoleAdvancedIDs = strings.Split(s.cfg.RoleAdvancedIDs, ",")
 	s.RoleUserIDs = strings.Split(s.cfg.RoleUserIDs, ",")
 
+	return nil
+}
+
+func validateMetadataURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("malformed URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("metadata URL must use https scheme, got %q", u.Scheme)
+	}
 	return nil
 }
 
