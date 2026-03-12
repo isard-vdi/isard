@@ -361,6 +361,18 @@ $(document).ready(function () {
           .on("pnotify.cancel", function () { });
       } else if ($(this).attr("id") == "btn-force_active_profile") {
         var data=gpus_table.row($(this).parents('tr')).data();
+        if (!data.profiles_enabled || data.profiles_enabled.length === 0) {
+            new PNotify({
+                title: 'No profiles enabled',
+                text: 'Enable at least one GPU profile first by expanding the GPU row and checking a profile.',
+                type: 'warning',
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-warning',
+                opacity: 1
+            });
+            return;
+        }
         $("#modalForcedProfileForm")[0].reset();
         $('#modalForcedProfileForm #id').val(data.id);
         $('#modalForcedProfileForm #physical_device').val(data.physical_device);
