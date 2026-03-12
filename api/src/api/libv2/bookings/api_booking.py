@@ -304,9 +304,10 @@ class Bookings:
                         description_code="booking_desktop_delete_stop",
                     )
                 else:
-                    r.table("domains").get(booking.get("item_id")).update(
-                        {"booking_id": False}
-                    ).run(db.conn)
+                    with app.app_context():
+                        r.table("domains").get(booking.get("item_id")).update(
+                            {"booking_id": False}
+                        ).run(db.conn)
                     scheduler.remove_desktop_timeouts(booking.get("item_id"))
             elif booking.get("item_type") == "deployment":
                 with app.app_context():
