@@ -84,7 +84,7 @@ class Bookings:
                 .get_all(rule_id, index="rule_id")
                 .run(db.conn)
             )
-        users = {}
+        users = []
         kind = ""
         for p in priority:
             allowed = p["allowed"]
@@ -107,9 +107,9 @@ class Bookings:
                             if len(users) == 2:
                                 return compute_user_priority(users, rule_id)
                     if key == "categories":
-                        kind == "category"
+                        kind = "category"
                     if key == "groups":
-                        kind == "group"
+                        kind = "group"
                     if key == "roles":
                         kind = "role"
                     with app.app_context():
