@@ -534,6 +534,7 @@ class ApiHypervisors:
                         "id": f"NVIDIA-{model}-passthrough",
                         "name": f"NVIDIA {model} passthrough",
                         "profile": "passthrough",
+                        "mode": "passthrough",
                         "memory": gpu["memory_total_mb"],
                         "units": 1,
                         "description": "Whole GPU passthrough",
@@ -550,6 +551,7 @@ class ApiHypervisors:
                             "id": f"NVIDIA-{model}-{suffix}",
                             "name": f"NVIDIA {model} {suffix}",
                             "profile": suffix,
+                            "mode": "vgpu",
                             "memory": prof.get("framebuffer_mb", 0),
                             "units": prof.get("max_instances", 0)
                             or prof.get("available_instances", 0),
@@ -560,13 +562,15 @@ class ApiHypervisors:
 
             # Add MIG profiles (deduplicated across multiple physical cards)
             for mig_prof in gpu.get("mig_profiles", []):
-                suffix = mig_prof["name"]  # "1g.24gb", "2g.48gb+gfx", "1g.24gb-me"
+                suffix = mig_prof["name"]  # "1g.24gb", "2g.48gb+gfx", "1g.24gb_me"
                 if suffix not in existing_suffixes:
                     models[model]["profiles"].append(
                         {
                             "id": f"NVIDIA-{model}-{suffix}",
                             "name": f"NVIDIA {model} MIG {suffix}",
                             "profile": suffix,
+                            "mode": "mig",
+                            "mig_profile_id": mig_prof["profile_id"],
                             "memory": int(mig_prof["memory_gib"] * 1024),
                             "units": mig_prof["max_instances"],
                             "description": f"MIG GPU Instance ({mig_prof['max_instances']}x)",
