@@ -486,9 +486,6 @@ class ReservablesPlanner:
         return format_planning
 
     def existing_booking_update_fits(self, payload, booking):
-        return (
-            False  # The booking_provisioning should send booking item_type and item_id
-        )
         plans = booking_provisioning(
             payload,
             booking["item_type"],
