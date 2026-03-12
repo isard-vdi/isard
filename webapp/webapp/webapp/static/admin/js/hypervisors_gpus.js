@@ -380,7 +380,7 @@ $(document).ready(function () {
             icon: 'fa fa-spinner fa-pulse'
         })
         data=$('#modalForcedProfileForm').serializeObject();
-        profile_id = data["forced_active_profile"].split("-")[2];
+        profile_id = data["forced_active_profile"].split("-").slice(2).join("-");
         data["actual_active_profile"] = document.getElementById(data.id).children[4].textContent.trim();
         if (data["actual_active_profile"] == profile_id) {
           return notice.update({
@@ -392,6 +392,16 @@ $(document).ready(function () {
             delay: 5000,
             opacity: 1
           })
+        }
+        // Detect MIG ↔ vGPU/passthrough mode switch and warn user
+        var oldIsMig = /^\d+g\./.test(data["actual_active_profile"]);
+        var newIsMig = /^\d+g\./.test(profile_id);
+        if (oldIsMig !== newIsMig) {
+          if (!confirm("This will switch the GPU between MIG and vGPU/passthrough mode. " +
+              "The GPU will be reset and all running instances on it will be stopped. Continue?")) {
+            notice.remove();
+            return;
+          }
         }
         $.ajax({
             type: 'PUT',
