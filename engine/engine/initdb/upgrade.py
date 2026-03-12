@@ -5981,26 +5981,28 @@ password:s:%s"""
             config_map = {
                 None: {
                     "disabled": False,
-                    "email_domains_restriction_enabled": False,
+                    "email_domain_restriction-enabled": False,
                 },
                 False: {
                     "disabled": True,
-                    "email_domains_restriction_enabled": False,
+                    "email_domain_restriction-enabled": False,
                 },
                 True: {
                     "disabled": False,
-                    "email_domains_restriction_enabled": True,
+                    "email_domain_restriction-enabled": True,
                 },
             }
             categories = list(r.table(table).run(self.conn))
             for category in categories:
                 for provider in category.get("authentication", {}).values():
-                    for key in ["email_domains_restriction_enabled", "disabled"]:
-                        provider[key] = config_map[provider.get("enabled", None)][key]
-
-                    provider["email_domains_allowed"] = provider.get(
-                        "allowed_domains", []
-                    )
+                    mapped = config_map[provider.get("enabled", None)]
+                    allowed_domains = provider.get("allowed_domains", [])
+                    provider["disabled"] = mapped["disabled"]
+                    provider["email_domain_restriction"] = {
+                        "enabled": mapped["email_domain_restriction-enabled"]
+                        and bool(allowed_domains),
+                        "allowed": allowed_domains,
+                    }
                     provider.pop("allowed_domains", None)
                     provider.pop("enabled", None)
             r.table(table).insert(categories, conflict="replace").run(self.conn)

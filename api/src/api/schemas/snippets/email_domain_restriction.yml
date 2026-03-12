@@ -1,0 +1,17 @@
+enabled:
+  type: boolean
+  required: true
+  empty: false
+  check_with: depends_if
+  meta:
+    depends_if:
+      values:
+        - true
+      other_fields:
+        - allowed
+allowed:
+  type: list
+  schema:
+    type: string
+    empty: false
+    nullable: false
