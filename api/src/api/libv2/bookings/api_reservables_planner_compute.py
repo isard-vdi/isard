@@ -196,8 +196,8 @@ def intersect_same_subitem_plan(plan, plan_name, keep_non_overlapped=True):
     if not keep_non_overlapped:
         return [
             {
-                "start": P.to_data(item[0])[0][1],
-                "end": P.to_data(item[0])[0][2],
+                "start": item[0].lower,
+                "end": item[0].upper,
                 "units": item[1]["units"],
                 "ids": item[1]["id"].split("/"),
                 "id": plan_name,
@@ -209,8 +209,8 @@ def intersect_same_subitem_plan(plan, plan_name, keep_non_overlapped=True):
     else:
         return [
             {
-                "start": P.to_data(item[0])[0][1],
-                "end": P.to_data(item[0])[0][2],
+                "start": item[0].lower,
+                "end": item[0].upper,
                 "units": item[1]["units"],
                 "ids": item[1]["id"].split("/"),
                 "id": plan_name,
@@ -483,8 +483,8 @@ def get_different_plans_for_booking(plans):
 
     return [
         {
-            "start": P.to_data(item[0])[0][1],
-            "end": P.to_data(item[0])[0][2],
+            "start": item[0].lower,
+            "end": item[0].upper,
             "units": item[1]["units"],
             "ids": item[1]["id"].split("/"),
             "id": item[1]["id"],
@@ -515,8 +515,8 @@ def join_consecutive_plans(plan):
 
     return [
         {
-            "start": P.to_data(item[0])[0][1],
-            "end": P.to_data(item[0])[0][2],
+            "start": item[0].lower,
+            "end": item[0].upper,
             "units": "Enough",
             "ids": item[1]["id"].split("/"),
             "id": item[1]["id"],
@@ -547,8 +547,8 @@ def intersect_different_subitem_plan(plan, keep_non_overlapped=False):
     if not keep_non_overlapped:
         return [
             {
-                "start": P.to_data(item[0])[0][1],
-                "end": P.to_data(item[0])[0][2],
+                "start": item[0].lower,
+                "end": item[0].upper,
                 "units": item[1]["units"],
                 "ids": item[1]["id"].split("/"),
                 "id": item[1]["id"],
@@ -560,8 +560,8 @@ def intersect_different_subitem_plan(plan, keep_non_overlapped=False):
     else:
         return [
             {
-                "start": P.to_data(item[0])[0][1],
-                "end": P.to_data(item[0])[0][2],
+                "start": item[0].lower,
+                "end": item[0].upper,
                 "units": item[1]["units"],
                 "ids": item[1]["id"].split("/"),
                 "event_type": "available",
@@ -899,8 +899,8 @@ def compute_overridable_bookings(overridable, nonoverridable, plans, units):
     )
     return [
         {
-            "start": P.to_data(item[0])[0][1],
-            "end": P.to_data(item[0])[0][2],
+            "start": item[0].lower,
+            "end": item[0].upper,
             "units": item[1]["units"],
             "ids": item[1]["id"].split("/"),
             "event_type": item[1]["event_type"],
@@ -997,8 +997,8 @@ def intersect_nonoverridable_with_plan(plan, units, keep_non_overlapped=False):
     if not keep_non_overlapped:
         return [
             {
-                "start": P.to_data(item[0])[0][1],
-                "end": P.to_data(item[0])[0][2],
+                "start": item[0].lower,
+                "end": item[0].upper,
                 "units": item[1]["units"],
                 "ids": item[1]["id"].split("/"),
                 "id": item[1]["id"],
@@ -1010,8 +1010,8 @@ def intersect_nonoverridable_with_plan(plan, units, keep_non_overlapped=False):
     else:
         return [
             {
-                "start": P.to_data(item[0])[0][1],
-                "end": P.to_data(item[0])[0][2],
+                "start": item[0].lower,
+                "end": item[0].upper,
                 "units": item[1]["units"],
                 "ids": item[1]["id"].split("/"),
                 "event_type": item[1]["event_type"],
