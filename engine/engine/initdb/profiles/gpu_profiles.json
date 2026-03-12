@@ -640,5 +640,24 @@
         "units": 32
       }
     ]
+  },
+  {
+    "brand": "NVIDIA",
+    "id": "NVIDIA-RTX4000SFFAdaGeneration",
+    "name": "NVIDIA RTX 4000 SFF Ada Generation",
+    "architecture": "NVIDIA Ada Lovelace",
+    "description": "Compact professional GPU for CAD, 3D design, and AI workloads",
+    "memory": "20 GB GDDR6",
+    "model": "RTX4000SFFAdaGeneration",
+    "profiles": [
+      {
+        "description": "Whole GPU passthrough",
+        "id": "NVIDIA-RTX4000SFFAdaGeneration-passthrough",
+        "memory": 20480,
+        "name": "NVIDIA RTX 4000 SFF Ada Generation passthrough",
+        "profile": "passthrough",
+        "units": 1
+      }
+    ]
   }
 ]
