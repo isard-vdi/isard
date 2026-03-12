@@ -114,6 +114,15 @@ def api_v3_admin_media_insert(payload):
             traceback.format_exc(),
             "media_url_not_valid",
         )
+    if response.url != data["url"]:
+        try:
+            validate_url_not_internal(response.url)
+        except SSRFError:
+            raise Error(
+                "bad_request",
+                "The url redirected to an internal address and is not allowed.",
+                description_code="media_url_not_valid",
+            )
     if response.info()["content-Length"]:
         media_size = float(response.info()["content-Length"])
     else:
