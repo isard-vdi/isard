@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import re
 from datetime import datetime, timedelta
 from time import time
 
@@ -132,9 +133,9 @@ class DesktopsUsage:
 
     def _process_consumption(self, consumption):
         if "hardware_bookables_vgpus" in consumption:
-            gpu_mem = int(
-                consumption["hardware_bookables_vgpus"][0].split("-")[2][:-1]
-            )  # Memory GB from profile
+            profile_suffix = consumption["hardware_bookables_vgpus"][0].split("-")[2]
+            match = re.match(r"(\d+)", profile_suffix)
+            gpu_mem = int(match.group(1)) if match else 0
         else:
             gpu_mem = 0
         return self._calculate_consumption(
