@@ -188,38 +188,21 @@ def _get_mig_profiles(gpu_index):
 
     profiles = []
     for line in result.stdout.strip().splitlines():
-        line = line.strip()
-        if not line.startswith("|"):
+        # nvidia-smi mig -lgip output is pipe-delimited:
+        #   |  <GPU>  MIG <name>  <ID>  <free>/<total>  <size>  No  ...  |
+        line = line.strip().strip("|").strip()
+        m = re.match(r"(\d+)\s+MIG\s+(\S+)\s+(\d+)\s+(\d+)/(\d+)\s+([\d.]+)", line)
+        if not m:
             continue
-        # Split table columns: | GPU  MIG_name  ID  Instances  Memory | ...
-        cols = [c.strip() for c in line.strip("|").split("|")]
-        if len(cols) < 5:
+        name = m.group(2)  # e.g. "1g.24gb", "2g.48gb+gfx", "1g.24gb-me"
+        if not re.match(r"\d+g\.", name):
             continue
-        # Skip header rows
-        try:
-            profile_id = int(cols[2])
-        except (ValueError, IndexError):
-            continue
-        name = cols[1]  # e.g. "1g.24gb", "2g.48gb+gfx", "1g.24gb-me"
-        if not name or not re.match(r"\d+g\.", name):
-            continue
-        # Instances field like "4/4" or "7" — parse free/total or just total
-        instances_str = cols[3]
-        parts = instances_str.split("/")
-        try:
-            max_instances = int(parts[-1])
-        except ValueError:
-            max_instances = 0
-        # Memory field like "23.62 GiB" or "23616 MiB"
-        mem_str = cols[4]
-        mem_match = re.search(r"([\d.]+)\s*(GiB|MiB|GB|MB)", mem_str)
-        if mem_match:
-            mem_val = float(mem_match.group(1))
-            if mem_match.group(2) in ("MiB", "MB"):
-                mem_val /= 1024.0
-            memory_gib = round(mem_val, 2)
-        else:
-            memory_gib = 0.0
+        # Normalize: replace "-" with "_" so profile IDs have exactly 2 dashes
+        # when combined as BRAND-MODEL-PROFILE (e.g. "1g.24gb_me")
+        name = name.replace("-", "_")
+        profile_id = int(m.group(3))
+        max_instances = int(m.group(5))
+        memory_gib = round(float(m.group(6)), 2)
         profiles.append(
             {
                 "name": name,
