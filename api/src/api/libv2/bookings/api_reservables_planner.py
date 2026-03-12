@@ -288,7 +288,7 @@ class ReservablesPlanner:
                 r.table("resource_planner").get(plan_id).delete().run(db.conn),
                 "deleted",
             ):
-                Error("internal_server", "Could not remove plan from database.")
+                raise Error("internal_server", "Could not remove plan from database.")
         self.scheduler.remove_scheduler_startswith_id(plan_id)
 
         ## NEEDS to get plan["start"] and plan["end"] to get only those bookings??
