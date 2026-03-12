@@ -14,14 +14,14 @@ def _run_nvidia_smi():
     """Run nvidia-smi and return parsed GPU info.
 
     Returns:
-        list of dicts with keys: name, memory_total_mb, pci_bus_id, driver_version
+        list of dicts with keys: name, memory_total_mb, pci_bus_id, driver_version, mig_mode
         Empty list if nvidia-smi is not available or fails.
     """
     try:
         result = subprocess.run(
             [
                 "nvidia-smi",
-                "--query-gpu=name,memory.total,pci.bus_id,driver_version",
+                "--query-gpu=name,memory.total,pci.bus_id,driver_version,mig.mode.current",
                 "--format=csv,noheader,nounits",
             ],
             capture_output=True,
@@ -36,7 +36,7 @@ def _run_nvidia_smi():
     gpus = []
     for line in result.stdout.strip().splitlines():
         parts = [p.strip() for p in line.split(",")]
-        if len(parts) != 4:
+        if len(parts) != 5:
             continue
         gpus.append(
             {
@@ -44,6 +44,7 @@ def _run_nvidia_smi():
                 "memory_total_mb": int(float(parts[1])),
                 "pci_bus_id": parts[2],
                 "driver_version": parts[3],
+                "mig_mode": parts[4],
             }
         )
     return gpus
@@ -158,6 +159,72 @@ def _get_vgpu_profiles(pci_bus_id):
     return profiles
 
 
+def _get_mig_profiles(gpu_index):
+    """Query MIG GPU Instance profiles for a given GPU index.
+
+    Runs ``nvidia-smi mig -lgip -i <gpu_index>`` and parses the table output.
+
+    Returns:
+        list of dicts with keys: name, profile_id, max_instances, memory_gib.
+        Empty list if command fails or no profiles found.
+    """
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "mig", "-lgip", "-i", str(gpu_index)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return []
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+
+    profiles = []
+    for line in result.stdout.strip().splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            continue
+        # Split table columns: | GPU  MIG_name  ID  Instances  Memory | ...
+        cols = [c.strip() for c in line.strip("|").split("|")]
+        if len(cols) < 5:
+            continue
+        # Skip header rows
+        try:
+            profile_id = int(cols[2])
+        except (ValueError, IndexError):
+            continue
+        name = cols[1]  # e.g. "1g.24gb", "2g.48gb+gfx", "1g.24gb-me"
+        if not name or not re.match(r"\d+g\.", name):
+            continue
+        # Instances field like "4/4" or "7" — parse free/total or just total
+        instances_str = cols[3]
+        parts = instances_str.split("/")
+        try:
+            max_instances = int(parts[-1])
+        except ValueError:
+            max_instances = 0
+        # Memory field like "23.62 GiB" or "23616 MiB"
+        mem_str = cols[4]
+        mem_match = re.search(r"([\d.]+)\s*(GiB|MiB|GB|MB)", mem_str)
+        if mem_match:
+            mem_val = float(mem_match.group(1))
+            if mem_match.group(2) in ("MiB", "MB"):
+                mem_val /= 1024.0
+            memory_gib = round(mem_val, 2)
+        else:
+            memory_gib = 0.0
+        profiles.append(
+            {
+                "name": name,
+                "profile_id": profile_id,
+                "max_instances": max_instances,
+                "memory_gib": memory_gib,
+            }
+        )
+    return profiles
+
+
 def _aggregate_subdevice_profiles(pci_bus_id):
     """For cards like A40 that expose multiple sub-devices, aggregate profiles.
 
@@ -224,10 +291,12 @@ def discover_gpus():
         return []
 
     gpus = []
-    for gpu in raw_gpus:
+    for gpu_index, gpu in enumerate(raw_gpus):
         profiles, sub_paths, path_parent = _aggregate_subdevice_profiles(
             gpu["pci_bus_id"]
         )
+
+        mig_mode = gpu.get("mig_mode", "[N/A]")
 
         gpu_info = {
             "name": gpu["name"],
@@ -235,7 +304,13 @@ def discover_gpus():
             "pci_bus_id": gpu["pci_bus_id"],
             "driver_version": gpu["driver_version"],
             "vgpu_profiles": profiles,
+            "mig_mode": mig_mode,
         }
+
+        if mig_mode != "[N/A]":
+            mig_profiles = _get_mig_profiles(gpu_index)
+            if mig_profiles:
+                gpu_info["mig_profiles"] = mig_profiles
 
         # Check for SR-IOV capability (vGPU cards like A40)
         sysfs_pci_id = _normalize_pci_bus_id(gpu["pci_bus_id"]).lower()
