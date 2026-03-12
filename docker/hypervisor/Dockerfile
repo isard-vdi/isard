@@ -52,7 +52,6 @@ RUN apk add --no-cache \
     libcrypto3@edge \
     swtpm
 
-
 RUN apk add --no-cache \
     libcap \
     mesa \
@@ -199,6 +198,9 @@ WORKDIR /src
 # Compiled spice libs avoid initial one minute red channel connection close bug
 RUN rm /usr/lib/libspice*
 COPY docker/hypervisor/spice-dev/* /usr/lib/
+
+# lspci/setpci needed for SR-IOV VF management during GPU passthrough switching
+RUN apk add --no-cache --force-broken-world pciutils
 
 ENV G_MESSAGES_DEBUG=all
 CMD [ "/src/start.sh"]

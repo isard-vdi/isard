@@ -1250,13 +1250,16 @@ class HypWorkerThread(threading.Thread):
 
         The Docker bind mount /dev/vfio:/dev/vfio may not see device nodes
         created by the kernel after container start. This creates the node
-        via mknod if missing.
+        via mknod if missing. Also verifies vfio-pci is actually bound.
         """
         # Convert pci_bus_id "pci_0000_41_00_0" to BDF "0000:41:00.0"
         parts = pci_bus_id.replace("pci_", "").split("_")
         bdf = f"{parts[0]}:{parts[1]}:{parts[2]}.{parts[3]}"
         try:
             cmds = [
+                f"DRIVER=$(basename $(readlink /sys/bus/pci/devices/{bdf}/driver 2>/dev/null) 2>/dev/null) && "
+                f'if [ "$DRIVER" != "vfio-pci" ]; then '
+                f'echo "ERROR: {bdf} bound to $DRIVER, not vfio-pci"; exit 1; fi && '
                 f"IOMMU_GROUP=$(basename $(readlink /sys/bus/pci/devices/{bdf}/iommu_group)) && "
                 f"if [ ! -e /dev/vfio/$IOMMU_GROUP ]; then "
                 f"DEV=$(cat /sys/class/vfio/$IOMMU_GROUP/dev) && "
@@ -1269,11 +1272,16 @@ class HypWorkerThread(threading.Thread):
                 f"fi",
             ]
             result = execute_commands(self.hostname, cmds, port=self.h.port)
-            logs.workers.info(
-                f"VFIO device check for {bdf}: {result[0].get('out', '').strip()}"
-            )
+            out = result[0].get("out", "").strip()
+            err = result[0].get("err", "").strip()
+            if "ERROR:" in out or "ERROR:" in err:
+                logs.workers.error(f"VFIO driver check failed for {bdf}: {out} {err}")
+                return False
+            logs.workers.info(f"VFIO device check for {bdf}: {out}")
         except Exception as e:
             logs.workers.warning(f"Could not ensure VFIO device for {bdf}: {e}")
+            return False
+        return True
 
     def _handle_start_domain(self, action, action_time, intervals):
         """Handle start_domain action"""
@@ -1291,7 +1299,14 @@ class HypWorkerThread(threading.Thread):
         # For PCI passthrough desktops, ensure /dev/vfio/<group> exists
         # inside the hypervisor container before libvirt tries to use it
         if action.get("profile") == "passthrough" and action.get("pci_bus_id"):
-            self._ensure_vfio_device(action["pci_bus_id"])
+            if not self._ensure_vfio_device(action["pci_bus_id"]):
+                update_domain_status(
+                    "Failed",
+                    action["id_domain"],
+                    hyp_id=self.hyp_id,
+                    detail="GPU not bound to vfio-pci driver",
+                )
+                return
 
         try:
             # Create the domain with timeout tracking

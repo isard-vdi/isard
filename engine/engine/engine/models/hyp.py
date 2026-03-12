@@ -799,38 +799,37 @@ class hyp(object):
                 )
                 if sriov_totalvfs > 0:
                     # SR-IOV card (e.g. A40 with vGPU driver): must disable
-                    # SR-IOV before vfio-pci will accept the PF.
-                    # Mirrors /usr/lib/nvidia/sriov-manage -d logic.
+                    # VFs before vfio-pci will accept the PF. Replicates
+                    # sriov-manage -d logic with proper error handling for
+                    # container environment (no systemctl, sysfs error codes).
+                    sb = pci_bdf.replace("00.0", "")
                     cmds_driver = [
                         "modprobe vfio-pci",
                         "modprobe pci-pf-stub",
-                        # Lock GPU so nvidia doesn't re-init on rebind
-                        f"echo 1 > /proc/driver/nvidia/gpus/{pci_bdf}/unbindLock",
-                        # Unbind PF from nvidia
+                        # Set unbindLock so nvidia driver prepares for unbind
+                        f"echo 1 > /proc/driver/nvidia/gpus/{pci_bdf}/unbindLock 2>/dev/null || true",
+                        # Unbind PF from nvidia (returns error but works)
                         f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/unbind 2>/dev/null || true",
-                        # Unbind all VFs (virtfn symlinks under the PF)
-                        f"for vf in /sys/bus/pci/devices/{pci_bdf}/virtfn*; do "
-                        f'  [ -e "$vf" ] || continue; '
-                        f"  vf_bdf=$(basename $(readlink $vf)); "
-                        f"  drv=/sys/bus/pci/devices/$vf_bdf/driver; "
-                        f'  [ -e "$drv" ] && echo $vf_bdf > $drv/unbind 2>/dev/null || true; '
+                        # Unbind all VFs
+                        f"for vf in $(lspci -D -s '{sb}' | awk '{{print $1}}'); do "
+                        f'[ "$vf" = "{pci_bdf}" ] && continue; '
+                        f"[ -e /sys/bus/pci/devices/$vf/driver ] && "
+                        f"echo $vf > /sys/bus/pci/devices/$vf/driver/unbind 2>/dev/null || true; "
                         f"done",
-                        # Read vendor:device for pci-pf-stub new_id
-                        f"VENDOR=$(cat /sys/bus/pci/devices/{pci_bdf}/vendor) && "
-                        f"DEVICE=$(cat /sys/bus/pci/devices/{pci_bdf}/device) && "
-                        f'echo "$VENDOR $DEVICE" > /sys/bus/pci/drivers/pci-pf-stub/new_id 2>/dev/null || true',
-                        # Bind PF to pci-pf-stub so we can set sriov_numvfs=0
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/bind 2>/dev/null || true",
-                        # Disable SR-IOV
-                        f"echo 0 > /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs",
-                        # Unbind from pci-pf-stub and clean up new_id
+                        # Bind to pci-pf-stub to set sriov_numvfs=0
+                        f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
+                        f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/new_id 2>/dev/null || true && '
+                        f"[ -e /sys/bus/pci/drivers/pci-pf-stub/{pci_bdf} ] || "
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/bind",
+                        "sleep 0.5",
+                        f"echo 0 > /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs 2>/dev/null || true",
+                        # Unbind from pci-pf-stub
                         f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/unbind 2>/dev/null || true",
-                        f"VENDOR=$(cat /sys/bus/pci/devices/{pci_bdf}/vendor) && "
-                        f"DEVICE=$(cat /sys/bus/pci/devices/{pci_bdf}/device) && "
-                        f'echo "$VENDOR $DEVICE" > /sys/bus/pci/drivers/pci-pf-stub/remove_id 2>/dev/null || true',
-                        # Now bind PF to vfio-pci (SR-IOV is disabled)
-                        f"echo vfio-pci > /sys/bus/pci/devices/{pci_bdf}/driver_override",
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe",
+                        f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
+                        f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/remove_id 2>/dev/null || true',
+                        # Now bind to vfio-pci
+                        f"printf 'vfio-pci' > /sys/bus/pci/devices/{pci_bdf}/driver_override",
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
                     ]
                 else:
                     # Non-SR-IOV GPU: simple driver swap
@@ -841,6 +840,19 @@ class hyp(object):
                         f"echo {pci_bdf} > /sys/bus/pci/drivers_probe",
                     ]
                 execute_commands(self.hostname, cmds_driver, port=self.port, timeout=60)
+
+                # Verify vfio-pci actually bound
+                verify_cmd = [f"readlink /sys/bus/pci/devices/{pci_bdf}/driver"]
+                result = execute_commands(self.hostname, verify_cmd, port=self.port)
+                driver_path = result[0].get("out", "").strip()
+                if "vfio-pci" not in driver_path:
+                    logs.main.error(
+                        f"Failed to bind vfio-pci to {pci_bdf}: "
+                        f"driver is {driver_path}"
+                    )
+                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                    return False
+
                 # Ensure /dev/vfio/<group> exists inside the container.
                 # The bind mount /dev/vfio:/dev/vfio may not see new device
                 # nodes created by the kernel on the host's devtmpfs after
@@ -861,39 +873,42 @@ class hyp(object):
                     f"(sriov_totalvfs={sriov_totalvfs})"
                 )
                 if sriov_totalvfs > 0:
-                    # SR-IOV card: unbind vfio-pci, re-enable SR-IOV, rebind nvidia.
-                    # Mirrors /usr/lib/nvidia/sriov-manage -e logic.
+                    # SR-IOV card: unbind vfio-pci, re-enable VFs, rebind
+                    # nvidia. Replicates sriov-manage -e logic.
+                    sb = pci_bdf.replace("00.0", "")
                     cmds_driver = [
-                        # Clean up /dev/vfio/<group> while iommu_group is resolvable
+                        # Clean up /dev/vfio/<group>
                         f"IOMMU_GROUP=$(basename $(readlink /sys/bus/pci/devices/{pci_bdf}/iommu_group)) && "
                         f"rm -f /dev/vfio/$IOMMU_GROUP",
-                        # Unbind PF from vfio-pci
+                        # Unbind from vfio-pci
                         f"echo {pci_bdf} > /sys/bus/pci/drivers/vfio-pci/unbind 2>/dev/null || true",
                         f"echo > /sys/bus/pci/devices/{pci_bdf}/driver_override",
-                        # Bind PF to pci-pf-stub to set sriov_numvfs
-                        "modprobe pci-pf-stub",
-                        f"VENDOR=$(cat /sys/bus/pci/devices/{pci_bdf}/vendor) && "
-                        f"DEVICE=$(cat /sys/bus/pci/devices/{pci_bdf}/device) && "
-                        f'echo "$VENDOR $DEVICE" > /sys/bus/pci/drivers/pci-pf-stub/new_id 2>/dev/null || true',
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/bind 2>/dev/null || true",
-                        # Re-enable SR-IOV
-                        f"echo {sriov_totalvfs} > /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs",
-                        # Unbind from pci-pf-stub and clean up
+                        # Probe so nvidia rebinds PF
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
+                        "sleep 2",
+                        # Unbind from nvidia to go through pci-pf-stub
+                        f"echo 1 > /proc/driver/nvidia/gpus/{pci_bdf}/unbindLock 2>/dev/null || true",
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/unbind 2>/dev/null || true",
+                        # Bind to pci-pf-stub to set sriov_numvfs
+                        f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
+                        f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/new_id 2>/dev/null || true && '
+                        f"[ -e /sys/bus/pci/drivers/pci-pf-stub/{pci_bdf} ] || "
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/bind",
+                        "sleep 0.5",
+                        f"echo {sriov_totalvfs} > /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs 2>/dev/null || true",
+                        # Unbind from pci-pf-stub
                         f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/unbind 2>/dev/null || true",
-                        f"VENDOR=$(cat /sys/bus/pci/devices/{pci_bdf}/vendor) && "
-                        f"DEVICE=$(cat /sys/bus/pci/devices/{pci_bdf}/device) && "
-                        f'echo "$VENDOR $DEVICE" > /sys/bus/pci/drivers/pci-pf-stub/remove_id 2>/dev/null || true',
-                        # Bind all VFs to nvidia first (they appear after sriov_numvfs is set)
-                        f"for vf in /sys/bus/pci/devices/{pci_bdf}/virtfn*; do "
-                        f'  [ -e "$vf" ] || continue; '
-                        f"  vf_bdf=$(basename $(readlink $vf)); "
-                        f"  echo nvidia > /sys/bus/pci/devices/$vf_bdf/driver_override 2>/dev/null || true; "
-                        f"  echo $vf_bdf > /sys/bus/pci/drivers_probe 2>/dev/null || true; "
+                        f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
+                        f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/remove_id 2>/dev/null || true',
+                        # Bind all VFs to nvidia
+                        f"for vf in $(lspci -D -s '{sb}' | awk '{{print $1}}'); do "
+                        f'[ "$vf" = "{pci_bdf}" ] && continue; '
+                        f"[ -e /sys/bus/pci/devices/$vf/driver ] && "
+                        f"echo $vf > /sys/bus/pci/devices/$vf/driver/unbind 2>/dev/null || true; "
+                        f"echo $vf > /sys/bus/pci/drivers/nvidia/bind 2>/dev/null || true; "
                         f"done",
-                        # Bind PF back to nvidia
-                        f"echo nvidia > /sys/bus/pci/devices/{pci_bdf}/driver_override",
-                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe",
-                        # Re-enable persistence mode
+                        # Bind PF to nvidia
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/bind 2>/dev/null || true",
                         "nvidia-smi -pm 1 2>/dev/null || true",
                     ]
                 else:
