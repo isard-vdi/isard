@@ -1430,7 +1430,7 @@ class hyp(object):
                 d_types = {}
                 for profile in gpu["vgpu_profiles"]:
                     profile_name = profile["name"]  # e.g., "A40-4Q"
-                    profile_suffix = profile_name.split("-")[-1]  # e.g., "4Q"
+                    profile_suffix = profile_name.split("-", 1)[1]  # e.g., "4Q"
 
                     d_types[profile_suffix] = {
                         "id": profile["type_id"],
@@ -1451,12 +1451,13 @@ class hyp(object):
                     "max": 1,
                 }
 
-                # Sort by numeric part of profile suffix to find smallest (most splits)
-                sorted_profiles = sorted(
-                    d_types.keys(),
-                    key=lambda k: int(k[:-1]) if k[:-1].isdigit() else 0,
+                # Find the profile with the most instances
+                vgpu_keys = [k for k in d_types if k != "passthrough"]
+                type_max_gpus = (
+                    max(vgpu_keys, key=lambda k: d_types[k]["max"])
+                    if vgpu_keys
+                    else "passthrough"
                 )
-                type_max_gpus = sorted_profiles[0]  # smallest memory = most instances
 
                 # Extract model from profile name
                 first_profile_name = gpu["vgpu_profiles"][0]["name"]
@@ -1581,16 +1582,19 @@ class hyp(object):
                             else:
                                 types = d["device"]["capability"]["capability"]["type"]
                             l_types = [
-                                dict(a) for a in types if a["name"][-1] in ["C", "Q"]
+                                dict(a) for a in types if "-" in a.get("name", "")
                             ]
                             for a in l_types:
                                 a["name"] = a["name"].replace("GRID ", "")
-                        l_types.sort(key=lambda r: int(r["name"][:-1].split("-")[-1]))
-                        type_max_gpus = l_types[0]["name"].split("-")[-1]
+                        l_types.sort(
+                            key=lambda r: int(r.get("availableInstances", 0)),
+                            reverse=True,
+                        )
+                        type_max_gpus = l_types[0]["name"].split("-", 1)[1]
                         model_gpu = l_types[0]["name"].split("-")[0]
 
                         d_types = {
-                            a["name"].split("-")[-1]: {
+                            a["name"].split("-", 1)[1]: {
                                 "id": a["@id"],
                                 "available": int(a.get("availableInstances", 0)),
                                 "memory": 0,
@@ -2225,7 +2229,7 @@ class hyp(object):
                     "domain_started": False,
                     "domain_reserved": False,
                 }
-            d_uuids[name.split("-")[-1]] = d
+            d_uuids[name] = d
         return d_uuids
 
     def delete_vgpus_devices(
