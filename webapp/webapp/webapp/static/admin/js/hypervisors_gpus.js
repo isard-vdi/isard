@@ -63,8 +63,8 @@ $(document).ready(function () {
       loadingRecords:
         '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
     },
-    bLengthChange: false,
-    bFilter: false,
+    bLengthChange: true,
+    bFilter: true,
     rowId: "id",
     deferRender: true,
     columns: [
@@ -125,6 +125,7 @@ $(document).ready(function () {
         data: null,
         width: "150px",
         defaultContent:
+          '<button id="btn-edit" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-pencil" style="color:darkblue"></i></button> ' +
           '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>'
       },
     ],
@@ -430,6 +431,16 @@ $(document).ready(function () {
             });
           })
           .on("pnotify.cancel", function () { });
+      } else if ($(this).attr("id") == "btn-edit") {
+        var data = gpus_table.row($(this).parents('tr')).data();
+        $("#modalEditGpuForm")[0].reset();
+        $('#modalEditGpuForm #id').val(data.id);
+        $('#modalEditGpuForm #name').val(data.name);
+        $('#modalEditGpuForm #description').val(data.description);
+        $('#modalEditGpu').modal({
+          backdrop: 'static',
+          keyboard: false
+        }).modal('show');
       } else if ($(this).attr("id") == "btn-force_active_profile") {
         var data=gpus_table.row($(this).parents('tr')).data();
         if (!data.profiles_enabled || data.profiles_enabled.length === 0) {
@@ -516,6 +527,44 @@ $(document).ready(function () {
                 })
             }
         })
+    });
+
+    $("#modalEditGpu #send").off('click').on('click', function(e) {
+        var form = $('#modalEditGpuForm');
+        form.parsley().validate();
+        if (form.parsley().isValid()) {
+            var data = form.serializeObject();
+            var item_id = data.id;
+            $.ajax({
+                type: 'PUT',
+                url: '/api/v3/admin/reservables/gpus/' + item_id,
+                data: JSON.stringify({ name: data.name, description: data.description }),
+                contentType: 'application/json',
+                success: function(data) {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                    gpus_table.ajax.reload();
+                    new PNotify({
+                        title: 'Updated',
+                        text: 'GPU updated successfully',
+                        hide: true,
+                        delay: 2000,
+                        opacity: 1,
+                        type: 'success'
+                    });
+                },
+                error: function(data) {
+                    new PNotify({
+                        title: 'ERROR updating GPU',
+                        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                        hide: true,
+                        delay: 2000,
+                        opacity: 1,
+                        type: 'error'
+                    });
+                }
+            });
+        }
     });
 });
 
