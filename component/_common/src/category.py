@@ -37,16 +37,16 @@ class Category(RethinkCustomBase):
         """
         Set an attribute on the Category object.
 
-        When setting the 'portal' attribute, validates that the domain
+        When setting the 'branding' attribute, validates that the domain
         is not already in use by another category.
 
         :param name: The attribute name to set.
         :type name: str
         :param value: The value to set.
         :type value: any
-        :raises ValueError: If the portal domain is already in use by another category.
+        :raises ValueError: If the branding domain is already in use by another category.
         """
-        if name == "portal" and value:
+        if name == "branding" and value:
             enabled = value.get("domain", {}).get("enabled")
             domain_name = value.get("domain", {}).get("name")
             if enabled and domain_name:
@@ -54,12 +54,14 @@ class Category(RethinkCustomBase):
                     existing = list(
                         r.table("categories")
                         .filter(
-                            lambda cat: (cat["portal"]["domain"]["name"] == domain_name)
-                            & (cat["portal"]["domain"]["enabled"] == True)
+                            lambda cat: (
+                                cat["branding"]["domain"]["name"] == domain_name
+                            )
+                            & (cat["branding"]["domain"]["enabled"] == True)
                             & (cat["id"] != self.id)
                         )
                         .run(self._rdb_connection)
                     )
                 if existing:
-                    raise ValueError(f"Portal domain {domain_name} is already in use")
+                    raise ValueError(f"Branding domain {domain_name} is already in use")
         super().__setattr__(name, value)

@@ -2020,7 +2020,7 @@ class ApiUsers:
                         "name": True,
                         "frontend": True,
                         "custom_url_name": True,
-                        "portal": {
+                        "branding": {
                             "domain": {"enabled", "name"},
                             "logo": {"enabled", "data"},
                         },
@@ -2030,10 +2030,10 @@ class ApiUsers:
             )
             if domain and domain != os.environ.get("DOMAIN"):
                 query = query.filter(
-                    {"portal": {"domain": {"enabled": True, "name": domain}}}
+                    {"branding": {"domain": {"enabled": True, "name": domain}}}
                 )
             else:
-                query = query.without("portal")
+                query = query.without("branding")
             return list(query.order_by("name").run(db.conn))
 
     def CategoryDelete(self, category_id, agent_id):

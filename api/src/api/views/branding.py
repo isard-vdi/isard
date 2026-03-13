@@ -27,30 +27,30 @@ from isardvdi_common.category import Category
 from api import app
 
 
-@app.route("/api/v3/admin/category/<category_id>/portal", methods=["GET"])
+@app.route("/api/v3/admin/category/<category_id>/branding", methods=["GET"])
 @is_admin_or_manager
-def _api_category_portal_get(payload, category_id):
+def _api_category_branding_get(payload, category_id):
     """
-    Endpoint to retrieve portal configuration for a category.
+    Endpoint to retrieve branding configuration for a category.
 
     :param payload: Data from JWT
     :type payload: dict
     :param category_id: Category id
     :type category_id: str
-    :return: Portal configuration as JSON
+    :return: Branding configuration as JSON
     :rtype: flask.Response
     """
     if not Category.exists(category_id):
         raise Error(error="not_found", description="Category not found")
     ownsCategoryId(payload, category_id)
-    return jsonify(Category(category_id).portal)
+    return jsonify(Category(category_id).branding)
 
 
-@app.route("/api/v3/admin/category/<category_id>/portal", methods=["PUT"])
+@app.route("/api/v3/admin/category/<category_id>/branding", methods=["PUT"])
 @is_admin_or_manager
-def _api_category_portal_put(payload, category_id):
+def _api_category_branding_put(payload, category_id):
     """
-    Endpoint to update portal configuration for a category.
+    Endpoint to update branding configuration for a category.
 
     :param payload: Data from JWT
     :type payload: dict
@@ -63,8 +63,8 @@ def _api_category_portal_put(payload, category_id):
         raise Error(error="not_found", description="Category not found")
     ownsCategoryId(payload, category_id)
     try:
-        Category(category_id).portal = _validate_item(
-            "category_portal_update", request.get_json()
+        Category(category_id).branding = _validate_item(
+            "category_branding_update", request.get_json()
         )
     except ValueError as exception:
         raise Error(error="conflict", description=exception)
