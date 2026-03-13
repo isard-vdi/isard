@@ -481,6 +481,54 @@
    </div>
 </div>
 
+<div class="modal fade" id="modalEditGpu" tabindex="-1" role="dialog" aria-labelledby="modalEditGpu" aria-hidden="true">
+   <div class="modal-dialog">
+      <div class="modal-content">
+         <!-- Modal Header -->
+         <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">
+               <span aria-hidden="true">&times;</span>
+               <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="myModalLabel">
+               <i class="fa fa-pencil fa-1x"></i> <i class="fa fa-briefcase"></i> Edit GPU
+            </h4>
+         </div>
+         <!-- Modal Body -->
+         <div class="modal-body">
+            <form id="modalEditGpuForm" class="form-horizontal form-label-left">
+               <input type="hidden" id="id" name="id"/>
+               <div class="x_panel">
+                  <div class="x_content">
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span></label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="name" class="form-control col-md-7 col-xs-12" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="GPU name" data-parsley-trigger="change" required type="text">
+                        </div>
+                     </div>
+                     <div class="item form-group">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description</label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <input id="description" class="form-control col-md-7 col-xs-12" maxlength="255" data-parsley-length="[0, 255]" data-parsley-trigger="change" name="description" placeholder="GPU description" type="text">
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </form>
+         </div>
+         <!-- Modal Footer -->
+         <div class="modal-footer">
+            <ul class="nav navbar-left panel_toolbox">
+               <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+            </ul>
+            <ul class="nav navbar-right panel_toolbox">
+               <li><button id="send" type="button" class="btn btn-success">Update GPU</button></li>
+            </ul>
+         </div>
+      </div>
+   </div>
+</div>
+
 <div class="modal fade" id="modalDeleteGPU" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
    aria-hidden="true">
    <div class="modal-dialog" style="width:45%;">
