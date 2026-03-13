@@ -19,8 +19,13 @@ type Category struct {
 }
 
 type CategoryAuthentication struct {
-	Enabled        *bool     `rethinkdb:"enabled"`
-	AllowedDomains *[]string `rethinkdb:"allowed_domains"`
+	Disabled               bool                                         `rethinkdb:"disabled"`
+	EmailDomainRestriction CategoryAuthenticationEmailDomainRestriction `rethinkdb:"email_domain_restriction"`
+}
+
+type CategoryAuthenticationEmailDomainRestriction struct {
+	Enabled bool     `rethinkdb:"enabled"`
+	Allowed []string `rethinkdb:"allowed"`
 }
 
 func (c *Category) Load(ctx context.Context, sess r.QueryExecutor) (*Category, error) {

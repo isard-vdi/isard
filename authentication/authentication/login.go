@@ -117,37 +117,33 @@ func (a *Authentication) startLogin(ctx context.Context, remoteAddr string, p pr
 	// Also, never lock out the default admin user, so it can recover fucked up configurations
 	if ok && !isDefaultAdmin(u) {
 		// If the category has this provider disabled, don't let the user in
-		if categoryAuth.Enabled != nil && !*categoryAuth.Enabled {
+		if categoryAuth.Disabled {
 			return "", "", provider.ErrUserDisallowed
 		}
 
-		// If there are allowed domains, check the user is in the allowed domains
-		if categoryAuth.Enabled != nil && *categoryAuth.Enabled && categoryAuth.AllowedDomains != nil && len(*categoryAuth.AllowedDomains) != 0 {
-			if u.Email != "" {
-				// Parse the email address of the user
-				addr, err := mail.ParseAddress(u.Email)
-				if err != nil {
-					return "", "", fmt.Errorf("parse user email address: '%s': %w", u.Email, err)
-				}
-
-				// Check the position of the last @ in the email address
-				// We check for the last @ because `"user@something"@example.com` is a valid address https://stackoverflow.com/a/12355882
-				at := strings.LastIndex(addr.Address, "@")
-				// Get the domain from the email address after the last @
-				domain := u.Email[at+1:]
-
-				// If the domain is not in the allowed domains, return an error
-				if !slices.Contains(*categoryAuth.AllowedDomains, domain) {
-					return "", "", provider.ErrUserDisallowed
-				}
-
-			} else {
-				// If the user doesn't have an email, and there are allowed domains, return an error
-				if len(*categoryAuth.AllowedDomains) != 0 {
-					return "", "", provider.ErrUserDisallowed
-				}
+		// If there are email domain restrictions, check the user is in the allowed domains
+		if categoryAuth.EmailDomainRestriction.Enabled {
+			// If the user doesn't have an email and the restriction is enabled, return an error
+			if u.Email == "" {
+				return "", "", provider.ErrUserDisallowed
 			}
 
+			// Parse the email address of the user
+			addr, err := mail.ParseAddress(u.Email)
+			if err != nil {
+				return "", "", fmt.Errorf("parse user email address: '%s': %w", u.Email, err)
+			}
+
+			// Check the position of the last @ in the email address
+			// We check for the last @ because `"user@something"@example.com` is a valid address https://stackoverflow.com/a/12355882
+			at := strings.LastIndex(addr.Address, "@")
+			// Get the domain from the email address after the last @
+			domain := u.Email[at+1:]
+
+			// If the domain is not in the allowed domains, return an error
+			if !slices.Contains(categoryAuth.EmailDomainRestriction.Allowed, domain) {
+				return "", "", provider.ErrUserDisallowed
+			}
 		}
 	}
 

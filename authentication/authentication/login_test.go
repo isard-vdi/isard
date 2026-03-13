@@ -119,20 +119,28 @@ func TestLogin(t *testing.T) {
 						"id": "default",
 						"authentication": map[string]interface{}{
 							"google": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.net"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.net"},
+								},
 							},
 							"ldap": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.io"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.io"},
+								},
 							},
 							"local": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.org"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.org"},
+								},
 							},
 							"saml": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.com"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.com"},
+								},
 							},
 						},
 					},
@@ -382,10 +390,7 @@ func TestLogin(t *testing.T) {
 					map[string]interface{}{
 						"id": "default",
 						"authentication": map[string]interface{}{
-							"local": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": nil,
-							},
+							"local": map[string]interface{}{},
 						},
 					},
 				}, nil)
@@ -620,10 +625,7 @@ func TestLogin(t *testing.T) {
 					map[string]interface{}{
 						"id": "default",
 						"authentication": map[string]interface{}{
-							"local": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": nil,
-							},
+							"local": map[string]interface{}{},
 						},
 					},
 				}, nil)
@@ -672,10 +674,7 @@ func TestLogin(t *testing.T) {
 					map[string]interface{}{
 						"id": "default",
 						"authentication": map[string]interface{}{
-							"local": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": nil,
-							},
+							"local": map[string]interface{}{},
 						},
 					},
 				}, nil)
@@ -748,10 +747,7 @@ func TestLogin(t *testing.T) {
 					map[string]interface{}{
 						"id": "default",
 						"authentication": map[string]interface{}{
-							"local": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": nil,
-							},
+							"local": map[string]interface{}{},
 						},
 					},
 				}, nil)
@@ -828,10 +824,7 @@ func TestLogin(t *testing.T) {
 					map[string]interface{}{
 						"id": "default",
 						"authentication": map[string]interface{}{
-							"local": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": nil,
-							},
+							"local": map[string]interface{}{},
 						},
 					},
 				}, nil)
@@ -908,20 +901,28 @@ func TestLogin(t *testing.T) {
 						"id": "default",
 						"authentication": map[string]interface{}{
 							"google": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.net"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.net"},
+								},
 							},
 							"ldap": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.io"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.io"},
+								},
 							},
 							"local": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.org"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.org"},
+								},
 							},
 							"saml": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.com"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.com"},
+								},
 							},
 						},
 					},
@@ -971,20 +972,28 @@ func TestLogin(t *testing.T) {
 						"id": "default",
 						"authentication": map[string]interface{}{
 							"google": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.net"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.net"},
+								},
 							},
 							"ldap": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.io"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.io"},
+								},
 							},
 							"local": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.org"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.org"},
+								},
 							},
 							"saml": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.com"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.com"},
+								},
 							},
 						},
 					},
@@ -1035,20 +1044,28 @@ func TestLogin(t *testing.T) {
 						"id": "default",
 						"authentication": map[string]interface{}{
 							"google": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.net"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.net"},
+								},
 							},
 							"ldap": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.io"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.io"},
+								},
 							},
 							"local": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.org"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.org"},
+								},
 							},
 							"saml": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.com"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.com"},
+								},
 							},
 						},
 					},
@@ -1099,20 +1116,25 @@ func TestLogin(t *testing.T) {
 						"id": "default",
 						"authentication": map[string]interface{}{
 							"google": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.net"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.net"},
+								},
 							},
 							"ldap": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.io"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.io"},
+								},
 							},
 							"local": map[string]interface{}{
-								"enabled":         false,
-								"allowed_domains": nil,
+								"disabled": true,
 							},
 							"saml": map[string]interface{}{
-								"enabled":         true,
-								"allowed_domains": []string{"example.com"},
+								"email_domain_restriction": map[string]interface{}{
+									"enabled": true,
+									"allowed": []string{"example.com"},
+								},
 							},
 						},
 					},
