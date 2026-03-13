@@ -76,10 +76,11 @@ type SAMLConfig struct {
 type SAML struct {
 	cfg *cfgManager[SAMLConfig]
 
-	secret string
-	host   string
-	log    *zerolog.Logger
-	db     r.QueryExecutor
+	secret     string
+	host       string
+	log        *zerolog.Logger
+	db         r.QueryExecutor
+	httpClient *http.Client
 }
 
 func InitSAML(secret string, host string, log *zerolog.Logger, db r.QueryExecutor) *SAML {
@@ -148,7 +149,10 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 			return fmt.Errorf("parse metadata URL: %w", err)
 		}
 
-		httpClient := &http.Client{Timeout: 30 * time.Second}
+		httpClient := s.httpClient
+		if httpClient == nil {
+			httpClient = &http.Client{Timeout: 30 * time.Second}
+		}
 		s.log.Info().Str("url", cfg.MetadataURL).Msg("fetching IdP metadata from URL")
 		metadata, err = samlsp.FetchMetadata(ctx, httpClient, *remoteMetadataURL)
 		if err != nil {
@@ -472,6 +476,10 @@ func (SAML) String() string {
 
 func (s *SAML) Healthcheck() error {
 	cfg := s.cfg.Cfg()
+
+	if cfg.Middleware == nil {
+		return fmt.Errorf("SAML middleware not yet configured")
+	}
 
 	var binding, bindingLocation string
 	if cfg.Middleware.Binding != "" {

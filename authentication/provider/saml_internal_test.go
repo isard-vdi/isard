@@ -90,10 +90,17 @@ func TestSAMLLoadConfig(t *testing.T) {
 		Cfg *SAMLConfig
 	}
 
+	tlsFallbackServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		w.Write([]byte(testSAMLMetadata))
+	}))
+	t.Cleanup(tlsFallbackServer.Close)
+
 	cases := map[string]struct {
-		Input    func(certPath, keyPath, metadataPath string) model.SAMLConfig
-		NeedTLS  bool
-		Expected expected
+		Input      func(certPath, keyPath, metadataPath string) model.SAMLConfig
+		NeedTLS    bool
+		HTTPClient *http.Client
+		Expected   expected
 	}{
 		"should load config with all fields from local metadata file": {
 			NeedTLS: true,
@@ -349,7 +356,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 					MetadataURL:  ts.URL,
 				}
 			},
-			Expected: expected{Err: "fetch metadata from URL failed"},
+			Expected: expected{Err: "invalid metadata URL"},
 		},
 		"should fallback to URL when metadata file does not exist": {
 			NeedTLS: false,
@@ -364,7 +371,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 					MetadataURL:  ts.URL,
 				}
 			},
-			Expected: expected{Err: "fetch metadata from URL failed"},
+			Expected: expected{Err: "invalid metadata URL"},
 		},
 		"should return error for invalid metadata URL": {
 			NeedTLS: false,
@@ -373,20 +380,15 @@ func TestSAMLLoadConfig(t *testing.T) {
 					MetadataURL: "://invalid-url",
 				}
 			},
-			Expected: expected{Err: "parse metadata URL"},
+			Expected: expected{Err: "invalid metadata URL"},
 		},
 		"should fallback to URL and load config when metadata file does not exist": {
-			NeedTLS: true,
+			NeedTLS:    true,
+			HTTPClient: tlsFallbackServer.Client(),
 			Input: func(certPath, keyPath, _ string) model.SAMLConfig {
-				ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/xml")
-					w.Write([]byte(testSAMLMetadata))
-				}))
-				t.Cleanup(ts.Close)
-
 				return model.SAMLConfig{
 					MetadataFile:    "/nonexistent/metadata.xml",
-					MetadataURL:     ts.URL,
+					MetadataURL:     tlsFallbackServer.URL,
 					EntityID:        "https://sp.example.com",
 					SignatureMethod: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
 					KeyFile:         keyPath,
@@ -472,9 +474,10 @@ func TestSAMLLoadConfig(t *testing.T) {
 			}
 
 			s := &SAML{
-				cfg:  &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
-				host: "sp.example.com",
-				log:  &nopLog,
+				cfg:        &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+				host:       "sp.example.com",
+				log:        &nopLog,
+				httpClient: tc.HTTPClient,
 			}
 
 			input := tc.Input(certPath, keyPath, metadataPath)
