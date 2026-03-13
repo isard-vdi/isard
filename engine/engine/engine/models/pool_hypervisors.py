@@ -6,6 +6,7 @@
 
 import os
 import pprint
+import queue as queue_module
 
 from engine.services.db import update_domain_status
 from engine.services.db.hypervisors import get_pool_hypers_conf
@@ -42,7 +43,10 @@ def move_actions_to_others_hypers(
             continue
         retain_actions_in_queue = []
         while d_q[hyp_id].empty() is False:
-            action = d_q[hyp_id].get()
+            try:
+                action = d_q[hyp_id].get(block=False)
+            except queue_module.Empty:
+                break
 
             if action["type"] == "stop_thread":
                 retain_actions_in_queue.append(action)

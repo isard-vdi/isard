@@ -673,9 +673,7 @@ class HypWorkerThread(threading.Thread):
             f"after {RETRIES_HYP_IS_ALIVE} attempts"
         )
         reason = getattr(self.h, "fail_connected_reason", "Connection failed")
-        status = get_hyp_status(self.hyp_id)
-        if status == "Online":
-            update_hyp_status(self.hyp_id, "Error", reason)
+        update_hyp_status(self.hyp_id, "Error", reason)
         update_domains_started_in_hyp_to_unknown(self.hyp_id)
         logs.workers.error(
             f"Worker thread for hypervisor {self.hyp_id} exiting due to error"

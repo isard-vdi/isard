@@ -233,8 +233,8 @@ class Populate(object):
                                     "timeout_queues": 2,
                                     "timeout_hypervisor": 10,
                                     "libvirt_hypervisor_timeout_connection": 3,
-                                    "timeout_between_retries_hyp_is_alive": 1,
-                                    "retries_hyp_is_alive": 3,
+                                    "timeout_between_retries_hyp_is_alive": 2,
+                                    "retries_hyp_is_alive": 8,
                                 },
                             },
                             "grafana": {
