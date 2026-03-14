@@ -43,10 +43,10 @@ from engine.services.log import *
 from isardvdi_common.storage import Storage
 
 TIMEOUT_QUEUES = float(CONFIG_DICT["TIMEOUTS"]["timeout_queues"])
-TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE = float(
-    CONFIG_DICT["TIMEOUTS"]["timeout_between_retries_hyp_is_alive"]
+TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE = max(
+    2.0, float(CONFIG_DICT["TIMEOUTS"]["timeout_between_retries_hyp_is_alive"])
 )
-RETRIES_HYP_IS_ALIVE = int(CONFIG_DICT["TIMEOUTS"]["retries_hyp_is_alive"])
+RETRIES_HYP_IS_ALIVE = max(8, int(CONFIG_DICT["TIMEOUTS"]["retries_hyp_is_alive"]))
 
 
 def create_disk_action_dict(
