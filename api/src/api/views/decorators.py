@@ -145,23 +145,7 @@ def has_disclaimer_token(f):
 def has_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        payload = get_header_jwt_payload()
-        if payload.get("type", "") not in ["login", ""]:
-            raise Error(
-                "forbidden",
-                "Token not valid for this operation.",
-                traceback.format_exc(),
-            )
-        if get_jwt_payload().get("session_id", "") != "api-key":
-            api_sessions.get(
-                get_jwt_payload().get("session_id", ""), get_remote_addr(request)
-            )
-        else:
-            # Check if the API key token is the one in the db
-            check_user_api_key(payload["user_id"])
-
-        if payload.get("role_id") != "admin":
-            maintenance(payload.get("category_id"))
+        payload = _validate_payload(["admin", "manager", "advanced", "user"])
         kwargs["payload"] = payload
         return f(*args, **kwargs)
 
@@ -263,32 +247,37 @@ def has_migration_required_or_login_token(f):
     return decorated
 
 
+def _validate_payload(allowed_roles):
+    payload = get_header_jwt_payload()
+    if payload.get("type", "") not in ["login", ""]:
+        raise Error(
+            "forbidden",
+            "Token not valid for this operation.",
+            traceback.format_exc(),
+        )
+    if get_jwt_payload().get("session_id", "") != "api-key":
+        api_sessions.get(
+            get_jwt_payload().get("session_id", ""), get_remote_addr(request)
+        )
+    else:
+        # Check if the API key token is the one in the db
+        check_user_api_key(payload["user_id"])
+
+    if payload.get("role_id") not in allowed_roles:
+        raise Error("forbidden", "Not enough rights.", traceback.format_exc())
+
+    if payload.get("role_id") != "admin":
+        maintenance(payload["category_id"])
+
+    return payload
+
+
 def is_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        payload = get_header_jwt_payload()
-        if payload.get("type", "") not in ["login", ""]:
-            raise Error(
-                "forbidden",
-                "Token not valid for this operation.",
-                traceback.format_exc(),
-            )
-        if get_jwt_payload().get("session_id", "") != "api-key":
-            api_sessions.get(
-                get_jwt_payload().get("session_id", ""), get_remote_addr(request)
-            )
-        else:
-            # Check if the API key token is the one in the db
-            check_user_api_key(payload["user_id"])
-
-        if payload["role_id"] == "admin":
-            kwargs["payload"] = payload
-            return f(*args, **kwargs)
-        raise Error(
-            "forbidden",
-            "Not enough rights.",
-            traceback.format_exc(),
-        )
+        payload = _validate_payload(["admin"])
+        kwargs["payload"] = payload
+        return f(*args, **kwargs)
 
     return decorated
 
@@ -296,31 +285,9 @@ def is_admin(f):
 def is_admin_or_manager(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        payload = get_header_jwt_payload()
-        if payload.get("type", "") not in ["login", ""]:
-            raise Error(
-                "forbidden",
-                "Token not valid for this operation.",
-                traceback.format_exc(),
-            )
-        if get_jwt_payload().get("session_id", "") != "api-key":
-            api_sessions.get(
-                get_jwt_payload().get("session_id", ""), get_remote_addr(request)
-            )
-        else:
-            # Check if the API key token is the one in the db
-            check_user_api_key(payload["user_id"])
-
-        if payload.get("role_id") != "admin":
-            maintenance(payload["category_id"])
-        if payload["role_id"] == "admin" or payload["role_id"] == "manager":
-            kwargs["payload"] = payload
-            return f(*args, **kwargs)
-        raise Error(
-            "forbidden",
-            "Not enough rights.",
-            traceback.format_exc(),
-        )
+        payload = _validate_payload(["admin", "manager"])
+        kwargs["payload"] = payload
+        return f(*args, **kwargs)
 
     return decorated
 
@@ -328,31 +295,9 @@ def is_admin_or_manager(f):
 def is_not_user(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        payload = get_header_jwt_payload()
-        if payload.get("type", "") not in ["login", ""]:
-            raise Error(
-                "forbidden",
-                "Token not valid for this operation.",
-                traceback.format_exc(),
-            )
-        if get_jwt_payload().get("session_id", "") != "api-key":
-            api_sessions.get(
-                get_jwt_payload().get("session_id", ""), get_remote_addr(request)
-            )
-        else:
-            # Check if the API key token is the one in the db
-            header_api_key = get_token_auth_header()
-            check_user_api_key(payload["user_id"])
-        if payload.get("role_id") != "admin":
-            maintenance(payload["category_id"])
-        if payload["role_id"] != "user":
-            kwargs["payload"] = payload
-            return f(*args, **kwargs)
-        raise Error(
-            "forbidden",
-            "Not enough rights.",
-            traceback.format_exc(),
-        )
+        payload = _validate_payload(["admin", "manager", "advanced"])
+        kwargs["payload"] = payload
+        return f(*args, **kwargs)
 
     return decorated
 
