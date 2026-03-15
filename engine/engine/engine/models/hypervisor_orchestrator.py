@@ -416,13 +416,11 @@ class HypervisorsOrchestratorThread(threading.Thread):
 
     def try_hyp_and_threads_alive(self, hyp_id):
         # try dns resolution
-        # Note: force_get_hyp_info is DEPRECATED and not used
         (
             hostname,
             port,
             user,
             nvidia_enabled,
-            force_get_hyp_info,  # DEPRECATED: ignored, engine auto-detects GPU changes
             init_vgpu_profiles,
         ) = get_hyp_hostname_from_id(hyp_id)
         try:

@@ -332,9 +332,12 @@ class UiActions(object):
                     extra_info = {}
 
                 if extra_info.get("nvidia", False) is True:
-                    xml = recreate_xml_if_gpu(xml, extra_info["uid"])
-                    # nvidia_uid = extra_info["uid"]
-                    # update_vgpu_reserved(extra_info["gpu_id"], extra_info["profile"], nvidia_uid, id_domain)
+                    xml = recreate_xml_if_gpu(
+                        xml,
+                        extra_info["uid"],
+                        pci_bus_id=extra_info.get("pci_bus_id"),
+                        is_passthrough=(extra_info.get("profile") == "passthrough"),
+                    )
                     update_vgpu_uuid_domain_action(
                         extra_info["gpu_id"],
                         extra_info["uid"],
@@ -364,6 +367,7 @@ class UiActions(object):
                     dict_action["nvidia_uid"] = extra_info.get("uid", False)
                     dict_action["profile"] = extra_info.get("profile", False)
                     dict_action["vgpu_id"] = extra_info["gpu_id"]
+                    dict_action["pci_bus_id"] = extra_info.get("pci_bus_id")
 
                 priority = Q_PRIORITY_START
 

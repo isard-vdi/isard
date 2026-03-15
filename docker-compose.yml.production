@@ -1,0 +1,1477 @@
+name: docker-compose-parts
+services:
+  isard-api:
+    container_name: isard-api
+    depends_on:
+      isard-engine:
+        condition: service_healthy
+        required: true
+    environment:
+      API_HYPERVISORS_SECRET: Z8RXkTq2tTA+nT55mwUpLraY6D2RxdICIS/LOvqsqh0=
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_SAVE_EMAIL: null
+      AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED: null
+      AUTHENTICATION_AUTHENTICATION_SAML_ENABLED: null
+      AUTHENTICATION_AUTHENTICATION_SAML_SAVE_EMAIL: null
+      AUTHENTICATION_AUTHENTICATION_TOKEN_DURATION: null
+      BASTION_ENABLED: "true"
+      BASTION_SSH_PORT: null
+      DEBUG_STATS: "false"
+      DEBUG_WEBSOCKETS: "false"
+      DIRECTVIEWER_MODE: browser
+      DOMAIN: solaris.isardvdi.cat
+      FRONTEND_DOCS_URI: https://isard.gitlab.io/isardvdi-docs/
+      FRONTEND_SHOW_BOOKINGS: null
+      FRONTEND_SHOW_TEMPORAL: null
+      FRONTEND_VIEWERS_DOCS_URI: https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/
+      HTTP_PORT: null
+      HTTPS_PORT: null
+      LOG_LEVEL: INFO
+      OPERATIONS_API_ENABLED: null
+      PYTHONUNBUFFERED: "1"
+      REDIS_HOST: null
+      REDIS_PASSWORD: null
+      REDIS_PORT: null
+      REDIS_TASK_RESULT_TTL: null
+      RETHINKDB_DB: null
+      RETHINKDB_HOST: null
+      RETHINKDB_PORT: null
+      USAGE: null
+      VIEWER_RDP_GW: null
+      VIEWER_SPICE: null
+      VPN_MTU: null
+      WEBAPP_ADMIN_PWD: Pirinives5
+      WG_GUESTS_DHCP_MASK: "23"
+      WG_GUESTS_NETS: 10.2.0.0/16
+      WG_HYPERS_NET: 10.1.0.0/24
+      WG_USERS_PORT: "443"
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:5000/api/v3
+      interval: 5s
+      start_period: 30s
+    image: registry.gitlab.com/isard/isardvdi/api:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.10
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - type: bind
+        source: /opt/isard/sshkeys/
+        target: /sshkeys
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/certs/viewers
+        target: /viewers
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/assets/img/desktops
+        target: /api/api/static/assets/img/desktops
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/config
+        target: /usr/local/etc/isardvdi
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-authentication:
+    container_name: isard-authentication
+    depends_on:
+      isard-api:
+        condition: service_healthy
+        required: true
+      isard-db:
+        condition: service_healthy
+        required: true
+      isard-redis:
+        condition: service_healthy
+        required: true
+    environment:
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      AUTHENTICATION_AUTHENTICATION_GOOGLE_ENABLED: null
+      AUTHENTICATION_AUTHENTICATION_HOST: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED: null
+      AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED: "true"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR: "2"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_ATTEMPTS: "10"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER: 1m
+      AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED: null
+      AUTHENTICATION_AUTHENTICATION_SAML_ENABLED: null
+      AUTHENTICATION_AUTHENTICATION_SECRET: null
+      AUTHENTICATION_AUTHENTICATION_TOKEN_DURATION: null
+      AUTHENTICATION_DB_DB: null
+      AUTHENTICATION_DB_HOST: null
+      AUTHENTICATION_DB_PORT: null
+      AUTHENTICATION_DB_PWD: null
+      AUTHENTICATION_DB_USR: null
+      AUTHENTICATION_HTTP_HOST: null
+      AUTHENTICATION_HTTP_PORT: null
+      AUTHENTICATION_LOG_LEVEL: null
+      AUTHENTICATION_NOTIFIER_ADDRESS: null
+      DOMAIN: solaris.isardvdi.cat
+      LOG_LEVEL: INFO
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:1313/healthcheck
+      interval: 5s
+      start_period: 30s
+    image: registry.gitlab.com/isard/isardvdi/authentication:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.11
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - type: bind
+        source: /opt/isard/authentication/keys
+        target: /keys
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-bastion:
+    container_name: isard-bastion
+    depends_on:
+      isard-db:
+        condition: service_healthy
+        required: true
+      isard-vpn:
+        condition: service_started
+        required: true
+    environment:
+      API_DOMAIN: ""
+      BASTION_DB_DB: null
+      BASTION_DB_HOST: null
+      BASTION_DB_PORT: null
+      BASTION_DB_PWD: null
+      BASTION_DB_USR: null
+      BASTION_DOMAIN: solaris.isardvdi.cat
+      BASTION_HTTP_BASE_URL: null
+      BASTION_HTTP_HOST: null
+      BASTION_HTTP_PORT: null
+      BASTION_LOG_LEVEL: null
+      BASTION_SSH_HOST: null
+      BASTION_SSH_PRIVATE_KEY_PATH: null
+      DOMAIN: solaris.isardvdi.cat
+      LOG_LEVEL: INFO
+    image: registry.gitlab.com/isard/isardvdi/bastion:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.117
+    privileged: true
+    volumes:
+      - type: bind
+        source: /opt/isard/bastion/ssh
+        target: /opt/isard/bastion/ssh
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-core_worker:
+    container_name: isard-core_worker
+    depends_on:
+      isard-api:
+        condition: service_healthy
+        required: true
+      isard-db:
+        condition: service_healthy
+        required: true
+      isard-redis:
+        condition: service_healthy
+        required: true
+    environment:
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      RETHINKDB_DB: isard
+      RETHINKDB_HOST: isard-db
+      RETHINKDB_PORT: "28015"
+      RQ_REDIS_URL: redis://:@isard-redis:6379
+    image: registry.gitlab.com/isard/isardvdi/core_worker:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.29
+    volumes:
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-db:
+    container_name: isard-db
+    environment:
+      ENABLE_STATS: ""
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - echo "r.db('rethinkdb').table('current_issues').count().eq(0).run() and exit(0) or exit(1)" | rethinkdb repl
+      interval: 5s
+      start_period: 30s
+    image: registry.gitlab.com/isard/isardvdi/db:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.13
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - type: bind
+        source: /opt/isard/database
+        target: /data
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard-local/stats/prometheus
+        target: /var/lib/prometheus
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-engine:
+    container_name: isard-engine
+    depends_on:
+      isard-db:
+        condition: service_healthy
+        required: true
+      isard-redis:
+        condition: service_healthy
+        required: true
+    environment:
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_ID: null
+      AUTHENTICATION_AUTHENTICATION_GOOGLE_CLIENT_SECRET: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_AUTO_REGISTER: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_AUTO_REGISTER_GROUPS: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_BASE_SEARCH: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_BIND_DN: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_CATEGORY: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_EMAIL: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_NAME: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_PHOTO: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_UID: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_USERNAME: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_FILTER: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_GROUP_DEFAULT: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_GUESS_CATEGORY: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_HOST: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_PASSWORD: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_PORT: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_PROTOCOL: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_CATEGORY: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_EMAIL: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_NAME: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_PHOTO: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_UID: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_USERNAME: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADMIN_IDS: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_ADVANCED_IDS: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_DEFAULT: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FIELD: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_FILTER: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_REGEX: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_SEARCH_BASE: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_LIST_USE_USE_DN: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_MANAGER_IDS: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_ROLE_USER_IDS: null
+      AUTHENTICATION_AUTHENTICATION_LDAP_SAVE_EMAIL: null
+      AUTHENTICATION_AUTHENTICATION_SAML_AUTO_REGISTER: null
+      AUTHENTICATION_AUTHENTICATION_SAML_AUTO_REGISTER_ROLES: null
+      AUTHENTICATION_AUTHENTICATION_SAML_CERT_FILE: null
+      AUTHENTICATION_AUTHENTICATION_SAML_ENTITY_ID: null
+      AUTHENTICATION_AUTHENTICATION_SAML_FIELD_CATEGORY: null
+      AUTHENTICATION_AUTHENTICATION_SAML_FIELD_EMAIL: null
+      AUTHENTICATION_AUTHENTICATION_SAML_FIELD_GROUP: null
+      AUTHENTICATION_AUTHENTICATION_SAML_FIELD_NAME: null
+      AUTHENTICATION_AUTHENTICATION_SAML_FIELD_PHOTO: null
+      AUTHENTICATION_AUTHENTICATION_SAML_FIELD_ROLE: null
+      AUTHENTICATION_AUTHENTICATION_SAML_FIELD_UID: null
+      AUTHENTICATION_AUTHENTICATION_SAML_FIELD_USERNAME: null
+      AUTHENTICATION_AUTHENTICATION_SAML_GROUP_DEFAULT: null
+      AUTHENTICATION_AUTHENTICATION_SAML_GUESS_CATEGORY: null
+      AUTHENTICATION_AUTHENTICATION_SAML_GUESS_ROLE: null
+      AUTHENTICATION_AUTHENTICATION_SAML_KEY_FILE: null
+      AUTHENTICATION_AUTHENTICATION_SAML_LOGOUT_REDIRECT_URL: null
+      AUTHENTICATION_AUTHENTICATION_SAML_MAX_ISSUE_DELAY: null
+      AUTHENTICATION_AUTHENTICATION_SAML_METADATA_FILE: null
+      AUTHENTICATION_AUTHENTICATION_SAML_METADATA_URL: null
+      AUTHENTICATION_AUTHENTICATION_SAML_REGEX_CATEGORY: null
+      AUTHENTICATION_AUTHENTICATION_SAML_REGEX_EMAIL: null
+      AUTHENTICATION_AUTHENTICATION_SAML_REGEX_GROUP: null
+      AUTHENTICATION_AUTHENTICATION_SAML_REGEX_NAME: null
+      AUTHENTICATION_AUTHENTICATION_SAML_REGEX_PHOTO: null
+      AUTHENTICATION_AUTHENTICATION_SAML_REGEX_UID: null
+      AUTHENTICATION_AUTHENTICATION_SAML_REGEX_USERNAME: null
+      AUTHENTICATION_AUTHENTICATION_SAML_ROLE_ADMIN_IDS: null
+      AUTHENTICATION_AUTHENTICATION_SAML_ROLE_ADVANCED_IDS: null
+      AUTHENTICATION_AUTHENTICATION_SAML_ROLE_DEFAULT: null
+      AUTHENTICATION_AUTHENTICATION_SAML_ROLE_MANAGER_IDS: null
+      AUTHENTICATION_AUTHENTICATION_SAML_ROLE_USER_IDS: null
+      AUTHENTICATION_AUTHENTICATION_SAML_SAVE_EMAIL: null
+      AUTHENTICATION_AUTHENTICATION_SAML_SIGNATURE_METHOD: null
+      DOMAIN: solaris.isardvdi.cat
+      ENGINE_DISK_BALANCER: null
+      ENGINE_GUESTS_DISK_DRIVER_CACHE: null
+      ENGINE_HYPER_BALANCER: null
+      GPU_FAKE: null
+      LOG_EXCEPT_ID_LEVEL: null
+      LOG_LEVEL: INFO
+      NOTIFY_EMAIL: null
+      NOTIFY_EMAIL_PASSWORD: null
+      NOTIFY_EMAIL_SMPT_PORT: null
+      NOTIFY_EMAIL_SMTP_SERVER: null
+      NOTIFY_EMAIL_USERNAME: null
+      QCOW2_CLUSTER_SIZE: null
+      QCOW2_EXTENDED_L2: null
+      RETHINKDB_DB: null
+      RETHINKDB_HOST: null
+      RETHINKDB_PORT: null
+      STATS_RETHINKDB_PORT: null
+      TELEGRAM_ENGINE_CHAT_ID: null
+      TELEGRAM_ENGINE_TOKEN: null
+      WEBAPP_ADMIN_PWD: Pirinives5
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:5000/info
+      interval: 5s
+      start_period: 5m0s
+    image: registry.gitlab.com/isard/isardvdi/engine:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.14
+    volumes:
+      - type: bind
+        source: /opt/isard/certs/viewers
+        target: /certs
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/sshkeys
+        target: /root/.ssh
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-grafana:
+    container_name: isard-grafana
+    environment:
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      DOMAIN: solaris.isardvdi.cat
+      GF_INSTALL_PLUGINS: grafana-pyroscope-app
+      GRAFANA_TELEGRAM_CHAT_ID: ""
+      GRAFANA_TELEGRAM_TOKEN: ""
+      LOKI_ADDRESS: http://isard-loki:3100
+      PROMETHEUS_ADDRESS: http://isard-prometheus:9090
+      WEBAPP_ADMIN_PWD: Pirinives5
+    image: registry.gitlab.com/isard/isardvdi/grafana:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.15
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/monitor/grafana/data
+        target: /var/lib/grafana
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/monitor/grafana/custom
+        target: /custom
+        bind: {create_host_path: true}
+  isard-grafana-alloy:
+    container_name: isard-grafana-alloy
+    devices:
+      - source: /dev/kmsg
+        target: /dev/kmsg
+        permissions: rwm
+    entrypoint:
+      - /usr/local/etc/alloy/run.sh
+    environment:
+      DOMAIN: solaris.isardvdi.cat
+      FLAVOUR: all-in-one
+      LOG_LEVEL: INFO
+      LOKI_ADDRESS: http://isard-loki:3100
+      PROMETHEUS_ADDRESS: http://isard-prometheus:9090
+    image: grafana/alloy:v1.11.3
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network: {}
+    pid: host
+    privileged: true
+    restart: unless-stopped
+    user: root
+    volumes:
+      - type: bind
+        source: ./docker/grafana-alloy
+        target: /usr/local/etc/alloy
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard-local/stats/alloy
+        target: /var/lib/alloy/data
+        bind: {create_host_path: true}
+      - type: bind
+        source: /
+        target: /rootfs
+        read_only: true
+        bind:
+          create_host_path: true
+          propagation: rslave
+      - type: bind
+        source: /var/run
+        target: /var/run
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /sys
+        target: /sys
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/stats/prometheus
+        target: /var/lib/prometheus
+        bind: {create_host_path: true}
+      - type: bind
+        source: /var/lib/docker/
+        target: /var/lib/docker
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /dev/disk/
+        target: /dev/disk
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /var/log
+        target: /var/log
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-guac:
+    container_name: isard-guac
+    environment:
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      GUACD_ADDR: isard-vpn:4822
+      LOG_LEVEL: INFO
+    image: registry.gitlab.com/isard/isardvdi/guac:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.16
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-hypervisor:
+    container_name: isard-hypervisor
+    environment:
+      API_DOMAIN: ""
+      API_HYPERVISORS_SECRET: Z8RXkTq2tTA+nT55mwUpLraY6D2RxdICIS/LOvqsqh0=
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME: 30m
+      AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED: "true"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR: "2"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_ATTEMPTS: "10"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME: 15m
+      AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER: 1m
+      BASTION_ENABLED: "true"
+      BLACKLIST_IPTABLES: 10.10.10.0/24
+      BUILD_ROOT_PATH: .
+      CAPABILITIES_STORAGE_POOLS: 00000000-0000-0000-0000-000000000000
+      DIRECTVIEWER_MODE: browser
+      DISABLE_TRAFFIC_PRIORITIZATION: "false"
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: main
+      DOCKER_NET: 172.31.255
+      DOMAIN: solaris.isardvdi.cat
+      ENV: /usr/local/etc/environment
+      FLAVOUR: all-in-one
+      FRONTEND_DOCS_URI: https://isard.gitlab.io/isardvdi-docs/
+      FRONTEND_VIEWERS_DOCS_URI: https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/
+      GOLANG_BUILD_IMAGE: golang:1.24.3-alpine3.22
+      GOLANG_RUN_IMAGE: alpine:3.22.0
+
+      HAPROXY_LOGGING: .
+      HAPROXY_RUN_IMAGE: haproxy:3.3-alpine3.22
+      HYPER_ENABLED: null
+      HYPER_ID: null
+      LOG_LEVEL: INFO
+      NETWORK_MAX_DOWNLOAD_BANDWIDTH: null
+      NETWORK_MAX_UPLOAD_BANDWIDTH: null
+      SESSIONS_SESSIONS_EXPIRATION_TIME: 5m
+      SESSIONS_SESSIONS_MAX_RENEW_TIME: 30m
+      SESSIONS_SESSIONS_MAX_TIME: 8h
+      SRC_VERSION_ID: main-dirty
+      SRC_VERSION_LINK: ""
+      VIDEO_DOMAIN: null
+      VIEWER_BROWSER: null
+      VIEWER_SPICE: null
+      WEBAPP_ADMIN_PWD: Pirinives5
+      WG_GUESTS_DHCP_MASK: "23"
+      WG_GUESTS_NETS: 10.2.0.0/16
+      WG_GUESTS_RESERVED_HOSTS: "20"
+      WG_HYPERS_NET: 10.1.0.0/24
+      WG_HYPERS_PORT: "4443"
+      WG_MAIN_NET: 10.0.0.0/14
+      WG_USERS_NET: 10.0.0.0/16
+      WG_USERS_PORT: "443"
+      WHITELIST_IPTABLES: ""
+    image: registry.gitlab.com/isard/isardvdi/hypervisor:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.17
+    privileged: true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - type: bind
+        source: /opt/isard/templates
+        target: /isard/templates
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/groups
+        target: /isard/groups
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/media
+        target: /isard/media
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/volatile
+        target: /isard/volatile
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/storage_pools
+        target: /isard/storage_pools
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard-local/sockets/
+        target: /var/run/libvirt
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard-local/environment
+        target: /usr/local/etc/environment
+        bind: {create_host_path: true}
+      - type: bind
+        source: /dev/vfio
+        target: /dev/vfio
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard-local/hypervisor/custom_networks
+        target: /opt/custom_networks
+        bind: {create_host_path: true}
+  isard-loki:
+    command:
+      - --config.file=/etc/loki/local-config.yaml
+      - --store.retention=40d
+    container_name: isard-loki
+    image: grafana/loki:3.1.0
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.67
+    restart: unless-stopped
+    user: root
+    volumes:
+      - type: bind
+        source: /opt/isard/stats/loki
+        target: /data
+        bind: {create_host_path: true}
+      - type: bind
+        source: ./docker/loki/config.yaml
+        target: /etc/loki/local-config.yaml
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-notifier:
+    container_name: isard-notifier
+    depends_on:
+      isard-redis:
+        condition: service_healthy
+        required: true
+    environment:
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      LOG_LEVEL: INFO
+      RQ_REDIS_URL: redis://:@isard-redis:6379
+      USAGE: null
+    image: registry.gitlab.com/isard/isardvdi/notifier:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.33
+    volumes:
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-portal:
+    container_name: isard-portal
+    environment:
+      API_HYPERVISORS_SECRET: Z8RXkTq2tTA+nT55mwUpLraY6D2RxdICIS/LOvqsqh0=
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME: 30m
+      AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED: "true"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR: "2"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_ATTEMPTS: "10"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME: 15m
+      AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER: 1m
+      BASTION_ENABLED: "true"
+      BASTION_SSH_PORT: "443"
+      BUILD_ROOT_PATH: .
+      CORS: '*'
+      DIRECTVIEWER_MODE: browser
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: main
+      DOMAIN: solaris.isardvdi.cat
+      FLAVOUR: all-in-one
+      FORBID_DOMAIN_IP: "false"
+      FRONTEND_DOCS_URI: https://isard.gitlab.io/isardvdi-docs/
+      FRONTEND_VIEWERS_DOCS_URI: https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/
+      GOLANG_BUILD_IMAGE: golang:1.24.3-alpine3.22
+      GOLANG_RUN_IMAGE: alpine:3.22.0
+
+      HAPROXY_LOGGING: .
+      HAPROXY_RUN_IMAGE: haproxy:3.3-alpine3.22
+      LOG_LEVEL: INFO
+      SESSIONS_SESSIONS_EXPIRATION_TIME: 5m
+      SESSIONS_SESSIONS_MAX_RENEW_TIME: 30m
+      SESSIONS_SESSIONS_MAX_TIME: 8h
+      SRC_VERSION_ID: main-dirty
+      SRC_VERSION_LINK: ""
+      WEBAPP_ADMIN_PWD: Pirinives5
+      WG_GUESTS_DHCP_MASK: "23"
+      WG_GUESTS_NETS: 10.2.0.0/16
+      WG_GUESTS_RESERVED_HOSTS: "20"
+      WG_HYPERS_NET: 10.1.0.0/24
+      WG_HYPERS_PORT: "4443"
+      WG_MAIN_NET: 10.0.0.0/14
+      WG_USERS_NET: 10.0.0.0/16
+      WG_USERS_PORT: "443"
+    image: registry.gitlab.com/isard/isardvdi/portal:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.18
+    ports:
+      - mode: host
+        target: 80
+        published: "80"
+        protocol: tcp
+      - mode: host
+        target: 443
+        published: "443"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /opt/isard/certs/acme
+        target: /etc/acme
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/certs/default
+        target: /certs
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard-local/ipsec-fw/lists
+        target: /usr/local/etc/haproxy/lists
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard-local/haproxy/cfg
+        target: /usr/local/etc/haproxy/cfg/customs
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard-local/haproxy/spoe
+        target: /usr/local/etc/haproxy/spoe
+        bind: {create_host_path: true}
+  isard-prometheus:
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=40d
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+      - --web.enable-remote-write-receiver
+      - --web.enable-admin-api
+    container_name: isard-prometheus
+    image: prom/prometheus:v2.53.0
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.68
+    restart: unless-stopped
+    user: root
+    volumes:
+      - type: bind
+        source: /opt/isard/stats/prometheus
+        target: /prometheus
+        bind: {create_host_path: true}
+      - type: bind
+        source: ./docker/prometheus/prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-redis:
+    command:
+      - /bin/sh
+      - -c
+      - redis-server --port "$$REDIS_PORT" --requirepass "$$REDIS_PASSWORD"
+    container_name: isard-redis
+    environment:
+      REDIS_ARGS: --port 6379
+      REDIS_PASSWORD: null
+      REDIS_PORT: "6379"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli -p $$REDIS_PORT ping | grep PONG
+      interval: 5s
+      start_period: 5m0s
+    image: redis:alpine3.20
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.12
+    volumes:
+      - type: bind
+        source: /opt/isard/redis/data
+        target: /data
+        bind: {create_host_path: true}
+  isard-scheduler:
+    container_name: isard-scheduler
+    depends_on:
+      isard-engine:
+        condition: service_healthy
+        required: true
+    environment:
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      LOG_LEVEL: INFO
+      RETHINKDB_DB: isard
+      RETHINKDB_HOST: isard-db
+      RETHINKDB_PORT: "28015"
+      USAGE: null
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:5000/scheduler/healthcheck
+      interval: 5s
+      start_period: 30s
+    image: registry.gitlab.com/isard/isardvdi/scheduler:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.24
+    volumes:
+      - type: bind
+        source: /opt/isard/backups
+        target: /src/backups
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: ./frontend/src/locales
+        target: /src/scheduler/locales
+        read_only: true
+        bind: {create_host_path: true}
+  isard-sessions:
+    container_name: isard-sessions
+    depends_on:
+      isard-redis:
+        condition: service_healthy
+        required: true
+    environment:
+      SESSIONS_LOG_LEVEL: INFO
+      SESSIONS_SESSIONS_EXPIRATION_TIME: 5m
+      SESSIONS_SESSIONS_GRPC_HOST: null
+      SESSIONS_SESSIONS_GRPC_PORT: null
+      SESSIONS_SESSIONS_MAX_RENEW_TIME: 30m
+      SESSIONS_SESSIONS_MAX_TIME: 8h
+      SESSIONS_SESSIONS_REDIS_DB: null
+      SESSIONS_SESSIONS_REDIS_HOST: null
+      SESSIONS_SESSIONS_REDIS_PORT: null
+      SESSIONS_SESSIONS_REDIS_PWD: null
+      SESSIONS_SESSIONS_REDIS_USR: null
+      SESSIONS_SESSIONS_REMOTE_ADDR_CONTROL: null
+    image: registry.gitlab.com/isard/isardvdi/sessions:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.99
+    volumes:
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-squid:
+    container_name: isard-squid
+    depends_on:
+      isard-hypervisor:
+        condition: service_started
+        required: true
+    environment:
+      API_HYPERVISORS_SECRET: Z8RXkTq2tTA+nT55mwUpLraY6D2RxdICIS/LOvqsqh0=
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME: 30m
+      AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED: "true"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR: "2"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_ATTEMPTS: "10"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME: 15m
+      AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER: 1m
+      BASTION_ENABLED: "true"
+      BUILD_ROOT_PATH: .
+      DIRECTVIEWER_MODE: browser
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: main
+      DOMAIN: solaris.isardvdi.cat
+      FLAVOUR: all-in-one
+      FRONTEND_DOCS_URI: https://isard.gitlab.io/isardvdi-docs/
+      FRONTEND_VIEWERS_DOCS_URI: https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/
+      GOLANG_BUILD_IMAGE: golang:1.24.3-alpine3.22
+      GOLANG_RUN_IMAGE: alpine:3.22.0
+
+      HAPROXY_LOGGING: .
+      HAPROXY_RUN_IMAGE: haproxy:3.3-alpine3.22
+      LOG_LEVEL: INFO
+      SESSIONS_SESSIONS_EXPIRATION_TIME: 5m
+      SESSIONS_SESSIONS_MAX_RENEW_TIME: 30m
+      SESSIONS_SESSIONS_MAX_TIME: 8h
+      SRC_VERSION_ID: main-dirty
+      SRC_VERSION_LINK: ""
+      WEBAPP_ADMIN_PWD: Pirinives5
+      WG_GUESTS_DHCP_MASK: "23"
+      WG_GUESTS_NETS: 10.2.0.0/16
+      WG_GUESTS_RESERVED_HOSTS: "20"
+      WG_HYPERS_NET: 10.1.0.0/24
+      WG_HYPERS_PORT: "4443"
+      WG_MAIN_NET: 10.0.0.0/14
+      WG_USERS_NET: 10.0.0.0/16
+      WG_USERS_PORT: "443"
+    image: registry.gitlab.com/isard/isardvdi/squid:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.19
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: "1"
+    volumes:
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-static:
+    container_name: isard-static
+    image: registry.gitlab.com/isard/isardvdi/static:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.20
+    volumes:
+      - type: bind
+        source: /opt/isard/frontend/custom
+        target: /usr/share/nginx/html/custom
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/assets/img/desktops
+        target: /usr/share/nginx/html/assets/img/desktops
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-stats-go:
+    container_name: isard-stats-go
+    depends_on:
+      isard-api:
+        condition: service_healthy
+        required: true
+    environment:
+      API_HYPERVISORS_SECRET: Z8RXkTq2tTA+nT55mwUpLraY6D2RxdICIS/LOvqsqh0=
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      DOMAIN: solaris.isardvdi.cat
+      FLAVOUR: all-in-one
+      HYPER_ID: null
+      LOG_LEVEL: INFO
+      LOKI_ADDRESS: null
+      STATS_COLLECTORS_CONNTRACK_ENABLE: null
+      STATS_COLLECTORS_DOMAIN_ENABLE: null
+      STATS_COLLECTORS_HYPERVISOR_ENABLE: null
+      STATS_COLLECTORS_ISARDVDI_API_ADDR: null
+      STATS_COLLECTORS_ISARDVDI_API_ENABLE: null
+      STATS_COLLECTORS_ISARDVDI_API_SECRET: null
+      STATS_COLLECTORS_ISARDVDI_AUTHENTICATION_ENABLE: null
+      STATS_COLLECTORS_ISARDVDI_AUTHENTICATION_LOKI_ADDRESS: null
+      STATS_COLLECTORS_OCI_ENABLE: null
+      STATS_COLLECTORS_SOCKET_ENABLE: null
+      STATS_COLLECTORS_SYSTEM_ENABLE: null
+      STATS_DOMAIN: null
+      STATS_FLAVOUR: null
+      STATS_HTTP_HOST: null
+      STATS_HTTP_PORT: null
+      STATS_LIBVIRT_URI: null
+      STATS_LOG_LEVEL: null
+      STATS_SSH_HOST: null
+      STATS_SSH_PORT: null
+      STATS_SSH_USER: null
+      TF_VAR_fingerprint: null
+      TF_VAR_private_key: null
+      TF_VAR_region: null
+      TF_VAR_tenancy_ocid: null
+      TF_VAR_user_ocid: null
+      VIDEO_DOMAIN: null
+    image: registry.gitlab.com/isard/isardvdi/stats-go:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network: {}
+    restart: "no"
+    volumes:
+      - type: bind
+        source: /opt/isard-local/conntrack
+        target: /conntrack
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-stats-rethinkdb:
+    command:
+      - --db.address
+      - isard-db:28015
+    container_name: isard-stats-rethinkdb
+    image: registry.gitlab.com/isard/isardvdi/stats-rethinkdb:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.28
+  isard-storage:
+    container_name: isard-storage
+    environment:
+      API_DOMAIN: null
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      CAPABILITIES_DISK: null
+      CAPABILITIES_HYPER: null
+      CAPABILITIES_STORAGE_POOLS: null
+      DOMAIN: solaris.isardvdi.cat
+      ENV: /usr/local/etc/environment
+      LOG_LEVEL: INFO
+      PYTHONUNBUFFERED: "1"
+      QCOW2_CLUSTER_SIZE: null
+      QCOW2_EXTENDED_L2: null
+      REDIS_HOST: null
+      REDIS_PASSWORD: null
+      REDIS_PORT: null
+      REDIS_WORKERS: null
+      RETHINKDB_HOST: null
+      STORAGE_DOMAIN: null
+    image: registry.gitlab.com/isard/isardvdi/storage:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.21
+    volumes:
+      - type: bind
+        source: /opt/isard-local/logs/storage
+        target: /logs
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/templates
+        target: /isard/templates
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/groups
+        target: /isard/groups
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/media
+        target: /isard/media
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/volatile
+        target: /isard/volatile
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/storage_pools
+        target: /isard/storage_pools
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard-local/environment
+        target: /usr/local/etc/environment
+        read_only: true
+        bind: {create_host_path: true}
+  isard-vpn:
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    container_name: isard-vpn
+    depends_on:
+      isard-api:
+        condition: service_healthy
+        required: true
+    environment:
+      API_DOMAIN: ""
+      API_HYPERVISORS_SECRET: Z8RXkTq2tTA+nT55mwUpLraY6D2RxdICIS/LOvqsqh0=
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      AUTHENTICATION_AUTHENTICATION_IMPERSONATE_EXPIRATION_TIME: 30m
+      AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED: "true"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR: "2"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_ATTEMPTS: "10"
+      AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_TIME: 15m
+      AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER: 1m
+      BASTION_ENABLED: "true"
+      BUILD_ROOT_PATH: .
+      DIRECTVIEWER_MODE: browser
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: main
+      DOMAIN: solaris.isardvdi.cat
+      FLAVOUR: all-in-one
+      FRONTEND_DOCS_URI: https://isard.gitlab.io/isardvdi-docs/
+      FRONTEND_VIEWERS_DOCS_URI: https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/
+      GOLANG_BUILD_IMAGE: golang:1.24.3-alpine3.22
+      GOLANG_RUN_IMAGE: alpine:3.22.0
+
+      HAPROXY_LOGGING: .
+      HAPROXY_RUN_IMAGE: haproxy:3.3-alpine3.22
+      LOG_LEVEL: INFO
+      SESSIONS_SESSIONS_EXPIRATION_TIME: 5m
+      SESSIONS_SESSIONS_MAX_RENEW_TIME: 30m
+      SESSIONS_SESSIONS_MAX_TIME: 8h
+      SRC_VERSION_ID: main-dirty
+      SRC_VERSION_LINK: ""
+      WEBAPP_ADMIN_PWD: Pirinives5
+      WG_GUESTS_DHCP_MASK: "23"
+      WG_GUESTS_NETS: 10.2.0.0/16
+      WG_GUESTS_RESERVED_HOSTS: "20"
+      WG_HYPERS_NET: 10.1.0.0/24
+      WG_HYPERS_PORT: "4443"
+      WG_MAIN_NET: 10.0.0.0/14
+      WG_USERS_NET: 10.0.0.0/16
+      WG_USERS_PORT: "443"
+    image: registry.gitlab.com/isard/isardvdi/vpn:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.23
+    ports:
+      - mode: ingress
+        target: 443
+        published: "443"
+        protocol: udp
+      - mode: ingress
+        target: 4443
+        published: "4443"
+        protocol: udp
+    privileged: true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - type: bind
+        source: /sys
+        target: /sys
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/wireguard/certs
+        target: /certs
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/certs/default
+        target: /portal-certs
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/dnsmasq
+        target: /var/lib/misc
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard/dnsmasq/static_leases
+        target: /var/lib/static_leases
+        bind: {create_host_path: true}
+      - type: bind
+        source: /opt/isard-local/conntrack
+        target: /conntrack
+        bind: {create_host_path: true}
+      - type: bind
+        source: /proc/sys/net/netfilter/nf_conntrack_acct
+        target: /host-proc/sys/net/netfilter/nf_conntrack_acct
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-webapp:
+    container_name: isard-webapp
+    depends_on:
+      isard-api:
+        condition: service_healthy
+        required: true
+      isard-engine:
+        condition: service_healthy
+        required: true
+    environment:
+      API_ISARDVDI_SECRET: tCvVKufwiVyqmSvSHCkB7x/FNCsSxthuVKmBxZy5ElI=
+      DOMAIN: solaris.isardvdi.cat
+      GRAFANA_WEBAPP_URL: null
+      LOG_LEVEL: INFO
+      OPERATIONS_API_ENABLED: null
+      USAGE: null
+    image: registry.gitlab.com/isard/isardvdi/webapp:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.26
+    volumes:
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+  isard-websockify:
+    container_name: isard-websockify
+    environment:
+      API_DOMAIN: null
+      LOG_LEVEL: INFO
+      VIDEO_HYPERVISOR_HOSTNAMES: null
+      VIDEO_HYPERVISOR_PORTS: null
+    image: registry.gitlab.com/isard/isardvdi/websockify:main
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.27
+    volumes:
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+        bind: {create_host_path: true}
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+        bind: {create_host_path: true}
+networks:
+  isard-network:
+    name: isard-network
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: "9000"
+    ipam:
+      config:
+        - subnet: 172.31.255.0/24

@@ -522,13 +522,74 @@ class HypervisorsThread(threading.Thread):
                                     "gpu_only",
                                     "orchestrator_managed",
                                     "destroy_time",
+                                    "boot_progress",
                                 ]
                             )
+                            .merge({"table": "hypervisors"})
                             .changes(include_initial=False)
+                            .union(
+                                r.table("vgpus")
+                                .pluck(
+                                    "id",
+                                    "vgpu_profile",
+                                    "changing_to_profile",
+                                    {"mdevs": True},
+                                )
+                                .merge({"table": "vgpus"})
+                                .changes(include_initial=False)
+                            )
                             .run(conn)
                         ):
                             if self.stop == True:
                                 break
+
+                            # Handle vgpus changefeed events
+                            table = (c.get("new_val") or c.get("old_val", {})).get(
+                                "table"
+                            )
+                            if table == "vgpus":
+                                if c["new_val"] is not None:
+                                    new_val = c["new_val"]
+                                    active_profile = new_val.get("vgpu_profile")
+                                    desktops_started = []
+                                    if (
+                                        active_profile
+                                        and active_profile in new_val.get("mdevs", {})
+                                    ):
+                                        for mdev_data in new_val["mdevs"][
+                                            active_profile
+                                        ].values():
+                                            if (
+                                                mdev_data.get("domain_started")
+                                                and mdev_data["domain_started"]
+                                                is not False
+                                            ):
+                                                desktops_started.append(
+                                                    mdev_data["domain_started"]
+                                                )
+                                    socketio.emit(
+                                        "vgpu_data",
+                                        json.dumps(
+                                            {
+                                                "id": new_val["id"],
+                                                "vgpu_profile": active_profile,
+                                                "changing_to_profile": new_val.get(
+                                                    "changing_to_profile", False
+                                                ),
+                                                "desktops_started": desktops_started,
+                                            }
+                                        ),
+                                        namespace="/administrators",
+                                        room="admins",
+                                    )
+                                continue
+
+                            # Strip table tag for hypervisors processing
+                            if c["new_val"]:
+                                c["new_val"].pop("table", None)
+                            if c["old_val"]:
+                                c["old_val"].pop("table", None)
+
                             if c["new_val"] == None:
                                 socketio.emit(
                                     "hyper_deleted",

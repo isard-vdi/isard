@@ -302,7 +302,7 @@ def set_gpu_profile(payload, gpu_id):
     d = request.get_json(force=True)
     pci_id = gpu_id.split("-")[-1]
     profile_id = d.get("profile_id", False)
-    profile = profile_id.split("-")[-1]
+    profile = profile_id
     hyp_id = gpu_id[: gpu_id.rfind("-")]
 
     h = app.m.t_workers[hyp_id].h

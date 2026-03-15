@@ -20,7 +20,6 @@ import libvirt
 import paramiko
 import xmltodict
 from engine.config import *
-from engine.models.nvidia_models import NVIDIA_MODELS
 from engine.services.db import (
     get_hyp_info,
     get_id_hyp_from_uri,
@@ -38,6 +37,7 @@ from engine.services.db import (
     update_vgpu_uuids,
 )
 from engine.services.db.domains import (
+    domain_get_vgpu_info,
     get_all_mdev_uuids_from_profile,
     get_domain_status,
     get_domains_started_in_hyp,
@@ -81,34 +81,6 @@ HYP_STATUS_ERROR_WHEN_CLOSE_CONNEXION = -1
 HYP_STATUS_NOT_ALIVE = -10
 
 MAX_GET_KVM_RETRIES = 3
-
-devid_nvidia_ampere = {}
-# Ampere
-devid_nvidia_ampere[0x20B0] = "A100"
-devid_nvidia_ampere[0x20B2] = "A100DX"
-devid_nvidia_ampere[0x20F1] = "A100 PCIe"
-devid_nvidia_ampere[0x2230] = "RTX A6000"
-devid_nvidia_ampere[0x2231] = "RTX A5000"
-devid_nvidia_ampere[0x2235] = "A40"
-devid_nvidia_ampere[0x2236] = "A10"
-devid_nvidia_ampere[0x2237] = "A10G"
-devid_nvidia_ampere[0x20B5] = "A100 80GB PCIe"
-devid_nvidia_ampere[0x20B7] = "A30"
-devid_nvidia_ampere[0x25B6] = "A16"
-# same devid A16 and A2 subsystem:
-# ssid: 0x14A9 = "A16"
-# ssid: 0x159D = "A2"
-
-devid_nvidia_ampere[0x20B8] = "A100X"
-devid_nvidia_ampere[0x20B9] = "A30X"
-devid_nvidia_ampere[0x2233] = "RTX A5500"
-devid_nvidia_ampere[0x20F5] = "A800 80GB PCIe"
-devid_nvidia_ampere[0x20F3] = "A800-SXM4-80GB"
-# Hopper
-devid_nvidia_ampere[0x2331] = "H100 PCIe"
-devid_nvidia_ampere[0x26B5] = "L40"
-devid_nvidia_ampere[0x26B9] = "L40S"
-devid_nvidia_ampere[0x26BA] = "L20"
 
 
 class HypStats(object):
@@ -453,10 +425,11 @@ class hyp(object):
         """Quick scan to get list of NVIDIA PCI device IDs with model info.
 
         This is a fast operation that only lists device names and models,
-        not full capabilities. Used to detect hardware changes.
+        not full capabilities. Used to detect hardware changes in the legacy
+        fallback path (when nvidia_gpus is not available from hypervisor).
 
         Returns:
-            dict: Mapping of PCI bus ID to GPU model (e.g., {"pci_0000_41_00_0": "A40"})
+            dict: Mapping of PCI bus ID to GPU model (e.g., {"pci_0000_41_00_0": "NVIDIA A40"})
                   Returns empty dict on error.
         """
         try:
@@ -476,15 +449,10 @@ class hyp(object):
                 xml_dict = xmltodict.parse(dev.XMLDesc())
                 if xml_dict["device"].get("driver", {}).get("name") == "nvidia":
                     name = dev.name()
-                    # Get device PCI ID to determine model
-                    device_pci_id = int(
-                        xml_dict["device"]["capability"]["product"]["@id"], base=0
+                    product_name = xml_dict["device"]["capability"]["product"].get(
+                        "#text", "UNKNOWN"
                     )
-                    if device_pci_id in devid_nvidia_ampere.keys():
-                        model = devid_nvidia_ampere[device_pci_id]
-                    else:
-                        model = "UNKNOWN"
-                    nvidia_pci_info[name] = model
+                    nvidia_pci_info[name] = product_name
 
             return nvidia_pci_info
         except Exception as e:
@@ -493,22 +461,14 @@ class hyp(object):
             )
             return {}
 
-    def get_info_from_hypervisor(
-        self, nvidia_enabled=False, force_get_hyp_info=False, init_vgpu_profiles=False
-    ):
-        """Get hypervisor info, auto-detecting GPU hardware changes.
+    def get_info_from_hypervisor(self, nvidia_enabled=False, init_vgpu_profiles=False):
+        """Get hypervisor info, using hypervisor-discovered GPU data when available.
 
-        The force_get_hyp_info parameter is DEPRECATED and ignored.
-        GPU hardware changes are now auto-detected by comparing PCI IDs.
+        GPU detection uses nvidia_gpus data from the hypervisor record
+        (discovered via nvidia-smi at hypervisor startup).
+        Falls back to SSH-based libvirt scanning if nvidia_gpus is not present.
         """
         logs.workers.info(f"[{self.id_hyp_rethink}] Getting hypervisor info...")
-
-        # Warn if deprecated parameter is used
-        if force_get_hyp_info:
-            logs.workers.warning(
-                f"[{self.id_hyp_rethink}] DEPRECATED: force_get_hyp_info is set but ignored. "
-                f"GPU hardware changes are now auto-detected."
-            )
 
         # Step 1: Load cached info from database
         info = self.info = get_hyp_info(self.id_hyp_rethink)
@@ -521,45 +481,25 @@ class hyp(object):
                 f"[{self.id_hyp_rethink}] No cached info, will scan hypervisor"
             )
 
-        # Step 2: Check for GPU hardware changes (if nvidia enabled and has cache)
+        # Step 2: Check for GPU inventory from hypervisor (nvidia-smi based)
+        hyper_record = get_hypervisor(self.id_hyp_rethink)
+        nvidia_gpus = hyper_record.get("nvidia_gpus", []) if hyper_record else []
+        use_db_gpu_detection = len(nvidia_gpus) > 0
+
+        # Determine if rescan is needed
         needs_rescan = not has_cached_info
 
-        if has_cached_info and nvidia_enabled:
+        if has_cached_info and nvidia_enabled and not use_db_gpu_detection:
+            # Legacy path: check for GPU hardware changes via libvirt
             logs.workers.info(
-                f"[{self.id_hyp_rethink}] Checking for GPU hardware changes..."
+                f"[{self.id_hyp_rethink}] No nvidia_gpus in DB, checking via libvirt..."
             )
-
-            # Get cached GPU info: {pci_id: model}
             cached_gpu_info = info.get("nvidia", {})
-            # Get current GPU info from hypervisor
             current_gpu_info = self._get_nvidia_pci_ids()
 
-            logs.workers.debug(
-                f"[{self.id_hyp_rethink}] Cached GPU info: {cached_gpu_info}"
-            )
-            logs.workers.debug(
-                f"[{self.id_hyp_rethink}] Current GPU info: {current_gpu_info}"
-            )
-
-            # Compare both PCI IDs and models
             if cached_gpu_info != current_gpu_info:
-                cached_pci_ids = set(cached_gpu_info.keys())
-                current_pci_ids = set(current_gpu_info.keys())
-                added = current_pci_ids - cached_pci_ids
-                removed = cached_pci_ids - current_pci_ids
-
-                # Check for model changes in same slots
-                model_changes = []
-                for pci_id in cached_pci_ids & current_pci_ids:
-                    if cached_gpu_info.get(pci_id) != current_gpu_info.get(pci_id):
-                        model_changes.append(
-                            f"{pci_id}: {cached_gpu_info.get(pci_id)} -> {current_gpu_info.get(pci_id)}"
-                        )
-
                 logs.workers.info(
-                    f"[{self.id_hyp_rethink}] GPU hardware changed! "
-                    f"Added: {added or 'none'}, Removed: {removed or 'none'}, "
-                    f"Model changes: {model_changes or 'none'}"
+                    f"[{self.id_hyp_rethink}] GPU hardware changed (libvirt detection)"
                 )
                 needs_rescan = True
             else:
@@ -575,7 +515,19 @@ class hyp(object):
             )
             self.info = {}
             self.get_kvm_mod()
-            self.get_hyp_info(nvidia_enabled)
+
+            if use_db_gpu_detection:
+                # New path: use hypervisor-discovered GPU data
+                self.get_hyp_info(nvidia_enabled=False)  # Skip libvirt GPU scan
+                self.get_nvidia_capabilities_from_db(nvidia_gpus)
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] Using nvidia-smi GPU data from hypervisor: "
+                    f"{len(self.info_nvidia)} GPU cards with vGPU profiles"
+                )
+            else:
+                # Legacy path: SSH-based libvirt scanning
+                self.get_hyp_info(nvidia_enabled)
+
             logs.workers.info(
                 f"[{self.id_hyp_rethink}] Hypervisor scan complete: "
                 f"{self.info.get('cpu_model', 'unknown')} CPU, "
@@ -596,7 +548,6 @@ class hyp(object):
                     vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
                     d_uuids = self.create_uuids(d_vgpu)
                     update_vgpu_uuids(vgpu_id, d_uuids)
-                    # self.mdevs[pci_bus] = d_uuids
 
                     # init vgpu_profile to max gpu profile
                     vgpu_profile = self.info_nvidia[pci_bus]["type_max_gpus"]
@@ -615,10 +566,18 @@ class hyp(object):
                             i = index_vgpu_profile[model] % len(list_profiles_selected)
                             vgpu_profile = list_profiles_selected[i]
 
-                    # self.info_nvidia[pci_bus]["vgpu_profile"] = vgpu_profile
                     update_vgpu_profile(vgpu_id, vgpu_profile)
         else:
             logs.workers.info(f"[{self.id_hyp_rethink}] Using cached hypervisor info")
+
+        # Always set nvidia_enabled based on actual GPU state for new-style detection
+        if use_db_gpu_detection and has_cached_info and not needs_rescan:
+            # Even when using cache, update nvidia info from DB if available
+            self.get_nvidia_capabilities_from_db(nvidia_gpus)
+            logs.workers.info(
+                f"[{self.id_hyp_rethink}] Updated nvidia info from DB: "
+                f"{len(self.info_nvidia)} GPU cards"
+            )
 
     def load_info_from_db(self):
         self.info = get_hyp_info(self.id_hyp_rethink)
@@ -637,6 +596,94 @@ class hyp(object):
 
         return True
 
+    def _execute_mig_transition(
+        self, gpu_id, pci_id, pci_info, old_profile, new_profile
+    ):
+        """Handle MIG mode transitions: vGPU/PT↔MIG and MIG↔MIG.
+
+        Uses nvidia-smi commands to enable/disable MIG mode and create/destroy
+        GPU instances and compute instances.
+        """
+        pci_bdf = pci_info["path"].split("/")[-1]
+        old_types = pci_info.get("types", {})
+        old_is_mig = (
+            old_types.get(old_profile, {}).get("mig", False) if old_profile else False
+        )
+        new_is_mig = old_types.get(new_profile, {}).get("mig", False)
+
+        if new_is_mig:
+            new_mig_profile_id = old_types[new_profile].get("mig_profile_id")
+        else:
+            new_mig_profile_id = None
+
+        cmds = []
+
+        if old_is_mig and new_is_mig:
+            # MIG → MIG: destroy old instances, create new ones
+            logs.main.info(
+                f"MIG→MIG transition on {pci_bdf}: {old_profile} → {new_profile}"
+            )
+            cmds = [
+                f"nvidia-smi mig -i {pci_bdf} -dci 2>/dev/null || true",
+                f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
+                f"nvidia-smi mig -i {pci_bdf} -cgi {new_mig_profile_id}",
+                f"nvidia-smi mig -i {pci_bdf} -cci",
+            ]
+        elif not old_is_mig and new_is_mig:
+            # vGPU/PT → MIG: remove mdevs, rebind nvidia if PT, enable MIG
+            logs.main.info(
+                f"vGPU/PT→MIG transition on {pci_bdf}: {old_profile} → {new_profile}"
+            )
+            if old_profile == "passthrough":
+                # Rebind to nvidia driver first
+                cmds.extend(
+                    [
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/vfio-pci/unbind 2>/dev/null || true",
+                        f"echo > /sys/bus/pci/devices/{pci_bdf}/driver_override",
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
+                        "sleep 2",
+                    ]
+                )
+            cmds.extend(
+                [
+                    f"nvidia-smi -i {pci_bdf} -mig 1",
+                    f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
+                    "sleep 2",
+                    f"nvidia-smi mig -i {pci_bdf} -cgi {new_mig_profile_id}",
+                    f"nvidia-smi mig -i {pci_bdf} -cci",
+                ]
+            )
+        elif old_is_mig and not new_is_mig:
+            # MIG → vGPU/PT: destroy instances, disable MIG, reset
+            logs.main.info(
+                f"MIG→vGPU/PT transition on {pci_bdf}: {old_profile} → {new_profile}"
+            )
+            cmds = [
+                f"nvidia-smi mig -i {pci_bdf} -dci 2>/dev/null || true",
+                f"nvidia-smi mig -i {pci_bdf} -dgi 2>/dev/null || true",
+                f"nvidia-smi -i {pci_bdf} -mig 0",
+                f"nvidia-smi -i {pci_bdf} --gpu-reset 2>/dev/null || true",
+                "sleep 2",
+            ]
+        else:
+            # Should not happen — caller should not route here
+            logs.main.error(
+                f"_execute_mig_transition called with no MIG profile: "
+                f"old={old_profile} new={new_profile}"
+            )
+            return False
+
+        array_out_err = execute_commands(
+            self.hostname, cmds, port=self.port, timeout=120
+        )
+        for i, result in enumerate(array_out_err):
+            if result.get("err", "").strip():
+                logs.main.warning(
+                    f"MIG transition cmd {i} stderr: {result['err'].strip()}"
+                )
+
+        return True
+
     def change_vgpu_profile(self, gpu_id, new_profile):
         if not new_profile:
             return
@@ -646,12 +693,28 @@ class hyp(object):
         # Check if mdevs data exists for this PCI device and the new profile
         pci_mdevs = self.mdevs.get(pci_id, {})
         if not pci_mdevs.get(new_profile):
-            logs.main.error(
-                f"Cannot change to profile {new_profile} for {gpu_id}: "
-                f"mdevs data not found. GPU may need re-initialization."
-            )
-            update_table_field("vgpus", gpu_id, "changing_to_profile", False)
-            return False
+            if new_profile == "passthrough":
+                # Lazily create passthrough mdevs entry if it doesn't exist yet
+                pt_uuid = str(uuid.uuid4())
+                pci_mdevs[new_profile] = {
+                    pt_uuid: {
+                        "type_id": "passthrough",
+                        "pci_mdev_id": pci_id,
+                        "created": False,
+                    }
+                }
+                self.mdevs[pci_id] = pci_mdevs
+                update_vgpu_uuids(gpu_id, pci_mdevs)
+                logs.main.info(
+                    f"Created lazy passthrough mdevs entry for {gpu_id} with uuid {pt_uuid}"
+                )
+            else:
+                logs.main.error(
+                    f"Cannot change to profile {new_profile} for {gpu_id}: "
+                    f"mdevs data not found. GPU may need re-initialization."
+                )
+                update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                return False
 
         pci_info = self.info_nvidia.get(pci_id, {})
         if not pci_info.get("path"):
@@ -663,10 +726,87 @@ class hyp(object):
             return False
 
         old_profile = pci_info.get("vgpu_profile", None)
-        if old_profile != new_profile:
-            remove_uuids = get_all_mdev_uuids_from_profile(gpu_id, old_profile)
+        if old_profile == new_profile and new_profile != "passthrough":
+            update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+            return
+        # For passthrough, always re-run driver binding even when old == new,
+        # because driver state (vfio-pci) may not survive host/container restarts.
+        if old_profile != new_profile or new_profile == "passthrough":
+            remove_uuids = (
+                get_all_mdev_uuids_from_profile(gpu_id, old_profile)
+                if old_profile
+                else []
+            )
             # GET RUNNING MDEVS AND DOMAINS FROM HYPERVISOR
             d_mdevs_running = self.get_mdevs_with_domains()
+
+            # Destroy any PCI passthrough domains using this GPU before driver swap
+            if old_profile == "passthrough":
+                pci_bdf = pci_info["path"].split("/")[-1]
+                # Parse BDF (e.g. 0000:21:00.0) into hex components for XML matching
+                bdf_parts = pci_bdf.replace(".", ":").split(":")
+                target_domain = "0x" + bdf_parts[0]
+                target_bus = "0x" + bdf_parts[1]
+                target_slot = "0x" + bdf_parts[2]
+                target_function = (
+                    "0x" + bdf_parts[3].lstrip("0")
+                    if bdf_parts[3].lstrip("0")
+                    else "0x0"
+                )
+                try:
+                    active_domains = self.conn.listAllDomains(
+                        libvirt.VIR_CONNECT_LIST_DOMAINS_ACTIVE
+                    )
+                except libvirt.libvirtError as e:
+                    logs.main.error(
+                        f"Failed to list active domains for passthrough cleanup: {e}"
+                    )
+                    active_domains = []
+                for dom in active_domains:
+                    try:
+                        xml_dict = xmltodict.parse(dom.XMLDesc())
+                        hostdevs = (
+                            xml_dict.get("domain", {})
+                            .get("devices", {})
+                            .get("hostdev", [])
+                        )
+                        if isinstance(hostdevs, dict):
+                            hostdevs = [hostdevs]
+                        for hd in hostdevs:
+                            if hd.get("@type") != "pci":
+                                continue
+                            addr = hd.get("source", {}).get("address", {})
+                            if (
+                                addr.get("@domain") == target_domain
+                                and addr.get("@bus") == target_bus
+                                and addr.get("@slot") == target_slot
+                                and addr.get("@function") == target_function
+                            ):
+                                domain_id = dom.name()
+                                logs.main.info(
+                                    f"Destroying passthrough domain {domain_id} "
+                                    f"using GPU {pci_bdf} before profile switch"
+                                )
+                                dom.destroy()
+                                break
+                    except libvirt.libvirtError as e:
+                        if "Domain not found" in str(e):
+                            logs.main.info(
+                                f"Passthrough domain {dom.name()} already stopped."
+                            )
+                        else:
+                            logs.main.error(
+                                f"Failed to destroy passthrough domain {dom.name()}: {e}"
+                            )
+                            update_table_field(
+                                "vgpus", gpu_id, "changing_to_profile", False
+                            )
+                            return False
+                    except Exception as e:
+                        logs.main.error(
+                            f"Error checking domain {dom.name()} for passthrough GPU: {e}"
+                        )
+
             for mdev_uuid in remove_uuids:
                 if mdev_uuid in d_mdevs_running.keys():
                     if type(d_mdevs_running[mdev_uuid].get("vm_name", False)) is str:
@@ -736,6 +876,166 @@ class hyp(object):
                 if uuid_not_running in old_profile_mdevs:
                     old_profile_mdevs[uuid_not_running]["created"] = False
 
+            # Check if either profile is MIG — route to MIG transition handler
+            old_is_mig = (
+                pci_info.get("types", {}).get(old_profile, {}).get("mig", False)
+                if old_profile
+                else False
+            )
+            new_is_mig = (
+                pci_info.get("types", {}).get(new_profile, {}).get("mig", False)
+            )
+            if old_is_mig or new_is_mig:
+                result = self._execute_mig_transition(
+                    gpu_id, pci_id, pci_info, old_profile, new_profile
+                )
+                if not result:
+                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                    return False
+                # After MIG transition, update profile and mark MIG UUIDs as created
+                new_profile_mdevs = pci_mdevs.get(new_profile, {})
+                for uuid_create in new_profile_mdevs:
+                    update_vgpu_created(gpu_id, new_profile, uuid_create, created=True)
+                    new_profile_mdevs[uuid_create]["created"] = True
+                self.info_nvidia[pci_id]["vgpu_profile"] = new_profile
+                update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                update_table_field("vgpus", gpu_id, "vgpu_profile", new_profile)
+                return
+
+            # DRIVER BINDING: swap between nvidia and vfio-pci for passthrough
+            pci_bdf = pci_info["path"].split("/")[-1]
+            sriov_totalvfs = pci_info.get("sriov_totalvfs", 0)
+
+            if new_profile == "passthrough":
+                logs.main.info(
+                    f"Switching GPU {pci_bdf} to vfio-pci for passthrough "
+                    f"(sriov_totalvfs={sriov_totalvfs})"
+                )
+                if sriov_totalvfs > 0:
+                    # SR-IOV card (e.g. A40 with vGPU driver): must disable
+                    # VFs before vfio-pci will accept the PF. Replicates
+                    # sriov-manage -d logic with proper error handling for
+                    # container environment (no systemctl, sysfs error codes).
+                    sb = pci_bdf.replace("00.0", "")
+                    cmds_driver = [
+                        "modprobe vfio-pci",
+                        "modprobe pci-pf-stub",
+                        # Set unbindLock so nvidia driver prepares for unbind
+                        f"echo 1 > /proc/driver/nvidia/gpus/{pci_bdf}/unbindLock 2>/dev/null || true",
+                        # Unbind PF from nvidia (returns error but works)
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/unbind 2>/dev/null || true",
+                        # Unbind all VFs
+                        f"for vf in $(lspci -D -s '{sb}' | awk '{{print $1}}'); do "
+                        f'[ "$vf" = "{pci_bdf}" ] && continue; '
+                        f"[ -e /sys/bus/pci/devices/$vf/driver ] && "
+                        f"echo $vf > /sys/bus/pci/devices/$vf/driver/unbind 2>/dev/null || true; "
+                        f"done",
+                        # Bind to pci-pf-stub to set sriov_numvfs=0
+                        f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
+                        f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/new_id 2>/dev/null || true && '
+                        f"[ -e /sys/bus/pci/drivers/pci-pf-stub/{pci_bdf} ] || "
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/bind",
+                        "sleep 0.5",
+                        f"echo 0 > /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs 2>/dev/null || true",
+                        # Unbind from pci-pf-stub
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/unbind 2>/dev/null || true",
+                        f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
+                        f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/remove_id 2>/dev/null || true',
+                        # Now bind to vfio-pci
+                        f"printf 'vfio-pci' > /sys/bus/pci/devices/{pci_bdf}/driver_override",
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
+                    ]
+                else:
+                    # Non-SR-IOV GPU: simple driver swap
+                    cmds_driver = [
+                        "modprobe vfio-pci",
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/unbind 2>/dev/null || true",
+                        f"echo vfio-pci > /sys/bus/pci/devices/{pci_bdf}/driver_override",
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe",
+                    ]
+                execute_commands(self.hostname, cmds_driver, port=self.port, timeout=60)
+
+                # Verify vfio-pci actually bound
+                verify_cmd = [f"readlink /sys/bus/pci/devices/{pci_bdf}/driver"]
+                result = execute_commands(self.hostname, verify_cmd, port=self.port)
+                driver_path = result[0].get("out", "").strip()
+                if "vfio-pci" not in driver_path:
+                    logs.main.error(
+                        f"Failed to bind vfio-pci to {pci_bdf}: "
+                        f"driver is {driver_path}"
+                    )
+                    update_table_field("vgpus", gpu_id, "changing_to_profile", False)
+                    return False
+
+                # Ensure /dev/vfio/<group> exists inside the container.
+                # The bind mount /dev/vfio:/dev/vfio may not see new device
+                # nodes created by the kernel on the host's devtmpfs after
+                # container start, so we create them manually with mknod.
+                cmds_vfio = [
+                    f"IOMMU_GROUP=$(basename $(readlink /sys/bus/pci/devices/{pci_bdf}/iommu_group)) && "
+                    f"if [ ! -e /dev/vfio/$IOMMU_GROUP ]; then "
+                    f"DEV=$(cat /sys/class/vfio/$IOMMU_GROUP/dev) && "
+                    f"MAJOR=${{DEV%%:*}} && MINOR=${{DEV##*:}} && "
+                    f"mknod /dev/vfio/$IOMMU_GROUP c $MAJOR $MINOR && "
+                    f"chmod 0666 /dev/vfio/$IOMMU_GROUP; "
+                    f"fi",
+                ]
+                execute_commands(self.hostname, cmds_vfio, port=self.port)
+            elif old_profile == "passthrough":
+                logs.main.info(
+                    f"Switching GPU {pci_bdf} from vfio-pci back to nvidia "
+                    f"(sriov_totalvfs={sriov_totalvfs})"
+                )
+                if sriov_totalvfs > 0:
+                    # SR-IOV card: unbind vfio-pci, re-enable VFs, rebind
+                    # nvidia. Replicates sriov-manage -e logic.
+                    sb = pci_bdf.replace("00.0", "")
+                    cmds_driver = [
+                        # Clean up /dev/vfio/<group>
+                        f"IOMMU_GROUP=$(basename $(readlink /sys/bus/pci/devices/{pci_bdf}/iommu_group)) && "
+                        f"rm -f /dev/vfio/$IOMMU_GROUP",
+                        # Unbind from vfio-pci
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/vfio-pci/unbind 2>/dev/null || true",
+                        f"echo > /sys/bus/pci/devices/{pci_bdf}/driver_override",
+                        # Probe so nvidia rebinds PF
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe 2>/dev/null || true",
+                        "sleep 2",
+                        # Unbind from nvidia to go through pci-pf-stub
+                        f"echo 1 > /proc/driver/nvidia/gpus/{pci_bdf}/unbindLock 2>/dev/null || true",
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/unbind 2>/dev/null || true",
+                        # Bind to pci-pf-stub to set sriov_numvfs
+                        f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
+                        f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/new_id 2>/dev/null || true && '
+                        f"[ -e /sys/bus/pci/drivers/pci-pf-stub/{pci_bdf} ] || "
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/bind",
+                        "sleep 0.5",
+                        f"echo {sriov_totalvfs} > /sys/bus/pci/devices/{pci_bdf}/sriov_numvfs 2>/dev/null || true",
+                        # Unbind from pci-pf-stub
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/pci-pf-stub/unbind 2>/dev/null || true",
+                        f'VEND_DEV=$(lspci -n -s {pci_bdf} | awk \'{{gsub(":", " ", $3); print $3}}\') && '
+                        f'echo "$VEND_DEV" > /sys/bus/pci/drivers/pci-pf-stub/remove_id 2>/dev/null || true',
+                        # Bind all VFs to nvidia
+                        f"for vf in $(lspci -D -s '{sb}' | awk '{{print $1}}'); do "
+                        f'[ "$vf" = "{pci_bdf}" ] && continue; '
+                        f"[ -e /sys/bus/pci/devices/$vf/driver ] && "
+                        f"echo $vf > /sys/bus/pci/devices/$vf/driver/unbind 2>/dev/null || true; "
+                        f"echo $vf > /sys/bus/pci/drivers/nvidia/bind 2>/dev/null || true; "
+                        f"done",
+                        # Bind PF to nvidia
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/nvidia/bind 2>/dev/null || true",
+                        "nvidia-smi -pm 1 2>/dev/null || true",
+                    ]
+                else:
+                    # Non-SR-IOV GPU: simple driver swap back
+                    cmds_driver = [
+                        f"IOMMU_GROUP=$(basename $(readlink /sys/bus/pci/devices/{pci_bdf}/iommu_group)) && "
+                        f"rm -f /dev/vfio/$IOMMU_GROUP",
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers/vfio-pci/unbind 2>/dev/null || true",
+                        f"echo > /sys/bus/pci/devices/{pci_bdf}/driver_override",
+                        f"echo {pci_bdf} > /sys/bus/pci/drivers_probe",
+                    ]
+                execute_commands(self.hostname, cmds_driver, port=self.port, timeout=60)
+
             # CREATE NEW UUIDS
             create_uuids = get_all_mdev_uuids_from_profile(gpu_id, new_profile)
 
@@ -746,6 +1046,11 @@ class hyp(object):
             new_profile_mdevs = pci_mdevs[new_profile]
             for uuid_create, d_uuid in new_profile_mdevs.items():
                 type_id = d_uuid["type_id"]
+                if type_id == "passthrough":
+                    # PCI passthrough: no mdev to create
+                    update_vgpu_created(gpu_id, new_profile, uuid_create, created=True)
+                    new_profile_mdevs[uuid_create]["created"] = True
+                    continue
                 if uuid_create not in d_mdevs_running.keys():
                     uuids_create.append(uuid_create)
                     if sub_paths is False:
@@ -802,6 +1107,17 @@ class hyp(object):
             )
 
             vgpu_profile = get_vgpu_actual_profile(vgpu_id)
+            # Validate profile is still available for this GPU
+            available_types = d_nvidia.get("types", {})
+            if vgpu_profile and vgpu_profile not in available_types:
+                fallback = d_nvidia.get(
+                    "type_max_gpus", next(iter(available_types), None)
+                )
+                logs.workers.warning(
+                    f"[{self.id_hyp_rethink}] Profile '{vgpu_profile}' no longer available "
+                    f"for {pci_id}, resetting to '{fallback}'"
+                )
+                vgpu_profile = fallback
             if vgpu_profile:
                 logs.workers.debug(
                     f"[{self.id_hyp_rethink}] Changing vGPU profile to {vgpu_profile}"
@@ -818,6 +1134,11 @@ class hyp(object):
             sub_paths = d_nvidia.get("sub_paths", False)
             for uuid_create, d_uuid in self.mdevs[pci_id][vgpu_profile].items():
                 type_id = d_uuid["type_id"]
+                if type_id == "passthrough":
+                    # PCI passthrough: no mdev to create, mark available immediately
+                    update_vgpu_created(vgpu_id, vgpu_profile, uuid_create)
+                    self.mdevs[pci_id][vgpu_profile][uuid_create]["created"] = True
+                    continue
                 if uuid_create not in d_mdevs_running.keys():
                     if sub_paths is False:
                         path = base_path
@@ -1195,6 +1516,125 @@ class hyp(object):
             d_available[pci_id] = info_nvidia["types"][vgpu_id]["available"]
         return d_available
 
+    def get_nvidia_capabilities_from_db(self, nvidia_gpus):
+        """Build d_info_nvidia from hypervisor-discovered nvidia_gpus data.
+
+        This reads the GPU inventory that the hypervisor discovered via nvidia-smi
+        and sysfs, stored in the hypervisors table, and builds the same
+        d_info_nvidia dict format that the rest of the engine expects.
+
+        Args:
+            nvidia_gpus: list of GPU dicts from hypervisor discovery
+        """
+        d_info_nvidia = {}
+        for gpu in nvidia_gpus:
+            pci_bus_id = gpu["pci_bus_id"]
+            # Convert nvidia-smi PCI format to libvirt PCI name format
+            # e.g., "00000000:41:00.0" -> "pci_0000_41_00_0"
+            normalized = pci_bus_id.lower()
+            # Handle both "00000000:41:00.0" and "0000:41:00.0" formats
+            if len(normalized.split(":")[0]) > 4:
+                normalized = "0000:" + normalized.split(":", 1)[1]
+            pci_name = "pci_" + normalized.replace(":", "_").replace(".", "_")
+
+            info_nvidia = {}
+
+            if gpu.get("vgpu_profiles"):
+                # Build types dict from vgpu_profiles (vGPU driver present)
+                d_types = {}
+                for profile in gpu["vgpu_profiles"]:
+                    profile_name = profile["name"]  # e.g., "A40-4Q"
+                    profile_suffix = profile_name.split("-", 1)[1]  # e.g., "4Q"
+
+                    d_types[profile_suffix] = {
+                        "id": profile["type_id"],
+                        "available": profile["available_instances"],
+                        "memory": profile.get("framebuffer_mb", 0),
+                        "max": profile.get("max_instances", 0),
+                    }
+
+                if not d_types:
+                    continue
+
+                # PCI passthrough via SR-IOV management: disable SR-IOV
+                # before binding vfio-pci, re-enable when switching back.
+                d_types["passthrough"] = {
+                    "id": "passthrough",
+                    "available": 1,
+                    "memory": gpu["memory_total_mb"],
+                    "max": 1,
+                }
+
+                # Find the profile with the most instances
+                vgpu_keys = [k for k in d_types if k != "passthrough"]
+                type_max_gpus = (
+                    max(vgpu_keys, key=lambda k: d_types[k]["max"])
+                    if vgpu_keys
+                    else "passthrough"
+                )
+
+                # Extract model from profile name
+                first_profile_name = gpu["vgpu_profiles"][0]["name"]
+                model_gpu = first_profile_name.split("-")[0]  # e.g., "A40"
+            else:
+                # No vGPU driver: PCI passthrough only via VFIO
+                d_types = {
+                    "passthrough": {
+                        "id": "passthrough",
+                        "available": 1,
+                        "memory": gpu["memory_total_mb"],
+                        "max": 1,
+                    }
+                }
+                type_max_gpus = "passthrough"
+                model_gpu = gpu["name"].replace("NVIDIA ", "").replace(" ", "")
+
+            # Add MIG profiles into d_types (available on MIG-capable GPUs)
+            for mig_prof in gpu.get("mig_profiles", []):
+                suffix = mig_prof["name"]  # e.g. "1g.24gb", "2g.48gb_me"
+                d_types[suffix] = {
+                    "id": suffix,
+                    "mig": True,
+                    "mig_profile_id": mig_prof["profile_id"],
+                    "available": mig_prof["max_instances"],
+                    "memory": int(mig_prof["memory_gib"] * 1024),
+                    "max": mig_prof["max_instances"],
+                }
+                # Update type_max_gpus if this MIG profile has more instances
+                if d_types[suffix]["max"] > d_types[type_max_gpus]["max"]:
+                    type_max_gpus = suffix
+
+            info_nvidia["mig_mode"] = gpu.get("mig_mode", "[N/A]")
+            info_nvidia["types"] = d_types
+            info_nvidia["type_max_gpus"] = type_max_gpus
+            info_nvidia["device_name"] = gpu["name"]
+            info_nvidia["pci_id"] = pci_name
+            info_nvidia["model"] = model_gpu
+
+            # Construct path from PCI bus ID
+            sysfs_pci_id = normalized
+            info_nvidia["path"] = f"/sys/bus/pci/devices/{sysfs_pci_id}"
+
+            # Handle sub_paths and path_parent for multi-subdevice cards (e.g., A40)
+            if gpu.get("sub_paths"):
+                info_nvidia["sub_paths"] = set(gpu["sub_paths"])
+            if gpu.get("path_parent"):
+                info_nvidia["path_parent"] = gpu["path_parent"]
+
+            # SR-IOV total VFs (needed for passthrough on vGPU cards)
+            info_nvidia["sriov_totalvfs"] = gpu.get("sriov_totalvfs", 0)
+
+            # max_gpus is the max of the most-split profile
+            info_nvidia["max_gpus"] = d_types[type_max_gpus]["max"]
+            info_nvidia["max_count"] = 0  # Not available from nvidia-smi
+
+            d_info_nvidia[pci_name] = info_nvidia
+
+        self.info["nvidia"] = {k: v["model"] for k, v in d_info_nvidia.items()}
+        self.info_nvidia = d_info_nvidia
+        if d_info_nvidia:
+            self.has_nvidia = True
+
     def get_nvidia_capabilities(self, only_get_availables=False):
         d_info_nvidia = {}
         libvirt_mdev_names = self.conn.listDevices("mdev_types")
@@ -1235,10 +1675,13 @@ class hyp(object):
                             d["device"]["capability"]["product"]["@id"], base=0
                         )
                         if only_get_availables is False:
-                            pci = LibPCI()
-                            if device_pci_id in devid_nvidia_ampere.keys():
-                                device_name = devid_nvidia_ampere[device_pci_id]
+                            product_text = d["device"]["capability"]["product"].get(
+                                "#text", ""
+                            )
+                            if product_text:
+                                device_name = product_text
                             else:
+                                pci = LibPCI()
                                 device_name = pci.lookup_device_name(
                                     vendor_pci_id, device_pci_id
                                 )
@@ -1252,14 +1695,14 @@ class hyp(object):
                     try:
                         sub_paths = False
                         path_parent = False
-                        if device_pci_id in devid_nvidia_ampere.keys():
-                            (
-                                l_types,
-                                sub_paths,
-                                path_parent,
-                            ) = self.get_types_from_ampere(d)
-                        else:
-                            # only C-Series or Q-Series Virtual GPU Types (Required license edition: vWS)
+                        # Try sysfs-based ampere detection first (works for all modern cards)
+                        (
+                            l_types,
+                            sub_paths,
+                            path_parent,
+                        ) = self.get_types_from_ampere(d)
+                        if l_types is False:
+                            # Fallback to libvirt capability XML for older cards
                             if (
                                 type(d["device"]["capability"]["capability"]) is list
                             ):  ## T4
@@ -1269,23 +1712,23 @@ class hyp(object):
                             else:
                                 types = d["device"]["capability"]["capability"]["type"]
                             l_types = [
-                                dict(a) for a in types if a["name"][-1] in ["C", "Q"]
+                                dict(a) for a in types if "-" in a.get("name", "")
                             ]
                             for a in l_types:
                                 a["name"] = a["name"].replace("GRID ", "")
-                        l_types.sort(key=lambda r: int(r["name"][:-1].split("-")[-1]))
-                        type_max_gpus = l_types[0]["name"].split("-")[-1]
-                        model_gpu = l_types[0]["name"].split("-")[-2]
+                        l_types.sort(
+                            key=lambda r: int(r.get("availableInstances", 0)),
+                            reverse=True,
+                        )
+                        type_max_gpus = l_types[0]["name"].split("-", 1)[1]
+                        model_gpu = l_types[0]["name"].split("-")[0]
 
                         d_types = {
-                            a["name"].split("-")[-1]: {
+                            a["name"].split("-", 1)[1]: {
                                 "id": a["@id"],
-                                "available": min(
-                                    int(a.get("availableInstances", 0)),
-                                    NVIDIA_MODELS.get(a["name"], {}).get("max", 0),
-                                ),
-                                "memory": NVIDIA_MODELS.get(a["name"], {}).get("mb", 0),
-                                "max": NVIDIA_MODELS.get(a["name"], {}).get("max", 0),
+                                "available": int(a.get("availableInstances", 0)),
+                                "memory": 0,
+                                "max": int(a.get("availableInstances", 0)),
                             }
                             for a in l_types
                         }
@@ -1430,6 +1873,26 @@ class hyp(object):
                 for b in [a.split() for a in mdev_ctl_list]
             }
             [d.update(d_mdevs_domains.get(k, {})) for k, d in d_mdevs.items()]
+
+            # Only query libvirt if some mdevs have empty vm_name
+            # (skips entirely on old drivers where sysfs provides vm_name)
+            empty_vm_mdevs = [
+                uid for uid, info in d_mdevs.items() if not info.get("vm_name")
+            ]
+            if empty_vm_mdevs:
+                logs.workers.debug(
+                    f"[{self.id_hyp_rethink}] {len(empty_vm_mdevs)}/{len(d_mdevs)} "
+                    f"mdevs missing sysfs vm_name, falling back to libvirt"
+                )
+                libvirt_map = self._get_libvirt_mdev_to_domain_map()
+                for uid in empty_vm_mdevs:
+                    if uid in libvirt_map:
+                        d_mdevs[uid]["vm_name"] = libvirt_map[uid]
+                        logs.workers.debug(
+                            f"[{self.id_hyp_rethink}] Enriched mdev {uid} "
+                            f"with domain '{libvirt_map[uid]}' from libvirt"
+                        )
+
             logs.workers.debug(
                 f"[{self.id_hyp_rethink}] Parsed {len(d_mdevs)} running mdevs"
             )
@@ -1465,21 +1928,8 @@ class hyp(object):
         Returns:
             True if vm_name is valid (exists in libvirt), False otherwise
         """
-        import re
-
         # Check if empty
         if not vm_name or not vm_name.strip():
-            return False
-
-        # Check if it looks like an mdev UUID (parsing bug indicator)
-        uuid_pattern = re.compile(
-            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-            re.IGNORECASE,
-        )
-        if uuid_pattern.match(vm_name.strip()):
-            logs.workers.warning(
-                f"[{self.id_hyp_rethink}] vm_name '{vm_name}' looks like an mdev UUID - rejecting as invalid"
-            )
             return False
 
         # Verify domain actually exists in libvirt
@@ -1491,6 +1941,69 @@ class hyp(object):
                 f"[{self.id_hyp_rethink}] vm_name '{vm_name}' not found in libvirt"
             )
             return False
+
+    def _get_libvirt_mdev_to_domain_map(self):
+        """Query libvirt for mdev UUIDs attached to GPU domains on this hypervisor.
+
+        Fallback for NVIDIA drivers that don't populate sysfs nvidia/vm_name.
+        Only checks Started domains with GPU reservables on this hypervisor.
+        Handles both real mdev hostdevs and GPU_FAKE metadata.
+        """
+        mdev_to_domain = {}
+
+        # Get only Started domains on THIS hypervisor
+        hyp_domains = get_domains_started_in_hyp(self.id_hyp_rethink, only_started=True)
+        if not hyp_domains:
+            return mdev_to_domain
+
+        # Filter to only domains that have GPU reservables
+        gpu_domain_ids = []
+        for domain_id in hyp_domains.keys():
+            vgpu_info = domain_get_vgpu_info(domain_id)
+            if vgpu_info and (
+                vgpu_info.get("started") is True or vgpu_info.get("reserved") is True
+            ):
+                gpu_domain_ids.append(domain_id)
+
+        if not gpu_domain_ids:
+            return mdev_to_domain
+
+        logs.workers.debug(
+            f"[{self.id_hyp_rethink}] Checking libvirt XML for "
+            f"{len(gpu_domain_ids)} GPU domains"
+        )
+
+        for domain_id in gpu_domain_ids:
+            try:
+                dom = self.conn.lookupByName(domain_id)
+                xml_str = dom.XMLDesc()
+                root = etree.fromstring(xml_str.encode())
+
+                # Real mdev hostdevs
+                for addr in root.xpath(".//hostdev[@type='mdev']/source/address"):
+                    mdev_uuid = addr.get("uuid")
+                    if mdev_uuid:
+                        mdev_to_domain[mdev_uuid] = domain_id
+
+                # GPU_FAKE mdevs in metadata
+                ns = {"gpufake": "http://gpufake.com"}
+                for mdev_elem in root.xpath(".//gpufake:mdev", namespaces=ns):
+                    mdev_uuid = mdev_elem.get("uuid")
+                    if mdev_uuid:
+                        mdev_to_domain[mdev_uuid] = domain_id
+            except Exception as e:
+                logs.workers.debug(
+                    f"[{self.id_hyp_rethink}] Error getting mdev from "
+                    f"libvirt for {domain_id}: {e}"
+                )
+                continue
+
+        logs.workers.debug(
+            f"[{self.id_hyp_rethink}] Libvirt mdev map: "
+            f"{len(mdev_to_domain)} mdevs in "
+            f"{len(gpu_domain_ids)} GPU domains"
+        )
+        return mdev_to_domain
 
     def _adopt_mdev_to_db(self, uuid, pci_id, type_id, vm_name, profile):
         """Adopt a running mdev that's not in the database.
@@ -1642,7 +2155,13 @@ class hyp(object):
         for uuid, db_info in all_db_uuids.items():
             if uuid not in running_mdevs:
                 vgpu_id = "-".join([self.id_hyp_rethink, db_info["pci_id"]])
-                update_vgpu_created(vgpu_id, db_info["profile"], uuid, created=False)
+                if db_info.get("type_id") == "passthrough":
+                    # PCI passthrough entries are always "created" (no mdev device)
+                    update_vgpu_created(vgpu_id, db_info["profile"], uuid, created=True)
+                else:
+                    update_vgpu_created(
+                        vgpu_id, db_info["profile"], uuid, created=False
+                    )
                 # Clear any stale domain_started value
                 update_vgpu_uuid_started_in_domain(
                     hyp_id=self.id_hyp_rethink,
@@ -1815,32 +2334,46 @@ class hyp(object):
             if d_type.get("max") is None:
                 d_type["max"] = d_type.get("available", 1)
             total_available = max(d_type.get("max", 1), d_type.get("available", 1))
-            l_pci_mdev_id = []
-            d = {}
-            for i in range(total_available):
-                if sub_paths is False:
-                    path = d_info_gpu["path"]
-                else:
-                    if i >= len(sub_paths):
-                        logs.main.warning(
-                            f"sub_paths has only {len(sub_paths)} elements but "
-                            f"total_available is {total_available}. Skipping remaining UUIDs."
-                        )
-                        break
-                    path = sorted(sub_paths)[i]
-                uuid64 = str(uuid.uuid4())
-                d[uuid64] = {
-                    "pci_mdev_id": (
-                        l_pci_mdev_id[i]
-                        if len(l_pci_mdev_id) > 0
-                        else path.split("/")[-1]
-                    ),
-                    "type_id": d_type["id"],
-                    "created": False,
-                    "domain_started": False,
-                    "domain_reserved": False,
-                }
-            d_uuids[name.split("-")[-1]] = d
+
+            if d_type.get("mig"):
+                # MIG profiles: placeholder UUIDs, no mdev path needed
+                for i in range(total_available):
+                    uuid64 = str(uuid.uuid4())
+                    d[uuid64] = {
+                        "pci_mdev_id": d_info_gpu["path"].split("/")[-1],
+                        "type_id": d_type["id"],
+                        "mig": True,
+                        "mig_profile_id": d_type.get("mig_profile_id"),
+                        "created": False,
+                        "domain_started": False,
+                        "domain_reserved": False,
+                    }
+            else:
+                l_pci_mdev_id = []
+                for i in range(total_available):
+                    if sub_paths is False:
+                        path = d_info_gpu["path"]
+                    else:
+                        if i >= len(sub_paths):
+                            logs.main.warning(
+                                f"sub_paths has only {len(sub_paths)} elements but "
+                                f"total_available is {total_available}. Skipping remaining UUIDs."
+                            )
+                            break
+                        path = sorted(sub_paths)[i]
+                    uuid64 = str(uuid.uuid4())
+                    d[uuid64] = {
+                        "pci_mdev_id": (
+                            l_pci_mdev_id[i]
+                            if len(l_pci_mdev_id) > 0
+                            else path.split("/")[-1]
+                        ),
+                        "type_id": d_type["id"],
+                        "created": False,
+                        "domain_started": False,
+                        "domain_reserved": False,
+                    }
+            d_uuids[name] = d
         return d_uuids
 
     def delete_vgpus_devices(
@@ -1849,7 +2382,7 @@ class hyp(object):
         cmds_create_delete = []
         d_id_mdev_type = {v["id"]: k for k, v in info_nvidia["types"].items()}
 
-        if info_nvidia["model"] == "A40":
+        if info_nvidia.get("sub_paths") or info_nvidia.get("path_parent"):
             path_parent = info_nvidia["path_parent"]
             uids_in_hyp_now = {}
             id_mdev_selected = info_nvidia["types"][selected_gpu_type]["id"]

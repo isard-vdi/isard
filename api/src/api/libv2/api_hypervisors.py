@@ -301,7 +301,7 @@ class ApiHypervisors:
         isard_proxy_hyper_url="isard-hypervisor",
         isard_hyper_vpn_host="isard-vpn",
         nvidia_enabled=False,
-        force_get_hyp_info=False,  # DEPRECATED: ignored, engine auto-detects GPU changes
+        nvidia_gpus=None,
         user="root",
         only_forced=False,
         min_free_mem_gb=0,
@@ -313,7 +313,6 @@ class ApiHypervisors:
         buffering_hyper=False,
         gpu_only=False,
     ):
-        # Note: force_get_hyp_info parameter is deprecated and ignored
         data = {}
 
         # Check if it is in database
@@ -334,6 +333,7 @@ class ApiHypervisors:
                 isard_proxy_hyper_url=isard_proxy_hyper_url,
                 isard_hyper_vpn_host=isard_hyper_vpn_host,
                 nvidia_enabled=nvidia_enabled,
+                nvidia_gpus=nvidia_gpus,
                 description=description,
                 user=user,
                 only_forced=only_forced,
@@ -371,7 +371,7 @@ class ApiHypervisors:
                 isard_proxy_hyper_url=isard_proxy_hyper_url,
                 isard_hyper_vpn_host=isard_hyper_vpn_host,
                 nvidia_enabled=nvidia_enabled,
-                force_get_hyp_info=force_get_hyp_info,
+                nvidia_gpus=nvidia_gpus,
                 description=description,
                 user=user,
                 only_forced=only_forced,
@@ -404,6 +404,17 @@ class ApiHypervisors:
             # Lets check if it's fingerprint is already here
             # self.update_fingerprint(hostname,hypervisor['port'])
 
+        # Auto-populate gpu_profiles and gpu cards from scanned GPU data
+        if nvidia_gpus:
+            try:
+                self.ensure_gpu_profiles(nvidia_gpus)
+            except Exception as e:
+                log.warning(f"Failed to auto-populate gpu_profiles: {e}")
+            try:
+                self.ensure_gpu_cards(hyper_id, nvidia_gpus)
+            except Exception as e:
+                log.warning(f"Failed to auto-create gpu cards: {e}")
+
         data["certs"] = self.get_hypervisors_certs()
 
         return {"status": True, "msg": "Hypervisor added", "data": data}
@@ -424,7 +435,7 @@ class ApiHypervisors:
         isard_proxy_hyper_url="isard-hypervisor",
         isard_hyper_vpn_host="isard-vpn",
         nvidia_enabled=False,
-        force_get_hyp_info=False,  # DEPRECATED: ignored, engine auto-detects GPU changes
+        nvidia_gpus=None,
         user="root",
         only_forced=False,
         min_free_mem_gb=0,
@@ -436,7 +447,6 @@ class ApiHypervisors:
         buffering_hyper=False,
         gpu_only=False,
     ):
-        # Note: force_get_hyp_info parameter is deprecated and ignored
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
             return False
@@ -469,9 +479,7 @@ class ApiHypervisors:
             "info": {},
             "only_forced": only_forced,
             "nvidia_enabled": nvidia_enabled,
-            # DEPRECATED: force_get_hyp_info is ignored - engine auto-detects GPU changes
-            # Always stored as False for backwards compatibility
-            "force_get_hyp_info": False,
+            "nvidia_gpus": nvidia_gpus if nvidia_gpus is not None else [],
             "min_free_mem_gb": min_free_mem_gb,
             "min_free_gpu_mem_gb": min_free_gpu_mem_gb,
             "storage_pools": storage_pools,
@@ -494,6 +502,238 @@ class ApiHypervisors:
             )
         return result
 
+    def ensure_gpu_profiles(self, nvidia_gpus):
+        """Create or update gpu_profiles entries from hypervisor-scanned GPU data.
+
+        Every discovered GPU gets a gpu_profiles entry, even without vGPU driver.
+        All entries include a 'passthrough' profile (whole GPU, 1 unit).
+        """
+        if not nvidia_gpus:
+            return
+
+        # Group by GPU model
+        models = {}  # model -> {gpu_info, profiles}
+        for gpu in nvidia_gpus:
+            vgpu_profiles = gpu.get("vgpu_profiles", [])
+
+            # Derive model from vGPU profile names if available: "A40-4Q" → "A40"
+            # Otherwise from GPU name: "NVIDIA A40" → "A40"
+            if vgpu_profiles:
+                model = vgpu_profiles[0]["name"].split("-")[0]
+            else:
+                model = gpu["name"].replace("NVIDIA ", "").replace(" ", "")
+
+            if model not in models:
+                models[model] = {"gpu": gpu, "profiles": []}
+
+            # Add passthrough profile (always, 1 per model)
+            if not any(
+                p["profile"] == "passthrough" for p in models[model]["profiles"]
+            ):
+                models[model]["profiles"].append(
+                    {
+                        "id": f"NVIDIA-{model}-passthrough",
+                        "name": f"NVIDIA {model} passthrough",
+                        "profile": "passthrough",
+                        "mode": "passthrough",
+                        "memory": gpu["memory_total_mb"],
+                        "units": 1,
+                        "description": "Whole GPU passthrough",
+                    }
+                )
+
+            # Add vGPU profiles (deduplicated across multiple physical cards)
+            existing_suffixes = {p["profile"] for p in models[model]["profiles"]}
+            for prof in vgpu_profiles:
+                suffix = prof["name"].split("-", 1)[1]  # "4Q"
+                if suffix not in existing_suffixes:
+                    models[model]["profiles"].append(
+                        {
+                            "id": f"NVIDIA-{model}-{suffix}",
+                            "name": f"NVIDIA {model} {suffix}",
+                            "profile": suffix,
+                            "mode": "vgpu",
+                            "memory": prof.get("framebuffer_mb", 0),
+                            "units": prof.get("max_instances", 0)
+                            or prof.get("available_instances", 0),
+                            "description": "",
+                        }
+                    )
+                    existing_suffixes.add(suffix)
+
+            # Add MIG profiles (deduplicated across multiple physical cards)
+            for mig_prof in gpu.get("mig_profiles", []):
+                suffix = mig_prof["name"]  # "1g.24gb", "2g.48gb+gfx", "1g.24gb_me"
+                if suffix not in existing_suffixes:
+                    models[model]["profiles"].append(
+                        {
+                            "id": f"NVIDIA-{model}-{suffix}",
+                            "name": f"NVIDIA {model} MIG {suffix}",
+                            "profile": suffix,
+                            "mode": "mig",
+                            "mig_profile_id": mig_prof["profile_id"],
+                            "memory": int(mig_prof["memory_gib"] * 1024),
+                            "units": mig_prof["max_instances"],
+                            "description": f"MIG GPU Instance ({mig_prof['max_instances']}x)",
+                        }
+                    )
+                    existing_suffixes.add(suffix)
+
+        # Upsert each model into gpu_profiles
+        for model, data in models.items():
+            gpu = data["gpu"]
+            gpu_profile_id = f"NVIDIA-{model}"
+            memory_gb = gpu["memory_total_mb"] // 1024
+            memory_str = f"{memory_gb} GB"
+
+            new_entry = {
+                "id": gpu_profile_id,
+                "brand": "NVIDIA",
+                "name": f"NVIDIA {model}",
+                "model": model,
+                "architecture": "",
+                "description": f"Auto-discovered from {gpu['name']}",
+                "memory": memory_str,
+                "profiles": data["profiles"],
+            }
+
+            with app.app_context():
+                existing = r.table("gpu_profiles").get(gpu_profile_id).run(db.conn)
+
+            if existing:
+                # Merge profiles: keep existing, add/update from scanned data
+                existing_by_id = {p["id"]: p for p in existing.get("profiles", [])}
+                for p in data["profiles"]:
+                    existing_by_id[p["id"]] = p
+                new_entry["profiles"] = list(existing_by_id.values())
+                # Preserve existing metadata if it has real content
+                if existing.get("architecture"):
+                    new_entry["architecture"] = existing["architecture"]
+                if existing.get("description") and not existing[
+                    "description"
+                ].startswith("Auto-discovered"):
+                    new_entry["description"] = existing["description"]
+
+            with app.app_context():
+                r.table("gpu_profiles").insert(new_entry, conflict="update").run(
+                    db.conn
+                )
+
+            log.info(
+                f"GPU profile '{gpu_profile_id}' "
+                f"{'updated' if existing else 'created'} "
+                f"with {len(new_entry['profiles'])} profiles"
+            )
+
+    def ensure_gpu_cards(self, hyper_id, nvidia_gpus):
+        """Auto-create GPU card entries in the 'gpus' table for discovered GPUs.
+
+        Each physical GPU gets a deterministic card ID so re-discovery is idempotent.
+        Only profiles_enabled (left empty) and physical_device are managed.
+        """
+        if not nvidia_gpus:
+            return
+
+        for gpu in nvidia_gpus:
+            vgpu_profiles = gpu.get("vgpu_profiles", [])
+            if vgpu_profiles:
+                model = vgpu_profiles[0]["name"].split("-")[0]
+            else:
+                model = gpu["name"].replace("NVIDIA ", "").replace(" ", "")
+
+            # Normalize PCI bus ID to libvirt pci_name format
+            pci_bus_id = gpu["pci_bus_id"]
+            normalized = pci_bus_id.lower()
+            if len(normalized.split(":")[0]) > 4:
+                normalized = "0000:" + normalized.split(":", 1)[1]
+            pci_name = "pci_" + normalized.replace(":", "_").replace(".", "_")
+
+            card_id = f"auto-{hyper_id}-{pci_name}"
+            vgpu_id = f"{hyper_id}-{pci_name}"
+            gpu_profile_id = f"NVIDIA-{model}"
+
+            # Check if any card already has this physical_device assigned
+            with app.app_context():
+                already_assigned = list(
+                    r.table("gpus")
+                    .filter({"physical_device": vgpu_id})
+                    .pluck("id")
+                    .run(db.conn)
+                )
+
+            if already_assigned:
+                log.info(
+                    f"GPU physical_device {vgpu_id} already assigned to "
+                    f"card '{already_assigned[0]['id']}', skipping"
+                )
+                continue
+
+            # Check if auto-created card exists for this slot
+            with app.app_context():
+                existing_card = r.table("gpus").get(card_id).run(db.conn)
+
+            if existing_card:
+                # Only update physical_device, preserve admin edits
+                with app.app_context():
+                    r.table("gpus").get(card_id).update(
+                        {"physical_device": vgpu_id}
+                    ).run(db.conn)
+                log.info(f"GPU card '{card_id}' updated physical_device -> {vgpu_id}")
+                continue
+
+            # Look for an existing unassigned card with matching brand/model
+            with app.app_context():
+                unassigned = list(
+                    r.table("gpus")
+                    .filter(
+                        {
+                            "brand": "NVIDIA",
+                            "model": model,
+                            "physical_device": None,
+                        }
+                    )
+                    .pluck("id")
+                    .run(db.conn)
+                )
+
+            if unassigned:
+                # Assign physical_device to the existing manually-created card
+                with app.app_context():
+                    r.table("gpus").get(unassigned[0]["id"]).update(
+                        {"physical_device": vgpu_id}
+                    ).run(db.conn)
+                log.info(
+                    f"GPU card '{unassigned[0]['id']}' assigned "
+                    f"physical_device -> {vgpu_id}"
+                )
+                continue
+
+            # No existing card found — create a new auto-discovered one
+            with app.app_context():
+                gpu_profile = r.table("gpu_profiles").get(gpu_profile_id).run(db.conn)
+
+            memory_gb = gpu["memory_total_mb"] // 1024
+            new_card = {
+                "id": card_id,
+                "name": f"NVIDIA {model} ({pci_name})",
+                "brand": "NVIDIA",
+                "model": model,
+                "memory": f"{memory_gb} GB",
+                "description": f"Auto-discovered from {gpu['name']}",
+                "architecture": (
+                    gpu_profile.get("architecture", "") if gpu_profile else ""
+                ),
+                "profiles_enabled": [],
+                "physical_device": vgpu_id,
+            }
+
+            with app.app_context():
+                r.table("gpus").insert(new_card).run(db.conn)
+            log.info(
+                f"GPU card '{card_id}' created for {gpu['name']} "
+                f"with physical_device={vgpu_id}"
+            )
+
     def enable_hyper(self, hyper_id, enable=True):
         with app.app_context():
             if not r.table("hypervisors").get(hyper_id).run(db.conn):
@@ -508,7 +748,23 @@ class ApiHypervisors:
         else:
             return {"status": True, "msg": "Hypervisor disabled", "data": {}}
 
+    def update_boot_progress(self, hyper_id, progress_data):
+        with app.app_context():
+            r.table("hypervisors").get(hyper_id).update(
+                {"boot_progress": progress_data}
+            ).run(db.conn)
+
     def remove_hyper(self, hyper_id, restart=True):
+        # Clear physical_device on auto-created GPU cards for this hypervisor
+        try:
+            prefix = f"auto-{hyper_id}-"
+            with app.app_context():
+                r.table("gpus").filter(
+                    lambda gpu: gpu["id"].match(f"^{prefix}")
+                ).update({"physical_device": None}).run(db.conn)
+        except Exception as e:
+            log.warning(f"Failed to clear GPU cards for {hyper_id}: {e}")
+
         try:
             with app.app_context():
                 r.table("hypervisors").get(hyper_id).update({"forced_hyp": True}).run(

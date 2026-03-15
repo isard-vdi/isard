@@ -1,4 +1,4 @@
-# Isard main config v2.32.0
+# Isard main config v2.33.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -413,14 +413,13 @@ HAPROXY_LOGGING=.
 
 # ------ GPUS --------------------------------------------------------------
 ## ----- NVIDIA
-## New hypervisor: Engine will try to scan new hyper for NVIDIA GPUs and
-##                 will also setup them.
-#GPU_NVIDIA_SCAN=false
-
-## DEPRECATED: GPU_NVIDIA_RESCAN is no longer needed.
-## The engine now auto-detects GPU hardware changes by comparing PCI IDs.
-## This variable is ignored if set - kept only for backwards compatibility.
-#GPU_NVIDIA_RESCAN=false
+## GPU discovery is automatic via nvidia-smi at hypervisor startup.
+## The host nvidia-smi binary and driver library are bind-mounted into the
+## container. Adjust these paths if your system uses a non-standard location.
+## Debian/Ubuntu defaults are shown below.
+## RHEL/CentOS/Fedora: NVIDIA_ML_LIB_PATH=/usr/lib64/libnvidia-ml.so.1
+#NVIDIA_SMI_PATH=/usr/bin/nvidia-smi
+#NVIDIA_ML_LIB_PATH=/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1
 
 ## Only start desktops with GPU reservables (avoid )
 #GPU_ONLY=false

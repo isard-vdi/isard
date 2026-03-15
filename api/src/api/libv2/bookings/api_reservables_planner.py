@@ -155,7 +155,7 @@ class ReservablesPlanner:
                 "user_id": payload["user_id"],
                 "event_type": "available",
             }
-        except:
+        except Exception:
             raise Error(
                 "bad_request",
                 "New plan body data incorrect",
@@ -188,7 +188,7 @@ class ReservablesPlanner:
         if subitem_join_before:
             joined_plan = join_existing_plan_after_new_plan_start(plan)
             if joined_plan:
-                print(
+                log.debug(
                     "Existing plan "
                     + joined_plan["id"]
                     + " moved start time to new plan "
@@ -201,7 +201,7 @@ class ReservablesPlanner:
         if subitem_join_after:
             joined_plan = join_existing_plan_before_new_plan_end(plan)
             if joined_plan:
-                print(
+                log.debug(
                     "Existing plan "
                     + joined_plan["id"]
                     + " moved end time to new plan "
@@ -235,47 +235,24 @@ class ReservablesPlanner:
                 .filter(
                     r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
                 )
-                .filter(
-                    r.row["start"]
-                    <= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-                )
-                .filter(
-                    r.row["end"]
-                    >= datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-                )
                 .run(db.conn)
             )
         if len(bookings_in_actual_plan):
-            with app.app_context():
-                bookings_failing_in_new_range = list(
-                    r.table("bookings")
-                    .filter(
-                        r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
-                    )
-                    .filter(
-                        r.row["start"]
-                        <= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(
-                            pytz.UTC
-                        )
-                    )
-                    .filter(
-                        r.row["end"]
-                        >= datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(
-                            pytz.UTC
-                        )
-                    )
-                    .run(db.conn)
-                )
-            if len(bookings_in_actual_plan) != len(bookings_failing_in_new_range):
-                # The difference will imply to remove those bookings
-                bookings2remove = [
-                    b["id"]
-                    for b in bookings_in_actual_plan
-                    if b not in bookings_failing_in_new_range
-                ]
+            new_start = datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(
+                pytz.UTC
+            )
+            new_end = datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+            bookings_failing_in_new_range = [
+                b
+                for b in bookings_in_actual_plan
+                if b["start"] < new_start or b["end"] > new_end
+            ]
+            if len(bookings_failing_in_new_range):
+                # Remove bookings that don't fit within the new plan range
+                bookings2remove = [b["id"] for b in bookings_failing_in_new_range]
                 with app.app_context():
                     r.table("bookings").get_all(
-                        r.args[bookings2remove], index="id"
+                        r.args(bookings2remove), index="id"
                     ).delete().run(db.conn)
         with app.app_context():
             plan = r.table("resource_planner").get(plan_id).run(db.conn)
@@ -288,7 +265,7 @@ class ReservablesPlanner:
                 r.table("resource_planner").get(plan_id).delete().run(db.conn),
                 "deleted",
             ):
-                Error("internal_server", "Could not remove plan from database.")
+                raise Error("internal_server", "Could not remove plan from database.")
         self.scheduler.remove_scheduler_startswith_id(plan_id)
 
         ## NEEDS to get plan["start"] and plan["end"] to get only those bookings??
@@ -334,7 +311,7 @@ class ReservablesPlanner:
     def check_subitem_current_plan(self, subitem_id, item_id):
         plans = get_subitems_planning([subitem_id], item_id=item_id, now=True)
         if plans and any(
-            booking["start"] >= datetime.now(pytz.utc) >= booking["end"]
+            booking["start"] <= datetime.now(pytz.utc) <= booking["end"]
             for plan in plans
             for booking in self.get_plan_bookings(plan["id"])
         ):
@@ -486,9 +463,6 @@ class ReservablesPlanner:
         return format_planning
 
     def existing_booking_update_fits(self, payload, booking):
-        return (
-            False  # The booking_provisioning should send booking item_type and item_id
-        )
         plans = booking_provisioning(
             payload,
             booking["item_type"],

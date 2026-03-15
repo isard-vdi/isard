@@ -26,6 +26,15 @@ import pytz
 from isardvdi_common.api_exceptions import Error
 
 
+def _sorted_atomic_items(interval_dict):
+    items = []
+    for interval, value in interval_dict.items():
+        for atomic in interval:
+            items.append((atomic, value))
+    items.sort()
+    return items
+
+
 ## BOOKING PROVISIONING
 def booking_provisioning(
     payload,
@@ -164,11 +173,7 @@ def remove_existing_item_bookings(plans, item_type, item_id, start=None, end=Non
         )
         plans_intervals = plans_intervals.combine(d, how=join_plan_op)
 
-    items = []
-    for interval, value in plans_intervals.items():
-        for atomic in interval:
-            items.append((atomic, value))
-    items.sort()
+    items = _sorted_atomic_items(plans_intervals)
 
     # When the "start" key it's not there it will be because the interval
     # is not available, but because the item is reserved in another reservable item
@@ -187,17 +192,13 @@ def intersect_same_subitem_plan(plan, plan_name, keep_non_overlapped=True):
         d = P.IntervalDict({i: {"units": interval["units"], "id": interval["id"]}})
         output = output.combine(d, how=join_plan_op)
 
-    items = []
-    for interval, value in output.items():
-        for atomic in interval:
-            items.append((atomic, value))
-    items.sort()
+    items = _sorted_atomic_items(output)
 
     if not keep_non_overlapped:
         return [
             {
-                "start": P.to_data(item[0])[0][1],
-                "end": P.to_data(item[0])[0][2],
+                "start": item[0].lower,
+                "end": item[0].upper,
                 "units": item[1]["units"],
                 "ids": item[1]["id"].split("/"),
                 "id": plan_name,
@@ -209,8 +210,8 @@ def intersect_same_subitem_plan(plan, plan_name, keep_non_overlapped=True):
     else:
         return [
             {
-                "start": P.to_data(item[0])[0][1],
-                "end": P.to_data(item[0])[0][2],
+                "start": item[0].lower,
+                "end": item[0].upper,
                 "units": item[1]["units"],
                 "ids": item[1]["id"].split("/"),
                 "id": plan_name,
@@ -273,11 +274,7 @@ def count_non_overridable_bookings(plan_id, subitem_id, priority, start, end):
         )
         output = output.combine(d, how=join_plan_op)
 
-    items = []
-    for interval, value in output.items():
-        for atomic in interval:
-            items.append((atomic, value))
-    items.sort()
+    items = _sorted_atomic_items(output)
     log.debug(
         "---> Counting nonoverridables: Found "
         + str(len(bookings))
@@ -289,14 +286,11 @@ def count_non_overridable_bookings(plan_id, subitem_id, priority, start, end):
         + str(end)
     )
 
-    max = 0
-    for item in items:
-        if item[1]["units_booked"] > max:
-            max = item[1]["units_booked"]
+    max_units = max(item[1]["units_booked"] for item in items) if items else 0
     log.debug(
-        "-----------> Found " + str(max) + " max units already booked in interval"
+        "-----------> Found " + str(max_units) + " max units already booked in interval"
     )
-    return max
+    return max_units
 
 
 def get_same_plans_for_booking(
@@ -460,16 +454,12 @@ def get_different_plans_for_booking(plans):
     }
 
     output = P.IntervalDict()
-    for interval in plan:
+    for interval in plans:
         i = P.closed(interval["start"], interval["end"])
         d = P.IntervalDict({i: {"units": interval["units"], "id": interval["id"]}})
         output = output.combine(d, how=join_plan_op)
 
-    items = []
-    for interval, value in output.items():
-        for atomic in interval:
-            items.append((atomic, value))
-    items.sort()
+    items = _sorted_atomic_items(output)
 
     # [{'end': datetime.datetime(2022, 4, 22, 13, 29, 59, tzinfo=<rethinkdb.ast.RqlTzinfo object at 0x7fc440f81df0>),
     #   'event_type': 'available',
@@ -483,8 +473,8 @@ def get_different_plans_for_booking(plans):
 
     return [
         {
-            "start": P.to_data(item[0])[0][1],
-            "end": P.to_data(item[0])[0][2],
+            "start": item[0].lower,
+            "end": item[0].upper,
             "units": item[1]["units"],
             "ids": item[1]["id"].split("/"),
             "id": item[1]["id"],
@@ -507,16 +497,12 @@ def join_consecutive_plans(plan):
             d = P.IntervalDict({i: {"units": 1, "id": "available"}})
             output = output.combine(d, how=join_plan_op)
 
-    items = []
-    for interval, value in output.items():
-        for atomic in interval:
-            items.append((atomic, value))
-    items.sort()
+    items = _sorted_atomic_items(output)
 
     return [
         {
-            "start": P.to_data(item[0])[0][1],
-            "end": P.to_data(item[0])[0][2],
+            "start": item[0].lower,
+            "end": item[0].upper,
             "units": "Enough",
             "ids": item[1]["id"].split("/"),
             "id": item[1]["id"],
@@ -538,17 +524,13 @@ def intersect_different_subitem_plan(plan, keep_non_overlapped=False):
         d = P.IntervalDict({i: {"units": interval["units"], "id": interval["id"]}})
         output = output.combine(d, how=join_plan_op)
 
-    items = []
-    for interval, value in output.items():
-        for atomic in interval:
-            items.append((atomic, value))
-    items.sort()
+    items = _sorted_atomic_items(output)
 
     if not keep_non_overlapped:
         return [
             {
-                "start": P.to_data(item[0])[0][1],
-                "end": P.to_data(item[0])[0][2],
+                "start": item[0].lower,
+                "end": item[0].upper,
                 "units": item[1]["units"],
                 "ids": item[1]["id"].split("/"),
                 "id": item[1]["id"],
@@ -560,8 +542,8 @@ def intersect_different_subitem_plan(plan, keep_non_overlapped=False):
     else:
         return [
             {
-                "start": P.to_data(item[0])[0][1],
-                "end": P.to_data(item[0])[0][2],
+                "start": item[0].lower,
+                "end": item[0].upper,
                 "units": item[1]["units"],
                 "ids": item[1]["id"].split("/"),
                 "event_type": "available",
@@ -739,7 +721,7 @@ def most_restrictive_rule(subitem, new_priority, old_priority=None):
         "priority": {**old_priority["priority"], **{subitem: new_priority["priority"]}},
         "forbid_time": min(new_priority["forbid_time"], old_priority["forbid_time"]),
         "max_time": min(new_priority["max_time"], old_priority["max_time"]),
-        "max_items": min(new_priority["max_items"], new_priority["max_items"]),
+        "max_items": min(new_priority["max_items"], old_priority["max_items"]),
     }
 
 
@@ -766,6 +748,9 @@ def get_overridable_bookings(
                     lambda plan: plan["priority"] < priority["priority"][subitem]
                 )
             )
+
+            if skip_booking_id:
+                query = query.filter(lambda booking: booking["id"] != skip_booking_id)
 
             with app.app_context():
                 bookings += list(query.run(db.conn))
@@ -806,6 +791,9 @@ def get_nonoverridable_bookings(
                     lambda plan: plan["priority"] >= priority["priority"][subitem]
                 )
             )
+
+            if skip_booking_id:
+                query = query.filter(lambda booking: booking["id"] != skip_booking_id)
 
             with app.app_context():
                 bookings += list(query.run(db.conn))
@@ -859,7 +847,7 @@ def compute_overridable_bookings(overridable, nonoverridable, plans, units):
         "event_type": (
             "unavailable"
             if x["units"] - (units + y["units"]) < 0
-            else "overridable" if x["units"] - (units + y["units"]) < 0 else "available"
+            else "overridable" if x["units"] - y["units"] < units else "available"
         ),
     }
 
@@ -876,13 +864,10 @@ def compute_overridable_bookings(overridable, nonoverridable, plans, units):
         )
         plans = plans.combine(d, how=join_plan_op)
 
-    items = []
     if len(plans):
-        for interval, value in plans.items():
-            for atomic in interval:
-                items.append((atomic, value))
-        items.sort()
+        items = _sorted_atomic_items(plans)
     else:
+        items = []
         log.debug("NO PLANS FOUND")
 
     log.debug("Intervals found:")
@@ -893,8 +878,8 @@ def compute_overridable_bookings(overridable, nonoverridable, plans, units):
     )
     return [
         {
-            "start": P.to_data(item[0])[0][1],
-            "end": P.to_data(item[0])[0][2],
+            "start": item[0].lower,
+            "end": item[0].upper,
             "units": item[1]["units"],
             "ids": item[1]["id"].split("/"),
             "event_type": item[1]["event_type"],
@@ -982,17 +967,13 @@ def intersect_nonoverridable_with_plan(plan, units, keep_non_overlapped=False):
         )
         output = output.combine(d, how=join_plan_op)
 
-    items = []
-    for interval, value in output.items():
-        for atomic in interval:
-            items.append((atomic, value))
-    items.sort()
+    items = _sorted_atomic_items(output)
 
     if not keep_non_overlapped:
         return [
             {
-                "start": P.to_data(item[0])[0][1],
-                "end": P.to_data(item[0])[0][2],
+                "start": item[0].lower,
+                "end": item[0].upper,
                 "units": item[1]["units"],
                 "ids": item[1]["id"].split("/"),
                 "id": item[1]["id"],
@@ -1004,8 +985,8 @@ def intersect_nonoverridable_with_plan(plan, units, keep_non_overlapped=False):
     else:
         return [
             {
-                "start": P.to_data(item[0])[0][1],
-                "end": P.to_data(item[0])[0][2],
+                "start": item[0].lower,
+                "end": item[0].upper,
                 "units": item[1]["units"],
                 "ids": item[1]["id"].split("/"),
                 "event_type": item[1]["event_type"],

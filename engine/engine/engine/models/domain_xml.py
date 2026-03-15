@@ -2051,7 +2051,7 @@ def recreate_xml_if_start_paused(xml, memory_mb=64):
     return xml_output
 
 
-def recreate_xml_if_gpu(xml, mdev_uid):
+def recreate_xml_if_gpu(xml, mdev_uid, pci_bus_id=None, is_passthrough=False):
     xml = xml
 
     parser = etree.XMLParser(remove_blank_text=True)
@@ -2071,6 +2071,20 @@ def recreate_xml_if_gpu(xml, mdev_uid):
           <gpufake:mdev uuid="{uid}"/>
         </gpufake:gpufake>"""
         xpath_parent = "/domain/metadata"
+    elif is_passthrough and pci_bus_id:
+        # PCI passthrough: pass the whole GPU device via VFIO
+        # pci_bus_id format: "pci_0000_21_00_0" -> domain=0x0000, bus=0x21, slot=0x00, function=0x0
+        parts = pci_bus_id.replace("pci_", "").split("_")
+        domain = "0x" + parts[0]
+        bus = "0x" + parts[1]
+        slot = "0x" + parts[2]
+        function = "0x" + parts[3]
+        xml_hostdev = f"""  <hostdev mode='subsystem' type='pci' managed='yes'>
+        <source>
+          <address domain='{domain}' bus='{bus}' slot='{slot}' function='{function}'/>
+        </source>
+      </hostdev>"""
+        xpath_parent = "/domain/devices"
     else:
         xml_hostdev = f"""  <hostdev mode='subsystem' type='mdev' model='vfio-pci'>
         <source>

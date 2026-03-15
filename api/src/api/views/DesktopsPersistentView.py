@@ -99,11 +99,7 @@ def api_v3_desktop_start(payload, desktop_id):
         try:
             desktops.check_current_plan(payload, desktop_id)
         except Error as e:
-            err = e.error["description_code"]
-            if err in [
-                "current_plan_doesnt_match",
-                "needs_deployment_booking",
-            ] or payload["role_id"] not in ["admin", "manager"]:
+            if payload["role_id"] not in ["admin", "manager"]:
                 raise e
     # So now we have checked if desktop exists and if we can create and/or start it
     status = desktops.Start(desktop_id)

@@ -63,8 +63,8 @@ $(document).ready(function () {
       loadingRecords:
         '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
     },
-    bLengthChange: false,
-    bFilter: false,
+    bLengthChange: true,
+    bFilter: true,
     rowId: "id",
     deferRender: true,
     columns: [
@@ -125,10 +125,28 @@ $(document).ready(function () {
         data: null,
         width: "150px",
         defaultContent:
+          '<button id="btn-edit" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-pencil" style="color:darkblue"></i></button> ' +
           '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>'
       },
     ],
     order: [[7, "desc"]]
+  });
+
+  // Real-time updates for GPU profile changes
+  waitDefined("socket", function () {
+    socket.on('vgpu_data', function (raw) {
+      var data = JSON.parse(raw);
+      gpus_table.rows().every(function () {
+        var rowData = this.data();
+        if (rowData.physical_device === data.id) {
+          rowData.active_profile = data.vgpu_profile;
+          rowData.changing_to_profile = data.changing_to_profile;
+          rowData.desktops_started = data.desktops_started;
+          this.data(rowData).invalidate();
+          gpus_table.draw(false);
+        }
+      });
+    });
   });
 
   // Add event listener for opening and closing first level childdetails
@@ -202,6 +220,77 @@ $(document).ready(function () {
 
       tr.addClass("shown");
     }
+  });
+
+  // Click handler for GPU desktops progress bar
+  $("#table-gpus tbody").on("click", ".gpu-desktops-click", function (e) {
+    e.stopPropagation();
+    var tr = $(this).closest("tr");
+    var data = gpus_table.row(tr).data();
+    if (!data || !data.desktops_started || data.desktops_started.length === 0) return;
+
+    $.ajax({
+      type: "POST",
+      url: "/admin/domains",
+      contentType: "application/json",
+      data: JSON.stringify({
+        kind: "desktop",
+        domain_ids: JSON.stringify(data.desktops_started),
+      }),
+      success: function (domains) {
+        if ($.fn.DataTable.isDataTable("#table-gpu-desktops")) {
+          $("#table-gpu-desktops").DataTable().destroy();
+          $("#table-gpu-desktops tbody").empty();
+        }
+        var gpuName = data.brand + " " + data.model + " - " + data.physical_device;
+        $("#modalGpuDesktopsLabel").text("Running desktops on " + gpuName);
+        $("#table-gpu-desktops").DataTable({
+          data: domains,
+          dom: "t",
+          pageLength: 50,
+          columns: [
+            {
+              data: "id",
+              orderable: false,
+              render: function (data) {
+                return '<button class="btn btn-xs btn-info" data-domain-info="' + data + '" title="View details"><i class="fa fa-info-circle"></i></button>';
+              },
+            },
+            { data: "name" },
+            {
+              data: "status",
+              render: function (data) {
+                var statusClass = "default";
+                if (data === "Started") statusClass = "success";
+                else if (data === "Stopped" || data === "Failed") statusClass = "danger";
+                else if (data === "Starting" || data === "Shutting-down") statusClass = "warning";
+                return '<span class="label label-' + statusClass + '">' + data + '</span>';
+              },
+            },
+            { data: "user_name" },
+            { data: "group_name" },
+            { data: "category_name" },
+            {
+              data: "accessed",
+              render: function (data) {
+                return data ? moment.unix(data).fromNow() : "Never";
+              },
+            },
+          ],
+        });
+        $("#modalGpuDesktops").modal("show");
+      },
+      error: function (data) {
+        new PNotify({
+          title: "ERROR loading desktops",
+          text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+          hide: true,
+          delay: 2000,
+          opacity: 1,
+          type: "error",
+        });
+      },
+    });
   });
 
   $("#table-gpus")
@@ -342,8 +431,30 @@ $(document).ready(function () {
             });
           })
           .on("pnotify.cancel", function () { });
+      } else if ($(this).attr("id") == "btn-edit") {
+        var data = gpus_table.row($(this).parents('tr')).data();
+        $("#modalEditGpuForm")[0].reset();
+        $('#modalEditGpuForm #id').val(data.id);
+        $('#modalEditGpuForm #name').val(data.name);
+        $('#modalEditGpuForm #description').val(data.description);
+        $('#modalEditGpu').modal({
+          backdrop: 'static',
+          keyboard: false
+        }).modal('show');
       } else if ($(this).attr("id") == "btn-force_active_profile") {
         var data=gpus_table.row($(this).parents('tr')).data();
+        if (!data.profiles_enabled || data.profiles_enabled.length === 0) {
+            new PNotify({
+                title: 'No profiles enabled',
+                text: 'Enable at least one GPU profile first by expanding the GPU row and checking a profile.',
+                type: 'warning',
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-warning',
+                opacity: 1
+            });
+            return;
+        }
         $("#modalForcedProfileForm")[0].reset();
         $('#modalForcedProfileForm #id').val(data.id);
         $('#modalForcedProfileForm #physical_device').val(data.physical_device);
@@ -363,7 +474,7 @@ $(document).ready(function () {
             icon: 'fa fa-spinner fa-pulse'
         })
         data=$('#modalForcedProfileForm').serializeObject();
-        profile_id = data["forced_active_profile"].split("-")[2];
+        profile_id = data["forced_active_profile"].split("-").slice(2).join("-");
         data["actual_active_profile"] = document.getElementById(data.id).children[4].textContent.trim();
         if (data["actual_active_profile"] == profile_id) {
           return notice.update({
@@ -375,6 +486,16 @@ $(document).ready(function () {
             delay: 5000,
             opacity: 1
           })
+        }
+        // Detect MIG ↔ vGPU/passthrough mode switch and warn user
+        var oldIsMig = /^\d+g\./.test(data["actual_active_profile"]);
+        var newIsMig = /^\d+g\./.test(profile_id);
+        if (oldIsMig !== newIsMig) {
+          if (!confirm("This will switch the GPU between MIG and vGPU/passthrough mode. " +
+              "The GPU will be reset and all running instances on it will be stopped. Continue?")) {
+            notice.remove();
+            return;
+          }
         }
         $.ajax({
             type: 'PUT',
@@ -406,6 +527,44 @@ $(document).ready(function () {
                 })
             }
         })
+    });
+
+    $("#modalEditGpu #send").off('click').on('click', function(e) {
+        var form = $('#modalEditGpuForm');
+        form.parsley().validate();
+        if (form.parsley().isValid()) {
+            var data = form.serializeObject();
+            var item_id = data.id;
+            $.ajax({
+                type: 'PUT',
+                url: '/api/v3/admin/reservables/gpus/' + item_id,
+                data: JSON.stringify({ name: data.name, description: data.description }),
+                contentType: 'application/json',
+                success: function(data) {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                    gpus_table.ajax.reload();
+                    new PNotify({
+                        title: 'Updated',
+                        text: 'GPU updated successfully',
+                        hide: true,
+                        delay: 2000,
+                        opacity: 1,
+                        type: 'success'
+                    });
+                },
+                error: function(data) {
+                    new PNotify({
+                        title: 'ERROR updating GPU',
+                        text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
+                        hide: true,
+                        delay: 2000,
+                        opacity: 1,
+                        type: 'error'
+                    });
+                }
+            });
+        }
     });
 });
 
@@ -686,9 +845,9 @@ function deleteReservable(reservable_type, item_id, notify_user) {
 }
 
 function renderProgressGPU(progress, total) {
-  return ` ${progress}/${total}  <div class="progress"> 
-            <div class="progress-bar" role="progressbar" aria-valuenow="${progress}" 
+  return `<span class="gpu-desktops-click" style="cursor:pointer"> ${progress}/${total}  <div class="progress">
+            <div class="progress-bar" role="progressbar" aria-valuenow="${progress}"
               aria-valuemin="0" aria-valuemax="${total}" style="width:${(progress / total) * 100}%;">
-            </div> 
-          </div>`;
+            </div>
+          </div></span>`;
 }

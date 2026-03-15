@@ -26,6 +26,11 @@ RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /et
 
 RUN apk -U upgrade --no-cache
 
+# glibc compatibility layer so host nvidia-smi (glibc-linked) runs on musl Alpine
+RUN apk add --no-cache gcompat && \
+    mkdir -p /lib64 && \
+    ln -sf /lib/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
+
 RUN apk add --no-cache \
     libvirt \
     libvirt-daemon \
@@ -46,7 +51,6 @@ RUN apk add --no-cache \
     qemu-system-x86_64 \
     libcrypto3@edge \
     swtpm
-
 
 RUN apk add --no-cache \
     libcap \
@@ -194,6 +198,9 @@ WORKDIR /src
 # Compiled spice libs avoid initial one minute red channel connection close bug
 RUN rm /usr/lib/libspice*
 COPY docker/hypervisor/spice-dev/* /usr/lib/
+
+# lspci/setpci needed for SR-IOV VF management during GPU passthrough switching
+RUN apk add --no-cache --force-broken-world pciutils
 
 ENV G_MESSAGES_DEBUG=all
 CMD [ "/src/start.sh"]

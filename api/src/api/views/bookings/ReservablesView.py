@@ -11,6 +11,7 @@ from api import app
 from ...libv2.bookings.api_reservables import Reservables
 from ...libv2.bookings.api_reservables_planner import ReservablesPlanner
 from ...libv2.bookings.api_reservables_planner_compute import get_subitems_planning
+from ...libv2.validators import _validate_item
 from ..decorators import checkDuplicate, has_token, is_admin
 
 api_ri = Reservables()
@@ -59,6 +60,17 @@ def api_v3_reservable_types(payload, reservable_type):
                 "profile": profile,
             }
         return json.dumps(items), 200
+
+
+# Updates a GPU item (name, description)
+@app.route("/api/v3/admin/reservables/gpus/<item_id>", methods=["PUT"])
+@is_admin
+def api_v3_reservable_update_gpu(payload, item_id):
+    data = request.get_json()
+    _validate_item("gpus_update", data)
+    if "name" in data:
+        checkDuplicate("gpus", data["name"], item_id=item_id)
+    return json.dumps(api_ri.update_item("gpus", item_id, data)), 200
 
 
 # Gets list of subitems available in this item_id (profiles) [{"id","profile","units"}]

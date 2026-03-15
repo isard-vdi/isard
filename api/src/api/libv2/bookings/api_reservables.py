@@ -53,6 +53,9 @@ class Reservables:
     def list_subitems_enabled(self, item_type, item_id):
         return self.reservable[item_type].list_subitems_enabled(item_id)
 
+    def update_item(self, item_type, item_id, data):
+        return self.reservable[item_type].update_item(item_id, data)
+
     def get_subitem(self, item_type, item_id, subitem):
         return self.reservable[item_type].get_subitem(item_id, subitem)
 
@@ -196,6 +199,28 @@ class ResourceItemsGpus:
                 )
 
         return new_gpu
+
+    def update_item(self, item_id, data):
+        with app.app_context():
+            item = r.table("gpus").get(item_id).run(db.conn)
+        if not item:
+            raise Error(
+                "not_found",
+                "Gpu id not found in gpu table",
+                description_code="not_found",
+            )
+        with app.app_context():
+            if not _check(
+                r.table("gpus").get(item_id).update(data).run(db.conn),
+                "replaced",
+            ):
+                raise Error(
+                    "internal_server",
+                    "Unable to update GPU in database.",
+                    description_code="unable_to_update",
+                )
+        with app.app_context():
+            return r.table("gpus").get(item_id).run(db.conn)
 
     def list_profiles(self):
         with app.app_context():
@@ -476,7 +501,9 @@ class ResourceItemsGpus:
                     lambda doc: {
                         "id": doc["id"],
                         "user": doc["user"],
-                        "username": r.table("users").get(doc["user"])["username"],
+                        "username": r.table("users")
+                        .get(doc["user"])["username"]
+                        .default("deleted-user"),
                         "tag_name": doc["tag_name"],
                     }
                 )

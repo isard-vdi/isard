@@ -9,6 +9,14 @@
     "model": "T4",
     "profiles": [
       {
+        "description": "Whole GPU passthrough",
+        "id": "NVIDIA-T4-passthrough",
+        "memory": 16384,
+        "name": "NVIDIA T4 passthrough",
+        "profile": "passthrough",
+        "units": 1
+      },
+      {
         "description": "",
         "id": "NVIDIA-T4-16Q",
         "memory": 16384,
@@ -83,6 +91,14 @@
     "memory": "48 GB GDDR",
     "model": "A40",
     "profiles": [
+      {
+        "description": "Whole GPU passthrough",
+        "id": "NVIDIA-A40-passthrough",
+        "memory": 49152,
+        "name": "NVIDIA A40 passthrough",
+        "profile": "passthrough",
+        "units": 1
+      },
       {
         "description": "",
         "id": "NVIDIA-A40-12Q",
@@ -231,6 +247,14 @@
     "model": "A16",
     "profiles": [
       {
+        "description": "Whole GPU passthrough",
+        "id": "NVIDIA-A16-passthrough",
+        "memory": 16384,
+        "name": "NVIDIA A16 passthrough",
+        "profile": "passthrough",
+        "units": 1
+      },
+      {
         "description": "",
         "id": "NVIDIA-A16-1Q",
         "memory": 1024,
@@ -305,6 +329,14 @@
     "memory": "24 GB GDDR",
     "model": "A10",
     "profiles": [
+      {
+        "description": "Whole GPU passthrough",
+        "id": "NVIDIA-A10-passthrough",
+        "memory": 24576,
+        "name": "NVIDIA A10 passthrough",
+        "profile": "passthrough",
+        "units": 1
+      },
       {
         "description": "",
         "id": "NVIDIA-A10-12Q",
@@ -421,6 +453,14 @@
     "model": "L40",
     "profiles": [
       {
+        "description": "Whole GPU passthrough",
+        "id": "NVIDIA-L40-passthrough",
+        "memory": 49152,
+        "name": "NVIDIA L40 passthrough",
+        "profile": "passthrough",
+        "units": 1
+      },
+      {
         "description": "",
         "id": "NVIDIA-L40-48Q",
         "memory": 49152,
@@ -512,6 +552,14 @@
     "model": "L40S",
     "profiles": [
       {
+        "description": "Whole GPU passthrough",
+        "id": "NVIDIA-L40S-passthrough",
+        "memory": 49152,
+        "name": "NVIDIA L40S passthrough",
+        "profile": "passthrough",
+        "units": 1
+      },
+      {
         "description": "",
         "id": "NVIDIA-L40S-48Q",
         "memory": 49152,
@@ -590,6 +638,25 @@
         "name": "NVIDIA L40S 1Q",
         "profile": "1Q",
         "units": 32
+      }
+    ]
+  },
+  {
+    "brand": "NVIDIA",
+    "id": "NVIDIA-RTX4000SFFAdaGeneration",
+    "name": "NVIDIA RTX 4000 SFF Ada Generation",
+    "architecture": "NVIDIA Ada Lovelace",
+    "description": "Compact professional GPU for CAD, 3D design, and AI workloads",
+    "memory": "20 GB GDDR6",
+    "model": "RTX4000SFFAdaGeneration",
+    "profiles": [
+      {
+        "description": "Whole GPU passthrough",
+        "id": "NVIDIA-RTX4000SFFAdaGeneration-passthrough",
+        "memory": 20480,
+        "name": "NVIDIA RTX 4000 SFF Ada Generation passthrough",
+        "profile": "passthrough",
+        "units": 1
       }
     ]
   }

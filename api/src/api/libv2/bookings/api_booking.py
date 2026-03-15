@@ -30,6 +30,7 @@ from ..helpers import _check, _get_reservables
 from .api_reservables import Reservables
 from .api_reservables_planner import ReservablesPlanner
 from .api_reservables_planner_compute import (
+    _sorted_atomic_items,
     compute_user_priority,
     min_profile_priority,
     payload_priority,
@@ -84,7 +85,7 @@ class Bookings:
                 .get_all(rule_id, index="rule_id")
                 .run(db.conn)
             )
-        users = {}
+        users = []
         kind = ""
         for p in priority:
             allowed = p["allowed"]
@@ -107,9 +108,9 @@ class Bookings:
                             if len(users) == 2:
                                 return compute_user_priority(users, rule_id)
                     if key == "categories":
-                        kind == "category"
+                        kind = "category"
                     if key == "groups":
-                        kind == "group"
+                        kind = "group"
                     if key == "roles":
                         kind = "role"
                     with app.app_context():
@@ -236,6 +237,7 @@ class Bookings:
 
     def update(
         self,
+        payload,
         booking_id,
         title,
         start,
@@ -303,9 +305,10 @@ class Bookings:
                         description_code="booking_desktop_delete_stop",
                     )
                 else:
-                    r.table("domains").get(booking.get("item_id")).update(
-                        {"booking_id": False}
-                    ).run(db.conn)
+                    with app.app_context():
+                        r.table("domains").get(booking.get("item_id")).update(
+                            {"booking_id": False}
+                        ).run(db.conn)
                     scheduler.remove_desktop_timeouts(booking.get("item_id"))
             elif booking.get("item_type") == "deployment":
                 with app.app_context():
@@ -621,10 +624,6 @@ def bookings_max_units(bookings):
     if not len(bookings):
         return 0
     # We need to use portions library to get bookings intersections max units
-    portions = P.IntervalDict()
-    for interval in bookings:
-        portions[P.closed(interval["start"], interval["end"])] = interval
-
     join_plan_op = lambda x, y: {
         "units": x["units"] + y["units"],
         "id": x["id"] + "/" + y["id"],
@@ -637,10 +636,7 @@ def bookings_max_units(bookings):
         output = output.combine(d, how=join_plan_op)
 
     # We could maybe just get the max from value["units"]??
-    items = []
-    for interval, value in output.items():
-        for atomic in interval:
-            items.append((atomic, value))
+    items = _sorted_atomic_items(output)
 
     # get max units for all items:
     return max([item[1]["units"] for item in items])
