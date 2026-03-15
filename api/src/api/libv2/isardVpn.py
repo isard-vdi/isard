@@ -70,7 +70,7 @@ class isardVpn:
                         description_code="hypervisor_not_found",
                     )
             wgdata = hyper
-            port = "4443"
+            port = os.environ.get("WG_HYPERS_PORT", "4443")
             mtu = os.environ.get("VPN_MTU", "1600")
             postup = "iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu"
             endpoint = hyper.get("isard_hyper_vpn_host", "isard-vpn")
@@ -80,7 +80,7 @@ class isardVpn:
                 wgdata = (
                     r.table("remotevpn").get(itemid).pluck("id", "vpn").run(db.conn)
                 )
-            port = "443"
+            port = os.environ.get("WG_USERS_PORT", "443")
             mtu = os.environ.get("VPN_MTU", "1600")
             # Windows client doesn't support PostUp empty value
             # colon command does nothing on Windows and GNU/Linux

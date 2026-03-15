@@ -42,3 +42,5 @@ services:
 
       # OVS Security Configuration (automatic based on API_DOMAIN)
       API_DOMAIN: ${API_DOMAIN:-}
+      DOCKER_NET: ${DOCKER_NET:-172.31.255}
+      WG_GUESTS_NETS: ${WG_GUESTS_NETS:-10.2.0.0/16}

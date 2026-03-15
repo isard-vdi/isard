@@ -524,22 +524,6 @@ PostUp = %s
             postup,
         )
 
-    def client_config(self, peer):
-        return """[Interface]
-Address = %s
-PrivateKey = %s
-
-[Peer]
-PublicKey = %s
-Endpoint = server:443
-AllowedIPs = 192.168.128.0/22
-PersistentKeepalive = 25
-""" % (
-            peer["vpn"]["wireguard"]["AllowedIPs"],
-            peer["vpn"]["wireguard"]["keys"]["private"],
-            self.keys.skeys["public"],
-        )
-
     # WireGuard introduces the concepts of Endpoints, Peers and AllowedIPs.
     # A peer is a remote host and is identified by its public key.
     # Each peer has a list of AllowedIPs.
