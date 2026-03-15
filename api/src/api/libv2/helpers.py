@@ -45,6 +45,37 @@ db.init_app(app)
 isardviewer = isardViewer()
 
 
+# Fields that must never be returned in user list/table API responses:
+# - password, password_history, api_key: credential/secret data
+# - vpn.wireguard.keys: contains user WireGuard PRIVATE keys
+# - photo: base64-encoded image (large payload, not needed in table views)
+USER_SENSITIVE_FIELDS = (
+    "password",
+    "password_history",
+    "api_key",
+    {"vpn": {"wireguard": "keys"}},
+    "photo",
+)
+
+
+class _SafeFormatter(string.Formatter):
+    """Formatter that only allows simple key substitution, rejecting
+    attribute access ({key.attr}) and item access ({key[0]}) to prevent
+    Server-Side Template Injection via str.format()."""
+
+    def get_field(self, field_name, args, kwargs):
+        if not field_name.isidentifier():
+            raise ValueError(f"Invalid format field: {field_name!r}")
+        return super().get_field(field_name, args, kwargs)
+
+
+_safe_formatter = _SafeFormatter()
+
+
+def safe_format(template, **kwargs):
+    return _safe_formatter.format(template, **kwargs)
+
+
 class InternalUsers(object):
     def __init__(self):
         self.users = {}

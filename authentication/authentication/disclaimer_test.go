@@ -3,11 +3,13 @@ package authentication_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
+	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
@@ -34,6 +36,7 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 				return ss
 			},
 			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("users").Get("néfix :3").Update(map[string]interface{}{
 					"disclaimer_acknowledged": true,
 				})).Return(r.WriteResponse{
@@ -42,6 +45,9 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 			},
 		},
 		"should return an error if the JWT is invalid": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+			},
 			PrepareToken: func() string {
 				tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &token.DisclaimerAcknowledgementRequiredClaims{
 					TypeClaims: token.TypeClaims{
@@ -65,6 +71,9 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 			ExpectedErr: "error parsing the JWT token: token has invalid claims: token is expired",
 		},
 		"should return an error if the JWT is not of disclaimer-acknowledgementrequired": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+			},
 			PrepareToken: func() string {
 				ss, err := token.SignCallbackToken("", "local", "default", "")
 				require.NoError(err)
@@ -81,6 +90,7 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 				return ss
 			},
 			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
 				m.On(r.Table("users").Get("néfix :3").Update(map[string]interface{}{
 					"disclaimer_acknowledged": true,
 				})).Return(nil, errors.New("hello there!"))
@@ -91,6 +101,11 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			var wg sync.WaitGroup
+			defer wg.Wait()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
 			mock := r.NewMock()
@@ -99,7 +114,7 @@ func TestAcknowledgeDisclaimer(t *testing.T) {
 				tc.PrepareDB(mock)
 			}
 
-			a := authentication.Init(cfg, log, mock, nil, nil, nil)
+			a := authentication.Init(ctx, &wg, cfg, log, mock, nil, nil, nil)
 
 			err := a.AcknowledgeDisclaimer(context.Background(), tc.PrepareToken())
 

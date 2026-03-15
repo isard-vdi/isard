@@ -73,19 +73,17 @@ def api_v3_category_custom_url(category_id):
 @app.route("/api/v3/login_config", methods=["GET"])
 def api_v3_login_config():
     login_config = get_config().get("login", {})
-    for key in ["notification_cover", "notification_form"]:
-        if key in login_config:
-            for field in ["description", "title", "text"]:
-                if (
-                    "button" in login_config[key]
-                    and field in login_config[key]["button"]
-                    and login_config[key]["button"][field] is not None
-                ):
-                    login_config[key]["button"][field] = html.unescape(
-                        login_config[key]["button"][field]
-                    )
-                if field in login_config[key] and login_config[key][field] is not None:
-                    login_config[key][field] = html.unescape(login_config[key][field])
+    for key in ("notification_cover", "notification_form"):
+        notification = login_config.get(key)
+        if notification:
+            for field in ("title", "description"):
+                if field in notification and notification[field]:
+                    notification[field] = html.unescape(notification[field])
+            button = notification.get("button")
+            if button:
+                for field in ("text", "url"):
+                    if field in button and button[field]:
+                        button[field] = html.unescape(button[field])
     return (
         json.dumps(login_config),
         200,

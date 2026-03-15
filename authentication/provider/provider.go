@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
 
-	"github.com/patrickmn/go-cache"
 	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
@@ -27,8 +25,6 @@ const (
 	FormPasswordArgsKey                 = "form_password"
 	HTTPRequest         HTTPRequestType = "req"
 )
-
-var c = cache.New(time.Minute, time.Hour)
 
 type HTTPRequestType string
 
@@ -54,6 +50,11 @@ type Provider interface {
 	SaveEmail() bool
 	GuessGroups(ctx context.Context, u *types.ProviderUserData, rawGroups []string) (g *model.Group, secondary []*model.Group, err *ProviderError)
 	GuessRole(ctx context.Context, u *types.ProviderUserData, rawRoles []string) (r *model.Role, err *ProviderError)
+}
+
+type ConfigurableProvider[Cfg any] interface {
+	Provider
+	LoadConfig(ctx context.Context, cfg Cfg) error
 }
 
 type ProviderError struct {
@@ -83,58 +84,6 @@ var (
 	ErrUnknownIDP         = errors.New("unknown identity provider")
 	ErrInvalidIDP         = errors.New("invalid identity provider for this operation")
 )
-
-var _ Provider = &Unknown{}
-
-type Unknown struct{}
-
-func (Unknown) String() string {
-	return types.ProviderUnknown
-}
-
-func (Unknown) Login(context.Context, string, LoginArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
-	return nil, nil, nil, "", "", &ProviderError{
-		User:   ErrUnknownIDP,
-		Detail: errors.New("unknown provider"),
-	}
-}
-
-func (Unknown) Callback(context.Context, *token.CallbackClaims, CallbackArgs) (*model.Group, []*model.Group, *types.ProviderUserData, string, string, *ProviderError) {
-	return nil, nil, nil, "", "", &ProviderError{
-		User:   ErrUnknownIDP,
-		Detail: errors.New("unknown provider"),
-	}
-}
-
-func (Unknown) AutoRegister(*model.User) bool {
-	return false
-}
-
-func (Unknown) Healthcheck() error {
-	return nil
-}
-
-func (Unknown) Logout(context.Context, string) (string, error) {
-	return "", nil
-}
-
-func (Unknown) SaveEmail() bool {
-	return true
-}
-
-func (Unknown) GuessGroups(context.Context, *types.ProviderUserData, []string) (*model.Group, []*model.Group, *ProviderError) {
-	return nil, nil, &ProviderError{
-		User:   ErrUnknownIDP,
-		Detail: errors.New("unknown provider"),
-	}
-}
-
-func (Unknown) GuessRole(context.Context, *types.ProviderUserData, []string) (*model.Role, *ProviderError) {
-	return nil, &ProviderError{
-		User:   ErrUnknownIDP,
-		Detail: errors.New("unknown provider"),
-	}
-}
 
 func matchRegex(re *regexp.Regexp, s string) string {
 	result := re.FindStringSubmatch(s)

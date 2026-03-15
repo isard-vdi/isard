@@ -206,6 +206,9 @@ def get_disclaimer_template(user_id):
         return None
 
 
+PROVIDER_SENSITIVE_KEYS = ("password", "client_secret")
+
+
 @cached(provider_config_cache)
 def get_provider_config(provider):
     try:
@@ -222,6 +225,13 @@ def get_provider_config(provider):
             )
     except r.ReqlNonExistenceError:
         config["template_name"] = "[DELETED]"
+
+    # Strip secrets from nested provider configs (ldap_config, google_config, etc.)
+    for key, value in config.items():
+        if isinstance(value, dict):
+            for secret_key in PROVIDER_SENSITIVE_KEYS:
+                if secret_key in value:
+                    del value[secret_key]
     return config
 
 

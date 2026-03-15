@@ -20,6 +20,7 @@ import (
 var (
 	guacdAddr string
 	apiAddr   string
+	jwtSecret string
 )
 
 type LoginClaims struct {
@@ -64,11 +65,23 @@ func init() {
 	} else {
 		apiAddr = "https://" + apiAddr
 	}
+
+	jwtSecret = os.Getenv("API_ISARDVDI_SECRET")
+	if jwtSecret == "" {
+		logrus.Fatal("API_ISARDVDI_SECRET is required")
+	}
 }
 
 func isAuthenticated(handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logrus.Debugf("authenticating request: %s %s", r.Method, r.URL.String())
+
+		scheme := r.URL.Query().Get("scheme")
+		if scheme != "rdp" {
+			logrus.Errorf("rejected non-rdp scheme: %s", scheme)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
 		tkn := r.URL.Query().Get("session")
 		hostname := r.URL.Query().Get("hostname")
@@ -132,19 +145,26 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 }
 
 func verifyToken(tokenString string) (jwt.Claims, error) {
+	keyFunc := func(tkn *jwt.Token) (interface{}, error) {
+		if _, ok := tkn.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", tkn.Header["alg"])
+		}
+		return []byte(jwtSecret), nil
+	}
+
 	loginClaims := &LoginClaims{}
-	_, _, err := jwt.NewParser().ParseUnverified(tokenString, loginClaims)
-	if err == nil && loginClaims.SessionID != "" && loginClaims.Data.ID != "" {
+	tkn, err := jwt.ParseWithClaims(tokenString, loginClaims, keyFunc)
+	if err == nil && tkn.Valid && loginClaims.SessionID != "" && loginClaims.Data.ID != "" {
 		return loginClaims, nil
 	}
 
 	viewerClaims := &ViewerClaims{}
-	_, _, err = jwt.NewParser().ParseUnverified(tokenString, viewerClaims)
-	if err == nil && viewerClaims.Data.DesktopID != "" {
+	tkn, err = jwt.ParseWithClaims(tokenString, viewerClaims, keyFunc)
+	if err == nil && tkn.Valid && viewerClaims.Data.DesktopID != "" {
 		return viewerClaims, nil
 	}
 
-	return nil, fmt.Errorf("token does not match known claim types")
+	return nil, fmt.Errorf("token does not match known claim types or signature invalid")
 }
 
 func ownsDesktop(tkn string, hostname string) (bool, error) {
@@ -289,14 +309,14 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 		// http tunnel uses the body to pass parameters
 		data, err := ioutil.ReadAll(request.Body)
 		if err != nil {
-			logrus.Errorf("Failed to read body ", err)
+			logrus.Errorf("Failed to read body: %v", err)
 			return nil, err
 		}
 		_ = request.Body.Close()
 		queryString := string(data)
 		query, err = url.ParseQuery(queryString)
 		if err != nil {
-			logrus.Errorf("Failed to parse body query ", err)
+			logrus.Errorf("Failed to parse body query: %v", err)
 			return nil, err
 		}
 		logrus.Debugln("body:", queryString, query)
@@ -306,8 +326,20 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 
 	config.Protocol = query.Get("scheme")
 	config.Parameters = map[string]string{}
+	dangerousParams := map[string]bool{
+		"port":             true,
+		"gateway-hostname": true,
+		"gateway-port":     true,
+		"gateway-username": true,
+		"gateway-password": true,
+		"gateway-domain":   true,
+		"private-key":      true,
+		"passphrase":       true,
+	}
 	for k, v := range query {
-		config.Parameters[k] = v[0]
+		if !dangerousParams[k] {
+			config.Parameters[k] = v[0]
+		}
 	}
 
 	var err error
@@ -336,7 +368,7 @@ func DemoDoConnect(request *http.Request) (guac.Tunnel, error) {
 
 	conn, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
-		logrus.Errorf("error while connecting to guacd", err)
+		logrus.Errorf("error while connecting to guacd: %v", err)
 		return nil, err
 	}
 

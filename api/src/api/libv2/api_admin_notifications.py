@@ -27,10 +27,15 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2.api_users import ApiUsers
+from ..libv2.helpers import safe_format
 from .flask_rethink import RDB
 
 
-def no_sanitize_href(href):
+def sanitize_href(href):
+    if href:
+        scheme = href.strip().lower().split(":")[0] if ":" in href else ""
+        if scheme in ("javascript", "data", "vbscript"):
+            return None
     return href
 
 
@@ -58,7 +63,7 @@ sanitizer = Sanitizer(
             "hr",
             "img",
         },
-        "sanitize_href": no_sanitize_href,
+        "sanitize_href": sanitize_href,
         "empty": {"img"},
     }
 )
@@ -201,8 +206,8 @@ def get_notification_event_template(event, user_id, args):
         else:
             data = template["system"]
 
-    data["body"] = data["body"].format(**args)
-    data["footer"] = data["footer"].format(**args)
+    data["body"] = safe_format(data["body"], **args)
+    data["footer"] = safe_format(data["footer"], **args)
 
     return data
 

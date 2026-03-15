@@ -10,9 +10,6 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
-
-	"github.com/rs/zerolog"
-	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 var _ Provider = &Form{}
@@ -23,16 +20,14 @@ type Form struct {
 	limits    *limits.Limits
 }
 
-func InitForm(cfg cfg.Authentication, log *zerolog.Logger, db r.QueryExecutor) *Form {
+func InitForm(cfg cfg.Authentication, local *Local, ldap *LDAP) *Form {
 	providers := map[string]Provider{}
 
-	if cfg.Local.Enabled {
-		local := InitLocal(db)
+	if local != nil {
 		providers[local.String()] = local
 	}
 
-	if cfg.LDAP.Enabled {
-		ldap := InitLDAP(cfg.Secret, log, db)
+	if ldap != nil {
 		providers[ldap.String()] = ldap
 	}
 
@@ -81,8 +76,8 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 
 	var invCreds *ProviderError
 
-	if f.cfg.Local.Enabled {
-		g, secondary, u, redirect, ss, err := f.providers[types.ProviderLocal].Login(ctx, categoryID, args)
+	if local, ok := f.providers[types.ProviderLocal]; ok {
+		g, secondary, u, redirect, ss, err := local.Login(ctx, categoryID, args)
 		if err == nil {
 			if f.limits != nil {
 				// Clean the user rate limits record because the user has logged in correctly
@@ -100,8 +95,8 @@ func (f *Form) Login(ctx context.Context, categoryID string, args LoginArgs) (*m
 		invCreds.Detail = fmt.Errorf("local: %w", invCreds.Detail)
 	}
 
-	if f.cfg.LDAP.Enabled {
-		g, secondary, u, redirect, ss, err := f.providers[types.ProviderLDAP].Login(ctx, categoryID, args)
+	if ldap, ok := f.providers[types.ProviderLDAP]; ok {
+		g, secondary, u, redirect, ss, err := ldap.Login(ctx, categoryID, args)
 		// Clean the user rate limits record because the user has logged in correctly
 		if err == nil {
 			if f.limits != nil {

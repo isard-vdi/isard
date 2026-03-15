@@ -136,6 +136,7 @@ saml_config:
   schema:
     metadata_url:
       type: string
+      regex: '^https://'
     metadata_file":
       type: string
     entity_id:
@@ -214,6 +215,7 @@ saml_config:
       type: string
     logout_redirect_url:
       type: string
+      regex: '^https?://'
     save_email:
       empty: false
       type: boolean

@@ -38,6 +38,7 @@ from ..libv2.caches import (
 )
 from ..libv2.isardVpn import isardVpn
 from .api_desktop_events import desktops_stop
+from .url_validation import SSRFError, validate_hostname_not_loopback_or_linklocal
 
 isardVpn = isardVpn()
 
@@ -593,6 +594,15 @@ class ApiHypervisors:
         )
 
     def update_fingerprint(self, hostname, port):
+        try:
+            validate_hostname_not_loopback_or_linklocal(hostname)
+        except SSRFError:
+            log.error(
+                "Hostname %s resolves to a loopback or link-local address, refusing",
+                hostname,
+            )
+            return False
+
         path = "/sshkeys/known_hosts"
         if not os.path.exists(path):
             os.mknod(path)

@@ -23,9 +23,8 @@ func (a *Authentication) GenerateAPIKey(ctx context.Context, tkn string, expirat
 	}
 
 	// Check that the role must be at least advanced
-	model.Role(user.Role).HasEqualOrMorePrivileges(model.RoleAdvanced)
-	if err != nil {
-		return "", err
+	if !model.Role(user.Role).HasEqualOrMorePrivileges(model.RoleAdvanced) {
+		return "", token.ErrInvalidTokenRole
 	}
 
 	usrExternalTkn, err := token.SignApiKey(a.Secret, user, expirationMinutes)

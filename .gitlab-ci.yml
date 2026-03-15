@@ -194,6 +194,7 @@ gen-protobuf:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
   before_script:
     - until docker info; do sleep 1; done
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - docker run -u $(id -u) -v "$(pwd):/build" -e BUF_TOKEN="$BUF_TOKEN" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
   artifacts:
@@ -246,7 +247,7 @@ unit-test-go:
     - export PATH=$PATH:~/go/bin
     - gotestsum --junitfile report.xml --format testname -- -race ./... -coverprofile coverage.out -covermode atomic
     - go tool cover -func coverage.out
-    - gocover-cobertura < coverage.out > coverage.xml
+    - gocover-cobertura -ignore-gen-files < coverage.out > coverage.xml
   artifacts:
     when: always
     reports:

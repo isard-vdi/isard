@@ -21,6 +21,8 @@ button:
       coerce: sanitize
     url:
       type: string
+      regex: '^(https?://.*)?$'
+      nullable: true
     extra_styles:
       type: string
       coerce: sanitize

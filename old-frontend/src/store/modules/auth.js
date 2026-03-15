@@ -218,7 +218,16 @@ export default {
           context.commit('resetStore')
           context.dispatch('closeSocket')
           if (response.data.redirect) {
-            window.location = response.data.redirect
+            try {
+              const url = new URL(response.data.redirect, window.location.origin)
+              if (url.protocol === 'http:' || url.protocol === 'https:') {
+                window.location = response.data.redirect
+              } else {
+                window.location.pathname = '/login'
+              }
+            } catch {
+              window.location.pathname = '/login'
+            }
           } else if (redirect) {
             window.location.pathname = '/login'
           }

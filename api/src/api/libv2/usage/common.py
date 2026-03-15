@@ -153,10 +153,17 @@ def securize_eval(formula, safe_dict):
         ast.unaryop,
         ast.cmpop,
         ast.Num,
+        ast.Constant,
     )
+    denylist = (ast.Attribute, ast.Subscript, ast.Import, ast.ImportFrom)
     tree = ast.parse(formula, mode="eval")
+    has_denied = any(isinstance(node, denylist) for node in ast.walk(tree))
+    if has_denied:
+        raise ValueError(f"Formula contains forbidden constructs: {formula}")
     valid = all(isinstance(node, whitelist) for node in ast.walk(tree))
     if valid:
+        # Safe eval: AST-validated formula with builtins disabled
         return eval(
             compile(tree, filename="", mode="eval"), {"__builtins__": None}, safe_dict
         )
+    raise ValueError(f"Formula contains non-whitelisted constructs: {formula}")

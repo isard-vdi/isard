@@ -10,9 +10,23 @@ import (
 )
 
 type oauth2Provider struct {
-	provider string
 	secret   string
-	cfg      *oauth2.Config
+	provider string
+
+	cfg *cfgManager[oauth2.Config]
+}
+
+type oauth2ProviderConfig struct {
+	clientID     string
+	clientSecret string
+}
+
+func (o *oauth2Provider) loadConfig(cfg oauth2ProviderConfig) {
+	prvCfg := o.cfg.Cfg()
+	prvCfg.ClientID = cfg.clientID
+	prvCfg.ClientSecret = cfg.clientSecret
+
+	o.cfg.LoadCfg(prvCfg)
 }
 
 func (o *oauth2Provider) login(categoryID, redirect string) (string, error) {
@@ -21,7 +35,8 @@ func (o *oauth2Provider) login(categoryID, redirect string) (string, error) {
 		return "", fmt.Errorf("sign the callback token: %w", err)
 	}
 
-	return o.cfg.AuthCodeURL(ss), nil
+	cfg := o.cfg.Cfg()
+	return cfg.AuthCodeURL(ss), nil
 }
 
 func (o *oauth2Provider) callback(ctx context.Context, args CallbackArgs) (*oauth2.Token, error) {
@@ -30,7 +45,8 @@ func (o *oauth2Provider) callback(ctx context.Context, args CallbackArgs) (*oaut
 		code = *args.Oauth2Code
 	}
 
-	tkn, err := o.cfg.Exchange(ctx, code)
+	cfg := o.cfg.Cfg()
+	tkn, err := cfg.Exchange(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("exchange oauth2 token: %w", err)
 	}

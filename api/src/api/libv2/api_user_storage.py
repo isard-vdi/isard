@@ -321,7 +321,11 @@ def isard_user_storage_get_provider(provider_id):
         return None
     try:
         with app.app_context():
-            return r.table("user_storage").get(provider_id).run(db.conn)
+            provider = r.table("user_storage").get(provider_id).run(db.conn)
+        if provider:
+            provider["authorization"] = bool(provider.get("password"))
+            provider.pop("password", None)
+        return provider
     except:
         return None
 

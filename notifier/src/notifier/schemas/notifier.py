@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -16,7 +17,7 @@ class NotifyMailRequest(BaseModel):
 
 
 class NotifyMailResponse(BaseModel):
-    task_id: UUID
+    task_id: Optional[UUID] = None
 
 
 #
@@ -31,7 +32,7 @@ class NotifyEmailVerifyMailRequest(BaseModel):
 
 
 class NotifyEmailVerifyMailResponse(BaseModel):
-    task_id: UUID
+    task_id: Optional[UUID] = None
 
 
 #
@@ -46,7 +47,7 @@ class NotifyPasswordResetMailRequest(BaseModel):
 
 
 class NotifyPasswordResetMailResponse(BaseModel):
-    task_id: UUID
+    task_id: Optional[UUID] = None
 
 
 #

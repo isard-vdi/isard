@@ -63,7 +63,7 @@ def notify_mail(payload, json: notifier.NotifyMailRequest):
     :rtype: Set with Flask response values and data in JSON
     """
     if not is_smtp_enabled():
-        return
+        return notifier.NotifyMailResponse()
     user = get_user(json.user_id)
     if not user.get("email"):
         raise Error("bad_request", "The given user does not have an email address.")
@@ -110,7 +110,7 @@ def email_verify(payload, json: notifier.NotifyEmailVerifyMailRequest):
     :rtype: Set with Flask response values and data in JSON
     """
     if not is_smtp_enabled():
-        return
+        return notifier.NotifyEmailVerifyMailResponse()
     text = """Please go to the following address to verify you email address:\n
                 {link}\n""".format(
         link=json.url
@@ -162,7 +162,7 @@ def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
     :rtype: Set with Flask response values and data in JSON
     """
     if not is_smtp_enabled():
-        return
+        return notifier.NotifyPasswordResetMailResponse()
     text = """We've received your password reset request to access IsardVDI. Go to the following address to set a new password:\n
                 {link}\n""".format(
         link=json.url
@@ -219,7 +219,7 @@ def delete_gpu(payload, json: notifier.NotifyDeleteGPUMailRequest):
     :rtype: Set with Flask response values and data in JSON
     """
     if not is_smtp_enabled():
-        return
+        return notifier.NotifyDeleteGPUMailResponse()
 
     user = get_user(json.user_id)
     if not user.get("email"):

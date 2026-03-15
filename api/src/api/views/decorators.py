@@ -662,11 +662,11 @@ def ownsStorageId(payload, storage_id):
         return True
 
     if payload["role_id"] == "manager":
-        category_id = get_document("users", payload["user_id"], ["category"])
+        category_id = get_document("users", storage_user_id, ["category"])
         if category_id is None:
             raise Error(
                 "not_found",
-                f"User {payload['user_id']} not found",
+                f"Storage owner {storage_user_id} not found",
                 traceback.format_exc(),
             )
         if category_id == payload["category_id"]:

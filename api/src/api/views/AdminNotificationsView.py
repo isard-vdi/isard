@@ -76,8 +76,10 @@ def api_v3_admin_add_notification_template(payload):
     except:
         raise Error("bad_request")
 
-    for tag in ["<script>", "<iframe>", "javascript:"]:
-        if tag in data["body"] or tag in data["footer"]:
+    body_lower = data["body"].lower()
+    footer_lower = data["footer"].lower()
+    for tag in ["<script", "<iframe", "javascript:"]:
+        if tag in body_lower or tag in footer_lower:
             raise Error("bad_request", "Invalid expression in body or footer")
 
     data["lang"] = {
@@ -144,8 +146,10 @@ def api_v3_admin_update_notification_template(payload, template_id):
     except:
         raise Error("bad_request")
 
-    for tag in ["<script>", "<iframe>", "javascript:"]:
-        if tag in data["body"] or tag in data["footer"]:
+    body_lower = data["body"].lower()
+    footer_lower = data["footer"].lower()
+    for tag in ["<script", "<iframe", "javascript:"]:
+        if tag in body_lower or tag in footer_lower:
             raise Error("bad_request", "Invalid expression in body or footer")
 
     data["lang"] = {

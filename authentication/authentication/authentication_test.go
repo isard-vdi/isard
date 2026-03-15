@@ -2,6 +2,7 @@ package authentication_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.nhat.io/grpcmock"
+	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 func TestCheck(t *testing.T) {
@@ -24,12 +26,16 @@ func TestCheck(t *testing.T) {
 	now := float64(time.Now().Unix())
 
 	cases := map[string]struct {
+		PrepareDB       func(*r.Mock)
 		PrepareToken    func() string
 		PrepareSessions func(*grpcmock.Server)
 		RemoteAddr      string
 		ExpectedErr     string
 	}{
 		"should work if the token is a valid login token": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+			},
 			PrepareToken: func() string {
 				ss, err := token.SignLoginToken("", time.Now().Add(time.Hour), "ThoJuroQueEsUnID", &model.User{
 					ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
@@ -59,6 +65,9 @@ func TestCheck(t *testing.T) {
 			RemoteAddr: "127.0.0.1",
 		},
 		"should return an error if the token is invalid": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+			},
 			PrepareToken: func() string {
 				ss, err := token.SignLoginToken("", time.Now().Add(-time.Hour), "ThoJuroQueEsUnID", &model.User{
 					ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
@@ -83,6 +92,9 @@ func TestCheck(t *testing.T) {
 			ExpectedErr: "error parsing the JWT token: token has invalid claims: token is expired",
 		},
 		"should return an error if the token is not of type login": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+			},
 			PrepareToken: func() string {
 				ss, err := token.SignDisclaimerAcknowledgementRequiredToken("", "néfix :D")
 				require.NoError(err)
@@ -96,10 +108,18 @@ func TestCheck(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ctx := context.Background()
+			var wg sync.WaitGroup
+			defer wg.Wait()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
+			dbMock := r.NewMock()
+
+			if tc.PrepareDB != nil {
+				tc.PrepareDB(dbMock)
+			}
 
 			if tc.PrepareSessions == nil {
 				tc.PrepareSessions = func(s *grpcmock.Server) {}
@@ -116,7 +136,7 @@ func TestCheck(t *testing.T) {
 			require.NoError(err)
 			defer sessionsConn.Close()
 
-			a := authentication.Init(cfg, log, nil, nil, nil, sessionsCli)
+			a := authentication.Init(ctx, &wg, cfg, log, dbMock, nil, nil, sessionsCli)
 
 			err = a.Check(ctx, tc.PrepareToken(), tc.RemoteAddr)
 

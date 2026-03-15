@@ -120,7 +120,17 @@ def api_v3_user_config(payload):
 @has_viewer_token
 def api_v3_user_owns_desktop(payload):
     # Signed jwt token. Direct viewer access.
-    if payload.get("desktop_id"):
+    desktop_id = payload.get("desktop_id")
+    if desktop_id:
+        params = request.get_json(force=True) if request.data else {}
+        connection_ip = params.get("ip")
+        users.OwnsDesktopViewerDesktopId(
+            desktop_id=desktop_id,
+            user_id=payload.get("user_id"),
+            category_id=payload.get("category_id"),
+            role_id=payload.get("role_id"),
+            connection_ip=connection_ip,
+        )
         return json.dumps({}), 200, {"Content-Type": "application/json"}
 
     params = request.get_json(force=True)
@@ -234,6 +244,7 @@ def api_v3_user_desktops(payload):
 @app.route("/api/v3/user/desktop/<desktop_id>", methods=["GET"])
 @has_token
 def api_v3_user_desktop(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
     return (
         json.dumps(users.Desktop(desktop_id, payload["user_id"])),
         200,

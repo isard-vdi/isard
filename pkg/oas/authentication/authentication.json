@@ -176,12 +176,6 @@
                                 },
                                 "required": true
                             },
-                            "Authorization": {
-                                "schema": {
-                                    "type": "string"
-                                },
-                                "required": true
-                            },
                             "Set-Cookie": {
                                 "schema": {
                                     "type": "string"
@@ -388,12 +382,6 @@
                         "description": "",
                         "headers": {
                             "Location": {
-                                "schema": {
-                                    "type": "string"
-                                },
-                                "required": true
-                            },
-                            "Authorization": {
                                 "schema": {
                                     "type": "string"
                                 },

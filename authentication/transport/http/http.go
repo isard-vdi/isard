@@ -16,6 +16,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/token"
+	httpErr "gitlab.com/isard/isardvdi/authentication/transport/http/error"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"
 
@@ -38,6 +39,8 @@ type AuthenticationServer struct {
 
 	healthcheckCache *ttlcache.Cache[string, error]
 
+	forgotPasswordLimits *limits.Limits
+
 	Log *zerolog.Logger
 	WG  *sync.WaitGroup
 }
@@ -52,8 +55,9 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 			// Disable the time extension when getting the values
 			ttlcache.WithDisableTouchOnHit[string, error](),
 		),
-		Log: log,
-		WG:  wg,
+		forgotPasswordLimits: limits.NewLimits(5, 1*time.Minute, 2, 15*time.Minute),
+		Log:                  log,
+		WG:                   wg,
 	}
 
 	// Start the cache eviction process
@@ -81,12 +85,18 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 
 	// SAML authentication
 	m.Handle("/authentication/saml/login", requestMetadataHandler(http.HandlerFunc(a.loginSAML)))
-	m.Handle("/authentication/saml/metadata", requestMetadataHandler(http.HandlerFunc(a.Authentication.SAML().ServeMetadata)))
-	m.Handle("/authentication/saml/acs", requestMetadataHandler(http.HandlerFunc(a.Authentication.SAML().ServeACS)))
+	m.Handle("/authentication/saml/metadata", requestMetadataHandler(http.HandlerFunc(a.metadataSAML)))
+	m.Handle("/authentication/saml/acs", requestMetadataHandler(http.HandlerFunc(a.acsSAML)))
 	m.Handle("/authentication/saml/slo", requestMetadataHandler(http.HandlerFunc(a.logoutSAML)))
 
 	// The OpenAPI specification server
-	m.Handle("/authentication/", http.StripPrefix("/authentication", oas))
+	noCacheHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/login" || r.URL.Path == "/renew" {
+			w.Header().Set("Cache-Control", "no-store")
+		}
+		oas.ServeHTTP(w, r)
+	})
+	m.Handle("/authentication/", http.StripPrefix("/authentication", noCacheHandler))
 
 	s := http.Server{
 		Addr:    a.Addr,
@@ -160,7 +170,14 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Ensure the user has logged in through SAML
-	a.Authentication.SAML().RequireAccount(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	middleware := a.Authentication.SAML()
+	if middleware == nil {
+		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
+		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
+		return
+	}
+
+	middleware.RequireAccount(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Call the login function with the correct parameters
 		rsp, err := a.Login(r.Context(), oasAuthentication.OptLoginRequestMultipart{}, oasAuthentication.LoginParams{
 			Provider:   provider,
@@ -177,8 +194,6 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 
 		switch t := rsp.(type) {
 		case *oasAuthentication.LoginFound:
-			w.Header().Add("Authorization", t.Authorization)
-
 			if t.SetCookie.Set {
 				w.Header().Set("Set-Cookie", t.SetCookie.Value)
 			}
@@ -206,8 +221,39 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 	})).ServeHTTP(w, r)
 }
 
+func (a *AuthenticationServer) metadataSAML(w http.ResponseWriter, r *http.Request) {
+	middleware := a.Authentication.SAML()
+	if middleware == nil {
+		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
+
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("internal server error"))
+		return
+	}
+
+	middleware.ServeMetadata(w, r)
+}
+
+func (a *AuthenticationServer) acsSAML(w http.ResponseWriter, r *http.Request) {
+	middleware := a.Authentication.SAML()
+	if middleware == nil {
+		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
+		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
+		return
+	}
+
+	middleware.ServeACS(w, r)
+}
+
 func (a *AuthenticationServer) logoutSAML(w http.ResponseWriter, r *http.Request) {
-	if err := a.Authentication.SAML().Session.DeleteSession(w, r); err != nil {
+	middleware := a.Authentication.SAML()
+	if middleware == nil {
+		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
+		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
+		return
+	}
+
+	if err := middleware.Session.DeleteSession(w, r); err != nil {
 		a.Log.Error().Err(err).Msg("delete SAML session")
 
 		w.WriteHeader(http.StatusInternalServerError)
@@ -233,7 +279,8 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 
 	// Redirect the user after login
 	if params.Redirect.Set {
-		args.Redirect = &params.Redirect.Value
+		validated := authentication.ValidateRedirect(params.Redirect.Value)
+		args.Redirect = &validated
 	}
 
 	// Form parameters (username + password)
@@ -249,6 +296,13 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 
 	p := a.Authentication.Provider(string(params.Provider))
 	if p.String() == types.ProviderSAML {
+		middleware := a.Authentication.SAML()
+		if middleware == nil {
+			log.Error().Msg("requested SAML middleware, but it's not initialized")
+
+			return nil, provider.ErrInternal
+		}
+
 		c := &http.Cookie{
 			Name:  "token",
 			Value: params.Token.Value,
@@ -259,7 +313,7 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 			},
 		}
 
-		if _, err := a.Authentication.SAML().Session.GetSession(r); err != nil {
+		if _, err := middleware.Session.GetSession(r); err != nil {
 			if !errors.Is(err, samlsp.ErrNoSession) {
 				log.Error().Err(err).Msg("unknown error")
 
@@ -336,14 +390,15 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		Value:    tkn,
 		Expires:  time.Now().Add(5 * time.Minute),
 		SameSite: http.SameSiteStrictMode,
+		Secure:   true,
 	}
 	cookie := c.String()
 
+	redirect = authentication.ValidateRedirect(redirect)
 	if redirect != "" && redirect != "/notifications/login" {
 		return &oasAuthentication.LoginFound{
-			Location:      redirect,
-			Authorization: fmt.Sprintf("Bearer %s", tkn),
-			SetCookie:     oasAuthentication.NewOptString(cookie),
+			Location:  redirect,
+			SetCookie: oasAuthentication.NewOptString(cookie),
 		}, nil
 	}
 
@@ -396,13 +451,13 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 	if err != nil {
 		if errors.Is(err, provider.ErrUserDisabled) {
 			return &oasAuthentication.CallbackFound{
-				Location: "/login?error=user_disabled",
+				Location: "/login?error=" + string(httpErr.LoginUserDisabled),
 			}, nil
 		}
 
 		if errors.Is(err, provider.ErrUserDisallowed) {
 			return &oasAuthentication.CallbackFound{
-				Location: "/login?error=user_disallowed",
+				Location: "/login?error=" + string(httpErr.LoginUserDisallowed),
 			}, nil
 		}
 
@@ -423,14 +478,15 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 		Value:    tkn,
 		Expires:  time.Now().Add(5 * time.Minute),
 		SameSite: http.SameSiteStrictMode,
+		Secure:   true,
 	}
 	cookie := c.String()
 
+	redirect = authentication.ValidateRedirect(redirect)
 	if redirect != "" {
 		return &oasAuthentication.CallbackFound{
-			Location:      redirect,
-			Authorization: fmt.Sprintf("Bearer %s", tkn),
-			SetCookie:     oasAuthentication.NewOptString(cookie),
+			Location:  redirect,
+			SetCookie: oasAuthentication.NewOptString(cookie),
 		}, nil
 	}
 
@@ -718,6 +774,14 @@ func (a *AuthenticationServer) VerifyEmail(ctx context.Context, req *oasAuthenti
 }
 
 func (a *AuthenticationServer) ForgotPassword(ctx context.Context, req *oasAuthentication.ForgotPasswordRequest) (oasAuthentication.ForgotPasswordRes, error) {
+	if err := a.forgotPasswordLimits.IsRateLimited(req.Email, req.CategoryID, "forgot-password"); err != nil {
+		var rateLimitErr *limits.RateLimitError
+		if errors.As(err, &rateLimitErr) {
+			// Return success to avoid leaking rate limit status (no 429 OAS type available)
+			return &oasAuthentication.ForgotPasswordResponse{}, nil
+		}
+	}
+
 	if err := a.Authentication.ForgotPassword(ctx, req.CategoryID, req.Email); err != nil {
 		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
 			return &oasAuthentication.ForgotPasswordForbidden{
@@ -727,10 +791,8 @@ func (a *AuthenticationServer) ForgotPassword(ctx context.Context, req *oasAuthe
 		}
 
 		if errors.Is(err, authentication.ErrUserNotFound) {
-			return &oasAuthentication.ForgotPasswordNotFound{
-				Error: oasAuthentication.ForgotPasswordErrorErrorUserNotFound,
-				Msg:   "user not found",
-			}, nil
+			a.forgotPasswordLimits.RecordFailedAttempt(req.Email, req.CategoryID, "forgot-password")
+			return &oasAuthentication.ForgotPasswordResponse{}, nil
 		}
 
 		var dbErr *db.Err

@@ -21,6 +21,7 @@
 from datetime import datetime
 
 import pytz
+from api.libv2.helpers import safe_format
 from api.libv2.notifications import compute
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
@@ -97,9 +98,12 @@ def get_user_trigger_notifications_displays(payload, trigger):
     # Check if the user has notifications for the trigger
     for notification in notifications:
         # Check if the notification must be ignored
-        if notification["ignore_after"] != datetime(
+        ignore_after = notification.get(
+            "ignore_after", datetime(1970, 1, 1, tzinfo=pytz.UTC)
+        )
+        if ignore_after != datetime(
             1970, 1, 1, tzinfo=pytz.UTC
-        ) and notification["ignore_after"] < datetime.now().astimezone(pytz.UTC):
+        ) and ignore_after < datetime.now().astimezone(pytz.UTC):
             continue
         if notification["action_id"] == "custom":
             notifications_data = get_user_notifications_data(
@@ -240,9 +244,12 @@ def get_user_trigger_notifications(payload, trigger, display):
         ordered_notifications[order] = {}
         for notification in notifications:
             # Check if the notification must be ignored
-            if notification["ignore_after"] != datetime(
+            ignore_after = notification.get(
+                "ignore_after", datetime(1970, 1, 1, tzinfo=pytz.UTC)
+            )
+            if ignore_after != datetime(
                 1970, 1, 1, tzinfo=pytz.UTC
-            ) and notification["ignore_after"] < datetime.now().astimezone(pytz.UTC):
+            ) and ignore_after < datetime.now().astimezone(pytz.UTC):
                 continue
             if notification["order"] == order:
                 if notification["item_type"] not in ordered_notifications[order]:
@@ -348,9 +355,10 @@ def get_user_trigger_notifications(payload, trigger, display):
                             ].append(
                                 {
                                     "id": notification_data["id"],
-                                    "text": notification_template_user_lang[
-                                        "body"
-                                    ].format(**notification_data["vars"]),
+                                    "text": safe_format(
+                                        notification_template_user_lang["body"],
+                                        **notification_data["vars"],
+                                    ),
                                 }
                             )
                             # Update the notification data entry for the user
