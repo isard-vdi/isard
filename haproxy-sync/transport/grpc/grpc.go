@@ -49,6 +49,20 @@ func (h *HAProxySyncServer) Check(ctx context.Context) error {
 	return nil
 }
 
+func (h *HAProxySyncServer) DomainSync(ctx context.Context, req *haproxysyncv1.DomainSyncRequest) (*haproxysyncv1.DomainSyncResponse, error) {
+	result, err := h.haproxysync.DomainSync(ctx, req.GetDomains())
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Errorf("sync domains: %w", err).Error())
+	}
+
+	return &haproxysyncv1.DomainSyncResponse{
+		DomainsAdded:   int32(result.DomainsAdded),
+		DomainsRemoved: int32(result.DomainsRemoved),
+		CertsIssued:    int32(result.CertsIssued),
+		CertsRemoved:   int32(result.CertsRemoved),
+	}, nil
+}
+
 func (h *HAProxySyncServer) BastionAddSubdomain(ctx context.Context, req *haproxysyncv1.BastionAddSubdomainRequest) (*haproxysyncv1.BastionAddSubdomainResponse, error) {
 	if err := h.haproxysync.BastionAddSubdomain(ctx, req.GetDomain()); err != nil {
 		if errors.Is(err, haproxysync.ErrMissingSubdomain) {

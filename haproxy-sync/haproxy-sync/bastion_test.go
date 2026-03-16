@@ -3,14 +3,13 @@ package haproxysync_test
 import (
 	"context"
 	"errors"
-	"os"
 	"testing"
 
 	"gitlab.com/isard/isardvdi/haproxy-sync/cfg"
 	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy"
 	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy-sync"
+	"gitlab.com/isard/isardvdi/pkg/log"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -201,8 +200,6 @@ func TestBastionSyncMaps(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
@@ -213,7 +210,7 @@ func TestBastionSyncMaps(t *testing.T) {
 				},
 			}
 
-			svc := haproxysync.Init(&log, cfg, haproxyMock)
+			svc := haproxysync.Init(log.New("test", "debug"), cfg, haproxyMock, nil)
 
 			result, err := svc.BastionSyncMaps(context.Background(), tc.Maps)
 
@@ -266,8 +263,6 @@ func TestBastionGetCurrentMaps(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
@@ -278,7 +273,7 @@ func TestBastionGetCurrentMaps(t *testing.T) {
 				},
 			}
 
-			svc := haproxysync.Init(&log, cfg, haproxyMock)
+			svc := haproxysync.Init(log.New("test", "debug"), cfg, haproxyMock, nil)
 
 			if tc.SyncFirst != nil {
 				_, err := svc.BastionSyncMaps(context.Background(), *tc.SyncFirst)
@@ -358,8 +353,6 @@ func TestAddSubdomain(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
@@ -370,7 +363,7 @@ func TestAddSubdomain(t *testing.T) {
 				},
 			}
 
-			svc := haproxysync.Init(&log, cfg, haproxyMock)
+			svc := haproxysync.Init(log.New("test", "debug"), cfg, haproxyMock, nil)
 
 			if tc.SyncFirst != nil {
 				_, err := svc.BastionSyncMaps(context.Background(), *tc.SyncFirst)
@@ -452,8 +445,6 @@ func TestDeleteSubdomain(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
@@ -464,7 +455,7 @@ func TestDeleteSubdomain(t *testing.T) {
 				},
 			}
 
-			svc := haproxysync.Init(&log, cfg, haproxyMock)
+			svc := haproxysync.Init(log.New("test", "debug"), cfg, haproxyMock, nil)
 
 			if tc.SyncFirst != nil {
 				_, err := svc.BastionSyncMaps(context.Background(), *tc.SyncFirst)
@@ -546,8 +537,6 @@ func TestAddIndividualDomain(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
@@ -558,7 +547,7 @@ func TestAddIndividualDomain(t *testing.T) {
 				},
 			}
 
-			svc := haproxysync.Init(&log, cfg, haproxyMock)
+			svc := haproxysync.Init(log.New("test", "debug"), cfg, haproxyMock, nil)
 
 			if tc.SyncFirst != nil {
 				_, err := svc.BastionSyncMaps(context.Background(), *tc.SyncFirst)
@@ -640,8 +629,6 @@ func TestBastionDeleteIndividualDomain(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			haproxyMock := &haproxy.MockHaproxy{}
 			tc.PrepareHAProxy(haproxyMock)
 
@@ -652,7 +639,7 @@ func TestBastionDeleteIndividualDomain(t *testing.T) {
 				},
 			}
 
-			svc := haproxysync.Init(&log, cfg, haproxyMock)
+			svc := haproxysync.Init(log.New("test", "debug"), cfg, haproxyMock, nil)
 
 			if tc.SyncFirst != nil {
 				_, err := svc.BastionSyncMaps(context.Background(), *tc.SyncFirst)

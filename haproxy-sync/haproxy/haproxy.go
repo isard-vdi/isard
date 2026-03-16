@@ -1,8 +1,8 @@
 package haproxy
 
 import (
-	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -19,6 +19,12 @@ type Interface interface {
 	AddMap(name, key string) error
 	DelMap(name, key string) error
 	ClearMap(name string) error
+	NewSslCert(certPath string) error
+	SetSslCert(certPath string, pemData []byte) error
+	CommitSslCert(certPath string) error
+	AddSslCrtList(crtListPath, certPath string) error
+	DelSslCrtList(crtListPath, certPath string) error
+	DelSslCert(certPath string) error
 }
 
 var _ Interface = &HAProxy{}
@@ -69,10 +75,9 @@ func (h *HAProxy) exec(command string) (string, error) {
 		return "", fmt.Errorf("set read timeout to HAProxy socket: %w", err)
 	}
 
-	buf := bufio.NewReader(sock)
-	b, err := buf.ReadBytes('\n')
+	b, err := io.ReadAll(sock)
 	if err != nil {
-		return "", fmt.Errorf("read the command respone from HAProxy socket: %w", err)
+		return "", fmt.Errorf("read the command response from HAProxy socket: %w", err)
 	}
 
 	return strings.TrimSpace(string(b)), nil
@@ -215,6 +220,90 @@ func (h *HAProxy) ClearMap(name string) error {
 	h.log.Debug().
 		Str("map", name).
 		Msg("cleared map")
+
+	return nil
+}
+
+func (h *HAProxy) AddSslCrtList(crtListPath, certPath string) error {
+	if _, err := h.exec(fmt.Sprintf("add ssl crt-list %s %s", crtListPath, certPath)); err != nil {
+		return fmt.Errorf("add '%s' cert to '%s' crt-list: %w", certPath, crtListPath, err)
+	}
+
+	h.log.Debug().
+		Str("crt_list", crtListPath).
+		Str("cert", certPath).
+		Msg("added ssl crt-list entry")
+
+	return nil
+}
+
+// NewSslCert creates an empty certificate storage slot in HAProxy's memory.
+func (h *HAProxy) NewSslCert(certPath string) error {
+	// HAProxy reference: https://docs.haproxy.org/3.3/management.html#9.3-new%20ssl%20cert
+	if _, err := h.exec(fmt.Sprintf("new ssl cert %s", certPath)); err != nil {
+		return fmt.Errorf("create new ssl cert '%s': %w", certPath, err)
+	}
+
+	h.log.Debug().
+		Str("cert", certPath).
+		Msg("created new ssl cert storage")
+
+	return nil
+}
+
+// SetSslCert loads PEM certificate data into an existing certificate storage slot.
+// The pemData is sent as a heredoc payload to HAProxy's admin socket.
+func (h *HAProxy) SetSslCert(certPath string, pemData []byte) error {
+	// HAProxy reference: https://docs.haproxy.org/3.3/management.html#9.3-set%20ssl%20cert
+	// The heredoc format: "set ssl cert <path> <<\n<PEM>\n\n"
+	// The socket write appends \n, producing the empty-line terminator HAProxy requires.
+	command := fmt.Sprintf("set ssl cert %s <<\n%s\n", certPath, strings.TrimRight(string(pemData), "\n"))
+	if _, err := h.exec(command); err != nil {
+		return fmt.Errorf("set ssl cert '%s': %w", certPath, err)
+	}
+
+	h.log.Debug().
+		Str("cert", certPath).
+		Msg("loaded ssl cert content")
+
+	return nil
+}
+
+// CommitSslCert commits a previously loaded certificate, making it active.
+func (h *HAProxy) CommitSslCert(certPath string) error {
+	// HAProxy reference: https://docs.haproxy.org/3.3/management.html#9.3-commit%20ssl%20cert
+	if _, err := h.exec(fmt.Sprintf("commit ssl cert %s", certPath)); err != nil {
+		return fmt.Errorf("commit ssl cert '%s': %w", certPath, err)
+	}
+
+	h.log.Debug().
+		Str("cert", certPath).
+		Msg("committed ssl cert")
+
+	return nil
+}
+
+func (h *HAProxy) DelSslCrtList(crtListPath, certPath string) error {
+	if _, err := h.exec(fmt.Sprintf("del ssl crt-list %s %s", crtListPath, certPath)); err != nil {
+		return fmt.Errorf("delete '%s' cert from '%s' crt-list: %w", certPath, crtListPath, err)
+	}
+
+	h.log.Debug().
+		Str("crt_list", crtListPath).
+		Str("cert", certPath).
+		Msg("deleted ssl crt-list entry")
+
+	return nil
+}
+
+func (h *HAProxy) DelSslCert(certPath string) error {
+	if _, err := h.exec(fmt.Sprintf("del ssl cert %s", certPath)); err != nil {
+		return fmt.Errorf("delete '%s' ssl cert: %w", certPath, err)
+	}
+
+	h.log.Debug().
+		Str("cert", certPath).
+		Msg("deleted ssl cert")
 
 	return nil
 }

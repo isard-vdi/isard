@@ -4,20 +4,106 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"testing"
 
 	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy-sync"
 	"gitlab.com/isard/isardvdi/haproxy-sync/transport/grpc"
 	"gitlab.com/isard/isardvdi/pkg/cfg"
 	haproxysyncv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/haproxy_sync/v1"
+	"gitlab.com/isard/isardvdi/pkg/log"
 
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+func TestDomainSync(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		PrepareService func(*haproxysync.MockHaproxysync)
+		Req            *haproxysyncv1.DomainSyncRequest
+		ExpectedRsp    *haproxysyncv1.DomainSyncResponse
+		ExpectedErr    string
+	}{
+		"should work as expected": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []string{"example.com", "test.org"}).
+					Return(haproxysync.DomainSyncResult{
+						DomainsAdded:   2,
+						DomainsRemoved: 1,
+						CertsIssued:    2,
+						CertsRemoved:   1,
+					}, nil)
+			},
+			Req: &haproxysyncv1.DomainSyncRequest{
+				Domains: []string{"example.com", "test.org"},
+			},
+			ExpectedRsp: &haproxysyncv1.DomainSyncResponse{
+				DomainsAdded:   2,
+				DomainsRemoved: 1,
+				CertsIssued:    2,
+				CertsRemoved:   1,
+			},
+		},
+		"should work with empty domains": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []string{}).
+					Return(haproxysync.DomainSyncResult{
+						DomainsAdded:   0,
+						DomainsRemoved: 0,
+						CertsIssued:    0,
+						CertsRemoved:   0,
+					}, nil)
+			},
+			Req: &haproxysyncv1.DomainSyncRequest{
+				Domains: []string{},
+			},
+			ExpectedRsp: &haproxysyncv1.DomainSyncResponse{
+				DomainsAdded:   0,
+				DomainsRemoved: 0,
+				CertsIssued:    0,
+				CertsRemoved:   0,
+			},
+		},
+		"should return an Internal status if an unexpected error occurs": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []string{"fail.com"}).
+					Return(haproxysync.DomainSyncResult{}, errors.New("unexpected error"))
+			},
+			Req: &haproxysyncv1.DomainSyncRequest{
+				Domains: []string{"fail.com"},
+			},
+			ExpectedErr: status.Error(codes.Internal, fmt.Errorf("sync domains: %w", errors.New("unexpected error")).Error()).Error(),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			serviceMock := &haproxysync.MockHaproxysync{}
+			tc.PrepareService(serviceMock)
+
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
+
+			rsp, err := srv.DomainSync(context.Background(), tc.Req)
+
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+
+			assert.Equal(tc.ExpectedRsp, rsp)
+
+			serviceMock.AssertExpectations(t)
+		})
+	}
+}
 
 func TestBastionAddSubdomain(t *testing.T) {
 	assert := assert.New(t)
@@ -62,12 +148,10 @@ func TestBastionAddSubdomain(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			rsp, err := srv.BastionAddSubdomain(context.Background(), tc.Req)
 
@@ -127,12 +211,10 @@ func TestBastionDeleteSubdomain(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			rsp, err := srv.BastionDeleteSubdomain(context.Background(), tc.Req)
 
@@ -192,12 +274,10 @@ func TestBastionAddIndividualDomain(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			rsp, err := srv.BastionAddIndividualDomain(context.Background(), tc.Req)
 
@@ -257,12 +337,10 @@ func TestBastionDeleteIndividualDomain(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			rsp, err := srv.BastionDeleteIndividualDomain(context.Background(), tc.Req)
 
@@ -351,12 +429,10 @@ func TestBastionSyncMaps(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			rsp, err := srv.BastionSyncMaps(context.Background(), tc.Req)
 
@@ -422,12 +498,10 @@ func TestBastionGetCurrentMaps(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			rsp, err := srv.BastionGetCurrentMaps(context.Background(), tc.Req)
 
@@ -468,12 +542,10 @@ func TestCheck(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
 			serviceMock := &haproxysync.MockHaproxysync{}
 			tc.PrepareService(serviceMock)
 
-			srv := grpc.NewHAProxySyncServer(&log, nil, cfg.GRPC{}, serviceMock)
+			srv := grpc.NewHAProxySyncServer(log.New("test", "debug"), nil, cfg.GRPC{}, serviceMock)
 
 			err := srv.Check(context.Background())
 
