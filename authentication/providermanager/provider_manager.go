@@ -16,7 +16,7 @@ import (
 
 type Interface interface {
 	Manage(ctx context.Context, wg *sync.WaitGroup)
-	Providers() []string
+	Providers(ctx context.Context, categoryID string) ([]string, error)
 	Provider(p string) provider.Provider
 	Healthcheck() error
 	SAML() *samlsp.Middleware
@@ -174,7 +174,7 @@ func (m *ProviderManager) enableProvider(ctx context.Context, wg *sync.WaitGroup
 	m.log.Info().Str("provider", prv).Msg("provider enabled")
 }
 
-func (m *ProviderManager) Providers() []string {
+func (m *ProviderManager) Providers(ctx context.Context, categoryID string) ([]string, error) {
 	m.mux.RLock()
 	defer m.mux.RUnlock()
 
@@ -198,7 +198,7 @@ func (m *ProviderManager) Providers() []string {
 
 	slices.Sort(providers)
 
-	return providers
+	return providers, nil
 }
 
 func (m *ProviderManager) Provider(p string) provider.Provider {

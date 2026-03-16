@@ -583,9 +583,20 @@ func (a *AuthenticationServer) Logout(ctx context.Context, req *oasAuthenticatio
 	return resp, nil
 }
 
-func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthentication.ProvidersResponse, error) {
+func (a *AuthenticationServer) Providers(ctx context.Context, params oasAuthentication.ProvidersParams) (oasAuthentication.ProvidersRes, error) {
+	authPrvs, err := a.Authentication.Providers(ctx, params.CategoryID)
+	if err != nil {
+		if errors.Is(db.ErrNotFound, err) {
+			return &oasAuthentication.ProvidersNotFound{}, nil
+		}
+
+		a.Log.Error().Err(err).Msg("unknown providers error")
+
+		return &oasAuthentication.ProvidersInternalServerError{}, nil
+	}
+
 	providers := []oasAuthentication.Providers{}
-	for _, p := range a.Authentication.Providers() {
+	for _, p := range authPrvs {
 		if p == types.ProviderLocal || p == types.ProviderLDAP {
 			continue
 		}

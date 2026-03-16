@@ -22,6 +22,7 @@ func TestProviderManagerProviders(t *testing.T) {
 	cases := map[string]struct {
 		PrepareProviders func() map[string]provider.Provider
 		Expected         []string
+		ExpectedErr      string
 	}{
 		"should return form sub-providers and form itself": {
 			PrepareProviders: func() map[string]provider.Provider {
@@ -93,7 +94,13 @@ func TestProviderManagerProviders(t *testing.T) {
 				providers: tc.PrepareProviders(),
 			}
 
-			assert.Equal(tc.Expected, m.Providers())
+			result, err := m.Providers(t.Context(), "")
+			if tc.ExpectedErr != "" {
+				assert.EqualError(err, tc.ExpectedErr)
+			} else {
+				assert.NoError(err)
+			}
+			assert.Equal(tc.Expected, result)
 		})
 	}
 }

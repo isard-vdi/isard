@@ -20,7 +20,7 @@ import (
 )
 
 type Interface interface {
-	Providers() []string
+	Providers(ctx context.Context, categoryID string) ([]string, error)
 	Provider(provider string) provider.Provider
 
 	Login(ctx context.Context, provider string, categoryID string, args provider.LoginArgs, remoteAddr string) (tkn, redirect string, err error)
@@ -88,8 +88,8 @@ func Init(ctx context.Context, wg *sync.WaitGroup, cfg cfg.Cfg, log *zerolog.Log
 	return a
 }
 
-func (a *Authentication) Providers() []string {
-	return a.prvManager.Providers()
+func (a *Authentication) Providers(ctx context.Context, categoryID string) ([]string, error) {
+	return a.prvManager.Providers(ctx, categoryID)
 }
 
 func (a *Authentication) Provider(p string) provider.Provider {
