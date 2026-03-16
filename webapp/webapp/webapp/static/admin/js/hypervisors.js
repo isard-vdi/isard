@@ -133,6 +133,7 @@ $(document).ready(function () {
     },
     "rowId": "id",
     "deferRender": true,
+    "drawCallback": function() { updateRamTotals(this.api()); },
     "columns": [{
       "className": 'details-control',
       "orderable": false,
@@ -629,6 +630,54 @@ $(document).ready(function () {
   });
   $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
+
+function updateRamTotals(table) {
+  var totalRAM = 0, availRAM = 0, totalVMs = 0, onlineCount = 0;
+  table.rows().every(function () {
+    var d = this.data();
+    if (d.status !== "Online") return;
+    onlineCount++;
+    if (d.stats && d.stats.mem_stats) {
+      totalRAM += d.stats.mem_stats.total;
+      availRAM += d.stats.mem_stats.available;
+    }
+    if (d.desktops_started !== undefined) {
+      totalVMs += d.desktops_started;
+    }
+  });
+  if (onlineCount <= 1) {
+    $('#ram-totals').hide();
+    return;
+  }
+  $('#ram-totals').show();
+  var usedRAM = totalRAM - availRAM;
+  var usedGB = Math.round(usedRAM / 1024 / 1024);
+  var totalGB = Math.round(totalRAM / 1024 / 1024);
+  var freeGB = Math.round(availRAM / 1024 / 1024);
+  var perc = Math.round(usedRAM * 100 / totalRAM);
+  $('#ram-totals-content').html(
+    'RAM Used: ' + usedGB + 'GB / Total: ' + totalGB + 'GB - Free: ' + freeGB + 'GB ' +
+    renderRamBar(perc) +
+    ' | VMs: ' + totalVMs + ' started'
+  );
+}
+
+function renderRamBar(usedPerc) {
+  var freePerc = 100 - usedPerc;
+  var r = Math.round(176 + (usedPerc * 0.79));
+  var g = Math.round(176 - (usedPerc * 1.76));
+  var b = Math.round(176 - (usedPerc * 1.76));
+  var grayColor = 'rgb(' + r + ',' + g + ',' + b + ')';
+  var textColor = usedPerc > 60 ? 'white' : 'black';
+  return '<div class="progress" style="margin-bottom:0">' +
+    '<div class="progress-bar" role="progressbar" style="width:' + usedPerc + '%;background:' + grayColor + ';color:' + textColor + '">' +
+      (usedPerc > 5 ? usedPerc + '% used' : '') +
+    '</div>' +
+    '<div class="progress-bar" role="progressbar" style="width:' + freePerc + '%;background:#5cb85c;color:black">' +
+      (freePerc > 5 ? freePerc + '% free' : '') +
+    '</div>' +
+  '</div>';
+}
 
 function update_engine_status() {
   $.ajax({
