@@ -25,6 +25,7 @@ from engine.services.db.hypervisors import (
     update_hyp_thread_status,
 )
 from engine.services.lib.functions import (
+    TIMEOUT_MOVE_OPERATIONS,
     PriorityQueueIsard,
     dict_domain_libvirt_state_to_isard_state,
     execute_command_with_progress,
@@ -319,6 +320,7 @@ def launch_action_create_template_disk(action, hostname, user, port):
                 dict_mode=False,
                 user=user,
                 port=port,
+                timeout=TIMEOUT_MOVE_OPERATIONS,
             )
 
         if move_tool == "rsync":
@@ -328,6 +330,7 @@ def launch_action_create_template_disk(action, hostname, user, port):
                 id_domain=id_domain,
                 user=user,
                 port=port,
+                timeout=TIMEOUT_MOVE_OPERATIONS,
             )
 
         # cmds2: Seconds commands: test if perms, df, files are ok

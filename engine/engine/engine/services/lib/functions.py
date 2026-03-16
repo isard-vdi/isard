@@ -273,6 +273,9 @@ class SSHTimeoutError(Exception):
     pass
 
 
+TIMEOUT_MOVE_OPERATIONS = 900  # seconds - mv/rsync over NFS can be very slow
+
+
 def exec_remote_cmd(
     command, hostname, username="root", port=22, sudo=False, timeout=30
 ):
@@ -1025,12 +1028,18 @@ def execute_commands(
 
 
 def execute_command_with_progress(
-    hostname, ssh_command, id_domain=None, user="root", port=22
+    hostname, ssh_command, id_domain=None, user="root", port=22, timeout=300
 ):
     before = int(time.time())
     progress = []
     array_out_err = exec_remote_updating_progress(
-        ssh_command, hostname, progress, username=user, port=port, id_domain=id_domain
+        ssh_command,
+        hostname,
+        progress,
+        username=user,
+        port=port,
+        id_domain=id_domain,
+        timeout=timeout,
     )
     after = int(time.time())
     time_elapsed = after - before
