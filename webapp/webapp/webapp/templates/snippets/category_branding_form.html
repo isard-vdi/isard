@@ -19,86 +19,13 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #}
-<div class="modal fade" id="modal-branding" tabindex="-1" role="dialog" aria-labelledby="modal-branding-label"
-    aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">
-                    <span aria-hidden="true">&times;</span>
-                    <span class="sr-only">Close</span>
-                </button>
-                <h4 class="modal-title" id="modal-branding-label">
-                    <i class="fa fa-globe"></i> Branding
-                </h4>
-            </div>
-
-            <div class="modal-body">
-                <form id="modal-branding-form" class="form-horizontal form-label-left">
-                    <input hidden name="id" id="id">
-                    {% with
-                      id_prefix="category-branding-domain-",
-                      name_prefix="branding[domain]"
-                    %}
-                      <div id="branding-domain-panel" class="x_panel">
-                        <div class="x_title">
-                          <h4><i class="fa fa-globe"></i> Domain</h4>
-                          <div class="clearfix"></div>
-                        </div>
-                        <div class="x_content">
-                          {% with
-                            name="enabled",
-                            label="Enabled",
-                            type="checkbox"
-                          %}
-                            {% include '/snippets/form_field.html' %}
-                          {% endwith %}
-
-                          <div class="branding-domain-settings">
-                            {% with
-                              name="name",
-                              label="Domain",
-                              type="text",
-                              placeholder="branding.example.com"
-                            %}
-                              {% include '/snippets/form_field.html' %}
-                            {% endwith %}
-
-                            {% with
-                              name="certificate_source",
-                              label="Certificate Source",
-                              type="select",
-                              options={"acme": "ACME (Let's Encrypt)", "custom": "Custom"}
-                            %}
-                              {% include '/snippets/form_field.html' %}
-                            {% endwith %}
-
-                            <div class="custom-certificate-form">
-                              {% with
-                                name="certificate_data",
-                                label="Certificate File",
-                                type="file",
-                                required=false
-                              %}
-                                {% include '/snippets/form_field.html' %}
-                              {% endwith %}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    {% endwith %}
-                </form>
-            </div>
-
-            <div class="modal-footer">
-                <ul class="nav navbar-left panel_toolbox">
-                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
-                </ul>
-                <ul class="nav navbar-right panel_toolbox">
-                    <li><button id="send" type="button" class="btn btn-success">Save changes</button></li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
+{% with
+    modal_id="modal-branding",
+    modal_aria_labelledby="modal-branding",
+    title_icon="fa-globe",
+    title_text="Branding",
+    form_class="form-horizontal form-label-left",
+    form_body_template="/snippets/category_branding_fields.html"
+%}
+    {% include '/snippets/category_modal.html' %}
+{% endwith %}
