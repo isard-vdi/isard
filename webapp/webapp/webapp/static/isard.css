@@ -272,3 +272,30 @@ table.dataTable tr.shown td.details-control > button > i:before {
 .role-manager .btn-authentication {
   display: none;
 }
+
+/* Login notification preview panel */
+#preview-panel {
+  background-color: aliceblue;
+}
+#preview-panel .x_panel {
+  border: 1px solid hsl(23, 7%, 83%, 1);
+  border-radius: 12px;
+  color: #56524d;
+  width: 47%;
+  margin-right: 3%;
+}
+#preview-panel #cover_panel {
+  border-color: #bf4a4c;
+}
+#preview-panel #form_panel {
+  border-color: #d8d4d2;
+}
+#preview-panel .x_panel i {
+  padding: 0.5rem;
+}
+#preview-panel .x_panel .notification-body {
+  margin-left: 2.5rem;
+}
+.disabled-preview {
+  opacity: 50%;
+}
