@@ -1277,6 +1277,7 @@
     "password_lowercase": "Pasahitzak gutxienez {num} karaktere izan behar ditu letra txikiz"
   },
   "message-modal": {
+    "extend-time": "Luzatu {minutes} min",
     "messages": {
       "searching-resources": "Mahaigainarentzako baliabideak bilatzen ari gara. Minutu gutxi barru hasiko da.",
       "desktop-time-limit": "'{name}' mahaigaina {date}n geldituko da."

@@ -13,7 +13,11 @@ export class MessageUtils {
       type,
       textColor: StringUtils.isNullOrUndefinedOrEmpty(type) ? 'default' : 'light',
       message: i18n.t(`message-modal.messages.${messageCode}`, params),
-      show: true
+      show: true,
+      msgCode: messageCode,
+      desktopId: params.desktop_id || null,
+      extendEnabled: params.extend_enabled || false,
+      extendTime: params.extend_time || 0
     }
   }
 }

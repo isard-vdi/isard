@@ -50,7 +50,11 @@ export default new Vuex.Store({
     messageModal: {
       show: false,
       title: '',
-      message: ''
+      message: '',
+      msgCode: null,
+      desktopId: null,
+      extendEnabled: false,
+      extendTime: 0
     },
     loginConfig: {
       notification_cover: {

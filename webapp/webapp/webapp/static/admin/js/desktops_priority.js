@@ -37,6 +37,7 @@ $(document).ready(function () {
       { data: "warning_time", defaultContent: "-" },
       { data: "danger_time", defaultContent: "-" }, 
       { data: "op", defaultContent: "-" },
+      { data: "extend_time", defaultContent: "-" },
       {
         className: "actions-control",
         orderable: false,
@@ -83,6 +84,16 @@ $(document).ready(function () {
               }
             }
           }
+        }
+      },
+      {
+        targets: 8,
+        render: function (data, type, full, meta) {
+          var action = full.op;
+          if (full[action] && full[action].extend_enabled) {
+            return full[action].extend_time + " (x" + (full[action].max_extensions || 1) + ")"
+          }
+          return "-"
         }
       },
     ],
@@ -154,6 +165,10 @@ $(document).ready(function () {
             $("#modalEdit #danger_time").val(intervals[i].time);
           }
         }
+        var extendEnabled = data[action].extend_enabled;
+        $("#modalEdit #extend_enabled").val(extendEnabled ? "true" : "false");
+        $("#modalEdit #extend_time").val(data[action].extend_time || 0).prop("disabled", !extendEnabled);
+        $("#modalEdit #max_extensions").val(data[action].max_extensions || (extendEnabled ? 1 : 0)).prop("disabled", !extendEnabled).attr("min", extendEnabled ? 1 : 0);
         break;
       case "btn-alloweds":
         modalAllowedsFormShow("desktops_priority", data);
@@ -172,7 +187,31 @@ $(document).ready(function () {
     setAlloweds_add("#alloweds-priority-add");
     $("#modalAddPriority #modalAdd #alloweds_panel").attr("style", "display: block;");
   });
-  
+
+  $("#modalAddPriority #extend_enabled").on("change", function () {
+    var enabled = $(this).val() === "true";
+    $("#modalAddPriority #extend_time").prop("disabled", !enabled);
+    $("#modalAddPriority #max_extensions").prop("disabled", !enabled).attr("min", enabled ? 1 : 0);
+    if (!enabled) {
+      $("#modalAddPriority #extend_time").val(0);
+      $("#modalAddPriority #max_extensions").val(0);
+    } else if (parseInt($("#modalAddPriority #max_extensions").val()) < 1) {
+      $("#modalAddPriority #max_extensions").val(1);
+    }
+  });
+
+  $("#modalEditPriority #extend_enabled").on("change", function () {
+    var enabled = $(this).val() === "true";
+    $("#modalEditPriority #extend_time").prop("disabled", !enabled);
+    $("#modalEditPriority #max_extensions").prop("disabled", !enabled).attr("min", enabled ? 1 : 0);
+    if (!enabled) {
+      $("#modalEditPriority #extend_time").val(0);
+      $("#modalEditPriority #max_extensions").val(0);
+    } else if (parseInt($("#modalEditPriority #max_extensions").val()) < 1) {
+      $("#modalEditPriority #max_extensions").val(1);
+    }
+  });
+
   $("#modalAddPriority #send").on("click", function (e) {
     var form = $("#modalAdd");
     data = form.serializeObject();
@@ -222,6 +261,9 @@ $(document).ready(function () {
     delete data.max_time
     delete data.danger_time
     delete data.warning_time
+    delete data.extend_enabled
+    delete data.extend_time
+    delete data.max_extensions
 
     form.parsley().validate();
     if (form.parsley().isValid()) {
@@ -334,6 +376,34 @@ function parseTimeValues (data) {
     });
   }
 
+  if (data["extend_enabled"] === "true") {
+    if (data["max_extensions"] < 1) {
+      return new PNotify({
+        title: "ERROR",
+        text: "Max extensions must be at least 1 when extend is enabled",
+        hide: true,
+        delay: 3000,
+        icon: 'fa fa-warning',
+        opacity: 1,
+        type: 'error'
+      });
+    }
+    if (data["extend_time"] > 0) {
+      var minNotifyTime = Math.min(data["warning_time"], data["danger_time"]);
+      if (data["extend_time"] <= Math.abs(minNotifyTime)) {
+        return new PNotify({
+          title: "ERROR",
+          text: "Extend time must be greater than " + Math.abs(minNotifyTime) + " min (the earliest notification time) so that all notifications fire again after extending",
+          hide: true,
+          delay: 5000,
+          icon: 'fa fa-warning',
+          opacity: 1,
+          type: 'error'
+        });
+      }
+    }
+  }
+
   data[action] = {
     "max": data["max_time"],
     "notify_intervals": [
@@ -346,7 +416,10 @@ function parseTimeValues (data) {
         "type": "warning"
       }
     ],
-    "server": false
+    "server": false,
+    "extend_enabled": data["extend_enabled"] === "true",
+    "extend_time": data["extend_time"] || 0,
+    "max_extensions": data["max_extensions"] || 0
   }
   return data
 }
@@ -356,5 +429,7 @@ function data2integers(data){
   data["max_time"]=parseInt(data["max_time"]);
   data["danger_time"]=parseInt(data["danger_time"]);
   data["warning_time"]=parseInt(data["warning_time"]);
+  data["extend_time"]=parseInt(data["extend_time"]) || 0;
+  data["max_extensions"]=parseInt(data["max_extensions"]) || 0;
   return data
 }

@@ -76,6 +76,26 @@ def api_v3_admin_table(payload, table):
     )
 
 
+def _validate_desktops_priority_extend(data):
+    op = data.get("op", "shutdown")
+    op_data = data.get(op, {})
+    if not op_data.get("extend_enabled", False):
+        return
+    extend_time = op_data.get("extend_time", 0)
+    notify_intervals = op_data.get("notify_intervals", [])
+    if not notify_intervals:
+        return
+    max_notify_offset = max(
+        abs(i["time"]) for i in notify_intervals if i.get("time", 0) != 0
+    )
+    if extend_time <= max_notify_offset:
+        raise Error(
+            "bad_request",
+            f"Extend time ({extend_time} min) must be greater than the earliest notification offset ({max_notify_offset} min) so all notifications fire again after extending",
+            description_code="desktop_extend_time_too_short",
+        )
+
+
 @app.route("/api/v3/admin/table/add/<table>", methods=["POST"])
 @is_admin
 def api_v3_admin_insert_table(payload, table):
@@ -95,6 +115,8 @@ def api_v3_admin_insert_table(payload, table):
         for key, value in data.items():
             if isinstance(value, str):
                 data[key] = sanitizer.sanitize(value)
+    if table == "desktops_priority":
+        _validate_desktops_priority_extend(data)
     admin_table_insert(table, data)
     return (json.dumps({}), 200, {"Content-Type": "application/json"})
 
@@ -118,6 +140,8 @@ def api_v3_admin_update_table(payload, table):
         for key, value in data.items():
             if isinstance(value, str):
                 data[key] = sanitizer.sanitize(value)
+    if table == "desktops_priority":
+        _validate_desktops_priority_extend(data)
     admin_table_update(table, data)
     return (json.dumps({}), 200, {"Content-Type": "application/json"})
 

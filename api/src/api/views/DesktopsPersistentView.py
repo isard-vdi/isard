@@ -148,6 +148,18 @@ def api_v3_desktops_start(payload):
     )
 
 
+@app.route("/api/v3/desktop/<desktop_id>/extend-timeout", methods=["PUT"])
+@has_token
+def api_v3_desktop_extend_timeout(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    result = scheduler.extend_desktop_timeout(payload, desktop_id)
+    return (
+        json.dumps(result),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/desktop/stop/<desktop_id>", methods=["GET"])
 @has_token
 def api_v3_desktop_stop(payload, desktop_id):

@@ -65,6 +65,166 @@ class Scheduler:
                 {"scheduled": {"shutdown": False}}
             ).run(db.conn)
 
+    def extend_desktop_timeout(self, payload, desktop_id):
+        with app.app_context():
+            desktop = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck("name", "user", "status", "scheduled")
+                .run(db.conn)
+            )
+
+        if desktop.get("status") != "Started":
+            raise Error(
+                "precondition_required",
+                "Desktop is not running",
+                description_code="desktop_not_started",
+            )
+
+        current_shutdown = desktop.get("scheduled", {}).get("shutdown")
+        if not current_shutdown:
+            raise Error(
+                "precondition_required",
+                "Desktop has no scheduled shutdown",
+                description_code="desktop_no_scheduled_shutdown",
+            )
+
+        timeouts = quotas.get_shutdown_timeouts(payload, desktop_id)
+        if not timeouts:
+            raise Error(
+                "precondition_required",
+                "No timeout rule found for this desktop",
+                description_code="desktop_no_timeout_rule",
+            )
+
+        if not timeouts.get("extend_enabled", False):
+            raise Error(
+                "forbidden",
+                "Extending desktop timeout is not allowed",
+                description_code="desktop_extend_not_allowed",
+            )
+
+        max_extensions = timeouts.get("max_extensions", 1)
+        extensions_used = desktop.get("scheduled", {}).get("extensions", 0)
+        if extensions_used >= max_extensions:
+            raise Error(
+                "precondition_required",
+                "Maximum number of extensions reached",
+                description_code="desktop_max_extensions_reached",
+            )
+
+        extend_minutes = timeouts.get("extend_time", 15)
+
+        # Validate extend_time is greater than all notification intervals
+        # so both warning and danger notifications fire again after extending
+        notify_intervals = timeouts.get("notify_intervals", [])
+        if notify_intervals:
+            max_notify_offset = max(
+                abs(i["time"]) for i in notify_intervals if i.get("time", 0) != 0
+            )
+            if extend_minutes <= max_notify_offset:
+                raise Error(
+                    "precondition_required",
+                    f"Extend time ({extend_minutes} min) must be greater than the earliest notification offset ({max_notify_offset} min)",
+                    description_code="desktop_extend_time_too_short",
+                )
+
+        extensions_used += 1
+        extensions_remaining = max_extensions - extensions_used
+
+        # Parse current shutdown time and calculate new end time
+        current_end = datetime.strptime(
+            current_shutdown, "%Y-%m-%dT%H:%M%z"
+        ).astimezone(pytz.UTC)
+        new_end = current_end + timedelta(minutes=extend_minutes)
+        absolute_end_time = new_end.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
+
+        # Remove all existing scheduled jobs
+        self.remove_scheduler_startswith_id(desktop_id)
+
+        now = datetime.now(pytz.utc)
+
+        # Reschedule notifications relative to new end time
+        data = {
+            "kwargs": {
+                "user_id": desktop["user"],
+                "desktop_id": desktop_id,
+                "desktop_name": desktop["name"],
+                "msg": {
+                    "type": "info",
+                    "msg_code": "desktop-time-limit",
+                },
+            },
+        }
+
+        if timeouts.get("notify_intervals"):
+            for interval in timeouts["notify_intervals"]:
+                if interval["time"] == 0:
+                    # Immediate notifications are only sent at start, skip on extend
+                    continue
+                # Schedule notification at new_end + interval["time"] (negative)
+                notify_date = new_end + timedelta(minutes=interval["time"])
+                if notify_date <= now:
+                    # This notification time has already passed, skip
+                    continue
+                data["id"] = desktop_id + ".shutdown-" + str(interval["time"]) + "m"
+                data["date"] = notify_date.astimezone(pytz.UTC).strftime(
+                    "%Y-%m-%dT%H:%M%z"
+                )
+                data["kwargs"]["msg"]["params"] = {
+                    "date": absolute_end_time,
+                    "minutes": int((new_end - notify_date).total_seconds() / 60),
+                    "name": desktop.get("name"),
+                    "desktop_id": desktop_id,
+                    "extend_enabled": extensions_remaining > 0,
+                    "extend_time": extend_minutes,
+                }
+                data["kwargs"]["msg"]["type"] = interval["type"]
+                data["kwargs"]["msg"]["msg_lang"] = "en"
+                try:
+                    self.api_rest.post("/advanced/date/desktop/desktop_notify", data)
+                except:
+                    log.error(
+                        "could not contact scheduler service at /advanced/date/desktop/desktop_notify"
+                    )
+
+        # Schedule stop (Shutting down)
+        stop_date = new_end + timedelta(minutes=1)
+        data["id"] = desktop_id + ".shutdown"
+        data["date"] = stop_date.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
+        data["kwargs"] = {"desktop_id": desktop_id}
+        try:
+            self.api_rest.post("/advanced/date/desktop/desktop_stop", data)
+        except:
+            log.error(
+                "could not contact scheduler service at /advanced/date/desktop/desktop_stop"
+            )
+
+        # Schedule force stop
+        force_stop_date = stop_date + timedelta(minutes=1)
+        data["id"] = desktop_id + ".shutdown-force"
+        data["date"] = force_stop_date.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
+        data["kwargs"] = {"desktop_id": desktop_id}
+        try:
+            self.api_rest.post("/advanced/date/desktop/desktop_stop", data)
+        except:
+            log.error(
+                "could not contact scheduler service at /advanced/date/desktop/desktop_stop"
+            )
+
+        # Update end time and extension count in domain
+        with app.app_context():
+            r.table("domains").get(desktop_id).update(
+                {
+                    "scheduled": {
+                        "shutdown": absolute_end_time,
+                        "extensions": extensions_used,
+                    }
+                }
+            ).run(db.conn)
+
+        return {"shutdown": absolute_end_time}
+
     def add_desktop_timeouts(self, payload, desktop_id, reset_existing=True):
         if reset_existing:
             self.remove_desktop_timeouts(desktop_id)
@@ -189,6 +349,9 @@ class Scheduler:
         if not timeouts:
             return
 
+        extend_enabled = timeouts.get("extend_enabled", False)
+        extend_time = timeouts.get("extend_time", 15)
+
         # Send now notification only to web
         time_remaining = timeouts["max"]
         stop_date = start_date + timedelta(minutes=time_remaining)
@@ -206,6 +369,9 @@ class Scheduler:
                             "date": absolute_end_time,
                             "time_remaining": time_remaining,
                             "name": desktop.get("name"),
+                            "desktop_id": desktop_id,
+                            "extend_enabled": extend_enabled,
+                            "extend_time": extend_time,
                         },
                     )
                     notify_desktop(
@@ -216,6 +382,9 @@ class Scheduler:
                             "date": absolute_end_time,
                             "time_remaining": time_remaining,
                             "name": desktop.get("name"),
+                            "desktop_id": desktop_id,
+                            "extend_enabled": extend_enabled,
+                            "extend_time": extend_time,
                         },
                     )
                 else:
@@ -230,6 +399,9 @@ class Scheduler:
                         "date": absolute_end_time,
                         "minutes": time_remaining,
                         "name": desktop.get("name"),
+                        "desktop_id": desktop_id,
+                        "extend_enabled": extend_enabled,
+                        "extend_time": extend_time,
                     }
                     data["kwargs"]["msg"]["type"] = interval["type"]
                     data["kwargs"]["msg"][
@@ -268,10 +440,10 @@ class Scheduler:
                 "could not contact scheduler service at /advanced/date/desktop/desktop_stop"
             )
 
-        # Update end time in domain
+        # Update end time in domain and reset extension count
         with app.app_context():
             r.table("domains").get(desktop_id).update(
-                {"scheduled": {"shutdown": absolute_end_time}}
+                {"scheduled": {"shutdown": absolute_end_time, "extensions": 0}}
             ).run(db.conn)
         return {"shutdown": absolute_end_time}
 
