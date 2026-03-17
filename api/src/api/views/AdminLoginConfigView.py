@@ -32,9 +32,7 @@ from ..libv2.validators import _validate_item
 from .decorators import is_admin
 
 
-@app.route("/api/v3/login_config/notification", methods=["PUT"])
-@is_admin
-def api_v3_login_notification_update(payload):
+def _handle_login_notification_update():
     try:
         data = request.get_json()
     except:
@@ -60,6 +58,27 @@ def api_v3_login_notification_update(payload):
     )
 
 
+def _handle_login_notification_enable(notification_type):
+    data = request.get_json(force=True)
+    enabled = data.get("enabled")
+
+    if enabled is None:
+        raise Error("bad_request", "Enabled field is required")
+
+    enable_login_notification(notification_type, enabled)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/login_config/notification", methods=["PUT"])
+@is_admin
+def api_v3_login_notification_update(payload):
+    return _handle_login_notification_update()
+
+
 @app.route("/api/v3/login_config/notification/cover/enable", methods=["PUT"])
 @is_admin
 def api_v3_login_notification_cover_enable(payload):
@@ -73,18 +92,7 @@ def api_v3_login_notification_cover_enable(payload):
     :rtype: Set with Flask response values and data in JSON
 
     """
-    data = request.get_json(force=True)
-    enabled = data.get("enabled")
-
-    if enabled is None:
-        raise Error("bad_request", "Enabled field is required")
-
-    enable_login_notification("cover", enabled)
-    return (
-        json.dumps({}),
-        200,
-        {"Content-Type": "application/json"},
-    )
+    return _handle_login_notification_enable("cover")
 
 
 @app.route("/api/v3/login_config/notification/form/enable", methods=["PUT"])
@@ -105,15 +113,4 @@ def api_v3_login_notification_form_enable(payload):
     :rtype: Set with Flask response values and data in JSON
 
     """
-    data = request.get_json(force=True)
-    enabled = data.get("enabled")
-
-    if enabled is None:
-        raise Error("bad_request", "Enabled field is required")
-
-    enable_login_notification("form", enabled)
-    return (
-        json.dumps({}),
-        200,
-        {"Content-Type": "application/json"},
-    )
+    return _handle_login_notification_enable("form")
