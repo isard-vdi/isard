@@ -473,6 +473,30 @@ $(document).ready(function () {
             }
         );
     });
+
+    $('#modal-category-login_notification #send').on('click', function (e) {
+        var form = $('#modal-category-login_notification-form');
+        if (!validateForm(form)) return;
+        var modal = "#modal-category-login_notification";
+        var categoryId = $(modal + " #id").val();
+        var data = collectLoginNotificationData(form, "category_enable_");
+        ajaxPutWithNotice(
+            "/api/v3/admin/category/" + categoryId + "/login_notification",
+            data,
+            "login notification",
+            function () {
+                // Refresh preview
+                $.ajax({
+                    type: "GET",
+                    url: "/api/v3/login_config/" + categoryId,
+                    contentType: "application/json",
+                    success: function (refreshedData) {
+                        renderLoginNotificationPreview(modal + " #category-login-notification-preview", refreshedData);
+                    }
+                });
+            }
+        );
+    });
 });
 
 function renderCategoriesDetailPannel(d) {
@@ -487,7 +511,7 @@ function renderCategoriesDetailPannel(d) {
     }
     if (d.id == "default") { $('.template-detail-categories .btn-delete').hide() }
     if ($('#user_data').data('role') === 'manager') {
-        ["authentication", "branding"].forEach(function (perm) {
+        ["authentication", "branding", "login_notification"].forEach(function (perm) {
             $('.template-detail-categories .btn-' + perm).toggle(
                 !!(d.manager_permissions && d.manager_permissions[perm])
             );
@@ -851,6 +875,29 @@ function actionsCategoryDetail() {
 
         $modal.find("#id").val(pk);
         $modal.modal({
+            backdrop: "static",
+            keyboard: false,
+        }).modal("show");
+    });
+
+
+    $("#categories .btn-login_notification").off("click").on("click", function () {
+        var pk = $(this).closest("div").attr("data-pk");
+        var modal = "#modal-category-login_notification";
+
+        // Fetch category login notification data, populate form and preview
+        $.ajax({
+            type: "GET",
+            url: "/api/v3/login_config/" + pk,
+            contentType: "application/json",
+            success: function (data) {
+                populateLoginNotificationForm(modal, data, "category_enable_");
+                renderLoginNotificationPreview(modal + " #category-login-notification-preview", data);
+            }
+        });
+
+        $(modal + " #id").val(pk);
+        $(modal).modal({
             backdrop: "static",
             keyboard: false,
         }).modal("show");

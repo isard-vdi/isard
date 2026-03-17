@@ -19,36 +19,17 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #}
-<div id="{{ id_prefix }}panel" class="x_panel">
-  <div class="x_title">
-    <h4>Manager Permissions</h4>
-    <div class="clearfix"></div>
+<div class="row">
+  <div class="col-md-6 col-sm-6 col-xs-12">
+    <input id="category_enable_cover_notification_checkbox" type="checkbox">
+    <label for="category_enable_cover_notification_checkbox">Enable left login notification</label>
   </div>
-  <div class="x_content">
-    {% with
-      name_prefix = 'manager_permissions'
-    %}
-      {% with
-        name = "authentication",
-        label = "Authentication",
-        type = "checkbox"
-      %}
-        {% include '/snippets/form_field.html' %}
-      {% endwith %}
-      {% with
-        name = "branding",
-        label = "Branding",
-        type = "checkbox"
-      %}
-        {% include '/snippets/form_field.html' %}
-      {% endwith %}
-      {% with
-        name = "login_notification",
-        label = "Login Notification",
-        type = "checkbox"
-      %}
-        {% include '/snippets/form_field.html' %}
-      {% endwith %}
-    {% endwith %}
+  <div class="col-md-6 col-sm-6 col-xs-12">
+    <input id="category_enable_form_notification_checkbox" type="checkbox">
+      <label for="category_enable_form_notification_checkbox">Enable right login notification</label>
   </div>
 </div>
+<hr>
+<div class="x_panel preview-panel" id="category-login-notification-preview"></div>
+<hr>
+{% include '/snippets/login_notification_fields.html' %}

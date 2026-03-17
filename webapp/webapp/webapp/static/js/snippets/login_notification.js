@@ -74,8 +74,11 @@ function createNotificationPreview (notification, position) {
     }
 };
 
-function populateLoginNotificationForm(modal, data) {
+function populateLoginNotificationForm(modal, data, enableCheckboxPrefix) {
     ["cover", "form"].forEach(position => {
+        if (enableCheckboxPrefix) {
+            $(modal + ` #${enableCheckboxPrefix}${position}_notification_checkbox`).iCheck(data[`notification_${position}`]?.enabled ? 'check' : 'uncheck');
+        }
         $(modal + ` #${position}_icon`).val(data[`notification_${position}`]?.icon || 'null');
         $(modal + ` #${position}_title`).val(data[`notification_${position}`]?.title);
         $(modal + ` #${position}_description`).val(data[`notification_${position}`]?.description);
@@ -99,7 +102,7 @@ function populateLoginNotificationForm(modal, data) {
     });
 }
 
-function collectLoginNotificationData($form) {
+function collectLoginNotificationData($form, enableCheckboxPrefix) {
     data = $form.serializeObject();
     data = {
         cover: {
@@ -125,6 +128,14 @@ function collectLoginNotificationData($form) {
             }
         }
     };
+    if (enableCheckboxPrefix) {
+        var modal = $form.closest('.modal');
+        ["cover", "form"].forEach(position => {
+            data[position].enabled = modal
+                .find(`#${enableCheckboxPrefix}${position}_notification_checkbox`)
+                .is(":checked");
+        });
+    }
     return data;
 }
 
