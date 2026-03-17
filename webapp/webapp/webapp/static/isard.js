@@ -424,6 +424,12 @@ function fillFormData ($container, data, prefix) {
       $field.val(value).trigger('change');
     }
   });
+  // Validate form only on the top-level call, after all fields are populated
+  if (!prefix) {
+    var $form = $container.closest('form');
+    if (!$form.length) $form = $container.filter('form');
+    if ($form.length) $form.parsley().validate();
+  }
 }
 
 /**
