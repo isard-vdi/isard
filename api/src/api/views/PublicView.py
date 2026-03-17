@@ -12,11 +12,12 @@ from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from flask import request
 from isardvdi_common.api_exceptions import Error
+from isardvdi_common.category import Category
+from isardvdi_common.configuration import Configuration
 
 from api import app
 
 from ..libv2.api_users import ApiUsers
-from ..libv2.caches import get_config
 
 users = ApiUsers()
 
@@ -75,8 +76,12 @@ def api_v3_category_custom_url(category_id):
 
 @cached(cache=TTLCache(maxsize=1, ttl=20))
 @app.route("/api/v3/login_config", methods=["GET"])
-def api_v3_login_config():
-    login_config = get_config().get("login", {})
+@app.route("/api/v3/login_config/<category_id>", methods=["GET"])
+def api_v3_login_config(category_id=None):
+    if category_id and Category.exists(category_id):
+        login_config = Category(category_id).login_notification or {}
+    else:
+        login_config = Configuration.login or {}
     for key in ("notification_cover", "notification_form"):
         notification = login_config.get(key)
         if notification:
