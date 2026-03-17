@@ -5,6 +5,57 @@
 * License: AGPLv3
 */
 
+function ajaxPutWithNotice(url, data, entityName, onSuccess) {
+    var notice = new PNotify({
+        text: 'Updating ' + entityName + '...',
+        hide: false,
+        opacity: 1,
+        icon: 'fa fa-spinner fa-pulse'
+    });
+    $.ajax({
+        type: "PUT",
+        url: url,
+        data: JSON.stringify(data),
+        contentType: "application/json",
+        success: function (response) {
+            notice.update({
+                title: 'Updated',
+                text: entityName.charAt(0).toUpperCase() + entityName.slice(1) + ' updated successfully',
+                hide: true,
+                delay: 2000,
+                icon: '',
+                opacity: 1,
+                type: 'success'
+            });
+            if (onSuccess) onSuccess(response);
+        },
+        error: function (data) {
+            notice.update({
+                title: 'ERROR updating ' + entityName,
+                text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
+                type: 'error',
+                hide: true,
+                icon: 'fa fa-warning',
+                delay: 5000,
+                opacity: 1
+            });
+        }
+    });
+}
+
+function validateForm(form) {
+    form.parsley().validate();
+    if (!form.parsley().isValid()) {
+        new PNotify({
+            text: 'Invalid form not sent.',
+            type: 'error',
+            delay: 2000
+        });
+        return false;
+    }
+    return true;
+}
+
 $(document).ready(function () {
     $template_category = $(".template-detail-categories");
     $("#modalEditCategoryForm #span-custom-url").append(location.protocol + '//' + location.host + '/login/form/');
@@ -234,53 +285,18 @@ $(document).ready(function () {
 
     $("#modalAuthentication #send").on('click', function (e) {
         var form = $('#modalAuthenticationForm');
-        form.parsley().validate();
-        if (!form.parsley().isValid()) {
-          new PNotify({
-            text: 'Invalid form not sent.',
-            type: 'error',
-            delay: 2000
-          });
-          return;
-        }
+        if (!validateForm(form)) return;
         var modal = "#modalAuthentication";
         var data = collectFormData($(modal + " form"));
-        var notice = new PNotify({
-            text: 'Updating category authentication...',
-            hide: false,
-            opacity: 1,
-            icon: 'fa fa-spinner fa-pulse'
-        });
-        $.ajax({
-            type: "PUT",
-            url: "/api/v3/admin/category/" + $(modal + " #id").val() + "/authentication",
-            data: JSON.stringify(data),
-            contentType: "application/json",
-            success: function (response) {
-                notice.update({
-                    title: 'Updated',
-                    text: 'Authentication updated successfully',
-                    hide: true,
-                    delay: 2000,
-                    icon: '',
-                    opacity: 1,
-                    type: 'success'
-                });
+        ajaxPutWithNotice(
+            "/api/v3/admin/category/" + $(modal + " #id").val() + "/authentication",
+            data,
+            "authentication",
+            function () {
                 $('form').each(function () { this.reset(); });
                 $('.modal').modal('hide');
-            },
-            error: function (data) {
-                notice.update({
-                    title: 'ERROR updating authentication',
-                    text: data.responseJSON ? data.responseJSON.description : "Something went wrong",
-                    type: 'error',
-                    hide: true,
-                    icon: 'fa fa-warning',
-                    delay: 5000,
-                    opacity: 1
-                });
             }
-        });
+        );
     });
 
     $('.btn-new-category').on('click', function () {
