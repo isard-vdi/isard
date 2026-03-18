@@ -69,7 +69,7 @@ def landing():
           </div>
           <div class="right">
             <div class="logo">
-              <img src="/custom/logo.svg" alt="Logo" style="max-width:180px;max-height:100px;">
+              <img src="/api/v3/logo" alt="Logo" style="max-width:180px;max-height:100px;">
             </div>
             <h1>IsardVDI OpenAPI Service</h1>
             <ul>

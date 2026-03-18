@@ -18,7 +18,7 @@
             fluid
             style="max-width: 12rem; max-height: 16rem;"
             class="mt-n4"
-            src="../assets/logo.svg"
+            src="/api/v3/logo"
           />
           <h1
             key="title"
@@ -54,7 +54,7 @@
             fluid
             style="max-width: 12rem; max-height: 16rem;"
             class="mt-n4"
-            src="../assets/logo.svg"
+            src="/api/v3/logo"
           />
           <h1 key="text">
             {{ customMaintenanceText.title }}

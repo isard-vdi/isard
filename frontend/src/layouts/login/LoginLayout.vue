@@ -45,7 +45,7 @@ const props = withDefaults(defineProps<Props>(), {
         <img
           v-if="!loading && !props.hideLogo"
           class="self-center max-h-[150px]"
-          :src="'/custom/logo.svg'"
+          :src="'/api/v3/logo'"
           alt="IsardVDI logo"
         />
         <h1

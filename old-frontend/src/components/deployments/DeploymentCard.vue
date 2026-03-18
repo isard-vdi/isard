@@ -46,7 +46,7 @@
           <div
             id="deployment-logo"
             class="rounded-circle bg-red mx-auto d-block align-items-center "
-            style="background-image: url(/custom/logo.svg);background-size: 70px 70px; opacity: 0.5;"
+            style="background-image: url(/api/v3/logo);background-size: 70px 70px; opacity: 0.5;"
           />
           <p class="text-center text-white">
             {{ $t('views.deployment.desktop.not-available') }}

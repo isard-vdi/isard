@@ -66,7 +66,7 @@ const logOut = () => {
       class="hidden sm:flex flex-col justify-between items-center w-[80px] h-full p-4 pl-8"
     >
       <img
-        :src="'/custom/logo.svg'"
+        :src="'/api/v3/logo'"
         alt="IsardVDI logo"
         class="self-start max-h-[150px] max-w-min h-[50px] m-"
       />
