@@ -4,13 +4,15 @@
 #!flask/bin/python3
 # coding=utf-8
 
+import base64
 import html
 import json
 import os
+from io import BytesIO
 
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
-from flask import request
+from flask import request, send_file
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.category import Category
 from isardvdi_common.configuration import Configuration
@@ -98,3 +100,22 @@ def api_v3_login_config(category_id=None):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@cached(
+    cache=TTLCache(maxsize=10, ttl=60), key=lambda: hashkey(request.headers.get("Host"))
+)
+@app.route("/api/v3/logo", methods=["GET"])
+def api_v3_category_logo():
+    # Get logo as base64 data URL
+    data_url = users.get_logo_by_url(request.headers.get("Host"))
+
+    # Parse the data URL
+    header, b64_data = data_url.split(",", 1)
+    mimetype = header.split(":")[1].split(";")[0]
+
+    # Decode base64 data
+    file_bytes = base64.b64decode(b64_data)
+
+    # Send as file with correct mimetype
+    return send_file(BytesIO(file_bytes), mimetype=mimetype, as_attachment=False)

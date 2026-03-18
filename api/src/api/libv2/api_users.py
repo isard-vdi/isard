@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import base64
 import os
 import time
 import traceback
@@ -29,7 +30,7 @@ import gevent
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from isardvdi_common.api_exceptions import Error
-from isardvdi_common.category import Category
+from isardvdi_common.category import Category, _detect_mimetype
 from isardvdi_common.configuration import Configuration
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -1985,6 +1986,58 @@ class ApiUsers:
             )
         else:
             return category[0]
+
+    @classmethod
+    def category_get_branding_by_url(cls, url):
+        with app.app_context():
+            category = list(
+                r.table("categories")
+                .filter({"branding": {"domain": {"name": url, "enabled": True}}})
+                .pluck("id", "branding")
+                .run(db.conn)
+            )
+        if not category:
+            raise Error(
+                "not_found",
+                f"Category with enabled branding domain {url} not found",
+                traceback.format_exc(),
+            )
+        else:
+            return Category(category[0]["id"]).branding
+
+    @classmethod
+    def get_logo_by_url(cls, url):
+        """
+        Get logo as a base64 data URL for the given branding domain URL.
+        Returns logo in the same format as Category.__getattr__ does.
+
+        :param url: The domain URL to look up branding for
+        :return: Base64 data URL string (e.g., "data:image/svg+xml;base64,...")
+        """
+        try:
+            branding_data = cls.category_get_branding_by_url(url)
+            logo = branding_data.get("logo", {})
+
+            # If custom logo is enabled and has data, return it
+            if logo.get("enabled") and logo.get("data"):
+                return logo["data"]
+        except Exception:
+            # If no custom branding found, fall through to default logo
+            pass
+
+        # Return default logo as base64 data URL
+        default_logo_path = "/static/default_logo"
+        try:
+            with open(default_logo_path, "rb") as f:
+                file_bytes = f.read()
+            mimetype = _detect_mimetype(file_bytes)
+            return f"data:{mimetype};base64,{base64.b64encode(file_bytes).decode()}"
+        except Exception:
+            raise Error(
+                "not_found",
+                "Default logo file not found",
+                traceback.format_exc(),
+            )
 
     def category_get_custom_login_url(self, category_id):
         try:
