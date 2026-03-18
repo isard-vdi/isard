@@ -3,6 +3,9 @@ spec:
     use-image-build-cache:
       type: boolean
       default: true
+    allow-protobuf-lint-failure:
+      type: boolean
+      default: false
 ---
 # https://docs.gitlab.com/ee/ci/yaml/index.html#switch-between-branch-pipelines-and-merge-request-pipelines
 workflow:
@@ -160,6 +163,7 @@ check-protobuf:
   image:
     name: bufbuild/buf:1.44.0
     entrypoint: [""]
+  allow_failure: $[[ inputs.allow-protobuf-lint-failure ]]
   script:
     - buf lint
     - buf breaking --against https://gitlab.com/isard/isardvdi.git
