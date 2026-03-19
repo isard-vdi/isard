@@ -1128,6 +1128,7 @@ class hyp(object):
                 logs.workers.debug(
                     f"[{self.id_hyp_rethink}] Using default vGPU profile: {vgpu_profile}"
                 )
+                self.change_vgpu_profile(vgpu_id, vgpu_profile)
 
             cmds = []
             base_path = d_nvidia["path"]
