@@ -579,6 +579,19 @@ class hyp(object):
                 f"{len(self.info_nvidia)} GPU cards"
             )
 
+        # Re-apply driver binding for GPUs with active passthrough profile.
+        # The vfio-pci binding does not survive container/host restarts, so
+        # we must re-apply it every time the engine starts.
+        for pci_bus in list(self.info_nvidia.keys()):
+            vgpu_id = "-".join([self.id_hyp_rethink, pci_bus])
+            d_vgpu = get_vgpu(vgpu_id)
+            if d_vgpu and d_vgpu.get("vgpu_profile") == "passthrough":
+                logs.workers.info(
+                    f"[{self.id_hyp_rethink}] Re-applying passthrough driver "
+                    f"binding for {vgpu_id} (vfio-pci may not survive restarts)"
+                )
+                self.change_vgpu_profile(vgpu_id, "passthrough")
+
     def load_info_from_db(self):
         self.info = get_hyp_info(self.id_hyp_rethink)
 
@@ -701,6 +714,8 @@ class hyp(object):
                         "type_id": "passthrough",
                         "pci_mdev_id": pci_id,
                         "created": False,
+                        "domain_started": False,
+                        "domain_reserved": False,
                     }
                 }
                 self.mdevs[pci_id] = pci_mdevs

@@ -1042,7 +1042,7 @@ def get_vgpus_mdevs(id_gpu, type_gpu):
         d = rtable.get(id_gpu).pluck("vgpu_profile", {"mdevs": [type_gpu]}).run(r_conn)
     except Exception as e:
         close_rethink_connection(r_conn)
-        return False, False, {}
+        return False, {}
     close_rethink_connection(r_conn)
     return d["vgpu_profile"], d["mdevs"]
 
