@@ -229,6 +229,7 @@ class HypervisorsOrchestratorThread(threading.Thread):
                         remove_stopping=False,  # Keep stop actions in queue
                         remove_if_no_more_hyps=False,  # Keep if no alternatives
                         balancer=pool_balancer,
+                        keep_gpu_actions=True,  # Keep GPU actions for when hyp recovers
                     )
 
                 if action["type"] == "hyp_only_forced":
