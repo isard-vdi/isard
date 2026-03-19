@@ -257,6 +257,19 @@
               </b-progress>
             </div>
           </template>
+          <template #cell(actions)="data">
+            <b-button
+              v-if="!['Downloading', 'maintenance', 'DownloadFailed', 'DownloadFailedInvalidFormat'].includes(data.item.status) && data.item.kind === 'iso'"
+              class="rounded-circle px-2 mr-2 btn-green"
+              :title="$t('views.media.buttons.new-desktop.title')"
+              @click="onClickGoToNewFromMedia(data.item)"
+            >
+              <b-icon
+                icon="tv"
+                scale="0.75"
+              />
+            </b-button>
+          </template>
         </IsardTable>
       </b-tab>
       <AllowedModal @updateAllowed="updateAllowed" />
@@ -376,6 +389,11 @@ export default {
         key: 'progressSize',
         label: i18n.t('views.media.table-header.progress-size'),
         thStyle: { width: '10%' }
+      },
+      {
+        key: 'actions',
+        label: i18n.t('views.media.table-header.actions'),
+        thStyle: { width: '5%' }
       }
     ]
 
