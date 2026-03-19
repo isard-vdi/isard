@@ -279,8 +279,7 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 
 	// Redirect the user after login
 	if params.Redirect.Set {
-		validated := authentication.ValidateRedirect(params.Redirect.Value)
-		args.Redirect = &validated
+		args.Redirect = &params.Redirect.Value
 	}
 
 	// Form parameters (username + password)
@@ -394,7 +393,6 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	}
 	cookie := c.String()
 
-	redirect = authentication.ValidateRedirect(redirect)
 	if redirect != "" && redirect != "/notifications/login" {
 		return &oasAuthentication.LoginFound{
 			Location:  redirect,
@@ -482,7 +480,6 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 	}
 	cookie := c.String()
 
-	redirect = authentication.ValidateRedirect(redirect)
 	if redirect != "" {
 		return &oasAuthentication.CallbackFound{
 			Location:  redirect,

@@ -1133,6 +1133,126 @@ func TestLogin(t *testing.T) {
 			ExpectedRedirect: "",
 			ExpectedErr:      provider.ErrUserDisallowed.Error(),
 		},
+		"should preserve a valid redirect path through the login flow": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("uid"), "nefix"),
+					r.Eq(r.Row.Field("provider"), "local"),
+					r.Eq(r.Row.Field("category"), "default"),
+				), r.FilterOpts{})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                  "nefix",
+						"username":             "nefix",
+						"password":             "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"password_reset_token": "",
+						"provider":             "local",
+						"active":               true,
+						"category":             "default",
+						"role":                 "user",
+						"group":                "default-default",
+						"name":                 "Néfix Estrada",
+						"email":                "nefix@example.org",
+						"email_verified":       nil,
+						"api_key":              "",
+					},
+				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": nil,
+							},
+						},
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *sdk.MockSdk) {
+				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
+			},
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+				redirect := "/desktops"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
+					Redirect:     &redirect,
+				}
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				assert.NoError(err)
+				assert.Equal("08fff46e-cbd3-40d2-9d8e-e2de7a8da654", claims.UserID)
+			},
+			ExpectedRedirect: "/desktops",
+		},
+		"should sanitize a malicious redirect URL to root": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("uid"), "nefix"),
+					r.Eq(r.Row.Field("provider"), "local"),
+					r.Eq(r.Row.Field("category"), "default"),
+				), r.FilterOpts{})).Return([]interface{}{
+					map[string]interface{}{
+						"id":                   "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                  "nefix",
+						"username":             "nefix",
+						"password":             "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"password_reset_token": "",
+						"provider":             "local",
+						"active":               true,
+						"category":             "default",
+						"role":                 "user",
+						"group":                "default-default",
+						"name":                 "Néfix Estrada",
+						"email":                "nefix@example.org",
+						"email_verified":       nil,
+						"api_key":              "",
+					},
+				}, nil)
+				m.On(r.Table("categories").Get("default")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "default",
+						"authentication": map[string]interface{}{
+							"local": map[string]interface{}{
+								"enabled":         true,
+								"allowed_domains": nil,
+							},
+						},
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *sdk.MockSdk) {
+				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("*context.cancelCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
+			},
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() provider.LoginArgs {
+				username := "nefix"
+				password := "f0kt3Rf$"
+				redirect := "https://evil.com/steal"
+
+				return provider.LoginArgs{
+					FormUsername: &username,
+					FormPassword: &password,
+					Redirect:     &redirect,
+				}
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				assert.NoError(err)
+				assert.Equal("08fff46e-cbd3-40d2-9d8e-e2de7a8da654", claims.UserID)
+			},
+			ExpectedRedirect: "/",
+		},
 	}
 
 	for name, tc := range cases {
