@@ -20,10 +20,46 @@
 
 import logging as log
 import os
+import re
 
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
 from rethinkdb import r
+
+_BROWSER_PATTERNS = [
+    (r"Firefox/([\d.]+)", "firefox"),
+    (r"Edg(?:e)?/([\d.]+)", "edge"),
+    (r"OPR/([\d.]+)", "opera"),
+    (r"Chrome/([\d.]+)", "chrome"),
+    (r"Safari/([\d.]+)", "safari"),
+    (r"MSIE ([\d.]+)", "msie"),
+    (r"Trident/.*rv:([\d.]+)", "msie"),
+]
+
+_PLATFORM_PATTERNS = [
+    (r"iPhone", "iphone"),
+    (r"iPad", "ipad"),
+    (r"Android", "android"),
+    (r"Windows", "windows"),
+    (r"Macintosh|Mac OS", "macos"),
+    (r"Linux", "linux"),
+]
+
+
+def _parse_user_agent(ua_string):
+    if not ua_string:
+        return None, None
+    browser = None
+    for pattern, name in _BROWSER_PATTERNS:
+        if re.search(pattern, ua_string):
+            browser = name
+            break
+    platform = None
+    for pattern, name in _PLATFORM_PATTERNS:
+        if re.search(pattern, ua_string):
+            platform = name
+            break
+    return browser, platform
 
 
 @cached(TTLCache(maxsize=20, ttl=5))
@@ -40,7 +76,11 @@ def user_key(_, user_id):
 
 
 class LogsUsers:
-    def __init__(self, payload):
+    def __init__(self, payload, request_ip=None, request_user_agent=None):
+        self.request_ip = request_ip
+        self.request_browser, self.request_platform = _parse_user_agent(
+            request_user_agent
+        )
         if not payload.get("data", {}).get("group_id"):
             return
         # log.info(f"Last 60 seconds users online: {users_cache.currsize}")
@@ -88,6 +128,16 @@ class LogsUsers:
 
     def insert(self, payload):
         user = self.get_user(payload["data"]["user_id"])
+        old_logs_id = user.get("start_logs_id")
+        if old_logs_id:
+            r.table("logs_users").get(old_logs_id).update(
+                r.branch(
+                    r.row["stopped_time"].eq(False),
+                    {"stopped_time": r.now()},
+                    {},
+                ),
+                durability="soft",
+            ).run(self.conn)
         logs = {
             "id": gen_id(payload["data"]["user_id"], payload["exp"]),
             "owner_user_id": payload["data"]["user_id"],
@@ -99,6 +149,10 @@ class LogsUsers:
             "owner_group_name": user["group_name"],
             "started_time": r.now(),
             "stopped_time": False,
+            "expiry_time": r.epoch_time(payload["exp"]),
+            "request_ip": self.request_ip,
+            "request_agent_browser": self.request_browser,
+            "request_agent_platform": self.request_platform,
         }
         r.table("logs_users").insert(logs).run(self.conn)
         r.table("users").get(payload["data"]["user_id"]).update(
@@ -111,7 +165,10 @@ class LogsUsers:
             not r.table("logs_users")
             .get(gen_id(payload["data"]["user_id"], payload["exp"]))
             .update(
-                {"stopped_time": r.now()},
+                {
+                    "stopped_time": r.now(),
+                    "expiry_time": r.epoch_time(payload["exp"]),
+                },
                 durability="soft",
             )
             .run(self.conn)

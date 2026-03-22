@@ -19,11 +19,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging as log
+import re
 import traceback
 from time import time
 from uuid import uuid4
 
 import gevent
+from cachetools import TTLCache
 from rethinkdb import RethinkDB
 
 from api import app
@@ -70,13 +72,54 @@ def action_owner_deploy(action_owner, item_owner, tag=None, direct_viewer=False)
     return "system-admins", action_owner
 
 
+_BROWSER_PATTERNS = [
+    (r"Firefox/([\d.]+)", "firefox"),
+    (r"Edg(?:e)?/([\d.]+)", "edge"),
+    (r"OPR/([\d.]+)", "opera"),
+    (r"Chrome/([\d.]+)", "chrome"),
+    (r"Safari/([\d.]+)", "safari"),
+    (r"MSIE ([\d.]+)", "msie"),
+    (r"Trident/.*rv:([\d.]+)", "msie"),
+]
+
+_PLATFORM_PATTERNS = [
+    (r"iPhone", "iphone"),
+    (r"iPad", "ipad"),
+    (r"Android", "android"),
+    (r"Windows", "windows"),
+    (r"Macintosh|Mac OS", "macos"),
+    (r"Linux", "linux"),
+]
+
+
+def _parse_user_agent(ua_string):
+    if not ua_string:
+        return None, None, None
+    browser = version = None
+    for pattern, name in _BROWSER_PATTERNS:
+        m = re.search(pattern, ua_string)
+        if m:
+            browser = name
+            version = m.group(1)
+            break
+    platform = None
+    for pattern, name in _PLATFORM_PATTERNS:
+        if re.search(pattern, ua_string):
+            platform = name
+            break
+    return browser, platform, version
+
+
 def parse_user_request(user_request=None):
     if user_request:
+        browser, platform, version = _parse_user_agent(user_request.user_agent.string)
         return {
-            "request_ip": user_request.headers.environ["HTTP_X_FORWARDED_FOR"],
-            "request_agent_browser": user_request.user_agent.browser,
-            "request_agent_platform": user_request.user_agent.platform,
-            "request_agent_version": user_request.user_agent.version,
+            "request_ip": user_request.headers.get(
+                "X-Forwarded-For", user_request.remote_addr
+            ).split(",")[0],
+            "request_agent_browser": browser,
+            "request_agent_platform": platform,
+            "request_agent_version": version,
         }
     return {
         "request_ip": None,
@@ -241,11 +284,16 @@ def _logs_domain_start_engine(start_logs_id, dom_id, hyp_started=None):
 
 
 # STOP DESKTOP
-def logs_domain_stop_api(dom_id, action_user=None):
-    gevent.spawn(_logs_domain_stop_api, dom_id, action_user=action_user)
+def logs_domain_stop_api(dom_id, action_user=None, user_request=None):
+    gevent.spawn(
+        _logs_domain_stop_api,
+        dom_id,
+        action_user=action_user,
+        user_request=parse_user_request(user_request),
+    )
 
 
-def _logs_domain_stop_api(desktop_id, action_user):
+def _logs_domain_stop_api(desktop_id, action_user, user_request=None):
     domain = get_document("domains", desktop_id, ["start_logs_id", "tag", "user"])
     if domain is None:
         log.warning("Unable to get desktop start_logs_id")
@@ -269,6 +317,19 @@ def _logs_domain_stop_api(desktop_id, action_user):
                     "stopping_time": r.epoch_time(time()),
                     "stopping_by": action_by,
                     "stopping_user": action_user,
+                    **(
+                        {
+                            "stopping_ip": user_request.get("request_ip"),
+                            "stopping_agent_browser": user_request.get(
+                                "request_agent_browser"
+                            ),
+                            "stopping_agent_platform": user_request.get(
+                                "request_agent_platform"
+                            ),
+                        }
+                        if user_request
+                        else {}
+                    ),
                 },
                 durability="soft",
             ).run(db.conn)
@@ -335,12 +396,13 @@ def _logs_domain_stop_engine(start_logs_id, new_status=""):
 
 
 def logs_domain_event_viewer(domain_id, action_user, viewer_type, user_request=None):
+    parsed_request = parse_user_request(user_request)
     gevent.spawn(
         _logs_domain_event_viewer,
         domain_id,
         action_user,
         viewer_type,
-        user_request=user_request,
+        user_request=parsed_request,
     )
 
 
@@ -355,25 +417,36 @@ def _logs_domain_event_viewer(domain_id, action_user, viewer_type, user_request=
         "viewer",
         action_user,
         viewer_type=viewer_type,
-        user_request=parse_user_request(user_request),
+        user_request=user_request,
     )
 
 
 def logs_domain_event_directviewer(
     domain_id, action_user, viewer_type=None, user_request=None
 ):
+    parsed_request = parse_user_request(user_request)
     gevent.spawn(
         _logs_domain_event_directviewer,
         domain_id,
         action_user,
         viewer_type,
-        user_request=user_request,
+        user_request=parsed_request,
     )
+
+
+_directviewer_event_cache = TTLCache(maxsize=1000, ttl=60)
 
 
 def _logs_domain_event_directviewer(
     domain_id, action_user, viewer_type=None, user_request=None
 ):
+    cache_key = (
+        f"{domain_id}:{user_request.get('request_ip', '') if user_request else ''}"
+    )
+    if cache_key in _directviewer_event_cache:
+        return
+    _directviewer_event_cache[cache_key] = True
+
     start_logs_id = get_document("domains", domain_id, ["start_logs_id"])
     if start_logs_id is None:
         log.warning(
@@ -386,7 +459,7 @@ def _logs_domain_event_directviewer(
         "directviewer",
         action_user,
         viewer_type=viewer_type,
-        user_request=parse_user_request(user_request),
+        user_request=user_request,
     )
 
 
@@ -401,7 +474,8 @@ def _logs_domain_event(
         with app.app_context():
             r.table("logs_desktops").get(start_logs_id).update(
                 {
-                    "events": r.row["events"].append(
+                    "events": r.row["events"]
+                    .append(
                         {
                             **user_request,
                             **{
@@ -412,6 +486,7 @@ def _logs_domain_event(
                             },
                         }
                     )
+                    .slice(-500)
                 },
                 durability="soft",
             ).run(db.conn)

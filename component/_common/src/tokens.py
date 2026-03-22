@@ -91,9 +91,20 @@ def get_token_payload(token):
     payload = get_jwt_payload(token)
     if payload.get("data", False):
         try:
-            gevent.spawn(LogsUsers, payload)
-        except Exception as e:
-            log.warning("Unable to update user logs")
+            request_ip = request.headers.get(
+                "X-Forwarded-For", request.remote_addr
+            ).split(",")[0]
+        except Exception:
+            request_ip = None
+        try:
+            request_user_agent = request.headers.get("User-Agent")
+        except Exception:
+            request_user_agent = None
+        if payload.get("session_id") != "isardvdi-service":
+            try:
+                gevent.spawn(LogsUsers, payload, request_ip, request_user_agent)
+            except Exception as e:
+                log.warning("Unable to update user logs")
         return payload["data"]
     return payload
 

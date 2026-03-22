@@ -178,7 +178,7 @@ class DatatablesQuery(ABC):
         order_field = self.form_data["columns"][
             int(self.form_data["order"][0]["column"])
         ]["data"]
-        if not skip_indexs:
+        if not skip_indexs and not self.skip_indexs:
             if (
                 len(self.form_data["order"]) == 1
                 and order_field in TABLE_INDEXS[self._table]
@@ -187,7 +187,10 @@ class DatatablesQuery(ABC):
                     custom_query = custom_query.order_by(index=r.desc(order_field))
                 else:
                     custom_query = custom_query.order_by(index=r.asc(order_field))
-                if order_field != self.form_data["range"]["field"]:
+                if (
+                    self.form_data.get("range")
+                    and order_field != self.form_data["range"]["field"]
+                ):
                     self.skip_indexs = True
                 return custom_query
         for key, order in self.form_data["order"].items():
@@ -199,6 +202,7 @@ class DatatablesQuery(ABC):
                 custom_query = custom_query.order_by(
                     r.asc(self.form_data["columns"][int(order["column"])]["data"])
                 )
+        self.skip_indexs = True
 
         return custom_query
 
@@ -206,10 +210,13 @@ class DatatablesQuery(ABC):
         if not custom_query:
             custom_query = self.q
         for _, column in self.form_data["columns"].items():
-            if column["data"] != "" and column["search"]["value"] != "":
+            search_value = column.get("search", {}).get("value", "")
+            if column.get("data", "") != "" and search_value != "":
                 if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_.]*$", column["data"]):
                     continue
-                escaped_value = re.escape(column["search"]["value"])
+                if len(search_value) > 100:
+                    search_value = search_value[:100]
+                escaped_value = re.escape(search_value)
                 custom_query = custom_query.filter(
                     lambda doc, col=column["data"], val=escaped_value: doc[col].match(
                         val
@@ -390,8 +397,21 @@ class DatatablesQuery(ABC):
 class LogsDesktopsQuery(DatatablesQuery):
     _table = "logs_desktops"
 
-    def __init__(self, form_data):
+    def __init__(self, form_data, filter_field=None, filter_value=None):
+        self.filter_field = filter_field
+        self.filter_value = filter_value
         super().__init__(form_data)
+
+    def default_query(self):
+        if not self.q:
+            self.q = r.table(self._table)
+            if self.filter_field and self.filter_value:
+                self.q = self.q.get_all(self.filter_value, index=self.filter_field)
+                self.skip_indexs = True
+            self.q = self.add_order()
+            self.q = self.add_range_filters()
+            self.q = self.add_search_filters()
+            self.q = self.add_pluck()
 
     @property
     @cached(
@@ -413,8 +433,21 @@ class LogsDesktopsQuery(DatatablesQuery):
 class LogsUsersQuery(DatatablesQuery):
     _table = "logs_users"
 
-    def __init__(self, form_data):
+    def __init__(self, form_data, filter_field=None, filter_value=None):
+        self.filter_field = filter_field
+        self.filter_value = filter_value
         super().__init__(form_data)
+
+    def default_query(self):
+        if not self.q:
+            self.q = r.table(self._table)
+            if self.filter_field and self.filter_value:
+                self.q = self.q.get_all(self.filter_value, index=self.filter_field)
+                self.skip_indexs = True
+            self.q = self.add_order()
+            self.q = self.add_range_filters()
+            self.q = self.add_search_filters()
+            self.q = self.add_pluck()
 
     @property
     @cached(
