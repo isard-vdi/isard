@@ -146,6 +146,37 @@ class Scheduler:
                 kwargs=None,
             )
 
+        ## DEFAULT LOG RETENTION JOBS
+        ## If admin has configured log retention, ensure the scheduler jobs exist
+        for log_table, hour, minute, job_name in [
+            ("logs_desktops", "22", "30", "logs_desktops_old_entries_action_delete"),
+            ("logs_users", "00", "30", "logs_users_old_entries_action_delete"),
+        ]:
+            try:
+                with app.app_context():
+                    config = r.table("config")[0][log_table]["old_entries"].run(db.conn)
+                    job_exists = (
+                        r.table("scheduler_jobs").get(f"system.{job_name}").run(db.conn)
+                    )
+                if (
+                    config
+                    and config.get("action") == "delete"
+                    and config.get("max_time")
+                    and not job_exists
+                ):
+                    log.info(f"Restoring {job_name} scheduler job from config")
+                    self.add_job(
+                        "system",
+                        "cron",
+                        job_name,
+                        hour,
+                        minute,
+                        job_name,
+                        kwargs={},
+                    )
+            except Exception:
+                pass
+
     def clean_bad_jobs(self):
         with app.app_context():
             result = (
