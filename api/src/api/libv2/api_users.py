@@ -2022,7 +2022,7 @@ class ApiUsers:
                         "custom_url_name": True,
                         "branding": {
                             "domain": {"enabled", "name"},
-                            "logo": {"enabled", "data"},
+                            "logo": {"enabled"},
                         },
                     }
                 )

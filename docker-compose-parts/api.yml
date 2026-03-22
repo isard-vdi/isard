@@ -24,6 +24,7 @@ services:
       - /opt/isard/certs/viewers:/viewers:ro
       - /opt/isard/assets/img/desktops:/api/api/static/assets/img/desktops:rw
       - /opt/isard/config:/usr/local/etc/isardvdi
+      - /opt/isard/frontend/custom/categories:/opt/isard/frontend/custom/categories:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:

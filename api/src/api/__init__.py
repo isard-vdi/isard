@@ -60,7 +60,7 @@ for filename in os.listdir(stock_folder):
         )
 
 # Max upload size
-app.config["MAX_CONTENT_LENGTH"] = 1 * 1000 * 1000  # 1 MB
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1000 * 1000  # 10 MB
 
 # '''
 # App secret key for encrypting cookies

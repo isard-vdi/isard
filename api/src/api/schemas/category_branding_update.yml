@@ -48,5 +48,4 @@ logo:
             - data
     data:
       type: string
-      regex: "^(<\\?xml[^?]*\\?>\\s*)?(<![Dd][Oo][Cc][Tt][Yy][Pp][Ee]\\s[\\s\\S]*?>[\\s\\n\\r]*)?<svg[\\s\\S]*<\\/svg[\\s\\S]*>$"
-      maxlength: 1048576
+      regex: "^data:(image/svg\\+xml|image/png|image/webp);base64,.+$"

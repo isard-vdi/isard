@@ -17,9 +17,15 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import base64
+import os
+
 from rethinkdb import r
 
 from .rethink_custom_base_factory import RethinkCustomBase
+
+LOGO_BASE_PATH = "/opt/isard/frontend/custom/categories"
+ALLOWED_LOGO_MIME_TYPES = {"image/svg+xml", "image/png", "image/webp"}
 
 
 class Category(RethinkCustomBase):
@@ -33,18 +39,51 @@ class Category(RethinkCustomBase):
 
     _rdb_table = "categories"
 
+    def __getattr__(self, name):
+        """
+        Get an attribute from the Category object.
+
+        When getting the 'branding' attribute, injects logo.data as a base64
+        data URL read from the filesystem if the logo is enabled and a file
+        exists on disk.
+
+        :param name: The attribute name to get.
+        :type name: str
+        :return: The attribute value.
+        :rtype: any
+        """
+        value = super().__getattr__(name)
+        if name == "branding" and value:
+            logo = value.get("logo", {})
+            logo.pop("data", None)
+            logo_path = os.path.join(LOGO_BASE_PATH, self.id, "logo")
+            if logo.get("enabled") and os.path.isfile(logo_path):
+                with open(logo_path, "rb") as f:
+                    file_bytes = f.read()
+                mimetype = _detect_mimetype(file_bytes)
+                logo["data"] = (
+                    f"data:{mimetype};base64,"
+                    f"{base64.b64encode(file_bytes).decode()}"
+                )
+            value["logo"] = logo
+        return value
+
     def __setattr__(self, name, value):
         """
         Set an attribute on the Category object.
 
-        When setting the 'branding' attribute, validates that the domain
-        is not already in use by another category.
+        When setting the 'branding' attribute:
+        - Validates that the domain is not already in use by another category.
+        - If logo.data contains a base64 data URL, decodes it and saves the
+          file to disk, then strips logo.data before storing in DB.
+        - If logo is disabled, deletes any existing logo file.
 
         :param name: The attribute name to set.
         :type name: str
         :param value: The value to set.
         :type value: any
-        :raises ValueError: If the branding domain is already in use by another category.
+        :raises ValueError: If the branding domain is already in use by another
+            category or if the logo data is invalid.
         """
         if name == "branding" and value:
             enabled = value.get("domain", {}).get("enabled")
@@ -64,4 +103,88 @@ class Category(RethinkCustomBase):
                     )
                 if existing:
                     raise ValueError(f"Branding domain {domain_name} is already in use")
+
+            logo = value.get("logo", {})
+            logo_data = logo.get("data")
+
+            if logo.get("enabled"):
+                if logo_data:
+                    file_bytes = _decode_data_url(logo_data)
+                    self._save_logo(file_bytes)
+            elif not logo.get("enabled", True):
+                self._delete_logo()
+
+            # Remove file data before storing in DB
+            logo.pop("data", None)
+
         super().__setattr__(name, value)
+
+    def _save_logo(self, file_data):
+        """
+        Save a logo file for this category.
+
+        :param file_data: The binary content of the logo file
+        :type file_data: bytes
+        """
+        logo_path = os.path.join(LOGO_BASE_PATH, self.id, "logo")
+        os.makedirs(os.path.join(LOGO_BASE_PATH, self.id), exist_ok=True)
+        with open(logo_path, "wb") as f:
+            f.write(file_data)
+
+    def _delete_logo(self):
+        """
+        Delete the existing logo file for this category.
+        """
+        logo_path = os.path.join(LOGO_BASE_PATH, self.id, "logo")
+        if os.path.isfile(logo_path):
+            os.remove(logo_path)
+
+
+def _decode_data_url(data_url):
+    """
+    Decode a base64 data URL into bytes, validating the MIME type.
+
+    :param data_url: Data URL string (e.g. "data:image/png;base64,iVBOR...")
+    :type data_url: str
+    :return: Decoded file bytes
+    :rtype: bytes
+    :raises ValueError: If the data URL format or MIME type is invalid
+    """
+    if not data_url.startswith("data:"):
+        raise ValueError("Logo data must be a base64 data URL")
+
+    try:
+        header, b64_data = data_url.split(",", 1)
+    except ValueError:
+        raise ValueError("Invalid data URL format")
+
+    # header is like "data:image/png;base64"
+    mime_type = header.split(":")[1].split(";")[0]
+    if mime_type not in ALLOWED_LOGO_MIME_TYPES:
+        allowed = ", ".join(sorted(ALLOWED_LOGO_MIME_TYPES))
+        raise ValueError(
+            f"Logo MIME type '{mime_type}' not allowed. Allowed: {allowed}"
+        )
+
+    try:
+        file_bytes = base64.b64decode(b64_data)
+    except Exception:
+        raise ValueError("Invalid base64 data in logo")
+
+    return file_bytes
+
+
+def _detect_mimetype(file_bytes):
+    """
+    Detect the MIME type of an image from its content.
+
+    :param file_bytes: The file content (or at least the first 16 bytes)
+    :type file_bytes: bytes
+    :return: MIME type string
+    :rtype: str
+    """
+    if file_bytes[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if file_bytes[:4] == b"RIFF" and file_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/svg+xml"
