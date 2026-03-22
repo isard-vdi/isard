@@ -1285,6 +1285,12 @@ function setDesktopTemplateTree(desktop_id) {
 
 function actionsDomainDetail(){
 
+    $('.btn-desktop-logs').on('click', function () {
+        var pk=$(this).closest("[data-pk]").attr("data-pk");
+        var name=$(this).closest("[data-name]").attr("data-name");
+        showDesktopLogs(pk, name);
+    });
+
     $('.btn-edit').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");
         $("#modalEdit")[0].reset();
@@ -1973,6 +1979,7 @@ function setDomainDetailButtonsStatus(id,data,old_data){
             $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
             $('#actions-'+id+' .btn-owner').prop('disabled', false);
             $('#actions-'+id+' .btn-server').prop('disabled', false);
+            $('#actions-'+id+' .btn-desktop-logs').prop('disabled', false);
         }else{
             $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
         }
