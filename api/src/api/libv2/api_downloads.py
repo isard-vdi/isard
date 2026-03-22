@@ -343,6 +343,9 @@ def formatDomains(data, user_id):
         d["create_dict"]["hardware"]["interfaces"] = [
             {"id": interface, "mac": gen_new_mac()} for interface in interfaces
         ]
+        disks = d["create_dict"]["hardware"].get("disks", [])
+        if disks and disks[0].get("bus"):
+            d["create_dict"]["hardware"]["disk_bus"] = disks[0]["bus"]
         d["create_dict"]["hardware"]["qos_disk_id"] = False
         d["create_dict"]["reservables"] = {"vgpus": None}
         d["tag"] = False
