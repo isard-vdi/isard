@@ -440,9 +440,7 @@ _directviewer_event_cache = TTLCache(maxsize=1000, ttl=60)
 def _logs_domain_event_directviewer(
     domain_id, action_user, viewer_type=None, user_request=None
 ):
-    cache_key = (
-        f"{domain_id}:{user_request.get('request_ip', '') if user_request else ''}"
-    )
+    cache_key = f"{domain_id}:{viewer_type}:{user_request.get('request_ip', '') if user_request else ''}"
     if cache_key in _directviewer_event_cache:
         return
     _directviewer_event_cache[cache_key] = True
