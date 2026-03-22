@@ -693,7 +693,9 @@ class ApiDesktopsPersistent:
 
     def Reset(self, token, request):
         desktop_id = common.DesktopFromToken(token)["id"]
-        logs_domain_event_directviewer(desktop_id, "reset", request)
+        logs_domain_event_directviewer(
+            desktop_id, action_user=None, viewer_type="reset", user_request=request
+        )
         desktop_reset(desktop_id)
         return token
 

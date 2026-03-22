@@ -491,6 +491,12 @@ export default {
       })
     },
     openDirectViewerDesktop (_, payload) {
+      const token = router.currentRoute.params.pathMatch
+      if (token) {
+        axios.post(`/api/v3/direct/${token}/viewer/${payload.kind}-${payload.protocol}`)
+          .catch(() => {})
+      }
+
       const el = document.createElement('a')
 
       if (payload.kind === 'file') {

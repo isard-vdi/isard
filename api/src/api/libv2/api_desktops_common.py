@@ -110,7 +110,10 @@ class ApiDesktopsCommon:
                 scheduled = scheduler.add_desktop_timeouts(payload, domain["id"])
             else:
                 logs_domain_event_directviewer(
-                    domain["id"], "directviewer-access", user_request=request
+                    domain["id"],
+                    action_user=None,
+                    viewer_type="directviewer-access",
+                    user_request=request,
                 )
         viewers = {
             "desktopId": domain["id"],
@@ -158,7 +161,6 @@ class ApiDesktopsCommon:
         return viewers
 
     def DesktopFromToken(self, token):
-        domains = []
         with app.app_context():
             domains = list(
                 r.table("domains").get_all(token, index="jumperurl").run(db.conn)
@@ -171,18 +173,17 @@ class ApiDesktopsCommon:
         if len(domains) == 0:
             raise Error(
                 "not_found",
-                "Desktop not found or not visible",
-                traceback.format_exc(),
+                "Not found",
                 description_code="not_found",
             )
-        if len(domains) == 1:
-            return domains[0]
-        raise Error(
-            "internal_server",
-            "Jumperviewer token duplicated",
-            traceback.format_exc(),
-            description_code="generic_error",
-        )
+        if len(domains) > 1:
+            log.error("Jumperviewer token duplicated: " + token)
+            raise Error(
+                "not_found",
+                "Not found",
+                description_code="not_found",
+            )
+        return domains[0]
 
     def DesktopDirectViewer(self, desktop_id, viewer_txt, protocol):
         viewer_uri = viewer_txt["viewer"][0].split("/viewer/")[0] + "/vw/"
