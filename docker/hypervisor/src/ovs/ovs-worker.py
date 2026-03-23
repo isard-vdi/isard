@@ -125,6 +125,7 @@ class OvsWorker:
     def start(self):
         """Initialize and start the worker"""
         self._connect_ovsdb()
+        self._cleanup_stale_ports()
         self._start_processor_thread()
         self._run_socket_server()
 
@@ -154,6 +155,38 @@ class OvsWorker:
         self.idl.run()
         if self.idl.change_seqno != self.seqno:
             self.seqno = self.idl.change_seqno
+
+    def _cleanup_stale_ports(self):
+        """Remove OVS ports whose underlying device is gone or in error state.
+
+        Stale ports appear when a VM crashes without going through the normal
+        stopped-event path.  Must be called before the processor thread starts
+        (startup) and periodically from _collect_security_stats.
+        Collects names first, then deletes — _del_port_from_ovs mutates IDL state.
+        """
+        self._run_idl()
+        stale = []
+        for interface in self.idl.tables["Interface"].rows.values():
+            if interface.name in (BRIDGE, ""):
+                continue
+            error = interface.error
+            ofport = interface.ofport
+            port_num = (
+                ofport[0] if isinstance(ofport, (list, tuple)) and ofport else ofport
+            )
+            if error or (isinstance(port_num, int) and port_num < 0):
+                stale.append(interface.name)
+                log(
+                    {
+                        "event": "stale_port_found",
+                        "port": interface.name,
+                        "error": str(error),
+                        "ofport": str(ofport),
+                    }
+                )
+        for port_name in stale:
+            self._del_port_from_ovs(port_name)
+            log({"event": "stale_port_removed", "port": port_name})
 
     def _start_processor_thread(self):
         """Start thread that processes OVS operations sequentially"""
@@ -398,6 +431,16 @@ class OvsWorker:
 
             for interface in self.idl.tables["Interface"].rows.values():
                 if interface.name == port_name:
+                    error = interface.error
+                    if error:
+                        log(
+                            {
+                                "event": "port_error",
+                                "port": port_name,
+                                "error": str(error),
+                            }
+                        )
+                        return None
                     ofport = interface.ofport
                     if ofport and len(ofport) > 0:
                         port_num = ofport[0] if isinstance(ofport, list) else ofport
@@ -918,6 +961,8 @@ class OvsWorker:
 
         Only logs if there's blocked or rate-limited traffic detected.
         """
+        self._cleanup_stale_ports()
+
         port_map = self._build_port_map()
         if not port_map:
             return  # No VMs running
