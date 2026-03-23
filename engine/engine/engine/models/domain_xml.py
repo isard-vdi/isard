@@ -1213,6 +1213,13 @@ class DomainXML(object):
         xpath = "/domain/devices/interface"
         self.remove_device(xpath, order_num=order)
 
+    def remove_gpu_hostdev(self):
+        """Remove all engine-managed GPU hostdev entries (mdev + PCI passthrough)."""
+        self.remove_device("/domain/devices/hostdev[@type='mdev']", order_num=-1)
+        self.remove_device(
+            "/domain/devices/hostdev[@type='pci'][@managed='yes']", order_num=-1
+        )
+
     def remove_device(self, xpath, order_num=-1):
         if self.tree.xpath("/domain/devices"):
             if self.tree.xpath(xpath):
@@ -1853,6 +1860,9 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 
     # recreate xml interfaces from create_dict
     recreate_xml_interfaces(dict_domain, x)
+
+    # Strip GPU hostdev entries — balancer re-adds the correct one at start time
+    x.remove_gpu_hostdev()
 
     # Add mac2network metadata for ovs-worker
     # (start_paused domains use different function, won't have this metadata)

@@ -852,9 +852,9 @@ def get_hypers_gpu_online(
                 if gpu_profile_active == gpu_profile:
                     for mdev_uuid, d in mdevs[gpu_profile].items():
                         if (
-                            d["domain_reserved"] is False
-                            and d["domain_started"] is False
-                            and d["created"] is True
+                            d.get("domain_reserved", False) is False
+                            and d.get("domain_started", False) is False
+                            and d.get("created", False) is True
                         ):
                             hyper_with_free_uuid = True
                             break
