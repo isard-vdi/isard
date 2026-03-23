@@ -149,7 +149,9 @@ RUN echo -e 'listen_tls = 0\n \
 RUN echo -e 'spice_listen = "0.0.0.0"\n \
     spice_listen = "0.0.0.0"\n \
     spice_tls = 1\n \
-    spice_tls_x509_cert_dir = "/etc/pki/libvirt-spice"' >> /etc/libvirt/qemu.conf
+    spice_tls_x509_cert_dir = "/etc/pki/libvirt-spice"\n \
+    remember_owner = 0\n \
+    dynamic_ownership = 0' >> /etc/libvirt/qemu.conf
 
 # Create the required directories
 RUN mkdir -p /etc/pki/libvirt-spice
