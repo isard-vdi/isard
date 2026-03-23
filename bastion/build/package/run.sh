@@ -13,7 +13,7 @@ else
     API_ACCESS=$(getent hosts isard-api | awk '{print $1}' | head -1)
     if [ -z "$API_ACCESS" ]; then
         # Fallback to container IP if resolution fails
-        API_ACCESS="172.31.255.10"
+        API_ACCESS="${DOCKER_NET:-172.31.255}.10"
         echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Could not resolve isard-api, using fallback IP: ${API_ACCESS}"
     else
         echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Resolved isard-api service to IP: ${API_ACCESS}"
@@ -38,9 +38,15 @@ ovs-vswitchd --detach --verbose --pidfile >/tmp/ovs-vswitchd.out 2>&1
 ovs-vsctl add-br ovsbr0
 ip link set ovsbr0 up
 
-ovs-vsctl add-port ovsbr0 bastion -- set interface bastion type=geneve options:remote_ip=172.31.255.23
+# Compute bastion IP from WG_GUESTS_NETS
+_GUESTS_BASE=$(echo "${WG_GUESTS_NETS:-10.2.0.0/16}" | cut -d/ -f1)
+_GUESTS_PREFIX=${_GUESTS_BASE%.*}
+_GUESTS_MASK=$(echo "${WG_GUESTS_NETS:-10.2.0.0/16}" | cut -d/ -f2)
+BASTION_GUEST_IP="${_GUESTS_PREFIX}.2"
+
+ovs-vsctl add-port ovsbr0 bastion -- set interface bastion type=geneve options:remote_ip=${DOCKER_NET:-172.31.255}.23
 ovs-vsctl add-port ovsbr0 vlan-wg tag=4095 -- set interface vlan-wg type=internal >> /var/log/ovs 2>&1
-ip a a 10.2.0.2/16 dev vlan-wg >> /var/log/ovs 2>&1
+ip a a ${BASTION_GUEST_IP}/${_GUESTS_MASK} dev vlan-wg >> /var/log/ovs 2>&1
 ip link set vlan-wg up >> /var/log/ovs 2>&1
 
 ovs-vsctl show

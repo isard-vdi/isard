@@ -13,7 +13,7 @@ else
     API_ACCESS=$(getent hosts isard-api | awk '{print $1}' | head -1)
     if [ -z "$API_ACCESS" ]; then
         # Fallback to container IP if resolution fails
-        API_ACCESS="172.31.255.10"
+        API_ACCESS="${DOCKER_NET:-172.31.255}.10"
         echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Could not resolve isard-api, using fallback IP: ${API_ACCESS}"
     else
         echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Resolved isard-api service to IP: ${API_ACCESS}"
@@ -21,6 +21,26 @@ else
 fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Final allowed remote access: ${API_ACCESS}"
+
+# Compute guest infrastructure IPs from WG_GUESTS_NETS
+eval $(python3 -c "
+import ipaddress, os
+gn = ipaddress.ip_network(os.environ.get('WG_GUESTS_NETS', '10.2.0.0/16'), strict=False)
+print(f'GUESTS_GW={gn[1]}')
+print(f'GUESTS_BASTION={gn[2]}')
+print(f'GUESTS_SAMBA={gn[3]}')
+print(f'GUESTS_GUAC={gn[4]}')
+print(f'GUESTS_INFRA_CIDR={ipaddress.ip_network(str(gn.network_address) + \"/28\", strict=False)}')
+" 2>/dev/null) || {
+  # Fallback: shell-based extraction for containers without python3
+  _NET_BASE=$(echo "${WG_GUESTS_NETS:-10.2.0.0/16}" | cut -d/ -f1)
+  _PREFIX=${_NET_BASE%.*}
+  GUESTS_GW="${_PREFIX}.1"
+  GUESTS_BASTION="${_PREFIX}.2"
+  GUESTS_SAMBA="${_PREFIX}.3"
+  GUESTS_GUAC="${_PREFIX}.4"
+  GUESTS_INFRA_CIDR="${_NET_BASE}/28"
+}
 
 # Build ovsdb-server command with security considerations
 OVSDB_CMD="ovsdb-server --detach --remote=punix:/var/run/openvswitch/db.sock --pidfile=ovsdb-server.pid"
@@ -73,10 +93,10 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Geneve port to VPN: ${GENEVE_PORT}
 
 # Allow ARP broadcasts from infrastructure services (priority > 210 multicast block)
 # Restricted to geneve ingress to prevent VMs from spoofing infrastructure ARP
-ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.1,actions=strip_vlan,output:all"  # gw
-ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.2,actions=strip_vlan,output:all"  # bastion
-ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.3,actions=strip_vlan,output:all"  # samba
-ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.4,actions=strip_vlan,output:all"  # guacamole
+ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=${GUESTS_GW},actions=strip_vlan,output:all"  # gw
+ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=${GUESTS_BASTION},actions=strip_vlan,output:all"  # bastion
+ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=${GUESTS_SAMBA},actions=strip_vlan,output:all"  # samba
+ovs-ofctl add-flow ovsbr0 "priority=212,arp,in_port=${GENEVE_PORT},dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=${GUESTS_GUAC},actions=strip_vlan,output:all"  # guacamole
 
 # Allow VLAN 4095 traffic FROM VPN (infrastructure + return traffic)
 # This must be higher priority than spoofing blocks below
@@ -86,9 +106,9 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Allowed VLAN 4095 traffic from VPN
 
 # IP Spoofing Protection - Block VLAN 4095 guest traffic claiming protected IPs
 # Only affects traffic from VM ports (vnetX), not from geneve (allowed above)
-ovs-ofctl add-flow ovsbr0 "priority=210,arp,dl_vlan=4095,arp_spa=10.2.0.0/28,actions=drop"   # Block claiming infra /28
-ovs-ofctl add-flow ovsbr0 "priority=210,arp,dl_vlan=4095,arp_spa=10.0.0.0/16,actions=drop"   # Block claiming WG users
-ovs-ofctl add-flow ovsbr0 "priority=210,arp,dl_vlan=4095,arp_spa=10.1.0.0/24,actions=drop"   # Block claiming WG hypers
+ovs-ofctl add-flow ovsbr0 "priority=210,arp,dl_vlan=4095,arp_spa=${GUESTS_INFRA_CIDR},actions=drop"   # Block claiming infra
+ovs-ofctl add-flow ovsbr0 "priority=210,arp,dl_vlan=4095,arp_spa=${WG_USERS_NET},actions=drop"   # Block claiming WG users
+ovs-ofctl add-flow ovsbr0 "priority=210,arp,dl_vlan=4095,arp_spa=${WG_HYPERS_NET},actions=drop"   # Block claiming WG hypers
 
 # Multicast Source MAC Blocking - Block VLAN 4095 traffic with multicast source
 # Multicast bit = LSB of first octet set (01:xx:xx:xx:xx:xx)
@@ -96,9 +116,9 @@ ovs-ofctl add-flow ovsbr0 "priority=210,dl_vlan=4095,dl_src=01:00:00:00:00:00/01
 
 # IP Packet Spoofing Protection - Block VLAN 4095 traffic with spoofed source IPs
 # (Complements ARP spoofing protection above)
-ovs-ofctl add-flow ovsbr0 "priority=210,ip,dl_vlan=4095,nw_src=10.2.0.0/28,actions=drop"   # Block claiming infra /28
-ovs-ofctl add-flow ovsbr0 "priority=210,ip,dl_vlan=4095,nw_src=10.0.0.0/16,actions=drop"   # Block claiming WG users
-ovs-ofctl add-flow ovsbr0 "priority=210,ip,dl_vlan=4095,nw_src=10.1.0.0/24,actions=drop"   # Block claiming WG hypers
+ovs-ofctl add-flow ovsbr0 "priority=210,ip,dl_vlan=4095,nw_src=${GUESTS_INFRA_CIDR},actions=drop"   # Block claiming infra
+ovs-ofctl add-flow ovsbr0 "priority=210,ip,dl_vlan=4095,nw_src=${WG_USERS_NET},actions=drop"   # Block claiming WG users
+ovs-ofctl add-flow ovsbr0 "priority=210,ip,dl_vlan=4095,nw_src=${WG_HYPERS_NET},actions=drop"   # Block claiming WG hypers
 
 # Block VLAN 4095 guests from reaching Docker network and hypervisor
 # More secure than iptables - blocks at L2 before reaching kernel network stack
@@ -111,7 +131,7 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Blocked VLAN 4095 access to Docker
 # SECURITY: Rogue DHCP Server Protection (VLAN 4095 only)
 # ============================================================================
 # Only allow DHCP server responses from legitimate gateway (10.2.0.1)
-ovs-ofctl add-flow ovsbr0 "priority=220,udp,in_port=${GENEVE_PORT},dl_vlan=4095,tp_src=67,nw_src=10.2.0.1,actions=NORMAL"
+ovs-ofctl add-flow ovsbr0 "priority=220,udp,in_port=${GENEVE_PORT},dl_vlan=4095,tp_src=67,nw_src=${GUESTS_GW},actions=NORMAL"
 # Drop all other DHCP server traffic from VLAN 4095
 ovs-ofctl add-flow ovsbr0 "priority=219,udp,dl_vlan=4095,tp_src=67,actions=drop"
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Rogue DHCP protection enabled for VLAN 4095"
@@ -143,10 +163,10 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Multicast destination blocking ena
 #ovs-vsctl add-port ovsbr0 eth0
 # ovs-vsctl add-port ovsbr0 eth0 tag=1 vlan_mode=native-tagged
 
-# ip a a 172.31.255.17/24 dev ovsbr0
-# ip r a default via 172.31.255.1 dev ovsbr0
+# ip a a ${DOCKER_NET:-172.31.255}.17/24 dev ovsbr0
+# ip r a default via ${DOCKER_NET:-172.31.255}.1 dev ovsbr0
 
 # ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13
-# ovs-vsctl set-controller ovsbr0 tcp:172.31.255.99:6653
+# ovs-vsctl set-controller ovsbr0 tcp:${DOCKER_NET:-172.31.255}.99:6653
 
 # ovs-vsctl add-port ovsbr0 vxlan0 -- set interface vxlan0 type=vxlan options:remote_ip=<REMOTE_IP>

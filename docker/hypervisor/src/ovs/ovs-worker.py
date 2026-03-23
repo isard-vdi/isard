@@ -13,6 +13,7 @@ Key features:
 - Sequential OVS operations to avoid overloading OVSDB
 - Comprehensive logging with timing metrics
 """
+import ipaddress
 import json
 import os
 import re
@@ -91,6 +92,14 @@ class OvsWorker:
         # Security stats collection
         self.last_stats_time = 0
         self.stats_interval = 60  # seconds
+
+        # Compute guest infrastructure CIDR from WG_GUESTS_NETS
+        guests_net = ipaddress.ip_network(
+            os.environ.get("WG_GUESTS_NETS", "10.2.0.0/16"), strict=False
+        )
+        self.guests_infra_cidr = str(
+            ipaddress.ip_network(f"{guests_net.network_address}/28", strict=False)
+        )
 
         # Discover geneve port number (set up by setup.sh before we start)
         domain = os.environ.get("DOMAIN", "")
@@ -1306,17 +1315,17 @@ class OvsWorker:
                 self._ofctl_mod_port(nport, "no-flood")
 
                 # ==== IP SPOOFING PROTECTION ====
-                # Block guest from claiming to be infrastructure (10.2.0.0/28)
+                # Block guest from claiming to be infrastructure
                 flows.append(
-                    f"priority=207,arp,in_port={nport},arp_spa=10.2.0.0/28,actions=drop"
+                    f"priority=207,arp,in_port={nport},arp_spa={self.guests_infra_cidr},actions=drop"
                 )
                 flows.append(
-                    f"priority=207,ip,in_port={nport},nw_src=10.2.0.0/28,actions=drop"
+                    f"priority=207,ip,in_port={nport},nw_src={self.guests_infra_cidr},actions=drop"
                 )
 
-                # ARP requests to infrastructure (10.2.0.0/28) - per-VM rate limited
+                # ARP requests to infrastructure - per-VM rate limited
                 flows.append(
-                    f"priority=206,arp,in_port={nport},dl_src={mac},arp_sha={mac},arp_op=1,arp_tpa=10.2.0.0/28,actions=meter:{meter_arp},NORMAL"
+                    f"priority=206,arp,in_port={nport},dl_src={mac},arp_sha={mac},arp_op=1,arp_tpa={self.guests_infra_cidr},actions=meter:{meter_arp},NORMAL"
                 )
                 # ARP replies - per-VM rate limited
                 flows.append(

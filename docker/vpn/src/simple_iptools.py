@@ -150,6 +150,12 @@ class UserIpTools(object):
         chain.insert_rule(rule)
 
     def set_default_policy(self):
+        guests_net = ipaddress.ip_network(
+            os.environ.get("WG_GUESTS_NETS", "10.2.0.0/16"), strict=False
+        )
+        infra_cidr = str(
+            ipaddress.ip_network(f"{guests_net.network_address}/28", strict=False)
+        )
         check_output(("/sbin/iptables", "-P", "FORWARD", "DROP"), text=True).strip()
         # Block user-to-user traffic (wg0 to wg0)
         check_output(
@@ -168,7 +174,7 @@ class UserIpTools(object):
             ),
             text=True,
         ).strip()
-        # Block user access to infrastructure services (10.2.0.0/28)
+        # Block user access to infrastructure services
         check_output(
             (
                 "/sbin/iptables",
@@ -177,7 +183,7 @@ class UserIpTools(object):
                 "-i",
                 "wg0",
                 "-d",
-                "10.2.0.0/28",
+                infra_cidr,
                 "-j",
                 "REJECT",
                 "--reject-with",

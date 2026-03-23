@@ -22,8 +22,8 @@ services:
       - published: ${WG_USERS_PORT:-443}
         target: ${WG_USERS_PORT:-443}
         protocol: udp
-      - published: ${WG_HYPERS_PORT}
-        target: 4443
+      - published: ${WG_HYPERS_PORT:-4443}
+        target: ${WG_HYPERS_PORT:-4443}
         protocol: udp
     privileged: true
     volumes:
@@ -41,3 +41,9 @@ services:
     environment:
       # OVS Security Configuration (automatic based on API_DOMAIN)
       API_DOMAIN: ${API_DOMAIN:-}
+      DOCKER_NET: ${DOCKER_NET:-172.31.255}
+      WG_GUESTS_NETS: ${WG_GUESTS_NETS:-10.2.0.0/16}
+      WG_GUESTS_RESERVED_HOSTS: ${WG_GUESTS_RESERVED_HOSTS:-20}
+      WG_MAIN_NET: ${WG_MAIN_NET:-10.0.0.0/14}
+      WG_USERS_NET: ${WG_USERS_NET:-10.0.0.0/16}
+      WG_HYPERS_NET: ${WG_HYPERS_NET:-10.1.0.0/24}

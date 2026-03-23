@@ -36,12 +36,13 @@ while True:
         log.info("Connecting to database...")
         dbConnect()
 
+        hypers_net = ipaddress.ip_network(os.environ["WG_HYPERS_NET"], strict=False)
         wg_hypers = Wg(
             interface="hypers",
             clients_net=os.environ["WG_HYPERS_NET"],
             table="hypervisors",
             server_port=os.environ["WG_HYPERS_PORT"],
-            allowed_client_nets="10.1.0.1/32",
+            allowed_client_nets=str(hypers_net[1]) + "/32",
             reset_client_certs=False,
         )
         wg_users = Wg(
