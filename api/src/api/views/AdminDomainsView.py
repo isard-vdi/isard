@@ -30,7 +30,7 @@ from ..libv2.api_notify import notify_admin
 from ..libv2.api_storage import get_domains_delete_pending
 from ..libv2.caches import get_cached_user_with_names
 from ..libv2.datatables import LogsDesktopsQuery, LogsUsersQuery
-from .decorators import is_admin, is_admin_or_manager, ownsDomainId
+from .decorators import is_admin, is_admin_or_manager, ownsDomainId, ownsUserId
 
 admins = ApiAdmin()
 desktops_persistent = ApiDesktopsPersistent()
@@ -280,7 +280,6 @@ def api_v3_admin_domains_find_storages(payload, status):
     )
 
 
-@cached(TTLCache(maxsize=10, ttl=60))
 @app.route("/api/v3/admin/logs_desktops", methods=["POST"])
 @app.route("/api/v3/admin/logs_desktops/<view>", methods=["POST"])
 @is_admin
@@ -321,6 +320,46 @@ def api_v3_logs_desktops(payload, view="raw"):
             200,
             {"Content-Type": "application/json"},
         )
+
+
+@app.route("/api/v3/admin/logs_desktops/desktop/<desktop_id>", methods=["POST"])
+@is_admin_or_manager
+def api_v3_logs_desktops_by_desktop(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    return (
+        json.dumps(
+            LogsDesktopsQuery(
+                request.form,
+                filter_field="desktop_id",
+                filter_value=desktop_id,
+            ).data,
+            indent=4,
+            sort_keys=True,
+            default=str,
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/logs_users/user/<user_id>", methods=["POST"])
+@is_admin_or_manager
+def api_v3_logs_users_by_user(payload, user_id):
+    ownsUserId(payload, user_id)
+    return (
+        json.dumps(
+            LogsUsersQuery(
+                request.form,
+                filter_field="owner_user_id",
+                filter_value=user_id,
+            ).data,
+            indent=4,
+            sort_keys=True,
+            default=str,
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route(
@@ -472,7 +511,6 @@ def logs_desktops_old_entries_delete_all(payload):
     )
 
 
-@cached(TTLCache(maxsize=10, ttl=60))
 @app.route("/api/v3/admin/logs_users", methods=["POST"])
 @app.route("/api/v3/admin/logs_users/<view>", methods=["POST"])
 @is_admin

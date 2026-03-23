@@ -70,7 +70,7 @@ def api_v3_admin_table(payload, table):
                 options.get("index"),
             )
     return (
-        json.dumps(result),
+        json.dumps(result, default=str),
         200,
         {"Content-Type": "application/json"},
     )

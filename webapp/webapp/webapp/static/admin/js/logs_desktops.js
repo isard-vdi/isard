@@ -250,6 +250,7 @@ function raw_table(){
             { "data": "starting_time"},
             { "data": "desktop_name"},
             { "data": "owner_user_name"},
+            { "data": "request_ip"},
             { "data": "owner_group_name"},
             { "data": "owner_category_name"},
         ],

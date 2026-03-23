@@ -249,6 +249,7 @@ function raw_table(){
             },
             { "data": "started_time"},
             { "data": "owner_user_name"},
+            { "data": "request_ip"},
             { "data": "owner_group_name"},
             { "data": "owner_category_name"},
         ],

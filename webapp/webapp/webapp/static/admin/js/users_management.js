@@ -1094,6 +1094,12 @@ function initUsersSockets () {
 }
 
 function actionsUserDetail(){
+	$('.btn-user-logs').on('click', function () {
+		var pk=$(this).closest("div").attr("data-pk");
+		var name=$(this).closest("div").attr("data-name");
+		showUserLogs(pk, name);
+	});
+
 	$('.btn-edit').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         $("#modalEditUserForm")[0].reset();

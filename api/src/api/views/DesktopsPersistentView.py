@@ -164,7 +164,9 @@ def api_v3_desktop_extend_timeout(payload, desktop_id):
 @has_token
 def api_v3_desktop_stop(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
-    logs_domain_stop_api(desktop_id, action_user=payload.get("user_id"))
+    logs_domain_stop_api(
+        desktop_id, action_user=payload.get("user_id"), user_request=request
+    )
     status = desktops.Stop(desktop_id)
     scheduler.remove_desktop_timeouts(desktop_id)
 
