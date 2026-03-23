@@ -26,6 +26,14 @@ from ..libv2.api_admin import (
 from ..libv2.api_desktop_events import templates_delete
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent, domain_template_tree
 from ..libv2.api_domains import ApiDomains
+from ..libv2.api_logs_list import (
+    _parse_date,
+    _parse_limit,
+    _parse_offset,
+    list_desktop_logs,
+    list_user_logs,
+    usage_summary,
+)
 from ..libv2.api_notify import notify_admin
 from ..libv2.api_storage import get_domains_delete_pending
 from ..libv2.caches import get_cached_user_with_names
@@ -342,6 +350,28 @@ def api_v3_logs_desktops_by_desktop(payload, desktop_id):
     )
 
 
+@app.route("/api/v3/admin/logs_desktops/list", methods=["GET"])
+@is_admin_or_manager
+def api_v3_logs_desktops_list(payload):
+    return (
+        json.dumps(
+            list_desktop_logs(
+                payload,
+                start_date=_parse_date(request.args.get("start_date")),
+                end_date=_parse_date(request.args.get("end_date")),
+                limit=_parse_limit(request.args.get("limit")),
+                offset=_parse_offset(request.args.get("offset")),
+                desktop_id=request.args.get("desktop_id"),
+                user_id=request.args.get("user_id"),
+                status=request.args.get("status"),
+            ),
+            default=str,
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/admin/logs_users/user/<user_id>", methods=["POST"])
 @is_admin_or_manager
 def api_v3_logs_users_by_user(payload, user_id):
@@ -554,6 +584,40 @@ def api_v3_logs_users(payload, view="raw"):
 
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/logs_users/list", methods=["GET"])
+@is_admin_or_manager
+def api_v3_logs_users_list(payload):
+    return (
+        json.dumps(
+            list_user_logs(
+                payload,
+                start_date=_parse_date(request.args.get("start_date")),
+                end_date=_parse_date(request.args.get("end_date")),
+                limit=_parse_limit(request.args.get("limit")),
+                offset=_parse_offset(request.args.get("offset")),
+                user_id=request.args.get("user_id"),
+                group_id=request.args.get("group_id"),
+            ),
+            default=str,
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/usage/summary", methods=["GET"])
+@is_admin_or_manager
+def api_v3_usage_summary(payload):
+    return (
+        json.dumps(
+            usage_summary(payload, date_str=request.args.get("date")),
+            default=str,
+        ),
         200,
         {"Content-Type": "application/json"},
     )
