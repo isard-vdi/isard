@@ -323,13 +323,10 @@ class Wg(object):
                         ]
                     )
 
-                    port = (
-                        check_output(("ovs-ofctl", "show", "ovsbr0"), text=True)
-                        .strip()
-                        .split("): addr:")[-3]
-                        .split("(")[0]
-                        .split(" ")[-1]
-                    )
+                    port = check_output(
+                        ("ovs-vsctl", "get", "Interface", peer["id"], "ofport"),
+                        text=True,
+                    ).strip()
                     # SECURITY: Allow only VM MACs (52:54:00:xx:xx:xx) from hypervisors
                     # Split into ARP/DHCP (allow directly) and IP (check source pinning table)
                     vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
