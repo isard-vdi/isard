@@ -423,10 +423,8 @@ class ApiHypervisors:
         data["vpn"] = {
             "tunneling_mode": vpn_tunneling_mode,
             "infrastructure_mtu": int(
-                os.environ.get(
-                    "INFRASTRUCTURE_MTU",
-                    "9000" if vpn_tunneling_mode == "geneve" else "1500",
-                )
+                os.environ.get("INFRASTRUCTURE_MTU", "")
+                or ("9000" if vpn_tunneling_mode == "geneve" else "1500")
             ),
         }
 

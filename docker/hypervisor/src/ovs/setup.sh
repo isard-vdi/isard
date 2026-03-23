@@ -42,6 +42,27 @@ print(f'GUESTS_INFRA_CIDR={ipaddress.ip_network(str(gn.network_address) + \"/28\
   GUESTS_INFRA_CIDR="${_NET_BASE}/28"
 }
 
+# Ensure OVS DB exists and matches the installed schema version
+OVS_DB=/etc/openvswitch/conf.db
+OVS_SCHEMA=/usr/share/openvswitch/vswitch.ovsschema
+mkdir -p /etc/openvswitch /var/run/openvswitch
+
+if [ ! -f "$OVS_DB" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Creating new OVS database"
+    ovsdb-tool create "$OVS_DB" "$OVS_SCHEMA"
+elif [ "$(ovsdb-tool needs-conversion "$OVS_DB" "$OVS_SCHEMA" 2>/dev/null)" = "yes" ]; then
+    _old=$(ovsdb-tool db-version "$OVS_DB" 2>/dev/null)
+    _new=$(ovsdb-tool schema-version "$OVS_SCHEMA" 2>/dev/null)
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Converting database schema ${_old} -> ${_new}"
+    ovsdb-tool convert "$OVS_DB" "$OVS_SCHEMA" || {
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Conversion failed, recreating database"
+        rm -f "$OVS_DB" "$OVS_DB.~lock~"
+        ovsdb-tool create "$OVS_DB" "$OVS_SCHEMA"
+    }
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Database schema is up to date ($(ovsdb-tool db-version "$OVS_DB"))"
+fi
+
 # Build ovsdb-server command with security considerations
 OVSDB_CMD="ovsdb-server --detach --remote=punix:/var/run/openvswitch/db.sock --pidfile=ovsdb-server.pid"
 
@@ -56,7 +77,8 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] ovsdb-server started with restrict
 
 ovs-vswitchd --detach --verbose --pidfile >/tmp/ovs-vswitchd.out 2>&1
 ovs-vsctl add-br ovsbr0
-ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13
+ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13,OpenFlow14
+ovs-vsctl set bridge ovsbr0 other_config:mac-table-size=8192
 ip link set ovsbr0 up
 
 # Set OVS bridge MTU from central infrastructure config (not local env)
@@ -71,7 +93,8 @@ if [ "$vpn_tunneling_mode" = "geneve" ]; then
     fi
 else
     # wg+geneve: OVS MTU = WG interface MTU (set by central API config)
-    _ovs_mtu=$(ip link show wg0 2>/dev/null | grep -oP 'mtu \K[0-9]+' || echo 1440)
+    _ovs_mtu=$(ip link show wg0 2>/dev/null | sed -n 's/.*mtu \([0-9]*\).*/\1/p' | head -1)
+    [ -z "$_ovs_mtu" ] && _ovs_mtu=1440
 fi
 ovs-vsctl set interface ovsbr0 mtu_request=$_ovs_mtu
 echo "$(date '+%Y-%m-%d %H:%M:%S') [MTU] OVS bridge MTU set to $_ovs_mtu"

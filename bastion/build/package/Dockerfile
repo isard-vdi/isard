@@ -33,8 +33,9 @@ RUN CGO_ENABLED=0 go build -o bin/bastion cmd/bastion/main.go
 FROM ${GOLANG_RUN_IMAGE}
 
 RUN apk -U upgrade --no-cache
+RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
 RUN apk add --no-cache \
-    openvswitch
+    openvswitch@community
 
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/

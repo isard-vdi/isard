@@ -37,6 +37,27 @@ print(f'DHCP_END={gn[-2]}')
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: Starting OpenVSWitch server"
 
+# Ensure OVS DB exists and matches the installed schema version
+OVS_DB=/etc/openvswitch/conf.db
+OVS_SCHEMA=/usr/share/openvswitch/vswitch.ovsschema
+mkdir -p /etc/openvswitch /var/run/openvswitch
+
+if [ ! -f "$OVS_DB" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Creating new OVS database"
+    ovsdb-tool create "$OVS_DB" "$OVS_SCHEMA"
+elif [ "$(ovsdb-tool needs-conversion "$OVS_DB" "$OVS_SCHEMA" 2>/dev/null)" = "yes" ]; then
+    _old=$(ovsdb-tool db-version "$OVS_DB" 2>/dev/null)
+    _new=$(ovsdb-tool schema-version "$OVS_SCHEMA" 2>/dev/null)
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Converting database schema ${_old} -> ${_new}"
+    ovsdb-tool convert "$OVS_DB" "$OVS_SCHEMA" || {
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Conversion failed, recreating database"
+        rm -f "$OVS_DB" "$OVS_DB.~lock~"
+        ovsdb-tool create "$OVS_DB" "$OVS_SCHEMA"
+    }
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Database schema is up to date ($(ovsdb-tool db-version "$OVS_DB"))"
+fi
+
 # Build ovsdb-server command with security considerations
 OVSDB_CMD="ovsdb-server --detach --remote=punix:/var/run/openvswitch/db.sock --pidfile=ovsdb-server.pid"
 
@@ -53,7 +74,8 @@ ovs-vswitchd --detach --verbose --pidfile  >> /var/log/ovs 2>&1
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') INFO: Adding OVS default bridge"
 ovs-vsctl add-br ovsbr0 >> /var/log/ovs 2>&1
-ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13 >> /var/log/ovs 2>&1
+ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13,OpenFlow14 >> /var/log/ovs 2>&1
+ovs-vsctl set bridge ovsbr0 other_config:mac-table-size=8192 >> /var/log/ovs 2>&1
 ip link set ovsbr0 up >> /var/log/ovs 2>&1
 
 # --- MTU derivation from INFRASTRUCTURE_MTU ---

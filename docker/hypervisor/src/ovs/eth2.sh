@@ -11,7 +11,7 @@ ovs-vsctl add-port ovsbr0 eth2
 #ip a a ${DOCKER_NET:-172.31.255}.17/24 dev ovsbr0
 #ip r a default via ${DOCKER_NET:-172.31.255}.1 dev ovsbr0
 
-ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13
+ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13,OpenFlow14
 ovs-vsctl set-controller ovsbr0 tcp:${DOCKER_NET:-172.31.255}.99:6653
 
 ovs-vsctl add-port ovsbr0 vxlan0 -- set interface vxlan0 type=vxlan options:remote_ip=<REMOTE_IP>
