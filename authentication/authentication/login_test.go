@@ -49,6 +49,7 @@ func TestLogin(t *testing.T) {
 		"should work as expected": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "nefix"),
 					r.Eq(r.Row.Field("provider"), "local"),
@@ -198,6 +199,7 @@ func TestLogin(t *testing.T) {
 		"should finish the login flow if the user provides a disclaimer-acknowledgement-required token": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return([]interface{}{
 					map[string]interface{}{
 						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
@@ -292,6 +294,7 @@ func TestLogin(t *testing.T) {
 		"should finish the login flow if the user provides a password-reset-required token": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return([]interface{}{
 					map[string]interface{}{
 						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
@@ -386,6 +389,7 @@ func TestLogin(t *testing.T) {
 		"should finish the login flow if the uer provides a category-select token": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("categories").Get("default")).Return([]interface{}{
 					map[string]interface{}{
 						"id": "default",
@@ -535,6 +539,7 @@ func TestLogin(t *testing.T) {
 		"should return an error if the user doesn't exist": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "nefix"),
 					r.Eq(r.Row.Field("provider"), "local"),
@@ -559,6 +564,7 @@ func TestLogin(t *testing.T) {
 		"should return an error if the user and password don't match": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "nefix"),
 					r.Eq(r.Row.Field("provider"), "local"),
@@ -599,6 +605,7 @@ func TestLogin(t *testing.T) {
 		"should return an error if the user is disabled": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "nefix"),
 					r.Eq(r.Row.Field("provider"), "local"),
@@ -648,6 +655,7 @@ func TestLogin(t *testing.T) {
 		"should return a DisclaimerAcknowledgementRequired token if the disclaimer acknowledgement is required": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "nefix"),
 					r.Eq(r.Row.Field("provider"), "local"),
@@ -721,6 +729,7 @@ func TestLogin(t *testing.T) {
 		"should return a EmailVerificationRequired token if the email verification is required": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "nefix"),
 					r.Eq(r.Row.Field("provider"), "local"),
@@ -798,6 +807,7 @@ func TestLogin(t *testing.T) {
 		"should return a PasswordResetRequired token if the user needs to reset their password": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "nefix"),
 					r.Eq(r.Row.Field("provider"), "local"),
@@ -874,6 +884,7 @@ func TestLogin(t *testing.T) {
 		"should return a ErrUserDisallowed error if the user's email is not in the category's allowed domains for the provider": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "pau"),
 					r.Eq(r.Row.Field("provider"), "local"),
@@ -946,6 +957,7 @@ func TestLogin(t *testing.T) {
 		"should return a ErrUserDisallowed error if the user doesn't have an email and the category has allowed domains for the provider": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "nefix"),
 					r.Eq(r.Row.Field("provider"), "local"),
@@ -1017,6 +1029,7 @@ func TestLogin(t *testing.T) {
 		"should return an error if the user doesn't have a valid email and the category has allowed domains for the provider": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "nefix"),
 					r.Eq(r.Row.Field("provider"), "local"),
@@ -1089,6 +1102,7 @@ func TestLogin(t *testing.T) {
 		"should return an error if the category has that provider disabled": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{Local: model.Local{Enabled: true}}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "nefix"),
 					r.Eq(r.Row.Field("provider"), "local"),

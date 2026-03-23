@@ -20,8 +20,8 @@ import (
 )
 
 type Interface interface {
-	Providers(ctx context.Context, categoryID string) ([]string, error)
-	Provider(provider string) provider.Provider
+	Providers(categoryID string) []string
+	Provider(provider string, categoryID string) provider.Provider
 
 	Login(ctx context.Context, provider string, categoryID string, args provider.LoginArgs, remoteAddr string) (tkn, redirect string, err error)
 	Callback(ctx context.Context, ss string, args provider.CallbackArgs, remoteAddr string) (tkn, redirect string, err error)
@@ -41,7 +41,7 @@ type Interface interface {
 	GenerateAPIKey(ctx context.Context, tkn string, expirationMinutes int) (apiKey string, err error)
 	GenerateUserToken(ctx context.Context, tkn string, userID string) (userTkn string, err error)
 
-	SAML() *samlsp.Middleware
+	SAML(categoryID string) *samlsp.Middleware
 
 	Healthcheck() error
 }
@@ -88,12 +88,12 @@ func Init(ctx context.Context, wg *sync.WaitGroup, cfg cfg.Cfg, log *zerolog.Log
 	return a
 }
 
-func (a *Authentication) Providers(ctx context.Context, categoryID string) ([]string, error) {
-	return a.prvManager.Providers(ctx, categoryID)
+func (a *Authentication) Providers(categoryID string) []string {
+	return a.prvManager.Providers(categoryID)
 }
 
-func (a *Authentication) Provider(p string) provider.Provider {
-	return a.prvManager.Provider(p)
+func (a *Authentication) Provider(p string, categoryID string) provider.Provider {
+	return a.prvManager.Provider(p, categoryID)
 }
 
 func (a *Authentication) check(ctx context.Context, ss, remoteAddr string) (*token.LoginClaims, error) {
@@ -117,8 +117,8 @@ func (a *Authentication) Check(ctx context.Context, ss, remoteAddr string) error
 	return err
 }
 
-func (a *Authentication) SAML() *samlsp.Middleware {
-	return a.prvManager.SAML()
+func (a *Authentication) SAML(categoryID string) *samlsp.Middleware {
+	return a.prvManager.SAML(categoryID)
 }
 
 func (a *Authentication) Healthcheck() error {

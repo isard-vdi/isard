@@ -38,6 +38,7 @@ func TestForgotPassword(t *testing.T) {
 		"should work as expected": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("category"), "default"),
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
@@ -69,6 +70,7 @@ func TestForgotPassword(t *testing.T) {
 		"should return an error if the user isn't found": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("category"), "default"),
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
@@ -136,6 +138,7 @@ func TestResetPassword(t *testing.T) {
 			},
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
 					"password_reset_token": "",
 				})).Return(r.WriteResponse{
@@ -179,6 +182,7 @@ func TestResetPassword(t *testing.T) {
 			},
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("id"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
 					r.Eq(r.Row.Field("password_reset_token"), r.MockAnything()),
@@ -211,6 +215,7 @@ func TestResetPassword(t *testing.T) {
 			},
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("id"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
 					r.Eq(r.Row.Field("password_reset_token"), r.MockAnything()),

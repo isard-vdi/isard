@@ -170,7 +170,7 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Ensure the user has logged in through SAML
-	middleware := a.Authentication.SAML()
+	middleware := a.Authentication.SAML(categoryID)
 	if middleware == nil {
 		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
 		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
@@ -222,7 +222,7 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 }
 
 func (a *AuthenticationServer) metadataSAML(w http.ResponseWriter, r *http.Request) {
-	middleware := a.Authentication.SAML()
+	middleware := a.Authentication.SAML("")
 	if middleware == nil {
 		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
 
@@ -235,7 +235,7 @@ func (a *AuthenticationServer) metadataSAML(w http.ResponseWriter, r *http.Reque
 }
 
 func (a *AuthenticationServer) acsSAML(w http.ResponseWriter, r *http.Request) {
-	middleware := a.Authentication.SAML()
+	middleware := a.Authentication.SAML("")
 	if middleware == nil {
 		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
 		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
@@ -246,7 +246,7 @@ func (a *AuthenticationServer) acsSAML(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *AuthenticationServer) logoutSAML(w http.ResponseWriter, r *http.Request) {
-	middleware := a.Authentication.SAML()
+	middleware := a.Authentication.SAML("")
 	if middleware == nil {
 		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
 		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
@@ -293,9 +293,9 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 
 	log := a.Log.With().Str("provider", string(params.Provider)).Logger()
 
-	p := a.Authentication.Provider(string(params.Provider))
+	p := a.Authentication.Provider(string(params.Provider), params.CategoryID)
 	if p.String() == types.ProviderSAML {
-		middleware := a.Authentication.SAML()
+		middleware := a.Authentication.SAML(params.CategoryID)
 		if middleware == nil {
 			log.Error().Msg("requested SAML middleware, but it's not initialized")
 
@@ -584,16 +584,7 @@ func (a *AuthenticationServer) Logout(ctx context.Context, req *oasAuthenticatio
 }
 
 func (a *AuthenticationServer) Providers(ctx context.Context, params oasAuthentication.ProvidersParams) (oasAuthentication.ProvidersRes, error) {
-	authPrvs, err := a.Authentication.Providers(ctx, params.CategoryID)
-	if err != nil {
-		if errors.Is(db.ErrNotFound, err) {
-			return &oasAuthentication.ProvidersNotFound{}, nil
-		}
-
-		a.Log.Error().Err(err).Msg("unknown providers error")
-
-		return &oasAuthentication.ProvidersInternalServerError{}, nil
-	}
+	authPrvs := a.Authentication.Providers(params.CategoryID)
 
 	providers := []oasAuthentication.Providers{}
 	for _, p := range authPrvs {

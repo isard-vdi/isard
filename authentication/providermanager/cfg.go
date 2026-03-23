@@ -14,65 +14,93 @@ import (
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
-// CfgWatcher is responsible for watching for changes in the authentication configuration
-type CfgWatcher struct {
+// cfgWatcher is responsible for watching for changes in the authentication configuration.
+type cfgWatcher struct {
 	log *zerolog.Logger
 
-	providerChanges chan providerChange
+	reloadInterval time.Duration
 
+	providerChanges                    chan providerChange
+	categoriesDisabledProvidersChanges chan categoryDisabledProviderChange
+
+	globalChanges     *providerChangesChannels
+	categoriesMux     sync.RWMutex
+	categoriesChanges map[string]*providerChangesChannels
+}
+
+type providerChange struct {
+	CategoryID *string
+	Provider   string
+	Enabled    bool
+}
+
+type categoryDisabledProviderChange struct {
+	CategoryID string
+	Provider   string
+	Disabled   bool
+}
+
+type providerChangesChannels struct {
 	ldapChanges   chan model.LDAPConfig
 	samlChanges   chan model.SAMLConfig
 	googleChanges chan model.GoogleConfig
 }
 
-type providerChange struct {
-	Provider string
-	Enabled  bool
-}
-
-func InitCfgWatcher(log *zerolog.Logger) *CfgWatcher {
-	return &CfgWatcher{
+func initCfgWatcher(log *zerolog.Logger) *cfgWatcher {
+	return &cfgWatcher{
 		log: log,
 
-		providerChanges: make(chan providerChange, 1024),
+		reloadInterval: 1 * time.Minute,
 
-		ldapChanges:   make(chan model.LDAPConfig, 1024),
-		samlChanges:   make(chan model.SAMLConfig, 1024),
-		googleChanges: make(chan model.GoogleConfig, 1024),
+		providerChanges:                    make(chan providerChange, 1024),
+		categoriesDisabledProvidersChanges: make(chan categoryDisabledProviderChange, 1024),
+
+		globalChanges: &providerChangesChannels{
+			ldapChanges:   make(chan model.LDAPConfig, 1024),
+			samlChanges:   make(chan model.SAMLConfig, 1024),
+			googleChanges: make(chan model.GoogleConfig, 1024),
+		},
+
+		categoriesChanges: map[string]*providerChangesChannels{},
 	}
 }
 
-func (c *CfgWatcher) Watch(ctx context.Context, wg *sync.WaitGroup, sess r.QueryExecutor) {
+func (c *cfgWatcher) Watch(ctx context.Context, wg *sync.WaitGroup, sess r.QueryExecutor) {
+	c.watchGlobal(ctx, wg, sess)
+	c.watchCategories(ctx, wg, sess)
+}
+
+func (c *cfgWatcher) watchGlobal(ctx context.Context, wg *sync.WaitGroup, sess r.QueryExecutor) {
 	cfg := &model.Config{}
 	if err := cfg.Load(ctx, sess); err != nil {
-		c.log.Fatal().Err(err).Msg("load initial authentication configuration")
+		c.log.Fatal().Err(err).Msg("load initial global authentication configuration")
 	}
 
-	// Initial providers setup
+	// Initial global providers setup.
 	if cfg.Local.Enabled {
 		c.providerChanges <- providerChange{Provider: types.ProviderLocal, Enabled: true}
 	}
 
 	if cfg.LDAP.Enabled {
 		c.providerChanges <- providerChange{Provider: types.ProviderLDAP, Enabled: true}
-		c.ldapChanges <- cfg.LDAP.LDAPConfig
+		c.globalChanges.ldapChanges <- cfg.LDAP.LDAPConfig
 	}
 
 	if cfg.SAML.Enabled {
 		c.providerChanges <- providerChange{Provider: types.ProviderSAML, Enabled: true}
-		c.samlChanges <- cfg.SAML.SAMLConfig
+		c.globalChanges.samlChanges <- cfg.SAML.SAMLConfig
 	}
 
 	if cfg.Google.Enabled {
 		c.providerChanges <- providerChange{Provider: types.ProviderGoogle, Enabled: true}
-		c.googleChanges <- cfg.Google.GoogleConfig
+		c.globalChanges.googleChanges <- cfg.Google.GoogleConfig
 	}
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
-		ticker := time.NewTicker(1 * time.Minute)
+		ticker := time.NewTicker(c.reloadInterval)
 		defer ticker.Stop()
 
 		for {
@@ -81,19 +109,19 @@ func (c *CfgWatcher) Watch(ctx context.Context, wg *sync.WaitGroup, sess r.Query
 				c.log.Error().Err(err).Msg("reload authentication config")
 
 			} else {
-				notifyProviderChangeIfNeeded(c.providerChanges, types.ProviderLocal, cfg.Local.Enabled, newCfg.Local.Enabled)
-				notifyProviderChangeIfNeeded(c.providerChanges, types.ProviderLDAP, cfg.LDAP.Enabled, newCfg.LDAP.Enabled)
-				notifyProviderChangeIfNeeded(c.providerChanges, types.ProviderSAML, cfg.SAML.Enabled, newCfg.SAML.Enabled)
-				notifyProviderChangeIfNeeded(c.providerChanges, types.ProviderGoogle, cfg.Google.Enabled, newCfg.Google.Enabled)
+				notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderLocal, cfg.Local.Enabled, newCfg.Local.Enabled)
+				notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderLDAP, cfg.LDAP.Enabled, newCfg.LDAP.Enabled)
+				notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderSAML, cfg.SAML.Enabled, newCfg.SAML.Enabled)
+				notifyProviderChangeIfNeeded(c.providerChanges, nil, types.ProviderGoogle, cfg.Google.Enabled, newCfg.Google.Enabled)
 
 				if newCfg.LDAP.Enabled {
-					notifyIfNeeded(c.ldapChanges, cfg.LDAP.LDAPConfig, newCfg.LDAP.LDAPConfig)
+					notifyIfNeeded(c.globalChanges.ldapChanges, cfg.LDAP.LDAPConfig, newCfg.LDAP.LDAPConfig)
 				}
 				if newCfg.SAML.Enabled {
-					notifyIfNeeded(c.samlChanges, cfg.SAML.SAMLConfig, newCfg.SAML.SAMLConfig)
+					notifyIfNeeded(c.globalChanges.samlChanges, cfg.SAML.SAMLConfig, newCfg.SAML.SAMLConfig)
 				}
 				if newCfg.Google.Enabled {
-					notifyIfNeeded(c.googleChanges, cfg.Google.GoogleConfig, newCfg.Google.GoogleConfig)
+					notifyIfNeeded(c.globalChanges.googleChanges, cfg.Google.GoogleConfig, newCfg.Google.GoogleConfig)
 				}
 
 				cfg = newCfg
@@ -108,12 +136,336 @@ func (c *CfgWatcher) Watch(ctx context.Context, wg *sync.WaitGroup, sess r.Query
 	}()
 }
 
-func notifyProviderChangeIfNeeded(channel chan providerChange, prv string, enabled, newEnabled bool) {
+func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, sess r.QueryExecutor) {
+	cfgCategories, err := model.CategoryAuthenticationConfigurationsLoad(ctx, sess)
+	if err != nil {
+		c.log.Fatal().Err(err).Msg("load initial categories authentication configuration")
+	}
+
+	for categoryID, cfg := range cfgCategories {
+		changesChans := c.getOrCreateCategoryChangesChannels(categoryID)
+
+		hasProviders := false
+
+		// Initial category providers setup.
+		if cfg != nil && cfg.Local != nil {
+			if cfg.Local.Disabled {
+				c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
+					CategoryID: categoryID,
+					Provider:   types.ProviderLocal,
+					Disabled:   true,
+				}
+			} else {
+				hasProviders = true
+
+				c.providerChanges <- providerChange{
+					CategoryID: &categoryID,
+					Provider:   types.ProviderLocal,
+					Enabled:    true,
+				}
+			}
+		}
+
+		if cfg != nil && cfg.LDAP != nil {
+			if cfg.LDAP.Disabled {
+				c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
+					CategoryID: categoryID,
+					Provider:   types.ProviderLDAP,
+					Disabled:   true,
+				}
+			} else if cfg.LDAP.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.LDAP.LDAPConfig != nil {
+				hasProviders = true
+
+				c.providerChanges <- providerChange{
+					CategoryID: &categoryID,
+					Provider:   types.ProviderLDAP,
+					Enabled:    true,
+				}
+				changesChans.ldapChanges <- *cfg.LDAP.LDAPConfig
+			}
+		}
+
+		if cfg != nil && cfg.SAML != nil {
+			if cfg.SAML.Disabled {
+				c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
+					CategoryID: categoryID,
+					Provider:   types.ProviderSAML,
+					Disabled:   true,
+				}
+			} else if cfg.SAML.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.SAML.SAMLConfig != nil {
+				hasProviders = true
+
+				c.providerChanges <- providerChange{
+					CategoryID: &categoryID,
+					Provider:   types.ProviderSAML,
+					Enabled:    true,
+				}
+				changesChans.samlChanges <- *cfg.SAML.SAMLConfig
+			}
+		}
+
+		if cfg != nil && cfg.Google != nil {
+			if cfg.Google.Disabled {
+				c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
+					CategoryID: categoryID,
+					Provider:   types.ProviderGoogle,
+					Disabled:   true,
+				}
+			} else if cfg.Google.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.Google.GoogleConfig != nil {
+				hasProviders = true
+
+				c.providerChanges <- providerChange{
+					CategoryID: &categoryID,
+					Provider:   types.ProviderGoogle,
+					Enabled:    true,
+				}
+				changesChans.googleChanges <- *cfg.Google.GoogleConfig
+			}
+		}
+
+		// If the category has providers, add it to the map.
+		if hasProviders {
+			c.categoriesMux.Lock()
+			c.categoriesChanges[categoryID] = changesChans
+			c.categoriesMux.Unlock()
+		}
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		ticker := time.NewTicker(c.reloadInterval)
+		defer ticker.Stop()
+
+		for {
+			newCfgCategories, err := model.CategoryAuthenticationConfigurationsLoad(ctx, sess)
+			if err != nil {
+				c.log.Error().Err(err).Msg("reload categories authentication config")
+
+			} else {
+				for categoryID, newCfg := range newCfgCategories {
+					cfg := cfgCategories[categoryID]
+
+					changesChans := c.getOrCreateCategoryChangesChannels(categoryID)
+
+					hasProviders := false
+
+					cfgLocalExists := cfg != nil && cfg.Local != nil
+					newCfgLocalExists := newCfg != nil && newCfg.Local != nil
+
+					cfgLocalEnabled := cfgLocalExists && !cfg.Local.Disabled
+					newCfgLocalEnabled := newCfgLocalExists && !newCfg.Local.Disabled
+					notifyProviderChangeIfNeeded(c.providerChanges, &categoryID, types.ProviderLocal, cfgLocalEnabled, newCfgLocalEnabled)
+
+					cfgLocalDisabled := cfgLocalExists && cfg.Local.Disabled
+					newCfgLocalDisabled := newCfgLocalExists && newCfg.Local.Disabled
+					notifyDisabledProviderChangeIfNeeded(c.categoriesDisabledProvidersChanges, categoryID, types.ProviderLocal, cfgLocalDisabled, newCfgLocalDisabled)
+
+					cfgLDAPExists := cfg != nil && cfg.LDAP != nil
+					newCfgLDAPExists := newCfg != nil && newCfg.LDAP != nil
+
+					cfgLDAPEnabled := cfgLDAPExists && !cfg.LDAP.Disabled && cfg.LDAP.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.LDAP.LDAPConfig != nil
+					newCfgLDAPEnabled := newCfgLDAPExists && !newCfg.LDAP.Disabled && newCfg.LDAP.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && newCfg.LDAP.LDAPConfig != nil
+					notifyProviderChangeIfNeeded(c.providerChanges, &categoryID, types.ProviderLDAP, cfgLDAPEnabled, newCfgLDAPEnabled)
+
+					cfgLDAPDisabled := cfgLDAPExists && cfg.LDAP.Disabled
+					newCfgLDAPDisabled := newCfgLDAPExists && newCfg.LDAP.Disabled
+					notifyDisabledProviderChangeIfNeeded(c.categoriesDisabledProvidersChanges, categoryID, types.ProviderLDAP, cfgLDAPDisabled, newCfgLDAPDisabled)
+
+					cfgSAMLExists := cfg != nil && cfg.SAML != nil
+					newCfgSAMLExists := newCfg != nil && newCfg.SAML != nil
+
+					cfgSAMLEnabled := cfgSAMLExists && !cfg.SAML.Disabled && cfg.SAML.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.SAML.SAMLConfig != nil
+					newCfgSAMLEnabled := newCfgSAMLExists && !newCfg.SAML.Disabled && newCfg.SAML.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && newCfg.SAML.SAMLConfig != nil
+					notifyProviderChangeIfNeeded(c.providerChanges, &categoryID, types.ProviderSAML, cfgSAMLEnabled, newCfgSAMLEnabled)
+
+					cfgSAMLDisabled := cfgSAMLExists && cfg.SAML.Disabled
+					newCfgSAMLDisabled := newCfgSAMLExists && newCfg.SAML.Disabled
+					notifyDisabledProviderChangeIfNeeded(c.categoriesDisabledProvidersChanges, categoryID, types.ProviderSAML, cfgSAMLDisabled, newCfgSAMLDisabled)
+
+					cfgGoogleExists := cfg != nil && cfg.Google != nil
+					newCfgGoogleExists := newCfg != nil && newCfg.Google != nil
+
+					cfgGoogleEnabled := cfgGoogleExists && !cfg.Google.Disabled && cfg.Google.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.Google.GoogleConfig != nil
+					newCfgGoogleEnabled := newCfgGoogleExists && !newCfg.Google.Disabled && newCfg.Google.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && newCfg.Google.GoogleConfig != nil
+					notifyProviderChangeIfNeeded(c.providerChanges, &categoryID, types.ProviderGoogle, cfgGoogleEnabled, newCfgGoogleEnabled)
+
+					cfgGoogleDisabled := cfgGoogleExists && cfg.Google.Disabled
+					newCfgGoogleDisabled := newCfgGoogleExists && newCfg.Google.Disabled
+					notifyDisabledProviderChangeIfNeeded(c.categoriesDisabledProvidersChanges, categoryID, types.ProviderGoogle, cfgGoogleDisabled, newCfgGoogleDisabled)
+
+					if newCfgLocalEnabled {
+						hasProviders = true
+					}
+
+					if newCfgLDAPEnabled && newCfg.LDAP.LDAPConfig != nil {
+						hasProviders = true
+
+						var cfgLDAPConfig model.LDAPConfig
+						if cfgLDAPEnabled && cfg.LDAP.LDAPConfig != nil {
+							cfgLDAPConfig = *cfg.LDAP.LDAPConfig
+						}
+
+						notifyIfNeeded(changesChans.ldapChanges, cfgLDAPConfig, *newCfg.LDAP.LDAPConfig)
+					}
+
+					if newCfgSAMLEnabled && newCfg.SAML.SAMLConfig != nil {
+						hasProviders = true
+
+						var cfgSAMLConfig model.SAMLConfig
+						if cfgSAMLEnabled && cfg.SAML.SAMLConfig != nil {
+							cfgSAMLConfig = *cfg.SAML.SAMLConfig
+						}
+
+						notifyIfNeeded(changesChans.samlChanges, cfgSAMLConfig, *newCfg.SAML.SAMLConfig)
+					}
+
+					if newCfgGoogleEnabled && newCfg.Google.GoogleConfig != nil {
+						hasProviders = true
+
+						var cfgGoogleConfig model.GoogleConfig
+						if cfgGoogleEnabled && cfg.Google.GoogleConfig != nil {
+							cfgGoogleConfig = *cfg.Google.GoogleConfig
+						}
+
+						notifyIfNeeded(changesChans.googleChanges, cfgGoogleConfig, *newCfg.Google.GoogleConfig)
+					}
+
+					// If the category has providers, add it to the map.
+					c.categoriesMux.Lock()
+					if hasProviders {
+						c.categoriesChanges[categoryID] = changesChans
+					} else {
+						delete(c.categoriesChanges, categoryID)
+					}
+					c.categoriesMux.Unlock()
+				}
+
+				// Handle categories that were deleted from the DB.
+				for categoryID, cfg := range cfgCategories {
+					if _, ok := newCfgCategories[categoryID]; ok {
+						continue
+					}
+
+					// Send disable events for all active providers in the deleted category.
+					if cfg != nil && cfg.Local != nil {
+						if cfg.Local.Disabled {
+							c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
+								CategoryID: categoryID,
+								Provider:   types.ProviderLocal,
+								Disabled:   false,
+							}
+						} else {
+							c.providerChanges <- providerChange{
+								CategoryID: &categoryID,
+								Provider:   types.ProviderLocal,
+								Enabled:    false,
+							}
+						}
+					}
+
+					if cfg != nil && cfg.LDAP != nil {
+						if cfg.LDAP.Disabled {
+							c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
+								CategoryID: categoryID,
+								Provider:   types.ProviderLDAP,
+								Disabled:   false,
+							}
+						} else if cfg.LDAP.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.LDAP.LDAPConfig != nil {
+							c.providerChanges <- providerChange{
+								CategoryID: &categoryID,
+								Provider:   types.ProviderLDAP,
+								Enabled:    false,
+							}
+						}
+					}
+
+					if cfg != nil && cfg.SAML != nil {
+						if cfg.SAML.Disabled {
+							c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
+								CategoryID: categoryID,
+								Provider:   types.ProviderSAML,
+								Disabled:   false,
+							}
+						} else if cfg.SAML.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.SAML.SAMLConfig != nil {
+							c.providerChanges <- providerChange{
+								CategoryID: &categoryID,
+								Provider:   types.ProviderSAML,
+								Enabled:    false,
+							}
+						}
+					}
+
+					if cfg != nil && cfg.Google != nil {
+						if cfg.Google.Disabled {
+							c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
+								CategoryID: categoryID,
+								Provider:   types.ProviderGoogle,
+								Disabled:   false,
+							}
+						} else if cfg.Google.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.Google.GoogleConfig != nil {
+							c.providerChanges <- providerChange{
+								CategoryID: &categoryID,
+								Provider:   types.ProviderGoogle,
+								Enabled:    false,
+							}
+						}
+					}
+
+					c.categoriesMux.Lock()
+					delete(c.categoriesChanges, categoryID)
+					c.categoriesMux.Unlock()
+				}
+
+				cfgCategories = newCfgCategories
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+}
+
+func (c *cfgWatcher) getOrCreateCategoryChangesChannels(categoryID string) *providerChangesChannels {
+	c.categoriesMux.RLock()
+	defer c.categoriesMux.RUnlock()
+
+	if changesChans, ok := c.categoriesChanges[categoryID]; ok {
+		return changesChans
+	}
+
+	changesChans := &providerChangesChannels{
+		ldapChanges:   make(chan model.LDAPConfig, 1024),
+		samlChanges:   make(chan model.SAMLConfig, 1024),
+		googleChanges: make(chan model.GoogleConfig, 1024),
+	}
+
+	return changesChans
+}
+
+func notifyProviderChangeIfNeeded(channel chan providerChange, categoryID *string, prv string, enabled, newEnabled bool) {
 	if enabled != newEnabled {
 		channel <- providerChange{
-			Provider: prv,
-			Enabled:  newEnabled,
+			CategoryID: categoryID,
+			Provider:   prv,
+			Enabled:    newEnabled,
 		}
+	}
+}
+
+func notifyDisabledProviderChangeIfNeeded(channel chan categoryDisabledProviderChange, categoryID string, prv string, disabled, newDisabled bool) {
+	if disabled == newDisabled {
+		return
+	}
+
+	channel <- categoryDisabledProviderChange{
+		CategoryID: categoryID,
+		Provider:   prv,
+		Disabled:   newDisabled,
 	}
 }
 
@@ -123,7 +475,7 @@ func notifyIfNeeded[T any](channel chan T, cfg T, newCfg T) {
 	}
 }
 
-func (c *CfgWatcher) AddLDAPWatcher(ctx context.Context, wg *sync.WaitGroup, p provider.ConfigurableProvider[model.LDAPConfig]) {
+func addLDAPWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, changesChan chan model.LDAPConfig, p provider.ConfigurableProvider[model.LDAPConfig]) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -133,19 +485,19 @@ func (c *CfgWatcher) AddLDAPWatcher(ctx context.Context, wg *sync.WaitGroup, p p
 			case <-ctx.Done():
 				return
 
-			case cfg := <-c.ldapChanges:
-				c.log.Debug().Msg("reloading LDAP configuration")
+			case cfg := <-changesChan:
+				log.Debug().Msg("reloading LDAP configuration")
 				if err := p.LoadConfig(ctx, cfg); err != nil {
-					c.log.Error().Err(err).Msg("load new LDAP configuration")
+					log.Error().Err(err).Msg("load new LDAP configuration")
 				} else {
-					c.log.Info().Msg("successfully reloaded LDAP configuration")
+					log.Info().Msg("successfully reloaded LDAP configuration")
 				}
 			}
 		}
 	}()
 }
 
-func (c *CfgWatcher) AddSAMLWatcher(ctx context.Context, wg *sync.WaitGroup, p provider.ConfigurableProvider[model.SAMLConfig]) {
+func addSAMLWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, changesChan chan model.SAMLConfig, p provider.ConfigurableProvider[model.SAMLConfig]) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -155,19 +507,19 @@ func (c *CfgWatcher) AddSAMLWatcher(ctx context.Context, wg *sync.WaitGroup, p p
 			case <-ctx.Done():
 				return
 
-			case cfg := <-c.samlChanges:
-				c.log.Debug().Msg("reloading SAML configuration")
+			case cfg := <-changesChan:
+				log.Debug().Msg("reloading SAML configuration")
 				if err := p.LoadConfig(ctx, cfg); err != nil {
-					c.log.Error().Err(err).Msg("load new SAML configuration")
+					log.Error().Err(err).Msg("load new SAML configuration")
 				} else {
-					c.log.Info().Msg("successfully reloaded SAML configuration")
+					log.Info().Msg("successfully reloaded SAML configuration")
 				}
 			}
 		}
 	}()
 }
 
-func (c *CfgWatcher) AddGoogleWatcher(ctx context.Context, wg *sync.WaitGroup, p provider.ConfigurableProvider[model.GoogleConfig]) {
+func addGoogleWatcher(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, changesChan chan model.GoogleConfig, p provider.ConfigurableProvider[model.GoogleConfig]) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -177,12 +529,12 @@ func (c *CfgWatcher) AddGoogleWatcher(ctx context.Context, wg *sync.WaitGroup, p
 			case <-ctx.Done():
 				return
 
-			case cfg := <-c.googleChanges:
-				c.log.Debug().Msg("reloading Google configuration")
+			case cfg := <-changesChan:
+				log.Debug().Msg("reloading Google configuration")
 				if err := p.LoadConfig(ctx, cfg); err != nil {
-					c.log.Error().Err(err).Msg("load new Google configuration")
+					log.Error().Err(err).Msg("load new Google configuration")
 				} else {
-					c.log.Info().Msg("successfully reloaded Google configuration")
+					log.Info().Msg("successfully reloaded Google configuration")
 				}
 			}
 		}

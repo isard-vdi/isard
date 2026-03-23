@@ -40,6 +40,7 @@ func TestRenew(t *testing.T) {
 		"should work as expected": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
 			},
 			PrepareSessions: func(s *grpcmock.Server) {
 				s.ExpectUnary("/sessions.v1.SessionsService/Renew").WithPayload(&sessionsv1.RenewRequest{
