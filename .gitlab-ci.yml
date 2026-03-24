@@ -28,7 +28,7 @@ variables:
   # `/certs/client` to share between the service and job
   # container, thanks to volume mount from config.toml
   DOCKER_HOST: tcp://docker:2376
-  DOCKER_VERSION: "23"
+  DOCKER_VERSION: "28"
   DOCKER_TLS_CERTDIR: "/certs"
   FF_NETWORK_PER_BUILD: 1
   GITLAB_ADVANCED_SAST_ENABLED: "true"
@@ -167,6 +167,7 @@ check-protobuf:
 docker-image-codegen:
   image: "docker:${DOCKER_VERSION}"
   stage: build-codegen
+  needs: []
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
   parallel:
@@ -174,7 +175,7 @@ docker-image-codegen:
       - DOCKERFILE: docker/codegen/Dockerfile
         IMAGE: codegen
   before_script:
-    - until docker info; do sleep 1; done
+    - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - |
@@ -186,6 +187,7 @@ docker-image-codegen:
       fi
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
 
 gen-protobuf:
   stage: generate
@@ -193,7 +195,7 @@ gen-protobuf:
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
   before_script:
-    - until docker info; do sleep 1; done
+    - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - docker run -u $(id -u) -v "$(pwd):/build" -e BUF_TOKEN="$BUF_TOKEN" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
@@ -205,6 +207,7 @@ gen-protobuf:
 
 docker-compose-build:
   stage: generate
+  needs: []
   image: "docker:${DOCKER_VERSION}"
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
@@ -238,6 +241,7 @@ docker-compose-build:
 
 unit-test-go:
   stage: unit-test
+  needs: ["gen-protobuf"]
   image: golang:1.24
   before_script:
     - apt-get update && apt-get install -y libvirt-dev
@@ -260,6 +264,7 @@ unit-test-go:
 docker-image:
   image: "docker:${DOCKER_VERSION}"
   stage: build
+  needs: ["docker-compose-build", "gen-protobuf"]
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
   parallel:
@@ -303,7 +308,7 @@ docker-image:
           - check-client
   before_script:
     - apk add git docker-compose
-    - until docker info; do sleep 1; done
+    - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - git submodule update --init --recursive --remote
@@ -317,6 +322,7 @@ docker-image:
     - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f $DOCKERCOMPOSE_FILE build
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
 
 # test-e2e:
 #   stage: test
@@ -330,7 +336,7 @@ docker-image:
 #   image: "docker:latest"
 #   before_script:
 #     - apk add git docker-compose
-#     - until docker info; do sleep 1; done
+#     - timeout 300 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
 #     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
 #     - cp isardvdi.cfg.example isardvdi.e2e.cfg
 #     - echo "USAGE=test" >> isardvdi.e2e.cfg
@@ -363,6 +369,8 @@ docker-tag:
   image:
     name: gcr.io/go-containerregistry/crane:debug
     entrypoint: [""]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   parallel:
     matrix:
       - IMAGE: *containers
@@ -376,10 +384,8 @@ docker-tag:
           - video
           - monitor-proxy
   script:
-    - test "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" -a ! -e ".VERSION" && $[[ inputs.use-image-build-cache ]] && exit 0
-    - crane auth login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - crane tag $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA $CI_COMMIT_REF_SLUG
     - test ! -e ".VERSION" && exit 0
+    - crane auth login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - crane tag $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA v$(cat .VERSION | tr '.' '-')
 
 release:
