@@ -61,6 +61,13 @@ type ConfigurableProvider[Cfg any] interface {
 	LoadConfig(ctx context.Context, cfg Cfg) error
 }
 
+// BrandingAwareProvider is implemented by providers that need to handle
+// branding domain changes.
+type BrandingAwareProvider interface {
+	Provider
+	SetBrandingHost(ctx context.Context, host *string) error
+}
+
 type ProviderError struct {
 	// The error that will be shown to the user
 	User error

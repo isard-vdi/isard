@@ -65,6 +65,111 @@ func TestNotifyIfNeeded(t *testing.T) {
 	}
 }
 
+func TestExtractBrandingHost(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		Entry    model.CategoryConfigEntry
+		Expected *string
+	}{
+		"should return host when branding domain is enabled": {
+			Entry: model.CategoryConfigEntry{
+				Branding: model.CategoryBranding{
+					Domain: model.CategoryBrandingDomain{Enabled: true, Name: "branding.example.com"},
+				},
+			},
+			Expected: strPtr("branding.example.com"),
+		},
+		"should return nil when branding domain is disabled": {
+			Entry: model.CategoryConfigEntry{
+				Branding: model.CategoryBranding{
+					Domain: model.CategoryBrandingDomain{Enabled: false, Name: "branding.example.com"},
+				},
+			},
+			Expected: nil,
+		},
+		"should return nil when branding is zero value": {
+			Entry:    model.CategoryConfigEntry{},
+			Expected: nil,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			result := extractBrandingHost(tc.Entry)
+			assert.Equal(tc.Expected, result)
+		})
+	}
+}
+
+func TestNotifyBrandingDomainChangeIfNeeded(t *testing.T) {
+	t.Parallel()
+
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		Old         *string
+		New         *string
+		ExpectValue bool
+	}{
+		"should send on channel when branding host changes from nil to set": {
+			Old:         nil,
+			New:         strPtr("branding.example.com"),
+			ExpectValue: true,
+		},
+		"should send on channel when branding host changes from set to nil": {
+			Old:         strPtr("branding.example.com"),
+			New:         nil,
+			ExpectValue: true,
+		},
+		"should send on channel when branding host changes value": {
+			Old:         strPtr("old.example.com"),
+			New:         strPtr("new.example.com"),
+			ExpectValue: true,
+		},
+		"should not send on channel when branding host is equal": {
+			Old:         strPtr("same.example.com"),
+			New:         strPtr("same.example.com"),
+			ExpectValue: false,
+		},
+		"should not send on channel when both are nil": {
+			Old:         nil,
+			New:         nil,
+			ExpectValue: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			ch := make(chan categoryBrandingDomainChange, 1)
+
+			notifyBrandingDomainChangeIfNeeded(ch, "cat1", tc.Old, tc.New)
+
+			if tc.ExpectValue {
+				select {
+				case v := <-ch:
+					assert.Equal("cat1", v.CategoryID)
+					assert.Equal(tc.New, v.Host)
+				case <-time.After(100 * time.Millisecond):
+					t.Fatal("expected value on channel but got none")
+				}
+			} else {
+				select {
+				case <-ch:
+					t.Fatal("expected no value on channel but got one")
+				case <-time.After(100 * time.Millisecond):
+				}
+			}
+		})
+	}
+}
+
 func TestCfgWatcherWatch(t *testing.T) {
 	t.Parallel()
 
@@ -86,7 +191,7 @@ func TestCfgWatcherWatch(t *testing.T) {
 					SAML:   model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
 					Google: model.Google{Enabled: true, GoogleConfig: model.GoogleConfig{ClientID: "test-client-id"}},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			PrepareProviders: func(ctx context.Context, ldap *provider.MockConfigurableProvider[model.LDAPConfig], saml *provider.MockConfigurableProvider[model.SAMLConfig], google *provider.MockConfigurableProvider[model.GoogleConfig]) {
 				ldap.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap.test", Port: 636}).Return(nil)
@@ -106,7 +211,7 @@ func TestCfgWatcherWatch(t *testing.T) {
 					SAML:   model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml2.test/metadata"}},
 					Google: model.Google{Enabled: true, GoogleConfig: model.GoogleConfig{ClientID: "new-client-id"}},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			PrepareProviders: func(ctx context.Context, ldap *provider.MockConfigurableProvider[model.LDAPConfig], saml *provider.MockConfigurableProvider[model.SAMLConfig], google *provider.MockConfigurableProvider[model.GoogleConfig]) {
 				ldap.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap.test", Port: 636}).Return(nil)
@@ -124,7 +229,7 @@ func TestCfgWatcherWatch(t *testing.T) {
 					SAML:   model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
 					Google: model.Google{Enabled: true, GoogleConfig: model.GoogleConfig{ClientID: "test-client-id"}},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			PrepareProviders: func(ctx context.Context, ldap *provider.MockConfigurableProvider[model.LDAPConfig], saml *provider.MockConfigurableProvider[model.SAMLConfig], google *provider.MockConfigurableProvider[model.GoogleConfig]) {
 				ldap.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap.test", Port: 636}).Return(nil)
@@ -140,7 +245,7 @@ func TestCfgWatcherWatch(t *testing.T) {
 					Google: model.Google{Enabled: true, GoogleConfig: model.GoogleConfig{ClientID: "test-client-id"}},
 				}, nil).Once()
 				m.On(r.Table("config").Get(1).Field("auth")).Return(nil, errors.New("reload error"))
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			PrepareProviders: func(ctx context.Context, ldap *provider.MockConfigurableProvider[model.LDAPConfig], saml *provider.MockConfigurableProvider[model.SAMLConfig], google *provider.MockConfigurableProvider[model.GoogleConfig]) {
 				ldap.On("LoadConfig", ctx, model.LDAPConfig{Host: "ldap.test", Port: 636}).Return(nil)
@@ -528,7 +633,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 	}{
 		"should broadcast initial local provider for category": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -543,7 +648,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should broadcast initial LDAP provider and config for category": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -567,7 +672,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should not send LDAP change when LDAP config is nil": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -580,7 +685,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should handle category with empty authentication": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id":             "cat1",
 						"authentication": map[string]any{},
@@ -591,7 +696,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should broadcast initial Google provider and config for category": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -615,7 +720,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should handle multiple providers in a single category": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -662,7 +767,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should detect category provider enable on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -672,7 +777,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -687,7 +792,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should detect category provider disable on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -695,7 +800,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -713,7 +818,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should detect category LDAP config change on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -727,7 +832,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -752,7 +857,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should detect category Google config change on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -766,7 +871,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -791,7 +896,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should detect category SAML config change on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -804,7 +909,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -828,8 +933,8 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should handle new category appearing on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat2",
 						"authentication": map[string]any{
@@ -844,7 +949,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should handle error during categories reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -852,7 +957,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return(nil, errors.New("reload error"))
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return(nil, errors.New("reload error"))
 			},
 			ExpectedChanges: []providerChange{
 				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
@@ -860,13 +965,13 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should stop when context is cancelled": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			ExpectedChanges: []providerChange{},
 		},
 		"should send disable events when category is deleted on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -881,7 +986,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			ExpectedChanges: []providerChange{
 				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
@@ -892,7 +997,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should send disable events for all provider types when category is deleted": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -920,7 +1025,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			ExpectedChanges: []providerChange{
 				{CategoryID: strPtr("cat1"), Provider: types.ProviderLocal, Enabled: true},
@@ -935,7 +1040,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should clean up when category providers all disabled on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -950,7 +1055,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -978,8 +1083,8 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should not send LDAP enable when LDAP config is nil on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -992,8 +1097,8 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should not send SAML enable when SAML config is nil on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1006,8 +1111,8 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should not send Google enable when Google config is nil on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1020,7 +1125,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should enable LDAP with config_source custom and custom config": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1044,7 +1149,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should not enable LDAP with config_source global": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1059,7 +1164,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should not enable SAML with config_source global": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1074,7 +1179,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should not enable Google with config_source global": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1089,7 +1194,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should enable SAML with config_source custom": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1112,7 +1217,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should enable Google with config_source custom": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1136,7 +1241,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should detect transition from custom to global on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1150,7 +1255,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1168,7 +1273,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should enable LDAP and send config when transitioning from disabled to enabled on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1183,7 +1288,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1211,7 +1316,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should enable SAML and send config when transitioning from disabled to enabled on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1225,7 +1330,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1252,7 +1357,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should enable Google and send config when transitioning from disabled to enabled on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1267,7 +1372,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1295,7 +1400,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should send disabled event for local on initial load": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1313,7 +1418,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should send disabled event for LDAP on initial load": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1336,7 +1441,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should send disabled event for SAML on initial load": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1358,7 +1463,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should send disabled event for Google on initial load": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1381,7 +1486,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should clear disabled event when provider becomes enabled on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1391,7 +1496,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1410,7 +1515,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should set disabled event when provider becomes disabled on reload": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1418,7 +1523,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1439,7 +1544,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should clean up disabled events when category is deleted": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1455,7 +1560,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			ExpectedChanges: []providerChange{
 				{CategoryID: strPtr("cat1"), Provider: types.ProviderSAML, Enabled: true},
@@ -1468,7 +1573,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should clean up disabled LDAP event when category with disabled LDAP is deleted": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1478,7 +1583,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			ExpectedChanges: []providerChange{},
 			ExpectedDisabledChanges: []categoryDisabledProviderChange{
@@ -1488,7 +1593,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should clean up disabled SAML event when category with disabled SAML is deleted": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1498,7 +1603,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			ExpectedChanges: []providerChange{},
 			ExpectedDisabledChanges: []categoryDisabledProviderChange{
@@ -1508,7 +1613,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 		},
 		"should clean up disabled Google event when category with disabled Google is deleted": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1518,7 +1623,7 @@ func TestCfgWatcherWatchCategories(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			ExpectedChanges: []providerChange{},
 			ExpectedDisabledChanges: []categoryDisabledProviderChange{

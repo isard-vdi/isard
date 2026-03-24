@@ -14,6 +14,7 @@ packages:
     interfaces:
       Provider: {}
       ConfigurableProvider: {}
+      BrandingAwareProvider: {}
   gitlab.com/isard/isardvdi/authentication/providermanager:
     interfaces:
       Interface:

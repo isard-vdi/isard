@@ -63,6 +63,20 @@ type CategoryAuthenticationEmailDomainRestriction struct {
 	Allowed []string `rethinkdb:"allowed"`
 }
 
+type CategoryConfigEntry struct {
+	Authentication CategoryAuthentication `rethinkdb:"authentication"`
+	Branding       CategoryBranding       `rethinkdb:"branding"`
+}
+
+type CategoryBranding struct {
+	Domain CategoryBrandingDomain `rethinkdb:"domain"`
+}
+
+type CategoryBrandingDomain struct {
+	Enabled bool   `rethinkdb:"enabled"`
+	Name    string `rethinkdb:"name"`
+}
+
 func (c *Category) Load(ctx context.Context, sess r.QueryExecutor) (*Category, error) {
 	res, err := r.Table("categories").Get(c.ID).Run(sess)
 	if err != nil {
@@ -142,8 +156,12 @@ func (c *Category) ExistsWithUID(ctx context.Context, sess r.QueryExecutor) (boo
 	return true, nil
 }
 
-func CategoryAuthenticationConfigurationsLoad(ctx context.Context, sess r.QueryExecutor) (map[string]*CategoryAuthentication, error) {
-	res, err := r.Table("categories").Pluck("id", "authentication").Run(sess, r.RunOpts{Context: ctx})
+func CategoryConfigurationsLoad(ctx context.Context, sess r.QueryExecutor) (map[string]CategoryConfigEntry, error) {
+	res, err := r.Table("categories").Pluck("id", "authentication", map[string]any{
+		"branding": map[string]any{
+			"domain": true,
+		},
+	}).Run(sess, r.RunOpts{Context: ctx})
 	if err != nil {
 		return nil, &db.Err{
 			Err: err,
@@ -156,8 +174,9 @@ func CategoryAuthenticationConfigurationsLoad(ctx context.Context, sess r.QueryE
 	}
 
 	result := []struct {
-		ID             string                  `rethinkdb:"id"`
-		Authentication *CategoryAuthentication `rethinkdb:"authentication"`
+		ID             string                 `rethinkdb:"id"`
+		Authentication CategoryAuthentication `rethinkdb:"authentication"`
+		Branding       CategoryBranding       `rethinkdb:"branding"`
 	}{}
 	if err := res.All(&result); err != nil {
 		if errors.Is(err, r.ErrEmptyResult) {
@@ -170,9 +189,12 @@ func CategoryAuthenticationConfigurationsLoad(ctx context.Context, sess r.QueryE
 		}
 	}
 
-	finalResult := map[string]*CategoryAuthentication{}
+	finalResult := map[string]CategoryConfigEntry{}
 	for _, r := range result {
-		finalResult[r.ID] = r.Authentication
+		finalResult[r.ID] = CategoryConfigEntry{
+			Authentication: r.Authentication,
+			Branding:       r.Branding,
+		}
 	}
 
 	return finalResult, nil

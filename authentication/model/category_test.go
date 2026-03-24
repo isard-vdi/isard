@@ -291,69 +291,85 @@ func TestCategoryExistsWithUID(t *testing.T) {
 	}
 }
 
-func TestCategoryAuthenticationConfigurationsLoad(t *testing.T) {
+func TestCategoryConfigurationsLoad(t *testing.T) {
 	assert := assert.New(t)
+
+	pluckQuery := r.Table("categories").Pluck("id", "authentication", map[string]any{
+		"branding": map[string]any{
+			"domain": true,
+		},
+	})
 
 	cases := map[string]struct {
 		PrepareDB      func(*r.Mock)
-		ExpectedResult map[string]*model.CategoryAuthentication
+		ExpectedResult map[string]model.CategoryConfigEntry
 		ExpectedErr    string
 	}{
-		"should load authentication configurations for multiple categories": {
+		"should load configurations for multiple categories": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{
-					map[string]interface{}{
+				m.On(pluckQuery).Return([]any{
+					map[string]any{
 						"id": "cat1",
-						"authentication": map[string]interface{}{
-							"local": map[string]interface{}{
-								"email_domain_restriction": map[string]interface{}{"enabled": true, "allowed": []string{"example.org"}},
+						"authentication": map[string]any{
+							"local": map[string]any{
+								"email_domain_restriction": map[string]any{"enabled": true, "allowed": []string{"example.org"}},
 							},
 						},
 					},
-					map[string]interface{}{
+					map[string]any{
 						"id": "cat2",
-						"authentication": map[string]interface{}{
-							"saml": map[string]interface{}{
-								"email_domain_restriction": map[string]interface{}{"enabled": true, "allowed": []string{"corp.com"}},
+						"authentication": map[string]any{
+							"saml": map[string]any{
+								"email_domain_restriction": map[string]any{"enabled": true, "allowed": []string{"corp.com"}},
 							},
+						},
+						"branding": map[string]any{
+							"domain": map[string]any{"enabled": true, "name": "custom.example.com"},
 						},
 					},
 				}, nil)
 			},
-			ExpectedResult: map[string]*model.CategoryAuthentication{
+			ExpectedResult: map[string]model.CategoryConfigEntry{
 				"cat1": {
-					Local: &model.CategoryAuthLocal{
-						EmailDomainRestriction: model.CategoryAuthenticationEmailDomainRestriction{Enabled: true, Allowed: []string{"example.org"}},
+					Authentication: model.CategoryAuthentication{
+						Local: &model.CategoryAuthLocal{
+							EmailDomainRestriction: model.CategoryAuthenticationEmailDomainRestriction{Enabled: true, Allowed: []string{"example.org"}},
+						},
 					},
 				},
 				"cat2": {
-					SAML: &model.CategoryAuthSAML{
-						EmailDomainRestriction: model.CategoryAuthenticationEmailDomainRestriction{Enabled: true, Allowed: []string{"corp.com"}},
+					Authentication: model.CategoryAuthentication{
+						SAML: &model.CategoryAuthSAML{
+							EmailDomainRestriction: model.CategoryAuthenticationEmailDomainRestriction{Enabled: true, Allowed: []string{"corp.com"}},
+						},
+					},
+					Branding: model.CategoryBranding{
+						Domain: model.CategoryBrandingDomain{Enabled: true, Name: "custom.example.com"},
 					},
 				},
 			},
 		},
 		"should return empty map when no categories have authentication": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{
-					map[string]interface{}{
+				m.On(pluckQuery).Return([]any{
+					map[string]any{
 						"id": "cat1",
 					},
 				}, nil)
 			},
-			ExpectedResult: map[string]*model.CategoryAuthentication{
-				"cat1": nil,
+			ExpectedResult: map[string]model.CategoryConfigEntry{
+				"cat1": {},
 			},
 		},
 		"should return nil when result is nil (empty DB)": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
+				m.On(pluckQuery).Return([]any{}, nil)
 			},
 			ExpectedResult: nil,
 		},
 		"should return an error on DB failure": {
 			PrepareDB: func(m *r.Mock) {
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return(nil, errors.New("connection refused"))
+				m.On(pluckQuery).Return(nil, errors.New("connection refused"))
 			},
 			ExpectedErr: "connection refused",
 		},
@@ -364,7 +380,7 @@ func TestCategoryAuthenticationConfigurationsLoad(t *testing.T) {
 			mock := r.NewMock()
 			tc.PrepareDB(mock)
 
-			result, err := model.CategoryAuthenticationConfigurationsLoad(context.Background(), mock)
+			result, err := model.CategoryConfigurationsLoad(context.Background(), mock)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)

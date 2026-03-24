@@ -22,6 +22,7 @@ type cfgWatcher struct {
 
 	providerChanges                    chan providerChange
 	categoriesDisabledProvidersChanges chan categoryDisabledProviderChange
+	categoriesBrandingDomainChanges    chan categoryBrandingDomainChange
 
 	globalChanges     *providerChangesChannels
 	categoriesMux     sync.RWMutex
@@ -40,6 +41,11 @@ type categoryDisabledProviderChange struct {
 	Disabled   bool
 }
 
+type categoryBrandingDomainChange struct {
+	CategoryID string
+	Host       *string
+}
+
 type providerChangesChannels struct {
 	ldapChanges   chan model.LDAPConfig
 	samlChanges   chan model.SAMLConfig
@@ -54,6 +60,7 @@ func initCfgWatcher(log *zerolog.Logger) *cfgWatcher {
 
 		providerChanges:                    make(chan providerChange, 1024),
 		categoriesDisabledProvidersChanges: make(chan categoryDisabledProviderChange, 1024),
+		categoriesBrandingDomainChanges:    make(chan categoryBrandingDomainChange, 1024),
 
 		globalChanges: &providerChangesChannels{
 			ldapChanges:   make(chan model.LDAPConfig, 1024),
@@ -63,6 +70,14 @@ func initCfgWatcher(log *zerolog.Logger) *cfgWatcher {
 
 		categoriesChanges: map[string]*providerChangesChannels{},
 	}
+}
+
+func extractBrandingHost(entry model.CategoryConfigEntry) *string {
+	if !entry.Branding.Domain.Enabled {
+		return nil
+	}
+
+	return &entry.Branding.Domain.Name
 }
 
 func (c *cfgWatcher) Watch(ctx context.Context, wg *sync.WaitGroup, sess r.QueryExecutor) {
@@ -137,18 +152,19 @@ func (c *cfgWatcher) watchGlobal(ctx context.Context, wg *sync.WaitGroup, sess r
 }
 
 func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, sess r.QueryExecutor) {
-	cfgCategories, err := model.CategoryAuthenticationConfigurationsLoad(ctx, sess)
+	cfgCategories, err := model.CategoryConfigurationsLoad(ctx, sess)
 	if err != nil {
 		c.log.Fatal().Err(err).Msg("load initial categories authentication configuration")
 	}
 
-	for categoryID, cfg := range cfgCategories {
+	for categoryID, entry := range cfgCategories {
+		cfg := entry.Authentication
 		changesChans := c.getOrCreateCategoryChangesChannels(categoryID)
 
 		hasProviders := false
 
 		// Initial category providers setup.
-		if cfg != nil && cfg.Local != nil {
+		if cfg.Local != nil {
 			if cfg.Local.Disabled {
 				c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
 					CategoryID: categoryID,
@@ -166,7 +182,7 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 			}
 		}
 
-		if cfg != nil && cfg.LDAP != nil {
+		if cfg.LDAP != nil {
 			if cfg.LDAP.Disabled {
 				c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
 					CategoryID: categoryID,
@@ -185,7 +201,7 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 			}
 		}
 
-		if cfg != nil && cfg.SAML != nil {
+		if cfg.SAML != nil {
 			if cfg.SAML.Disabled {
 				c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
 					CategoryID: categoryID,
@@ -204,7 +220,7 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 			}
 		}
 
-		if cfg != nil && cfg.Google != nil {
+		if cfg.Google != nil {
 			if cfg.Google.Disabled {
 				c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
 					CategoryID: categoryID,
@@ -229,6 +245,15 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 			c.categoriesChanges[categoryID] = changesChans
 			c.categoriesMux.Unlock()
 		}
+
+		// Send initial branding host state after provider changes,
+		// so the provider exists when SetBrandingHost is called.
+		if brandingHost := extractBrandingHost(entry); brandingHost != nil {
+			c.categoriesBrandingDomainChanges <- categoryBrandingDomainChange{
+				CategoryID: categoryID,
+				Host:       brandingHost,
+			}
+		}
 	}
 
 	wg.Add(1)
@@ -239,20 +264,25 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 		defer ticker.Stop()
 
 		for {
-			newCfgCategories, err := model.CategoryAuthenticationConfigurationsLoad(ctx, sess)
+			newCfgCategories, err := model.CategoryConfigurationsLoad(ctx, sess)
 			if err != nil {
 				c.log.Error().Err(err).Msg("reload categories authentication config")
 
 			} else {
-				for categoryID, newCfg := range newCfgCategories {
-					cfg := cfgCategories[categoryID]
+				for categoryID, newEntry := range newCfgCategories {
+					entry := cfgCategories[categoryID]
+
+					notifyBrandingDomainChangeIfNeeded(c.categoriesBrandingDomainChanges, categoryID, extractBrandingHost(entry), extractBrandingHost(newEntry))
+
+					cfg := entry.Authentication
+					newCfg := newEntry.Authentication
 
 					changesChans := c.getOrCreateCategoryChangesChannels(categoryID)
 
 					hasProviders := false
 
-					cfgLocalExists := cfg != nil && cfg.Local != nil
-					newCfgLocalExists := newCfg != nil && newCfg.Local != nil
+					cfgLocalExists := cfg.Local != nil
+					newCfgLocalExists := newCfg.Local != nil
 
 					cfgLocalEnabled := cfgLocalExists && !cfg.Local.Disabled
 					newCfgLocalEnabled := newCfgLocalExists && !newCfg.Local.Disabled
@@ -262,8 +292,8 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 					newCfgLocalDisabled := newCfgLocalExists && newCfg.Local.Disabled
 					notifyDisabledProviderChangeIfNeeded(c.categoriesDisabledProvidersChanges, categoryID, types.ProviderLocal, cfgLocalDisabled, newCfgLocalDisabled)
 
-					cfgLDAPExists := cfg != nil && cfg.LDAP != nil
-					newCfgLDAPExists := newCfg != nil && newCfg.LDAP != nil
+					cfgLDAPExists := cfg.LDAP != nil
+					newCfgLDAPExists := newCfg.LDAP != nil
 
 					cfgLDAPEnabled := cfgLDAPExists && !cfg.LDAP.Disabled && cfg.LDAP.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.LDAP.LDAPConfig != nil
 					newCfgLDAPEnabled := newCfgLDAPExists && !newCfg.LDAP.Disabled && newCfg.LDAP.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && newCfg.LDAP.LDAPConfig != nil
@@ -273,8 +303,8 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 					newCfgLDAPDisabled := newCfgLDAPExists && newCfg.LDAP.Disabled
 					notifyDisabledProviderChangeIfNeeded(c.categoriesDisabledProvidersChanges, categoryID, types.ProviderLDAP, cfgLDAPDisabled, newCfgLDAPDisabled)
 
-					cfgSAMLExists := cfg != nil && cfg.SAML != nil
-					newCfgSAMLExists := newCfg != nil && newCfg.SAML != nil
+					cfgSAMLExists := cfg.SAML != nil
+					newCfgSAMLExists := newCfg.SAML != nil
 
 					cfgSAMLEnabled := cfgSAMLExists && !cfg.SAML.Disabled && cfg.SAML.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.SAML.SAMLConfig != nil
 					newCfgSAMLEnabled := newCfgSAMLExists && !newCfg.SAML.Disabled && newCfg.SAML.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && newCfg.SAML.SAMLConfig != nil
@@ -284,8 +314,8 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 					newCfgSAMLDisabled := newCfgSAMLExists && newCfg.SAML.Disabled
 					notifyDisabledProviderChangeIfNeeded(c.categoriesDisabledProvidersChanges, categoryID, types.ProviderSAML, cfgSAMLDisabled, newCfgSAMLDisabled)
 
-					cfgGoogleExists := cfg != nil && cfg.Google != nil
-					newCfgGoogleExists := newCfg != nil && newCfg.Google != nil
+					cfgGoogleExists := cfg.Google != nil
+					newCfgGoogleExists := newCfg.Google != nil
 
 					cfgGoogleEnabled := cfgGoogleExists && !cfg.Google.Disabled && cfg.Google.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && cfg.Google.GoogleConfig != nil
 					newCfgGoogleEnabled := newCfgGoogleExists && !newCfg.Google.Disabled && newCfg.Google.ConfigSource == model.CategoryAuthenticationConfigSourceCustom && newCfg.Google.GoogleConfig != nil
@@ -343,13 +373,15 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 				}
 
 				// Handle categories that were deleted from the DB.
-				for categoryID, cfg := range cfgCategories {
+				for categoryID, entry := range cfgCategories {
 					if _, ok := newCfgCategories[categoryID]; ok {
 						continue
 					}
 
+					cfg := entry.Authentication
+
 					// Send disable events for all active providers in the deleted category.
-					if cfg != nil && cfg.Local != nil {
+					if cfg.Local != nil {
 						if cfg.Local.Disabled {
 							c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
 								CategoryID: categoryID,
@@ -365,7 +397,7 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 						}
 					}
 
-					if cfg != nil && cfg.LDAP != nil {
+					if cfg.LDAP != nil {
 						if cfg.LDAP.Disabled {
 							c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
 								CategoryID: categoryID,
@@ -381,7 +413,7 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 						}
 					}
 
-					if cfg != nil && cfg.SAML != nil {
+					if cfg.SAML != nil {
 						if cfg.SAML.Disabled {
 							c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
 								CategoryID: categoryID,
@@ -397,7 +429,7 @@ func (c *cfgWatcher) watchCategories(ctx context.Context, wg *sync.WaitGroup, se
 						}
 					}
 
-					if cfg != nil && cfg.Google != nil {
+					if cfg.Google != nil {
 						if cfg.Google.Disabled {
 							c.categoriesDisabledProvidersChanges <- categoryDisabledProviderChange{
 								CategoryID: categoryID,
@@ -472,6 +504,17 @@ func notifyDisabledProviderChangeIfNeeded(channel chan categoryDisabledProviderC
 func notifyIfNeeded[T any](channel chan T, cfg T, newCfg T) {
 	if !cmp.Equal(cfg, newCfg) {
 		channel <- newCfg
+	}
+}
+
+func notifyBrandingDomainChangeIfNeeded(channel chan categoryBrandingDomainChange, categoryID string, host, newHost *string) {
+	if cmp.Equal(host, newHost) {
+		return
+	}
+
+	channel <- categoryBrandingDomainChange{
+		CategoryID: categoryID,
+		Host:       newHost,
 	}
 }
 
