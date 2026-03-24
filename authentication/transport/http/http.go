@@ -180,7 +180,7 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Ensure the user has logged in through SAML
-	middleware := a.Authentication.SAML(categoryID)
+	middleware := a.Authentication.SAML(categoryID, r.Host)
 	if middleware == nil {
 		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
 		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
@@ -234,7 +234,7 @@ func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request)
 func (a *AuthenticationServer) metadataSAML(w http.ResponseWriter, r *http.Request) {
 	categoryID := r.PathValue("categoryID")
 
-	middleware := a.Authentication.SAML(categoryID)
+	middleware := a.Authentication.SAML(categoryID, r.Host)
 	if middleware == nil {
 		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
 
@@ -249,7 +249,7 @@ func (a *AuthenticationServer) metadataSAML(w http.ResponseWriter, r *http.Reque
 func (a *AuthenticationServer) acsSAML(w http.ResponseWriter, r *http.Request) {
 	categoryID := r.PathValue("categoryID")
 
-	middleware := a.Authentication.SAML(categoryID)
+	middleware := a.Authentication.SAML(categoryID, r.Host)
 	if middleware == nil {
 		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
 		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
@@ -262,7 +262,7 @@ func (a *AuthenticationServer) acsSAML(w http.ResponseWriter, r *http.Request) {
 func (a *AuthenticationServer) logoutSAML(w http.ResponseWriter, r *http.Request) {
 	categoryID := r.PathValue("categoryID")
 
-	middleware := a.Authentication.SAML(categoryID)
+	middleware := a.Authentication.SAML(categoryID, r.Host)
 	if middleware == nil {
 		a.Log.Error().Msg("requested SAML middleware, but it's not initialized")
 		httpErr.LoginRedirect(w, r, httpErr.LoginInternalServer)
@@ -316,7 +316,7 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 
 	p := a.Authentication.Provider(string(params.Provider), params.CategoryID)
 	if p.String() == types.ProviderSAML {
-		middleware := a.Authentication.SAML(params.CategoryID)
+		middleware := a.Authentication.SAML(params.CategoryID, host)
 		if middleware == nil {
 			log.Error().Msg("requested SAML middleware, but it's not initialized")
 

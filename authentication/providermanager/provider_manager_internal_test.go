@@ -641,7 +641,7 @@ func TestProviderManagerSAML(t *testing.T) {
 
 			m := tc.PrepareManager()
 
-			assert.Nil(m.SAML(tc.CategoryID))
+			assert.Nil(m.SAML(tc.CategoryID, ""))
 		})
 	}
 }
@@ -1198,6 +1198,107 @@ func TestIsProvidersEmpty(t *testing.T) {
 	}
 }
 
+func TestHandleCategoryBrandingDomainChange(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		PrepareManager func(*testing.T) *ProviderManager
+		Change         categoryBrandingDomainChange
+	}{
+		"should call SetBrandingHost on branding-aware providers in the category": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				bap := provider.NewMockBrandingAwareProvider(t)
+				host := "branding.example.com"
+				bap.On("SetBrandingHost", t.Context(), &host).Return(nil)
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					categories: map[string]*providerSet{
+						"cat1": {
+							providers: map[string]provider.Provider{
+								types.ProviderSAML: bap,
+							},
+						},
+					},
+				}
+			},
+			Change: categoryBrandingDomainChange{
+				CategoryID: "cat1",
+				Host:       strPtr("branding.example.com"),
+			},
+		},
+		"should skip providers that do not implement BrandingAwareProvider": {
+			PrepareManager: func(_ *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					categories: map[string]*providerSet{
+						"cat1": {
+							providers: map[string]provider.Provider{
+								types.ProviderUnknown: &provider.Unknown{},
+							},
+						},
+					},
+				}
+			},
+			Change: categoryBrandingDomainChange{
+				CategoryID: "cat1",
+				Host:       strPtr("branding.example.com"),
+			},
+		},
+		"should fallback to global when category has no specific providers": {
+			PrepareManager: func(_ *testing.T) *ProviderManager {
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					global: providerSet{
+						providers: map[string]provider.Provider{
+							types.ProviderUnknown: &provider.Unknown{},
+						},
+					},
+					categories: map[string]*providerSet{},
+				}
+			},
+			Change: categoryBrandingDomainChange{
+				CategoryID: "cat1",
+				Host:       strPtr("branding.example.com"),
+			},
+		},
+		"should log error when SetBrandingHost fails": {
+			PrepareManager: func(t *testing.T) *ProviderManager {
+				bap := provider.NewMockBrandingAwareProvider(t)
+				host := "branding.example.com"
+				bap.On("SetBrandingHost", t.Context(), &host).Return(errors.New("reload failed"))
+
+				return &ProviderManager{
+					log: log.New("test", "debug"),
+					categories: map[string]*providerSet{
+						"cat1": {
+							providers: map[string]provider.Provider{
+								types.ProviderSAML: bap,
+							},
+						},
+					},
+				}
+			},
+			Change: categoryBrandingDomainChange{
+				CategoryID: "cat1",
+				Host:       strPtr("branding.example.com"),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			m := tc.PrepareManager(t)
+
+			// Mock expectations are verified automatically via t.Cleanup
+			// registered by NewMockBrandingAwareProvider.
+			m.handleCategoryBrandingDomainChange(t.Context(), tc.Change)
+		})
+	}
+}
+
 func TestProviderManagerFullFlow(t *testing.T) {
 	t.Parallel()
 
@@ -1216,7 +1317,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 					Local: model.Local{Enabled: true},
 					LDAP:  model.LDAP{Enabled: true, LDAPConfig: model.LDAPConfig{Host: "ldap.test", Port: 636}},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			Expected: []string{"form", "ldap", "local"},
 		},
@@ -1225,7 +1326,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
 					Local: model.Local{Enabled: true},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1248,7 +1349,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
 					Local: model.Local{Enabled: true},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id":             "cat1",
 						"authentication": map[string]any{},
@@ -1267,7 +1368,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 					Local: model.Local{Enabled: true},
 					LDAP:  model.LDAP{Enabled: true, LDAPConfig: model.LDAPConfig{Host: "ldap.test", Port: 636}},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			Expected: []string{"form", "ldap", "local"},
 		},
@@ -1280,7 +1381,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
 					Local: model.Local{Enabled: true},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			Expected: []string{"form", "local"},
 		},
@@ -1289,7 +1390,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
 					Local: model.Local{Enabled: true},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1299,7 +1400,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1316,7 +1417,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{
 					Local: model.Local{Enabled: true},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1324,7 +1425,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 						},
 					},
 				}, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1349,7 +1450,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 					Local: model.Local{Enabled: true},
 				}, nil).Once()
 				m.On(r.Table("config").Get(1).Field("auth")).Return(nil, errors.New("reload error"))
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{}, nil)
 			},
 			Expected: []string{"form", "local"},
 		},
@@ -1361,7 +1462,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 					SAML:   model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
 					Google: model.Google{Enabled: true, GoogleConfig: model.GoogleConfig{ClientID: "test-client-id"}},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1378,7 +1479,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 					Local: model.Local{Enabled: true},
 					SAML:  model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1399,7 +1500,7 @@ func TestProviderManagerFullFlow(t *testing.T) {
 					Local: model.Local{Enabled: true},
 					SAML:  model.SAML{Enabled: true, SAMLConfig: model.SAMLConfig{MetadataURL: "https://saml.test/metadata"}},
 				}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]any{
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]any{
 					map[string]any{
 						"id": "cat1",
 						"authentication": map[string]any{
@@ -1463,12 +1564,12 @@ func TestProviderManagerFullFlow(t *testing.T) {
 					},
 				}
 
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return(catEmpty, nil).Times(3)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return(catCustomSAML, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return(catDisabledSAML, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return(catCustomSAML, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return(catGlobalSAML, nil).Once()
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return(catEmpty, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return(catEmpty, nil).Times(3)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return(catCustomSAML, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return(catDisabledSAML, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return(catCustomSAML, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return(catGlobalSAML, nil).Once()
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return(catEmpty, nil)
 			},
 			ReloadInterval: 1 * time.Second,
 			CheckCategory: func(t *testing.T, m *ProviderManager) {

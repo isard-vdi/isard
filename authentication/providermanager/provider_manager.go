@@ -19,7 +19,7 @@ type Interface interface {
 	Providers(categoryID string) []string
 	Provider(p string, categoryID string) provider.Provider
 	Healthcheck() error
-	SAML(categoryID string) *samlsp.Middleware
+	SAML(categoryID string, host string) *samlsp.Middleware
 }
 
 var _ Interface = &ProviderManager{}
@@ -147,9 +147,37 @@ func (m *ProviderManager) Manage(ctx context.Context, wg *sync.WaitGroup) {
 
 			case change := <-m.cfgWatcher.categoriesDisabledProvidersChanges:
 				m.handleCategoryDisabledProviderChange(change.CategoryID, change.Provider, change.Disabled)
+
+			case change := <-m.cfgWatcher.categoriesBrandingDomainChanges:
+				m.handleCategoryBrandingDomainChange(ctx, change)
 			}
 		}
 	}()
+}
+
+func (m *ProviderManager) handleCategoryBrandingDomainChange(ctx context.Context, change categoryBrandingDomainChange) {
+	m.mux.RLock()
+	defer m.mux.RUnlock()
+
+	log := m.log.With().Str("category", change.CategoryID).Logger()
+
+	if change.Host != nil {
+		log.Info().Str("host", *change.Host).Msg("loading branding domain")
+	} else {
+		log.Info().Msg("clearing branding domain")
+	}
+
+	scope := m.readScope(change.CategoryID)
+	for _, prv := range scope.providers {
+		bap, ok := prv.(provider.BrandingAwareProvider)
+		if !ok {
+			continue
+		}
+
+		if err := bap.SetBrandingHost(ctx, change.Host); err != nil {
+			log.Error().Err(err).Msg("update branding host on provider")
+		}
+	}
 }
 
 func (m *ProviderManager) handleProviderChange(ctx context.Context, wg *sync.WaitGroup, change providerChange) {
@@ -428,11 +456,11 @@ func (m *ProviderManager) Healthcheck() error {
 	return nil
 }
 
-func (m *ProviderManager) SAML(categoryID string) *samlsp.Middleware {
+func (m *ProviderManager) SAML(categoryID string, host string) *samlsp.Middleware {
 	s, ok := m.Provider(types.ProviderSAML, categoryID).(*provider.SAML)
 	if !ok {
 		return nil
 	}
 
-	return s.Middleware()
+	return s.Middleware(host)
 }

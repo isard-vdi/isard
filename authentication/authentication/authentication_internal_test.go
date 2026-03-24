@@ -125,7 +125,7 @@ func TestSAML(t *testing.T) {
 		"should delegate to provider manager and return nil when no SAML": {
 			PrepareProviderManager: func(t *testing.T) *providermanager.MockProvidermanager {
 				m := providermanager.NewMockProvidermanager(t)
-				m.On("SAML", "default").Return(nil)
+				m.On("SAML", "default", "").Return(nil)
 				return m
 			},
 			CategoryID: "default",
@@ -142,7 +142,7 @@ func TestSAML(t *testing.T) {
 				prvManager: tc.PrepareProviderManager(t),
 			}
 
-			result := a.SAML(tc.CategoryID)
+			result := a.SAML(tc.CategoryID, "")
 			assert.Nil(result)
 		})
 	}

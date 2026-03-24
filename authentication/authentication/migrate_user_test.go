@@ -95,7 +95,7 @@ func TestMigrateUser(t *testing.T) {
 			log := log.New("authentication-test", "debug")
 			dbMock := r.NewMock()
 			dbMock.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
-			dbMock.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
+			dbMock.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 
 			a := authentication.Init(ctx, &wg, cfg, log, dbMock, nil, nil, nil)
 

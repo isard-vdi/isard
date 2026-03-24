@@ -35,7 +35,7 @@ func TestCheck(t *testing.T) {
 		"should work if the token is a valid login token": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 			},
 			PrepareToken: func() string {
 				ss, err := token.SignLoginToken("", time.Now().Add(time.Hour), "ThoJuroQueEsUnID", &model.User{
@@ -68,7 +68,7 @@ func TestCheck(t *testing.T) {
 		"should return an error if the token is invalid": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 			},
 			PrepareToken: func() string {
 				ss, err := token.SignLoginToken("", time.Now().Add(-time.Hour), "ThoJuroQueEsUnID", &model.User{
@@ -96,7 +96,7 @@ func TestCheck(t *testing.T) {
 		"should return an error if the token is not of type login": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("config").Get(1).Field("auth")).Return(model.Config{}, nil)
-				m.On(r.Table("categories").Pluck("id", "authentication")).Return([]interface{}{}, nil)
+				m.On(r.Table("categories").Pluck("id", "authentication", map[string]any{"branding": map[string]any{"domain": true}})).Return([]interface{}{}, nil)
 			},
 			PrepareToken: func() string {
 				ss, err := token.SignDisclaimerAcknowledgementRequiredToken("", "néfix :D")

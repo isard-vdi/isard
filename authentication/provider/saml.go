@@ -13,6 +13,7 @@ import (
 	"path"
 	"regexp"
 	"slices"
+	"sync"
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -32,10 +33,14 @@ const (
 	SLORoute      = "/saml/slo"
 )
 
+var _ Provider = &SAML{}
 var _ ConfigurableProvider[model.SAMLConfig] = &SAML{}
+var _ BrandingAwareProvider = &SAML{}
 
 type SAMLConfig struct {
-	Middleware *samlsp.Middleware
+	Middleware         *samlsp.Middleware
+	BrandingMiddleware *samlsp.Middleware
+	BrandingHost       string
 
 	FieldUID      string
 	ReUID         *regexp.Regexp
@@ -82,6 +87,10 @@ type SAML struct {
 	log        *zerolog.Logger
 	db         r.QueryExecutor
 	httpClient *http.Client
+
+	brandingMux  sync.RWMutex
+	brandingHost *string
+	lastModelCfg *model.SAMLConfig
 }
 
 func InitSAML(secret string, host string, categoryID *string, log *zerolog.Logger, db r.QueryExecutor) *SAML {
@@ -108,6 +117,68 @@ func samlOnError(log *zerolog.Logger) func(http.ResponseWriter, *http.Request, e
 	}
 }
 
+type samlMiddlewareParams struct {
+	host       string
+	categoryID *string
+	key        *rsa.PrivateKey
+	cert       *x509.Certificate
+	metadata   *saml.EntityDescriptor
+	entityID   string
+	sigMethod  string
+	log        *zerolog.Logger
+}
+
+func buildSAMLMiddleware(params samlMiddlewareParams) (*samlsp.Middleware, error) {
+	baseURL, err := url.Parse(fmt.Sprintf("https://%s/authentication", params.host))
+	if err != nil {
+		return nil, fmt.Errorf("parse root URL: %w", err)
+	}
+
+	callbackURL := *baseURL
+	callbackURL.Path = path.Join(baseURL.Path, "/callback")
+
+	middleware, _ := samlsp.New(samlsp.Options{
+		URL:                callbackURL,
+		Key:                params.key,
+		Certificate:        params.cert,
+		IDPMetadata:        params.metadata,
+		DefaultRedirectURI: "/authentication/callback",
+	})
+	middleware.OnError = samlOnError(params.log)
+
+	// Build category-aware SAML endpoint paths.
+	acsSuffix := ACSRoute
+	metadataSuffix := MetadataRoute
+	sloSuffix := SLORoute
+	if params.categoryID != nil {
+		acsSuffix = path.Join("/saml", *params.categoryID, "acs")
+		metadataSuffix = path.Join("/saml", *params.categoryID, "metadata")
+		sloSuffix = path.Join("/saml", *params.categoryID, "slo")
+	}
+
+	acsURL := *baseURL
+	acsURL.Path = path.Join(baseURL.Path, acsSuffix)
+	middleware.ServiceProvider.AcsURL = acsURL
+
+	metadataURL := *baseURL
+	metadataURL.Path = path.Join(baseURL.Path, metadataSuffix)
+	middleware.ServiceProvider.MetadataURL = metadataURL
+
+	sloURL := *baseURL
+	sloURL.Path = path.Join(baseURL.Path, sloSuffix)
+	middleware.ServiceProvider.SloURL = sloURL
+
+	if params.entityID != "" {
+		middleware.ServiceProvider.EntityID = params.entityID
+	}
+
+	if params.sigMethod != "" {
+		middleware.ServiceProvider.SignatureMethod = params.sigMethod
+	}
+
+	return middleware, nil
+}
+
 func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	prvCfg := s.cfg.Cfg()
 
@@ -118,7 +189,7 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	// Middleware setup
 	//
 
-	// Try to load metadata from local file first (if configured)
+	// Try to load metadata from local file first (if configured).
 	if cfg.MetadataFile != "" {
 		s.log.Info().Str("file", cfg.MetadataFile).Msg("attempting to load IdP metadata from local file")
 
@@ -135,7 +206,7 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 		}
 	}
 
-	// Fall back to URL fetch if local file didn't work or wasn't configured
+	// Fall back to URL fetch if local file didn't work or wasn't configured.
 	if metadata == nil {
 		if cfg.MetadataURL == "" {
 			return errors.New("neither metadata file nor metadata URL is configured")
@@ -174,62 +245,51 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 		return fmt.Errorf("parse certificate: %w", err)
 	}
 
-	baseURL, err := url.Parse(fmt.Sprintf("https://%s/authentication", s.host))
-	if err != nil {
-		return fmt.Errorf("parse root URL: %w", err)
-	}
-
-	url := *baseURL
-	url.Path = path.Join(baseURL.Path, "/callback")
-
 	// Set the maximum time between the initial login request and the
-	// response
+	// response.
 	saml.MaxIssueDelay = time.Duration(cfg.MaxIssueDelay)
 
-	middleware, _ := samlsp.New(samlsp.Options{
-		URL:                url,
-		Key:                k.PrivateKey.(*rsa.PrivateKey),
-		Certificate:        k.Leaf,
-		IDPMetadata:        metadata,
-		DefaultRedirectURI: "/authentication/callback",
-	})
-	middleware.OnError = samlOnError(s.log)
-
-	// Build category-aware SAML endpoint paths.
-	acsSuffix := ACSRoute
-	metadataSuffix := MetadataRoute
-	sloSuffix := SLORoute
-	if s.categoryID != nil {
-		acsSuffix = path.Join("/saml", *s.categoryID, "acs")
-		metadataSuffix = path.Join("/saml", *s.categoryID, "metadata")
-		sloSuffix = path.Join("/saml", *s.categoryID, "slo")
+	params := samlMiddlewareParams{
+		host:       s.host,
+		categoryID: s.categoryID,
+		key:        k.PrivateKey.(*rsa.PrivateKey),
+		cert:       k.Leaf,
+		metadata:   metadata,
+		entityID:   cfg.EntityID,
+		sigMethod:  cfg.SignatureMethod,
+		log:        s.log,
 	}
 
-	acsURL := *baseURL
-	acsURL.Path = path.Join(baseURL.Path, acsSuffix)
-	middleware.ServiceProvider.AcsURL = acsURL
+	middleware, err := buildSAMLMiddleware(params)
+	if err != nil {
+		return err
+	}
 
-	metadataURL := *baseURL
-	metadataURL.Path = path.Join(baseURL.Path, metadataSuffix)
-	middleware.ServiceProvider.MetadataURL = metadataURL
-
-	sloURL := *baseURL
-	sloURL.Path = path.Join(baseURL.Path, sloSuffix)
-	middleware.ServiceProvider.SloURL = sloURL
-
-	// Set custom Entity ID if configured, otherwise it defaults to MetadataURL
 	if cfg.EntityID != "" {
-		middleware.ServiceProvider.EntityID = cfg.EntityID
 		s.log.Info().Str("entity_id", cfg.EntityID).Msg("using custom SAML Entity ID")
 	}
-
-	// Enable SAML AuthnRequest signing if configured
 	if cfg.SignatureMethod != "" {
-		middleware.ServiceProvider.SignatureMethod = cfg.SignatureMethod
 		s.log.Info().Str("signature_method", cfg.SignatureMethod).Msg("SAML request signing enabled")
 	}
 
 	prvCfg.Middleware = middleware
+
+	// Create branding middleware if a branding host is configured.
+	brandingHost := s.getBrandingHost()
+	if brandingHost != nil {
+		params.host = *brandingHost
+
+		brandingMiddleware, err := buildSAMLMiddleware(params)
+		if err != nil {
+			return fmt.Errorf("build branding middleware: %w", err)
+		}
+
+		prvCfg.BrandingMiddleware = brandingMiddleware
+		prvCfg.BrandingHost = *brandingHost
+	} else {
+		prvCfg.BrandingMiddleware = nil
+		prvCfg.BrandingHost = ""
+	}
 
 	//
 	// Rest of the configuration
@@ -317,6 +377,11 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	prvCfg.SaveEmail = cfg.SaveEmail
 
 	s.cfg.LoadCfg(prvCfg)
+
+	// Cache the model config for branding host reload.
+	s.brandingMux.Lock()
+	s.lastModelCfg = &cfg
+	s.brandingMux.Unlock()
 
 	return nil
 }
@@ -481,7 +546,7 @@ func (s *SAML) AutoRegister(u *model.User) bool {
 	return false
 }
 
-func (SAML) String() string {
+func (*SAML) String() string {
 	return types.ProviderSAML
 }
 
@@ -514,7 +579,7 @@ func (s *SAML) Healthcheck() error {
 	return nil
 }
 
-func (s SAML) Logout(context.Context, string) (string, error) {
+func (s *SAML) Logout(context.Context, string) (string, error) {
 	return s.cfg.Cfg().LogoutRedirectURL, nil
 }
 
@@ -545,6 +610,32 @@ func (s *SAML) GuessRole(ctx context.Context, u *types.ProviderUserData, rawRole
 	}, rawRoles)
 }
 
-func (s *SAML) Middleware() *samlsp.Middleware {
-	return s.cfg.Cfg().Middleware
+func (s *SAML) getBrandingHost() *string {
+	s.brandingMux.RLock()
+	defer s.brandingMux.RUnlock()
+
+	return s.brandingHost
+}
+
+func (s *SAML) SetBrandingHost(ctx context.Context, host *string) error {
+	s.brandingMux.Lock()
+	s.brandingHost = host
+	lastCfg := s.lastModelCfg
+	s.brandingMux.Unlock()
+
+	if lastCfg == nil {
+		return nil
+	}
+
+	return s.LoadConfig(ctx, *lastCfg)
+}
+
+func (s *SAML) Middleware(host string) *samlsp.Middleware {
+	cfg := s.cfg.Cfg()
+
+	if cfg.BrandingMiddleware != nil && cfg.BrandingHost == host {
+		return cfg.BrandingMiddleware
+	}
+
+	return cfg.Middleware
 }

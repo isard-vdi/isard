@@ -97,11 +97,12 @@ func TestSAMLLoadConfig(t *testing.T) {
 	t.Cleanup(tlsFallbackServer.Close)
 
 	cases := map[string]struct {
-		Input      func(certPath, keyPath, metadataPath string) model.SAMLConfig
-		NeedTLS    bool
-		HTTPClient *http.Client
-		CategoryID *string
-		Expected   expected
+		Input        func(certPath, keyPath, metadataPath string) model.SAMLConfig
+		NeedTLS      bool
+		HTTPClient   *http.Client
+		CategoryID   *string
+		BrandingHost *string
+		Expected     expected
 	}{
 		"should load config with all fields from local metadata file": {
 			NeedTLS: true,
@@ -481,6 +482,63 @@ func TestSAMLLoadConfig(t *testing.T) {
 			},
 			Expected: expected{Cfg: &SAMLConfig{}},
 		},
+		"should create branding middleware when branding host is set": {
+			NeedTLS:      true,
+			CategoryID:   strPtr("my-category"),
+			BrandingHost: strPtr("branding.example.com"),
+			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+				return model.SAMLConfig{
+					MetadataFile: metadataPath,
+					EntityID:     "https://sp.example.com",
+					KeyFile:      keyPath,
+					CertFile:     certPath,
+
+					RegexUID:      ".*",
+					RegexUsername: ".*",
+					RegexName:     ".*",
+					RegexEmail:    ".*",
+					RegexPhoto:    ".*",
+				}
+			},
+			Expected: expected{Cfg: &SAMLConfig{}},
+		},
+		"should not create branding middleware when branding host is nil": {
+			NeedTLS:    true,
+			CategoryID: strPtr("my-category"),
+			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+				return model.SAMLConfig{
+					MetadataFile: metadataPath,
+					EntityID:     "https://sp.example.com",
+					KeyFile:      keyPath,
+					CertFile:     certPath,
+
+					RegexUID:      ".*",
+					RegexUsername: ".*",
+					RegexName:     ".*",
+					RegexEmail:    ".*",
+					RegexPhoto:    ".*",
+				}
+			},
+			Expected: expected{Cfg: &SAMLConfig{}},
+		},
+		"should cache the model config after successful load": {
+			NeedTLS: true,
+			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+				return model.SAMLConfig{
+					MetadataFile: metadataPath,
+					KeyFile:      keyPath,
+					CertFile:     certPath,
+					FieldUID:     "uid",
+
+					RegexUID:      ".*",
+					RegexUsername: ".*",
+					RegexName:     ".*",
+					RegexEmail:    ".*",
+					RegexPhoto:    ".*",
+				}
+			},
+			Expected: expected{Cfg: &SAMLConfig{FieldUID: "uid"}},
+		},
 	}
 
 	for name, tc := range cases {
@@ -494,11 +552,12 @@ func TestSAMLLoadConfig(t *testing.T) {
 			}
 
 			s := &SAML{
-				cfg:        &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
-				host:       "sp.example.com",
-				categoryID: tc.CategoryID,
-				log:        &nopLog,
-				httpClient: tc.HTTPClient,
+				cfg:          &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+				host:         "sp.example.com",
+				categoryID:   tc.CategoryID,
+				log:          &nopLog,
+				httpClient:   tc.HTTPClient,
+				brandingHost: tc.BrandingHost,
 			}
 
 			input := tc.Input(certPath, keyPath, metadataPath)
@@ -587,6 +646,24 @@ func TestSAMLLoadConfig(t *testing.T) {
 
 			assert.Equal(exp.LogoutRedirectURL, cfg.LogoutRedirectURL)
 			assert.Equal(exp.SaveEmail, cfg.SaveEmail)
+
+			// Branding middleware assertions.
+			if tc.BrandingHost != nil {
+				assert.NotNil(cfg.BrandingMiddleware)
+				assert.Equal(*tc.BrandingHost, cfg.BrandingHost)
+
+				// Verify branding middleware uses the branding host.
+				brandingACS := cfg.BrandingMiddleware.ServiceProvider.AcsURL.String()
+				assert.Contains(brandingACS, *tc.BrandingHost)
+			} else {
+				assert.Nil(cfg.BrandingMiddleware)
+				assert.Empty(cfg.BrandingHost)
+			}
+
+			// Model config cache assertion.
+			s.brandingMux.RLock()
+			assert.NotNil(s.lastModelCfg)
+			s.brandingMux.RUnlock()
 		})
 	}
 }
@@ -787,6 +864,172 @@ func TestSAMLGuessRole(t *testing.T) {
 			} else {
 				assert.Nil(err)
 				assert.Equal(tc.ExpectedRole, *role)
+			}
+		})
+	}
+}
+
+func TestSAMLSetBrandingHost(t *testing.T) {
+	// NOTE: not parallel because LoadConfig writes to the
+	// package-level saml.MaxIssueDelay global variable.
+
+	assert := assert.New(t)
+
+	nopLog := zerolog.Nop()
+	certPath, keyPath, metadataPath := prepareSAMLFiles(t)
+
+	cachedCfg := &model.SAMLConfig{
+		MetadataFile:  metadataPath,
+		KeyFile:       keyPath,
+		CertFile:      certPath,
+		RegexUID:      ".*",
+		RegexUsername: ".*",
+		RegexName:     ".*",
+		RegexEmail:    ".*",
+		RegexPhoto:    ".*",
+	}
+
+	cases := map[string]struct {
+		PrepareProvider func() *SAML
+		Host            *string
+		ExpectBranding  bool
+		ExpectReload    bool
+	}{
+		"should store host and reload when config is cached": {
+			PrepareProvider: func() *SAML {
+				return &SAML{
+					cfg:          &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+					host:         "sp.example.com",
+					log:          &nopLog,
+					lastModelCfg: cachedCfg,
+				}
+			},
+			Host:           strPtr("branding.example.com"),
+			ExpectBranding: true,
+			ExpectReload:   true,
+		},
+		"should store host without reload when no config is cached": {
+			PrepareProvider: func() *SAML {
+				return &SAML{
+					cfg:  &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+					host: "sp.example.com",
+					log:  &nopLog,
+				}
+			},
+			Host:           strPtr("branding.example.com"),
+			ExpectBranding: false,
+			ExpectReload:   false,
+		},
+		"should clear branding when host is nil and config is cached": {
+			PrepareProvider: func() *SAML {
+				return &SAML{
+					cfg:          &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+					host:         "sp.example.com",
+					log:          &nopLog,
+					brandingHost: strPtr("old.example.com"),
+					lastModelCfg: cachedCfg,
+				}
+			},
+			Host:           nil,
+			ExpectBranding: false,
+			ExpectReload:   true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			// NOTE: not parallel because LoadConfig writes to the
+			// package-level saml.MaxIssueDelay global variable.
+
+			s := tc.PrepareProvider()
+
+			err := s.SetBrandingHost(t.Context(), tc.Host)
+			assert.NoError(err)
+
+			assert.Equal(tc.Host, s.getBrandingHost())
+
+			cfg := s.cfg.Cfg()
+			if tc.ExpectBranding {
+				assert.NotNil(cfg.BrandingMiddleware)
+				assert.Equal(*tc.Host, cfg.BrandingHost)
+			} else if tc.ExpectReload {
+				assert.Nil(cfg.BrandingMiddleware)
+				assert.Empty(cfg.BrandingHost)
+			}
+		})
+	}
+}
+
+func TestSAMLMiddleware(t *testing.T) {
+	// NOTE: not parallel because LoadConfig writes to the
+	// package-level saml.MaxIssueDelay global variable.
+
+	assert := assert.New(t)
+
+	nopLog := zerolog.Nop()
+	certPath, keyPath, metadataPath := prepareSAMLFiles(t)
+
+	baseCfg := model.SAMLConfig{
+		MetadataFile:  metadataPath,
+		KeyFile:       keyPath,
+		CertFile:      certPath,
+		RegexUID:      ".*",
+		RegexUsername: ".*",
+		RegexName:     ".*",
+		RegexEmail:    ".*",
+		RegexPhoto:    ".*",
+	}
+
+	cases := map[string]struct {
+		BrandingHost       *string
+		RequestHost        string
+		ExpectBrandingUsed bool
+	}{
+		"should return branding middleware when host matches branding": {
+			BrandingHost:       strPtr("branding.example.com"),
+			RequestHost:        "branding.example.com",
+			ExpectBrandingUsed: true,
+		},
+		"should return primary middleware when host matches main domain": {
+			BrandingHost:       strPtr("branding.example.com"),
+			RequestHost:        "sp.example.com",
+			ExpectBrandingUsed: false,
+		},
+		"should return primary middleware when no branding is configured": {
+			BrandingHost:       nil,
+			RequestHost:        "sp.example.com",
+			ExpectBrandingUsed: false,
+		},
+		"should fallback to primary middleware for unknown host": {
+			BrandingHost:       strPtr("branding.example.com"),
+			RequestHost:        "unknown.example.com",
+			ExpectBrandingUsed: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			// NOTE: not parallel because LoadConfig writes to the
+			// package-level saml.MaxIssueDelay global variable.
+
+			s := &SAML{
+				cfg:          &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+				host:         "sp.example.com",
+				log:          &nopLog,
+				brandingHost: tc.BrandingHost,
+			}
+
+			err := s.LoadConfig(t.Context(), baseCfg)
+			assert.NoError(err)
+
+			mw := s.Middleware(tc.RequestHost)
+			assert.NotNil(mw)
+
+			cfg := s.cfg.Cfg()
+			if tc.ExpectBrandingUsed {
+				assert.Equal(cfg.BrandingMiddleware, mw)
+			} else {
+				assert.Equal(cfg.Middleware, mw)
 			}
 		})
 	}

@@ -41,7 +41,7 @@ type Interface interface {
 	GenerateAPIKey(ctx context.Context, tkn string, expirationMinutes int) (apiKey string, err error)
 	GenerateUserToken(ctx context.Context, tkn string, userID string) (userTkn string, err error)
 
-	SAML(categoryID string) *samlsp.Middleware
+	SAML(categoryID string, host string) *samlsp.Middleware
 
 	Healthcheck() error
 }
@@ -117,8 +117,8 @@ func (a *Authentication) Check(ctx context.Context, ss, remoteAddr string) error
 	return err
 }
 
-func (a *Authentication) SAML(categoryID string) *samlsp.Middleware {
-	return a.prvManager.SAML(categoryID)
+func (a *Authentication) SAML(categoryID string, host string) *samlsp.Middleware {
+	return a.prvManager.SAML(categoryID, host)
 }
 
 func (a *Authentication) Healthcheck() error {
