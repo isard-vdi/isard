@@ -191,7 +191,6 @@ docker-image-codegen:
 
 gen-protobuf:
   stage: generate
-  needs: ["docker-image-codegen"]
   image: "docker:${DOCKER_VERSION}"
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
@@ -242,7 +241,6 @@ docker-compose-build:
 
 unit-test-go:
   stage: unit-test
-  needs: ["gen-protobuf"]
   image: golang:1.24
   before_script:
     - apt-get update && apt-get install -y libvirt-dev
