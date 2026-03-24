@@ -1,2 +1,15 @@
 frontend/node_modules
 old-frontend/node_modules
+.git
+.github
+.gitlab
+.vscode
+testing
+e2e
+certs
+*.md
+LICENSE
+.gitmodules
+.editorconfig
+.pre-commit-config.yaml
+isardvdi.cfg.example
