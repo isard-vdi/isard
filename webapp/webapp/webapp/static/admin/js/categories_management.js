@@ -679,10 +679,9 @@ function actionsCategoryDetail() {
         });
     });
 
-    $("#categories .btn-authentication").off("click").on("click", function () {
-        var pk = $(this).closest("div").attr("data-pk");
+    $("#modalAuthentication").on("hidden.bs.modal", function () {
         var modal = "#modalAuthentication";
-
+        resetFormData($(modal + " form"));
         // Reset Parsley constraint from previous modal opens
         $(modal + " select[name$='[config_source]']").each(function () {
           $(this).removeAttr('data-parsley-trigger');
@@ -690,6 +689,11 @@ function actionsCategoryDetail() {
           parsleyField.removeConstraint('providerGloballyDisabled');
           parsleyField.reset();
         });
+    });
+
+    $("#categories .btn-authentication").off("click").on("click", function () {
+        var pk = $(this).closest("div").attr("data-pk");
+        var modal = "#modalAuthentication";
 
         $(modal + " input[name$='[disabled]']").off("ifChanged").on("ifChanged", function () {
           var $xContent = $(this).closest(".x_content");
@@ -840,17 +844,14 @@ function actionsCategoryDetail() {
     });
 
 
+    $("#modal-branding").on("hidden.bs.modal", function () {
+        resetFormData($(this).find("form"));
+    });
+
     $("#categories .btn-branding").off("click").on("click", function () {
         var pk = $(this).closest("div").attr("data-pk");
         var $modal = $("#modal-branding");
         var $form = $modal.find("form");
-
-        // Reset the form when the modal is closed or cancelled
-        $modal.off("hidden.bs.modal").on("hidden.bs.modal", function () {
-            $form[0].reset();
-            $form.find(":checkbox").iCheck("uncheck").iCheck('update');
-            $form.find("input[type='hidden'][data-file-content]").val('').trigger('change');
-        });
 
         // Set up domain enabled checkbox toggle
         $form.find("input[name='branding[domain][enabled]']").off("ifChanged").on("ifChanged", function () {
@@ -887,6 +888,11 @@ function actionsCategoryDetail() {
         }).modal("show");
     });
 
+
+    $("#modal-category-login_notification").on("hidden.bs.modal", function () {
+        resetFormData($(this).find("form"));
+        $(this).find("#category-login-notification-preview").empty();
+    });
 
     $("#categories .btn-login_notification").off("click").on("click", function () {
         var pk = $(this).closest("div").attr("data-pk");

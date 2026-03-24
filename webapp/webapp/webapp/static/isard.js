@@ -487,6 +487,31 @@ function fillFormData ($container, data, prefix) {
 }
 
 /**
+ * Resets all form fields inside a container to their default empty state.
+ * Checkboxes are unchecked via iCheck, multi-selects are emptied, and all
+ * other inputs are cleared. Parsley validation state is also reset.
+ *
+ * @param {jQuery} $container - The container element holding the form fields.
+ */
+function resetFormData ($container) {
+  $container.find(':checkbox').each(function () {
+    $(this).iCheck('uncheck').iCheck('update').trigger('ifChanged');
+  });
+  $container.find('select[multiple]').each(function () {
+    $(this).empty().trigger('change');
+  });
+  $container.find('select:not([multiple])').each(function () {
+    $(this).prop('selectedIndex', 0).trigger('change');
+  });
+  $container.find(':input:not(:checkbox):not(select):not(button)').each(function () {
+    $(this).val('').trigger('change');
+  });
+  var $form = $container.closest('form');
+  if (!$form.length) $form = $container.filter('form');
+  if ($form.length) $form.parsley().reset();
+}
+
+/**
  * Collects form data from all inputs inside a container and returns it as a
  * nested object. Inputs excluded from Parsley validation or without a name
  * attribute are skipped. Field names in bracket notation (e.g. "ldap_config[host]")
