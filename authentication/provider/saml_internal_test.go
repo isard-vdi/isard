@@ -100,6 +100,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 		Input      func(certPath, keyPath, metadataPath string) model.SAMLConfig
 		NeedTLS    bool
 		HTTPClient *http.Client
+		CategoryID *string
 		Expected   expected
 	}{
 		"should load config with all fields from local metadata file": {
@@ -461,6 +462,25 @@ func TestSAMLLoadConfig(t *testing.T) {
 				},
 			},
 		},
+		"should use category-specific SAML endpoint paths when categoryID is set": {
+			NeedTLS:    true,
+			CategoryID: strPtr("my-category"),
+			Input: func(certPath, keyPath, metadataPath string) model.SAMLConfig {
+				return model.SAMLConfig{
+					MetadataFile: metadataPath,
+					EntityID:     "https://sp.example.com",
+					KeyFile:      keyPath,
+					CertFile:     certPath,
+
+					RegexUID:      ".*",
+					RegexUsername: ".*",
+					RegexName:     ".*",
+					RegexEmail:    ".*",
+					RegexPhoto:    ".*",
+				}
+			},
+			Expected: expected{Cfg: &SAMLConfig{}},
+		},
 	}
 
 	for name, tc := range cases {
@@ -476,6 +496,7 @@ func TestSAMLLoadConfig(t *testing.T) {
 			s := &SAML{
 				cfg:        &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
 				host:       "sp.example.com",
+				categoryID: tc.CategoryID,
 				log:        &nopLog,
 				httpClient: tc.HTTPClient,
 			}
@@ -497,9 +518,16 @@ func TestSAMLLoadConfig(t *testing.T) {
 				assert.NotNil(cfg.Middleware)
 				assert.Equal(input.EntityID, cfg.Middleware.ServiceProvider.EntityID)
 				assert.Equal(input.SignatureMethod, cfg.Middleware.ServiceProvider.SignatureMethod)
-				assert.Equal("https://sp.example.com/authentication/saml/acs", cfg.Middleware.ServiceProvider.AcsURL.String())
-				assert.Equal("https://sp.example.com/authentication/saml/metadata", cfg.Middleware.ServiceProvider.MetadataURL.String())
-				assert.Equal("https://sp.example.com/authentication/saml/slo", cfg.Middleware.ServiceProvider.SloURL.String())
+
+				if tc.CategoryID != nil {
+					assert.Equal("https://sp.example.com/authentication/saml/"+*tc.CategoryID+"/acs", cfg.Middleware.ServiceProvider.AcsURL.String())
+					assert.Equal("https://sp.example.com/authentication/saml/"+*tc.CategoryID+"/metadata", cfg.Middleware.ServiceProvider.MetadataURL.String())
+					assert.Equal("https://sp.example.com/authentication/saml/"+*tc.CategoryID+"/slo", cfg.Middleware.ServiceProvider.SloURL.String())
+				} else {
+					assert.Equal("https://sp.example.com/authentication/saml/acs", cfg.Middleware.ServiceProvider.AcsURL.String())
+					assert.Equal("https://sp.example.com/authentication/saml/metadata", cfg.Middleware.ServiceProvider.MetadataURL.String())
+					assert.Equal("https://sp.example.com/authentication/saml/slo", cfg.Middleware.ServiceProvider.SloURL.String())
+				}
 			}
 
 			assert.Equal(exp.FieldUID, cfg.FieldUID)
@@ -762,4 +790,8 @@ func TestSAMLGuessRole(t *testing.T) {
 			}
 		})
 	}
+}
+
+func strPtr(s string) *string {
+	return &s
 }

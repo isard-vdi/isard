@@ -78,18 +78,20 @@ type SAML struct {
 
 	secret     string
 	host       string
+	categoryID *string
 	log        *zerolog.Logger
 	db         r.QueryExecutor
 	httpClient *http.Client
 }
 
-func InitSAML(secret string, host string, log *zerolog.Logger, db r.QueryExecutor) *SAML {
+func InitSAML(secret string, host string, categoryID *string, log *zerolog.Logger, db r.QueryExecutor) *SAML {
 	s := &SAML{
-		cfg:    &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
-		secret: secret,
-		host:   host,
-		log:    log,
-		db:     db,
+		cfg:        &cfgManager[SAMLConfig]{cfg: &SAMLConfig{}},
+		secret:     secret,
+		host:       host,
+		categoryID: categoryID,
+		log:        log,
+		db:         db,
 	}
 	return s
 }
@@ -193,17 +195,26 @@ func (s *SAML) LoadConfig(ctx context.Context, cfg model.SAMLConfig) error {
 	})
 	middleware.OnError = samlOnError(s.log)
 
-	// Configure the full path of the SAML endpoints
+	// Build category-aware SAML endpoint paths.
+	acsSuffix := ACSRoute
+	metadataSuffix := MetadataRoute
+	sloSuffix := SLORoute
+	if s.categoryID != nil {
+		acsSuffix = path.Join("/saml", *s.categoryID, "acs")
+		metadataSuffix = path.Join("/saml", *s.categoryID, "metadata")
+		sloSuffix = path.Join("/saml", *s.categoryID, "slo")
+	}
+
 	acsURL := *baseURL
-	acsURL.Path = path.Join(baseURL.Path, ACSRoute)
+	acsURL.Path = path.Join(baseURL.Path, acsSuffix)
 	middleware.ServiceProvider.AcsURL = acsURL
 
 	metadataURL := *baseURL
-	metadataURL.Path = path.Join(baseURL.Path, MetadataRoute)
+	metadataURL.Path = path.Join(baseURL.Path, metadataSuffix)
 	middleware.ServiceProvider.MetadataURL = metadataURL
 
 	sloURL := *baseURL
-	sloURL.Path = path.Join(baseURL.Path, SLORoute)
+	sloURL.Path = path.Join(baseURL.Path, sloSuffix)
 	middleware.ServiceProvider.SloURL = sloURL
 
 	// Set custom Entity ID if configured, otherwise it defaults to MetadataURL

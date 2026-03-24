@@ -249,10 +249,11 @@ func (m *ProviderManager) enableProvider(ctx context.Context, wg *sync.WaitGroup
 	}
 
 	enableProvider(ctx, wg, enableProviderParams{
-		log,
-		m.cfg,
-		m.db,
-		changesChans,
+		log:          log,
+		cfg:          m.cfg,
+		db:           m.db,
+		changesChans: changesChans,
+		categoryID:   categoryID,
 	}, scope, prv)
 }
 
@@ -261,6 +262,7 @@ type enableProviderParams struct {
 	cfg          cfg.Authentication
 	db           r.QueryExecutor
 	changesChans *providerChangesChannels
+	categoryID   *string
 }
 
 func enableProvider(ctx context.Context, wg *sync.WaitGroup, params enableProviderParams, scope *providerSet, p string) {
@@ -297,7 +299,7 @@ func enableProvider(ctx context.Context, wg *sync.WaitGroup, params enableProvid
 		}
 
 	case types.ProviderSAML:
-		saml := provider.InitSAML(params.cfg.Secret, params.cfg.Host, params.log, params.db)
+		saml := provider.InitSAML(params.cfg.Secret, params.cfg.Host, params.categoryID, params.log, params.db)
 
 		watcherCtx, cancel := context.WithCancel(ctx)
 		scope.watcherCancels[p] = cancel
