@@ -41,7 +41,7 @@ func TestGoogleInitGoogle(t *testing.T) {
 
 			oauthCfg := g.provider.cfg.Cfg()
 			assert.Len(oauthCfg.Scopes, tc.ExpectedScopes)
-			assert.Equal("https://example.com/authentication/callback", oauthCfg.RedirectURL)
+			assert.Empty(oauthCfg.RedirectURL)
 		})
 	}
 }

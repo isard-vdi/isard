@@ -29,14 +29,20 @@ func (o *oauth2Provider) loadConfig(cfg oauth2ProviderConfig) {
 	o.cfg.LoadCfg(prvCfg)
 }
 
-func (o *oauth2Provider) login(categoryID, redirect string) (string, error) {
+func (o *oauth2Provider) login(host, categoryID, redirect string) (string, error) {
 	ss, err := token.SignCallbackToken(o.secret, o.provider, categoryID, redirect)
 	if err != nil {
 		return "", fmt.Errorf("sign the callback token: %w", err)
 	}
 
-	cfg := o.cfg.Cfg()
+	cfg := o.cfgWithHost(host)
 	return cfg.AuthCodeURL(ss), nil
+}
+
+func (o *oauth2Provider) cfgWithHost(host string) oauth2.Config {
+	cfg := o.cfg.Cfg()
+	cfg.RedirectURL = fmt.Sprintf("https://%s/authentication/callback", host)
+	return cfg
 }
 
 func (o *oauth2Provider) callback(ctx context.Context, args CallbackArgs) (*oauth2.Token, error) {
@@ -45,7 +51,7 @@ func (o *oauth2Provider) callback(ctx context.Context, args CallbackArgs) (*oaut
 		code = *args.Oauth2Code
 	}
 
-	cfg := o.cfg.Cfg()
+	cfg := o.cfgWithHost(args.Host)
 	tkn, err := cfg.Exchange(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("exchange oauth2 token: %w", err)

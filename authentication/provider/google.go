@@ -36,8 +36,7 @@ func InitGoogle(cfg cfg.Authentication) *Google {
 						"https://www.googleapis.com/auth/userinfo.email",
 						"https://www.googleapis.com/auth/userinfo.profile",
 					},
-					Endpoint:    google.Endpoint,
-					RedirectURL: fmt.Sprintf("https://%s/authentication/callback", cfg.Host),
+					Endpoint: google.Endpoint,
 				},
 			},
 		},
@@ -59,7 +58,7 @@ func (g *Google) Login(ctx context.Context, categoryID string, args LoginArgs) (
 		redirect = *args.Redirect
 	}
 
-	redirect, err := g.provider.login(categoryID, redirect)
+	redirect, err := g.provider.login(args.Host, categoryID, redirect)
 	if err != nil {
 		return nil, nil, nil, "", "", &ProviderError{
 			User:   ErrInternal,
