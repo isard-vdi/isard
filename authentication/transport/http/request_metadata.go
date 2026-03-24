@@ -10,7 +10,10 @@ import (
 
 type requestMetadataCtxKeyType string
 
-const requestMetadataRemoteAddrCtxKey requestMetadataCtxKeyType = "request_metadata_remote_addr"
+const (
+	requestMetadataRemoteAddrCtxKey requestMetadataCtxKeyType = "request_metadata_remote_addr"
+	requestMetadataHostCtxKey       requestMetadataCtxKeyType = "request_metadata_host"
+)
 
 func RequestMetadataOAS(
 	req middleware.Request,
@@ -19,6 +22,7 @@ func RequestMetadataOAS(
 	remoteAddr := extractRemoteAddr(req.Raw)
 
 	req.Context = context.WithValue(req.Context, requestMetadataRemoteAddrCtxKey, remoteAddr)
+	req.Context = context.WithValue(req.Context, requestMetadataHostCtxKey, req.Raw.Host)
 
 	return next(req)
 }
@@ -28,6 +32,7 @@ func requestMetadataHandler(next http.Handler) http.Handler {
 		remoteAddr := extractRemoteAddr(r)
 
 		r = r.WithContext(context.WithValue(r.Context(), requestMetadataRemoteAddrCtxKey, remoteAddr))
+		r = r.WithContext(context.WithValue(r.Context(), requestMetadataHostCtxKey, r.Host))
 
 		next.ServeHTTP(w, r)
 	})

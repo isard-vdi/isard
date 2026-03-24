@@ -174,6 +174,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -270,6 +271,7 @@ func TestLogin(t *testing.T) {
 				require.NoError(err)
 
 				return provider.LoginArgs{
+					Host:  "example.com",
 					Token: &ss,
 				}
 			},
@@ -365,6 +367,7 @@ func TestLogin(t *testing.T) {
 				require.NoError(err)
 
 				return provider.LoginArgs{
+					Host:  "example.com",
 					Token: &ss,
 				}
 			},
@@ -515,6 +518,7 @@ func TestLogin(t *testing.T) {
 				require.NoError(err)
 
 				return provider.LoginArgs{
+					Host:  "example.com",
 					Token: &ss,
 				}
 			},
@@ -554,6 +558,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -595,6 +600,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -645,6 +651,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -697,6 +704,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -773,6 +781,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -852,6 +861,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -947,6 +957,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -1019,6 +1030,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -1092,6 +1104,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}
@@ -1162,6 +1175,7 @@ func TestLogin(t *testing.T) {
 				password := "f0kt3Rf$"
 
 				return provider.LoginArgs{
+					Host:         "example.com",
 					FormUsername: &username,
 					FormPassword: &password,
 				}

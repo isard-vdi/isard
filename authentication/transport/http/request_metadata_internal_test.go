@@ -21,6 +21,7 @@ func TestRequestMetadata(t *testing.T) {
 				raw := httptest.NewRequest("GET", "/", nil)
 				raw.Header.Add("X-Forwarded-For", "192.168.1.1")
 				raw.RemoteAddr = "172.0.0.1"
+				raw.Host = "example.com"
 
 				return middleware.Request{
 					Context:          context.Background(),
@@ -33,10 +34,11 @@ func TestRequestMetadata(t *testing.T) {
 				}
 			},
 			CheckRequest: func(req middleware.Request) (middleware.Response, error) {
-				// Remote address is injected in the RequestMetadata middleware
 				remoteAddr := req.Context.Value(requestMetadataRemoteAddrCtxKey).(string)
+				host := req.Context.Value(requestMetadataHostCtxKey).(string)
 
 				assert.Equal("192.168.1.1", remoteAddr)
+				assert.Equal("example.com", host)
 
 				return middleware.Response{}, nil
 			},
@@ -45,6 +47,7 @@ func TestRequestMetadata(t *testing.T) {
 			PrepareRequest: func() middleware.Request {
 				raw := httptest.NewRequest("GET", "/", nil)
 				raw.RemoteAddr = "172.0.0.1"
+				raw.Host = "isard.example.org"
 
 				return middleware.Request{
 					Context:          context.Background(),
@@ -57,10 +60,11 @@ func TestRequestMetadata(t *testing.T) {
 				}
 			},
 			CheckRequest: func(req middleware.Request) (middleware.Response, error) {
-				// Remote address is injected in the RequestMetadata middleware
 				remoteAddr := req.Context.Value(requestMetadataRemoteAddrCtxKey).(string)
+				host := req.Context.Value(requestMetadataHostCtxKey).(string)
 
 				assert.Equal("172.0.0.1", remoteAddr)
+				assert.Equal("isard.example.org", host)
 
 				return middleware.Response{}, nil
 			},

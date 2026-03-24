@@ -29,6 +29,8 @@ const (
 type HTTPRequestType string
 
 type LoginArgs struct {
+	Host string
+
 	Token    *string
 	Redirect *string
 
@@ -37,6 +39,8 @@ type LoginArgs struct {
 }
 
 type CallbackArgs struct {
+	Host string
+
 	Oauth2Code *string
 }
 

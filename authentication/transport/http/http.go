@@ -269,7 +269,12 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	// Remote address is injected in the RequestMetadata middleware
 	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
 
-	args := provider.LoginArgs{}
+	// Host is injected in the RequestMetadata middleware.
+	host := ctx.Value(requestMetadataHostCtxKey).(string)
+
+	args := provider.LoginArgs{
+		Host: host,
+	}
 
 	// Token provided in the Authorization header
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
@@ -424,7 +429,12 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 	// Remote address is injected in the RequestMetadata middleware
 	remoteAddr := ctx.Value(requestMetadataRemoteAddrCtxKey).(string)
 
-	args := provider.CallbackArgs{}
+	// Host is injected in the RequestMetadata middleware.
+	host := ctx.Value(requestMetadataHostCtxKey).(string)
+
+	args := provider.CallbackArgs{
+		Host: host,
+	}
 
 	// OAuth2
 	if params.Code.Set {
