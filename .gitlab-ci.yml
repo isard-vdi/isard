@@ -167,6 +167,7 @@ check-protobuf:
 docker-image-codegen:
   image: "docker:${DOCKER_VERSION}"
   stage: build-codegen
+  needs: []
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
   parallel:
@@ -174,7 +175,7 @@ docker-image-codegen:
       - DOCKERFILE: docker/codegen/Dockerfile
         IMAGE: codegen
   before_script:
-    - until docker info; do sleep 1; done
+    - timeout 60 sh -c 'until docker info; do sleep 1; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - |
@@ -189,11 +190,12 @@ docker-image-codegen:
 
 gen-protobuf:
   stage: generate
+  needs: ["docker-image-codegen"]
   image: "docker:${DOCKER_VERSION}"
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
   before_script:
-    - until docker info; do sleep 1; done
+    - timeout 60 sh -c 'until docker info; do sleep 1; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - docker run -u $(id -u) -v "$(pwd):/build" -e BUF_TOKEN="$BUF_TOKEN" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
@@ -205,6 +207,7 @@ gen-protobuf:
 
 docker-compose-build:
   stage: generate
+  needs: []
   image: "docker:${DOCKER_VERSION}"
   services:
     - name: "docker:${DOCKER_VERSION}-dind-rootless"
@@ -238,6 +241,7 @@ docker-compose-build:
 
 unit-test-go:
   stage: unit-test
+  needs: ["gen-protobuf"]
   image: golang:1.24
   before_script:
     - apt-get update && apt-get install -y libvirt-dev
@@ -303,7 +307,7 @@ docker-image:
           - check-client
   before_script:
     - apk add git docker-compose
-    - until docker info; do sleep 1; done
+    - timeout 60 sh -c 'until docker info; do sleep 1; done'
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - git submodule update --init --recursive --remote
