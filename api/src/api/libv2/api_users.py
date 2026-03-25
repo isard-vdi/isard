@@ -1970,8 +1970,26 @@ class ApiUsers:
         else:
             return category[0]
 
-    def category_get_by_custom_url(self, custom_url):
+    def category_get_by_custom_url(self, custom_url, domain=None):
         with app.app_context():
+            if domain and domain != os.environ.get("DOMAIN"):
+                domain_category = list(
+                    r.table("categories")
+                    .filter({"branding": {"domain": {"enabled": True, "name": domain}}})
+                    .pluck("id", "name", "custom_url_name")
+                    .run(db.conn)
+                )
+                if domain_category:
+                    if domain_category[0].get("custom_url_name") != custom_url:
+                        raise Error(
+                            "not_found",
+                            f"Category with custom url {custom_url} not found for domain {domain}",
+                            traceback.format_exc(),
+                        )
+                    return {
+                        "id": domain_category[0]["id"],
+                        "name": domain_category[0]["name"],
+                    }
             category = list(
                 r.table("categories")
                 .filter({"custom_url_name": custom_url})
@@ -2072,7 +2090,6 @@ class ApiUsers:
                         {
                             "id": True,
                             "name": True,
-                            "frontend": True,
                             "custom_url_name": True,
                             "branding": {"domain": {"enabled", "name"}},
                         }

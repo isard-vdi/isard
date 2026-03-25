@@ -56,11 +56,16 @@ def api_v3_categories():
     )
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=20))
+@cached(
+    cache=TTLCache(maxsize=10, ttl=20),
+    key=lambda custom_url: hashkey(custom_url, request.headers.get("Host")),
+)
 @app.route("/api/v3/category/<custom_url>", methods=["GET"])
 def api_v3_category(custom_url):
     return (
-        json.dumps(users.category_get_by_custom_url(custom_url)),
+        json.dumps(
+            users.category_get_by_custom_url(custom_url, request.headers.get("Host"))
+        ),
         200,
         {"Content-Type": "application/json"},
     )
