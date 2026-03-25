@@ -48,9 +48,9 @@ class isardVpn:
                 wgdata = r.table("users").get(itemid).pluck("id", "vpn").run(db.conn)
             port = os.environ.get("WG_USERS_PORT", "443")
             mtu = "1420"
-            # Wireguard Windows client doesn't support PostUp empty value
-            # colon command does nothing on Windows and GNU/Linux
-            postup = ":"
+            # Wireguard Android client doesn't support PostUp
+            # removing the line from the config works on Windows and GNU/Linux too
+            postup = None
             endpoint = os.environ["DOMAIN"]
 
         if vpn == "hypers":
@@ -82,9 +82,9 @@ class isardVpn:
                 )
             port = os.environ.get("WG_USERS_PORT", "443")
             mtu = os.environ.get("VPN_MTU", "1600")
-            # Windows client doesn't support PostUp empty value
-            # colon command does nothing on Windows and GNU/Linux
-            postup = ":"
+            # Wireguard Android client doesn't support PostUp
+            # removing the line from the config works on Windows and GNU/Linux too
+            postup = None
             endpoint = os.environ["DOMAIN"]
 
         if wgdata == None or "vpn" not in wgdata.keys():
@@ -142,27 +142,18 @@ class isardVpn:
     def get_wireguard_file(
         self, endpoint, peer, port, mtu, postup, wireguard_server_keys
     ):
-        return """[Interface]
-Address = %s
-PrivateKey = %s
-MTU = %s
-PostUp = %s
+        return f"""[Interface]
+Address = {peer["vpn"]["wireguard"]["Address"]}
+PrivateKey = {peer["vpn"]["wireguard"]["keys"]["private"]}
+MTU = {mtu}
+{f"PostUp = {postup}" if postup else ""}
 
 [Peer]
-PublicKey = %s
-Endpoint = %s:%s
-AllowedIPs = %s
+PublicKey = {wireguard_server_keys["public"]}
+Endpoint = {endpoint}:{port}
+AllowedIPs = {peer["vpn"]["wireguard"]["AllowedIPs"]}
 PersistentKeepalive = 25
-""" % (
-            peer["vpn"]["wireguard"]["Address"],
-            peer["vpn"]["wireguard"]["keys"]["private"],
-            mtu,
-            postup,
-            wireguard_server_keys["public"],
-            endpoint,
-            port,
-            peer["vpn"]["wireguard"]["AllowedIPs"],
-        )
+"""
 
     def get_wireguard_install_script(self, wireguard_data):
         wireguard_file_contents = self.get_wireguard_file(*wireguard_data)
