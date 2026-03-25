@@ -2065,29 +2065,31 @@ class ApiUsers:
 
     def CategoriesFrontendGet(self, domain=None):
         with app.app_context():
-            query = (
-                r.table("categories")
-                .pluck(
-                    {
-                        "id": True,
-                        "name": True,
-                        "frontend": True,
-                        "custom_url_name": True,
-                        "branding": {
-                            "domain": {"enabled", "name"},
-                            "logo": {"enabled"},
-                        },
-                    }
-                )
-                .filter({"frontend": True})
-            )
             if domain and domain != os.environ.get("DOMAIN"):
-                query = query.filter(
-                    {"branding": {"domain": {"enabled": True, "name": domain}}}
+                domain_matches = list(
+                    r.table("categories")
+                    .pluck(
+                        {
+                            "id": True,
+                            "name": True,
+                            "frontend": True,
+                            "custom_url_name": True,
+                            "branding": {"domain": {"enabled", "name"}},
+                        }
+                    )
+                    .filter({"branding": {"domain": {"enabled": True, "name": domain}}})
+                    .order_by("name")
+                    .run(db.conn)
                 )
-            else:
-                query = query.without("branding")
-            return list(query.order_by("name").run(db.conn))
+                if domain_matches:
+                    return domain_matches
+            return list(
+                r.table("categories")
+                .pluck({"id", "name", "frontend"})
+                .filter({"frontend": True})
+                .order_by("name")
+                .run(db.conn)
+            )
 
     def CategoryDelete(self, category_id, agent_id):
         change_category_items_owner("media", category_id)
