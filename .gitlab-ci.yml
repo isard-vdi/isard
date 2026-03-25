@@ -404,6 +404,9 @@ release:
 
 container_scanning:
   stage: container-scan
+  needs:
+    - job: docker-image
+      artifacts: false
   variables:
     CI_APPLICATION_REPOSITORY: $CI_REGISTRY_IMAGE/$IMAGE
     CI_APPLICATION_TAG: $CI_COMMIT_REF_SLUG
