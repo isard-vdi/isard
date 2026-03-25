@@ -30,7 +30,6 @@ variables:
   DOCKER_HOST: tcp://docker:2376
   DOCKER_VERSION: "28"
   DOCKER_TLS_CERTDIR: "/certs"
-  FF_NETWORK_PER_BUILD: 1
   GITLAB_ADVANCED_SAST_ENABLED: "true"
 
 default:
