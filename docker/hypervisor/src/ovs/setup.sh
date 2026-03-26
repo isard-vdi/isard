@@ -81,6 +81,18 @@ ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow1
 ovs-vsctl set bridge ovsbr0 other_config:mac-table-size=8192
 ip link set ovsbr0 up
 
+# Clean up stale tunnel ports from previous tunneling mode.
+# The OVS DB persists across container restarts (docker restart doesn't
+# recreate the writable layer), so ports from the other mode linger.
+# Remove all geneve ports so the mode-specific code below starts fresh.
+for _port in $(ovs-vsctl list-ports ovsbr0 2>/dev/null); do
+    _ptype=$(ovs-vsctl get interface "$_port" type 2>/dev/null || true)
+    if [ "$_ptype" = "geneve" ] || [ "$_ptype" = '"geneve"' ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Removing stale geneve port: $_port"
+        ovs-vsctl --if-exists del-port ovsbr0 "$_port"
+    fi
+done
+
 # Set OVS bridge MTU from central infrastructure config (not local env)
 vpn_tunneling_mode=${HYPERVISOR_VPN_TUNNELING_MODE:-wireguard+geneve}
 

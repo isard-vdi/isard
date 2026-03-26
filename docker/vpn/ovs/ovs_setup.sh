@@ -78,6 +78,17 @@ ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow1
 ovs-vsctl set bridge ovsbr0 other_config:mac-table-size=8192 >> /var/log/ovs 2>&1
 ip link set ovsbr0 up >> /var/log/ovs 2>&1
 
+# Clean up stale tunnel ports from previous tunneling mode.
+# The VPN container is normally recreated (fresh DB), but if it is
+# merely restarted, geneve ports from the previous mode may linger.
+for _port in $(ovs-vsctl list-ports ovsbr0 2>/dev/null); do
+    _ptype=$(ovs-vsctl get interface "$_port" type 2>/dev/null || true)
+    if [ "$_ptype" = "geneve" ] || [ "$_ptype" = '"geneve"' ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Removing stale geneve port: $_port"
+        ovs-vsctl --if-exists del-port ovsbr0 "$_port"
+    fi
+done
+
 # --- MTU derivation from INFRASTRUCTURE_MTU ---
 _geneve_oh=54  # 20 IP + 8 UDP + 8 geneve + 14 eth + 4 VLAN
 _wg_oh=60      # 20 IP + 8 UDP + 32 WG
