@@ -1,0 +1,924 @@
+#!/usr/bin/env python3
+
+#
+#   Copyright © 2024 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+"""
+Disk-vs-DB storage chain diagnostic and repair tool.
+
+Discovers all storage pools from the storage_pool RethinkDB table, scans
+qcow2 files in their directories, extracts real backing chains via qemu-img,
+cross-references with RethinkDB, and optionally fixes discrepancies.
+
+Supports the default pool (/isard/{templates,groups,volatile}) and custom
+pools (/isard/storage_pools/{pool_id}/{category}/{usage_path}).
+
+Root files = production.  Subfolder files = admin-moved (checked if needed).
+
+Usage:
+    check_chains                    # diagnostic only
+    check_chains --fix              # diagnostic + interactive fixes
+    check_chains --verbose --fix    # show all issues + fix
+
+All disk reads use qemu-img -U (no lock). Fixes require --fix flag.
+"""
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
+from datetime import datetime
+from pathlib import Path
+from time import time
+
+from rethinkdb import r
+
+DEFAULT_POOL_ID = "00000000-0000-0000-0000-000000000000"
+FALLBACK_SCAN_DIRS = ["/isard/templates", "/isard/groups", "/isard/volatile"]
+
+_UUID_RE = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE
+)
+
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+
+@contextmanager
+def get_conn():
+    connection = None
+    try:
+        connection = r.connect(
+            host=os.environ.get("RETHINKDB_HOST", "isard-db"),
+            port=28015,
+            db="isard",
+        )
+        yield connection
+    except r.errors.ReqlDriverError as e:
+        print(f"DB connection failed: {e}")
+        raise
+    finally:
+        if connection:
+            connection.close()
+
+
+def uuid_from_path(path):
+    if not path:
+        return None
+    m = _UUID_RE.search(os.path.basename(path))
+    return m.group(0) if m else None
+
+
+def normalize_parent(value):
+    if not value:
+        return None
+    if _UUID_RE.fullmatch(value):
+        return value
+    m = _UUID_RE.search(value)
+    return m.group(0) if m else value
+
+
+def fmt_time(seconds):
+    if seconds < 60:
+        return f"{int(seconds)}s"
+    elif seconds < 3600:
+        return f"{int(seconds / 60)}m {int(seconds % 60)}s"
+    return f"{int(seconds / 3600)}h {int((seconds % 3600) / 60)}m"
+
+
+def confirm(prompt):
+    """Ask y/n, return True if y."""
+    while True:
+        ans = input(f"\n{prompt} [y/N]: ").strip().lower()
+        if ans in ("y", "yes"):
+            return True
+        if ans in ("n", "no", ""):
+            return False
+
+
+# ── storage pool discovery ────────────────────────────────────────────────────
+
+
+def discover_scan_dirs():
+    """Query storage_pool table and build list of all valid root directories.
+
+    Returns (scan_dirs, pool_labels) where pool_labels maps dir -> pool name.
+    """
+    scan_dirs = []
+    pool_labels = {}  # scan_dir -> "Pool Name"
+
+    try:
+        with get_conn() as conn:
+            pools = list(r.table("storage_pool").run(conn))
+    except Exception as e:
+        print(f"  WARNING: Could not query storage_pool table: {e}")
+        print(f"  Falling back to default paths: {FALLBACK_SCAN_DIRS}")
+        return FALLBACK_SCAN_DIRS, {}
+
+    if not pools:
+        return FALLBACK_SCAN_DIRS, {}
+
+    for pool in pools:
+        pool_id = pool["id"]
+        pool_name = pool.get("name", pool_id)
+        mountpoint = pool.get("mountpoint", "")
+        paths_config = pool.get("paths", {})
+
+        # Collect all unique usage paths from the pool config
+        usage_paths = set()
+        for usage_type, path_list in paths_config.items():
+            for p in path_list:
+                usage_paths.add(p["path"])
+
+        if pool_id == DEFAULT_POOL_ID:
+            for up in usage_paths:
+                d = f"{mountpoint}/{up}"
+                if Path(d).is_dir():
+                    scan_dirs.append(d)
+                    pool_labels[d] = pool_name
+        else:
+            mp = Path(mountpoint)
+            if not mp.is_dir():
+                continue
+            for cat_dir in sorted(mp.iterdir()):
+                if not cat_dir.is_dir():
+                    continue
+                for up in usage_paths:
+                    d = str(cat_dir / up)
+                    if Path(d).is_dir():
+                        scan_dirs.append(d)
+                        pool_labels[d] = pool_name
+
+    if not scan_dirs:
+        return FALLBACK_SCAN_DIRS, {}
+
+    return sorted(scan_dirs), pool_labels
+
+
+# ── disk scanning ────────────────────────────────────────────────────────────
+
+
+def scan_disk_files(scan_dirs):
+    """Scan given dirs. Root files = production, subfolder files = admin-moved.
+
+    Returns (root_files, subfolder_files, subfolder_uuid_to_path).
+    """
+    root_files = []
+    subfolder_files = []
+    subfolder_uuid_to_path = {}
+    for d in scan_dirs:
+        p = Path(d)
+        if not p.is_dir():
+            continue
+        for f in p.rglob("*.qcow2"):
+            path = str(f)
+            # Root = directly under scan dir (no extra subdirectory)
+            if str(f.parent) == d:
+                root_files.append(path)
+            else:
+                subfolder_files.append(path)
+                uid = uuid_from_path(path)
+                if uid:
+                    subfolder_uuid_to_path[uid] = path
+    return sorted(root_files), sorted(subfolder_files), subfolder_uuid_to_path
+
+
+def qemu_img_info_json(filepath):
+    """Single-level qemu-img info (no chain). Returns (dict, None) or (None, err)."""
+    try:
+        result = subprocess.run(
+            ["qemu-img", "info", "-U", "--output=json", filepath],
+            capture_output=True, text=True, check=True,
+        )
+        return json.loads(result.stdout), None
+    except subprocess.CalledProcessError as e:
+        return None, (e.stderr or "").strip().split("\n")[0][:150]
+    except json.JSONDecodeError as e:
+        return None, f"JSON parse: {e}"
+
+
+def get_backing_chain_json(filepath):
+    """Full chain. Returns (list, None) or (None, err)."""
+    try:
+        result = subprocess.run(
+            ["qemu-img", "info", "-U", "--output=json", "--backing-chain", filepath],
+            capture_output=True, text=True, check=True,
+        )
+        return json.loads(result.stdout), None
+    except subprocess.CalledProcessError as e:
+        return None, (e.stderr or "").strip().split("\n")[0][:150]
+    except json.JSONDecodeError as e:
+        return None, f"JSON parse: {e}"
+
+
+def build_disk_chains(qcow_files, max_workers=8):
+    """Returns (disk_chains: {uuid: [parent_uuids]}, disk_errors: [(path, err)])."""
+    disk_chains = {}
+    disk_errors = []
+    total = len(qcow_files)
+    done = 0
+    t0 = time()
+
+    def process(filepath):
+        chain_info, err = get_backing_chain_json(filepath)
+        if chain_info is None:
+            return filepath, None, err
+        parents = []
+        for entry in chain_info[1:]:
+            uid = uuid_from_path(entry.get("filename", ""))
+            parents.append(uid if uid else entry.get("filename", "?"))
+        return filepath, parents, None
+
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = {ex.submit(process, f): f for f in qcow_files}
+        for fut in as_completed(futures):
+            fp, parents, err = fut.result()
+            done += 1
+            uid = uuid_from_path(fp)
+            if parents is None:
+                disk_errors.append((fp, err or "unknown"))
+            elif uid:
+                disk_chains[uid] = parents
+            if done % 100 == 0 or done == total:
+                elapsed = time() - t0
+                if done < total:
+                    pct = done / total * 100
+                    eta = fmt_time((elapsed / done) * (total - done))
+                    print(f"  Scanned {done}/{total} ({pct:.0f}%) ETA {eta}", flush=True)
+                else:
+                    print(f"  Scanned {done}/{total} (100%) in {fmt_time(elapsed)}")
+
+    return disk_chains, disk_errors
+
+
+def build_reverse_map(disk_chains):
+    """uuid -> set of direct children UUIDs."""
+    children = defaultdict(set)
+    for uid, parents in disk_chains.items():
+        if parents:
+            children[parents[0]].add(uid)
+    return children
+
+
+def get_all_derivatives(uid, children_of):
+    result = set()
+    stack = list(children_of.get(uid, set()))
+    while stack:
+        c = stack.pop()
+        if c not in result:
+            result.add(c)
+            stack.extend(children_of.get(c, set()))
+    return result
+
+
+# ── database ─────────────────────────────────────────────────────────────────
+
+
+def fetch_db_storages():
+    with get_conn() as conn:
+        rows = list(
+            r.table("storage")
+            .filter(lambda s: s["status"].ne("deleted"))
+            .pluck("id", "parent", "status", "directory_path", "type", "user_id")
+            .run(conn)
+        )
+    out = {}
+    for row in rows:
+        out[row["id"]] = {
+            "parent": normalize_parent(row.get("parent")),
+            "parent_raw": row.get("parent"),
+            "status": row.get("status"),
+            "directory_path": row.get("directory_path", ""),
+            "type": row.get("type", "qcow2"),
+            "user_id": row.get("user_id", ""),
+        }
+    return out
+
+
+def fetch_storage_user_map():
+    """Build storage_id -> user from domains table."""
+    mapping = {}
+    with get_conn() as conn:
+        cursor = (
+            r.table("domains")
+            .has_fields({"create_dict": {"hardware": {"disks": True}}})
+            .pluck("user", {"create_dict": {"hardware": [{"disks": "storage_id"}]}})
+            .run(conn)
+        )
+        for doc in cursor:
+            user = doc.get("user", "")
+            try:
+                sid = doc["create_dict"]["hardware"]["disks"][0]["storage_id"]
+                if sid and sid not in mapping:
+                    mapping[sid] = user
+            except (KeyError, IndexError):
+                pass
+    return mapping
+
+
+def build_db_chain(storage_id, db_storages, max_depth=20):
+    chain = []
+    current = storage_id
+    visited = set()
+    for _ in range(max_depth):
+        s = db_storages.get(current)
+        if not s or not s["parent"]:
+            break
+        parent = s["parent"]
+        if parent in visited:
+            break
+        visited.add(parent)
+        chain.append(parent)
+        current = parent
+    return chain
+
+
+# ── analysis ─────────────────────────────────────────────────────────────────
+
+
+def find_parent_fixes(disk_chains, db_storages):
+    """Individual storages whose DB parent != disk immediate parent."""
+    fixes = []  # (uuid, disk_parent, db_parent)
+    for uid, disk_parents in disk_chains.items():
+        if uid not in db_storages:
+            continue
+        disk_parent = disk_parents[0] if disk_parents else None
+        db_parent = db_storages[uid]["parent"]
+        if disk_parent != db_parent:
+            fixes.append((uid, disk_parent, db_parent))
+    return fixes
+
+
+def find_chain_mismatches(disk_chains, db_storages):
+    """Full chain comparison for the report."""
+    mismatches = []
+    matched = 0
+    for uid, disk_parents in disk_chains.items():
+        if uid not in db_storages:
+            continue
+        db_parents = build_db_chain(uid, db_storages)
+        if disk_parents == db_parents:
+            matched += 1
+        else:
+            mismatches.append((uid, disk_parents, db_parents))
+    return matched, mismatches
+
+
+def find_missing_db(disk_chains, disk_errors, db_storages):
+    """Production files not in DB."""
+    on_disk = set(disk_chains.keys())
+    for fp, _ in disk_errors:
+        uid = uuid_from_path(fp)
+        if uid:
+            on_disk.add(uid)
+    return [uid for uid in on_disk if uid not in db_storages]
+
+
+def find_ghost_db(disk_chains, disk_errors, db_storages, scan_dirs):
+    """DB entries (status=ready) with no file on disk (root or broken)."""
+    on_disk = set(disk_chains.keys())
+    for fp, _ in disk_errors:
+        uid = uuid_from_path(fp)
+        if uid:
+            on_disk.add(uid)
+    ghosts = []
+    for sid, info in db_storages.items():
+        if not any(info["directory_path"].startswith(d) for d in scan_dirs):
+            continue
+        if sid not in on_disk:
+            ghosts.append((sid, info))
+    return ghosts
+
+
+def analyze_broken(disk_errors, disk_chains, subfolder_uuid_to_path, children_of, db_storages):
+    """Analyze each broken production disk."""
+    results = []
+    for filepath, original_err in disk_errors:
+        uid = uuid_from_path(filepath)
+        info, _ = qemu_img_info_json(filepath)
+        missing_uuid = None
+        corrupt = False
+        if info:
+            backing = info.get("full-backing-filename") or info.get("backing-filename")
+            missing_uuid = uuid_from_path(backing) if backing else None
+        else:
+            corrupt = True
+
+        in_subfolder = missing_uuid and missing_uuid in subfolder_uuid_to_path
+        subfolder_path = subfolder_uuid_to_path.get(missing_uuid) if in_subfolder else None
+        derivatives = get_all_derivatives(uid, children_of) if uid else set()
+        db_info = db_storages.get(uid)
+
+        results.append({
+            "filepath": filepath,
+            "uuid": uid,
+            "missing_uuid": missing_uuid,
+            "corrupt": corrupt,
+            "in_subfolder": in_subfolder,
+            "subfolder_path": subfolder_path,
+            "derivatives": derivatives,
+            "safe": len(derivatives) == 0,
+            "in_db": db_info is not None,
+            "db_status": db_info["status"] if db_info else None,
+            "error": original_err,
+        })
+    return results
+
+
+def find_needed_subfolder(disk_chains, subfolder_uuid_to_path, scan_dirs):
+    """Subfolder files that are backing files for production chains."""
+    # All UUIDs referenced in any production chain
+    needed_uuids = set()
+    for parents in disk_chains.values():
+        for p in parents:
+            if isinstance(p, str) and _UUID_RE.fullmatch(p):
+                needed_uuids.add(p)
+    # Also add all production disk UUIDs themselves (they could be backing other disks)
+    needed_uuids.update(disk_chains.keys())
+
+    needed = []
+    for uid, path in subfolder_uuid_to_path.items():
+        if uid in needed_uuids:
+            # Determine where it should go
+            for d in scan_dirs:
+                if path.startswith(d):
+                    correct_path = f"{d}/{uid}.qcow2"
+                    needed.append((uid, path, correct_path))
+                    break
+    return needed
+
+
+# ── output helpers ───────────────────────────────────────────────────────────
+
+
+def dir_label(uid, db_storages):
+    info = db_storages.get(uid)
+    if info:
+        return f"{info['directory_path'].replace('/isard/', '')}/{uid}"
+    return uid
+
+
+def fmt_chain(chain):
+    if not chain:
+        return "(root)"
+    return " -> ".join(chain) + " -> (root)"
+
+
+def print_section(title, count, details, limit):
+    print(f"\n  {title}: {count}")
+    if details:
+        show = details if limit == 0 else details[:limit]
+        for line in show:
+            print(f"    {line}")
+        if limit and count > limit:
+            print(f"    ... and {count - limit} more (use --verbose)")
+
+
+# ── fix operations ───────────────────────────────────────────────────────────
+
+
+def do_fix_parents(parent_fixes, db_storages):
+    """Update storage.parent in DB to match disk."""
+    print(f"\n  Updating {len(parent_fixes)} storage parent values...")
+    ok = 0
+    with get_conn() as conn:
+        for uid, disk_parent, _db_parent in parent_fixes:
+            if disk_parent is None:
+                # Disk is root - remove parent
+                r.table("storage").get(uid).replace(
+                    lambda doc: doc.without("parent")
+                ).run(conn)
+            else:
+                r.table("storage").get(uid).update(
+                    {"parent": disk_parent}
+                ).run(conn)
+            ok += 1
+            print(f"    [{ok}/{len(parent_fixes)}] {dir_label(uid, db_storages)}: "
+                  f"parent = {disk_parent or '(none/root)'}")
+    print(f"  Done: {ok} updated.")
+
+
+def do_create_missing(missing_uuids, disk_chains, storage_user_map, scan_dirs):
+    """Create DB entries for production disks not in DB."""
+    print(f"\n  Creating {len(missing_uuids)} storage entries...")
+    ok = 0
+    now = int(time())
+    with get_conn() as conn:
+        for uid in missing_uuids:
+            # Determine directory from file path
+            for d in scan_dirs:
+                fpath = f"{d}/{uid}.qcow2"
+                if Path(fpath).exists():
+                    dir_path = d
+                    break
+            else:
+                print(f"    SKIP {uid}: file not found in any scan dir")
+                continue
+
+            # Get qemu-img info
+            info, err = qemu_img_info_json(fpath)
+            if info is None:
+                print(f"    SKIP {uid}: qemu-img failed: {err}")
+                continue
+
+            disk_parent = disk_chains.get(uid, [])
+            parent = disk_parent[0] if disk_parent else None
+            is_template = dir_path.endswith("/templates")
+
+            entry = {
+                "id": uid,
+                "directory_path": dir_path,
+                "status": "ready",
+                "type": "qcow2",
+                "perms": ["r"] if is_template else ["r", "w"],
+                "qemu-img-info": info,
+                "user_id": storage_user_map.get(uid, ""),
+                "status_logs": [
+                    {"status": "created", "time": now},
+                    {"status": "ready", "time": now},
+                ],
+            }
+            if parent:
+                entry["parent"] = parent
+
+            r.table("storage").insert(entry).run(conn)
+            ok += 1
+            user = storage_user_map.get(uid, "?")
+            print(f"    [{ok}/{len(missing_uuids)}] {dir_path.replace('/isard/', '')}/{uid} "
+                  f"(parent={parent or 'root'}, user={user})")
+    print(f"  Done: {ok} created.")
+
+
+def do_delete_ghosts(ghosts):
+    """Mark ghost DB entries as deleted."""
+    print(f"\n  Marking {len(ghosts)} ghost entries as deleted...")
+    ok = 0
+    now = int(time())
+    with get_conn() as conn:
+        for sid, info in ghosts:
+            r.table("storage").get(sid).update({
+                "status": "deleted",
+                "status_logs": r.row["status_logs"].default([]).append(
+                    {"status": "deleted", "time": now}
+                ),
+            }).run(conn)
+            ok += 1
+            if ok <= 20 or ok == len(ghosts):
+                print(f"    [{ok}/{len(ghosts)}] {sid} "
+                      f"(was {info['status']}, dir={info['directory_path']})")
+            elif ok == 21:
+                print(f"    ... (continuing silently)")
+    print(f"  Done: {ok} marked as deleted.")
+
+
+def do_delete_broken(analyses):
+    """Delete safe broken disk files."""
+    safe = [a for a in analyses if a["safe"]]
+    print(f"\n  Deleting {len(safe)} broken disk files...")
+    ok = 0
+    now = int(time())
+    with get_conn() as conn:
+        for a in safe:
+            fp = a["filepath"]
+            uid = a["uuid"]
+            try:
+                os.remove(fp)
+                ok += 1
+                print(f"    [{ok}/{len(safe)}] Deleted {fp}")
+            except OSError as e:
+                print(f"    ERROR deleting {fp}: {e}")
+                continue
+            # Also mark DB entry as deleted if it exists
+            if a["in_db"]:
+                r.table("storage").get(uid).update({
+                    "status": "deleted",
+                    "status_logs": r.row["status_logs"].default([]).append(
+                        {"status": "deleted", "time": now}
+                    ),
+                }).run(conn)
+                print(f"           DB entry also marked deleted")
+    print(f"  Done: {ok} files deleted.")
+
+
+def do_recover_subfolder(needed_subfolder):
+    """Move needed subfolder files back to their correct root location."""
+    print(f"\n  Moving {len(needed_subfolder)} files back to production...")
+    ok = 0
+    for uid, src, dst in needed_subfolder:
+        if Path(dst).exists():
+            print(f"    SKIP {uid}: destination already exists: {dst}")
+            continue
+        try:
+            shutil.move(src, dst)
+            ok += 1
+            print(f"    [{ok}/{len(needed_subfolder)}] {src} -> {dst}")
+        except OSError as e:
+            print(f"    ERROR moving {src}: {e}")
+    print(f"  Done: {ok} files moved.")
+
+
+# ── main ─────────────────────────────────────────────────────────────────────
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Disk-vs-DB storage chain diagnostic and repair."
+    )
+    parser.add_argument("--limit", type=int, default=20,
+                        help="Max issues per section (default 20, 0=unlimited)")
+    parser.add_argument("--verbose", action="store_true",
+                        help="Show all issues (overrides --limit)")
+    parser.add_argument("--threads", type=int, default=8,
+                        help="Parallel qemu-img threads (default 8)")
+    parser.add_argument("--fix", action="store_true",
+                        help="Enter interactive fix mode after report")
+    args = parser.parse_args()
+
+    if args.verbose:
+        args.limit = 0
+    limit = args.limit
+
+    print("=" * 70)
+    print("  DISK vs DATABASE STORAGE CHAIN CHECK")
+    print("  (read-only unless --fix is passed)")
+    print("=" * 70)
+    print(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    # ── Phase 1: Discover pools & scan ─────────────────────────────────
+
+    print(f"\n[1/4] Discovering storage pools and scanning disk files...")
+    t0 = time()
+    scan_dirs, pool_labels = discover_scan_dirs()
+
+    # Show pool summary grouped by pool name
+    if pool_labels:
+        pools_seen = {}  # pool_name -> list of dirs
+        for d in scan_dirs:
+            name = pool_labels.get(d, "unknown")
+            pools_seen.setdefault(name, []).append(d)
+        for name, dirs in pools_seen.items():
+            print(f"  Pool \"{name}\": {len(dirs)} directories")
+            for d in dirs:
+                print(f"    {d}")
+    else:
+        print(f"  Using fallback directories: {', '.join(scan_dirs)}")
+
+    root_files, subfolder_files, subfolder_uuid_to_path = scan_disk_files(scan_dirs)
+    n_sub = len(subfolder_files)
+    print(f"  Production (root): {len(root_files)} files")
+    print(f"  Subfolder (admin-moved): {n_sub} files")
+    for d in scan_dirs:
+        nr = sum(1 for f in root_files if f.startswith(d + "/"))
+        ns = sum(1 for f in subfolder_files if f.startswith(d + "/"))
+        parts = []
+        if nr:
+            parts.append(f"{nr} root")
+        if ns:
+            parts.append(f"{ns} subfolder")
+        if parts:
+            print(f"    {d}: {', '.join(parts)}")
+
+    # ── Phase 2: Extract chains ──────────────────────────────────────────
+
+    print(f"\n[2/4] Extracting backing chains ({args.threads} threads)...")
+    disk_chains, disk_errors = build_disk_chains(root_files, args.threads)
+    print(f"  OK: {len(disk_chains)} | Failed: {len(disk_errors)}")
+    children_of = build_reverse_map(disk_chains)
+
+    # ── Phase 3: Fetch DB ────────────────────────────────────────────────
+
+    print(f"\n[3/4] Fetching database...")
+    t2 = time()
+    db_storages = fetch_db_storages()
+    storage_user_map = fetch_storage_user_map()
+    print(f"  {len(db_storages)} storages, {len(storage_user_map)} domain->user mappings "
+          f"({fmt_time(time() - t2)})")
+
+    # ── Phase 4: Analysis ────────────────────────────────────────────────
+
+    print(f"\n[4/4] Analyzing...")
+
+    parent_fixes = find_parent_fixes(disk_chains, db_storages)
+    matched, chain_mismatches = find_chain_mismatches(disk_chains, db_storages)
+    missing_db = find_missing_db(disk_chains, disk_errors, db_storages)
+    ghosts = find_ghost_db(disk_chains, disk_errors, db_storages, scan_dirs)
+    broken = analyze_broken(disk_errors, disk_chains, subfolder_uuid_to_path,
+                            children_of, db_storages)
+    needed_subfolder = find_needed_subfolder(disk_chains, subfolder_uuid_to_path, scan_dirs)
+
+    safe_broken = [b for b in broken if b["safe"]]
+    unsafe_broken = [b for b in broken if not b["safe"]]
+    recoverable = [b for b in broken if b["in_subfolder"]]
+
+    # ── Report ───────────────────────────────────────────────────────────
+
+    print("\n" + "=" * 70)
+    print("  FINDINGS REPORT")
+    print("=" * 70)
+
+    # A. Chain status
+    not_in_db = [uid for uid in disk_chains if uid not in db_storages]
+    print(f"\n  Chain status: {matched} OK, {len(chain_mismatches)} mismatched, "
+          f"{len(not_in_db)} not in DB")
+
+    # B. Individual parent fixes
+    print_section(
+        f"[A] DB parent fixes needed (root cause of {len(chain_mismatches)} chain mismatches)",
+        len(parent_fixes),
+        [f"{dir_label(uid, db_storages)}: "
+         f"disk={dp or '(root)'}, db={dbp or '(root)'}"
+         for uid, dp, dbp in parent_fixes],
+        limit,
+    )
+
+    # C. Missing DB entries
+    print_section(
+        "[B] Production disks not in DB (need storage entry created)",
+        len(missing_db),
+        [f"{uid} (user={storage_user_map.get(uid, '?')})" for uid in missing_db],
+        limit,
+    )
+
+    # D. Ghost DB entries
+    print_section(
+        "[C] Ghost DB entries (status=ready, no file on disk)",
+        len(ghosts),
+        [f"{sid} (dir={info['directory_path']}, user={info['user_id']})"
+         for sid, info in ghosts],
+        limit,
+    )
+
+    # E. Broken production disks
+    print(f"\n  [D] Broken production disks: {len(broken)}")
+    if broken:
+        print(f"      Safe to delete (no derivatives): {len(safe_broken)}")
+        print(f"      UNSAFE (have derivatives):       {len(unsafe_broken)}")
+        print(f"      Missing backing in subfolder:    {len(recoverable)}")
+        for b in (safe_broken if limit == 0 else safe_broken[:limit]):
+            uid = b["uuid"] or "?"
+            missing = b["missing_uuid"] or "?"
+            loc = "IN SUBFOLDER" if b["in_subfolder"] else "GONE"
+            db = f"db={b['db_status']}" if b["in_db"] else "NOT IN DB"
+            tag = "CORRUPT" if b["corrupt"] else f"missing backing {missing} ({loc})"
+            print(f"    SAFE  {uid}: {tag} ({db})")
+        for b in (unsafe_broken if limit == 0 else unsafe_broken[:limit]):
+            uid = b["uuid"] or "?"
+            missing = b["missing_uuid"] or "?"
+            n = len(b["derivatives"])
+            print(f"    UNSAFE {uid}: missing {missing}, {n} derivative(s) depend on it")
+        if limit and len(broken) > limit:
+            print(f"    ... and more (use --verbose)")
+
+    # F. Subfolder files needed by production
+    print_section(
+        "[E] Subfolder files needed by production chains (should be moved back)",
+        len(needed_subfolder),
+        [f"{uid}: {src} -> {dst}" for uid, src, dst in needed_subfolder],
+        limit,
+    )
+
+    # G. Subfolder files with backing in subfolder (recoverable broken)
+    if recoverable:
+        print(f"\n  [F] Broken disks fixable by recovering from subfolder: {len(recoverable)}")
+        for b in recoverable:
+            print(f"    {b['uuid']}: recover {b['missing_uuid']} from {b['subfolder_path']}")
+
+    # Summary
+    print("\n" + "-" * 70)
+    total = (len(parent_fixes) + len(missing_db) + len(ghosts)
+             + len(safe_broken) + len(needed_subfolder) + len(recoverable))
+    print(f"  Production: {len(disk_chains)} scanned, {matched} chains OK")
+    print(f"  Fixable issues: {total}")
+    print(f"    [A] {len(parent_fixes)} DB parent values to update")
+    print(f"    [B] {len(missing_db)} DB entries to create")
+    print(f"    [C] {len(ghosts)} ghost DB entries to mark deleted")
+    print(f"    [D] {len(safe_broken)} broken disks safe to delete")
+    print(f"    [E] {len(needed_subfolder)} subfolder files to move back")
+    print(f"    [F] {len(recoverable)} broken disks fixable by subfolder recovery")
+    if unsafe_broken:
+        print(f"  NOT fixable: {len(unsafe_broken)} broken disks with derivatives (manual review)")
+    print("-" * 70)
+
+    # ── Interactive fixes ────────────────────────────────────────────────
+
+    if not args.fix:
+        print("\n  Run with --fix to enter interactive repair mode.")
+        print("=" * 70)
+        return
+
+    print("\n" + "=" * 70)
+    print("  INTERACTIVE FIX MODE")
+    print("=" * 70)
+
+    # Fix F first (recover subfolder files) - this may fix broken disks
+    if recoverable:
+        print(f"\n[F] Recover {len(recoverable)} backing file(s) from subfolders?")
+        print("    This moves missing backing files back to production,")
+        print("    which will fix broken disks that depend on them.")
+        for b in recoverable:
+            # Determine correct target path
+            for d in scan_dirs:
+                if b["subfolder_path"].startswith(d):
+                    target = f"{d}/{b['missing_uuid']}.qcow2"
+                    break
+            else:
+                target = "?"
+            print(f"    mv {b['subfolder_path']} -> {target}")
+        if confirm(f"Recover {len(recoverable)} file(s)?"):
+            recover_items = []
+            for b in recoverable:
+                for d in scan_dirs:
+                    if b["subfolder_path"].startswith(d):
+                        target = f"{d}/{b['missing_uuid']}.qcow2"
+                        recover_items.append((b["missing_uuid"], b["subfolder_path"], target))
+                        break
+            do_recover_subfolder(recover_items)
+
+    # Fix E: Move needed subfolder files
+    if needed_subfolder:
+        print(f"\n[E] Move {len(needed_subfolder)} subfolder file(s) back to production?")
+        print("    These files are backing files for production chains.")
+        for uid, src, dst in (needed_subfolder[:10] if limit else needed_subfolder):
+            print(f"    mv {src} -> {dst}")
+        if len(needed_subfolder) > 10 and limit:
+            print(f"    ... and {len(needed_subfolder) - 10} more")
+        if confirm(f"Move {len(needed_subfolder)} file(s)?"):
+            do_recover_subfolder(needed_subfolder)
+
+    # Fix A: Update DB parents
+    if parent_fixes:
+        print(f"\n[A] Update {len(parent_fixes)} DB parent values to match disk?")
+        for uid, dp, dbp in (parent_fixes[:10] if limit else parent_fixes):
+            print(f"    {dir_label(uid, db_storages)}: {dbp or '(root)'} -> {dp or '(root)'}")
+        if len(parent_fixes) > 10 and limit:
+            print(f"    ... and {len(parent_fixes) - 10} more")
+        if confirm(f"Update {len(parent_fixes)} parent value(s)?"):
+            do_fix_parents(parent_fixes, db_storages)
+
+    # Fix B: Create missing DB entries
+    if missing_db:
+        print(f"\n[B] Create {len(missing_db)} missing DB storage entries?")
+        for uid in missing_db:
+            user = storage_user_map.get(uid, "?")
+            dp = disk_chains.get(uid, [])
+            parent = dp[0] if dp else "(root)"
+            print(f"    {uid} (parent={parent}, user={user})")
+        if confirm(f"Create {len(missing_db)} entry/entries?"):
+            do_create_missing(missing_db, disk_chains, storage_user_map, scan_dirs)
+
+    # Fix C: Ghost DB entries
+    if ghosts:
+        print(f"\n[C] Mark {len(ghosts)} ghost DB entries as deleted?")
+        print("    These have status=ready but no qcow2 file exists on disk.")
+        for sid, info in (ghosts[:10] if limit else ghosts):
+            print(f"    {sid} (dir={info['directory_path']}, user={info['user_id']})")
+        if len(ghosts) > 10 and limit:
+            print(f"    ... and {len(ghosts) - 10} more")
+        if confirm(f"Mark {len(ghosts)} as deleted?"):
+            do_delete_ghosts(ghosts)
+
+    # Fix D: Delete broken disks
+    if safe_broken:
+        print(f"\n[D] Delete {len(safe_broken)} safe broken disk files?")
+        print("    These have broken backing chains and NO production derivatives.")
+        for b in safe_broken:
+            uid = b["uuid"] or "?"
+            tag = "CORRUPT" if b["corrupt"] else f"missing backing {b['missing_uuid']}"
+            print(f"    rm {b['filepath']} ({tag})")
+        if confirm(f"Delete {len(safe_broken)} file(s)?"):
+            do_delete_broken(broken)
+
+    if unsafe_broken:
+        print(f"\n  NOTE: {len(unsafe_broken)} broken disk(s) have derivatives and were NOT touched.")
+        print("  These require manual review - their derivatives will also be broken.")
+
+    print("\n" + "=" * 70)
+    print("  DONE")
+    print("=" * 70)
+
+
+if __name__ == "__main__":
+    main()
