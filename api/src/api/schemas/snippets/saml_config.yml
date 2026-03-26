@@ -1,6 +1,6 @@
 metadata_url:
   type: string
-  regex: '^https://'
+  regex: '^https://.*$'
 metadata_file:
   type: string
 entity_id:
@@ -79,7 +79,7 @@ role_default:
   type: string
 logout_redirect_url:
   type: string
-  regex: '^https://'
+  regex: '^https://.*$'
 save_email:
   empty: false
   type: boolean
