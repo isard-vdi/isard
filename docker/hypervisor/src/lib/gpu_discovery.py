@@ -4,16 +4,111 @@ Runs inside the isard-hypervisor container. Discovers NVIDIA GPUs and their
 vGPU profiles without requiring libvirt or hardcoded PCI ID dictionaries.
 """
 
+import gzip
 import json
+import logging
 import os
 import re
 import subprocess
+import urllib.request
 
-# PCI device ID -> (human name, VRAM in MB) for NVIDIA GPUs that may not
-# appear in nvidia-smi (e.g. not bound to the nvidia driver).
-_NVIDIA_GPU_DB = {
-    0x2C34: ("NVIDIA RTX 4000 SFF Ada Generation", 20480),
-}
+log = logging.getLogger(__name__)
+
+_NVIDIA_VENDOR_ID = "10de"
+_PCI_IDS_URL = "https://pci-ids.ucw.cz/v2.2/pci.ids.gz"
+_BUNDLED_PCI_IDS = os.path.join(os.path.dirname(__file__), "nvidia_pci_ids.txt")
+
+# Cached pci.ids lookup: device_id (int) -> human name (str).
+# Populated once by _get_pci_nvidia_names().
+_pci_nvidia_names = None
+
+
+def _parse_bundled_pci_ids(path):
+    """Parse the bundled nvidia_pci_ids.txt file.
+
+    Each line has the format: ``<4-hex-device-id>  <name>``.
+    Returns a dict mapping device_id (int) to name (str).
+    """
+    names = {}
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                m = re.match(r"^([0-9a-fA-F]{4})\s+(.+)", line)
+                if m:
+                    names[int(m.group(1), 16)] = m.group(2).strip()
+    except OSError:
+        pass
+    return names
+
+
+def _fetch_upstream_pci_ids():
+    """Download NVIDIA device names from the upstream pci.ids database.
+
+    Returns a dict mapping device_id (int) to name (str), or None on failure.
+    """
+    try:
+        req = urllib.request.Request(
+            _PCI_IDS_URL, headers={"User-Agent": "isard-hypervisor"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw = gzip.decompress(resp.read()).decode("utf-8", errors="replace")
+    except Exception:
+        return None
+
+    names = {}
+    in_nvidia = False
+    for line in raw.splitlines():
+        if line.startswith("#") or not line.strip():
+            continue
+        if re.match(r"^[0-9a-fA-F]{4}\s", line):
+            in_nvidia = line.lower().startswith(_NVIDIA_VENDOR_ID)
+            continue
+        if in_nvidia and line.startswith("\t") and not line.startswith("\t\t"):
+            m = re.match(r"^\t([0-9a-fA-F]{4})\s+(.+)", line)
+            if m:
+                names[int(m.group(1), 16)] = m.group(2).strip()
+    return names
+
+
+def _get_pci_nvidia_names():
+    """Return NVIDIA PCI device-id to name mapping (cached).
+
+    Loads the bundled nvidia_pci_ids.txt first, then tries to refresh from
+    the upstream pci.ids database.  Falls back to bundled data if the
+    download fails (e.g. airgapped environments).
+    """
+    global _pci_nvidia_names
+    if _pci_nvidia_names is not None:
+        return _pci_nvidia_names
+
+    _pci_nvidia_names = _parse_bundled_pci_ids(_BUNDLED_PCI_IDS)
+    bundled_count = len(_pci_nvidia_names)
+    log.info("Loaded %d NVIDIA PCI IDs from bundled file", bundled_count)
+
+    upstream = _fetch_upstream_pci_ids()
+    if upstream is not None:
+        _pci_nvidia_names.update(upstream)
+        log.info("Refreshed NVIDIA PCI IDs from upstream (%d entries)", len(upstream))
+    else:
+        log.warning(
+            "Could not fetch upstream pci.ids; using %d bundled entries",
+            bundled_count,
+        )
+
+    return _pci_nvidia_names
+
+
+def _lookup_gpu_name(device_id):
+    """Look up an NVIDIA GPU name by PCI device ID.
+
+    Tries the online pci.ids database first, returns a fallback string
+    if not found.
+    """
+    names = _get_pci_nvidia_names()
+    name = names.get(device_id)
+    if name:
+        return f"NVIDIA {name}"
+    return None
 
 
 def _run_nvidia_smi():
@@ -254,7 +349,7 @@ def _scan_sysfs_nvidia_gpus(exclude_pci_ids):
                 dev_class = f.read().strip()
         except OSError:
             continue
-        if not dev_class.lower().startswith("0x0300"):
+        if not dev_class.lower().startswith("0x03"):
             continue
 
         # Normalise to the same format as nvidia-smi / rest of codebase
@@ -262,16 +357,15 @@ def _scan_sysfs_nvidia_gpus(exclude_pci_ids):
         if pci_id in exclude_pci_ids:
             continue
 
-        # Read PCI device ID to look up in _NVIDIA_GPU_DB
+        # Read PCI device ID and look up name from pci.ids
         try:
             with open(os.path.join(dev_path, "device")) as f:
                 device_id = int(f.read().strip(), 16)
         except (OSError, ValueError):
             device_id = 0
 
-        name, memory_mb = _NVIDIA_GPU_DB.get(
-            device_id, (f"NVIDIA Unknown GPU ({entry})", 0)
-        )
+        name = _lookup_gpu_name(device_id) or f"NVIDIA Unknown GPU ({entry})"
+        memory_mb = 0
 
         gpus.append(
             {
