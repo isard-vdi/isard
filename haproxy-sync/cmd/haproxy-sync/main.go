@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"sync"
 
-	"gitlab.com/isard/isardvdi/haproxy-bastion-sync/cfg"
-	"gitlab.com/isard/isardvdi/haproxy-bastion-sync/haproxy"
-	haproxybastionsync "gitlab.com/isard/isardvdi/haproxy-bastion-sync/haproxy-bastion-sync"
-	"gitlab.com/isard/isardvdi/haproxy-bastion-sync/transport/grpc"
+	"gitlab.com/isard/isardvdi/haproxy-sync/cfg"
+	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy"
+	"gitlab.com/isard/isardvdi/haproxy-sync/haproxy-sync"
+	"gitlab.com/isard/isardvdi/haproxy-sync/transport/grpc"
 
 	"gitlab.com/isard/isardvdi/pkg/log"
 )
@@ -18,19 +18,19 @@ import (
 func main() {
 	cfg := cfg.New()
 
-	log := log.New("haproxy-bastion-sync", cfg.Log.Level)
+	log := log.New("haproxy-sync", cfg.Log.Level)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	haproxy, err := haproxy.NewHAProxy(log, cfg.Haproxy.SocketAddress)
+	haproxy, err := haproxy.NewHAProxy(log, cfg.HAProxy.SocketAddress)
 	if err != nil {
 		log.Fatal().Err(err).Msg("connect to HAProxy admin stats socket")
 	}
 
-	haproxybastionsync := haproxybastionsync.Init(log, cfg, haproxy)
+	haproxysync := haproxysync.Init(log, cfg.HAProxy, haproxy)
 
-	grpc := grpc.NewHAProxyBastionSyncServer(log, &wg, cfg.GRPC, haproxybastionsync)
+	grpc := grpc.NewHAProxySyncServer(log, &wg, cfg.GRPC, haproxysync)
 
 	go grpc.Serve(ctx)
 	wg.Add(1)

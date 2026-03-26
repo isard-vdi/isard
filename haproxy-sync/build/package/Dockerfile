@@ -20,11 +20,11 @@ RUN go mod download
 WORKDIR /
 
 COPY pkg /build/pkg
-COPY haproxy-bastion-sync /build/haproxy-bastion-sync
+COPY haproxy-sync /build/haproxy-sync
 
-WORKDIR /build/haproxy-bastion-sync
+WORKDIR /build/haproxy-sync
 
-RUN CGO_ENABLED=0 go build -o bin/haproxy-bastion-sync cmd/haproxy-bastion-sync/main.go
+RUN CGO_ENABLED=0 go build -o bin/haproxy-sync cmd/haproxy-sync/main.go
 
 #
 # HAProxy Bastion sync
@@ -35,7 +35,7 @@ RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     ca-certificates
 
-COPY --from=build /build/haproxy-bastion-sync/bin/haproxy-bastion-sync /haproxy-bastion-sync
+COPY --from=build /build/haproxy-sync/bin/haproxy-sync /haproxy-sync
 
-CMD [ "/haproxy-bastion-sync" ]
+CMD [ "/haproxy-sync" ]
 USER nobody

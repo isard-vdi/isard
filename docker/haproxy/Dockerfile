@@ -1,8 +1,8 @@
 ARG HAPROXY_RUN_IMAGE
 ARG GOLANG_BUILD_IMAGE
 
-# Build haproxy-bastion-sync binary
-FROM ${GOLANG_BUILD_IMAGE} as haproxy-bastion-sync-build
+# Build haproxy-sync binary
+FROM ${GOLANG_BUILD_IMAGE} as haproxy-sync-build
 
 WORKDIR /build
 
@@ -18,11 +18,11 @@ RUN go mod download
 WORKDIR /
 
 COPY pkg /build/pkg
-COPY haproxy-bastion-sync /build/haproxy-bastion-sync
+COPY haproxy-sync /build/haproxy-sync
 
-WORKDIR /build/haproxy-bastion-sync
+WORKDIR /build/haproxy-sync
 
-RUN CGO_ENABLED=0 go build -o bin/haproxy-bastion-sync cmd/haproxy-bastion-sync/main.go
+RUN CGO_ENABLED=0 go build -o bin/haproxy-sync cmd/haproxy-sync/main.go
 
 # HAProxy production image
 FROM ${HAPROXY_RUN_IMAGE} as production
@@ -32,8 +32,8 @@ USER root
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache openssl acme.sh
 
-# Copy haproxy-bastion-sync binary
-COPY --from=haproxy-bastion-sync-build /build/haproxy-bastion-sync/bin/haproxy-bastion-sync /usr/local/bin/haproxy-bastion-sync
+# Copy haproxy-sync binary
+COPY --from=haproxy-sync-build /build/haproxy-sync/bin/haproxy-sync /usr/local/bin/haproxy-sync
 
 # Copy HAProxy scripts and configs
 COPY docker/haproxy/_common/prepare.sh /usr/local/sbin/
@@ -49,7 +49,7 @@ RUN chmod 775 \
     /usr/local/sbin/auto-generate-certs.sh \
     /usr/local/bin/haproxy-reload \
     /usr/local/bin/acme-management.sh \
-    /usr/local/bin/haproxy-bastion-sync
+    /usr/local/bin/haproxy-sync
 
 COPY docker/haproxy/cfg /usr/local/etc/haproxy/cfg
 WORKDIR /usr/local/etc/haproxy

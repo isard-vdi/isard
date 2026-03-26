@@ -95,7 +95,7 @@ app.internal_users = InternalUsers()
 # # ###### GRPC client
 
 from isardvdi_common.grpc_client import (
-    create_haproxy_bastion_client,
+    create_haproxy_sync_client,
     create_operations_client,
     create_sessions_client,
     watch_health_check,
@@ -104,7 +104,7 @@ from isardvdi_common.grpc_client import (
 # TODO: Get from env
 app.sessions_client = create_sessions_client("isard-sessions", 1312)
 app.operations_client = create_operations_client("isard-operations", 1312)
-app.haproxy_bastion_client, haproxy_bastion_channel = create_haproxy_bastion_client(
+app.haproxy_sync_client, haproxy_sync_channel = create_haproxy_sync_client(
     "isard-portal", 1312
 )
 
@@ -139,8 +139,8 @@ from api.libv2.api_targets import update_bastion_haproxy_map
 try:
     app.logger.info("Starting HAProxy service watch...")
     watch_health_check(
-        haproxy_bastion_channel,
-        "haproxy.v1.HaproxyBastionService",
+        haproxy_sync_channel,
+        "haproxy_sync.v1.HaproxySyncService",
         update_bastion_haproxy_map,
     )
     app.logger.info("Syncing bastion domains to HAProxy...")
