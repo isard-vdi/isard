@@ -443,12 +443,20 @@ func (a *Authentication) finishCategorySelect(ctx context.Context, remoteAddr, c
 		}
 	}
 
-	if claims.RawRoles != nil && len(*claims.RawRoles) != 0 {
-		var err *provider.ProviderError
-		u.Role, err = p.GuessRole(ctx, u, *claims.RawRoles)
-		if err != nil && !errors.Is(err, provider.ErrInvalidIDP) {
-			return "", "", fmt.Errorf("guess role from token: %w", err)
-		}
+	// Always call GuessRole, even with empty rawRoles: when the IdP doesn't
+	// provide role attributes (FieldRole is empty), GuessRole falls back to
+	// RoleDefault. Without this, auto-registered users end up with an empty
+	// role and registration fails.
+	// ErrInvalidIDP is ignored because the provider might not support role
+	// guessing; in that case the role will come from the existing DB user.
+	rawRoles := []string{}
+	if claims.RawRoles != nil {
+		rawRoles = *claims.RawRoles
+	}
+	var roleErr *provider.ProviderError
+	u.Role, roleErr = p.GuessRole(ctx, u, rawRoles)
+	if roleErr != nil && !errors.Is(roleErr, provider.ErrInvalidIDP) {
+		return "", "", fmt.Errorf("guess role from token: %w", roleErr)
 	}
 
 	return a.startLogin(ctx, remoteAddr, p, g, secondary, u, redirect)

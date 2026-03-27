@@ -978,7 +978,21 @@ func TestFinishCategorySelect(t *testing.T) {
 			},
 			PrepareAPI: func(c *sdk.MockSdk) {},
 			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "nefix@example.org"
+
+				role := model.RoleUser
+
 				localMock := provider.NewMockProvider(t)
+				localMock.On("GuessRole", mock.AnythingOfType("*context.cancelCtx"), &types.ProviderUserData{
+					Provider: "local",
+					Category: "test-category",
+					UID:      "nefix-uid",
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+				}, []string{}).Return(&role, (*provider.ProviderError)(nil))
 				localMock.On("SaveEmail").Return(true)
 				localMock.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
 
@@ -1039,6 +1053,8 @@ func TestFinishCategorySelect(t *testing.T) {
 				email := "saml@example.org"
 				empty := ""
 
+				role := model.RoleUser
+
 				samlMock := provider.NewMockProvider(t)
 				samlMock.On("GuessGroups", mock.AnythingOfType("*context.cancelCtx"), &types.ProviderUserData{
 					Provider: "saml",
@@ -1054,6 +1070,15 @@ func TestFinishCategorySelect(t *testing.T) {
 					ExternalGID:   "group1",
 					Name:          "Group 1",
 				}, []*model.Group{}, (*provider.ProviderError)(nil))
+				samlMock.On("GuessRole", mock.AnythingOfType("*context.cancelCtx"), &types.ProviderUserData{
+					Provider: "saml",
+					Category: "test-category",
+					UID:      "saml-uid",
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+					Photo:    &empty,
+				}, []string{}).Return(&role, (*provider.ProviderError)(nil))
 				samlMock.On("SaveEmail").Return(true)
 				samlMock.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
 
@@ -1091,6 +1116,77 @@ func TestFinishCategorySelect(t *testing.T) {
 
 				assert.Equal(t, "saml", tkn.Provider)
 				assert.Equal(t, "saml-uid", tkn.UserID)
+				assert.Equal(t, "test-category", tkn.CategoryID)
+			},
+			ExpectedRedirect: "/",
+		},
+		"should ignore ErrInvalidIDP from GuessRole": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("categories").Get("test-category")).Return([]interface{}{
+					map[string]interface{}{
+						"id": "test-category",
+					},
+				}, nil)
+
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("uid"), "nefix-uid"),
+					r.Eq(r.Row.Field("provider"), "local"),
+					r.Eq(r.Row.Field("category"), "test-category"),
+				))).Return([]interface{}{}, nil)
+			},
+			PrepareAPI: func(c *sdk.MockSdk) {},
+			PrepareProviderManager: func(t *testing.T, m *providermanager.MockProvidermanager) {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "nefix@example.org"
+
+				localMock := provider.NewMockProvider(t)
+				localMock.On("GuessRole", mock.AnythingOfType("*context.cancelCtx"), &types.ProviderUserData{
+					Provider: "local",
+					Category: "test-category",
+					UID:      "nefix-uid",
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+				}, []string{}).Return((*model.Role)(nil), &provider.ProviderError{
+					User:   provider.ErrInvalidIDP,
+					Detail: errors.New("provider does not support role guessing"),
+				})
+				localMock.On("SaveEmail").Return(true)
+				localMock.On("AutoRegister", mock.AnythingOfType("*model.User")).Return(false)
+
+				m.On("Provider", "local", "test-category").Return(localMock)
+			},
+			RemoteAddr: "127.0.0.1",
+			CategoryID: "test-category",
+			PrepareToken: func() string {
+				username := "nefix"
+				name := "Néfix Estrada"
+				email := "nefix@example.org"
+
+				tkn, err := token.SignCategorySelectToken("", []*model.Category{{
+					ID:   "test-category",
+					Name: "Test Category",
+				}}, nil, nil, &types.ProviderUserData{
+					Provider: "local",
+					Category: "default",
+					UID:      "nefix-uid",
+
+					Username: &username,
+					Name:     &name,
+					Email:    &email,
+				})
+				require.NoError(err)
+				return tkn
+			},
+			Redirect: "/",
+
+			CheckToken: func(ss string) {
+				tkn, err := token.ParseRegisterToken("", ss)
+				require.NoError(err)
+
+				assert.Equal(t, "local", tkn.Provider)
+				assert.Equal(t, "nefix-uid", tkn.UserID)
 				assert.Equal(t, "test-category", tkn.CategoryID)
 			},
 			ExpectedRedirect: "/",
