@@ -87,6 +87,8 @@ db.init_app(app)
 
 rb_delete_queue = RecycleBinDeleteQueue()
 
+from haproxy_sync.v1 import haproxy_sync_pb2
+
 from ..libv2.api_user_storage import (
     isard_user_storage_add_user,
     isard_user_storage_update_user,
@@ -107,7 +109,7 @@ from .api_admin import (
 )
 from .api_notify import notify_admin, notify_admins
 from .api_sessions import get_user_session_id, revoke_user_session
-from .api_targets import get_bastion_domain
+from .api_targets import _call_grpc_with_infinite_retry, get_bastion_domain
 from .helpers import (
     _check,
     _parse_desktop,
@@ -168,6 +170,56 @@ def get_secondary_groups_data(secondary_groups):
 def get_category(category_id):
     with app.app_context():
         return r.table("categories").get(category_id).run(db.conn)
+
+
+def sync_category_branding_domains():
+    """
+    Sync category branding domains to HAProxy via DomainSync.
+    Only syncs categories with branding.domain.enabled == True.
+    """
+    with app.app_context():
+        categories = list(
+            r.table("categories")
+            .filter(
+                lambda cat: r.branch(
+                    cat.has_fields({"branding": {"domain": "enabled"}}),
+                    cat["branding"]["domain"]["enabled"] == True,
+                    False,
+                )
+            )
+            .pluck(
+                {
+                    "branding": {
+                        "domain": ["name", "certificate_source", "certificate_data"]
+                    }
+                }
+            )
+            .run(db.conn)
+        )
+
+    domains = []
+    for category in categories:
+        domain_branding = category.get("branding", {}).get("domain", {})
+        name = domain_branding.get("name")
+        if not name:
+            continue
+        certificate = b""
+        if domain_branding.get("certificate_source") == "custom":
+            cert_data = domain_branding.get("certificate_data", "")
+            if cert_data:
+                certificate = (
+                    cert_data.encode("utf-8")
+                    if isinstance(cert_data, str)
+                    else cert_data
+                )
+        domains.append(
+            haproxy_sync_pb2.DomainSyncDomain(name=name, certificate=certificate)
+        )
+
+    _call_grpc_with_infinite_retry(
+        app.haproxy_sync_client.DomainSync,
+        haproxy_sync_pb2.DomainSyncRequest(domains=domains),
+    )
 
 
 @cached(cache=TTLCache(maxsize=100, ttl=10))
