@@ -25,7 +25,7 @@ type Interface interface {
 	//
 	// DomainSync performs a full synchronization of all the domains that HAProxy needs to accept / manage.
 	//
-	DomainSync(ctx context.Context, domains []string) (DomainSyncResult, error)
+	DomainSync(ctx context.Context, domains []DomainSyncDomain) (DomainSyncResult, error)
 
 	//
 	// Bastion

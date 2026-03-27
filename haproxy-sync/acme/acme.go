@@ -66,7 +66,13 @@ func (a *ACME) RemoveCert(ctx context.Context, domain, pemName string) error {
 
 	out, err := exec.CommandContext(ctx, removeScriptPath, domain, pemName).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("remove ACME certificate for '%s': %w: %s", domain, err, out)
+		a.log.Warn().
+			Err(err).
+			Str("domain", domain).
+			Str("pem_name", pemName).
+			Str("output", string(out)).
+			Msg("ACME certificate removal failed, domain may not exist in ACME")
+		return nil
 	}
 
 	a.log.Info().

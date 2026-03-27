@@ -28,8 +28,13 @@ service HaproxySyncService {
   rpc BastionGetCurrentMaps(BastionGetCurrentMapsRequest) returns (BastionGetCurrentMapsResponse) {}
 }
 
+message DomainSyncDomain {
+  string name = 1;
+  bytes certificate = 2; // PEM. If empty, issued via ACME.
+}
+
 message DomainSyncRequest {
-  repeated string domains = 1;
+  repeated DomainSyncDomain domains = 1;
 }
 
 message DomainSyncResponse {

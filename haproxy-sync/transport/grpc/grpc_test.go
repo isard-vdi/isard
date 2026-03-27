@@ -31,16 +31,21 @@ func TestDomainSync(t *testing.T) {
 	}{
 		"should work as expected": {
 			PrepareService: func(m *haproxysync.MockHaproxysync) {
-				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []string{"example.com", "test.org"}).
-					Return(haproxysync.DomainSyncResult{
-						DomainsAdded:   2,
-						DomainsRemoved: 1,
-						CertsIssued:    2,
-						CertsRemoved:   1,
-					}, nil)
+				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []haproxysync.DomainSyncDomain{
+					{Name: "example.com"},
+					{Name: "test.org"},
+				}).Return(haproxysync.DomainSyncResult{
+					DomainsAdded:   2,
+					DomainsRemoved: 1,
+					CertsIssued:    2,
+					CertsRemoved:   1,
+				}, nil)
 			},
 			Req: &haproxysyncv1.DomainSyncRequest{
-				Domains: []string{"example.com", "test.org"},
+				Domains: []*haproxysyncv1.DomainSyncDomain{
+					{Name: "example.com"},
+					{Name: "test.org"},
+				},
 			},
 			ExpectedRsp: &haproxysyncv1.DomainSyncResponse{
 				DomainsAdded:   2,
@@ -70,7 +75,7 @@ func TestDomainSync(t *testing.T) {
 		},
 		"should work with empty domains": {
 			PrepareService: func(m *haproxysync.MockHaproxysync) {
-				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []string{}).
+				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []haproxysync.DomainSyncDomain{}).
 					Return(haproxysync.DomainSyncResult{
 						DomainsAdded:   0,
 						DomainsRemoved: 0,
@@ -79,7 +84,7 @@ func TestDomainSync(t *testing.T) {
 					}, nil)
 			},
 			Req: &haproxysyncv1.DomainSyncRequest{
-				Domains: []string{},
+				Domains: []*haproxysyncv1.DomainSyncDomain{},
 			},
 			ExpectedRsp: &haproxysyncv1.DomainSyncResponse{
 				DomainsAdded:   0,
@@ -91,11 +96,14 @@ func TestDomainSync(t *testing.T) {
 		},
 		"should return an Internal status if an unexpected error occurs": {
 			PrepareService: func(m *haproxysync.MockHaproxysync) {
-				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []string{"fail.com"}).
-					Return(haproxysync.DomainSyncResult{}, errors.New("unexpected error"))
+				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []haproxysync.DomainSyncDomain{
+					{Name: "fail.com"},
+				}).Return(haproxysync.DomainSyncResult{}, errors.New("unexpected error"))
 			},
 			Req: &haproxysyncv1.DomainSyncRequest{
-				Domains: []string{"fail.com"},
+				Domains: []*haproxysyncv1.DomainSyncDomain{
+					{Name: "fail.com"},
+				},
 			},
 			ExpectedErr: status.Error(codes.Internal, fmt.Errorf("sync domains: %w", errors.New("unexpected error")).Error()).Error(),
 		},

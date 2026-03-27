@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 )
 
 func domainPemName(domain string) string {
@@ -16,7 +15,7 @@ func domainCertPath(certsPath, pemName string) string {
 	return filepath.Join(certsPath, pemName)
 }
 
-func (h *HAproxySync) DomainSync(ctx context.Context, domains []string) (DomainSyncResult, error) {
+func (h *HAproxySync) DomainSync(ctx context.Context, domains []DomainSyncDomain) (DomainSyncResult, error) {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
@@ -37,6 +36,12 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []string) (DomainS
 	certsRemoved := 0
 	var failedDomains []DomainSyncError
 
+	// Build a set of desired domain names for quick lookup during removal
+	desiredDomains := make(map[string]bool, len(domains))
+	for _, d := range domains {
+		desiredDomains[d.Name] = true
+	}
+
 	// Add the missing domains
 	for _, d := range domains {
 		if _, ok := h.Domains.domains[d.Name]; !ok {
@@ -50,13 +55,15 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []string) (DomainS
 			}
 
 			domainsAdded += 1
-			certsIssued += 1
+			if len(d.Certificate) == 0 {
+				certsIssued += 1
+			}
 		}
 	}
 
 	// Remove the extra domains
 	for d := range h.Domains.domains {
-		if !slices.Contains(domains, d) {
+		if !desiredDomains[d] {
 			pemName := domainPemName(d)
 			certPath := domainCertPath(h.Domains.CertsPath, pemName)
 
@@ -72,9 +79,7 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []string) (DomainS
 				return DomainSyncResult{}, fmt.Errorf("delete ssl cert for domain '%s': %w", d, err)
 			}
 
-			if err := h.acme.RemoveCert(ctx, d, pemName); err != nil {
-				return DomainSyncResult{}, fmt.Errorf("remove certificate for domain '%s': %w", d, err)
-			}
+			h.acme.RemoveCert(ctx, d, pemName)
 			certsRemoved += 1
 
 			delete(h.Domains.domains, d)
@@ -91,17 +96,26 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []string) (DomainS
 	}, nil
 }
 
-func (h *HAproxySync) addDomain(ctx context.Context, d string) error {
+func (h *HAproxySync) addDomain(ctx context.Context, d string, certData []byte) error {
 	pemName := domainPemName(d)
 	certPath := domainCertPath(h.Domains.CertsPath, pemName)
 
-	if err := h.acme.IssueCert(ctx, d, pemName); err != nil {
-		return fmt.Errorf("issue certificate: %w", err)
-	}
+	var pemData []byte
+	if len(certData) > 0 {
+		if err := os.WriteFile(certPath, certData, 0600); err != nil {
+			return fmt.Errorf("write provided certificate: %w", err)
+		}
+		pemData = certData
+	} else {
+		if err := h.acme.IssueCert(ctx, d, pemName); err != nil {
+			return fmt.Errorf("issue certificate: %w", err)
+		}
 
-	pemData, err := os.ReadFile(certPath)
-	if err != nil {
-		return fmt.Errorf("read certificate file: %w", err)
+		var err error
+		pemData, err = os.ReadFile(certPath)
+		if err != nil {
+			return fmt.Errorf("read certificate file: %w", err)
+		}
 	}
 
 	if err := h.haproxy.NewSslCert(certPath); err != nil {

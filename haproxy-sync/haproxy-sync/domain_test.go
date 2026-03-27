@@ -29,7 +29,7 @@ func TestDomainSync(t *testing.T) {
 		PrepareCerts          func(string)
 		PrepareHAProxy        func(*haproxy.MockHaproxy, string)
 		PrepareACME           func(*acme.MockAcme)
-		Domains               []string
+		Domains               []haproxysync.DomainSyncDomain
 		ExpectedResult        haproxysync.DomainSyncResult
 		ExpectedFailedDomains []haproxysync.DomainSyncError
 		ExpectedErr           string
@@ -39,7 +39,7 @@ func TestDomainSync(t *testing.T) {
 				m.On("ShowMap", "virt@domains").Return([]string{}, nil)
 			},
 			PrepareACME: func(m *acme.MockAcme) {},
-			Domains:     []string{},
+			Domains:     []haproxysync.DomainSyncDomain{},
 			ExpectedResult: haproxysync.DomainSyncResult{
 				DomainsAdded:   0,
 				DomainsRemoved: 0,
@@ -47,7 +47,7 @@ func TestDomainSync(t *testing.T) {
 				CertsRemoved:   0,
 			},
 		},
-		"should add missing domains": {
+		"should add missing domains via ACME": {
 			PrepareCerts: func(certsPath string) {
 				require.NoError(os.WriteFile(filepath.Join(certsPath, "example.com.pem"), testPEMData, 0644))
 				require.NoError(os.WriteFile(filepath.Join(certsPath, "test.org.pem"), testPEMData, 0644))
@@ -69,11 +69,67 @@ func TestDomainSync(t *testing.T) {
 				m.On("IssueCert", mock.AnythingOfType("*context.cancelCtx"), "example.com", "example.com.pem").Return(nil)
 				m.On("IssueCert", mock.AnythingOfType("*context.cancelCtx"), "test.org", "test.org.pem").Return(nil)
 			},
-			Domains: []string{"example.com", "test.org"},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "example.com"},
+				{Name: "test.org"},
+			},
 			ExpectedResult: haproxysync.DomainSyncResult{
 				DomainsAdded:   2,
 				DomainsRemoved: 0,
 				CertsIssued:    2,
+				CertsRemoved:   0,
+			},
+		},
+		"should add domain with provided certificate": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, certsPath string) {
+				m.On("ShowMap", "virt@domains").Return([]string{}, nil)
+				m.On("NewSslCert", filepath.Join(certsPath, "provided.com.pem")).Return(nil)
+				m.On("SetSslCert", filepath.Join(certsPath, "provided.com.pem"), testPEMData).Return(nil)
+				m.On("CommitSslCert", filepath.Join(certsPath, "provided.com.pem")).Return(nil)
+				m.On("AddSslCrtList", "/certs/crt-list.cfg", filepath.Join(certsPath, "provided.com.pem")).Return(nil)
+				m.On("AddMap", "virt@domains", "provided.com").Return(nil)
+			},
+			PrepareACME: func(m *acme.MockAcme) {},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "provided.com", Certificate: testPEMData},
+			},
+			ExpectedResult: haproxysync.DomainSyncResult{
+				DomainsAdded:   1,
+				DomainsRemoved: 0,
+				CertsIssued:    0,
+				CertsRemoved:   0,
+			},
+		},
+		"should handle mix of ACME and provided certificates": {
+			PrepareCerts: func(certsPath string) {
+				require.NoError(os.WriteFile(filepath.Join(certsPath, "acme.com.pem"), testPEMData, 0644))
+			},
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, certsPath string) {
+				m.On("ShowMap", "virt@domains").Return([]string{}, nil)
+				// ACME domain
+				m.On("NewSslCert", filepath.Join(certsPath, "acme.com.pem")).Return(nil)
+				m.On("SetSslCert", filepath.Join(certsPath, "acme.com.pem"), testPEMData).Return(nil)
+				m.On("CommitSslCert", filepath.Join(certsPath, "acme.com.pem")).Return(nil)
+				m.On("AddSslCrtList", "/certs/crt-list.cfg", filepath.Join(certsPath, "acme.com.pem")).Return(nil)
+				m.On("AddMap", "virt@domains", "acme.com").Return(nil)
+				// Provided domain
+				m.On("NewSslCert", filepath.Join(certsPath, "provided.com.pem")).Return(nil)
+				m.On("SetSslCert", filepath.Join(certsPath, "provided.com.pem"), testPEMData).Return(nil)
+				m.On("CommitSslCert", filepath.Join(certsPath, "provided.com.pem")).Return(nil)
+				m.On("AddSslCrtList", "/certs/crt-list.cfg", filepath.Join(certsPath, "provided.com.pem")).Return(nil)
+				m.On("AddMap", "virt@domains", "provided.com").Return(nil)
+			},
+			PrepareACME: func(m *acme.MockAcme) {
+				m.On("IssueCert", mock.AnythingOfType("*context.cancelCtx"), "acme.com", "acme.com.pem").Return(nil)
+			},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "acme.com"},
+				{Name: "provided.com", Certificate: testPEMData},
+			},
+			ExpectedResult: haproxysync.DomainSyncResult{
+				DomainsAdded:   2,
+				DomainsRemoved: 0,
+				CertsIssued:    1,
 				CertsRemoved:   0,
 			},
 		},
@@ -87,7 +143,27 @@ func TestDomainSync(t *testing.T) {
 			PrepareACME: func(m *acme.MockAcme) {
 				m.On("RemoveCert", mock.AnythingOfType("*context.cancelCtx"), "old.com", "old.com.pem").Return(nil)
 			},
-			Domains: []string{"example.com"},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "example.com"},
+			},
+			ExpectedResult: haproxysync.DomainSyncResult{
+				DomainsAdded:   0,
+				DomainsRemoved: 1,
+				CertsIssued:    0,
+				CertsRemoved:   1,
+			},
+		},
+		"should remove provided domain with tolerant ACME removal": {
+			PrepareHAProxy: func(m *haproxy.MockHaproxy, certsPath string) {
+				m.On("ShowMap", "virt@domains").Return([]string{"provided.com"}, nil)
+				m.On("DelMap", "virt@domains", "provided.com").Return(nil)
+				m.On("DelSslCrtList", "/certs/crt-list.cfg", filepath.Join(certsPath, "provided.com.pem")).Return(nil)
+				m.On("DelSslCert", filepath.Join(certsPath, "provided.com.pem")).Return(nil)
+			},
+			PrepareACME: func(m *acme.MockAcme) {
+				m.On("RemoveCert", mock.AnythingOfType("*context.cancelCtx"), "provided.com", "provided.com.pem").Return(nil)
+			},
+			Domains: []haproxysync.DomainSyncDomain{},
 			ExpectedResult: haproxysync.DomainSyncResult{
 				DomainsAdded:   0,
 				DomainsRemoved: 1,
@@ -114,7 +190,10 @@ func TestDomainSync(t *testing.T) {
 				m.On("IssueCert", mock.AnythingOfType("*context.cancelCtx"), "new.com", "new.com.pem").Return(nil)
 				m.On("RemoveCert", mock.AnythingOfType("*context.cancelCtx"), "old.com", "old.com.pem").Return(nil)
 			},
-			Domains: []string{"existing.com", "new.com"},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "existing.com"},
+				{Name: "new.com"},
+			},
 			ExpectedResult: haproxysync.DomainSyncResult{
 				DomainsAdded:   1,
 				DomainsRemoved: 1,
@@ -137,7 +216,9 @@ func TestDomainSync(t *testing.T) {
 			PrepareACME: func(m *acme.MockAcme) {
 				m.On("IssueCert", mock.AnythingOfType("*context.cancelCtx"), "example.com", "example.com.pem").Return(nil)
 			},
-			Domains: []string{"example.com"},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "example.com"},
+			},
 			ExpectedResult: haproxysync.DomainSyncResult{
 				DomainsAdded:   1,
 				DomainsRemoved: 0,
@@ -150,7 +231,9 @@ func TestDomainSync(t *testing.T) {
 				m.On("ShowMap", "virt@domains").Return([]string{}, errors.New("socket error"))
 			},
 			PrepareACME: func(m *acme.MockAcme) {},
-			Domains:     []string{"example.com"},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "example.com"},
+			},
 			ExpectedErr: "get current domains from HAProxy: socket error",
 		},
 		"should report failed domain when cert issuance fails": {
@@ -297,7 +380,10 @@ func TestDomainSync(t *testing.T) {
 				m.On("IssueCert", mock.AnythingOfType("*context.cancelCtx"), "bad.com", "bad.com.pem").Return(errors.New("acme rate limit"))
 				m.On("IssueCert", mock.AnythingOfType("*context.cancelCtx"), "good.com", "good.com.pem").Return(nil)
 			},
-			Domains: []string{"bad.com", "good.com"},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "bad.com"},
+				{Name: "good.com"},
+			},
 			ExpectedResult: haproxysync.DomainSyncResult{
 				DomainsAdded:   1,
 				DomainsRemoved: 0,
@@ -316,7 +402,10 @@ func TestDomainSync(t *testing.T) {
 				m.On("IssueCert", mock.AnythingOfType("*context.cancelCtx"), "fail1.com", "fail1.com.pem").Return(errors.New("error 1"))
 				m.On("IssueCert", mock.AnythingOfType("*context.cancelCtx"), "fail2.com", "fail2.com.pem").Return(errors.New("error 2"))
 			},
-			Domains: []string{"fail1.com", "fail2.com"},
+			Domains: []haproxysync.DomainSyncDomain{
+				{Name: "fail1.com"},
+				{Name: "fail2.com"},
+			},
 			ExpectedResult: haproxysync.DomainSyncResult{
 				DomainsAdded:   0,
 				DomainsRemoved: 0,
@@ -334,7 +423,7 @@ func TestDomainSync(t *testing.T) {
 				m.On("DelMap", "virt@domains", "old.com").Return(errors.New("delete failed"))
 			},
 			PrepareACME: func(m *acme.MockAcme) {},
-			Domains:     []string{},
+			Domains:     []haproxysync.DomainSyncDomain{},
 			ExpectedErr: "delete domain from HAProxy: delete failed",
 		},
 		"should return an error if deleting ssl crt-list fails": {
@@ -344,21 +433,8 @@ func TestDomainSync(t *testing.T) {
 				m.On("DelSslCrtList", "/certs/crt-list.cfg", filepath.Join(certsPath, "old.com.pem")).Return(errors.New("crt-list error"))
 			},
 			PrepareACME: func(m *acme.MockAcme) {},
-			Domains:     []string{},
+			Domains:     []haproxysync.DomainSyncDomain{},
 			ExpectedErr: "delete ssl crt-list for domain 'old.com': crt-list error",
-		},
-		"should return an error if cert removal fails": {
-			PrepareHAProxy: func(m *haproxy.MockHaproxy, certsPath string) {
-				m.On("ShowMap", "virt@domains").Return([]string{"old.com"}, nil)
-				m.On("DelMap", "virt@domains", "old.com").Return(nil)
-				m.On("DelSslCrtList", "/certs/crt-list.cfg", filepath.Join(certsPath, "old.com.pem")).Return(nil)
-				m.On("DelSslCert", filepath.Join(certsPath, "old.com.pem")).Return(nil)
-			},
-			PrepareACME: func(m *acme.MockAcme) {
-				m.On("RemoveCert", mock.AnythingOfType("*context.cancelCtx"), "old.com", "old.com.pem").Return(errors.New("remove error"))
-			},
-			Domains:     []string{},
-			ExpectedErr: "remove certificate for domain 'old.com': remove error",
 		},
 	}
 
