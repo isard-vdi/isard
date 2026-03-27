@@ -19,7 +19,7 @@ if [ -n "$ACME_DOMAIN" ] && [ -n "$ACME_EMAIL" ]; then
     elif [ "$1" = "generate" ]; then
         # Setup the cron
         echo "Setting up cron"
-        echo '0 2 * * * /usr/share/acme.sh/acme.sh --cron --home "/etc/acme" &> /var/log/acme-cron.log' > /etc/crontabs/root
+        echo '0 2 * * * /usr/share/acme.sh/acme.sh --cron --home "/etc/acme" > /var/log/acme-cron.log 2>&1' > /etc/crontabs/root
         crond
 
         # Generate the main domain certificate, retrying until HAProxy serves it
