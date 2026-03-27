@@ -47,6 +47,25 @@ func TestDomainSync(t *testing.T) {
 				DomainsRemoved: 1,
 				CertsIssued:    2,
 				CertsRemoved:   1,
+				FailedDomains:  []*haproxysyncv1.DomainSyncError{},
+			},
+		},
+		"should work with provided certificate": {
+			PrepareService: func(m *haproxysync.MockHaproxysync) {
+				m.On("DomainSync", mock.AnythingOfType("context.backgroundCtx"), []haproxysync.DomainSyncDomain{
+					{Name: "provided.com", Certificate: []byte("PEM")},
+				}).Return(haproxysync.DomainSyncResult{
+					DomainsAdded: 1,
+				}, nil)
+			},
+			Req: &haproxysyncv1.DomainSyncRequest{
+				Domains: []*haproxysyncv1.DomainSyncDomain{
+					{Name: "provided.com", Certificate: []byte("PEM")},
+				},
+			},
+			ExpectedRsp: &haproxysyncv1.DomainSyncResponse{
+				DomainsAdded:  1,
+				FailedDomains: []*haproxysyncv1.DomainSyncError{},
 			},
 		},
 		"should work with empty domains": {
@@ -67,6 +86,7 @@ func TestDomainSync(t *testing.T) {
 				DomainsRemoved: 0,
 				CertsIssued:    0,
 				CertsRemoved:   0,
+				FailedDomains:  []*haproxysyncv1.DomainSyncError{},
 			},
 		},
 		"should return an Internal status if an unexpected error occurs": {

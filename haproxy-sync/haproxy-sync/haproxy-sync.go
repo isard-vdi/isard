@@ -45,11 +45,22 @@ type Interface interface {
 	BastionDeleteIndividualDomain(ctx context.Context, domain string) error
 }
 
+type DomainSyncDomain struct {
+	Name        string
+	Certificate []byte // PEM. If empty, issued via ACME.
+}
+
+type DomainSyncError struct {
+	Domain string
+	Error  string
+}
+
 type DomainSyncResult struct {
 	DomainsAdded   int
 	DomainsRemoved int
 	CertsIssued    int
 	CertsRemoved   int
+	FailedDomains  []DomainSyncError
 }
 
 type BastionSyncMaps struct {

@@ -55,11 +55,20 @@ func (h *HAProxySyncServer) DomainSync(ctx context.Context, req *haproxysyncv1.D
 		return nil, status.Error(codes.Internal, fmt.Errorf("sync domains: %w", err).Error())
 	}
 
+	failedDomains := make([]*haproxysyncv1.DomainSyncError, 0, len(result.FailedDomains))
+	for _, fd := range result.FailedDomains {
+		failedDomains = append(failedDomains, &haproxysyncv1.DomainSyncError{
+			Domain: fd.Domain,
+			Error:  fd.Error,
+		})
+	}
+
 	return &haproxysyncv1.DomainSyncResponse{
 		DomainsAdded:   int32(result.DomainsAdded),
 		DomainsRemoved: int32(result.DomainsRemoved),
 		CertsIssued:    int32(result.CertsIssued),
 		CertsRemoved:   int32(result.CertsRemoved),
+		FailedDomains:  failedDomains,
 	}, nil
 }
 

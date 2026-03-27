@@ -35,45 +35,22 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []string) (DomainS
 	domainsRemoved := 0
 	certsIssued := 0
 	certsRemoved := 0
+	var failedDomains []DomainSyncError
 
 	// Add the missing domains
 	for _, d := range domains {
-		if _, ok := h.Domains.domains[d]; !ok {
-			pemName := domainPemName(d)
-			certPath := domainCertPath(h.Domains.CertsPath, pemName)
-
-			if err := h.acme.IssueCert(ctx, d, pemName); err != nil {
-				return DomainSyncResult{}, fmt.Errorf("issue certificate for domain '%s': %w", d, err)
-			}
-			certsIssued += 1
-
-			pemData, err := os.ReadFile(certPath)
-			if err != nil {
-				return DomainSyncResult{}, fmt.Errorf("read certificate file for domain '%s': %w", d, err)
+		if _, ok := h.Domains.domains[d.Name]; !ok {
+			if err := h.addDomain(ctx, d.Name, d.Certificate); err != nil {
+				h.log.Warn().Err(err).Str("domain", d.Name).Msg("failed to add domain, skipping")
+				failedDomains = append(failedDomains, DomainSyncError{
+					Domain: d.Name,
+					Error:  err.Error(),
+				})
+				continue
 			}
 
-			if err := h.haproxy.NewSslCert(certPath); err != nil {
-				return DomainSyncResult{}, fmt.Errorf("create ssl cert storage for domain '%s': %w", d, err)
-			}
-
-			if err := h.haproxy.SetSslCert(certPath, pemData); err != nil {
-				return DomainSyncResult{}, fmt.Errorf("set ssl cert content for domain '%s': %w", d, err)
-			}
-
-			if err := h.haproxy.CommitSslCert(certPath); err != nil {
-				return DomainSyncResult{}, fmt.Errorf("commit ssl cert for domain '%s': %w", d, err)
-			}
-
-			if err := h.haproxy.AddSslCrtList(h.Domains.CrtListPath, certPath); err != nil {
-				return DomainSyncResult{}, fmt.Errorf("add ssl crt-list for domain '%s': %w", d, err)
-			}
-
-			if err := h.haproxy.AddMap(h.Domains.DomainsMapName, d); err != nil {
-				return DomainSyncResult{}, fmt.Errorf("add domain to HAProxy: %w", err)
-			}
-
-			h.Domains.domains[d] = true
 			domainsAdded += 1
+			certsIssued += 1
 		}
 	}
 
@@ -110,5 +87,43 @@ func (h *HAproxySync) DomainSync(ctx context.Context, domains []string) (DomainS
 		DomainsRemoved: domainsRemoved,
 		CertsIssued:    certsIssued,
 		CertsRemoved:   certsRemoved,
+		FailedDomains:  failedDomains,
 	}, nil
+}
+
+func (h *HAproxySync) addDomain(ctx context.Context, d string) error {
+	pemName := domainPemName(d)
+	certPath := domainCertPath(h.Domains.CertsPath, pemName)
+
+	if err := h.acme.IssueCert(ctx, d, pemName); err != nil {
+		return fmt.Errorf("issue certificate: %w", err)
+	}
+
+	pemData, err := os.ReadFile(certPath)
+	if err != nil {
+		return fmt.Errorf("read certificate file: %w", err)
+	}
+
+	if err := h.haproxy.NewSslCert(certPath); err != nil {
+		return fmt.Errorf("create ssl cert storage: %w", err)
+	}
+
+	if err := h.haproxy.SetSslCert(certPath, pemData); err != nil {
+		return fmt.Errorf("set ssl cert content: %w", err)
+	}
+
+	if err := h.haproxy.CommitSslCert(certPath); err != nil {
+		return fmt.Errorf("commit ssl cert: %w", err)
+	}
+
+	if err := h.haproxy.AddSslCrtList(h.Domains.CrtListPath, certPath); err != nil {
+		return fmt.Errorf("add ssl crt-list: %w", err)
+	}
+
+	if err := h.haproxy.AddMap(h.Domains.DomainsMapName, d); err != nil {
+		return fmt.Errorf("add domain to map: %w", err)
+	}
+
+	h.Domains.domains[d] = true
+	return nil
 }

@@ -37,6 +37,12 @@ message DomainSyncResponse {
   int32 domains_removed = 2;
   int32 certs_issued = 3;
   int32 certs_removed = 4;
+  repeated DomainSyncError failed_domains = 5;
+}
+
+message DomainSyncError {
+  string domain = 1;
+  string error = 2;
 }
 
 message BastionAddSubdomainRequest {
