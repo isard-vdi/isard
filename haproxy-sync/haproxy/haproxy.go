@@ -153,7 +153,7 @@ func (h *HAProxy) ShowMap(name string) ([]string, error) {
 	// We only care about the KEY part.
 	entries := []string{}
 	for _, line := range strings.Split(raw, "\n") {
-		if line == "" {
+		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 
@@ -267,7 +267,7 @@ func (h *HAProxy) AddSslCrtList(crtListPath, certPath string) error {
 		return fmt.Errorf("add '%s' cert to '%s' crt-list: %w", certPath, crtListPath, err)
 	}
 
-	if err := checkResponse(raw, "Success!"); err != nil {
+	if err := checkResponse(raw, "Success!", "already exists"); err != nil {
 		return fmt.Errorf("add '%s' cert to '%s' crt-list: %w", certPath, crtListPath, err)
 	}
 
@@ -287,7 +287,7 @@ func (h *HAProxy) NewSslCert(certPath string) error {
 		return fmt.Errorf("create new ssl cert '%s': %w", certPath, err)
 	}
 
-	if err := checkResponse(raw, "New empty certificate store"); err != nil {
+	if err := checkResponse(raw, "New empty certificate store", "already exists"); err != nil {
 		return fmt.Errorf("create new ssl cert '%s': %w", certPath, err)
 	}
 

@@ -48,6 +48,14 @@ func TestCheckResponse(t *testing.T) {
 			Response:          "0x56142a398 example.com _",
 			SuccessIndicators: []string{"0x"},
 		},
+		"should succeed when new ssl cert slot already exists": {
+			Response:          "Certificate '/certs/ex.pem' already exists!",
+			SuccessIndicators: []string{"New empty certificate store", "already exists"},
+		},
+		"should succeed when add ssl crt-list entry already exists": {
+			Response:          "Can't edit the crt-list: file already exists in this directory!",
+			SuccessIndicators: []string{"Success!", "already exists"},
+		},
 		"should return an error if the response is not empty and no indicators are given": {
 			Response:    "Certificate '/certs/ex.pem' already exists!",
 			ExpectedErr: "haproxy error: Certificate '/certs/ex.pem' already exists!",
