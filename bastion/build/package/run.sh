@@ -36,6 +36,8 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] ovsdb-server started with restrict
 
 ovs-vswitchd --detach --verbose --pidfile >/tmp/ovs-vswitchd.out 2>&1
 ovs-vsctl add-br ovsbr0
+ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13,OpenFlow14
+ovs-vsctl set bridge ovsbr0 other_config:mac-table-size=8192
 ip link set ovsbr0 up
 
 # Compute bastion IP from WG_GUESTS_NETS

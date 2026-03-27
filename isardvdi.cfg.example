@@ -1,4 +1,4 @@
-# Isard main config v2.33.0
+# Isard main config v2.34.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -546,12 +546,22 @@ HAPROXY_LOGGING=.
 ##   - hypervisor-standalone
 #VPN_DOMAIN=isard-vpn
 
-## The vpn mtu will allow for infrastructure connection (allow it in your
-## switches)
-## If using Internet to connect remote hypers this should be lowered.
-## https://keremerkan.net/posts/wireguard-mtu-fixes/
-## https://mail.openvswitch.org/pipermail/ovs-discuss/2018-June/046932.html
-#VPN_MTU=1600
+## Infrastructure MTU: physical/underlay network MTU between nodes.
+## All internal MTU values (WireGuard, DHCP, OVS bridge) are derived from this.
+##
+## Defaults:  1500 (wg+geneve)  /  9000 (geneve-only)
+##
+## Common values:
+##   9000 - datacenter with jumbo frames
+##   1500 - standard Ethernet (default for most networks)
+##   1492 - PPPoE connections
+##   1400 - when running behind another VPN/tunnel overlay
+#INFRASTRUCTURE_MTU=1500
+
+## Infrastructure tunneling mode.
+## false (default): WireGuard+Geneve tunneling (existing behavior)
+## true: Direct Geneve tunneling (no WireGuard, requires internal network)
+#GENEVE_ONLY_INFRA=false
 
 # ------ Storage host --------------------------------------------------------
 ## Where can api host reach this isard-storage host?

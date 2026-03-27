@@ -42,6 +42,27 @@ print(f'GUESTS_INFRA_CIDR={ipaddress.ip_network(str(gn.network_address) + \"/28\
   GUESTS_INFRA_CIDR="${_NET_BASE}/28"
 }
 
+# Ensure OVS DB exists and matches the installed schema version
+OVS_DB=/etc/openvswitch/conf.db
+OVS_SCHEMA=/usr/share/openvswitch/vswitch.ovsschema
+mkdir -p /etc/openvswitch /var/run/openvswitch
+
+if [ ! -f "$OVS_DB" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Creating new OVS database"
+    ovsdb-tool create "$OVS_DB" "$OVS_SCHEMA"
+elif [ "$(ovsdb-tool needs-conversion "$OVS_DB" "$OVS_SCHEMA" 2>/dev/null)" = "yes" ]; then
+    _old=$(ovsdb-tool db-version "$OVS_DB" 2>/dev/null)
+    _new=$(ovsdb-tool schema-version "$OVS_SCHEMA" 2>/dev/null)
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Converting database schema ${_old} -> ${_new}"
+    ovsdb-tool convert "$OVS_DB" "$OVS_SCHEMA" || {
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Conversion failed, recreating database"
+        rm -f "$OVS_DB" "$OVS_DB.~lock~"
+        ovsdb-tool create "$OVS_DB" "$OVS_SCHEMA"
+    }
+else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Database schema is up to date ($(ovsdb-tool db-version "$OVS_DB"))"
+fi
+
 # Build ovsdb-server command with security considerations
 OVSDB_CMD="ovsdb-server --detach --remote=punix:/var/run/openvswitch/db.sock --pidfile=ovsdb-server.pid"
 
@@ -56,10 +77,73 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] ovsdb-server started with restrict
 
 ovs-vswitchd --detach --verbose --pidfile >/tmp/ovs-vswitchd.out 2>&1
 ovs-vsctl add-br ovsbr0
-ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13
+ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13,OpenFlow14
+ovs-vsctl set bridge ovsbr0 other_config:mac-table-size=8192
 ip link set ovsbr0 up
 
-ovs-vsctl add-port ovsbr0 $DOMAIN -- set interface $DOMAIN type=geneve options:remote_ip=10.1.0.1
+# Clean up stale tunnel ports from previous tunneling mode.
+# The OVS DB persists across container restarts (docker restart doesn't
+# recreate the writable layer), so ports from the other mode linger.
+# Remove all geneve ports so the mode-specific code below starts fresh.
+for _port in $(ovs-vsctl list-ports ovsbr0 2>/dev/null); do
+    _ptype=$(ovs-vsctl get interface "$_port" type 2>/dev/null || true)
+    if [ "$_ptype" = "geneve" ] || [ "$_ptype" = '"geneve"' ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [OVS] Removing stale geneve port: $_port"
+        ovs-vsctl --if-exists del-port ovsbr0 "$_port"
+    fi
+done
+
+# Set OVS bridge MTU from central infrastructure config (not local env)
+vpn_tunneling_mode=${HYPERVISOR_VPN_TUNNELING_MODE:-wireguard+geneve}
+
+if [ "$vpn_tunneling_mode" = "geneve" ]; then
+    # geneve-only: read INFRASTRUCTURE_MTU saved during API registration
+    if [ -f /tmp/infrastructure_mtu ]; then
+        _ovs_mtu=$(cat /tmp/infrastructure_mtu)
+    else
+        _ovs_mtu=9000
+    fi
+else
+    # wg+geneve: OVS MTU = WG interface MTU (set by central API config)
+    _ovs_mtu=$(ip link show wg0 2>/dev/null | sed -n 's/.*mtu \([0-9]*\).*/\1/p' | head -1)
+    [ -z "$_ovs_mtu" ] && _ovs_mtu=1440
+fi
+ovs-vsctl set interface ovsbr0 mtu_request=$_ovs_mtu
+echo "$(date '+%Y-%m-%d %H:%M:%S') [MTU] OVS bridge MTU set to $_ovs_mtu"
+
+if [ "$vpn_tunneling_mode" = "geneve" ]; then
+    echo "Configuring OVS for plain Geneve tunneling"
+    VPN_DOMAIN=${VPN_DOMAIN:-isard-vpn}
+    # OVS remote_ip requires an IP address, not hostname - resolve if needed
+    if echo "$VPN_DOMAIN" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+        VPN_REMOTE_IP="$VPN_DOMAIN"
+    else
+        VPN_REMOTE_IP=$(getent hosts "$VPN_DOMAIN" | awk '{print $1}' | head -1)
+        if [ -z "$VPN_REMOTE_IP" ]; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') [ERROR] Cannot resolve VPN_DOMAIN '$VPN_DOMAIN' to IP address"
+            exit 1
+        fi
+    fi
+    GENEVE_DST_PORT=${WG_HYPERS_PORT:-4443}
+    ovs-vsctl add-port ovsbr0 vpn-geneve -- set interface vpn-geneve \
+        type=geneve options:remote_ip=$VPN_REMOTE_IP \
+        options:dst_port=$GENEVE_DST_PORT
+    ovs-vsctl set Interface vpn-geneve bfd:enable=true bfd:min_tx=1000 bfd:min_rx=1000
+
+    # Wait for BFD tunnel to come up
+    echo "Waiting for GENEVE tunnel BFD..."
+    for i in $(seq 1 30); do
+        BFD_STATE=$(ovs-vsctl get Interface vpn-geneve bfd_status:state 2>/dev/null || echo "init")
+        if [ "$BFD_STATE" = '"up"' ]; then echo "BFD tunnel UP"; break; fi
+        sleep 2
+    done
+
+    GENEVE_PORT=$(ovs-vsctl get Interface vpn-geneve ofport)
+else
+    echo "Configuring OVS for WireGuard + Geneve tunneling"
+    ovs-vsctl add-port ovsbr0 $DOMAIN -- set interface $DOMAIN type=geneve options:remote_ip=10.1.0.1
+    GENEVE_PORT=$(ovs-vsctl get Interface "$DOMAIN" ofport)
+fi
 
 # ============================================================================
 # SECURITY: RSTP for Loop Protection
@@ -86,10 +170,8 @@ ovs-vsctl show
 # ============================================================================
 echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Adding port security rules for VLAN 4095"
 
-# Get geneve port number (VPN tunnel) - it's the $DOMAIN port added above
-# Port name is the $DOMAIN variable (e.g., "10.100.1.214")
-GENEVE_PORT=$(ovs-vsctl get Interface "$DOMAIN" ofport)
-echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Geneve port to VPN: ${GENEVE_PORT} ($DOMAIN)"
+# GENEVE_PORT already set above based on tunneling mode
+echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Geneve port to VPN: ${GENEVE_PORT}"
 
 # Allow ARP broadcasts from infrastructure services (priority > 210 multicast block)
 # Restricted to geneve ingress to prevent VMs from spoofing infrastructure ARP
@@ -166,7 +248,3 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [SECURITY] Multicast destination blocking ena
 # ip a a ${DOCKER_NET:-172.31.255}.17/24 dev ovsbr0
 # ip r a default via ${DOCKER_NET:-172.31.255}.1 dev ovsbr0
 
-# ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13
-# ovs-vsctl set-controller ovsbr0 tcp:${DOCKER_NET:-172.31.255}.99:6653
-
-# ovs-vsctl add-port ovsbr0 vxlan0 -- set interface vxlan0 type=vxlan options:remote_ip=<REMOTE_IP>

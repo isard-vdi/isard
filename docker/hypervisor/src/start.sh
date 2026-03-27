@@ -47,8 +47,21 @@ chown qemu:root /etc/pki/libvirt-spice/*
 # Hypervisor record now exists in DB — start reporting progress
 report_step 1 "API registration" None
 
-echo "---> Setting up hypervisor wg VPNc from api..."
-python3 /src/lib/vpnc.py
+# Read VPN tunneling mode from API response (saved by hypervisor.py setup)
+if [ -f /tmp/vpn_tunneling_mode ]; then
+  HYPERVISOR_VPN_TUNNELING_MODE=$(cat /tmp/vpn_tunneling_mode)
+else
+  HYPERVISOR_VPN_TUNNELING_MODE="wireguard+geneve"
+fi
+export HYPERVISOR_VPN_TUNNELING_MODE
+echo "---> VPN tunneling mode: $HYPERVISOR_VPN_TUNNELING_MODE"
+
+if [ "$HYPERVISOR_VPN_TUNNELING_MODE" = "wireguard+geneve" ]; then
+  echo "---> Setting up hypervisor wg VPNc from api..."
+  python3 /src/lib/vpnc.py
+else
+  echo "---> Skipping WireGuard VPNc (tunneling mode: $HYPERVISOR_VPN_TUNNELING_MODE)"
+fi
 report_step 2 "VPN setup" None
 
 echo "---> Setting up OpenVswitch over wg..."
@@ -172,13 +185,13 @@ touch /tmp/qemu-hook.log
 tail -f /tmp/qemu-hook.log &
 while true
 do
-    ping -c 1 10.1.0.1 >/dev/null 2>&1
-    if [[ $? -ne 0 ]]; then
-        wg-quick down wg0  >/dev/null 2>&1
-        wg-quick up wg0  >/dev/null 2>&1
+    if [ "$HYPERVISOR_VPN_TUNNELING_MODE" = "wireguard+geneve" ]; then
+        ping -c 1 10.1.0.1 >/dev/null 2>&1
+        if [[ $? -ne 0 ]]; then
+            wg-quick down wg0  >/dev/null 2>&1
+            wg-quick up wg0  >/dev/null 2>&1
+        fi
     fi
-
-    # OVS Security Stats are now collected by ovs-worker.py internally
 
     sleep 60 &
     wait $!

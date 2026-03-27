@@ -1,4 +1,5 @@
 import os
+import socket
 
 from rethinkdb import RethinkDB
 
@@ -17,6 +18,18 @@ from simple_iptools import UserIpTools
 # Chain system. Not working when removing user when his last desktop
 # is stopped
 # from user_iptools import UserIpTools
+
+
+def _get_infra_mtu():
+    """Get infrastructure MTU with VPN_MTU backward compat."""
+    val = os.environ.get("INFRASTRUCTURE_MTU")
+    if val:
+        return int(val)
+    vpn_mtu = os.environ.get("VPN_MTU")
+    if vpn_mtu:
+        log.warning("VPN_MTU is deprecated, use INFRASTRUCTURE_MTU instead")
+        return int(vpn_mtu) + 60
+    return 1500  # default for wg+geneve
 
 
 class Keys(object):
@@ -142,10 +155,17 @@ class Wg(object):
         except:
             log.info("Wireguard interface " + self.interface + " already exists")
         if self.table == "hypervisors":
-            mtu = os.environ.get("VPN_MTU", "1600")
-            postup = "iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu"
+            geneve_only = os.environ.get("GENEVE_ONLY_INFRA", "false").lower() == "true"
+            if geneve_only:
+                # No WG for hypers in geneve-only mode (wgadmin skips this)
+                mtu = "9054"
+                postup = ""
+            else:
+                infra_mtu = _get_infra_mtu()
+                mtu = str(infra_mtu - 60)
+                postup = "iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu"
         else:
-            mtu = "1420"
+            mtu = str(_get_infra_mtu() - 60)
             postup = ""
         self.config = self.server_config(mtu, postup)
         # for k,v in self.peers.items():
@@ -167,7 +187,17 @@ class Wg(object):
 
         print("Initializing peers...")
         if self.table == "hypervisors":
-            wglist = list(r.table(self.table).pluck("id", "vpn").run())
+            # Exclude geneve-only hypervisors from WireGuard initialization
+            wglist = list(
+                r.table(self.table)
+                .pluck("id", "vpn")
+                .filter(
+                    lambda hyper: r.expr(["wireguard+geneve", None]).contains(
+                        hyper["vpn"].get_field("tunneling_mode").default(None)
+                    )
+                )
+                .run()
+            )
             # wglist = [d for d in wglist if d['id'] != 'isard-hypervisor']
         elif self.table == "users":
             wglist = list(r.table(self.table).pluck("id", "vpn", "active").run())
@@ -192,7 +222,7 @@ class Wg(object):
                 new_peer = peer
                 new_peer["vpn"]["wireguard"]["keys"] = self.keys.new_client_keys()
                 create_peers.append(new_peer)
-            if "vpn" not in peer.keys():
+            if "vpn" not in peer.keys() or "wireguard" not in peer.get("vpn", {}):
                 new_peer = self.gen_new_peer(peer)
                 create_peers.append(new_peer)
             if new_peer == False:
@@ -254,6 +284,8 @@ class Wg(object):
     def gen_new_peer(self, peer, extra_client_nets=None):
         if self.table == "hypervisors":
             extra_client_nets = None
+            if peer.get("vpn", {}).get("tunneling_mode") == "geneve":
+                return {"id": peer["id"]}  # No WG config for geneve-only
         return {
             "id": peer["id"],
             "vpn": {
@@ -268,6 +300,88 @@ class Wg(object):
         }  ### What networks the client will see.
 
     def up_peer(self, peer):
+        if "vpn" not in peer or "wireguard" not in peer.get("vpn", {}):
+            # Geneve-only hypervisor - create direct GENEVE port
+            if self.table == "hypervisors":
+                if (
+                    peer["id"]
+                    not in check_output(("ovs-vsctl", "show"), text=True).strip()
+                ):
+                    hostname = peer.get("hostname", peer["id"])
+                    try:
+                        resolved_ip = socket.gethostbyname(hostname)
+                    except socket.gaierror:
+                        log.error(
+                            f"Cannot resolve hostname {hostname} for {peer['id']}"
+                        )
+                        return False
+                    geneve_port_num = os.environ.get("WG_HYPERS_PORT", "4443")
+                    subprocess.run(
+                        [
+                            "ovs-vsctl",
+                            "add-port",
+                            "ovsbr0",
+                            peer["id"],
+                            "--",
+                            "set",
+                            "interface",
+                            peer["id"],
+                            "type=geneve",
+                            f"options:remote_ip={resolved_ip}",
+                            f"options:dst_port={geneve_port_num}",
+                        ]
+                    )
+                    subprocess.run(
+                        [
+                            "ovs-vsctl",
+                            "set",
+                            "Interface",
+                            peer["id"],
+                            "bfd:enable=true",
+                            "bfd:min_tx=1000",
+                            "bfd:min_rx=1000",
+                        ]
+                    )
+                    # Same VLAN 4095 flow rules as WG+GENEVE path
+                    port = check_output(
+                        ("ovs-vsctl", "get", "interface", peer["id"], "ofport"),
+                        text=True,
+                    ).strip()
+                    vm_mac_match = "52:54:00:00:00:00/ff:ff:ff:00:00:00"
+                    subprocess.run(
+                        [
+                            "ovs-ofctl",
+                            "add-flow",
+                            "ovsbr0",
+                            f"priority=451,arp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=NORMAL",
+                        ]
+                    )
+                    subprocess.run(
+                        [
+                            "ovs-ofctl",
+                            "add-flow",
+                            "ovsbr0",
+                            f"priority=451,udp,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},tp_src=68,tp_dst=67,actions=NORMAL",
+                        ]
+                    )
+                    subprocess.run(
+                        [
+                            "ovs-ofctl",
+                            "add-flow",
+                            "ovsbr0",
+                            f"priority=450,ip,in_port={port},dl_vlan=4095,dl_src={vm_mac_match},actions=resubmit(,2)",
+                        ]
+                    )
+                    subprocess.run(
+                        [
+                            "ovs-ofctl",
+                            "add-flow",
+                            "ovsbr0",
+                            f"priority=449,in_port={port},dl_vlan=4095,actions=drop",
+                        ]
+                    )
+            return True
+
         if peer["vpn"]["wireguard"]["extra_client_nets"] != None:
             address = (
                 peer["vpn"]["wireguard"]["Address"]

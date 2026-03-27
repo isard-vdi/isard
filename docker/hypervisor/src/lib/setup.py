@@ -140,6 +140,19 @@ def SetupHypervisor():
     except:
         raise
 
+    ## Save VPN tunneling mode from API response for use by start.sh
+    vpn_tunneling_mode = data.get("vpn", {}).get("tunneling_mode", "wireguard+geneve")
+    print(f"VPN tunneling mode from API: {vpn_tunneling_mode}")
+    with open("/tmp/vpn_tunneling_mode", "w") as f:
+        f.write(vpn_tunneling_mode)
+
+    ## Save infrastructure MTU from API response for OVS setup
+    infra_mtu = data.get("vpn", {}).get("infrastructure_mtu", "")
+    if infra_mtu:
+        print(f"Infrastructure MTU from API: {infra_mtu}")
+        with open("/tmp/infrastructure_mtu", "w") as f:
+            f.write(str(infra_mtu))
+
 
 def DeleteHypervisor():
     ok = False

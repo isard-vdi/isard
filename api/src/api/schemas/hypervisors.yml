@@ -92,3 +92,12 @@ buffering_hyper:
   type: boolean
 gpu_only:
   type: boolean
+vpn:
+  type: dict
+  required: false
+  schema:
+    tunneling_mode:
+      type: string
+      allowed:
+        - wireguard+geneve
+        - geneve
